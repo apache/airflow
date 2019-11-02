@@ -20,7 +20,7 @@ ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG NODE_BASE_IMAGE="node:12.11.1-buster"
 
 ############################################################################################################
-# Base image for Airflow - contains dependencies used by the main CI image
+# Base image for Airflow - contains dependencies used by both - Production and CI images
 ############################################################################################################
 FROM ${PYTHON_BASE_IMAGE} as airflow-base
 
@@ -45,6 +45,9 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
 ARG APT_DEPENDENCIES_EPOCH_NUMBER="1"
 ENV APT_DEPENDENCIES_EPOCH_NUMBER=${APT_DEPENDENCIES_EPOCH_NUMBER}
 
+# Disable writing python objects
+ENV PYTHONDONTWRITEBYTECODE=1
+
 # PIP version used to install dependencies
 ARG PIP_VERSION="19.0.2"
 ENV PIP_VERSION=${PIP_VERSION}
@@ -59,26 +62,17 @@ ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
            apt-utils \
-           build-essential \
            curl \
            dirmngr \
            freetds-bin \
-           freetds-dev \
-           git \
            gosu \
-           libffi-dev \
-           libkrb5-dev \
-           libpq-dev \
            libsasl2-2 \
-           libsasl2-dev \
            libsasl2-modules \
-           libssl-dev \
+           libmariadb3 \
            locales  \
            netcat \
-           rsync \
            sasl2-bin \
            sudo \
-           libmariadb-dev-compat \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -88,9 +82,30 @@ RUN adduser airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
 ############################################################################################################
+# Airflow base devel image
+############################################################################################################
+FROM airflow-base as airflow-base-devel
+
+# Install basic apt dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+           build-essential \
+           freetds-dev \
+           git \
+           libffi-dev \
+           libkrb5-dev \
+           libpq-dev \
+           libsasl2-dev \
+           libssl-dev \
+           libmariadb-dev-compat \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+############################################################################################################
 # CI airflow image
 ############################################################################################################
-FROM airflow-base as airflow-ci
+FROM airflow-base-devel as airflow-ci
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
@@ -263,7 +278,8 @@ RUN echo "Installing with extras: ${AIRFLOW_CI_EXTRAS}."
 
 ENV PATH="${HOME}/.local/bin:${PATH}"
 
-# Increase the value here to force reinstalling Apache Airflow pip dependencies
+# Increase the value here to force reinstalling pip dependencies from the scratch for CI build
+# It can also be overwritten manually by setting the build variable.
 ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
 ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
@@ -274,7 +290,7 @@ RUN pip install --user \
         "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_CI_EXTRAS}]" \
         && pip uninstall --yes apache-airflow snakebite
 
-# Copy all www files here so that we can run npm building
+# Copy all www files here so that we can run npm building for production
 COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
@@ -313,7 +329,8 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
-# This will be usually incremental small set of packages in the CI optimized build, so it will be very fast
+# This will be usually incremental small set of packages in CI optimized build, so it will be very fast
+# For production optimised build it is the first time dependencies are installed so it will be slower
 RUN pip install --user -e ".[${AIRFLOW_CI_EXTRAS}]" \
     && pip uninstall --yes apache-airflow
 
@@ -350,5 +367,116 @@ ENV PATH="${HOME}:${PATH}"
 EXPOSE 8080
 
 ENTRYPOINT ["/root/.local/bin/dumb-init", "--", "/entrypoint.sh"]
+
+CMD ["--help"]
+
+############################################################################################################
+# This is separate stage for packaging. WWW files with npm so that no node is needed for production image
+############################################################################################################
+FROM ${NODE_BASE_IMAGE} as airflow-www
+
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+
+ARG AIRFLOW_SOURCES=/opt/airflow
+ENV AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+
+COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
+
+WORKDIR ${AIRFLOW_SOURCES}/airflow/www
+
+RUN npm ci
+
+RUN mkdir -p "${AIRFLOW_SOURCES}/airflow/www/static" \
+    && mkdir -p "${AIRFLOW_SOURCES}/docs/build/_html" \
+    && pushd "${AIRFLOW_SOURCES}/airflow/www/static" || exit \
+    && ln -sf ../../../docs/_build/html docs \
+    && popd || exit
+
+# Package NPM for production
+RUN npm run prod
+
+# Remove node modules
+RUN rm -rf ${AIRFLOW_SOURCES}/airflow/www/node_modules
+
+############################################################################################################
+# Airflow code for copying
+############################################################################################################
+FROM airflow-base-devel as airflow-code
+
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+
+# Airflow Extras installed
+ARG AIRFLOW_PROD_EXTRAS="all"
+ENV AIRFLOW_PROD_EXTRAS=${AIRFLOW_PROD_EXTRAS}
+
+# Cache for this line will be automatically invalidated if any
+# of airflow sources change
+COPY . ${AIRFLOW_SOURCES}/
+
+# Setting to 1 speeds up building the image. Cassandra driver without CYTHON saves around 10 minutes
+# But might not be suitable for production image
+ENV CASS_DRIVER_NO_CYTHON=""
+ENV CASS_DRIVER_BUILD_CONCURRENCY="8"
+
+# Reinstall airflow again - this time with sources and remove the sources after installation
+# It is not perfect because the sources are added as layer but it is still better
+RUN pip install --user ".[${AIRFLOW_PROD_EXTRAS}]"
+
+############################################################################################################
+# Production-ready Airflow image
+############################################################################################################
+FROM airflow-base as airflow-prod
+
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+
+# Airflow Extras installed
+ARG AIRFLOW_PROD_EXTRAS="all"
+ENV AIRFLOW_PROD_EXTRAS=${AIRFLOW_PROD_EXTRAS}
+
+RUN echo "Installing with extras: ${AIRFLOW_PROD_EXTRAS}."
+
+ARG AIRFLOW_HOME=/home/airflow/airflow_home
+ENV AIRFLOW_HOME=${AIRFLOW_HOME}
+
+RUN chown airflow.airflow ${AIRFLOW_HOME}
+
+USER airflow
+
+ARG AIRFLOW_SOURCES=/opt/airflow
+ENV AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+
+WORKDIR ${AIRFLOW_SOURCES}
+
+ENV PATH="/home/airflow/.local/bin:${AIRFLOW_HOME}:${PATH}"
+
+COPY --chown=airflow:airflow --from=airflow-code /root/.local /home/airflow/.local
+
+# Additional python deps to install
+ARG ADDITIONAL_PYTHON_DEPS=""
+
+RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
+        pip install --user ${ADDITIONAL_PYTHON_DEPS}; \
+    fi
+
+COPY --chown=airflow:airflow ./scripts/docker/entrypoint.sh /entrypoint.sh
+
+# Copy Airflow www packages
+COPY --chown=airflow:airflow --from=airflow-www /opt/airflow/airflow/www ${HOME}/.local/airflow/www
+
+RUN mkdir -pv "${AIRFLOW_HOME}" \
+    && mkdir -pv "${AIRFLOW_HOME}/dags" \
+    && mkdir -pv "${AIRFLOW_HOME}/logs"
+
+ENV AIRFLOW_USER=airflow
+ENV HOME=/home/airflow
+
+# Set writing bytecode back in prod environment
+ENV PYTHONDONTWRITEBYTECODE=""
+
+WORKDIR ${AIRFLOW_HOME}
+
+EXPOSE 8080
+
+ENTRYPOINT ["/home/airflow/.local/bin/dumb-init", "--", "/entrypoint.sh"]
 
 CMD ["--help"]

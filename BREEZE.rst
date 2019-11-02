@@ -853,7 +853,8 @@ This is the current syntax for  `./breeze <./breeze>`_:
     * Build documentation with -O, --build-docs command
     * Setup local virtualenv with -e, --setup-virtualenv command
     * Setup autocomplete for itself with -a, --setup-autocomplete command
-    * Build CI docker images with -b, --build-only command
+    * Build CI docker image with -b, --build-only command
+    * Build PROD image with -z, --build-prod-image-only
     * Run test target specified with -t, --test-target connad
     * Execute arbitrary command in the test environment with -x, --execute-command command
     * Execute arbitrary docker-compose command with -d, --docker-compose command
@@ -920,7 +921,10 @@ This is the current syntax for  `./breeze <./breeze>`_:
           shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
 
   -b, --build-only
-          Only build CI docker images but do not enter the airflow-testing docker container.
+          Only build CI docker image but do not enter the airflow-testing docker container.
+
+  -z, --build-prod-image-only
+          Only build PROD docker image but do not enter the airflow-testing docker container.
 
   -t, --test-target <TARGET>
           Run the specified unit test target. There might be multiple

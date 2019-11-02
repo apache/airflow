@@ -235,7 +235,8 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
   * Build documentation with -O, --build-docs command
   * Setup local virtualenv with -e, --setup-virtualenv command
   * Setup autocomplete for itself with -a, --setup-autocomplete command
-  * Build CI docker images with -b, --build-only command
+  * Build CI docker image with -b, --build-only command
+  * Build PROD image with -z, --build-prod-image-only
   * Run test target specified with -t, --test-target connad
   * Execute arbitrary command in the test environment with -x, --execute-command command
   * Execute arbitrary docker-compose command with -d, --docker-compose command
@@ -296,7 +297,10 @@ ${ALLOWED_STATIC_CHECKS}
         shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
 
 -b, --build-only
-        Only build CI docker images but do not enter the airflow-testing docker container.
+        Only build CI docker image but do not enter the airflow-testing docker container.
+
+-z, --build-prod-image-only
+        Only build PROD docker image but do not enter the airflow-testing docker container.
 
 -t, --test-target <TARGET>
         Run the specified unit test target. There might be multiple
@@ -565,7 +569,7 @@ function parse_arguments() {
           echo "Starting kubernetes cluster"
           echo
           shift ;;
-        -z|--recreate-kubernetes-cluster)
+        -Z|--recreate-kubernetes-cluster)
           export RECREATE_KUBERNETES_CLUSTER="true";
           echo "Recreate kubernetes cluster"
           echo
@@ -604,7 +608,14 @@ function parse_arguments() {
           export COMMAND_TO_RUN="build_ci_images_only"
           export FORCE_DOCKER_BUILD="true"
           export FORCE_ANSWER_TO_QUESTIONS="yes"
-          echo "Only build CI images without asking. Do not enter airflow-testing container."
+          echo "Only build CI/CHECKLICENCE images without asking. Do not enter airflow-testing container."
+          echo
+          shift ;;
+        -z|--build-prod-image-only)
+          export COMMAND_TO_RUN="build_prod_image_only"
+          export FORCE_DOCKER_BUILD="true"
+          export FORCE_ANSWER_TO_QUESTIONS="yes"
+          echo "Only build PROD image without asking. Do not enter airflow-testing container."
           echo
           shift ;;
         -v|--verbose)
@@ -1027,6 +1038,9 @@ function run_build_command {
         perform_static_checks|build_ci_images_only)
             rebuild_ci_image_if_needed
             ;;
+        build_prod_image_only)
+            rebuild_prod_image_if_needed
+            ;;
         cleanup_images)
             remove_all_images
             ;;
@@ -1071,6 +1085,11 @@ function run_breeze_command {
         build_ci_images_only)
             if [[ ${PUSH_IMAGES} == "true" ]]; then
                 push_ci_image
+            fi
+            ;;
+        build_prod_image_only)
+            if [[ ${PUSH_IMAGES} == "true" ]]; then
+                push_prod_image
             fi
             ;;
         cleanup_images)

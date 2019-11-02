@@ -73,4 +73,8 @@ pull_base_python_image
 if [[ ${DOCKER_TAG} == *-ci ]]; then
     rebuild_ci_image_if_needed
     push_ci_image
+else
+    rebuild_ci_image_if_needed
+    rebuild_prod_image_if_needed
+    push_prod_image
 fi

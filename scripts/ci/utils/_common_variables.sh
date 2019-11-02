@@ -123,5 +123,9 @@ EOF
         echo "Disabling cache for CRON jobs"
         echo
         export USE_DOCKER_CACHE="false"
+        echo
+        echo "Enabling PROD image building for CRON jobs"
+        echo
+        export BUILD_PROD_IMAGE="true"
     fi
 }

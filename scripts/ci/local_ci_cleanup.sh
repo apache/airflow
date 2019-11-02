@@ -37,4 +37,6 @@ prepare_build
 
 cleanup_ci_image
 
+cleanup_prod_image
+
 script_end

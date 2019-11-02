@@ -131,6 +131,14 @@ function _check_if_cache_used() {
 }
 
 #
+# Checks if PROD build is enabled
+function _check_if_prod_build_enabled() {
+    # You can set BUILD_PROD_IMAGE to true if you want to enable PROD build
+    # PROD build takes a lot of time so it is disabled by default
+    BUILD_PROD_IMAGE=${BUILD_PROD_IMAGE:="false"}
+}
+
+#
 # Checks if core utils required in the host system are installed and explain what needs to be done if not
 # exits if it's not
 function _check_if_coreutils_installed() {
@@ -309,6 +317,7 @@ function initialize_environment() {
     _setup_files_for_rebuild
     _setup_forwarded_ports
     _check_if_cache_used
+    _check_if_prod_build_enabled
     _check_if_coreutils_installed
 
     if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then

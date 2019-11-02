@@ -361,6 +361,10 @@ function _pull_image_if_needed() {
             fi
         fi
         IMAGES="${AIRFLOW_IMAGE}"
+        if [[ ${AIRFLOW_IMAGE} == "${AIRFLOW_PROD_IMAGE}" ]]; then
+            # If building PROD image we also need CI image to be pulled and used (until BUILDKIT works)
+            IMAGES="${IMAGES} ${AIRFLOW_CI_IMAGE}"
+        fi
         for IMAGE in ${IMAGES}
         do
             local PULL_IMAGE=${FORCE_PULL_IMAGES}
@@ -392,11 +396,17 @@ function _build_image() {
 
     if [[ "${USE_LOCAL_DOCKER_CACHE}" == "true" ]]; then
         export DOCKER_CACHE_CI_DIRECTIVE=()
+        export DOCKER_CACHE_PROD_DIRECTIVE=()
     elif [[ "${USE_DOCKER_CACHE}" == "false" ]]; then
         export DOCKER_CACHE_CI_DIRECTIVE=("--no-cache")
+        export DOCKER_CACHE_PROD_DIRECTIVE=("--no-cache")
     else
         export DOCKER_CACHE_CI_DIRECTIVE=(
             "--cache-from" "${AIRFLOW_CI_IMAGE}"
+        )
+        export DOCKER_CACHE_PROD_DIRECTIVE=(
+            "--cache-from" "${AIRFLOW_CI_IMAGE}"
+            "--cache-from" "${AIRFLOW_PROD_IMAGE}"
         )
     fi
     VERBOSE=${VERBOSE:="false"}
@@ -421,6 +431,17 @@ function _build_image() {
             --target "${TARGET_IMAGE}" \
             . | tee -a "${OUTPUT_LOG}"
         set -u
+   elif [[ ${THE_IMAGE_TYPE} == "PROD" ]]; then
+        set +u
+        verbose_docker build \
+            --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
+            --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
+            --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
+            "${DOCKER_CACHE_PROD_DIRECTIVE[@]}" \
+            -t "${AIRFLOW_IMAGE}" \
+            --target "${TARGET_IMAGE}" \
+            . | tee -a "${OUTPUT_LOG}"
+        set -u
     fi
     if [[ -n "${DEFAULT_IMAGE:=}" ]]; then
         verbose_docker tag "${AIRFLOW_IMAGE}" "${DEFAULT_IMAGE}" | tee -a "${OUTPUT_LOG}"
@@ -437,6 +458,7 @@ function remove_all_images() {
     "${AIRFLOW_SOURCES}/confirm" "Removing all local images ."
     echo
     verbose_docker rmi "${PYTHON_BASE_IMAGE}" || true
+    verbose_docker rmi "${AIRFLOW_PROD_IMAGE}" || true
     verbose_docker rmi "${AIRFLOW_CI_IMAGE}" || true
     echo
     echo "###################################################################"
@@ -523,6 +545,23 @@ function push_ci_image() {
     _push_image
 }
 
+function rebuild_prod_image_if_needed() {
+    export THE_IMAGE_TYPE="PROD"
+    export IMAGE_DESCRIPTION="Airflow PROD"
+    export TARGET_IMAGE="airflow-prod"
+    _rebuild_image_if_needed
+}
+
+function cleanup_prod_image() {
+    export THE_IMAGE_TYPE="PROD"
+    _cleanup_image
+}
+
+function push_prod_image() {
+    export THE_IMAGE_TYPE="PROD"
+    _push_image
+}
+
 function _go_to_airflow_sources {
     print_info
     pushd "${AIRFLOW_SOURCES}" &>/dev/null || exit 1
@@ -600,7 +639,9 @@ function build_image_on_ci() {
     echo "${CHANGED_FILE_NAMES}"
     echo
 
-    if [[ ${TRAVIS_JOB_NAME} == "Tests"*"kubernetes"* ]]; then
+    if  [[ ${TRAVIS_JOB_NAME} == "Build PROD"* ]]; then
+        echo "Skipping building image before PROD build"
+    elif [[ ${TRAVIS_JOB_NAME} == "Tests"*"kubernetes"* ]]; then
         _match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/kubernetes/.*\.py' \
             'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
             'scripts/ci/.*'
@@ -701,6 +742,9 @@ function set_image_variables() {
     if [[ ${THE_IMAGE_TYPE:=} == "CI" ]]; then
         export AIRFLOW_IMAGE="${AIRFLOW_CI_IMAGE}"
         export AIRFLOW_IMAGE_DEFAULT="${AIRFLOW_CI_IMAGE_DEFAULT}"
+    elif [[ ${THE_IMAGE_TYPE} == "PROD" ]]; then
+        export AIRFLOW_IMAGE="${AIRFLOW_PROD_IMAGE}"
+        export AIRFLOW_IMAGE_DEFAULT="${AIRFLOW_PROD_IMAGE_DEFAULT}"
     else
         export AIRFLOW_IMAGE=""
         export AIRFLOW_IMAGE_DEFAULT=""
@@ -718,10 +762,16 @@ function _get_image_variables {
     export AIRFLOW_CI_SAVED_IMAGE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-image"
     export AIRFLOW_CI_IMAGE_ID_FILE="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-image.sha256"
 
+    export AIRFLOW_PROD_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}"
+    export AIRFLOW_PROD_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}"
+
     echo
     echo "Using CI image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
     echo "Saved docker image will be created here: ${AIRFLOW_CI_SAVED_IMAGE_DIR}"
     echo "Id of the saved docker image will be here: ${AIRFLOW_CI_IMAGE_ID_FILE}"
+    echo
+    echo
+    echo "Using PROD image: ${AIRFLOW_PROD_IMAGE} for production builds"
     echo
 
 }
