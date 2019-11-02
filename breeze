@@ -932,7 +932,6 @@ prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_TEST_FILE}" "${DC_RUN_COMMAND
 prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_FILE}" '"' "false"
 
 rebuild_ci_image_if_needed
-rebuild_checklicence_image_if_needed
 
 export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
 ${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci

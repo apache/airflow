@@ -32,6 +32,4 @@ script_start
 
 cleanup_ci_image
 
-cleanup_checklicence_image
-
 script_end

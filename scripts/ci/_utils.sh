@@ -33,7 +33,7 @@ export BUILD_CACHE_DIR
 
 LAST_FORCE_ANSWER_FILE="${BUILD_CACHE_DIR}/last_force_answer.sh"
 
-IMAGES_TO_CHECK=("CI" "CHECKLICENCE")
+IMAGES_TO_CHECK=("CI")
 export IMAGES_TO_CHECK
 
 mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
@@ -494,7 +494,6 @@ EOF
 # Rebuilds the image for tests if needed.
 #
 function rebuild_ci_image_if_needed() {
-    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
 
     export THE_IMAGE_TYPE="CI"
@@ -510,37 +509,9 @@ function rebuild_ci_image_if_needed() {
 #
 function cleanup_ci_image() {
     export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
-    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="true"
     export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
 
     export THE_IMAGE_TYPE="CI"
-
-    rebuild_image_if_needed
-}
-
-#
-# Rebuilds the image for licence checks if needed.
-#
-function rebuild_checklicence_image_if_needed() {
-    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
-    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
-
-    export THE_IMAGE_TYPE="CHECKLICENCE"
-
-    rebuild_image_if_needed
-
-    export AIRFLOW_CHECKLICENCE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:checklicence"
-}
-
-#
-# Cleans up the checklicence image
-#
-function cleanup_checklicence_image() {
-    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="true"
-    export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE="false"
-    export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
-
-    export THE_IMAGE_TYPE="CHECKLICENCE"
 
     rebuild_image_if_needed
 }
@@ -655,14 +626,14 @@ function run_docs() {
 
 function run_check_license() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-            --entrypoint "/usr/bin/dumb-init"  \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            "${AIRFLOW_CHECKLICENCE_IMAGE}" \
+            "${AIRFLOW_CI_IMAGE}" \
             "--" "/opt/airflow/scripts/ci/in_container/run_check_licence.sh" \
             | tee -a "${OUTPUT_LOG}"
 }
@@ -850,7 +821,6 @@ function rebuild_all_images_if_needed_and_confirmed() {
 
         if [[ ${SKIP_REBUILD} != "true" ]]; then
             rebuild_ci_image_if_needed
-            rebuild_checklicence_image_if_needed
         fi
     fi
 }
@@ -914,8 +884,6 @@ function build_image_on_ci() {
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
         fi
-    elif [[ ${TRAVIS_JOB_NAME} == "Check lic"* ]]; then
-        rebuild_checklicence_image_if_needed
     elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
         rebuild_ci_image_if_needed
     elif [[ ${TRAVIS_JOB_NAME} == "Pylint"* ]]; then

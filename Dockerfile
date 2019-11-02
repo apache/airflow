@@ -144,11 +144,11 @@ RUN mkdir -pv /usr/share/man/man1 \
     && rm -rf /var/lib/apt/lists/*
 
 ENV HADOOP_DISTRO="cdh" HADOOP_MAJOR="5" HADOOP_DISTRO_VERSION="5.11.0" HADOOP_VERSION="2.6.0" \
-    HADOOP_HOME="/tmp/hadoop-cdh"
-ENV HIVE_VERSION="1.1.0" HIVE_HOME="/tmp/hive"
+    HADOOP_HOME="/opt/hadoop-cdh"
+ENV HIVE_VERSION="1.1.0" HIVE_HOME="/opt/hive"
 ENV HADOOP_URL="https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/"
 ENV MINICLUSTER_BASE="https://github.com/bolkedebruin/minicluster/releases/download/" \
-    MINICLUSTER_HOME="/tmp/minicluster" \
+    MINICLUSTER_HOME="/opt/minicluster" \
     MINICLUSTER_VER="1.1"
 
 RUN mkdir -pv "${HADOOP_HOME}" \
@@ -176,10 +176,10 @@ ENV MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLU
     MINICLUSTER_TMP_FILE="/tmp/minicluster.zip"
 
 RUN curl -sL "${MINICLUSTER_URL}" > "${MINICLUSTER_TMP_FILE}" \
-    && unzip "${MINICLUSTER_TMP_FILE}" -d "/tmp" \
+    && unzip "${MINICLUSTER_TMP_FILE}" -d "/opt" \
     && rm "${MINICLUSTER_TMP_FILE}"
 
-ENV PATH "${PATH}:/tmp/hive/bin"
+ENV PATH "${PATH}:/opt/hive/bin"
 
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
     && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" \
@@ -202,6 +202,20 @@ RUN curl -Lo kind \
    "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
    && chmod +x kind \
    && mv kind /usr/local/bin/kind
+
+ARG RAT_VERSION="0.13"
+
+ENV RAT_VERSION="${RAT_VERSION}" \
+    RAT_JAR="/opt/apache-rat-${RAT_VERSION}.jar" \
+    RAT_URL="https://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar"
+ENV RAT_JAR_MD5="${RAT_JAR}.md5" \
+    RAT_URL_MD5="${RAT_URL}.md5"
+
+RUN echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
+    && curl -sL "${RAT_URL}" > "${RAT_JAR}" \
+    && curl -sL "${RAT_URL_MD5}" > "${RAT_JAR_MD5}" \
+    && jar -tf "${RAT_JAR}" \
+    && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
 
 ARG AIRFLOW_USER=airflow
 ENV AIRFLOW_USER=${AIRFLOW_USER}
