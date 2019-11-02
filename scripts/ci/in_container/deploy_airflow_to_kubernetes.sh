@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,12 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-ARG AIRFLOW_CI_IMAGE
-FROM ${AIRFLOW_CI_IMAGE}
 
-COPY airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
+# Script to run flake8 on all code. Can be started from any working directory
+set -uo pipefail
 
-COPY bootstrap.sh /bootstrap.sh
-RUN chmod +x /bootstrap.sh
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-ENTRYPOINT ["/bootstrap.sh"]
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
+
+in_container_basic_sanity_check
+
+in_container_script_start
+
+"${MY_DIR}/kubernetes/docker/rebuild_airflow_image.sh"
+"${MY_DIR}/kubernetes/app/deploy_app.sh"
+
+in_container_script_end

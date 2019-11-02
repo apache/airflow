@@ -30,7 +30,7 @@ from urllib3.util.retry import Retry
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
 except Exception as e:  # pylint: disable=broad-except
-    if os.environ.get('KUBERNETES_VERSION') and os.environ.get('ENV', 'kubernetes') == 'kubernetes':
+    if os.environ.get('ENABLE_KIND_CLUSTER') == "true":
         raise e
     else:
         raise unittest.SkipTest(
@@ -38,7 +38,7 @@ except Exception as e:  # pylint: disable=broad-except
             "Skipping tests {}".format(e)
         )
 
-KUBERNETES_HOST = 'docker:30809'
+KUBERNETES_HOST = (os.environ.get('CLUSTER_NAME') or "docker") + "-worker:30809"
 
 
 class TestKubernetesExecutor(unittest.TestCase):

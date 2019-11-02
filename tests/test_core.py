@@ -76,7 +76,7 @@ class TestCore(unittest.TestCase):
         self.run_this_last = self.dag_bash.get_task('run_this_last')
 
     def tearDown(self):
-        if os.environ.get('KUBERNETES_VERSION') is not None:
+        if os.environ.get('ENABLE_KIND_CLUSTER') == "true":
             return
 
         session = Session()

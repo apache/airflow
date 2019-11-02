@@ -156,8 +156,8 @@ data:
 
     [kubernetes]
     airflow_configmap = airflow-configmap
-    worker_container_repository = airflow
-    worker_container_tag = latest
+    worker_container_repository = {{AIRFLOW_KUBERNETES_IMAGE_NAME}}
+    worker_container_tag = {{AIRFLOW_KUBERNETES_IMAGE_TAG}}
     worker_container_image_pull_policy = IfNotPresent
     delete_worker_pods = True
     dags_in_image = False
