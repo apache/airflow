@@ -188,7 +188,7 @@ RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
     && apt-get autoremove -yqq --purge \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ARG KUBECTL_VERSION="v1.15.0"
+ARG KUBECTL_VERSION="v1.15.3"
 ENV KUBECTL_VERSION=${KUBECTL_VERSION}
 ARG KIND_VERSION="v0.5.0"
 ENV KIND_VERSION=${KIND_VERSION}
@@ -214,7 +214,7 @@ ENV RAT_JAR_MD5="${RAT_JAR}.md5" \
 RUN echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
     && curl -sL "${RAT_URL}" > "${RAT_JAR}" \
     && curl -sL "${RAT_URL_MD5}" > "${RAT_JAR_MD5}" \
-    && jar -tf "${RAT_JAR}" \
+    && jar -tf "${RAT_JAR}" >/dev/null \
     && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
 
 ARG AIRFLOW_USER=airflow
@@ -323,7 +323,6 @@ COPY --chown=airflow:airflow airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
 RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
-
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 

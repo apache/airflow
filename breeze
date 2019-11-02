@@ -96,6 +96,15 @@ export AIRFLOW_CONTAINER_DOCKER_BUILD_NEEDED="false"
 # This can be overridden by -p flag
 export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="false"
 
+# Start airflow-testing image with all the dependencies
+export AIRFLOW_CONTAINER_DEPS="true"
+
+# Do not start Kubernetes cluster by default
+export START_KUBERNETES_CLUSTER="false"
+
+# Do not recreate Kubernetes cluster by default
+export RECREATE_KUBERNETES_CLUSTER="false"
+
 # We use docker image caches by default to speed up the builds
 export AIRFLOW_CONTAINER_USE_DOCKER_CACHE=${AIRFLOW_CONTAINER_USE_DOCKER_CACHE:="true"}
 
@@ -181,41 +190,42 @@ function print_badge {
 
 
                                Branch name:        ${AIRFLOW_CONTAINER_BRANCH_NAME}
-                               Docker image:       ${AIRFLOW_CONTAINER_DOCKER_IMAGE}
+                               Docker image:       ${AIRFLOW_CI_IMAGE}
                                Airflow version:    ${AIRFLOW_VERSION}
                                Python version:     ${PYTHON_VERSION}
                                DockerHub user:     ${DOCKERHUB_USER}
                                DockerHub repo:     ${DOCKERHUB_REPO}
                                Backend:            ${BACKEND}
-                               Env:                ${ENV}
 EOF
-        if [[ ${ENV} == "kubernetes" ]]; then
+        if [[ ${START_KUBERNETES_CLUSTER} == "true" ]]; then
             cat <<EOF
 
-                               Kubernetes version: ${KUBERNETES_VERSION}
+                               Starting Kubernetes cluster:
+
                                Kubernetes mode:    ${KUBERNETES_MODE}
-
-
+                               Kubernetes version: ${KUBERNETES_VERSION}
+                               Recreate cluster:   ${RECREATE_KUBERNETES_CLUSTER}
 EOF
         fi
     else
         cat <<EOF
 
    Branch name:        ${AIRFLOW_CONTAINER_BRANCH_NAME}
-   Docker image:       ${AIRFLOW_CONTAINER_DOCKER_IMAGE}
+   Docker image:       ${AIRFLOW_CI_IMAGE}
    Airflow version:    ${AIRFLOW_VERSION}
    Python version:     ${PYTHON_VERSION}
    DockerHub user:     ${DOCKERHUB_USER}
    DockerHub repo:     ${DOCKERHUB_REPO}
    Backend:            ${BACKEND}
-   Env:                ${ENV}
 EOF
-        if [[ ${ENV} == "kubernetes" ]]; then
+        if [[ ${START_KUBERNETES_CLUSTER} == "true" ]]; then
             cat <<EOF
-   Kubernetes version: ${KUBERNETES_VERSION}
+
+   Starting Kubernetes cluster:
+
    Kubernetes mode:    ${KUBERNETES_MODE}
-
-
+   Kubernetes version: ${KUBERNETES_VERSION}
+   Recreate cluster:   ${RECREATE_KUBERNETES_CLUSTER}
 EOF
         fi
     fi
@@ -234,14 +244,16 @@ export DOCKERHUB_REPO=${DOCKERHUB_REPO}
 export COMPOSE_FILE="${COMPOSE_FILE}"
 export PYTHON_VERSION="${PYTHON_VERSION}"
 export BACKEND="${BACKEND}"
-export ENV="${ENV}"
-export KUBERNETES_VERSION="${KUBERNETES_VERSION}"
+export START_KUBERNETES_CLUSTER="${START_KUBERNETES_CLUSTER}"
 export KUBERNETES_MODE="${KUBERNETES_MODE}"
+export KUBERNETES_VERSION="${KUBERNETES_VERSION}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
 export RUN_TESTS="${TESTS}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
 export POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT}"
 export MYSQL_HOST_PORT="${MYSQL_HOST_PORT}"
+export AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}"
+export AIRFLOW_CI_KUBERNETES_IMAGE="${AIRFLOW_CI_KUBERNETES_IMAGE}"
 docker-compose --log-level INFO ${CMD}\$${EXPANSION}"
 EOF
     chmod u+x "${FILE}"
@@ -249,11 +261,9 @@ EOF
 
 # Default values
 
-_BREEZE_DEFAULT_ENV="docker"
 _BREEZE_DEFAULT_BACKEND="sqlite"
-_BREEZE_DEFAULT_KUBERNETES_VERSION="v1.13.0"
 _BREEZE_DEFAULT_KUBERNETES_MODE="git_mode"
-
+_BREEZE_DEFAULT_KUBERNETES_VERSION="v1.15.3"
 usage() {
       echo """
 
@@ -361,21 +371,28 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
         Python version used for the image. This is always major/minor version.
         One of [${_BREEZE_ALLOWED_PYTHON_VERSIONS:=}]. Default is the python3 or python on the path.
 
--E, --env <ENVIRONMENT>
-        Environment to use for tests. It determines which types of tests can be run.
-        One of [${_BREEZE_ALLOWED_ENVS:=}]. Default: ${_BREEZE_DEFAULT_ENV:=}
-
 -B, --backend <BACKEND>
         Backend to use for tests - it determines which database is used.
         One of [${_BREEZE_ALLOWED_BACKENDS:=}]. Default: ${_BREEZE_DEFAULT_BACKEND:=}
 
--K, --kubernetes-version <KUBERNETES_VERSION>
-        Kubernetes version - only used in case of 'kubernetes' environment.
-        One of [${_BREEZE_ALLOWED_KUBERNETES_VERSIONS:=}]. Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
+-K, --start-kubernetes-cluster
+        Starts test kubernetes cluster after entering the environment. The cluster is started using
+        Kubernete Mode selected and Kubernetes version specifed via --kubernetes-mode and
+        --kubernetes-version flags.
+
+-Z, --recreate-kubernetes-cluster
+        Recreates kubernetes cluster if one has already been created. By default if you do not stop
+        environment, the kubernetes cluster created for testing is continuously running and when
+        you start kubernetes testing again it will be reused. You can force deletion and recreation
+        of such cluster with this flag.
 
 -M, --kubernetes-mode <KUBERNETES_MODE>
-        Kubernetes mode - only used in case of 'kubernetes' environment.
+        Kubernetes mode - only used in case --start-kubernetes-cluster flag is specified.
         One of [${_BREEZE_ALLOWED_KUBERNETES_MODES:=}]. Default: ${_BREEZE_DEFAULT_KUBERNETES_MODE:=}
+
+-V, --kubernetes-version <KUBERNETES_VERSION>
+        Kubernetes version - only used in case --start-kubernetes-cluster flag is specified.
+        One of [${_BREEZE_ALLOWED_KUBERNETES_VERSIONS:=}]. Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
 
 -s, --skip-mounting-source-volume
         Skips mounting local volume with sources - you get exactly what is in the
@@ -454,37 +471,43 @@ do
       exit 0 ;;
     -P|--python)
       export PYTHON_VERSION="${2}";
-      echo
       echo "Python version: ${PYTHON_VERSION}"
-      echo
-      shift 2 ;;
-    -E|--env)
-      export ENV="${2}";
-      echo
-      echo "Environment: ${ENV}"
       echo
       shift 2 ;;
     -B|--backend)
       export BACKEND="${2}";
-      echo
       echo "Backend: ${BACKEND}"
       echo
       shift 2 ;;
-    -K|--kubernetes-version)
-      export KUBERNETES_VERSION="${2}";
+    -K|--start-kubernetes-cluster)
+      export START_KUBERNETES_CLUSTER="true";
+      export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
+      echo "Starting kubernetes cluster"
       echo
-      echo "Kubernetes version: ${KUBERNETES_VERSION}"
+      shift ;;
+    -z|--recreate-kubernetes-cluster)
+      export RECREATE_KUBERNETES_CLUSTER="true";
+      echo "Recreate kubernetes cluster"
       echo
-      shift 2 ;;
+      shift ;;
     -M|--kubernetes-mode)
       export KUBERNETES_MODE="${2}";
-      echo
       echo "Kubernetes mode: ${KUBERNETES_MODE}"
+      echo
+      shift 2 ;;
+    -V|--kubernetes-version)
+      export KUBERNETES_VERSION="${2}";
+      echo "Kubernetes version: ${KUBERNETES_VERSION}"
       echo
       shift 2 ;;
     -s|--skip-mounting-local-sources)
       SKIP_MOUNTING_LOCAL_SOURCES="true"
       echo "Skip mounting local sources: ${SKIP_MOUNTING_LOCAL_SOURCES}"
+      echo
+      shift ;;
+    -N|--no-deps)
+      export AIRFLOW_CONTAINER_DEPS="false"
+      echo "Only run airflow-testing image without dependent images"
       echo
       shift ;;
     -b|--build-only)
@@ -527,13 +550,11 @@ do
       echo
       shift ;;
     -r|--force-build-images)
-      echo
       echo "Force build images"
       echo
       export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
       shift ;;
     -R|--force-build-images-clean)
-      echo
       echo "Clean build of images without cache"
       echo
       export AIRFLOW_CONTAINER_USE_DOCKER_CACHE=false
@@ -542,7 +563,6 @@ do
       CLEANUP_IMAGES="true"
       shift ;;
     -p|--force-pull-images)
-      echo
       echo "Force pulling images before build. Uses pulled images as cache."
       echo
       export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
@@ -567,34 +587,29 @@ do
       export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
       shift ;;
     -c|--cleanup-images)
-      echo
       echo "Cleanup the images"
       echo
       CLEANUP_IMAGES=true
       shift ;;
     -D|--dockerhub-user)
       export DOCKERHUB_USER="${2}"
-      echo
       echo "Dockerhub user ${DOCKERHUB_USER}"
       echo
       shift 2 ;;
     -H|--dockerhub-repo)
       export DOCKERHUB_REPO="${2}"
-      echo
       echo "Dockerhub repo ${DOCKERHUB_REPO}"
       echo
       shift 2 ;;
     -e|--initialize-local-virtualenv)
-      echo
-      echo Initializing local virtualenv
+      echo "Initializing local virtualenv"
       echo
       INITIALIZE_LOCAL_VIRTUALENV="true"
       SETUP_AUTOCOMPLETE="false"
       ENTER_ENVIRONMENT=:"false"
       shift ;;
     -a|--setup-autocomplete)
-      echo
-      echo Setting up autocomplete
+      echo "Setting up autocomplete"
       echo
       INITIALIZE_LOCAL_VIRTUALENV="false"
       SETUP_AUTOCOMPLETE="true"
@@ -681,10 +696,9 @@ CMDNAME="$(basename -- "$0")"
 # Cleans up the answer that was given last time, whether to force/
 forget_last_answer
 
-export ENV="${ENV:=$(read_from_file ENV)}"
 export BACKEND="${BACKEND:=$(read_from_file BACKEND)}"
-export KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(read_from_file KUBERNETES_VERSION)}"
 export KUBERNETES_MODE="${KUBERNETES_MODE:=$(read_from_file KUBERNETES_MODE)}"
+export KUBERNETES_VERSION="${KUBERNETES_VERSION:=$(read_from_file KUBERNETES_VERSION)}"
 
 # Here you read DockerHub user/account that you use
 # You can populate your own images in DockerHub this way and work with the,
@@ -698,16 +712,14 @@ export DOCKERHUB_USER="${DOCKERHUB_USER:=${_BREEZE_DEFAULT_DOCKERHUB_USER}}"
 export DOCKERHUB_REPO="${DOCKERHUB_REPO:=$(read_from_file DOCKERHUB_REPO)}"
 export DOCKERHUB_REPO="${DOCKERHUB_REPO:=${_BREEZE_DEFAULT_DOCKERHUB_REPO}}"
 
-# Default environment for tests
-export ENV=${ENV:-${_BREEZE_DEFAULT_ENV}}
-
 # Default backend for tests
 export BACKEND=${BACKEND:-${_BREEZE_DEFAULT_BACKEND}}
 
-# Default version of Kubernetes to use
-export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_BREEZE_DEFAULT_KUBERNETES_VERSION}}
 # Default mode of Kubernetes to use
 export KUBERNETES_MODE=${KUBERNETES_MODE:=${_BREEZE_DEFAULT_KUBERNETES_MODE}}
+
+# Default version of Kubernetes to use
+export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_BREEZE_DEFAULT_KUBERNETES_VERSION}}
 
 #################### Check python version ##########################################
 if [[ ${_BREEZE_ALLOWED_PYTHON_VERSIONS:=} != *" ${PYTHON_VERSION} "* ]]; then
@@ -715,14 +727,6 @@ if [[ ${_BREEZE_ALLOWED_PYTHON_VERSIONS:=} != *" ${PYTHON_VERSION} "* ]]; then
     echo >&2 "ERROR:  Allowed Python versions: [${_BREEZE_ALLOWED_PYTHON_VERSIONS}]. Is: '${PYTHON_VERSION}'."
     echo >&2
     echo >&2 "Switch to virtualenv with the supported python version or specify python with --python flag."
-    echo >&2
-    exit 1
-fi
-
-#################### Check environments ##########################################
-if [[ ${_BREEZE_ALLOWED_ENVS:=} != *" ${ENV} "* ]]; then
-    echo >&2
-    echo >&2 "ERROR:  Allowed environments are [${_BREEZE_ALLOWED_ENVS}]. Used: '${ENV}'"
     echo >&2
     exit 1
 fi
@@ -735,16 +739,7 @@ if [[ ${_BREEZE_ALLOWED_BACKENDS:=} != *" ${BACKEND} "* ]]; then
     exit 1
 fi
 
-#################### Check environments ##########################################
-if [[ ${_BREEZE_ALLOWED_KUBERNETES_VERSIONS} != *" ${KUBERNETES_VERSION} "* ]]; then
-    echo >&2
-    echo >&2 "ERROR:  Allowed kubernetes versions" \
-         "are [${_BREEZE_ALLOWED_KUBERNETES_VERSIONS}]. Used: '${KUBERNETES_VERSION}'"
-    echo >&2
-    exit 1
-fi
-
-#################### Check environments ##########################################
+#################### Check kubernetes mode ##########################################
 if [[ ${_BREEZE_ALLOWED_KUBERNETES_MODES} != *" ${KUBERNETES_MODE} "* ]]; then
     echo >&2
     echo >&2 "ERROR:  Allowed kubernetes modes" \
@@ -753,17 +748,28 @@ if [[ ${_BREEZE_ALLOWED_KUBERNETES_MODES} != *" ${KUBERNETES_MODE} "* ]]; then
     exit 1
 fi
 
+#################### Check kubernetes version ##########################################
+if [[ ${_BREEZE_ALLOWED_KUBERNETES_VERSIONS} != *" ${KUBERNETES_VERSION} "* ]]; then
+    echo >&2
+    echo >&2 "ERROR:  Allowed kubernetes versions" \
+         "are [${_BREEZE_ALLOWED_KUBERNETES_VERSIONS}]. Used: '${KUBERNETES_VERSION}'"
+    echo >&2
+    exit 1
+fi
+
 
 # Those files are mounted into container when run locally
 # .bash_history is preserved and you can modify .bash_aliases and .inputrc
 # according to your liking
+if [[ -d "${MY_DIR}/.bash_history" ]]; then
+    rm -rf "${MY_DIR}/.bash_history"
+fi
 touch "${MY_DIR}/.bash_history"
 touch "${MY_DIR}/.bash_aliases"
 touch "${MY_DIR}/.inputrc"
+mkdir -pv "${MY_DIR}/.kube"
 
 save_to_file BACKEND
-save_to_file ENV
-save_to_file KUBERNETES_VERSION
 save_to_file KUBERNETES_MODE
 save_to_file PYTHON_VERSION
 save_to_file DOCKERHUB_USER
@@ -900,6 +906,7 @@ fi
 MAIN_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose.yml
 BACKEND_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose-${BACKEND}.yml
 LOCAL_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose-local.yml
+KUBERNETES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose-kubernetes.yml
 
 COMPOSE_FILE=${MAIN_DOCKER_COMPOSE_FILE}:${BACKEND_DOCKER_COMPOSE_FILE}
 
@@ -907,23 +914,31 @@ if [[ "${SKIP_MOUNTING_LOCAL_SOURCES}" != "true" ]]; then
     COMPOSE_FILE=${COMPOSE_FILE}:${LOCAL_DOCKER_COMPOSE_FILE}
 fi
 
+if [[ ${START_KUBERNETES_CLUSTER} == "true" ]]; then
+    COMPOSE_FILE=${COMPOSE_FILE}:${KUBERNETES_DOCKER_COMPOSE_FILE}
+fi
+
 export COMPOSE_FILE
 
 CI_ENTRYPOINT_FILE="/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh"
 
+export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
+export AIRFLOW_CI_KUBERNETES_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-kubernetes"
+export AIRFLOW_CI_KUBERNETES_IMAGE_ARCHIVE="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci.tar"
+
 DC_RUN_COMMAND="run --service-ports --rm airflow-testing \"${CI_ENTRYPOINT_FILE} "
-DC_RUN_COMMAND_ONLY_AT="run --no-deps --service-ports --rm airflow-testing \"${CI_ENTRYPOINT_FILE} "
+DC_RUN_COMMAND_NO_DEPS="run --no-deps --service-ports --rm airflow-testing \"${CI_ENTRYPOINT_FILE} "
 
 LAST_DC_RUN_FILE="cmd_run"
-LAST_DC_RUN_ONLY_AT_FILE="cmd_only_at_run"
+LAST_DC_RUN_NO_DEPS_FILE="cmd_only_at_run"
 LAST_DC_TEST_FILE="test_run"
 LAST_DC_FILE="dc"
 
 # Prepare script for "run command"
 prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_RUN_FILE}" "${DC_RUN_COMMAND}" "false" '*'
 
-# Prepare script for "run command"
-prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_RUN_ONLY_AT_FILE}" "${DC_RUN_COMMAND_ONLY_AT}" "false" '*'
+# Prepare script for "run command without dependencies"
+prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_RUN_NO_DEPS_FILE}" "${DC_RUN_COMMAND_NO_DEPS}" "false" '*'
 
 # Prepare script for "run test"
 prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_TEST_FILE}" "${DC_RUN_COMMAND}" "true" '*'
@@ -933,7 +948,7 @@ prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_FILE}" '"' "false"
 
 rebuild_ci_image_if_needed
 
-export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
+export AIRFLOW_CI_IMAGE=\
 ${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
 
 printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
@@ -964,7 +979,7 @@ if [[ ! -f ${SUPPRESS_CHEATSHEET_FILE} ]]; then
     echo "    * Enter the full environment        : ${BUILD_CACHE_DIR}/${LAST_DC_RUN_FILE}"
     echo "    * Run command in full environment   : ${BUILD_CACHE_DIR}/${LAST_DC_RUN_FILE} "\
                                                      "[command with args] [bash options]"
-    echo "    * Run command airflow-testing only  : ${BUILD_CACHE_DIR}/${LAST_DC_RUN_ONLY_AT_FILE} "\
+    echo "    * Run command without dependent images  : ${BUILD_CACHE_DIR}/${LAST_DC_RUN_NO_DEPS_FILE} "\
                                                      "[command with args] [bash options]"
     echo "    * Run tests in the full environment : ${BUILD_CACHE_DIR}/${LAST_DC_TEST_FILE} "\
                                                      "[test target] [nosetest options]"
@@ -1031,7 +1046,11 @@ if [[ ${ENTER_ENVIRONMENT} == "true" ]]; then
     elif [[ ${RUN_IN_BASH} == "true" ]]; then
         "${BUILD_CACHE_DIR}/${LAST_DC_RUN_FILE}" "${RUN_COMMAND}" "$@"
     else
-        "${BUILD_CACHE_DIR}/${LAST_DC_RUN_FILE}"
+        if [[ ${AIRFLOW_CONTAINER_DEPS} == "true" ]]; then
+                 "${BUILD_CACHE_DIR}/${LAST_DC_RUN_FILE}"
+        else
+             "${BUILD_CACHE_DIR}/${LAST_DC_RUN_NO_DEPS_FILE}"
+        fi
     fi
 else
     if [[ ${RUN_STATIC_CHECKS} == "true" ]]; then

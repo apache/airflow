@@ -40,8 +40,6 @@ rebuild_ci_image_if_needed
 
 # Test environment
 export BACKEND=${BACKEND:="sqlite"}
-export ENV=${ENV:="docker"}
-export KUBERNETES_MODE=${KUBERNETES_MODE:="git_mode"}
 
 # Whether necessary for airflow run local sources are mounted to docker
 export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
@@ -58,11 +56,12 @@ else
     DOCKER_COMPOSE_LOCAL=()
 fi
 
-export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
-${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
+export AIRFLOW_CI_IMAGE=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
+export AIRFLOW_CI_KUBERNETES_IMAGE=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci-kubernetes
 
 echo
-echo "Using docker image: ${AIRFLOW_CONTAINER_DOCKER_IMAGE} for docker compose runs"
+echo "Using docker image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
+echo "Using Kubernetes docker image: ${AIRFLOW_CI_KUBERNETES_IMAGE} for kubernetes images"
 echo
 
 HOST_USER_ID="$(id -ur)"
@@ -71,36 +70,28 @@ export HOST_USER_ID
 HOST_GROUP_ID="$(id -gr)"
 export HOST_GROUP_ID
 
-set +u
-if [[ "${ENV}" == "docker" ]]; then
-  docker-compose --log-level INFO \
+if [[ ${START_KUBERNETES_CLUSTER} == "true" ]]; then
+    export KUBERNETES_MODE=${KUBERNETES_MODE:="git_mode"}
+    export KUBERNETES_VERSION=${KUBERNETES_VERSION:="v1.15.3"}
+
+    build_and_save_kubernetes_image
+
+    set +u
+    docker-compose --log-level INFO \
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
+      -f "${MY_DIR}/docker-compose-kubernetes.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-        run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-elif [[ "${ENV}" == "kubernetes" ]]; then
-  echo
-  echo "Running kubernetes tests in ${KUBERNETES_MODE}"
-  echo
-  docker-compose --log-level ERROR \
+         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
+    set -u
+else
+    set +u
+    docker-compose --log-level INFO \
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
          run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-  echo
-  echo "Finished Running kubernetes tests in ${KUBERNETES_MODE}"
-  echo
-elif [[ "${ENV}" == "bare" ]]; then
-  docker-compose --log-level INFO \
-      -f "${MY_DIR}/docker-compose.yml" \
-      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
-      "${DOCKER_COMPOSE_LOCAL[@]}" \
-        run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
-else
-    echo >&2
-    echo >&2 "ERROR:  The ENV variable should be one of [docker, kubernetes, bare] and is '${ENV}'"
-    echo >&2
+    set -u
 fi
-set -u
 
 script_end

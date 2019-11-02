@@ -17,9 +17,13 @@
 ARG AIRFLOW_CI_IMAGE
 FROM ${AIRFLOW_CI_IMAGE}
 
-COPY airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
+COPY scripts/ci/in_container/kubernetes/docker/airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
 
-COPY bootstrap.sh /bootstrap.sh
+COPY scripts/ci/in_container/kubernetes/docker/bootstrap.sh /bootstrap.sh
+
+# Make sure latest sources are used
+COPY --chown=airflow:airflow . ${AIRFLOW_SOURCES}/
+
 RUN chmod +x /bootstrap.sh
 
 ENTRYPOINT ["/bootstrap.sh"]

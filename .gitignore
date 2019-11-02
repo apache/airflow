@@ -142,8 +142,8 @@ rat-results.txt
 # Kubernetes generated templated files
 *.generated
 *.tar.gz
-scripts/ci/kubernetes/kube/.generated/airflow.yaml
-scripts/ci/kubernetes/docker/requirements.txt
+scripts/ci/in_container/kubernetes/kube/.generated/airflow.yaml
+scripts/ci/in_container/kubernetes/docker/requirements.txt
 
 # Node & Webpack Stuff
 *.entry.js
@@ -171,5 +171,7 @@ dmypy.json
 /hive_scratch_dir/
 /.bash_aliases
 /.bash_history
+/.kube
 /.inputrc
 log.txt*
+/.docker_image.tar
