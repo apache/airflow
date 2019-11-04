@@ -34,7 +34,10 @@ echo
 
 # This is the target of a symlink in airflow/www/static/docs -
 # and rat exclude doesn't cope with the symlink target doesn't exist
-sudo mkdir -p docs/_build/html/
+mkdir -p docs/_build/html/
+
+# This is wherre rat results are placed
+mkdir -p "${AIRFLOW_SOURCES}/logs/"
 
 echo "Running license checks. This can take a while."
 

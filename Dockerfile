@@ -261,7 +261,7 @@ ENV AIRFLOW_CI_EXTRAS=${AIRFLOW_CI_EXTRAS}
 
 RUN echo "Installing with extras: ${AIRFLOW_CI_EXTRAS}."
 
-ENV PATH="/root/.local/bin:/root:${PATH}"
+ENV PATH="${HOME}/.local/bin:${PATH}"
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
 ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
@@ -273,8 +273,6 @@ ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 RUN pip install --user \
         "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_CI_EXTRAS}]" \
         && pip uninstall --yes apache-airflow snakebite
-
-
 
 # Copy all www files here so that we can run npm building
 COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/

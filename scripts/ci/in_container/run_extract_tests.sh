@@ -32,6 +32,6 @@ TMP_FILE=$(mktemp)
 
 nosetests --collect-only --with-xunit --xunit-file="${TMP_FILE}"
 
-python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" "${TMP_FILE}" | sort >> "${HOME}/all_tests.txt"
+    python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" "${TMP_FILE}" | sort >> "${HOME}/all_tests.txt"
 
 in_container_script_end

@@ -23,11 +23,11 @@ Local Virtual Environment (virtualenv)
 
 Use the local virtualenv development option in the combination with the _`Breeze <BREEZE.rst#aout-airflow-breeze>`_
 development environment. This option helps you benefit from the infrastructure provided
-by your IDE (for example, IntelliJ's PyCharm/Idea) and work in the enviroment where all necessary dependencies and tests are 
+by your IDE (for example, IntelliJ's PyCharm/Idea) and work in the enviroment where all necessary dependencies and tests are
 available and set up within Docker images.
 
 But you can also use the local virtualenv as a standalone development option of
-you develop Airflow functionality that does not incur large external dependencies and 
+you develop Airflow functionality that does not incur large external dependencies and
 CI test coverage.
 
 These are examples of the development options available with the local virtualenv in your IDE:
@@ -46,10 +46,10 @@ Prerequisites
 Required Software Packages
 --------------------------
 
-Use system-level package managers like yum, apt-get for Linux, or 
+Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (3.5 or 3.6)
+* Python (3.6 or 3.7)
 * MySQL
 * libxml
 
@@ -60,7 +60,7 @@ Extra Packages
 --------------
 
 You can also install extra packages (like ``[gcp]``, etc) via
-``pip install -e [EXTRA1,EXTRA2 ...]``. However, some of them may  
+``pip install -e [EXTRA1,EXTRA2 ...]``. However, some of them may
 have additional install and setup requirements for your local system.
 
 For example, if you have a trouble installing the mysql client on macOS and get
@@ -76,8 +76,8 @@ you should set LIBRARY\_PATH before running ``pip install``:
 
     export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/opt/openssl/lib/
 
-You are STRONGLY encouraged to also install and use `pre-commit hooks <CONTRIBUTING.rst#pre-commit-hooks>`_ 
-for your local virtualenv development environment. Pre-commit hooks can speed up your 
+You are STRONGLY encouraged to also install and use `pre-commit hooks <CONTRIBUTING.rst#pre-commit-hooks>`_
+for your local virtualenv development environment. Pre-commit hooks can speed up your
 development cycle a lot.
 
 The full list of extras is available in `<setup.py>`_.
@@ -85,11 +85,11 @@ The full list of extras is available in `<setup.py>`_.
 Creating a Local virtualenv
 ===========================
 
-To use your IDE for Airflow development and testing, you need to configure a virtual 
+To use your IDE for Airflow development and testing, you need to configure a virtual
 environment. Ideally you should set up virtualenv for all Python versions that Airflow
-supports (3.5, 3.6). 
+supports (3.6, 3.7).
 
-Consider using one of the following utilities to create virtual environments and easily 
+Consider using one of the following utilities to create virtual environments and easily
 switch between them with the ``workon`` command:
 
 - `pyenv <https://github.com/pyenv/pyenv>`_
@@ -112,7 +112,7 @@ To create and initialize the local virtualenv:
 
 4. Select the virtualenv you created as the project's default virtualenv in your IDE.
 
-Note that if you have the Breeze development environment installed, the ``breeze`` 
+Note that if you have the Breeze development environment installed, the ``breeze``
 script can automate initializing the created virtualenv (steps 2 and 3).
 Simply enter the Breeze environment by using ``workon`` and, once you are in it, run:
 
@@ -159,7 +159,7 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
 Running Unit Tests via IDE
 --------------------------
 
-Usually you can run most of the unit tests (those that do not have dependencies such as 
+Usually you can run most of the unit tests (those that do not have dependencies such as
 Postgres/MySQL/Hadoop/etc.) directly from the IDE:
 
 .. image:: images/running_unittests.png
@@ -178,9 +178,9 @@ Running Tests via Script
 
 You can also use the ``run-tests`` script that provides a Python
 testing framework with more than 300 tests including integration, unit, and
-system tests. 
+system tests.
 
-The script is in the path in the Breeze environment but you need to prepend 
+The script is in the path in the Breeze environment but you need to prepend
 it with ``./`` when running in the local virtualenv: ``./run-tests``.
 
 This script has several flags that can be useful for your testing.
@@ -224,7 +224,7 @@ or a single test method without colors or debug logs:
 
     ./run-tests tests.core:TestCore.test_check_operators
 
-Note that the first time it runs, the ``./run_tests`` script 
+Note that the first time it runs, the ``./run_tests`` script
 performs a database initialization. If you run further tests without
 leaving the environment, the database will not be initialized. But you
 can always force the database initialization with the ``--with-db-init``
@@ -236,7 +236,7 @@ In general, the ``run-tests`` script can be used to run unit, integration and sy
 Running Unit Tests from the IDE
 -----------------------------------
 
-Once you created the local virtualenv and selected it as the default project's environment, 
+Once you created the local virtualenv and selected it as the default project's environment,
 running unit tests from the IDE is as simple as:
 
 .. figure:: images/run_unittests.png
@@ -252,7 +252,7 @@ system tests. You can technically use local
 virtualenv to run those tests, but it requires to set up a number of
 external components (databases/queues/kubernetes and the like). So, it is
 much easier to use the `Breeze development environment <BREEZE.rst>`_
-for integration and system tests. 
+for integration and system tests.
 
 Note: Soon we will separate the integration and system tests out
 so that you can clearly know which tests are unit tests and can be run in

@@ -137,7 +137,7 @@ these guidelines:
     of the same PR. Doc string is often sufficient. Make sure to follow the
     Sphinx compatible standards.
 
--   Make sure the pull request works for Python 3.5, 3.6 and 3.7.
+-   Make sure the pull request works for Python 3.6 and 3.7.
 
 -   Run tests locally before opening PR.
 

@@ -23,12 +23,17 @@ set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
 
-basic_sanity_checks
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
 
 script_start
+
+initialize_environment
+
+prepare_build
 
 cleanup_ci_image
 

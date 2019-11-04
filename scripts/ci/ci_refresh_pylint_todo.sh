@@ -23,12 +23,22 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="false"}
 export FORCE_ANSWER_TO_QUESTIONS=quit
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
 
-basic_sanity_checks
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
+
+# Set default python version
+export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
 
 script_start
+
+initialize_environment
+
+prepare_build
+
+prepare_run
 
 rebuild_ci_image_if_needed
 

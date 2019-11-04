@@ -16,15 +16,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# We do not push in the push step because we are building multiple images in the build step
-# and it is difficult to pass list of the built images from the build to push phase
 set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo "My dir: ${MY_DIR}"
+export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
 
-echo
-echo "Skip pushing the image. All images were built and pushed in the build hook already!"
-echo
+export MOUNT_HOST_VOLUMES="true"
+
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
+
+# Set default python version
+export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
+
+script_start
+
+initialize_environment
+
+prepare_build
+
+prepare_run
+
+export FORCE_ANSWER_TO_QUESTIONS="yes"
+rebuild_ci_image_if_needed
+
+export FORCE_ANSWER_TO_QUESTIONS="quit"
+pre-commit run check-apache-license --all-files --show-diff-on-failure
+
+script_end

@@ -22,9 +22,10 @@ env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
     - MOUNT_LOCAL_SOURCES="false"
-    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="false"
+    - MOUNT_HOST_VOLUMES="false"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - AIRFLOW_CI_SILENT="true"
+    - DOCKERHUB_USER="potiuk" # Temporary to make it builds using images from test dockerhub before merging
     - CI="true"
 python: "3.6"
 stages:

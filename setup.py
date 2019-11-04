@@ -237,6 +237,7 @@ kerberos = ['pykerberos>=1.1.13',
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=2.5.1']
+mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 mssql = ['pymssql~=2.1.1']
 mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
@@ -248,6 +249,7 @@ password = [
 ]
 pinot = ['pinotdb==0.1.1']
 postgres = ['psycopg2-binary>=2.7.4']
+pagerduty = ['pypd>=1.1.0']
 qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis~=3.2']
@@ -257,8 +259,6 @@ segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0,<6']
 sentry = ['sentry-sdk>=0.8.0', "blinker>=1.1"]
 slack = ['slackclient>=1.0.0,<2.0.0']
-pagerduty = ['pypd>=1.1.0']
-mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
@@ -280,7 +280,6 @@ devel = [
     'astroid~=2.2.5',  # to be removed after pylint solves this: https://github.com/PyCQA/pylint/issues/3123
     'beautifulsoup4~=4.7.1',
     'click==6.7',
-    'contextdecorator;python_version<"3.4"',
     'coverage',
     'dumb-init>=1.2.2',
     'flake8>=3.6.0',
@@ -290,47 +289,76 @@ devel = [
     'jira',
     'mongomock',
     'moto==1.3.5',
+    'mypy==0.720',
     'nose',
     'nose-ignore-docstring==0.2',
     'nose-timer',
     'parameterized',
-    'paramiko',
     'pre-commit',
     'pylint~=2.3.1',  # to be upgraded after fixing https://github.com/PyCQA/pylint/issues/3123
                       # We should also disable checking docstring at the module level
-    'pysftp',
-    'pywinrm',
-    'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
     'yamllint'
 ]
+
+devel = sorted(devel + doc)
+
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
 # IF you are removing dependencies from the above list, please make sure that you also increase
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
 ############################################################################################################
 
-if PY3:
-    devel += ['mypy==0.720']
-else:
-    devel += ['unittest2']
-
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + oracle +
-             docker + ssh + kubernetes + celery + redis + gcp + grpc +
-             datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + segment + snowflake + elasticsearch + sentry +
-             atlas + azure + aws + salesforce + cgroups + papermill + virtualenv +
-             pagerduty)
 
-# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
-if PY3:
-    devel_ci = [package for package in devel_all if package not in
-                ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
-else:
-    devel_ci = devel_all
+all_packages = (
+    async_packages +
+    atlas +
+    all_dbs +
+    aws +
+    azure +
+    celery +
+    cgroups +
+    datadog +
+    dask +
+    databricks +
+    datadog +
+    docker +
+    druid +
+    elasticsearch +
+    gcp +
+    grpc +
+    flask_oauth +
+    jdbc +
+    jenkins +
+    kerberos +
+    kubernetes +
+    ldap +
+    oracle +
+    pagerduty +
+    papermill +
+    password +
+    pinot +
+    redis +
+    salesforce +
+    samba +
+    sendgrid +
+    sentry +
+    segment +
+    slack +
+    snowflake +
+    ssh +
+    statsd +
+    virtualenv +
+    webhdfs +
+    winrm +
+    zendesk
+)
+
+# Snakebite is not Python 3 compatible :'(
+all_packages = [package for package in all_packages if not package.startswith('snakebite')]
 
 
 def do_setup():
@@ -393,7 +421,6 @@ def do_setup():
             'tenacity==4.12.0',
             'termcolor==1.1.0',
             'text-unidecode==1.2',
-            'typing;python_version<"3.6"',
             'thrift>=0.9.2',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
@@ -410,8 +437,7 @@ def do_setup():
             'gitpython>=2.0.2',
         ],
         extras_require={
-            'all': devel_all,
-            'devel_ci': devel_ci,
+            'all': all_packages,
             'all_dbs': all_dbs,
             'atlas': atlas,
             'async': async_packages,
@@ -424,7 +450,8 @@ def do_setup():
             'dask': dask,
             'databricks': databricks,
             'datadog': datadog,
-            'devel': devel_minreq,
+            'devel': devel,
+            'devel_minreq': devel_minreq,
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,

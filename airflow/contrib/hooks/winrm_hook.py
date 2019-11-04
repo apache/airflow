@@ -88,7 +88,6 @@ class WinRMHook(BaseHook):
     :param send_cbt: Will send the channel bindings over a HTTPS channel (Default: True)
     :type send_cbt: bool
     """
-
     def __init__(self,
                  ssh_conn_id=None,
                  endpoint=None,
@@ -204,6 +203,7 @@ class WinRMHook(BaseHook):
 
         try:
             if self.password and self.password.strip():
+                # pylint: disable=unexpected-keyword-arg
                 self.winrm_protocol = Protocol(
                     endpoint=self.endpoint,
                     transport=self.transport,

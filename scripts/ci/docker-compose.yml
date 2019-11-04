@@ -102,6 +102,7 @@ services:
       - AIRFLOW_CI_SILENT
       - AIRFLOW_CI_IMAGE
       - START_KUBERNETES_CLUSTER
+      - DEPS
     depends_on:
       - postgres
       - mysql

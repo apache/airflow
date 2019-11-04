@@ -840,7 +840,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 .. code-block:: text
 
 
-
   Usage: breeze [FLAGS] \
     [-k]|[-S <STATIC_CHECK>]|[-F <STATIC_CHECK>]|[-O]|[-e]|[-a]|[-b]|[-t <TARGET>]|[-x <COMMAND>]|[-d <COMMAND>] \
     -- <EXTRA_ARGS>
@@ -854,9 +853,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
     * Build documentation with -O, --build-docs command
     * Setup local virtualenv with -e, --setup-virtualenv command
     * Setup autocomplete for itself with -a, --setup-autocomplete command
-    * Build docker image with -b, --build-only command
+    * Build CI docker images with -b, --build-only command
     * Run test target specified with -t, --test-target connad
-    * Execute arbitrary command in the test environmenrt with -x, --execute-command command
+    * Execute arbitrary command in the test environment with -x, --execute-command command
     * Execute arbitrary docker-compose command with -d, --docker-compose command
 
   ** Commands
@@ -874,8 +873,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -S, --static-check <STATIC_CHECK>
           Run selected static checks for currently changed files. You should specify static check that
-          you would like to run or 'all' to run all checks. One of
-          [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
+          you would like to run or 'all' to run all checks. One of:
+
+  all all-but-pylint build check-apache-license check-executables-have-shebangs check-hooks-apply
+  check-merge-conflict check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs
+  insert-license isort lint-dockerfile mixed-line-ending mypy pylint python-no-log-warn rst-backticks
+  shellcheck yamllint
+
           You can pass extra arguments including options to to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 
@@ -888,8 +892,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -F, --static-check-all-files <STATIC_CHECK>
           Run selected static checks for all applicable files. You should specify static check that
-          you would like to run or 'all' to run all checks. One of
-          [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
+          you would like to run or 'all' to run all checks. One of:
+
+  all all-but-pylint build check-apache-license check-executables-have-shebangs check-hooks-apply
+  check-merge-conflict check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs
+  insert-license isort lint-dockerfile mixed-line-ending mypy pylint python-no-log-warn rst-backticks
+  shellcheck yamllint
+
           You can pass extra arguments including options to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 
@@ -911,7 +920,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
           shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
 
   -b, --build-only
-          Only build docker images but do not enter the airflow-testing docker container.
+          Only build CI docker images but do not enter the airflow-testing docker container.
 
   -t, --test-target <TARGET>
           Run the specified unit test target. There might be multiple
@@ -981,6 +990,9 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -n, --assume-no
           Assume 'no' answer to all questions.
 
+  -q, --assume-quit
+          Assume 'quit' answer to all questions.
+
   -C, --toggle-suppress-cheatsheet
           Toggles on/off cheatsheet displayed before starting bash shell
 
@@ -1004,10 +1016,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Forces pulling of images from DockerHub before building to populate cache. The
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
-
-  -R, --force-clean-build
-          Force build images without cache at all. This will remove the pulled or build images
-          and start building images from scratch. This might take a long time.
 
   -L, --use-local-cache
           Uses local cache to build images. No pulled images will be used, but results of local builds in

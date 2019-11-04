@@ -16,10 +16,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -uo pipefail
+set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
-export REMEMBER_LAST_ANSWER="true"
 
-"${MY_DIR}/ci_pylint_main.sh" "${@}"
+export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
+
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
+
+script_start
+
+initialize_environment
+
+prepare_build
+
+prepare_run
+
+rebuild_ci_image_if_needed
+
+run_isort "$@"
+
+script_end

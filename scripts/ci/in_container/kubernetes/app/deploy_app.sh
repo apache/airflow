@@ -36,14 +36,14 @@ in_container_script_start
 export TEMPLATE_DIRNAME="${MY_DIR}/templates"
 export BUILD_DIRNAME="${MY_DIR}/build"
 
-# shellcheck source=common/_autodetect_variables.sh
-. "${AIRFLOW_SOURCES}/common/_autodetect_variables.sh"
+# shellcheck source=scripts/ci/utils/_common_variables.sh
+. "${AIRFLOW_SOURCES}/scripts/ci/utils/_common_variables.sh"
 
 # Source branch will be set in DockerHub
 SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
-# if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if overridden)
+# if BRANCH_NAME is not set it will be set to either SOURCE_BRANCH (if overridden)
 # or default branch for the sources
-AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_BRANCH}}
+BRANCH_NAME=${BRANCH_NAME:=${SOURCE_BRANCH}}
 
 if [[ ! -d "${BUILD_DIRNAME}" ]]; then
     mkdir -p "${BUILD_DIRNAME}"

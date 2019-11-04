@@ -54,7 +54,6 @@ echo "Removed content of the _build and _api folders"
 set +e
 # shellcheck disable=SC2063
 NUM_INCORRECT_USE_LITERALINCLUDE=$(grep -inR --include \*.rst 'literalinclude::.\+example_dags' . | \
-    tee /dev/tty |
     wc -l |\
     tr -d '[:space:]')
 set -e
@@ -134,14 +133,13 @@ fi
 
 
 SUCCEED_LINE=$(make html |\
-    tee /dev/tty |\
     grep 'build succeeded' |\
     head -1)
 
 NUM_CURRENT_WARNINGS=$(echo "${SUCCEED_LINE}" |\
     sed -E 's/build succeeded, ([0-9]+) warnings?\./\1/g')
 
-if [[  -f /.dockerenv ]]; then
+if [[  -f /.dockerenv && -n "${HOST_USER_ID:=}" && -n "${HOST_GROUP_ID:=}" ]]; then
     # We are inside the container which means that we should fix back the permissions of the
     # _build and _api folder files, so that they can be accessed by the host user
     # The _api folder should be deleted by then but just in case we should change the ownership

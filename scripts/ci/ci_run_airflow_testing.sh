@@ -19,30 +19,32 @@
 set -euo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
 export VERBOSE=${VERBOSE:="true"}
 
-basic_sanity_checks
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
+
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
+
+PYTHON_VERSION=${PYTHON_VERSION:=${DEFAULT_PYTHON_VERSION}}
 
 script_start
 
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-    echo
-    echo "Skipping running tests !!!!!"
-    echo
-    script_end
-    exit
-fi
+initialize_environment
 
+prepare_build
+
+prepare_run
+
+export FORCE_ANSWER_TO_QUESTIONS="yes"
 rebuild_ci_image_if_needed
 
 # Test environment
 export BACKEND=${BACKEND:="sqlite"}
 
 # Whether necessary for airflow run local sources are mounted to docker
-export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
+export MOUNT_HOST_VOLUMES=${MOUNT_HOST_VOLUMES:="false"}
 
 # whethere verbose output should be produced
 export AIRFLOW_CI_VERBOSE=${VERBOSE}
@@ -50,18 +52,11 @@ export AIRFLOW_CI_VERBOSE=${VERBOSE}
 # opposite - whether diagnostict messages should be silenced
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 
-if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
+if [[ ${MOUNT_HOST_VOLUMES} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL=("-f" "${MY_DIR}/docker-compose-local.yml")
 else
     DOCKER_COMPOSE_LOCAL=()
 fi
-
-export AIRFLOW_CI_SAVED_IMAGE_DIR=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
-export AIRFLOW_CI_SAVED_IMAGE_ID_FILE="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci-image.sha256"
-
-echo
-echo "Using docker image: ${AIRFLOW_CI_IMAGE} for docker compose runs"
-echo
 
 HOST_USER_ID="$(id -ur)"
 export HOST_USER_ID
@@ -73,7 +68,7 @@ if [[ ${START_KUBERNETES_CLUSTER} == "true" ]]; then
     export KUBERNETES_MODE=${KUBERNETES_MODE:="git_mode"}
     export KUBERNETES_VERSION=${KUBERNETES_VERSION:="v1.15.3"}
 
-    build_and_save_kubernetes_image
+    _build_and_save_kubernetes_image
 
     set +u
     # shellcheck disable=SC2016

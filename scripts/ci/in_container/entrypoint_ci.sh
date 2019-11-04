@@ -35,7 +35,6 @@ in_container_script_start
 
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
 
-PYTHON_VERSION=${PYTHON_VERSION:=3.5}
 BACKEND=${BACKEND:=sqlite}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}

@@ -21,28 +21,59 @@ _BREEZE_ALLOWED_PYTHON_VERSIONS=" 3.6 3.7 "
 _BREEZE_ALLOWED_BACKENDS=" sqlite mysql postgres "
 _BREEZE_ALLOWED_KUBERNETES_MODES=" persistent_mode git_mode "
 _BREEZE_ALLOWED_KUBERNETES_VERSIONS=" v1.15.3 v1.16.2 "
-_BREEZE_ALLOWED_STATIC_CHECKS=" all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck"
+_BREEZE_ALLOWED_STATIC_CHECKS=$(cat <<-EOF
+all
+all-but-pylint
+build
+check-apache-license
+check-executables-have-shebangs
+check-hooks-apply
+check-merge-conflict
+check-xml
+detect-private-key
+doctoc
+end-of-file-fixer
+flake8
+forbid-tabs
+insert-license
+isort
+lint-dockerfile
+mixed-line-ending
+mypy
+pylint
+python-no-log-warn
+rst-backticks
+shellcheck
+yamllint
+EOF
+)
 _BREEZE_DEFAULT_DOCKERHUB_USER="apache"
 _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
 
 _BREEZE_SHORT_OPTIONS="
-h P: B: K Z
-M: V: N
-s b O N
-v y n C A
-r p R L u
-c D: H: e a
-t: d: k x: S: F:
+h
+P: B:
+K Z M: V:
+D: H:
+s N v y n q
+C A
+r p L u
+b O c k
+e a
+t: S: F: d: x:
 "
 
 _BREEZE_LONG_OPTIONS="
-help python: backend: start-kubernetes-cluster recreate-kubernetes-cluster
-kubernetes-mode: kubernetes-version: no-deps
-skip-mounting-local-sources build-only build-docs
-verbose assume-yes assume-no toggle-suppress-cheatsheet toggle-suppress-asciiart
-force-build-images force-pull-images force-clean-images use-local-cache push-images
-cleanup-images dockerhub-user: dockerhub-repo: initialize-local-virtualenv setup-autocomplete
-test-target: docker-compose: stop-environment execute-command: static-check: static-check-all-files:
+help
+python: backend:
+start-kubernetes-cluster recreate-kubernetes-cluster kubernetes-mode: kubernetes-version:
+dockerhub-user: dockerhub-repo:
+skip-mounting-local-sources no-deps verbose assume-yes assume-no assume-quit
+toggle-suppress-cheatsheet toggle-suppress-asciiart
+force-build-images force-pull-images use-local-cache push-images
+build-only build-docs cleanup-images stop-environment
+initialize-local-virtualenv setup-autocomplete
+test-target: static-check: static-check-all-files: docker-compose: execute-command:
 "
 
 # Note on OSX bash has no associative arrays (Bash 3.2) so we have to fake it
@@ -59,6 +90,10 @@ function _get_known_values_breeze {
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_MODES} ;;
         -V | --kubernetes-version )
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_VERSIONS} ;;
+        -D | --dockerhub-user )
+            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}" ;;
+        -H | --dockerhub-repo )
+            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}" ;;
         -S | --static-check )
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS} ;;
         -F | --static-check-all-files )
@@ -69,10 +104,6 @@ function _get_known_values_breeze {
               _docker_compose
             fi
             _BREEZE_KNOWN_VALUES="" ;;
-        -D | --dockerhub-user )
-            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}" ;;
-        -H | --dockerhub-repo )
-            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}" ;;
         *)
             _BREEZE_KNOWN_VALUES=""
     esac

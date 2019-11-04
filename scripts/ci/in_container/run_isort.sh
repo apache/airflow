@@ -16,34 +16,41 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#
-# Fixes ownership for files created inside container (files owned by root will be owned by host user)
-#
+# Script to run flake8 on all code. Can be started from any working directory
+set -uo pipefail
 
-set -euo pipefail
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
-basic_sanity_checks
+in_container_basic_sanity_check
 
-script_start
+in_container_script_start
 
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
+if [[ ${#@} == "0" ]]; then
+    print_in_container_info
+    print_in_container_info "Running isort with no parameters"
+    print_in_container_info
+else
+    print_in_container_info
+    print_in_container_info "Running isort with parameters: $*"
+    print_in_container_info
+fi
 
-export AIRFLOW_CI_IMAGE=\
-${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
+isort "$@"
 
-HOST_USER_ID="$(id -ur)"
-export HOST_USER_ID
+RES="$?"
 
-HOST_GROUP_ID="$(id -gr)"
-export HOST_GROUP_ID
+in_container_script_end
 
-docker-compose \
-    -f "${MY_DIR}/docker-compose.yml" \
-    -f "${MY_DIR}/docker-compose-local.yml" \
-    run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh
-
-script_end
+if [[ "${RES}" != 0 ]]; then
+    echo >&2
+    echo >&2 "There were some isort errors. Exiting"
+    echo >&2
+    exit 1
+else
+    echo
+    echo "Isort succeeded"
+    echo
+fi

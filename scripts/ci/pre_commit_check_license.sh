@@ -21,5 +21,6 @@ set -uo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
 export REMEMBER_LAST_ANSWER="true"
+export MOUNT_HOST_VOLUMES="true"
 
 "${MY_DIR}/ci_check_license.sh"

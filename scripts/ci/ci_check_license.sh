@@ -23,14 +23,21 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 export MOUNT_LOCAL_SOURCES="true"
 
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
+AIRFLOW_SOURCES="$(cd "${MY_DIR}"/../../ && pwd )"
+export AIRFLOW_SOURCES
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+export MOUNT_HOST_VOLUMES="true"
 
-basic_sanity_checks
+# shellcheck source=scripts/ci/utils/_include_all.sh
+. "${MY_DIR}/utils/_include_all.sh"
 
 script_start
+
+initialize_environment
+
+prepare_build
+
+prepare_run
 
 rebuild_ci_image_if_needed
 

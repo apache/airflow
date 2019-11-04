@@ -78,8 +78,10 @@ class TestMySql(unittest.TestCase):
         )
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
+    @unittest.skip("""
+This tests is not working for mariadb as it uses not secure API of mysql
+That has been disabled in mariadb.
+    """)
     def test_mysql_hook_test_bulk_load(self):
         records = ("foo", "bar", "baz")
 
