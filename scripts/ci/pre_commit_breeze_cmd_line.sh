@@ -16,23 +16,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -xeuo pipefail
+set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+TMP_FILE=$(mktemp)
+TMP_OUTPUT=$(mktemp)
 
-basic_sanity_checks
+cd "${MY_DIR}/../../" || exit;
 
-script_start
+echo "
+.. code-block:: text
+" >"${TMP_FILE}"
 
-build_image_on_ci
+export SEPARATOR_WIDTH=100
+export AIRFLOW_CI_SILENT="true"
+./breeze --help | sed 's/^/  /' | sed 's/ *$//' >>"${TMP_FILE}"
 
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
+BREEZE_RST_FILE="${MY_DIR}/../../BREEZE.rst"
 
-mkdir -p "${AIRFLOW_SOURCES}/files"
+LEAD='^ \.\. START BREEZE HELP MARKER$'
+TAIL='^ \.\. END BREEZE HELP MARKER$'
 
-sudo pip install pre-commit
+BEGIN_GEN=$(grep -n "${LEAD}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
+END_GEN=$(grep -n "${TAIL}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
+cat <(head -n "${BEGIN_GEN}" "${BREEZE_RST_FILE}") \
+    "${TMP_FILE}" \
+    <(tail -n +"${END_GEN}" "${BREEZE_RST_FILE}") \
+    >"${TMP_OUTPUT}"
 
-script_end
+mv "${TMP_OUTPUT}" "${BREEZE_RST_FILE}"

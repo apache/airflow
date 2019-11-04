@@ -55,13 +55,9 @@ export DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
 
 # if AIRFLOW_CONTAINER_BRANCH_NAME is not set it will be set to either SOURCE_BRANCH
 # (if overridden by configuration) or default branch configured in /common/_default_branch.sh
-SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
+export SOURCE_BRANCH=${SOURCE_BRANCH:=${DEFAULT_BRANCH}}
 
-AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_BRANCH}}
-
-echo
-echo "Branch: ${AIRFLOW_CONTAINER_BRANCH_NAME}"
-echo
+export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:=${SOURCE_BRANCH}}
 
 # IMAGE_NAME might come from DockerHub and we decide which PYTHON_VERSION to use based on it (see below)
 # In case IMAGE_NAME is not set we determine PYTHON_VERSION based on the default python on the path
@@ -71,15 +67,8 @@ echo
 # to a different CI system and start pushing images to DockerHub rather than build it there.
 export BASE_IMAGE_NAME=${IMAGE_NAME:=${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION:-3.5}}
 
-echo
-echo "BASE_IMAGE_NAME=${BASE_IMAGE_NAME:=} (final image will have -ci, -ci-slim suffixes)"
-echo
-
 # Remove index.docker.io/ prefix as it is added by default by DockerHub
 export LOCAL_BASE_IMAGE_NAME=${BASE_IMAGE_NAME#index.docker.io/}
-echo
-echo "LOCAL_BASE_IMAGE_NAME=${LOCAL_BASE_IMAGE_NAME}"
-echo
 
 if [[ ! ${LOCAL_BASE_IMAGE_NAME} == ${DOCKERHUB_USER}/${DOCKERHUB_REPO}* ]]; then
     echo >&2
@@ -89,16 +78,10 @@ if [[ ! ${LOCAL_BASE_IMAGE_NAME} == ${DOCKERHUB_USER}/${DOCKERHUB_REPO}* ]]; the
 fi
 
 # Extract IMAGE_TAG from LOCAL_BASE_IMAGE_NAME (apache/airflow:master-python3.6 -> master-python3.6)
-IMAGE_TAG=${LOCAL_BASE_IMAGE_NAME##${DOCKERHUB_USER}/${DOCKERHUB_REPO}:}
-echo
-echo "Image tag: ${IMAGE_TAG}"
-echo
+export IMAGE_TAG=${LOCAL_BASE_IMAGE_NAME##${DOCKERHUB_USER}/${DOCKERHUB_REPO}:}
 
 # Extract TAG_PREFIX from IMAGE_TAG (master-python3.6 -> master)
-TAG_PREFIX=${IMAGE_TAG%-*}
-echo
-echo "Image tag prefix: ${TAG_PREFIX}"
-echo
+export TAG_PREFIX=${IMAGE_TAG%-*}
 
 # By that time no matter if we got the version from the IMAGE_NAME or we built
 # IMAGE_NAME with PYTHON_VERSION - the LOCAL_BASE_IMAGE_NAME should end with the correct pythonX.Y
@@ -106,10 +89,6 @@ echo
 # field after '-' delimiter, so for example 'airflow:master-python3.6'
 # will produce LONG_PYTHON_VERSION_FROM_IMAGE=python3.6
 export LONG_PYTHON_VERSION_FROM_IMAGE="${LOCAL_BASE_IMAGE_NAME##*-}"
-
-echo
-echo "LONG_PYTHON_VERSION_FROM_IMAGE=${LONG_PYTHON_VERSION_FROM_IMAGE}"
-echo
 
 # Verify that python version retrieved from image follows the expected pattern of python3.Y
 if [[ ! ${LONG_PYTHON_VERSION_FROM_IMAGE} =~ python[23]\.[0-9]+ ]]; then
@@ -123,7 +102,3 @@ fi
 
 # Unless python_version is forced, read actual python version from IMAGE NAME
 export PYTHON_VERSION=${LONG_PYTHON_VERSION_FROM_IMAGE#python}
-
-echo
-echo "PYTHON_VERSION=${PYTHON_VERSION}"
-echo
