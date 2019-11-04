@@ -37,6 +37,8 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
+.. _howto/operator:PubSubTopicCreateOperator:
+
 Creating a PubSub topic
 ^^^^^^^^^^^^^^^^^^^^^^^
 
