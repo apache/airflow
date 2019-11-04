@@ -19,6 +19,7 @@ default_stages: [commit, push]
 default_language_version:
   # force all unspecified python hooks to run python3
   python: python3
+minimum_pre_commit_version: "1.20.0"
 repos:
   - repo: local
     hooks:
@@ -154,7 +155,7 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+    rev: v2.4.0
     hooks:
       - id: check-merge-conflict
       - id: detect-private-key
@@ -163,7 +164,7 @@ repos:
       - id: check-executables-have-shebangs
       - id: check-xml
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.4.1
+    rev: v1.4.2
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
