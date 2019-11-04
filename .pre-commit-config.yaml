@@ -190,6 +190,13 @@ repos:
         entry: "./scripts/ci/pre_commit_lint_dockerfile.sh"
         files: ^Dockerfile.*$
         pass_filenames: true
+      - id: update-breeze-file
+        name: Update output of breeze command in BREEZE.rst
+        entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
+        language: system
+        files: ^BREEZE.rst$|^breeze$|^breeze-complete$
+        pass_filenames: false
+        require_serial: true
       - id: mypy
         name: Run mypy
         language: system
