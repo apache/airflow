@@ -38,7 +38,20 @@ To start a scheduler, simply run the command:
 
     airflow scheduler
 
-You can start scheduling a DAG once your scheduler has started running successfully.
+You can start executing a DAG once your scheduler has started running successfully.
 
 .. important::
-    You should refer :doc:`dag-run` for details on scheduling a DAG.
+    After you start the scheduler, a number runs for a DAG can get triggered at the same time. You can disable the behavior using :ref:`dag-catchup`.
+
+.. note::
+
+    The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG. 
+    Subsequent DAG Runs are created by the scheduler process, based on your DAG’s ``schedule_interval``, 
+    sequentially. 
+
+    If you run a DAG on a schedule_interval of one day, the run stamped 2020-01-01 
+    will be triggered soon after 2020-01-01T23:59. In other words, the job instance is 
+    started once the period it covers has ended.  The execution_date passed in the dag 
+    will also be 2020-01-01.
+
+    You should refer :doc:`dag-run` for details on scheduling a DAG .
