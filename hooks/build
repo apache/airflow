@@ -253,7 +253,7 @@ fi
 
 start_step "Populating cache"
 
-DOCKER_CACHE_DIRECTIVE_CI=()
+DOCKER_CACHE_DIRECTIVE=()
 
 if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     echo
@@ -281,7 +281,7 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CI_IMAGE}"
     fi
 
-    DOCKER_CACHE_DIRECTIVE_CI=()
+    DOCKER_CACHE_DIRECTIVE=()
     if [[ ${IMAGES_TO_PULL} == "" ]]; then
         echo
         echo "Skipping building of all images."
@@ -320,7 +320,7 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
                 echo
             fi
             if [[ "${IMAGE}" == "${AIRFLOW_CI_IMAGE}" ]]; then
-                DOCKER_CACHE_DIRECTIVE_CI+=("--cache-from" "${IMAGE}")
+                DOCKER_CACHE_DIRECTIVE+=("--cache-from" "${IMAGE}")
             else
                 echo
                 echo "Don't know how to set cache directive for ${IMAGE}. Exiting"
@@ -334,29 +334,29 @@ fi
 start_step "Setting cache options"
 
 if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE}" == "true" ]]; then
-    DOCKER_CACHE_DIRECTIVE_CI+=("--no-cache")
+    DOCKER_CACHE_DIRECTIVE+=("--no-cache")
     echo
     echo "Skip cache for builds. Everything will be rebuilt from scratch."
     echo
     echo "Cache directives used: "
-    echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
+    echo "CI build: ${DOCKER_CACHE_DIRECTIVE[*]}"
     echo
 elif [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     echo
     echo "This build uses Docker cache from pulled images"
     echo "Cache directives used: "
     set +u
-    echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
+    echo "CI build: ${DOCKER_CACHE_DIRECTIVE[*]}"
     set -u
     echo
 else
-    DOCKER_CACHE_DIRECTIVE_CI=()
+    DOCKER_CACHE_DIRECTIVE=()
     echo
     echo "Use default cache from locally built images."
     echo
     echo "Cache directives used: "
     set +u
-    echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
+    echo "CI build: ${DOCKER_CACHE_DIRECTIVE[*]}"
     set -u
     echo
 fi
@@ -418,8 +418,8 @@ else
     start_step "Build Airflow CI full image"
     build_python_image "Airflow CI" \
                 "${AIRFLOW_CI_IMAGE}" \
-                "main" \
-                "devel_ci" \
+                "airflow-ci" \
+                "devel_all" \
                 "root" \
                 "/root"
 

@@ -15,12 +15,18 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
-FROM ${PYTHON_BASE_IMAGE} as main
+# Base image for the whole Docker file
+ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
+ARG NODE_BASE_IMAGE="node:12.11.1-buster"
+
+############################################################################################################
+# Base image for Airflow - contains dependencies used by the main CI image
+############################################################################################################
+FROM ${PYTHON_BASE_IMAGE} as airflow-base
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
-ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
+ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 
 ARG AIRFLOW_VERSION="2.0.0.dev0"
@@ -35,22 +41,22 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="2"
-# Increase the value below to force renstalling of all dependencies
-ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
+# It can also be overwritten manually by setting the build variable.
+ARG APT_DEPENDENCIES_EPOCH_NUMBER="1"
+ENV APT_DEPENDENCIES_EPOCH_NUMBER=${APT_DEPENDENCIES_EPOCH_NUMBER}
 
-# Install curl and gnupg2 - needed to download nodejs in the next step
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-           curl \
-           gnupg2 \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# PIP version used to install dependencies
+ARG PIP_VERSION="19.0.2"
+ENV PIP_VERSION=${PIP_VERSION}
+
+RUN pip install --upgrade pip==${PIP_VERSION}
+
+# By default PIP install run without cache to make image smaller
+ARG PIP_NO_CACHE_DIR="true"
+ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
 
 # Install basic apt dependencies
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
-    && apt-get update \
+RUN apt-get update \
     && apt-get install -y --no-install-recommends \
            apt-utils \
            build-essential \
@@ -69,68 +75,57 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
            libssl-dev \
            locales  \
            netcat \
-           nodejs \
            rsync \
            sasl2-bin \
            sudo \
+           libmariadb-dev-compat \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Install graphviz - needed to build docs with diagrams
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-           graphviz \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install MySQL client from Oracle repositories (Debian installs mariadb)
-RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
-    && GNUPGHOME="$(mktemp -d)" \
-    && export GNUPGHOME \
-    && for KEYSERVER in $(shuf -e \
-            ha.pool.sks-keyservers.net \
-            hkp://p80.pool.sks-keyservers.net:80 \
-            keyserver.ubuntu.com \
-            hkp://keyserver.ubuntu.com:80 \
-            pgp.mit.edu) ; do \
-          gpg --keyserver "${KEYSERVER}" --recv-keys "${KEY}" && break || true ; \
-       done \
-    && gpg --export "${KEY}" | apt-key add - \
-    && gpgconf --kill all \
-    rm -rf "${GNUPGHOME}"; \
-    apt-key list > /dev/null \
-    && echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.6" | tee -a /etc/apt/sources.list.d/mysql.list \
-    && apt-get update \
-    && apt-get install --no-install-recommends -y \
-        libmysqlclient-dev \
-        mysql-client \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+############################################################################################################
+# CI airflow image
+############################################################################################################
+FROM airflow-base as airflow-ci
 
-# Note missing man directories on debian-stretch
-# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+
+# Setting to 1 speeds up building the image. Cassandra driver without CYTHON saves around 10 minutes
+# But might not be suitable for production image
+ENV CASS_DRIVER_NO_CYTHON="1"
+ENV CASS_DRIVER_BUILD_CONCURRENCY=8
+
+ENV JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-amd64/
+
+# By changing the CI build epoch we can force reinstalling apt dependenecies for CI
+# It can also be overwritten manually by setting the build variable.
+ARG CI_APT_DEPENDENCIES_EPOCH_NUMBER="1"
+ENV CI_APT_DEPENDENCIES_EPOCH_NUMBER=${CI_APT_DEPENDENCIES_EPOCH_NUMBER}
+
 RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
+         apt-transport-https ca-certificates wget dirmngr gnupg software-properties-common curl gnupg2 \
+    && export APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1 \
+    && curl -sL https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
+    && curl -sL https://deb.nodesource.com/setup_10.x | bash - \
+    && add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
       gnupg \
-      apt-transport-https \
-      ca-certificates \
-      software-properties-common \
+      graphviz \
       krb5-user \
       ldap-utils \
       less \
       lsb-release \
+      nodejs \
       net-tools \
-      openjdk-8-jdk \
+      adoptopenjdk-8-hotspot \
       openssh-client \
       openssh-server \
       postgresql-client \
@@ -141,7 +136,8 @@ RUN mkdir -pv /usr/share/man/man1 \
       vim \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    ;
 
 ENV HADOOP_DISTRO="cdh" HADOOP_MAJOR="5" HADOOP_DISTRO_VERSION="5.11.0" HADOOP_VERSION="2.6.0" \
     HADOOP_HOME="/opt/hadoop-cdh"
@@ -232,10 +228,6 @@ RUN mkdir -pv ${AIRFLOW_HOME} \
     mkdir -pv ${AIRFLOW_HOME}/dags \
     mkdir -pv ${AIRFLOW_HOME}/logs
 
-# Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
-ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
-
 # Optimizing installation of Cassandra driver
 # Speeds up building the image - cassandra driver without CYTHON saves around 10 minutes
 ARG CASS_DRIVER_NO_CYTHON="1"
@@ -263,47 +255,54 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}
 ARG AIRFLOW_BRANCH=master
 ENV AIRFLOW_BRANCH=${AIRFLOW_BRANCH}
 
-ENV AIRFLOW_GITHUB_DOWNLOAD=https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}
-
 # Airflow Extras installed
-ARG AIRFLOW_EXTRAS="all"
-ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
+ARG AIRFLOW_CI_EXTRAS="devel_ci"
+ENV AIRFLOW_CI_EXTRAS=${AIRFLOW_CI_EXTRAS}
 
-RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
+RUN echo "Installing with extras: ${AIRFLOW_CI_EXTRAS}."
 
-ARG AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="false"
-ENV AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD=${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}
+ENV PATH="/root/.local/bin:/root:${PATH}"
 
-# By changing the CI build epoch we can force reinstalling Arflow from the current master
-# It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="1"
-ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
+# Increase the value here to force reinstalling Apache Airflow pip dependencies
+ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
+ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
-# In case of CI-optimised builds we want to pre-install master version of airflow dependencies so that
-# We do not have to always reinstall it from the scratch.
-# This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
-# And is automatically reinstalled from the scratch every month
-RUN \
-    if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
-        pip install \
-        "https://github.com/apache/airflow/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-        && pip uninstall --yes apache-airflow; \
-    fi
+# In case of CI builds we want to pre-install master version of airflow dependencies so that
+# We do not have to always reinstall it from the scratch and loose time for that.
+# CI build is optimised for build speed
+RUN pip install --user \
+        "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_CI_EXTRAS}]" \
+        && pip uninstall --yes apache-airflow snakebite
 
-# Install NPM dependencies here. The NPM dependencies don't change that often and we already have pip
-# installed dependencies in case of CI optimised build, so it is ok to install NPM deps here
-# Rather than after setup.py is added.
-COPY airflow/www/package-lock.json ${AIRFLOW_SOURCES}/airflow/www/package-lock.json
-COPY airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/package.json
+
+
+# Copy all www files here so that we can run npm building
+COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 
+RUN mkdir -p "${AIRFLOW_SOURCES}/airflow/www/static" \
+    && mkdir -p "${AIRFLOW_SOURCES}/docs/build/_html" \
+    && pushd "${AIRFLOW_SOURCES}/airflow/www/static" || exit \
+    && ln -sf ../../../docs/_build/html docs \
+    && popd || exit
+
 RUN npm ci
 
-WORKDIR ${AIRFLOW_SOURCES}
+RUN npm run prod
 
-# Note! We are copying everything with airflow:airflow user:group even if we use root to run the scripts
-# This is fine as root user will be able to use those dirs anyway.
+COPY ./scripts/docker/entrypoint.sh /entrypoint.sh
+
+COPY .bash_completion run-tests-complete run-tests /root/
+COPY .bash_completion.d/run-tests-complete /root/.bash_completion.d/run-tests-complete
+
+RUN echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
+
+RUN chmod +x "${HOME}/run-tests-complete"
+
+RUN chmod +x "${HOME}/run-tests"
+
+WORKDIR ${AIRFLOW_SOURCES}
 
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy setup.py and other files needed to perform setup of dependencies
@@ -316,30 +315,9 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
 COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
-# This will be usually incremental small set of packages in CI optimized build, so it will be very fast
-# In non-CI optimized build this will install all dependencies before installing sources.
-RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
-
-WORKDIR ${AIRFLOW_SOURCES}/airflow/www
-
-# Copy all www files here so that we can run npm building for production
-COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
-
-# Package NPM for production
-RUN npm run prod
-
-COPY ./scripts/docker/entrypoint.sh /entrypoint.sh
-
-COPY .bash_completion run-tests-complete run-tests ${HOME}/
-
-COPY .bash_completion.d/run-tests-complete \
-     ${HOME}/.bash_completion.d/run-tests-complete
-
-RUN echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
-
-RUN chmod +x "${HOME}/run-tests-complete"
-
-RUN chmod +x "${HOME}/run-tests"
+# This will be usually incremental small set of packages in the CI optimized build, so it will be very fast
+RUN pip install --user -e ".[${AIRFLOW_CI_EXTRAS}]" \
+    && pip uninstall --yes apache-airflow
 
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/
@@ -355,14 +333,17 @@ COPY .coveragerc .rat-excludes .flake8 pylintrc LICENSE MANIFEST.in NOTICE CHANG
      setup.cfg setup.py \
      ${AIRFLOW_SOURCES}/
 
-WORKDIR ${AIRFLOW_SOURCES}
+# Reinstall airflow again - this time with sources and remove the sources after installation
+# It is not perfect because the sources are added as layer but it is still better
+RUN pip install --user -e ".[${AIRFLOW_CI_EXTRAS}]"
 
 # Additional python deps to install
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install ${ADDITIONAL_PYTHON_DEPS}; \
+        pip install --user ${ADDITIONAL_PYTHON_DEPS}; \
     fi
+
 
 WORKDIR ${AIRFLOW_SOURCES}
 
@@ -370,6 +351,6 @@ ENV PATH="${HOME}:${PATH}"
 
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/entrypoint.sh"]
+ENTRYPOINT ["/root/.local/bin/dumb-init", "--", "/entrypoint.sh"]
 
 CMD ["--help"]

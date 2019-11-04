@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
 
