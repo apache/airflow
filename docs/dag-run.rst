@@ -69,6 +69,8 @@ Re-run DAG
 There can be cases where you will want to execute your DAG again. One such case is when the scheduled
 DAG run fails. Another can be the scheduled DAG run wasn't executed due to low resources or the DAG being turned off.
 
+.. _dag-catchup:
+
 Catchup
 -------
 
