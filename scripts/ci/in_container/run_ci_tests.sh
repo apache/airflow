@@ -52,7 +52,7 @@ RES=$?
 set +x
 if [[ "${RES}" != "0" ]]; then
     if [[ -f "${XUNIT_FILE:=}" ]]; then
-        SEPARATOR_WIDTH=$(tput cols)
+        SEPARATOR_WIDTH=${SEPARATOR_WIDTH=$(tput cols)}
         echo
         printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
         echo
