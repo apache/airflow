@@ -157,30 +157,30 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
 
     @mock.patch('airflow.bin.cli.subprocess.Popen')
-    @mock.patch('celery.platforms.check_privileges')
-    @mock.patch('celery.worker.WorkController.Blueprint.start')
-    def test_serve_logs_on_worker_start(self, mock_run, mock_privil, mock_popen):
+    def test_serve_logs_on_worker_start(self, mock_popen):
         mock_popen.return_value.communicate.return_value = (b'output', b'error')
         mock_popen.return_value.returncode = 0
-        mock_run.return_value.returncode = 0
-        mock_privil.return_value = 0
-
         args = self.parser.parse_args(['worker', '-c', '-1'])
-        cli.worker(args)
-        mock_popen.assert_called_once()
+
+        with patch('celery.platforms.check_privileges') as mock_privil:
+            mock_privil.return_value = 0
+            with patch('celery.worker.WorkController.Blueprint.start') as mock_run:
+                mock_run.return_value.returncode = 0
+                cli.worker(args)
+                mock_popen.assert_called_once()
 
     @mock.patch('airflow.bin.cli.subprocess.Popen')
-    @mock.patch('celery.platforms.check_privileges')
-    @mock.patch('celery.worker.WorkController.Blueprint.start')
-    def test_skip_serve_logs_on_worker_start(self, mock_run, mock_privil, mock_popen):
+    def test_skip_serve_logs_on_worker_start(self, mock_popen):
         mock_popen.return_value.communicate.return_value = (b'output', b'error')
         mock_popen.return_value.returncode = 0
-        mock_run.run.return_value.returncode = 0
-        mock_privil.return_value = 0
-
         args = self.parser.parse_args(['worker', '-c', '-1', '-s'])
-        cli.worker(args)
-        mock_popen.assert_not_called()
+
+        with patch('celery.platforms.check_privileges') as mock_privil:
+            mock_privil.return_value = 0
+            with patch('celery.worker.WorkController.Blueprint.start') as mock_run:
+                mock_run.return_value.returncode = 0
+                cli.worker(args)
+                mock_popen.assert_not_called()
 
     def test_cli_webserver_debug(self):
         env = os.environ.copy()
