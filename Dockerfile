@@ -15,12 +15,12 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
+ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 FROM ${PYTHON_BASE_IMAGE} as main
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
-ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
+ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}
 
 ARG AIRFLOW_VERSION="2.0.0.dev0"
@@ -35,9 +35,9 @@ ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="2"
-# Increase the value below to force renstalling of all dependencies
-ENV DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}
+# It can also be overwritten manually by setting the build variable.
+ARG APT_DEPENDENCIES_EPOCH_NUMBER="1"
+ENV APT_DEPENDENCIES_EPOCH_NUMBER=${APT_DEPENDENCIES_EPOCH_NUMBER}
 
 # Install curl and gnupg2 - needed to download nodejs in the next step
 RUN apt-get update \
@@ -63,6 +63,7 @@ RUN curl -L https://deb.nodesource.com/setup_10.x | bash - \
            gosu \
            libffi-dev \
            libkrb5-dev \
+           libmariadb-dev-compat \
            libpq-dev \
            libsasl2-2 \
            libsasl2-dev \
@@ -70,7 +71,6 @@ RUN curl -L https://deb.nodesource.com/setup_10.x | bash - \
            libssl-dev \
            locales  \
            netcat \
-           nodejs \
            rsync \
            sasl2-bin \
            sudo \
@@ -79,43 +79,24 @@ RUN curl -L https://deb.nodesource.com/setup_10.x | bash - \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install graphviz - needed to build docs with diagrams
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-           graphviz \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install MySQL client from Oracle repositories (Debian installs mariadb)
-RUN KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
-    && GNUPGHOME="$(mktemp -d)" \
-    && export GNUPGHOME \
-    && for KEYSERVER in $(shuf -e \
-            ha.pool.sks-keyservers.net \
-            hkp://p80.pool.sks-keyservers.net:80 \
-            keyserver.ubuntu.com \
-            hkp://keyserver.ubuntu.com:80 \
-            pgp.mit.edu) ; do \
-          gpg --keyserver "${KEYSERVER}" --recv-keys "${KEY}" && break || true ; \
-       done \
-    && gpg --export "${KEY}" | apt-key add - \
-    && gpgconf --kill all \
-    rm -rf "${GNUPGHOME}"; \
-    apt-key list > /dev/null \
-    && echo "deb http://repo.mysql.com/apt/debian/ stretch mysql-5.6" | tee -a /etc/apt/sources.list.d/mysql.list \
-    && apt-get update \
-    && apt-get install --no-install-recommends -y \
-        libmysqlclient-dev \
-        mysql-client \
-    && apt-get autoremove -yqq --purge \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
 RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+ENV JAVA_HOME=/usr/lib/jvm/adoptopenjdk-8-hotspot-amd64/
+
+# Setup PIP
+# By default PIP install run without cache to make image smaller
+ARG PIP_NO_CACHE_DIR="true"
+ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
+RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
+
+# PIP version used to install dependencies
+ARG PIP_VERSION="19.0.2"
+ENV PIP_VERSION=${PIP_VERSION}
+RUN echo "Pip version: ${PIP_VERSION}"
+
+RUN pip install --upgrade pip==${PIP_VERSION}
 
 # Note missing man directories on debian-stretch
 # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
@@ -123,16 +104,22 @@ RUN mkdir -pv /usr/share/man/man1 \
     && mkdir -pv /usr/share/man/man7 \
     && apt-get update \
     && apt-get install --no-install-recommends -y \
+         apt-transport-https ca-certificates wget dirmngr software-properties-common \
+    && export APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1 \
+    && curl -L https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | apt-key add - \
+    && curl -L https://deb.nodesource.com/setup_10.x | bash - \
+    && add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/ \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
       gnupg \
-      apt-transport-https \
-      ca-certificates \
-      software-properties-common \
+      graphviz \
       krb5-user \
       ldap-utils \
       less \
       lsb-release \
+      nodejs \
       net-tools \
-      openjdk-8-jdk \
+      adoptopenjdk-8-hotspot \
       openssh-client \
       openssh-server \
       postgresql-client \
@@ -223,19 +210,6 @@ RUN RAT_URL="https://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERS
     && jar -tf "${RAT_JAR}" > /dev/null \
     && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
 
-# Setup PIP
-# By default PIP install run without cache to make image smaller
-ARG PIP_NO_CACHE_DIR="true"
-ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
-RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
-
-# PIP version used to install dependencies
-ARG PIP_VERSION="19.0.2"
-ENV PIP_VERSION=${PIP_VERSION}
-RUN echo "Pip version: ${PIP_VERSION}"
-
-RUN pip install --upgrade pip==${PIP_VERSION}
-
 # Install Google SDK
 ENV GCLOUD_HOME="/opt/gcloud"
 
@@ -281,7 +255,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} \
     mkdir -pv ${AIRFLOW_HOME}/logs
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="2"
+ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
 ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
 # Optimizing installation of Cassandra driver
@@ -305,26 +279,14 @@ ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
 
 RUN echo "Installing with extras: ${AIRFLOW_EXTRAS}."
 
-ARG AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="false"
-ENV AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD=${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}
+# In case of CI builds we want to pre-install master version of airflow dependencies so that
+# We do not have to always reinstall it from the scratch and loose time for that.
+# CI build is optimised for build speed
+RUN pip install --user \
+        "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
+        && pip uninstall --yes apache-airflow snakebite
 
-# By changing the CI build epoch we can force reinstalling Arflow from the current master
-# It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="1"
-ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
-
-# In case of CI-optimised builds we want to pre-install master version of airflow dependencies so that
-# We do not have to always reinstall it from the scratch.
-# This can be reinstalled from latest master by increasing PIP_DEPENDENCIES_EPOCH_NUMBER.
-# And is automatically reinstalled from the scratch every month
-RUN \
-    if [[ "${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" == "true" ]]; then \
-        pip install \
-        "https://github.com/apache/airflow/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-        && pip uninstall --yes apache-airflow; \
-    fi
-
-# Install NPM dependencies here. The NPM dependencies don't change that often and we already have pip
+# Install node dependencies here. The NPM dependencies don't change that often and we already have pip
 # installed dependencies in case of CI optimised build, so it is ok to install NPM deps here
 # Rather than after setup.py is added.
 COPY airflow/www/yarn.lock airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/
@@ -333,33 +295,26 @@ WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 
 RUN yarn install --frozen-lockfile
 
-WORKDIR ${AIRFLOW_SOURCES}
+# Copy all www files here so that we can run yarn building for production
+COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/
 
-# Note! We are copying everything with airflow:airflow user:group even if we use root to run the scripts
-# This is fine as root user will be able to use those dirs anyway.
+# Package NPM for production
+RUN yarn run prod
 
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy setup.py and other files needed to perform setup of dependencies
 # So in case setup.py changes we can install latest dependencies required.
-COPY setup.py ${AIRFLOW_SOURCES}/setup.py
-COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
-COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
-COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
+COPY setup.py setup.cfg ${AIRFLOW_SOURCES}/
+
+COPY airflow/version.py airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
 COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
 # In non-CI optimized build this will install all dependencies before installing sources.
-RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
-
-WORKDIR ${AIRFLOW_SOURCES}/airflow/www
-
-# Copy all www files here so that we can run yarn building for production
-COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
-
-# Package NPM for production
-RUN yarn run prod
+RUN pip install --user -e ".[${AIRFLOW_EXTRAS}]" \
+    && pip uninstall --yes apache-airflow
 
 COPY scripts/docker/entrypoint.sh /entrypoint.sh
 
@@ -373,12 +328,8 @@ COPY docs/ ${AIRFLOW_SOURCES}/docs/
 COPY tests/ ${AIRFLOW_SOURCES}/tests/
 COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
 COPY .coveragerc .rat-excludes .flake8 pylintrc LICENSE MANIFEST.in NOTICE CHANGELOG.txt \
-     .github pytest.ini \
-     setup.cfg setup.py \
+     .github pytest.ini Dockerfile \
      ${AIRFLOW_SOURCES}/
-
-# Needed for building images via docker-in-docker inside the docker
-COPY Dockerfile ${AIRFLOW_SOURCES}/Dockerfile
 
 # Intall autocomplete
 RUN register-python-argcomplete airflow >> ~/.bashrc
@@ -389,15 +340,15 @@ WORKDIR ${AIRFLOW_SOURCES}
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install ${ADDITIONAL_PYTHON_DEPS}; \
+        pip install --user ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
 WORKDIR ${AIRFLOW_SOURCES}
 
-ENV PATH="${HOME}:${PATH}"
+ENV PATH="${HOME}:${PATH}:/root/.local/bin"
 
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/entrypoint.sh"]
+ENTRYPOINT ["/root/.local/bin/dumb-init", "--", "/entrypoint.sh"]
 
 CMD ["--help"]
