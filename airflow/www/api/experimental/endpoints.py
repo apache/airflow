@@ -75,7 +75,7 @@ def trigger_dag(dag_id):
 
             return response
 
-    replace_microseconds = True
+    replace_microseconds = (execution_date is None)
     if 'replace_microseconds' in data:
         replace_microseconds = to_boolean(data['replace_microseconds'])
 
