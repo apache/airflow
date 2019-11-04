@@ -48,8 +48,8 @@ Use :ref:`Jinja templating <jinja-templating>` with
 to define values dynamically.
 
 
-Copying single files
---------------------
+Copying a single file
+---------------------
 
 The following Operator copies a single file.
 
@@ -59,8 +59,8 @@ The following Operator copies a single file.
     :start-after: [START howto_operator_gcs_to_sftp_copy_single_file]
     :end-before: [END howto_operator_gcs_to_sftp_copy_single_file]
 
-Moving single files
--------------------
+Moving a single file
+--------------------
 
 To move the file use the ``move_object`` parameter. Once the file is copied to SFTP,
 the original file from the Google Storage is deleted. The ``destination_path`` parameter defines the
@@ -73,10 +73,10 @@ full path of the file on the SFTP server.
     :end-before: [END howto_operator_gcs_to_sftp_move_single_file_destination]
 
 
-Copying directory
------------------
+Copying a directory
+-------------------
 
-Use the ``wildcard`` in ``source_path`` parameter to copy the directory.
+Use the ``wildcard`` in ``source_path`` parameter to copy a directory.
 
 .. exampleinclude:: ../../../../airflow/example_dags/example_gcs_to_sftp.py
     :language: python
