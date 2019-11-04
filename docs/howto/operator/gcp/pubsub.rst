@@ -37,22 +37,8 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-
-Arguments
-^^^^^^^^^
-
-Some arguments in the example DAG are common and some are taken from the OS environment variables:
-
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_pubsub.py
-    :language: python
-    :start-after: [START howto_operator_gcp_pubsub_args_common]
-    :end-before: [END howto_operator_gcp_pubsub_args_common]
-
-
-.. _howto/operator:PubSubTopicCreateOperator:
-
-Create a PubSub topic
-^^^^^^^^^^^^^^^^^^^^^
+Creating a PubSub topic
+^^^^^^^^^^^^^^^^^^^^^^^
 
 The PubSub topic is a named resource to which messages are sent by publishers.
 The :class:`~airflow.gcp.operators.pubsub.PubSubTopicCreateOperator` operator would create a topic.
@@ -65,8 +51,8 @@ The :class:`~airflow.gcp.operators.pubsub.PubSubTopicCreateOperator` operator wo
 
 .. _howto/operator:PubSubSubscriptionCreateOperator:
 
-Create a PubSub subscription
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Creating a PubSub subscription
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The subscription is named resource representing the stream of messages from a single, specific topic,
 to be delivered to the subscribing application.
@@ -80,7 +66,7 @@ The :class:`~airflow.gcp.operators.pubsub.PubSubSubscriptionCreateOperator` oper
 
 .. _howto/operator:PubSubPublishOperator:
 
-Publish a PubSub messeges
+Publish a PubSub messages
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A Message is the combination of data and (optional) attributes that a publisher sends to a topic and is eventually delivered to subscribers.
@@ -94,8 +80,8 @@ The :class:`~airflow.gcp.operators.pubsub.PubSubPublishOperator` operator would 
 
 .. _howto/operator:PubSubPullSensor:
 
-Pull messages from a PubSub subscription
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Pulling messages from a PubSub subscription
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.gcp.sensors.pubsub.PubSubPullSensor` sensor would pull messages from a PubSub subscription
 and pass them through XCom.
 
@@ -119,8 +105,8 @@ To pull messages from XCom :class:`~airflow.operators.bash_operator.BashOperator
 
 .. _howto/operator:PubSubSubscriptionDeleteOperator:
 
-Delete a PubSub subscription
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Deleting a PubSub subscription
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The :class:`~airflow.gcp.operators.pubsub.PubSubSubscriptionDeleteOperator` operator would delete a subscription.
 
@@ -132,8 +118,8 @@ The :class:`~airflow.gcp.operators.pubsub.PubSubSubscriptionDeleteOperator` oper
 
 .. _howto/operator:PubSubTopicDeleteOperator:
 
-Delete a PubSub topic
-^^^^^^^^^^^^^^^^^^^^^
+Deleting a PubSub topic
+^^^^^^^^^^^^^^^^^^^^^^^
 
 The :class:`~airflow.gcp.operators.pubsub.PubSubTopicDeleteOperator` operator would delete a topic.
 

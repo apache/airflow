@@ -31,11 +31,9 @@ from airflow.providers.google.cloud.operators.pubsub import (
 )
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 
-# [START howto_operator_gcp_pubsub_args_common]
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 TOPIC = "PubSubTestTopic"
 MESSAGE = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
-# [END howto_operator_gcp_pubsub_args_common]
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 
