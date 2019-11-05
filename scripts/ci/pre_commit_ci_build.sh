@@ -16,35 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
+set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-
+export REMEMBER_LAST_ANSWER="false"
 export PYTHON_VERSION=3.5
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
-
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-    echo
-    echo "Skip tests"
-    echo
-    script_end
-    exit
-fi
-
-rebuild_ci_image_if_needed
-rebuild_checklicence_image_if_needed
-
-IMAGES_TO_CHECK=("CI" "CHECKLICENCE")
-export IMAGES_TO_CHECK
-
-pre-commit run --all-files --show-diff-on-failure
-
-script_end
+"${MY_DIR}/local_ci_build.sh"

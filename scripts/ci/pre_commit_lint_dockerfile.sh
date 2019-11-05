@@ -19,6 +19,6 @@
 set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export SKIP_CLEANUP_OF_LAST_ANSWER="true"
+export REMEMBER_LAST_ANSWER="true"
 
 "${MY_DIR}/ci_lint_dockerfile.sh" "${@}"

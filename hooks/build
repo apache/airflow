@@ -98,30 +98,18 @@ function build_python_image {
     NAME="${1}"
     MY_IMAGE_TAG="${2}"
     TARGET_IMAGE="${3}"
-    APT_DEPS_IMAGE="${4:-airflow-apt-deps-ci-slim}"
-    AIRFLOW_EXTRAS="${5:-all}"
-    AIRFLOW_USER="${6:-airflow}"
-    HOME="${7:-/home/airflow}"
+    AIRFLOW_EXTRAS="${4:-all}"
+    AIRFLOW_USER="${5:-airflow}"
+    HOME="${6:-/home/airflow}"
 
     echo "Build ${NAME} image: ${MY_IMAGE_TAG}"
     echo "Python base image: ${PYTHON_BASE_IMAGE}"
 
     set +u
-    if [[ "${MY_IMAGE_TAG}" == "${AIRFLOW_CI_IMAGE}" ]]; then
-        DOCKER_CACHE_DIRECTIVE=("${DOCKER_CACHE_DIRECTIVE_CI[@]}")
-    elif [[ "${MY_IMAGE_TAG}" == "${AIRFLOW_SLIM_CI_IMAGE}" ]]; then
-        DOCKER_CACHE_DIRECTIVE=("${DOCKER_CACHE_DIRECTIVE_CI_SLIM[@]}")
-    else
-        echo
-        echo "Don't know how to set cache directive for ${MY_IMAGE_TAG}. Exiting"
-        echo
-        exit 1
-    fi
     set -x
     docker build \
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
-        --build-arg APT_DEPS_IMAGE="${APT_DEPS_IMAGE}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
         --build-arg AIRFLOW_USER="${AIRFLOW_USER}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_CONTAINER_BRANCH_NAME}" \
@@ -189,9 +177,6 @@ else
     NON_CI="true"
 fi
 
-# Extras used to to build slim airflow image
-AIRFLOW_SLIM_EXTRAS=${AIRFLOW_SLIM_EXTRAS:="all"}
-
 # Extras used to build cache and CI image
 AIRFLOW_CI_EXTRAS=${AIRFLOW_CI_EXTRAS:="devel_ci"}
 
@@ -212,13 +197,8 @@ export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES=${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES
 # In CI environment (and local force) we skip pulling latest python image
 export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL=${AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL:=${CI}}
 
-# Skips downloading and building the slim image of airflow
-# This is set to true by default in CI test environment (we only need full CI image then)
-export AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE=${AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE:=${CI}}
-echo "Skip slim image: ${AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE}"
-
 # Skips downloading and building the CI image, full CI-enabled image of airflow
-# This is set to true for pre-tests which do not need the whole CI image just the slim one
+# This is set to true for pre-tests which do not need the whole CI image
 export AIRFLOW_CONTAINER_SKIP_CI_IMAGE=${AIRFLOW_CONTAINER_SKIP_CI_IMAGE:="false"}
 echo "Skip CI image: ${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}"
 
@@ -241,11 +221,6 @@ export PYTHON_BASE_IMAGE=python:${PYTHON_VERSION}-slim-stretch
 export CHECKLICENCE_BASE_IMAGE=debian:stretch-slim
 
 if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
-    export AIRFLOW_SLIM_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_VERSION}-python${PYTHON_VERSION}-ci-slim"
-    export AIRFLOW_SLIM_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_VERSION}-ci-slim"
-    export AIRFLOW_SLIM_CI_IMAGE_LATEST="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:latest-python${PYTHON_VERSION}-${TAG_PREFIX}-ci-slim"
-    export AIRFLOW_SLIM_CI_IMAGE_LATEST_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:latest-${TAG_PREFIX}-ci-slim"
-
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_VERSION}-python${PYTHON_VERSION}-ci"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_VERSION}-ci"
     export AIRFLOW_CI_IMAGE_LATEST="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:latest-python${PYTHON_VERSION}-${TAG_PREFIX}-ci"
@@ -253,9 +228,6 @@ if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
 
     export AIRFLOW_CHECKLICENCE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:checklicence"
 else
-    export AIRFLOW_SLIM_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-python${PYTHON_VERSION}-ci-slim"
-    export AIRFLOW_SLIM_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-ci-slim"
-
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-python${PYTHON_VERSION}-ci"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-ci"
     export AIRFLOW_CHECKLICENCE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:checklicence"
@@ -280,7 +252,6 @@ if [[ "${AIRFLOW_CONTAINER_CLEANUP_IMAGES}" == "true" ]]; then
     start_step "Removing images"
     docker rmi "${PYTHON_BASE_IMAGE}" || true
     docker rmi "${CHECKLICENCE_BASE_IMAGE}" || true
-    docker rmi "${AIRFLOW_SLIM_CI_IMAGE}" || true
     docker rmi "${AIRFLOW_CI_IMAGE}" || true
     docker rmi "${AIRFLOW_CHECKLICENCE_IMAGE}" || true
     echo
@@ -297,7 +268,6 @@ fi
 start_step "Populating cache"
 
 DOCKER_CACHE_DIRECTIVE_CI=()
-DOCKER_CACHE_DIRECTIVE_CI_SLIM=()
 DOCKER_CACHE_DIRECTIVE_CHECKLICENCE=()
 
 if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
@@ -328,17 +298,12 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
         echo "Downloading the CI Airflow image"
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CI_IMAGE}"
     fi
-    if [[ "${AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE}" != "true" ]]; then
-        echo "Downloading the slim Airflow image"
-        IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_SLIM_CI_IMAGE}"
-    fi
     if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" != "true" ]]; then
         echo "Downloading the CHECKLICENCE Airflow image"
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CHECKLICENCE_IMAGE}"
     fi
 
     DOCKER_CACHE_DIRECTIVE_CI=()
-    DOCKER_CACHE_DIRECTIVE_CI_SLIM=()
     if [[ ${IMAGES_TO_PULL} == "" ]]; then
         echo
         echo "Skipping building of all images."
@@ -378,8 +343,6 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
             fi
             if [[ "${IMAGE}" == "${AIRFLOW_CI_IMAGE}" ]]; then
                 DOCKER_CACHE_DIRECTIVE_CI+=("--cache-from" "${IMAGE}")
-            elif [[ "${IMAGE}" == "${AIRFLOW_SLIM_CI_IMAGE}" ]]; then
-                DOCKER_CACHE_DIRECTIVE_CI_SLIM+=("--cache-from" "${IMAGE}")
             elif [[ "${IMAGE}" == "${AIRFLOW_CHECKLICENCE_IMAGE}" ]]; then
                 DOCKER_CACHE_DIRECTIVE_CHECKLICENCE+=("--cache-from" "${IMAGE}")
             else
@@ -396,14 +359,12 @@ start_step "Setting cache options"
 
 if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE}" == "true" ]]; then
     DOCKER_CACHE_DIRECTIVE_CI+=("--no-cache")
-    DOCKER_CACHE_DIRECTIVE_CI_SLIM+=("--no-cache")
     DOCKER_CACHE_DIRECTIVE_CHECKLICENCE+=("--no-cache")
     echo
     echo "Skip cache for builds. Everything will be rebuilt from scratch."
     echo
     echo "Cache directives used: "
     echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
-    echo "CI slim build: ${DOCKER_CACHE_DIRECTIVE_CI_SLIM[*]}"
     echo "CI checklicence build: ${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[*]}"
     echo
 elif [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
@@ -412,13 +373,11 @@ elif [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     echo "Cache directives used: "
     set +u
     echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
-    echo "CI slim build: ${DOCKER_CACHE_DIRECTIVE_CI_SLIM[*]}"
     echo "CI checklicence build: ${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[*]}"
     set -u
     echo
 else
     DOCKER_CACHE_DIRECTIVE_CI=()
-    DOCKER_CACHE_DIRECTIVE_CI_SLIM=()
     DOCKER_CACHE_DIRECTIVE_CHECKLICENCE=()
     echo
     echo "Use default cache from locally built images."
@@ -426,7 +385,6 @@ else
     echo "Cache directives used: "
     set +u
     echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
-    echo "CI slim build: ${DOCKER_CACHE_DIRECTIVE_CI_SLIM[*]}"
     echo "CI checklicence build: ${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[*]}"
     set -u
     echo
@@ -443,7 +401,7 @@ BUILD_ID=${BUILD_ID:="local"}
 
 
 # directory where "deployment" artifacts should be placed
-DEPLOY_DIR=${AIRFLOW_SOURCES}/dist/${AIRFLOW_CONTAINER_BRANCH_NAME}/$(date +%Y-%m-%d)/${BUILD_ID}/${PYTHON_VERSION}
+DEPLOY_DIR="${AIRFLOW_SOURCES}/dist/${AIRFLOW_CONTAINER_BRANCH_NAME}/$(date "+%Y-%m-%d")/${BUILD_ID}/${PYTHON_VERSION}"
 
 mkdir -pv "${DEPLOY_DIR}"
 
@@ -483,29 +441,6 @@ echo "Group/other write access removed for ${FILES_FOR_REBUILD_CHECK[*]}"
 echo
 echo
 
-start_step "Build Airflow CI slim image"
-
-if [[ "${AIRFLOW_CONTAINER_SKIP_SLIM_CI_IMAGE}" == "true" ]]; then
-    echo "Skip building the Airflow CI slim image"
-else
-    build_python_image "Airflow" \
-                "${AIRFLOW_SLIM_CI_IMAGE}" \
-                "main" \
-                "airflow-apt-deps-ci-slim"
-    if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
-        docker tag "${AIRFLOW_SLIM_CI_IMAGE}" "${AIRFLOW_SLIM_CI_IMAGE_DEFAULT}"
-        add_image_to_push "${AIRFLOW_SLIM_CI_IMAGE_DEFAULT}"
-    fi
-    if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
-        docker tag "${AIRFLOW_SLIM_CI_IMAGE}" "${AIRFLOW_SLIM_CI_IMAGE_LATEST}"
-        add_image_to_push "${AIRFLOW_SLIM_CI_IMAGE_LATEST}"
-        if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
-            docker tag "${AIRFLOW_SLIM_CI_IMAGE}" "${AIRFLOW_SLIM_CI_IMAGE_LATEST_DEFAULT}"
-            add_image_to_push "${AIRFLOW_SLIM_CI_IMAGE_LATEST_DEFAULT}"
-        fi
-    fi
-fi
-
 if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" == "true" ]]; then
     echo "Skip building the CI full Airflow image"
 else
@@ -513,7 +448,6 @@ else
     build_python_image "Airflow CI" \
                 "${AIRFLOW_CI_IMAGE}" \
                 "main" \
-                "airflow-apt-deps-ci" \
                 "devel_ci" \
                 "root" \
                 "/root"
@@ -536,8 +470,10 @@ if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" == "true" ]]; then
     echo "Skip building the CHECKLICENCE image"
 else
     start_step "Build Airflow CHECKLICENCE image"
+    set +u
     docker build . -f Dockerfile-checklicence \
         "${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[@]}" -t "${AIRFLOW_CHECKLICENCE_IMAGE}"
+    set -u
     add_image_to_push "${AIRFLOW_CHECKLICENCE_IMAGE}"
 fi
 
