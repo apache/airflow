@@ -43,9 +43,9 @@ Creating a PubSub topic
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The PubSub topic is a named resource to which messages are sent by publishers.
-The :class:`~airflow.gcp.operators.pubsub.PubSubTopicCreateOperator` operator would create a topic.
+The :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator` operator would create a topic.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_pubsub.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_create_topic]
     :end-before: [END howto_operator_gcp_pubsub_create_topic]
@@ -58,9 +58,9 @@ Creating a PubSub subscription
 
 The subscription is named resource representing the stream of messages from a single, specific topic,
 to be delivered to the subscribing application.
-The :class:`~airflow.gcp.operators.pubsub.PubSubSubscriptionCreateOperator` operator would create a subscription.
+The :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator` operator would create a subscription.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_pubsub.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_create_subscription]
     :end-before: [END howto_operator_gcp_pubsub_create_subscription]
@@ -68,13 +68,13 @@ The :class:`~airflow.gcp.operators.pubsub.PubSubSubscriptionCreateOperator` oper
 
 .. _howto/operator:PubSubPublishOperator:
 
-Publish a PubSub messages
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Publishing PubSub messages
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A Message is the combination of data and (optional) attributes that a publisher sends to a topic and is eventually delivered to subscribers.
-The :class:`~airflow.gcp.operators.pubsub.PubSubPublishOperator` operator would publish messages.
+A ``Message`` is the combination of data and (optional) attributes that a publisher sends to a topic and is eventually delivered to subscribers.
+The :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator` operator would publish messages.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_pubsub.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_publish]
     :end-before: [END howto_operator_gcp_pubsub_publish]
@@ -84,22 +84,22 @@ The :class:`~airflow.gcp.operators.pubsub.PubSubPublishOperator` operator would 
 
 Pulling messages from a PubSub subscription
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The :class:`~airflow.gcp.sensors.pubsub.PubSubPullSensor` sensor would pull messages from a PubSub subscription
+The :class:`~airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor` sensor would pull messages from a PubSub subscription
 and pass them through XCom.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_pubsub.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_pull_message]
     :end-before: [END howto_operator_gcp_pubsub_pull_message]
 
 To pull messages from XCom :class:`~airflow.operators.bash_operator.BashOperator` operator would do this.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_pubsub.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_pull_messages_result_cmd]
     :end-before: [END howto_operator_gcp_pubsub_pull_messages_result_cmd]
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_pubsub.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_pull_messages_result]
     :end-before: [END howto_operator_gcp_pubsub_pull_messages_result]
@@ -110,9 +110,9 @@ To pull messages from XCom :class:`~airflow.operators.bash_operator.BashOperator
 Deleting a PubSub subscription
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The :class:`~airflow.gcp.operators.pubsub.PubSubSubscriptionDeleteOperator` operator would delete a subscription.
+The :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator` operator would delete a subscription.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_pubsub.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_unsubscribe]
     :end-before: [END howto_operator_gcp_pubsub_unsubscribe]
@@ -123,9 +123,9 @@ The :class:`~airflow.gcp.operators.pubsub.PubSubSubscriptionDeleteOperator` oper
 Deleting a PubSub topic
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-The :class:`~airflow.gcp.operators.pubsub.PubSubTopicDeleteOperator` operator would delete a topic.
+The :class:`~airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator` operator would delete a topic.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_pubsub.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_delete_topic]
     :end-before: [END howto_operator_gcp_pubsub_delete_topic]
