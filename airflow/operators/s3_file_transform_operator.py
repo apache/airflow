@@ -111,10 +111,8 @@ class S3FileTransformOperator(BaseOperator):
             raise AirflowException(
                 "Either transform_script or select_expression must be specified")
 
-        source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id,
-                              verify=self.source_verify)
-        dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id,
-                            verify=self.dest_verify)
+        source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id, verify=self.source_verify)
+        dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
 
         self.log.info("Downloading source S3 file %s", self.source_s3_key)
         if not source_s3.check_for_key(self.source_s3_key):
