@@ -29,7 +29,7 @@ from airflow.contrib.hooks.sagemaker_hook import (
     LogState, SageMakerHook, secondary_training_status_changed, secondary_training_status_message,
 )
 from airflow.exceptions import AirflowException
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 from tests.compat import mock
 
 role = 'arn:aws:iam:role/test-role'
@@ -254,8 +254,8 @@ class TestSageMakerHook(unittest.TestCase):
         event_iter = hook.multi_stream_iter('log', [None, None, None])
         self.assertEqual(next(event_iter), (0, event))
 
-    @mock.patch.object(AWSS3Hook, 'create_bucket')
-    @mock.patch.object(AWSS3Hook, 'load_file')
+    @mock.patch.object(S3Hook, 'create_bucket')
+    @mock.patch.object(S3Hook, 'load_file')
     def test_configure_s3_resources(self, mock_load_file, mock_create_bucket):
         hook = SageMakerHook()
         evaluation_result = {
@@ -268,9 +268,9 @@ class TestSageMakerHook(unittest.TestCase):
         mock_load_file.assert_called_once_with(path, key, bucket)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
-    @mock.patch.object(AWSS3Hook, 'check_for_key')
-    @mock.patch.object(AWSS3Hook, 'check_for_bucket')
-    @mock.patch.object(AWSS3Hook, 'check_for_prefix')
+    @mock.patch.object(S3Hook, 'check_for_key')
+    @mock.patch.object(S3Hook, 'check_for_bucket')
+    @mock.patch.object(S3Hook, 'check_for_prefix')
     def test_check_s3_url(self,
                           mock_check_prefix,
                           mock_check_bucket,

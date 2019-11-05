@@ -23,7 +23,7 @@ from unittest import mock
 
 from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 from airflow.utils.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -76,18 +76,18 @@ class TestS3TaskHandler(unittest.TestCase):
                 pass
 
     def test_hook(self):
-        self.assertIsInstance(self.s3_task_handler.hook, AWSS3Hook)
+        self.assertIsInstance(self.s3_task_handler.hook, S3Hook)
 
     def test_hook_raises(self):
         handler = self.s3_task_handler
         with mock.patch.object(handler.log, 'error') as mock_error:
-            with mock.patch("airflow.providers.aws.hooks.s3.AWSS3Hook") as mock_hook:
+            with mock.patch("airflow.providers.aws.hooks.s3.S3Hook") as mock_hook:
                 mock_hook.side_effect = Exception('Failed to connect')
                 # Initialize the hook
                 handler.hook
 
             mock_error.assert_called_once_with(
-                'Could not create an AWSS3Hook with connection id "%s". Please make '
+                'Could not create an S3Hook with connection id "%s". Please make '
                 'sure that airflow[aws] is installed and the S3 connection exists.',
                 ''
             )
@@ -103,7 +103,7 @@ class TestS3TaskHandler(unittest.TestCase):
         self.assertFalse(self.s3_task_handler.s3_log_exists('s3://nonexistentbucket/foo'))
 
     def test_log_exists_no_hook(self):
-        with mock.patch("airflow.providers.aws.hooks.s3.AWSS3Hook") as mock_hook:
+        with mock.patch("airflow.providers.aws.hooks.s3.S3Hook") as mock_hook:
             mock_hook.side_effect = Exception('Failed to connect')
             self.assertFalse(self.s3_task_handler.s3_log_exists(self.remote_log_location))
 

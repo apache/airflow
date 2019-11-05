@@ -23,7 +23,7 @@ from typing import List, Optional, Union
 
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import BaseOperator
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -98,7 +98,7 @@ class RedshiftToS3Transfer(BaseOperator):
 
     def execute(self, context):
         postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-        s3_hook = AWSS3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         credentials = s3_hook.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)

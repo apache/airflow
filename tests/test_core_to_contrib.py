@@ -133,7 +133,7 @@ HOOK = [
         "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
     ),
     (
-        "airflow.providers.aws.hooks.s3.AWSS3Hook",
+        "airflow.providers.aws.hooks.s3.S3Hook",
         "airflow.hooks.S3_hook.S3Hook",
     ),
 ]

@@ -33,7 +33,7 @@ from boto.compat import json  # type: ignore
 
 from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 
 
 def _convert_item_to_json_bytes(item):
@@ -41,7 +41,7 @@ def _convert_item_to_json_bytes(item):
 
 
 def _upload_file_to_s3(file_obj, bucket_name, s3_key_prefix):
-    s3_client = AWSS3Hook().get_conn()
+    s3_client = S3Hook().get_conn()
     file_obj.seek(0)
     s3_client.upload_file(
         Filename=file_obj.name,

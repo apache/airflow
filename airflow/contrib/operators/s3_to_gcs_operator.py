@@ -22,7 +22,7 @@ from tempfile import NamedTemporaryFile
 from airflow.contrib.operators.s3_list_operator import S3ListOperator
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -176,7 +176,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                     'There are no new files to sync. Have a nice day!')
 
         if files:
-            hook = AWSS3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+            hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
             for file in files:
                 # GCS hook builds its own in-memory file so we have to create

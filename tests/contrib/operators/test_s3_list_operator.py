@@ -30,7 +30,7 @@ MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 
 class TestS3ListOperator(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.s3_list_operator.AWSS3Hook')
+    @mock.patch('airflow.contrib.operators.s3_list_operator.S3Hook')
     def test_execute(self, mock_hook):
 
         mock_hook.return_value.list_keys.return_value = MOCK_FILES

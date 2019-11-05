@@ -23,7 +23,7 @@ import warnings
 
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.operators.gcs import GoogleCloudStorageListOperator
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -116,13 +116,13 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
     def execute(self, context):
         # use the super to list all files in an Google Cloud Storage bucket
         files = super().execute(context)
-        s3_hook = AWSS3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
+        s3_hook = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
 
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket
             # and only keep those files which are present in
             # Google Cloud Storage and not in S3
-            bucket_name, prefix = AWSS3Hook.parse_s3_url(self.dest_s3_key)
+            bucket_name, prefix = S3Hook.parse_s3_url(self.dest_s3_key)
             # look for the bucket and the prefix to avoid look into
             # parent directories/keys
             existing_files = s3_hook.list_keys(bucket_name, prefix=prefix)

@@ -23,24 +23,10 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.aws.hooks.s3 import AWSS3Hook, provide_bucket_name  # noqa
+from airflow.providers.aws.hooks.s3 import S3Hook, provide_bucket_name  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.aws.hooks.s3`.",
     DeprecationWarning,
     stacklevel=2,
 )
-
-
-class S3Hook(AWSS3Hook):
-    """
-    This class is deprecated. Please use `airflow.providers.aws.hooks.s3.AWSS3Hook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. Please use `airflow.providers.aws.hooks.s3.AWSS3Hook`.",
-            DeprecationWarning, stacklevel=2
-        )
-
-        super().__init__(*args, **kwargs)
