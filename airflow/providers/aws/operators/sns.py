@@ -17,8 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.aws_sns_hook import AwsSnsHook
+"""Publish message to SNS queue"""
+
 from airflow.models import BaseOperator
+from airflow.providers.aws.hooks.sns import AwsSnsHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -52,11 +54,10 @@ class SnsPublishOperator(BaseOperator):
         sns = AwsSnsHook(aws_conn_id=self.aws_conn_id)
 
         self.log.info(
-            'Sending SNS notification to {} using {}:\n{}'.format(
-                self.target_arn,
-                self.aws_conn_id,
-                self.message
-            )
+            'Sending SNS notification to %s using %s:\n%s',
+            self.target_arn,
+            self.aws_conn_id,
+            self.message
         )
 
         return sns.publish_to_target(
