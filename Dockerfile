@@ -15,16 +15,8 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-# Base image for the whole Docker file
-ARG APT_DEPS_IMAGE="airflow-apt-deps-ci-slim"
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-stretch"
-############################################################################################################
-# This is the slim image with APT dependencies needed by Airflow. It is based on a python slim image
-# Parameters:
-#    PYTHON_BASE_IMAGE - base python image (python:x.y-slim-stretch)
-############################################################################################################
-FROM ${PYTHON_BASE_IMAGE} as airflow-apt-deps-ci-slim
-
+FROM ${PYTHON_BASE_IMAGE} as main
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
@@ -121,116 +113,95 @@ RUN adduser airflow \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
 
-############################################################################################################
-# This is an image with all APT dependencies needed by CI. It is built on top of the airlfow APT image
-# Parameters:
-#     airflow-apt-deps - this is the base image for CI deps image.
-############################################################################################################
-FROM airflow-apt-deps-ci-slim as airflow-apt-deps-ci
-
-SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
-
 ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
 
-ARG APT_DEPS_IMAGE="airflow-apt-deps-ci-slim"
-ENV APT_DEPS_IMAGE=${APT_DEPS_IMAGE}
-ARG KUBERNETES_VERSION="v1.15.0"
-ENV KUBERNETES_VERSION=${KUBERNETES_VERSION}
-ARG KIND_VERSION="v0.5.0"
-ENV KIND_VERSION=${KIND_VERSION}
+# Note missing man directories on debian-stretch
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
+RUN mkdir -pv /usr/share/man/man1 \
+    && mkdir -pv /usr/share/man/man7 \
+    && apt-get update \
+    && apt-get install --no-install-recommends -y \
+      gnupg \
+      apt-transport-https \
+      ca-certificates \
+      software-properties-common \
+      krb5-user \
+      ldap-utils \
+      less \
+      lsb-release \
+      net-tools \
+      openjdk-8-jdk \
+      openssh-client \
+      openssh-server \
+      postgresql-client \
+      python-selinux \
+      sqlite3 \
+      tmux \
+      unzip \
+      vim \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN echo "${APT_DEPS_IMAGE}"
+ENV HADOOP_DISTRO="cdh" HADOOP_MAJOR="5" HADOOP_DISTRO_VERSION="5.11.0" HADOOP_VERSION="2.6.0" \
+    HADOOP_HOME="/tmp/hadoop-cdh"
+ENV HIVE_VERSION="1.1.0" HIVE_HOME="/tmp/hive"
+ENV HADOOP_URL="https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/"
+ENV MINICLUSTER_BASE="https://github.com/bolkedebruin/minicluster/releases/download/" \
+    MINICLUSTER_HOME="/tmp/minicluster" \
+    MINICLUSTER_VER="1.1"
 
-# Note the ifs below might be removed if Buildkit will become usable. It should skip building this
-# image automatically if it is not used. For now we still go through all layers below but they are empty
-RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-        # Note missing man directories on debian-stretch
-        # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=863199
-        mkdir -pv /usr/share/man/man1 \
-        && mkdir -pv /usr/share/man/man7 \
-        && apt-get update \
-        && apt-get install --no-install-recommends -y \
-          gnupg \
-          apt-transport-https \
-          ca-certificates \
-          software-properties-common \
-          krb5-user \
-          ldap-utils \
-          less \
-          lsb-release \
-          net-tools \
-          openjdk-8-jdk \
-          openssh-client \
-          openssh-server \
-          postgresql-client \
-          python-selinux \
-          sqlite3 \
-          tmux \
-          unzip \
-          vim \
-        && apt-get autoremove -yqq --purge \
-        && apt-get clean \
-        && rm -rf /var/lib/apt/lists/* \
-        ;\
-    fi
+RUN mkdir -pv "${HADOOP_HOME}" \
+    && mkdir -pv "${HIVE_HOME}" \
+    && mkdir -pv "${MINICLUSTER_HOME}" \
+    && mkdir -pv "/user/hive/warehouse" \
+    && chmod -R 777 "${HIVE_HOME}" \
+    && chmod -R 777 "/user/"
 
-# TODO: We should think about removing those and moving them into docker-compose dependencies.
-COPY scripts/ci/docker_build/ci_build_install_deps.sh /tmp/ci_build_install_deps.sh
+ENV HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
+    HADOOP_TMP_FILE="/tmp/hadoop.tar.gz"
 
-# Kubernetes dependencies
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
+RUN curl -sL "${HADOOP_DOWNLOAD_URL}" >"${HADOOP_TMP_FILE}" \
+    && tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_HOME}" \
+    && rm "${HADOOP_TMP_FILE}"
+
+ENV HIVE_URL="${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
+    HIVE_TMP_FILE="/tmp/hive.tar.gz"
+
+RUN curl -sL "${HIVE_URL}" >"${HIVE_TMP_FILE}" \
+    && tar xzf "${HIVE_TMP_FILE}" --strip-components 1 -C "${HIVE_HOME}" \
+    && rm "${HIVE_TMP_FILE}"
+
+ENV MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip" \
+    MINICLUSTER_TMP_FILE="/tmp/minicluster.zip"
+
+RUN curl -sL "${MINICLUSTER_URL}" > "${MINICLUSTER_TMP_FILE}" \
+    && unzip "${MINICLUSTER_TMP_FILE}" -d "/tmp" \
+    && rm "${MINICLUSTER_TMP_FILE}"
+
+ENV PATH "${PATH}:/tmp/hive/bin"
+
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
     && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" \
     && apt-get update \
     && apt-get -y install --no-install-recommends docker-ce \
     && apt-get autoremove -yqq --purge \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    ;\
-fi
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    curl -Lo kubectl \
-    "https://storage.googleapis.com/kubernetes-release/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl" \
-    && chmod +x kubectl \
-    && mv kubectl /usr/local/bin/kubectl \
-    ;\
-fi
+ARG KUBECTL_VERSION="v1.15.0"
+ENV KUBECTL_VERSION=${KUBECTL_VERSION}
+ARG KIND_VERSION="v0.5.0"
+ENV KIND_VERSION=${KIND_VERSION}
 
-RUN \
-if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-    curl -Lo kind \
-    "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
-    && chmod +x kind \
-    && mv kind /usr/local/bin/kind \
-    ;\
-fi
+RUN curl -Lo kubectl \
+  "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+  && chmod +x kubectl \
+  && mv kubectl /usr/local/bin/kubectl
 
-ENV HADOOP_DISTRO=cdh \
-    HADOOP_MAJOR=5 \
-    HADOOP_DISTRO_VERSION=5.11.0 \
-    HADOOP_VERSION=2.6.0 \
-    HIVE_VERSION=1.1.0
-ENV HADOOP_URL=https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/
-ENV HADOOP_HOME=/tmp/hadoop-cdh HIVE_HOME=/tmp/hive
-
-RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then /tmp/ci_build_install_deps.sh; fi
-
-ENV PATH "${PATH}:/tmp/hive/bin"
-
-############################################################################################################
-# This is the target image - it installs PIP and NPM dependencies including efficient caching
-# mechanisms - it might be used to build the bare airflow build or CI build
-# Parameters:
-#    APT_DEPS_IMAGE - image with APT dependencies. It might either be base deps image with airflow
-#                     dependencies or CI deps image that contains also CI-required dependencies
-############################################################################################################
-FROM ${APT_DEPS_IMAGE} as main
-
-SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
-
-RUN echo "Airflow version: ${AIRFLOW_VERSION}"
+RUN curl -Lo kind \
+   "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
+   && chmod +x kind \
+   && mv kind /usr/local/bin/kind
 
 ARG AIRFLOW_USER=airflow
 ENV AIRFLOW_USER=${AIRFLOW_USER}
@@ -366,15 +337,11 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
 
 COPY --chown=airflow:airflow ./scripts/docker/entrypoint.sh /entrypoint.sh
 
-ARG APT_DEPS_IMAGE="airflow-apt-deps-ci-slim"
-ENV APT_DEPS_IMAGE=${APT_DEPS_IMAGE}
-
 COPY --chown=airflow:airflow .bash_completion run-tests-complete run-tests ${HOME}/
 COPY --chown=airflow:airflow .bash_completion.d/run-tests-complete \
      ${HOME}/.bash_completion.d/run-tests-complete
 
-RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
-       ${AIRFLOW_SOURCES}/scripts/ci/docker_build/ci_build_extract_tests.sh; fi
+RUN ${AIRFLOW_SOURCES}/scripts/ci/docker_build/ci_build_extract_tests.sh
 
 USER ${AIRFLOW_USER}
 
