@@ -21,7 +21,7 @@ This module allows you to transfer mail attachments from a mail server into s3 b
 """
 from airflow.contrib.hooks.imap_hook import ImapHook
 from airflow.models import BaseOperator
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -92,7 +92,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
                 mail_filter=self.imap_mail_filter,
             )
 
-        s3_hook = AWSS3Hook(aws_conn_id=self.s3_conn_id)
+        s3_hook = S3Hook(aws_conn_id=self.s3_conn_id)
         s3_hook.load_bytes(bytes_data=imap_mail_attachments[0][1],
                            key=self.s3_key,
                            replace=self.s3_overwrite)

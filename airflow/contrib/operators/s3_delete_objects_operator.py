@@ -19,7 +19,7 @@
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -75,7 +75,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         self.verify = verify
 
     def execute(self, context):
-        s3_hook = AWSS3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         response = s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
 

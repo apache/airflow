@@ -37,7 +37,7 @@ class TestImapAttachmentToS3Operator(unittest.TestCase):
             dag=None
         )
 
-    @patch('airflow.contrib.operators.imap_attachment_to_s3_operator.AWSS3Hook')
+    @patch('airflow.contrib.operators.imap_attachment_to_s3_operator.S3Hook')
     @patch('airflow.contrib.operators.imap_attachment_to_s3_operator.ImapHook')
     def test_execute(self, mock_imap_hook, mock_s3_hook):
         mock_imap_hook.return_value.__enter__ = mock_imap_hook

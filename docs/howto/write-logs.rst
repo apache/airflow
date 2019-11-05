@@ -65,7 +65,7 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
     # Use server-side encryption for logs stored in S3
     encrypt_s3_logs = False
 
-In the above example, Airflow will try to use ``AWSS3Hook('MyS3Conn')``.
+In the above example, Airflow will try to use ``S3Hook('MyS3Conn')``.
 
 .. _write-logs-azure:
 

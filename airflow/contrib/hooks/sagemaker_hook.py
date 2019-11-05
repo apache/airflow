@@ -28,7 +28,7 @@ from botocore.exceptions import ClientError
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
 from airflow.exceptions import AirflowException
-from airflow.providers.aws.hooks.s3 import AWSS3Hook
+from airflow.providers.aws.hooks.s3 import S3Hook
 from airflow.utils import timezone
 
 
@@ -130,7 +130,7 @@ class SageMakerHook(AwsHook):
     def __init__(self,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.s3_hook = AWSS3Hook(aws_conn_id=self.aws_conn_id)
+        self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         self.logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id)
 
     def tar_and_s3_upload(self, path, key, bucket):
@@ -187,7 +187,7 @@ class SageMakerHook(AwsHook):
         :type s3url: str
         :rtype: bool
         """
-        bucket, key = AWSS3Hook.parse_s3_url(s3url)
+        bucket, key = S3Hook.parse_s3_url(s3url)
         if not self.s3_hook.check_for_bucket(bucket_name=bucket):
             raise AirflowException(
                 "The input S3 Bucket {} does not exist ".format(bucket))
