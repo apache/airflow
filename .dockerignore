@@ -28,6 +28,7 @@
 
 # Allow only these directories
 !airflow
+!common
 !dags
 !dev
 !docs
