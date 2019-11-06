@@ -77,13 +77,13 @@ Docker Images Used by Breeze
 For all development tasks, related integration tests and static code checks, we use Docker
 images maintained on the Docker Hub in the ``apache/airflow`` repository.
 
-There are three images that we are currently managing:
+There are those images that we are currently managing:
 
-* **CI image*** that is used for testing. It contains a lot more test-related installed software
-  (size of ~1GB). Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
-  (for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
-  `<Dockerfile>`_ Dockerfile.
-* **Production-ready image** that is used TODO
+* **CI image*** that is used for testing (both static tests and unit/integration tests).
+  It contains a lot test-related installed software (size of ~1GB).
+  It's tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
+  (for example, ``apache/airflow:master-python3.6-ci``). 
+  The image is built using the `<Dockerfile>`_ Dockerfile.
 
 Before you run tests, enter the environment or run local static checks, the necessary local images should be
 pulled and built from Docker Hub. This happens automatically for the test environment but you need to
