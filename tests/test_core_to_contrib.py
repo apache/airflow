@@ -613,8 +613,8 @@ OPERATOR = [
         "airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator",
     ),
     (
-        "airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
-        "airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
+        "airflow.operators.sql_to_gcs.BaseSqlToGcsOperator",
+        "airflow.contrib.operators.sql_to_gcs.BaseSqlToGcsOperator",
     ),
     (
         "airflow.gcp.operators.dataproc.DataprocClusterCreateOperator",

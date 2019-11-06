@@ -21,7 +21,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator  # noqa
+from airflow.operators.sql_to_gcs import BaseSqlToGcsOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.sql_to_gcs`.",

@@ -28,11 +28,11 @@ from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 
 from airflow.hooks.mysql_hook import MySqlHook
-from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator
+from airflow.operators.sql_to_gcs import BaseSqlToGcsOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class MySqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
+class MySqlToGoogleCloudStorageOperator(BaseSqlToGcsOperator):
     """Copy data from MySQL to Google cloud storage in JSON or CSV format.
 
     :param mysql_conn_id: Reference to a specific MySQL hook.
