@@ -32,26 +32,6 @@ class PrestoHook(DbApiHook):
     """
     Interact with Presto through PyHive!
 
-    :param host: hostname to connect
-    :type host: str
-    :param port: port to connect
-    :type port: int
-    :param username: username to connect
-    :type username: str
-    :param source: arbitrary identifier (shows up in the Presto monitoring page)
-    :type source: str
-    :param protocol: network protocol, valid options are ``http`` and ``https``
-            protocol must be https if set password in Presto Connection.
-    :type protocol: str
-    :param catalog: presto catalog
-    :type catalog: str
-    :param poll_interval: how often to ask the Presto REST interface for a progress
-            update, defaults to a second
-    :type poll_interval: int
-    :param schema: scehma to use
-    :type schema: str
-
-    Example:
     >>> ph = PrestoHook()
     >>> sql = "SELECT count(1) AS num FROM airflow.static_babynames"
     >>> ph.get_records(sql)
@@ -60,11 +40,6 @@ class PrestoHook(DbApiHook):
 
     conn_name_attr = 'presto_conn_id'
     default_conn_name = 'presto_default'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.poll_interval = kwargs.pop("poll_interval")
-        self.schema = kwargs.pop("schema")
 
     def get_conn(self):
         """Returns a connection object"""
@@ -79,9 +54,8 @@ class PrestoHook(DbApiHook):
             source=db.extra_dejson.get('source', 'airflow'),
             protocol=db.extra_dejson.get('protocol', 'http'),
             catalog=db.extra_dejson.get('catalog', 'hive'),
-            poll_interval=self.poll_interval or db.extra_dejson.get('poll_interval', 1),
             requests_kwargs=reqkwargs,
-            schema=self.schema or db.schema or 'default')
+            schema=db.schema)
 
     @staticmethod
     def _strip_sql(sql):
