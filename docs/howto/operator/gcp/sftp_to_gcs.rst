@@ -58,7 +58,7 @@ The following Operator copies a single file.
     :end-before: [END howto_operator_sftp_to_gcs_copy_single_file]
 
 Moving a single file
-------------------
+--------------------
 
 To move the file use the ``move_object`` parameter. Once the file is copied to Google Storage,
 the original file from the SFTP is deleted.
