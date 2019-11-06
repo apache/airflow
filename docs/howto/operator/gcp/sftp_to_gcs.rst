@@ -19,10 +19,10 @@
 SFTP to Google Cloud Storage Transfer Operator
 ==============================================
 
-Google has s service `Google Cloud Storage <https://cloud.google.com/storage/>`__. This service is
+Google has a service `Google Cloud Storage <https://cloud.google.com/storage/>`__. This service is
 used to store large data from various applications.
 SFTP (SSH File Transfer Protocol) is a secure file transfer protocol.
-It runs over the SSH protocol. It supports the full security and authentication functionality of SSH.
+It runs over the SSH protocol. It supports the full security and authentication functionality of the SSH.
 
 
 .. contents::
@@ -57,7 +57,7 @@ The following Operator copies a single file.
     :start-after: [START howto_operator_sftp_to_gcs_copy_single_file]
     :end-before: [END howto_operator_sftp_to_gcs_copy_single_file]
 
-Moving single file
+Moving a single file
 ------------------
 
 To move the file use the ``move_object`` parameter. Once the file is copied to Google Storage,
