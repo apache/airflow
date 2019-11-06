@@ -27,7 +27,7 @@ import unittest
 from importlib import util
 from typing import List
 
-from setuptools import Command, find_packages, setup
+from setuptools import Command, find_namespace_packages, find_packages, setup
 
 logger = logging.getLogger(__name__)
 
@@ -330,7 +330,7 @@ else:
     devel_ci = devel_all
 
 
-def do_setup():
+def do_setup_airflow():
     """Perform the Airflow package setup."""
     write_version()
     setup(
@@ -340,7 +340,8 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(exclude=['tests*']),
+        packages=find_packages(exclude=['tests*']) +
+                    find_namespace_packages(include=['airflow.providers.*', 'airflow.providers.*.*']),
         package_data={
             '': ['airflow/alembic.ini', "airflow/git_version"],
             'airflow.serialization': ["*.json"],
@@ -489,5 +490,39 @@ def do_setup():
     )
 
 
+def do_setup_providers_google():
+    setup(
+        name='apache-airflow-providers-google',
+        description='Backporting providers-google package for Airflow 1.10.*',
+        long_description="""
+Google package backported to 1.10.* series of Airflow.
+""",
+        long_description_content_type='text/markdown',
+        license='Apache License 2.0',
+        version='0.0.1',
+        packages=find_namespace_packages(include=['airflow.providers.google', 'airflow.providers.google.*', 'airflow.gcp.*']),
+        include_package_data=True,
+        zip_safe=False,
+        install_requires=['apache-airflow~=1.10'] + gcp,
+        classifiers=[
+            'Development Status :: 5 - Production/Stable',
+            'Environment :: Console',
+            'Environment :: Web Environment',
+            'Intended Audience :: Developers',
+            'Intended Audience :: System Administrators',
+            'License :: OSI Approved :: Apache Software License',
+            'Programming Language :: Python :: 3.5',
+            'Programming Language :: Python :: 3.6',
+            'Programming Language :: Python :: 3.7',
+            'Topic :: System :: Monitoring',
+        ],
+        python_requires='>=3.5',
+    )
+
+
 if __name__ == "__main__":
-    do_setup()
+    if len(sys.argv) > 1 and sys.argv[1] == 'google':
+        sys.argv = sys.argv[1:]
+        do_setup_providers_google()
+    else:
+        do_setup_airflow()
