@@ -147,7 +147,8 @@ class SchedulerJobTest(unittest.TestCase):
             old_children)
         self.assertFalse(current_children)
 
-    def test_process_executor_events(self):
+    @mock.patch('airflow.settings.Stats.incr')
+    def test_process_executor_events(self, mock_stats_incr):
         dag_id = "test_process_executor_events"
         dag_id2 = "test_process_executor_events_2"
         task_id_1 = 'dummy_task'
@@ -191,6 +192,8 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler._process_executor_events(simple_dag_bag=dagbag1)
         ti1.refresh_from_db()
         self.assertEqual(ti1.state, State.SUCCESS)
+
+        mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
 
     def test_execute_task_instances_is_paused_wont_execute(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'
