@@ -76,10 +76,10 @@ services:
       - USER=root
       - ADDITIONAL_PATH=~/.local/bin
       - HADOOP_DISTRO=cdh
-      - HADOOP_HOME=/tmp/hadoop-cdh
-      - HADOOP_OPTS=-D/tmp/krb5.conf
-      - HIVE_HOME=/tmp/hive
-      - MINICLUSTER_HOME=/tmp/minicluster
+      - HADOOP_HOME=/opt/hadoop-cdh
+      - HADOOP_OPTS=-D/opt/krb5.conf
+      - HIVE_HOME=/opt/hive
+      - MINICLUSTER_HOME=/opt/minicluster
       - KRB5_CONFIG=/etc/krb5.conf
       - KRB5_KTNAME=/etc/airflow.keytab
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0

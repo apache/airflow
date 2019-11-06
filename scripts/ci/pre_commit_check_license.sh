@@ -22,4 +22,4 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="quit"}
 export REMEMBER_LAST_ANSWER="true"
 
-"${MY_DIR}/ci_check_license.sh" "${@}"
+"${MY_DIR}/ci_check_license.sh"

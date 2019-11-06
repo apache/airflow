@@ -40,9 +40,8 @@ if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
 fi
 
 rebuild_ci_image_if_needed
-rebuild_checklicence_image_if_needed
 
-IMAGES_TO_CHECK=("CI" "CHECKLICENCE")
+IMAGES_TO_CHECK=("CI")
 export IMAGES_TO_CHECK
 
 pre-commit run --all-files --show-diff-on-failure
