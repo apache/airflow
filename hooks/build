@@ -115,7 +115,7 @@ function build_python_image {
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_CONTAINER_BRANCH_NAME}" \
         --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
         --build-arg HOME="${HOME}" \
-        "${DOCKER_CACHE_DIRECTIVE[@]}" \
+        "${DOCKER_CACHE_DIRECTIVE_CI[@]}" \
         -t "${MY_IMAGE_TAG}" \
         --target "${TARGET_IMAGE}" \
         .
@@ -202,10 +202,6 @@ export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL=${AIRFLOW_CONTAINER_SKIP_LATEST
 export AIRFLOW_CONTAINER_SKIP_CI_IMAGE=${AIRFLOW_CONTAINER_SKIP_CI_IMAGE:="false"}
 echo "Skip CI image: ${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}"
 
-# Skips downloading and building the checklicence image - one used for checking the licences
-export AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE=${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE:="false"}
-echo "Skip CHECKLICENCE image: ${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}"
-
 # Fixes permissions for git-checked out files. This is needed to have consistent build cache across
 # Dockerhub, TravisCI and locally checked out code
 export AIRFLOW_FIX_PERMISSIONS=${AIRFLOW_FIX_PERMISSIONS:="all"}
@@ -217,20 +213,14 @@ echo "The build optimised for CI: ${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}"
 # Base python image for the build
 export PYTHON_BASE_IMAGE=python:${PYTHON_VERSION}-slim-stretch
 
-# Base image for checklicence image
-export CHECKLICENCE_BASE_IMAGE=debian:stretch-slim
-
 if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_VERSION}-python${PYTHON_VERSION}-ci"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_VERSION}-ci"
     export AIRFLOW_CI_IMAGE_LATEST="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:latest-python${PYTHON_VERSION}-${TAG_PREFIX}-ci"
     export AIRFLOW_CI_IMAGE_LATEST_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:latest-${TAG_PREFIX}-ci"
-
-    export AIRFLOW_CHECKLICENCE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:checklicence"
 else
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-python${PYTHON_VERSION}-ci"
     export AIRFLOW_CI_IMAGE_DEFAULT="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${TAG_PREFIX}-ci"
-    export AIRFLOW_CHECKLICENCE_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:checklicence"
 fi
 # In the future we can enable buildkit.
 # It's experimental now and cache does not work out of the box with buildkit in Docker 18.09.2, buildkit 0.3.3
@@ -251,9 +241,7 @@ if [[ "${AIRFLOW_CONTAINER_CLEANUP_IMAGES}" == "true" ]]; then
     echo
     start_step "Removing images"
     docker rmi "${PYTHON_BASE_IMAGE}" || true
-    docker rmi "${CHECKLICENCE_BASE_IMAGE}" || true
     docker rmi "${AIRFLOW_CI_IMAGE}" || true
-    docker rmi "${AIRFLOW_CHECKLICENCE_IMAGE}" || true
     echo
     echo "###################################################################"
     echo "NOTE!! Removed Airflow images for Python version ${PYTHON_VERSION}."
@@ -268,7 +256,6 @@ fi
 start_step "Populating cache"
 
 DOCKER_CACHE_DIRECTIVE_CI=()
-DOCKER_CACHE_DIRECTIVE_CHECKLICENCE=()
 
 if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     echo
@@ -286,9 +273,6 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
             echo "Force pull base python image."
             echo
             docker pull "${PYTHON_BASE_IMAGE}"
-            echo "Force pull base checklicence image."
-            echo
-            docker pull "${CHECKLICENCE_BASE_IMAGE}"
             echo
             set +x
         fi
@@ -297,10 +281,6 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" != "true" ]]; then
         echo "Downloading the CI Airflow image"
         IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CI_IMAGE}"
-    fi
-    if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" != "true" ]]; then
-        echo "Downloading the CHECKLICENCE Airflow image"
-        IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CHECKLICENCE_IMAGE}"
     fi
 
     DOCKER_CACHE_DIRECTIVE_CI=()
@@ -343,8 +323,6 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
             fi
             if [[ "${IMAGE}" == "${AIRFLOW_CI_IMAGE}" ]]; then
                 DOCKER_CACHE_DIRECTIVE_CI+=("--cache-from" "${IMAGE}")
-            elif [[ "${IMAGE}" == "${AIRFLOW_CHECKLICENCE_IMAGE}" ]]; then
-                DOCKER_CACHE_DIRECTIVE_CHECKLICENCE+=("--cache-from" "${IMAGE}")
             else
                 echo
                 echo "Don't know how to set cache directive for ${IMAGE}. Exiting"
@@ -359,13 +337,11 @@ start_step "Setting cache options"
 
 if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE}" == "true" ]]; then
     DOCKER_CACHE_DIRECTIVE_CI+=("--no-cache")
-    DOCKER_CACHE_DIRECTIVE_CHECKLICENCE+=("--no-cache")
     echo
     echo "Skip cache for builds. Everything will be rebuilt from scratch."
     echo
     echo "Cache directives used: "
     echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
-    echo "CI checklicence build: ${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[*]}"
     echo
 elif [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     echo
@@ -373,19 +349,16 @@ elif [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
     echo "Cache directives used: "
     set +u
     echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
-    echo "CI checklicence build: ${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[*]}"
     set -u
     echo
 else
     DOCKER_CACHE_DIRECTIVE_CI=()
-    DOCKER_CACHE_DIRECTIVE_CHECKLICENCE=()
     echo
     echo "Use default cache from locally built images."
     echo
     echo "Cache directives used: "
     set +u
     echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
-    echo "CI checklicence build: ${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[*]}"
     set -u
     echo
 fi
@@ -465,18 +438,6 @@ else
         fi
     fi
 fi
-
-if [[ "${AIRFLOW_CONTAINER_SKIP_CHECKLICENCE_IMAGE}" == "true" ]]; then
-    echo "Skip building the CHECKLICENCE image"
-else
-    start_step "Build Airflow CHECKLICENCE image"
-    set +u
-    docker build . -f Dockerfile-checklicence \
-        "${DOCKER_CACHE_DIRECTIVE_CHECKLICENCE[@]}" -t "${AIRFLOW_CHECKLICENCE_IMAGE}"
-    set -u
-    add_image_to_push "${AIRFLOW_CHECKLICENCE_IMAGE}"
-fi
-
 
 start_step "Pushing images"
 

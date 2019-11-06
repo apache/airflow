@@ -84,11 +84,6 @@ There are three images that we are currently managing:
   Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
   (for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
   `<Dockerfile>`_ Dockerfile.
-* **Checklicense image** that is used during license check with the Apache RAT tool. It does not
-  require any of the dependencies that the two CI images need so it is built using a different Dockerfile
-  `<Dockerfile-checklicence>`_ and only contains Java + Apache RAT tool. The image is
-  labelled with ``checklicence``, for example: ``apache/airflow:checklicence``. No versioning is used for
-  the Checklicence image.
 
 Before you run tests, enter the environment or run local static checks, the necessary local images should be
 pulled and built from Docker Hub. This happens automatically for the test environment but you need to

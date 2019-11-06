@@ -33,7 +33,7 @@ basic_sanity_checks
 
 script_start
 
-rebuild_checklicence_image_if_needed
+rebuild_ci_image_if_needed
 
 run_check_license
 
