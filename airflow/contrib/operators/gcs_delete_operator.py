@@ -19,7 +19,7 @@
 """
 This module contains Google Cloud Storage delete operator.
 """
-
+import warnings
 from typing import Optional, Iterable
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
@@ -40,8 +40,10 @@ class GoogleCloudStorageDeleteOperator(BaseOperator):
     :type objects: Iterable[str]
     :param prefix: Prefix of objects to delete. All objects matching this
         prefix in the bucket will be deleted.
-    :param google_cloud_storage_conn_id: The connection ID to use for
-        Google Cloud Storage
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
+        Platform. This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -56,13 +58,21 @@ class GoogleCloudStorageDeleteOperator(BaseOperator):
                  bucket_name: str,
                  objects: Optional[Iterable[str]] = None,
                  prefix: Optional[str] = None,
-                 google_cloud_storage_conn_id: str = 'google_cloud_default',
+                 gcp_conn_id: str = 'google_cloud_default',
+                 google_cloud_storage_conn_id: Optional[str] = None,
                  delegate_to: Optional[str] = None,
                  *args, **kwargs):
+
+        if google_cloud_storage_conn_id:
+            warnings.warn(
+                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+            gcp_conn_id = google_cloud_storage_conn_id
+
         self.bucket_name = bucket_name
         self.objects = objects
         self.prefix = prefix
-        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
         assert objects is not None or prefix is not None
@@ -71,7 +81,7 @@ class GoogleCloudStorageDeleteOperator(BaseOperator):
 
     def execute(self, context):
         hook = GoogleCloudStorageHook(
-            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
 

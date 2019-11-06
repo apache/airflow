@@ -27,8 +27,8 @@ class LoggingCommandExecutor(LoggingMixin):
     def execute_cmd(self, cmd, silent=False, cwd=None):
         if silent:
             self.log.info("Executing in silent mode: '{}'".format(" ".join(cmd)))
-            with open(os.devnull, 'w') as FNULL:
-                return subprocess.call(args=cmd, stdout=FNULL, stderr=subprocess.STDOUT)
+            with open(os.devnull, 'w') as dev_null:
+                return subprocess.call(args=cmd, stdout=dev_null, stderr=subprocess.STDOUT)
         else:
             self.log.info("Executing: '{}'".format(" ".join(cmd)))
             process = subprocess.Popen(

@@ -16,28 +16,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Hook for Slack"""
 
 from slackclient import SlackClient
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
 
+# noinspection PyAbstractClass
 class SlackHook(BaseHook):
     """
-       Interact with Slack, using slackclient library.
+    Takes both Slack API token directly and connection that has Slack API token.
+
+    If both supplied, Slack API token will be used.
+
+    :param token: Slack API token
+    :param slack_conn_id: connection that has Slack API token in the password field
     """
-
-    def __init__(self, token=None, slack_conn_id=None):
-        """
-        Takes both Slack API token directly and connection that has Slack API token.
-
-        If both supplied, Slack API token will be used.
-
-        :param token: Slack API token
-        :type token: str
-        :param slack_conn_id: connection that has Slack API token in the password field
-        :type slack_conn_id: str
-        """
+    def __init__(self, token: str = None, slack_conn_id: str = None) -> None:
         self.token = self.__get_token(token, slack_conn_id)
 
     def __get_token(self, token, slack_conn_id):
@@ -53,10 +49,16 @@ class SlackHook(BaseHook):
             raise AirflowException('Cannot get token: '
                                    'No valid Slack token nor slack_conn_id supplied.')
 
-    def call(self, method, api_params):
-        sc = SlackClient(self.token)
-        rc = sc.api_call(method, **api_params)
+    def call(self, method: str, api_params: dict) -> None:
+        """
+        Calls the clack client.
 
-        if not rc['ok']:
-            msg = "Slack API call failed ({})".format(rc['error'])
+        :param method: method
+        :param api_params: parameters of the API
+        """
+        slack_client = SlackClient(self.token)
+        return_code = slack_client.api_call(method, **api_params)
+
+        if not return_code['ok']:
+            msg = "Slack API call failed ({})".format(return_code['error'])
             raise AirflowException(msg)

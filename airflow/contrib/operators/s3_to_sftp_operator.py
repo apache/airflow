@@ -31,19 +31,19 @@ class S3ToSFTPOperator(BaseOperator):
 
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
-    :type sftp_conn_id: string
+    :type sftp_conn_id: str
     :param sftp_path: The sftp remote path. This is the specified file path for
         uploading file to the SFTP server.
-    :type sftp_path: string
+    :type sftp_path: str
     :param s3_conn_id: The s3 connection id. The name or identifier for
         establishing a connection to S3
-    :type s3_conn_id: string
+    :type s3_conn_id: str
     :param s3_bucket: The targeted s3 bucket. This is the S3 bucket from
         where the file is downloaded.
-    :type s3_bucket: string
+    :type s3_bucket: str
     :param s3_key: The targeted s3 key. This is the specified file path for
         downloading the file from S3.
-    :type s3_key: string
+    :type s3_key: str
     """
 
     template_fields = ('s3_key', 'sftp_path')

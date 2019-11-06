@@ -22,12 +22,11 @@ import os
 import pathlib
 import time
 import datetime
-import six
 import re
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from airflow.models import TaskInstance
@@ -175,7 +174,7 @@ class QuboleHook(BaseHook):
         if fp is None:
             iso = datetime.datetime.utcnow().isoformat()
             logpath = os.path.expanduser(
-                configuration.conf.get('core', 'BASE_LOG_FOLDER')
+                conf.get('core', 'BASE_LOG_FOLDER')
             )
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
             pathlib.Path(resultpath).mkdir(parents=True, exist_ok=True)
@@ -243,7 +242,7 @@ class QuboleHook(BaseHook):
                 elif k in positional_args_list:
                     inplace_args = v
                 elif k == 'tags':
-                    if isinstance(v, six.string_types):
+                    if isinstance(v, str):
                         tags.add(v)
                     elif isinstance(v, (list, tuple)):
                         for val in v:

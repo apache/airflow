@@ -1,20 +1,22 @@
 {#
-  Licensed to the Apache Software Foundation (ASF) under one or more
-  contributor license agreements.  See the NOTICE file distributed with
-  this work for additional information regarding copyright ownership.
-  The ASF licenses this file to You under the Apache License, Version 2.0
-  (the "License"); you may not use this file except in compliance with
-  the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 #}
+
 {% extends "airflow/master.html" %}
 
 {% block title %}Airflow - DAG {{ dag.dag_id }}{% endblock %}
@@ -47,14 +49,19 @@
   <div>
     {% set base_date_arg = request.args.get('base_date') %}
     {% set num_runs_arg = request.args.get('num_runs') %}
+    {% if execution_date is defined %}
+         {% set execution_date_arg = execution_date %}
+    {% else %}
+        {% set execution_date_arg = request.args.get('execution_date') %}
+    {% endif %}
     <ul class="nav nav-pills">
       {% if dag.parent_dag is defined and dag.parent_dag %}
-          <li class="never_active"><a href="{{ url_for('Airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id) }}">
+          <li class="never_active"><a href="{{ url_for('Airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}">
               <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
       {% endif %}
-      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
           <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
         Graph View</a></li>
       <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
@@ -76,7 +83,7 @@
         </a>
       </li>
       <li>
-        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
+        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
           <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
           <i class="icon-align-left"></i>
           Gantt
@@ -481,39 +488,37 @@ function updateQueryStringParameter(uri, key, value) {
 
       if (extra_links && extra_links.length > 0){
         var markupArr = [];
-
+        extra_links.sort();
         $.each(extra_links, function(i, link){
           var url = "{{ url_for('Airflow.extra_links') }}" +
                   "?task_id=" + encodeURIComponent(task_id) +
                   "&dag_id=" + encodeURIComponent(dag_id) +
                   "&execution_date=" + encodeURIComponent(execution_date) +
                   "&link_name=" + encodeURIComponent(link);
+          var external_link = $('<a href="#" data-toggle="tooltip" class="btn btn-primary disabled" target="_blank"></a>')
+          var link_tooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" ' +
+            'title="link not yet available"></span>');
+          link_tooltip.append(external_link)
+          external_link.text(link);
 
-          var underscore_link = link.split(" ").join("_");
-          var a = '<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" ' +
-                  'title="link not yet available" id="tooltip-' + underscore_link +'">' +
-                    '<a id="link-' + underscore_link +'" href="#" data-toggle="tooltip" class="btn btn-primary disabled" target="_blank">' + link + '</a>' +
-                  '</span>';
           $.ajax(
             {url: url,
              cache: false,
              success: function (data, textStatus, jqXHR) {
-               var external_link = $( "#link-" + underscore_link );
                external_link.attr('href', data['url']);
                external_link.removeClass('disabled');
-               $("#tooltip-" + underscore_link).tooltip('disable');
+               link_tooltip.tooltip('disable');
              },
              error:  function (data) {
-               var link_tooltip = $("#tooltip-" + underscore_link);
                link_tooltip.tooltip('hide').attr('title', data['responseJSON']['error']).tooltip('fixTitle');
              }
            });
 
-          markupArr.push(a)
+          markupArr.push(link_tooltip)
         });
 
         $('#extra_links').prev('hr').show();
-        $('#extra_links').append(markupArr.join('')).show();
+        $('#extra_links').append(markupArr).show();
         $('[data-toggle="tooltip"]').tooltip();
       }
 

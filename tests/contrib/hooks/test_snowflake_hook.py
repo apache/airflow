@@ -53,7 +53,7 @@ class TestSnowflakeHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
-            def get_connection(self, connection_id):
+            def get_connection(self, _):
                 return conn
 
         self.db_hook = UnitTestSnowflakeHook()

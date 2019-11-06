@@ -66,7 +66,7 @@ class TimeoutTestSensor(BaseSensorOperator):
         self.log.info("Success criteria met. Exiting.")
 
 
-class SensorTimeoutTest(unittest.TestCase):
+class TestSensorTimeout(unittest.TestCase):
     def setUp(self):
         args = {
             'owner': 'airflow',

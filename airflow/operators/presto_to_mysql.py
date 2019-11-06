@@ -51,12 +51,12 @@ class PrestoToMySqlTransfer(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sql,
-                 mysql_table,
-                 presto_conn_id='presto_default',
-                 mysql_conn_id='mysql_default',
-                 mysql_preoperator=None,
-                 *args, **kwargs):
+                 sql: str,
+                 mysql_table: str,
+                 presto_conn_id: str = 'presto_default',
+                 mysql_conn_id: str = 'mysql_default',
+                 mysql_preoperator: str = None,
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql
         self.mysql_table = mysql_table

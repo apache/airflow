@@ -194,7 +194,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
                 dag=self.dag)
 
     def test_nonimported_as_arg(self):
-        def f(a):
+        def f(_):
             return None
         self._run_as_operator(f, op_args=[datetime.datetime.utcnow()])
 

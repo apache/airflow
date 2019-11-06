@@ -21,7 +21,7 @@
 This is only an example DAG to highlight usage of AzureCosmosDocumentSensor to detect
 if a document now exists.
 
-You can trigger this manually with `airflow trigger_dag example_cosmosdb_sensor`.
+You can trigger this manually with `airflow dags trigger example_cosmosdb_sensor`.
 
 *Note: Make sure that connection `azure_cosmos_default` is properly set before running
 this example.*
@@ -33,7 +33,7 @@ from airflow.contrib.operators.azure_cosmos_operator import AzureCosmosInsertDoc
 from airflow.utils import dates
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'depends_on_past': False,
     'start_date': dates.days_ago(2),
     'email': ['airflow@example.com'],

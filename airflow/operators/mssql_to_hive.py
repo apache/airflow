@@ -19,6 +19,7 @@
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
+from typing import Dict
 
 import pymssql
 import unicodecsv as csv
@@ -73,16 +74,16 @@ class MsSqlToHiveTransfer(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sql,
-                 hive_table,
-                 create=True,
-                 recreate=False,
-                 partition=None,
-                 delimiter=chr(1),
-                 mssql_conn_id='mssql_default',
-                 hive_cli_conn_id='hive_cli_default',
-                 tblproperties=None,
-                 *args, **kwargs):
+                 sql: str,
+                 hive_table: str,
+                 create: bool = True,
+                 recreate: bool = False,
+                 partition: Dict = None,
+                 delimiter: str = chr(1),
+                 mssql_conn_id: str = 'mssql_default',
+                 hive_cli_conn_id: str = 'hive_cli_default',
+                 tblproperties: Dict = None,
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql
         self.hive_table = hive_table

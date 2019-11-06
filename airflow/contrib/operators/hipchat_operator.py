@@ -127,5 +127,5 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
 
         self.method = 'POST'
         self.url = '%s/room/%s/notification' % (self.base_url, self.room_id)
-        self.body = json.dumps(dict(
-            (str(k), str(v)) for k, v in params.items() if v))
+        self.body = json.dumps({
+            str(k): str(v) for k, v in params.items() if v})

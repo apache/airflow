@@ -197,7 +197,7 @@ class TestSecurity(unittest.TestCase):
 
         mock_get_user_roles.return_value = [role]
         self.assertEqual(self.security_manager
-                         .get_accessible_dag_ids(user), set(['dag_id']))
+                         .get_accessible_dag_ids(user), {'dag_id'})
 
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
     def test_has_access(self, mock_has_view_access):

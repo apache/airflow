@@ -29,7 +29,7 @@ from airflow.utils import db
 from tests.compat import mock, patch
 
 
-class CassandraHookTest(unittest.TestCase):
+class TestCassandraHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(
