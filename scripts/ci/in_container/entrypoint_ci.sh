@@ -107,7 +107,7 @@ if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www_rbac/static/dist" ]]; then
 fi
 
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
-export HADOOP_HOME="${HADOOP_HOME:="/tmp/hadoop-cdh"}"
+export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
 
 if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     echo
@@ -140,7 +140,7 @@ mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 
 if [[ "${ENV}" == "docker" ]]; then
     # Start MiniCluster
-    java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
+    java -cp "/opt/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
         >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
 
     # Set up ssh keys
