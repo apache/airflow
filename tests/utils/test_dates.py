@@ -25,7 +25,7 @@ from airflow.utils import dates
 from airflow.utils import timezone
 
 
-class TestDates(unittest.TestCase):
+class Dates(unittest.TestCase):
 
     def test_days_ago(self):
         today = pendulum.today()

@@ -27,7 +27,7 @@ from datetime import datetime
 from airflow.utils import cli, cli_action_loggers
 
 
-class TestCliUtil(unittest.TestCase):
+class CliUtilTest(unittest.TestCase):
 
     def test_metrics_build(self):
         func_name = 'test'

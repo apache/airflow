@@ -19,7 +19,6 @@
 """
 This module contains a Google BigQuery to GCS operator.
 """
-import warnings
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -52,10 +51,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     :type field_delimiter: str
     :param print_header: Whether to print a header for a CSV file extract.
     :type print_header: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: str
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
+    :param bigquery_conn_id: reference to a specific BigQuery hook.
     :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
@@ -71,34 +67,26 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     ui_color = '#e4e6f0'
 
     @apply_defaults
-    def __init__(self,  # pylint: disable=too-many-arguments
+    def __init__(self,
                  source_project_dataset_table,
                  destination_cloud_storage_uris,
                  compression='NONE',
                  export_format='CSV',
                  field_delimiter=',',
                  print_header=True,
-                 gcp_conn_id='google_cloud_default',
-                 bigquery_conn_id=None,
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  labels=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
-            gcp_conn_id = bigquery_conn_id
-
         self.source_project_dataset_table = source_project_dataset_table
         self.destination_cloud_storage_uris = destination_cloud_storage_uris
         self.compression = compression
         self.export_format = export_format
         self.field_delimiter = field_delimiter
         self.print_header = print_header
-        self.gcp_conn_id = gcp_conn_id
+        self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
         self.labels = labels
 
@@ -106,7 +94,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         self.log.info('Executing extract of %s into: %s',
                       self.source_project_dataset_table,
                       self.destination_cloud_storage_uris)
-        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+        hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                             delegate_to=self.delegate_to)
         conn = hook.get_conn()
         cursor = conn.cursor()

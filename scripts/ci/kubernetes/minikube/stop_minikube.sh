@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,6 +16,9 @@
 # under the License.
 
 # This script was based on one made by @kimoonkim for kubernetes-hdfs
+
+#!/usr/bin/env bash
+
 set -ex
 
 if [[ ! -x /usr/local/bin/minikube ]]; then
@@ -24,19 +26,17 @@ if [[ ! -x /usr/local/bin/minikube ]]; then
 fi
 
 # Fix file permissions
-# TODO: Change this - this should be Travis independent
 if [[ "${TRAVIS}" == true ]]; then
-  sudo chown -R travis.travis "${HOME}/.kube" "${HOME}/.minikube" 2>/dev/null || true
+  sudo chown -R travis.travis $HOME/.kube $HOME/.minikube
 fi
-set +e
 
-if sudo minikube status; then
+sudo minikube status
+if [[ $? = 0 ]]; then
   sudo minikube delete
-  sudo rm -rf "${HOME}/.kube" "${HOME}/.minikube"
+  sudo rm -rf HOME/.kube $HOME/.minikube
   if [[ "${TRAVIS}" == true ]]; then
     sudo rm -rf /etc/kubernetes/*.conf
   fi
 fi
-set -e
 
-sudo chown -R travis.travis . || true
+sudo chown -R travis.travis .

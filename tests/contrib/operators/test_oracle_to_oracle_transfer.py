@@ -18,13 +18,12 @@
 # under the License.
 
 import unittest
-from unittest import mock
 from airflow.contrib.operators.oracle_to_oracle_transfer \
     import OracleToOracleTransfer
 from tests.compat import MagicMock
 
 
-class TestOracleToOracleTransfer(unittest.TestCase):
+class OracleToOracleTransferTest(unittest.TestCase):
 
     @staticmethod
     def test_execute():
@@ -60,13 +59,8 @@ class TestOracleToOracleTransfer(unittest.TestCase):
 
         assert mock_src_hook.get_conn.called
         assert mock_src_conn.cursor.called
-        mock_cursor.execute.assert_called_once_with(source_sql, source_sql_params)
-
-        calls = [
-            mock.call(rows_chunk),
-            mock.call(rows_chunk),
-        ]
-        mock_cursor.fetchmany.assert_has_calls(calls)
+        mock_cursor.execute.assert_called_with(source_sql, source_sql_params)
+        mock_cursor.fetchmany.assert_called_with(rows_chunk)
         mock_dest_hook.bulk_insert_rows.assert_called_once_with(
             destination_table,
             cursor_rows,

@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 # Essentially similar to airflow.models.BaseOperator
 class DummyClass:
     @apply_defaults
-    def __init__(self, test_param, params=None, default_args=None):  # pylint: disable=unused-argument
+    def __init__(self, test_param, params=None, default_args=None):
         self.test_param = test_param
 
 
@@ -37,7 +37,7 @@ class DummySubClass(DummyClass):
         self.test_sub_param = test_sub_param
 
 
-class TestApplyDefault(unittest.TestCase):
+class ApplyDefaultTest(unittest.TestCase):
 
     def test_apply(self):
         dc = DummyClass(test_param=True)

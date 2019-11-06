@@ -23,7 +23,7 @@ import unittest
 from airflow.www import app as application
 
 
-class TestPluginsRBAC(unittest.TestCase):
+class PluginsTestRBAC(unittest.TestCase):
     def setUp(self):
         self.app, self.appbuilder = application.create_app(testing=True)
 

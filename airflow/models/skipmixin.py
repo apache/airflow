@@ -54,8 +54,7 @@ class SkipMixin(LoggingMixin):
                      synchronize_session=False)
             session.commit()
         else:
-            if execution_date is None:
-                raise ValueError("Execution date is None and no dag run")
+            assert execution_date is not None, "Execution date is None and no dag run"
 
             self.log.warning("No DAG RUN present this should not happen")
             # this is defensive against dag runs that are not complete

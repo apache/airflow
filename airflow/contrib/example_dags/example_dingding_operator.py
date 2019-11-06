@@ -16,9 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for using the DingdingOperator.
-"""
+
 from datetime import timedelta
 
 import airflow
@@ -26,7 +24,7 @@ from airflow.contrib.operators.dingding_operator import DingdingOperator
 from airflow.models import DAG
 
 args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'retries': 3,
     'start_date': airflow.utils.dates.days_ago(2),
 }
@@ -34,12 +32,6 @@ args = {
 
 # [START howto_operator_dingding_failure_callback]
 def failure_callback(context):
-    """
-    The function that will be executed on failure.
-
-    :param context: The context of the executed task.
-    :type context: dict
-    """
     message = 'AIRFLOW TASK FAILURE TIPS:\n' \
               'DAG:    {}\n' \
               'TASKS:  {}\n' \

@@ -25,29 +25,29 @@ import socket
 
 from datetime import datetime
 
-from airflow.configuration import conf
+from airflow import configuration
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
 from airflow.www import app as application
 
 
 @unittest.skipIf('KRB5_KTNAME' not in os.environ,
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
-class TestApiKerberos(unittest.TestCase):
+class ApiKerberosTests(unittest.TestCase):
     def setUp(self):
         try:
-            conf.add_section("api")
+            configuration.conf.add_section("api")
         except Exception:
             pass
-        conf.set("api",
-                 "auth_backend",
-                 "airflow.api.auth.backend.kerberos_auth")
+        configuration.conf.set("api",
+                               "auth_backend",
+                               "airflow.api.auth.backend.kerberos_auth")
         try:
-            conf.add_section("kerberos")
+            configuration.conf.add_section("kerberos")
         except Exception:
             pass
-        conf.set("kerberos",
-                 "keytab",
-                 os.environ['KRB5_KTNAME'])
+        configuration.conf.set("kerberos",
+                               "keytab",
+                               os.environ['KRB5_KTNAME'])
 
         self.app, _ = application.create_app(testing=True)
 

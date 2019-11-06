@@ -17,10 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-'''Plugins metabrowser'''
-
 from datetime import datetime
-from typing import List
 import json
 
 from flask import Blueprint, request
@@ -38,26 +35,21 @@ METASTORE_MYSQL_CONN_ID = 'metastore_mysql'
 PRESTO_CONN_ID = 'presto_default'
 HIVE_CLI_CONN_ID = 'hive_default'
 DEFAULT_DB = 'default'
-DB_WHITELIST = []  # type: List[str]
-DB_BLACKLIST = ['tmp']  # type: List[str]
+DB_WHITELIST = None
+DB_BLACKLIST = ['tmp']
 TABLE_SELECTOR_LIMIT = 2000
 
 # Keeping pandas from truncating long strings
 pd.set_option('display.max_colwidth', -1)
 
 
+# Creating a Flask-AppBuilder BaseView
 class MetastoreBrowserView(BaseView):
-    """
-    Creating a Flask-AppBuilder BaseView
-    """
 
     default_view = 'index'
 
     @expose('/')
     def index(self):
-        """
-        Create default view
-        """
         sql = """
         SELECT
             a.name as db, db_location_uri as location,
@@ -66,8 +58,8 @@ class MetastoreBrowserView(BaseView):
         JOIN TBLS b ON a.DB_ID = b.DB_ID
         GROUP BY a.name, db_location_uri, a.desc
         """
-        hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
-        df = hook.get_pandas_df(sql)
+        h = MySqlHook(METASTORE_MYSQL_CONN_ID)
+        df = h.get_pandas_df(sql)
         df.db = (
             '<a href="/metastorebrowserview/db/?db=' +
             df.db + '">' + df.db + '</a>')
@@ -81,33 +73,24 @@ class MetastoreBrowserView(BaseView):
 
     @expose('/table/')
     def table(self):
-        """
-        Create table view
-        """
         table_name = request.args.get("table")
-        metastore = HiveMetastoreHook(METASTORE_CONN_ID)
-        table = metastore.get_table(table_name)
+        m = HiveMetastoreHook(METASTORE_CONN_ID)
+        table = m.get_table(table_name)
         return self.render_template(
             "metastore_browser/table.html",
             table=table, table_name=table_name, datetime=datetime, int=int)
 
     @expose('/db/')
     def db(self):
-        """
-        Show tables in database
-        """
         db = request.args.get("db")
-        metastore = HiveMetastoreHook(METASTORE_CONN_ID)
-        tables = sorted(metastore.get_tables(db=db), key=lambda x: x.tableName)
+        m = HiveMetastoreHook(METASTORE_CONN_ID)
+        tables = sorted(m.get_tables(db=db), key=lambda x: x.tableName)
         return self.render_template(
             "metastore_browser/db.html", tables=tables, db=db)
 
     @gzipped
     @expose('/partitions/')
     def partitions(self):
-        """
-        Retrieve table partitions
-        """
         schema, table = request.args.get("table").split('.')
         sql = """
         SELECT
@@ -126,8 +109,8 @@ class MetastoreBrowserView(BaseView):
             d.NAME like '{schema}'
         ORDER BY PART_NAME DESC
         """.format(table=table, schema=schema)
-        hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
-        df = hook.get_pandas_df(sql)
+        h = MySqlHook(METASTORE_MYSQL_CONN_ID)
+        df = h.get_pandas_df(sql)
         return df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
@@ -136,9 +119,6 @@ class MetastoreBrowserView(BaseView):
     @gzipped
     @expose('/objects/')
     def objects(self):
-        """
-        Retrieve objects from TBLS and DBS
-        """
         where_clause = ''
         if DB_WHITELIST:
             dbs = ",".join(["'" + db + "'" for db in DB_WHITELIST])
@@ -158,22 +138,19 @@ class MetastoreBrowserView(BaseView):
         {where_clause}
         LIMIT {LIMIT};
         """.format(where_clause=where_clause, LIMIT=TABLE_SELECTOR_LIMIT)
-        hook = MySqlHook(METASTORE_MYSQL_CONN_ID)
-        data = [
+        h = MySqlHook(METASTORE_MYSQL_CONN_ID)
+        d = [
             {'id': row[0], 'text': row[0]}
-            for row in hook.get_records(sql)]
-        return json.dumps(data)
+            for row in h.get_records(sql)]
+        return json.dumps(d)
 
     @gzipped
     @expose('/data/')
     def data(self):
-        """
-        Retrieve data from table
-        """
         table = request.args.get("table")
         sql = "SELECT * FROM {table} LIMIT 1000;".format(table=table)
-        hook = PrestoHook(PRESTO_CONN_ID)
-        df = hook.get_pandas_df(sql)
+        h = PrestoHook(PRESTO_CONN_ID)
+        df = h.get_pandas_df(sql)
         return df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
@@ -181,13 +158,10 @@ class MetastoreBrowserView(BaseView):
 
     @expose('/ddl/')
     def ddl(self):
-        """
-        Retrieve table ddl
-        """
         table = request.args.get("table")
         sql = "SHOW CREATE TABLE {table};".format(table=table)
-        hook = HiveCliHook(HIVE_CLI_CONN_ID)
-        return hook.run_cli(sql)
+        h = HiveCliHook(HIVE_CLI_CONN_ID)
+        return h.run_cli(sql)
 
 
 # Creating a flask blueprint to integrate the templates and static folder
@@ -198,10 +172,8 @@ bp = Blueprint(
     static_url_path='/static/metastore_browser')
 
 
+# Defining the plugin class
 class MetastoreBrowserPlugin(AirflowPlugin):
-    """
-    Defining the plugin class
-    """
     name = "metastore_browser"
     flask_blueprints = [bp]
     appbuilder_views = [{"name": "Hive Metadata Browser",

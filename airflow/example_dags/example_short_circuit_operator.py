@@ -25,7 +25,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 
 args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2),
 }
 

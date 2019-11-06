@@ -24,7 +24,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.utils.state import State
 
 
-class TestLocalExecutor(unittest.TestCase):
+class LocalExecutorTest(unittest.TestCase):
 
     TEST_SUCCESS_COMMANDS = 5
 

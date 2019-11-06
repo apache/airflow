@@ -24,6 +24,7 @@ from os import path
 
 from docutils import nodes
 from docutils.parsers.rst import directives
+from six import text_type
 from sphinx import addnodes
 from sphinx.directives.code import LiteralIncludeReader
 from sphinx.locale import _
@@ -119,7 +120,7 @@ class ExampleInclude(SphinxDirective):
 
             return [retnode]
         except Exception as exc:
-            return [document.reporter.warning(str(exc), line=self.lineno)]
+            return [document.reporter.warning(text_type(exc), line=self.lineno)]
 
 
 def register_source(app, env, modname):
@@ -137,7 +138,7 @@ def register_source(app, env, modname):
             env._viewcode_modules[modname] = False  # type: ignore
             return False
 
-        if not isinstance(analyzer.code, str):
+        if not isinstance(analyzer.code, text_type):
             code = analyzer.code.decode(analyzer.encoding)
         else:
             code = analyzer.code

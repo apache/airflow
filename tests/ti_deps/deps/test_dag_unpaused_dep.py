@@ -24,7 +24,7 @@ from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 
 
-class TestDagUnpausedDep(unittest.TestCase):
+class DagUnpausedDepTest(unittest.TestCase):
 
     def test_concurrency_reached(self):
         """

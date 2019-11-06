@@ -31,7 +31,7 @@ except ImportError:
 
 
 @mock.patch('airflow.hooks.docker_hook.APIClient', autospec=True)
-class TestDockerHook(unittest.TestCase):
+class DockerHookTest(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(
@@ -46,8 +46,7 @@ class TestDockerHook(unittest.TestCase):
             Connection(
                 conn_id='docker_with_extras',
                 conn_type='docker',
-                host='another.docker.registry.com',
-                port=9876,
+                host='some.docker.registry.com',
                 login='some_user',
                 password='some_p4$$w0rd',
                 extra='{"email": "some@example.com", "reauth": "no"}'
@@ -78,7 +77,7 @@ class TestDockerHook(unittest.TestCase):
             tls='someconfig'
         )
         hook.get_conn()
-        docker_client_mock.assert_called_once_with(
+        docker_client_mock.assert_called_with(
             base_url='https://index.docker.io/v1/',
             version='1.23',
             tls='someconfig'
@@ -115,7 +114,7 @@ class TestDockerHook(unittest.TestCase):
             version='auto'
         )
         client = hook.get_conn()
-        client.login.assert_called_once_with(
+        client.login.assert_called_with(
             username='some_user',
             password='some_p4$$w0rd',
             registry='some.docker.registry.com',
@@ -130,10 +129,10 @@ class TestDockerHook(unittest.TestCase):
             version='auto'
         )
         client = hook.get_conn()
-        client.login.assert_called_once_with(
+        client.login.assert_called_with(
             username='some_user',
             password='some_p4$$w0rd',
-            registry='another.docker.registry.com:9876',
+            registry='some.docker.registry.com',
             reauth=False,
             email='some@example.com'
         )

@@ -18,7 +18,7 @@ from airflow.contrib.operators.grpc_operator import GrpcOperator
 from tests.compat import mock
 
 
-class StubClass:
+class StubClass(object):
     def __init__(self, channel):
         pass
 

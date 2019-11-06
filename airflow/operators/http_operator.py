@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Callable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
@@ -57,15 +56,15 @@ class SimpleHttpOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 endpoint: str,
-                 method: str = 'POST',
-                 data: Any = None,
-                 headers: Dict[str, str] = None,
-                 response_check: Callable = None,
-                 extra_options: Dict[str, Any] = None,
-                 http_conn_id: str = 'http_default',
-                 log_response: bool = False,
-                 *args, **kwargs) -> None:
+                 endpoint,
+                 method='POST',
+                 data=None,
+                 headers=None,
+                 response_check=None,
+                 extra_options=None,
+                 http_conn_id='http_default',
+                 log_response=False,
+                 *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.method = method

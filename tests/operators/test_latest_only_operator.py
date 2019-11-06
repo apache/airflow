@@ -44,7 +44,7 @@ def get_task_instances(task_id):
         .all()
 
 
-class TestLatestOnlyOperator(unittest.TestCase):
+class LatestOnlyOperatorTest(unittest.TestCase):
 
     def setUp(self):
         super().setUp()

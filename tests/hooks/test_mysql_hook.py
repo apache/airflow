@@ -195,11 +195,7 @@ class TestMySqlHook(unittest.TestCase):
             self.assertEqual(len(args), 1)
             self.assertEqual(args[0], sql[i])
             self.assertEqual(kwargs, {})
-        calls = [
-            mock.call(sql[0]),
-            mock.call(sql[1])
-        ]
-        self.cur.execute.assert_has_calls(calls, any_order=True)
+        self.cur.execute.assert_called_with(sql[1])
         self.conn.commit.assert_not_called()
 
     def test_bulk_load(self):

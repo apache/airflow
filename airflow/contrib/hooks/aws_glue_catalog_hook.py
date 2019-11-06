@@ -17,9 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS Glue Catalog Hook
-"""
+
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 
@@ -40,7 +38,6 @@ class AwsGlueCatalogHook(AwsHook):
                  *args,
                  **kwargs):
         self.region_name = region_name
-        self.conn = None
         super().__init__(aws_conn_id=aws_conn_id, *args, **kwargs)
 
     def get_conn(self):
@@ -90,8 +87,8 @@ class AwsGlueCatalogHook(AwsHook):
 
         partitions = set()
         for page in response:
-            for partition in page['Partitions']:
-                partitions.add(tuple(partition['Values']))
+            for p in page['Partitions']:
+                partitions.add(tuple(p['Values']))
 
         return partitions
 
@@ -115,7 +112,10 @@ class AwsGlueCatalogHook(AwsHook):
         """
         partitions = self.get_partitions(database_name, table_name, expression, max_items=1)
 
-        return bool(partitions)
+        if partitions:
+            return True
+        else:
+            return False
 
     def get_table(self, database_name, table_name):
         """

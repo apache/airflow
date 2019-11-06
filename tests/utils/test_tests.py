@@ -21,7 +21,7 @@ import unittest
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 
-class TestTestUtils(unittest.TestCase):
+class UtilsTestsTest(unittest.TestCase):
 
     def test_assertEqualIgnoreMultipleSpaces_raises(self):
         str1 = 'w oo f'

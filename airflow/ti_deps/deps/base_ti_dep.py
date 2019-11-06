@@ -103,7 +103,8 @@ class BaseTIDep:
                 reason="Context specified all task dependencies should be ignored.")
             return
 
-        yield from self._get_dep_statuses(ti, session, dep_context)
+        for dep_status in self._get_dep_statuses(ti, session, dep_context):
+            yield dep_status
 
     @provide_session
     def is_met(self, ti, session, dep_context=None):

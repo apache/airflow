@@ -28,7 +28,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 
 args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2),
     'depends_on_past': True,
 }

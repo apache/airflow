@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 import json
+import six
 
 from elasticsearch import Elasticsearch
 from elasticsearch.client.utils import query_params
@@ -250,7 +251,7 @@ class FakeElasticsearch(Elasticsearch):
             ]
         return result_dict
 
-    def _find_match(self, index, doc_type, body, params=None):  # pylint: disable=unused-argument
+    def _find_match(self, index, doc_type, body, params=None):
         searchable_indexes = self._normalize_index_to_list(index)
         searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
 
@@ -279,7 +280,7 @@ class FakeElasticsearch(Elasticsearch):
         # Ensure to have a list of index
         if index is None:
             searchable_indexes = self.__documents_dict.keys()
-        elif isinstance(index, str):
+        elif isinstance(index, six.string_types):
             searchable_indexes = [index]
         elif isinstance(index, list):
             searchable_indexes = index
@@ -301,7 +302,7 @@ class FakeElasticsearch(Elasticsearch):
         # Ensure to have a list of index
         if doc_type is None:
             searchable_doc_types = []
-        elif isinstance(doc_type, str):
+        elif isinstance(doc_type, six.string_types):
             searchable_doc_types = [doc_type]
         elif isinstance(doc_type, list):
             searchable_doc_types = doc_type

@@ -16,16 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import importlib
 import os
 import pathlib
+import six
 import sys
 import tempfile
 
-from airflow.configuration import conf
-from tests.compat import patch
-from tests.test_utils.config import conf_vars
+from airflow import configuration as conf
+from airflow.exceptions import AirflowConfigException
+from tests.compat import mock, patch
 
 import unittest
 
@@ -170,7 +169,7 @@ class TestLoggingSettings(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     configure_logging()
 
-                mock_info.assert_called_once_with(
+                mock_info.assert_called_with(
                     'Unable to load the config, contains a configuration error.'
                 )
 
@@ -182,7 +181,7 @@ class TestLoggingSettings(unittest.TestCase):
             from airflow.logging_config import configure_logging, log
             with patch.object(log, 'info') as mock_info:
                 configure_logging()
-                mock_info.assert_called_once_with(
+                mock_info.assert_called_with(
                     'Successfully imported user-defined logging config from %s',
                     'etc.airflow.config.{}.LOGGING_CONFIG'.format(
                         SETTINGS_DEFAULT_NAME
@@ -195,7 +194,7 @@ class TestLoggingSettings(unittest.TestCase):
             from airflow.logging_config import configure_logging, log
             with patch.object(log, 'info') as mock_info:
                 configure_logging()
-                mock_info.assert_called_once_with(
+                mock_info.assert_called_with(
                     'Successfully imported user-defined logging config from %s',
                     '{}.LOGGING_CONFIG'.format(
                         SETTINGS_DEFAULT_NAME
@@ -212,28 +211,40 @@ class TestLoggingSettings(unittest.TestCase):
     # When the key is not available in the configuration
     def test_when_the_config_key_does_not_exists(self):
         from airflow import logging_config
-        with conf_vars({('core', 'logging_config_class'): None}):
-            with patch.object(logging_config.log, 'debug') as mock_debug:
-                logging_config.configure_logging()
-                mock_debug.assert_any_call(
-                    'Could not find key logging_config_class in config'
-                )
+        conf_get = conf.get
+
+        def side_effect(*args):
+            if args[1] == 'logging_config_class':
+                raise AirflowConfigException
+            else:
+                return conf_get(*args)
+
+        logging_config.conf.get = mock.Mock(side_effect=side_effect)
+
+        with patch.object(logging_config.log, 'debug') as mock_debug:
+            logging_config.configure_logging()
+            mock_debug.assert_any_call(
+                'Could not find key logging_config_class in config'
+            )
 
     # Just default
     def test_loading_local_settings_without_logging_config(self):
         from airflow.logging_config import configure_logging, log
         with patch.object(log, 'debug') as mock_info:
             configure_logging()
-            mock_info.assert_called_once_with(
+            mock_info.assert_called_with(
                 'Unable to load custom logging, using default config instead'
             )
 
     def test_1_9_config(self):
         from airflow.logging_config import configure_logging
-        with conf_vars({('core', 'task_log_reader'): 'file.task'}):
+        conf.set('core', 'task_log_reader', 'file.task')
+        try:
             with self.assertWarnsRegex(DeprecationWarning, r'file.task'):
                 configure_logging()
-            self.assertEqual(conf.get('core', 'task_log_reader'), 'task')
+                self.assertEqual(conf.get('core', 'task_log_reader'), 'task')
+        finally:
+            conf.remove_option('core', 'task_log_reader', remove_default=False)
 
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
@@ -242,13 +253,12 @@ class TestLoggingSettings(unittest.TestCase):
         from airflow.logging_config import configure_logging
         from airflow.utils.log.wasb_task_handler import WasbTaskHandler
 
-        with conf_vars({
-            ('core', 'remote_logging'): 'True',
-            ('core', 'remote_log_conn_id'): 'some_wasb',
-            ('core', 'remote_base_log_folder'): 'wasb://some-folder',
-        }):
-            importlib.reload(airflow_local_settings)
-            configure_logging()
+        conf.set('core', 'remote_logging', 'True')
+        conf.set('core', 'remote_log_conn_id', 'some_wasb')
+        conf.set('core', 'remote_base_log_folder', 'wasb://some-folder')
+
+        six.moves.reload_module(airflow_local_settings)
+        configure_logging()
 
         logger = logging.getLogger('airflow.task')
         self.assertIsInstance(logger.handlers[0], WasbTaskHandler)

@@ -21,9 +21,9 @@ from typing import Any
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 
-from airflow.configuration import conf
+import airflow
 
-SQL_ALCHEMY_SCHEMA = conf.get("core", "SQL_ALCHEMY_SCHEMA")
+SQL_ALCHEMY_SCHEMA = airflow.configuration.get("core", "SQL_ALCHEMY_SCHEMA")
 
 metadata = (
     None

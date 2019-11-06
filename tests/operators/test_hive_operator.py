@@ -24,8 +24,7 @@ import unittest
 from unittest import mock
 import nose
 
-from airflow import DAG, operators
-from airflow.configuration import conf
+from airflow import DAG, configuration, operators
 from airflow.models import TaskInstance
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
@@ -36,7 +35,7 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-class TestHiveEnvironment(unittest.TestCase):
+class HiveEnvironmentTest(unittest.TestCase):
 
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -58,7 +57,7 @@ class TestHiveEnvironment(unittest.TestCase):
         """
 
 
-class TestHiveCli(unittest.TestCase):
+class HiveCliTest(unittest.TestCase):
 
     def setUp(self):
         self.nondefault_schema = "nondefault"
@@ -83,7 +82,7 @@ class TestHiveCli(unittest.TestCase):
         self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])
 
 
-class HiveOperatorConfigTest(TestHiveEnvironment):
+class HiveOperatorConfigTest(HiveEnvironmentTest):
 
     def test_hive_airflow_default_config_queue(self):
         t = HiveOperator(
@@ -94,7 +93,7 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
             dag=self.dag)
 
         # just check that the correct default value in test_default.cfg is used
-        test_config_hive_mapred_queue = conf.get(
+        test_config_hive_mapred_queue = configuration.conf.get(
             'hive',
             'default_hive_mapred_queue'
         )
@@ -113,7 +112,7 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
         self.assertEqual(t.get_hook().mapred_queue, specific_mapred_queue)
 
 
-class HiveOperatorTest(TestHiveEnvironment):
+class HiveOperatorTest(HiveEnvironmentTest):
 
     def test_hiveconf_jinja_translate(self):
         hql = "SELECT ${num_col} FROM ${hiveconf:table};"
@@ -160,7 +159,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
     import airflow.hooks.hive_hooks
     import airflow.operators.presto_to_mysql
 
-    class TestHivePresto(TestHiveEnvironment):
+    class HivePrestoTest(HiveEnvironmentTest):
 
         def test_hive(self):
             t = HiveOperator(

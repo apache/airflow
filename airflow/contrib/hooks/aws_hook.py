@@ -17,13 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains Base AWS Hook
-"""
-
-import logging
-import configparser
 import boto3
+import configparser
+import logging
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -97,7 +93,7 @@ class AwsHook(BaseHook):
         aws_session_token = None
         endpoint_url = None
 
-        if self.aws_conn_id:  # pylint: disable=too-many-nested-blocks
+        if self.aws_conn_id:
             try:
                 connection_object = self.get_connection(self.aws_conn_id)
                 extra_config = connection_object.extra_dejson
@@ -168,14 +164,12 @@ class AwsHook(BaseHook):
             region_name=region_name), endpoint_url
 
     def get_client_type(self, client_type, region_name=None, config=None):
-        """ Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
         return session.client(client_type, endpoint_url=endpoint_url,
                               config=config, verify=self.verify)
 
     def get_resource_type(self, resource_type, region_name=None, config=None):
-        """ Get the underlying boto3 resource using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
         return session.resource(resource_type, endpoint_url=endpoint_url,

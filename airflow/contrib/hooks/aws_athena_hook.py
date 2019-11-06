@@ -17,9 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS Athena hook
-"""
 from time import sleep
 from airflow.contrib.hooks.aws_hook import AwsHook
 
@@ -86,12 +83,10 @@ class AWSAthenaHook(AwsHook):
         state = None
         try:
             state = response['QueryExecution']['Status']['State']
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:
             self.log.error('Exception while getting query state', ex)
         finally:
-            # The error is being absorbed here and is being handled by the caller.
-            # The error is being absorbed to implement retries.
-            return state  # pylint: disable=lost-exception
+            return state
 
     def get_state_change_reason(self, query_execution_id):
         """
@@ -104,12 +99,10 @@ class AWSAthenaHook(AwsHook):
         reason = None
         try:
             reason = response['QueryExecution']['Status']['StateChangeReason']
-        except Exception as ex:  # pylint: disable=broad-except
+        except Exception as ex:
             self.log.error('Exception while getting query state change reason', ex)
         finally:
-            # The error is being absorbed here and is being handled by the caller.
-            # The error is being absorbed to implement retries.
-            return reason  # pylint: disable=lost-exception
+            return reason
 
     def get_query_results(self, query_execution_id):
         """

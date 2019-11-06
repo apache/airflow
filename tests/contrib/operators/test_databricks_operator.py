@@ -68,7 +68,7 @@ PYTHON_PARAMS = ["john doe", "35"]
 SPARK_SUBMIT_PARAMS = ["--class", "org.apache.spark.examples.SparkPi"]
 
 
-class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
+class DatabricksOperatorSharedFunctions(unittest.TestCase):
     def test_deep_string_coerce(self):
         test_json = {
             'test_int': 1,
@@ -88,7 +88,7 @@ class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
         self.assertDictEqual(databricks_operator._deep_string_coerce(test_json), expected)
 
 
-class TestDatabricksSubmitRunOperator(unittest.TestCase):
+class DatabricksSubmitRunOperatorTest(unittest.TestCase):
     def test_init_with_named_parameters(self):
         """
         Test the initializer with the named parameters.
@@ -165,7 +165,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         }
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
-        op.render_template_fields(context={'ds': DATE})
+        op.json = op.render_template('json', op.json, {'ds': DATE})
         expected = databricks_operator._deep_string_coerce({
             'new_cluster': NEW_CLUSTER,
             'notebook_task': RENDERED_TEMPLATED_NOTEBOOK_TASK,
@@ -260,7 +260,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         db_mock.cancel_run.assert_called_once_with(RUN_ID)
 
 
-class TestDatabricksRunNowOperator(unittest.TestCase):
+class DatabricksRunNowOperatorTest(unittest.TestCase):
 
     def test_init_with_named_parameters(self):
         """
@@ -332,7 +332,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
 
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
-        op.render_template_fields(context={'ds': DATE})
+        op.json = op.render_template('json', op.json, {'ds': DATE})
         expected = databricks_operator._deep_string_coerce({
             'notebook_params': NOTEBOOK_PARAMS,
             'jar_params': RENDERED_TEMPLATED_JAR_PARAMS,

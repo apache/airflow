@@ -27,7 +27,7 @@ from multiprocessing import Pool, cpu_count
 from celery import Celery
 from celery import states as celery_states
 
-from airflow.configuration import conf
+from airflow import configuration
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -45,15 +45,15 @@ To start the celery worker, run the command:
 airflow worker
 '''
 
-if conf.has_option('celery', 'celery_config_options'):
+if configuration.conf.has_option('celery', 'celery_config_options'):
     celery_configuration = import_string(
-        conf.get('celery', 'celery_config_options')
+        configuration.conf.get('celery', 'celery_config_options')
     )
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
 app = Celery(
-    conf.get('celery', 'CELERY_APP_NAME'),
+    configuration.conf.get('celery', 'CELERY_APP_NAME'),
     config_source=celery_configuration)
 
 
@@ -112,7 +112,7 @@ def fetch_celery_task_state(celery_task):
 
 
 def send_task_to_executor(task_tuple):
-    key, _, command, queue, task = task_tuple
+    key, simple_ti, command, queue, task = task_tuple
     try:
         with timeout(seconds=2):
             result = task.apply_async(args=[command], queue=queue)
@@ -141,7 +141,7 @@ class CeleryExecutor(BaseExecutor):
         # (which can become a bottleneck on bigger clusters) so we use
         # a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
-        self._sync_parallelism = conf.getint('celery', 'SYNC_PARALLELISM')
+        self._sync_parallelism = configuration.getint('celery', 'SYNC_PARALLELISM')
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
 
@@ -189,7 +189,7 @@ class CeleryExecutor(BaseExecutor):
 
         task_tuples_to_send = []
 
-        for _ in range(min((open_slots, len(self.queued_tasks)))):
+        for i in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             task_tuples_to_send.append((key, simple_ti, command, queue,
                                         execute_command))

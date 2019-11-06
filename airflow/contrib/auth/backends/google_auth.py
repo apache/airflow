@@ -26,8 +26,7 @@ from flask import url_for, redirect, request
 
 from flask_oauthlib.client import OAuth
 
-from airflow import models
-from airflow.configuration import conf
+from airflow import models, configuration
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -35,7 +34,7 @@ log = LoggingMixin().log
 
 
 def get_config_param(param):
-    return str(conf.get('google', param))
+    return str(configuration.conf.get('google', param))
 
 
 class GoogleUser(models.User):

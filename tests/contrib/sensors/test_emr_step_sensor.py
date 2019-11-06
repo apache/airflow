@@ -202,11 +202,10 @@ class TestEmrStepSensor(unittest.TestCase):
             self.sensor.execute(None)
 
             self.assertEqual(self.emr_client_mock.describe_step.call_count, 2)
-            calls = [
-                unittest.mock.call(ClusterId='j-8989898989', StepId='s-VK57YR1Z9Z5N'),
-                unittest.mock.call(ClusterId='j-8989898989', StepId='s-VK57YR1Z9Z5N')
-            ]
-            self.emr_client_mock.describe_step.assert_has_calls(calls)
+            self.emr_client_mock.describe_step.assert_called_with(
+                ClusterId='j-8989898989',
+                StepId='s-VK57YR1Z9Z5N'
+            )
 
     def test_step_cancelled(self):
         self.emr_client_mock.describe_step.side_effect = [

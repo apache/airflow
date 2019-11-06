@@ -24,7 +24,7 @@ from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 
 
-class TestDagTISlotsAvailableDep(unittest.TestCase):
+class DagTISlotsAvailableDepTest(unittest.TestCase):
 
     def test_concurrency_reached(self):
         """

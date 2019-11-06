@@ -38,6 +38,6 @@ def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id, delegate_to=None
 
 
 def get_open_mock():
-    mck = mock.mock_open()
+    m = mock.mock_open()
     open_module = 'builtins'
-    return mck, open_module
+    return m, open_module

@@ -30,7 +30,7 @@ from parameterized import parameterized
 
 import airflow.example_dags
 from airflow import AirflowException, models, settings
-from airflow.configuration import conf
+from airflow import configuration
 from airflow.executors import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, \
@@ -63,7 +63,7 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 TEMP_DAG_FILENAME = "temp_dag.py"
 
 
-class TestSchedulerJob(unittest.TestCase):
+class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
         clear_db_runs()
@@ -79,17 +79,20 @@ class TestSchedulerJob(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag()
-        cls.old_val = None
-        if conf.has_option('core', 'load_examples'):
-            cls.old_val = conf.get('core', 'load_examples')
-        conf.set('core', 'load_examples', 'false')
+
+        def getboolean(section, key):
+            if section.lower() == 'core' and key.lower() == 'load_examples':
+                return False
+            else:
+                return configuration.conf.getboolean(section, key)
+
+        cls.patcher = mock.patch('airflow.jobs.scheduler_job.conf.getboolean')
+        cls.mock_getboolean = cls.patcher.start()
+        cls.mock_getboolean.side_effect = getboolean
 
     @classmethod
     def tearDownClass(cls):
-        if cls.old_val is not None:
-            conf.set('core', 'load_examples', cls.old_val)
-        else:
-            conf.remove_option('core', 'load_examples')
+        cls.patcher.stop()
 
     def test_is_alive(self):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
@@ -825,7 +828,7 @@ class TestSchedulerJob(unittest.TestCase):
         session = settings.Session()
 
         tis = []
-        for _ in range(0, 4):
+        for i in range(0, 4):
             dr = scheduler.create_dag_run(dag)
             ti1 = TI(task1, dr.execution_date)
             ti2 = TI(task2, dr.execution_date)
@@ -1079,7 +1082,7 @@ class TestSchedulerJob(unittest.TestCase):
             dagrun_state,
             run_kwargs=None,
             advance_execution_date=False,
-            session=None):  # pylint: disable=unused-argument
+            session=None):
         """
         Helper for testing DagRun states with simple two-task DAGS.
         This is hackish: a dag run is created but its tasks are
@@ -1295,7 +1298,8 @@ class TestSchedulerJob(unittest.TestCase):
 
     def test_scheduler_task_start_date(self):
         """
-        Test that the scheduler respects task start dates that are different from DAG start dates
+        Test that the scheduler respects task start dates that are different
+        from DAG start dates
         """
 
         dag_id = 'test_task_start_date_scheduling'
@@ -1393,7 +1397,7 @@ class TestSchedulerJob(unittest.TestCase):
         mock_list = Mock()
         scheduler._process_task_instances(dag, task_instances_list=mock_list)
 
-        mock_list.append.assert_called_once_with(
+        mock_list.append.assert_called_with(
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
@@ -1678,7 +1682,7 @@ class TestSchedulerJob(unittest.TestCase):
         # tasks are put on the task_instances_list (should be one, not 3)
         scheduler._process_task_instances(dag, task_instances_list=task_instances_list)
 
-        task_instances_list.append.assert_called_once_with(
+        task_instances_list.append.assert_called_with(
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
@@ -1821,7 +1825,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         @mock.patch('airflow.models.DagBag', return_value=dagbag)
         @mock.patch('airflow.models.DagBag.collect_dags')
-        def do_schedule(mock_dagbag, mock_collect_dags):
+        def do_schedule(function, function2):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
@@ -1984,7 +1988,7 @@ class TestSchedulerJob(unittest.TestCase):
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
             assert sla_callback.called
-            mock_log().exception.assert_called_once_with(
+            mock_log().exception.assert_called_with(
                 'Could not call sla_miss_callback for DAG %s',
                 'test_sla_miss')
 
@@ -2025,7 +2029,7 @@ class TestSchedulerJob(unittest.TestCase):
         with mock.patch('airflow.jobs.SchedulerJob.log',
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
-            mock_log().exception.assert_called_once_with(
+            mock_log().exception.assert_called_with(
                 'Could not send SLA Miss email notification for DAG %s',
                 'test_sla_miss')
 
@@ -2035,8 +2039,7 @@ class TestSchedulerJob(unittest.TestCase):
         but is still present in the executor.
         """
         executor = TestExecutor(do_update=False)
-        dagbag = DagBag(executor=executor, dag_folder=os.path.join(settings.DAGS_FOLDER,
-                                                                   "no_dags.py"))
+        dagbag = DagBag(executor=executor)
         dagbag.dags.clear()
         dagbag.executor = executor
 
@@ -2064,7 +2067,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         @mock.patch('airflow.models.DagBag', return_value=dagbag)
         @mock.patch('airflow.models.DagBag.collect_dags')
-        def do_schedule(mock_dagbag, mock_collect_dags):
+        def do_schedule(function, function2):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
@@ -2078,24 +2081,20 @@ class TestSchedulerJob(unittest.TestCase):
         do_schedule()
         self.assertEqual(1, len(executor.queued_tasks))
 
-        def run_with_error(task, ignore_ti_state=False):
+        def run_with_error(task):
             try:
-                task.run(ignore_ti_state=ignore_ti_state)
+                task.run()
             except AirflowException:
                 pass
 
-        ti_tuple = next(iter(executor.queued_tasks.values()))
-        (_, _, _, simple_ti) = ti_tuple
+        ti_tuple = six.next(six.itervalues(executor.queued_tasks))
+        (command, priority, queue, simple_ti) = ti_tuple
         ti = simple_ti.construct_task_instance()
         ti.task = dag_task1
 
         self.assertEqual(ti.try_number, 1)
-        # At this point, scheduler has tried to schedule the task once and
-        # heartbeated the executor once, which moved the state of the task from
-        # SCHEDULED to QUEUED and then to SCHEDULED, to fail the task execution
-        # we need to ignore the TI state as SCHEDULED is not a valid state to start
-        # executing task.
-        run_with_error(ti, ignore_ti_state=True)
+        # fail execution
+        run_with_error(ti)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
         self.assertEqual(ti.try_number, 2)
 
@@ -2273,7 +2272,7 @@ class TestSchedulerJob(unittest.TestCase):
                          schedule_interval='* * * * *',
                          start_date=six_hours_ago_to_the_hour,
                          catchup=True)
-        default_catchup = conf.getboolean('scheduler', 'catchup_by_default')
+        default_catchup = configuration.conf.getboolean('scheduler', 'catchup_by_default')
         self.assertEqual(default_catchup, True)
         self.assertEqual(dag1.catchup, True)
 
@@ -2462,7 +2461,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(detected_files, expected_files)
 
         example_dag_folder = airflow.example_dags.__path__[0]
-        for root, _, files in os.walk(example_dag_folder):
+        for root, dirs, files in os.walk(example_dag_folder):
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
                     if file_name not in ['__init__.py']:
@@ -2687,52 +2686,3 @@ class TestSchedulerJob(unittest.TestCase):
             self.assertEqual(state, ti.state)
 
         session.close()
-
-    def test_process_dags_not_create_dagrun_for_subdags(self):
-        dag = self.dagbag.get_dag('test_subdag_operator')
-
-        scheduler = SchedulerJob()
-        scheduler._process_task_instances = mock.MagicMock()
-        scheduler.manage_slas = mock.MagicMock()
-
-        scheduler._process_dags(self.dagbag, [dag] + dag.subdags, None)
-
-        with create_session() as session:
-            sub_dagruns = (
-                session
-                .query(DagRun)
-                .filter(DagRun.dag_id == dag.subdags[0].dag_id)
-                .count()
-            )
-
-            self.assertEqual(0, sub_dagruns)
-
-            parent_dagruns = (
-                session
-                .query(DagRun)
-                .filter(DagRun.dag_id == dag.dag_id)
-                .count()
-            )
-
-            self.assertGreater(parent_dagruns, 0)
-
-    def test_find_dags_to_run_includes_subdags(self):
-        dag = self.dagbag.get_dag('test_subdag_operator')
-        print(self.dagbag.dag_ids)
-        print(self.dagbag.dag_folder)
-        self.assertGreater(len(dag.subdags), 0)
-        scheduler = SchedulerJob()
-        dags = scheduler._find_dags_to_process(self.dagbag.dags.values(), paused_dag_ids=())
-
-        self.assertIn(dag, dags)
-        for subdag in dag.subdags:
-            self.assertIn(subdag, dags)
-
-    def test_find_dags_to_run_skip_paused_dags(self):
-        dagbag = DagBag(include_examples=False)
-
-        dag = dagbag.get_dag('test_subdag_operator')
-        scheduler = SchedulerJob()
-        dags = scheduler._find_dags_to_process(dagbag.dags.values(), paused_dag_ids=[dag.dag_id])
-
-        self.assertNotIn(dag, dags)

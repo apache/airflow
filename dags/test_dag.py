@@ -16,14 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This dag only runs some simple tasks to test Airflow's task execution.
-"""
-from datetime import datetime, timedelta
 
-from airflow import DAG
 from airflow import utils
+from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from datetime import datetime, timedelta
 
 now = datetime.now()
 now_to_the_hour = (

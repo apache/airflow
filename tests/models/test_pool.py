@@ -31,7 +31,7 @@ from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-class TestPool(unittest.TestCase):
+class PoolTest(unittest.TestCase):
 
     def setUp(self):
         clear_db_runs()

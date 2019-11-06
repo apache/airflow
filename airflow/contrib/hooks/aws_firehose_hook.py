@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS Firehose hook
-"""
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 
@@ -34,7 +31,6 @@ class AwsFirehoseHook(AwsHook):
     def __init__(self, delivery_stream, region_name=None, *args, **kwargs):
         self.delivery_stream = delivery_stream
         self.region_name = region_name
-        self.conn = None
         super().__init__(*args, **kwargs)
 
     def get_conn(self):

@@ -47,8 +47,6 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type username: str
     :param icon_emoji: The emoji to use as icon for the user posting to Slack
     :type icon_emoji: str
-    :param icon_url: The icon image URL string to use in place of the default icon.
-    :type icon_url: str
     :param link_names: Whether or not to find and link channel and usernames in your
                        message
     :type link_names: bool
@@ -68,7 +66,6 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  channel=None,
                  username=None,
                  icon_emoji=None,
-                 icon_url=None,
                  link_names=False,
                  proxy=None,
                  *args,
@@ -83,7 +80,6 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.channel = channel
         self.username = username
         self.icon_emoji = icon_emoji
-        self.icon_url = icon_url
         self.link_names = link_names
         self.proxy = proxy
         self.hook = None
@@ -100,7 +96,6 @@ class SlackWebhookOperator(SimpleHttpOperator):
             self.channel,
             self.username,
             self.icon_emoji,
-            self.icon_url,
             self.link_names,
             self.proxy
         )

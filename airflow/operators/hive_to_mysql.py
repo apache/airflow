@@ -18,7 +18,6 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
-from typing import Dict
 
 from airflow.hooks.hive_hooks import HiveServer2Hook
 from airflow.hooks.mysql_hook import MySqlHook
@@ -56,8 +55,6 @@ class HiveToMySqlTransfer(BaseOperator):
         This option requires an extra connection parameter for the
         destination MySQL connection: {'local_infile': true}.
     :type bulk_load: bool
-    :param hive_conf:
-    :type hive_conf: dict
     """
 
     template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
@@ -66,15 +63,15 @@ class HiveToMySqlTransfer(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sql: str,
-                 mysql_table: str,
-                 hiveserver2_conn_id: str = 'hiveserver2_default',
-                 mysql_conn_id: str = 'mysql_default',
-                 mysql_preoperator: str = None,
-                 mysql_postoperator: str = None,
-                 bulk_load: bool = False,
-                 hive_conf: Dict = None,
-                 *args, **kwargs) -> None:
+                 sql,
+                 mysql_table,
+                 hiveserver2_conn_id='hiveserver2_default',
+                 mysql_conn_id='mysql_default',
+                 mysql_preoperator=None,
+                 mysql_postoperator=None,
+                 bulk_load=False,
+                 hive_conf=None,
+                 *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sql = sql
         self.mysql_table = mysql_table

@@ -64,19 +64,19 @@ class TestValueCheckOperator(unittest.TestCase):
         pass_value_str = "2018-03-22"
         operator = self._construct_operator('select date from tab1;', "{{ ds }}")
 
-        operator.render_template_fields({'ds': pass_value_str})
+        result = operator.render_template('pass_value', operator.pass_value, {'ds': pass_value_str})
 
         self.assertEqual(operator.task_id, self.task_id)
-        self.assertEqual(operator.pass_value, pass_value_str)
+        self.assertEqual(result, pass_value_str)
 
     def test_pass_value_template_string_float(self):
         pass_value_float = 4.0
         operator = self._construct_operator('select date from tab1;', pass_value_float)
 
-        operator.render_template_fields({})
+        result = operator.render_template('pass_value', operator.pass_value, {})
 
         self.assertEqual(operator.task_id, self.task_id)
-        self.assertEqual(operator.pass_value, str(pass_value_float))
+        self.assertEqual(result, str(pass_value_float))
 
     @mock.patch.object(ValueCheckOperator, 'get_db_hook')
     def test_execute_pass(self, mock_get_db_hook):
@@ -88,7 +88,7 @@ class TestValueCheckOperator(unittest.TestCase):
 
         operator.execute(None)
 
-        mock_hook.get_first.assert_called_once_with(sql)
+        mock_hook.get_first.assert_called_with(sql)
 
     @mock.patch.object(ValueCheckOperator, 'get_db_hook')
     def test_execute_fail(self, mock_get_db_hook):
@@ -102,7 +102,7 @@ class TestValueCheckOperator(unittest.TestCase):
             operator.execute()
 
 
-class TestIntervalCheckOperator(unittest.TestCase):
+class IntervalCheckOperatorTest(unittest.TestCase):
 
     def _construct_operator(self, table, metric_thresholds,
                             ratio_formula, ignore_zero):
@@ -170,7 +170,8 @@ class TestIntervalCheckOperator(unittest.TestCase):
                 [1, 1, 1, 1],  # current
             ]
 
-            yield from rows
+            for r in rows:
+                yield r
 
         mock_hook.get_first.side_effect = returned_row()
         mock_get_db_hook.return_value = mock_hook
@@ -200,7 +201,8 @@ class TestIntervalCheckOperator(unittest.TestCase):
                 [1, 1, 1, 1],  # current
             ]
 
-            yield from rows
+            for r in rows:
+                yield r
 
         mock_hook.get_first.side_effect = returned_row()
         mock_get_db_hook.return_value = mock_hook

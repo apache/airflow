@@ -37,7 +37,7 @@ TEST_CONN = "qubole_test_conn"
 DEFAULT_DATE = datetime(2017, 1, 1)
 
 
-class TestQuboleOperator(unittest.TestCase):
+class QuboleOperatorTest(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
@@ -58,12 +58,16 @@ class TestQuboleOperator(unittest.TestCase):
         self.assertEqual(op.qubole_conn_id, DEFAULT_CONN)
 
     def test_init_with_template_connection(self):
-        with DAG(DAG_ID, start_date=DEFAULT_DATE):
-            task = QuboleOperator(task_id=TASK_ID, qubole_conn_id="{{ qubole_conn_id }}")
+        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 
-        task.render_template_fields({'qubole_conn_id': TEMPLATE_CONN})
+        with dag:
+            task = QuboleOperator(task_id=TASK_ID, dag=dag,
+                                  qubole_conn_id="{{ dag_run.conf['qubole_conn_id'] }}")
+
+        result = task.render_template('qubole_conn_id', "{{ qubole_conn_id }}",
+                                      {'qubole_conn_id': TEMPLATE_CONN})
         self.assertEqual(task.task_id, TASK_ID)
-        self.assertEqual(task.qubole_conn_id, TEMPLATE_CONN)
+        self.assertEqual(result, TEMPLATE_CONN)
 
     def test_init_with_template_cluster_label(self):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)

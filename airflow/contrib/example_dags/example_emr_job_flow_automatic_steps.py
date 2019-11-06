@@ -16,9 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for a AWS EMR Pipeline with auto steps.
-"""
+
 from datetime import timedelta
 import airflow
 from airflow import DAG
@@ -27,7 +25,7 @@ from airflow.contrib.operators.emr_create_job_flow_operator \
 from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor
 
 DEFAULT_ARGS = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(2),
     'email': ['airflow@example.com'],

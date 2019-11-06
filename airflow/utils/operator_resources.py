@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.configuration import conf
+from airflow import configuration
 from airflow.exceptions import AirflowException
 
 # Constants for resources (megabytes are the base unit)
@@ -105,10 +105,10 @@ class Resources:
     :type gpus: long
     """
     def __init__(self,
-                 cpus=conf.getint('operators', 'default_cpus'),
-                 ram=conf.getint('operators', 'default_ram'),
-                 disk=conf.getint('operators', 'default_disk'),
-                 gpus=conf.getint('operators', 'default_gpus')
+                 cpus=configuration.conf.getint('operators', 'default_cpus'),
+                 ram=configuration.conf.getint('operators', 'default_ram'),
+                 disk=configuration.conf.getint('operators', 'default_disk'),
+                 gpus=configuration.conf.getint('operators', 'default_gpus')
                  ):
         self.cpus = CpuResource(cpus)
         self.ram = RamResource(ram)

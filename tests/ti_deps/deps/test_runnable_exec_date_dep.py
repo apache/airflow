@@ -26,7 +26,7 @@ from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
 
 
-class TestRunnableExecDateDep(unittest.TestCase):
+class RunnableExecDateDepTest(unittest.TestCase):
 
     def _get_task_instance(self, execution_date, dag_end_date=None, task_end_date=None):
         dag = Mock(end_date=dag_end_date)

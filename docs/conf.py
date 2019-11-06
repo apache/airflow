@@ -31,10 +31,8 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-"""Configuration of Airflow Docs"""
 import os
 import sys
-from typing import Dict
 
 import airflow
 
@@ -188,7 +186,6 @@ exclude_patterns = [
     '_api/airflow/index.rst',
     '_api/airflow/jobs',
     '_api/airflow/lineage',
-    '_api/airflow/typing',
     '_api/airflow/logging_config',
     '_api/airflow/macros',
     '_api/airflow/migrations',
@@ -203,9 +200,6 @@ exclude_patterns = [
     '_api/airflow/version',
     '_api/airflow/www',
     '_api/main',
-    '_api/airflow/gcp/index.rst',
-    '_api/airflow/gcp/example_dags',
-    '_api/airflow/gcp/utils',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
@@ -260,7 +254,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
-import sphinx_rtd_theme  # pylint: disable=wrong-import-position,wrong-import-order
+import sphinx_rtd_theme
 
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
@@ -345,7 +339,7 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     # 'preamble': '',
-}  # type: Dict[str,str]
+}
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
@@ -397,7 +391,7 @@ man_pages = [
 texinfo_documents = [(
     'index', 'Airflow', 'Airflow Documentation',
     'Apache Airflow', 'Airflow',
-    'Airflow is a system to programmatically author, schedule and monitor data pipelines.',
+    'Airflow is a system to programmaticaly author, schedule and monitor data pipelines.',
     'Miscellaneous'
 ), ]
 
@@ -439,7 +433,7 @@ autoapi_ignore = [
 ]
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
-autoapi_keep_files = True
+autoapi_keep_files = False
 
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.

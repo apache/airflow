@@ -41,10 +41,10 @@ class ChooseBranchOneTwo(BaseBranchOperator):
         return ['branch_1', 'branch_2']
 
 
-class TestBranchOperator(unittest.TestCase):
+class BranchOperatorTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(BranchOperatorTest, cls).setUpClass()
 
         with create_session() as session:
             session.query(DagRun).delete()

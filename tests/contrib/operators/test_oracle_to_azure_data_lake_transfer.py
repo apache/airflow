@@ -27,7 +27,7 @@ import os
 from tests.compat import mock, MagicMock
 
 
-class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
+class OracleToAzureDataLakeTransferTest(unittest.TestCase):
 
     mock_module_path = 'airflow.contrib.operators.oracle_to_azure_data_lake_transfer'
 

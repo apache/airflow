@@ -27,7 +27,7 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import State
 
 
-class TestPrevDagrunDep(unittest.TestCase):
+class PrevDagrunDepTest(unittest.TestCase):
 
     def _get_task(self, **kwargs):
         return BaseOperator(task_id='test_task', dag=DAG('test_dag'), **kwargs)

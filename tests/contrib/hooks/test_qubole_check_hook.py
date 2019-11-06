@@ -21,7 +21,7 @@ import unittest
 from airflow.contrib.hooks.qubole_check_hook import parse_first_row
 
 
-class TestQuboleCheckHook(unittest.TestCase):
+class QuboleCheckHookTest(unittest.TestCase):
     def test_single_row_bool(self):
         query_result = ['true\ttrue']
         record_list = parse_first_row(query_result)

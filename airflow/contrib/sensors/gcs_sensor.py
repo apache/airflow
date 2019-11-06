@@ -77,7 +77,7 @@ def ts_function(context):
     behaviour is check for the object being updated after execution_date +
     schedule_interval.
     """
-    return context['dag'].following_schedule(context['execution_date'])
+    return context['execution_date'] + context['dag'].schedule_interval
 
 
 class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
@@ -130,11 +130,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
 
 class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
     """
-    Checks for the existence of GCS objects at a given prefix, passing matches via XCom.
-
-    When files matching the given prefix are found, the poke method's criteria will be
-    fulfilled and the matching objects will be returned from the operator and passed
-    through XCom for downstream tasks.
+    Checks for the existence of a objects at prefix in Google Cloud Storage bucket.
 
     :param bucket: The Google cloud storage bucket where the object is.
     :type bucket: str
@@ -164,7 +160,6 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
         self.prefix = prefix
         self.google_cloud_conn_id = google_cloud_conn_id
         self.delegate_to = delegate_to
-        self._matches = []
 
     def poke(self, context):
         self.log.info('Sensor checks existence of objects: %s, %s',
@@ -172,13 +167,7 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
-        self._matches = hook.list(self.bucket, prefix=self.prefix)
-        return bool(self._matches)
-
-    def execute(self, context):
-        """Overridden to allow matches to be passed"""
-        super(GoogleCloudStoragePrefixSensor, self).execute(context)
-        return self._matches
+        return bool(hook.list(self.bucket, prefix=self.prefix))
 
 
 def get_time():
@@ -241,7 +230,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
                  delegate_to=None,
                  *args, **kwargs):
 
-        super().__init__(*args, **kwargs)
+        super(GoogleCloudStorageUploadSessionCompleteSensor, self).__init__(*args, **kwargs)
 
         self.bucket = bucket
         self.prefix = prefix

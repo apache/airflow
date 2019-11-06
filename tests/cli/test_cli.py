@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import io
+#
+
+from six import StringIO
 import sys
 import unittest
 from unittest.mock import patch, Mock, MagicMock
@@ -199,11 +201,12 @@ class TestCLI(unittest.TestCase):
 
         saved_stdout = sys.stdout
         try:
-            sys.stdout = out = io.StringIO()
+            sys.stdout = out = StringIO()
             cli.test(args)
 
             output = out.getvalue()
             # Check that prints, and log messages, are shown
+            self.assertIn('END_DATE', output)
             self.assertIn("'example_python_operator__print_the_context__20180101'", output)
         finally:
             sys.stdout = saved_stdout
@@ -242,7 +245,7 @@ class TestCLI(unittest.TestCase):
             # Clear dag run so no execution history fo each DAG
             reset_dr_db(dag_id)
 
-            p = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
+            p = subprocess.Popen(["airflow", "next_execution", dag_id,
                                   "--subdir", self.EXAMPLE_DAGS_FOLDER],
                                  stdout=subprocess.PIPE)
             p.wait()
@@ -263,7 +266,7 @@ class TestCLI(unittest.TestCase):
                 state=State.FAILED
             )
 
-            p = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
+            p = subprocess.Popen(["airflow", "next_execution", dag_id,
                                   "--subdir", self.EXAMPLE_DAGS_FOLDER],
                                  stdout=subprocess.PIPE)
             p.wait()
@@ -277,10 +280,10 @@ class TestCLI(unittest.TestCase):
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_backfill(self, mock_run):
         cli.backfill(self.parser.parse_args([
-            'dags', 'backfill', 'example_bash_operator',
+            'backfill', 'example_bash_operator',
             '-s', DEFAULT_DATE.isoformat()]))
 
-        mock_run.assert_called_once_with(
+        mock_run.assert_called_with(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
@@ -298,9 +301,9 @@ class TestCLI(unittest.TestCase):
         mock_run.reset_mock()
         dag = self.dagbag.get_dag('example_bash_operator')
 
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with mock.patch('sys.stdout', new_callable=StringIO) as mock_stdout:
             cli.backfill(self.parser.parse_args([
-                'dags', 'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
+                'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
                 '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
         mock_stdout.seek(0, 0)
@@ -315,16 +318,16 @@ class TestCLI(unittest.TestCase):
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
         cli.backfill(self.parser.parse_args([
-            'dags', 'backfill', 'example_bash_operator', '--dry_run',
+            'backfill', 'example_bash_operator', '--dry_run',
             '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
         cli.backfill(self.parser.parse_args([
-            'dags', 'backfill', 'example_bash_operator', '-l',
+            'backfill', 'example_bash_operator', '-l',
             '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
-        mock_run.assert_called_once_with(
+        mock_run.assert_called_with(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             conf=None,
@@ -352,7 +355,6 @@ class TestCLI(unittest.TestCase):
         dag_id = 'test_dagrun_states_deadlock'
         run_date = DEFAULT_DATE + timedelta(days=1)
         args = [
-            'dags',
             'backfill',
             dag_id,
             '-l',
@@ -364,7 +366,7 @@ class TestCLI(unittest.TestCase):
 
         cli.backfill(self.parser.parse_args(args), dag=dag)
 
-        mock_run.assert_called_once_with(
+        mock_run.assert_called_with(
             start_date=run_date,
             end_date=run_date,
             conf=None,
@@ -389,7 +391,6 @@ class TestCLI(unittest.TestCase):
         start_date = DEFAULT_DATE + timedelta(days=1)
         end_date = start_date + timedelta(days=1)
         args = [
-            'dags',
             'backfill',
             dag_id,
             '-l',
@@ -403,7 +404,7 @@ class TestCLI(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
 
         cli.backfill(self.parser.parse_args(args), dag=dag)
-        mock_run.assert_called_once_with(
+        mock_run.assert_called_with(
             start_date=start_date,
             end_date=end_date,
             conf=None,
@@ -430,8 +431,7 @@ class TestCLI(unittest.TestCase):
         dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
 
         task0_id = 'test_run_dependent_task'
-        args0 = ['tasks',
-                 'run',
+        args0 = ['run',
                  '-A',
                  '--local',
                  dag_id,
@@ -439,7 +439,7 @@ class TestCLI(unittest.TestCase):
                  NAIVE_DATE.isoformat()]
 
         cli.run(self.parser.parse_args(args0), dag=dag)
-        mock_local_job.assert_called_once_with(
+        mock_local_job.assert_called_with(
             task_instance=mock.ANY,
             mark_success=False,
             ignore_all_deps=True,

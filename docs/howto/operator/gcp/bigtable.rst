@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+..  Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,16 +6,14 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+..    http://www.apache.org/licenses/LICENSE-2.0
 
- .. Unless required by applicable law or agreed to in writing,
+..  Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
-
-
 
 Google Cloud Bigtable Operators
 ===============================
@@ -26,7 +24,7 @@ Google Cloud Bigtable Operators
 
 All examples below rely on the following variables, which can be passed via environment variables.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_bigtable.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :start-after: [START howto_operator_gcp_bigtable_args]
     :end-before: [END howto_operator_gcp_bigtable_args]
@@ -36,7 +34,7 @@ All examples below rely on the following variables, which can be passed via envi
 BigtableInstanceCreateOperator
 ------------------------------
 
-Use the :class:`~airflow.gcp.operators.bigtable.BigtableInstanceCreateOperator`
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator`
 to create a Google Cloud Bigtable instance.
 
 If the Cloud Bigtable instance with the given ID exists, the operator does not compare its configuration
@@ -48,7 +46,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_bigtable.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_instance_create]
@@ -59,7 +57,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 BigtableInstanceDeleteOperator
 ------------------------------
 
-Use the :class:`~airflow.gcp.operators.bigtable.BigtableInstanceDeleteOperator`
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator`
 to delete a Google Cloud Bigtable instance.
 
 Using the operator
@@ -68,7 +66,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_bigtable.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_instance_delete]
@@ -79,7 +77,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 BigtableClusterUpdateOperator
 -----------------------------
 
-Use the :class:`~airflow.gcp.operators.bigtable.BigtableClusterUpdateOperator`
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator`
 to modify number of nodes in a Cloud Bigtable cluster.
 
 Using the operator
@@ -88,7 +86,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_bigtable.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_cluster_update]
@@ -112,7 +110,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_bigtable.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_create]
@@ -131,7 +129,7 @@ Families <https://googleapis.github.io/google-cloud-python/latest/bigtable/colum
 BigtableTableDeleteOperator
 ---------------------------
 
-Use the :class:`~airflow.gcp.operators.bigtable.BigtableTableDeleteOperator`
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator`
 to delete a table in Google Cloud Bigtable.
 
 Using the operator
@@ -140,7 +138,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_bigtable.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_delete]
@@ -154,7 +152,7 @@ BigtableTableWaitForReplicationSensor
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-Use the :class:`~airflow.gcp.sensors.bigtable.BigtableTableWaitForReplicationSensor`
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor`
 to wait for the table to replicate fully.
 
 The same arguments apply to this sensor as the BigtableTableCreateOperator_.
@@ -165,7 +163,7 @@ timeout hits and does not raise any exception.
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_bigtable.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_wait_for_replication]

@@ -16,17 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for using the Kubernetes Executor.
-"""
-import os
 
 import airflow
-from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.models import DAG
+import os
 
 args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 
@@ -61,19 +58,13 @@ tolerations = [{
 }]
 
 
-def print_stuff():  # pylint: disable=missing-docstring
+def print_stuff():
     print("stuff!")
 
 
 def use_zip_binary():
-    """
-    Checks whether Zip is installed.
-
-    :return: True if it is installed, False if not.
-    :rtype: bool
-    """
-    return_code = os.system("zip")
-    assert return_code == 0
+    rc = os.system("zip")
+    assert rc == 0
 
 
 # You don't have to use any special KubernetesExecutor configuration if you don't want to

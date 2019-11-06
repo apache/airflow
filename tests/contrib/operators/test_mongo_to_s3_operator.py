@@ -39,7 +39,7 @@ MOCK_MONGO_RETURN = [
 ]
 
 
-class TestMongoToS3Operator(unittest.TestCase):
+class MongoToS3OperatorTest(unittest.TestCase):
 
     def setUp(self):
         args = {

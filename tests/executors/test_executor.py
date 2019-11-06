@@ -53,7 +53,7 @@ class TestExecutor(BaseExecutor):
             def sort_by(item):
                 key, val = item
                 (dag_id, task_id, date, try_number) = key
-                (_, prio, _, _) = val
+                (cmd, prio, queue, sti) = val
                 # Sort by priority (DESC), then date,task, try
                 return -prio, date, dag_id, task_id, try_number
             sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)

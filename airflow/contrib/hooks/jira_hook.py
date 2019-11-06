@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for JIRA"""
 from jira import JIRA
 from jira.exceptions import JIRAError
 
@@ -34,6 +33,7 @@ class JiraHook(BaseHook):
     def __init__(self,
                  jira_conn_id='jira_default',
                  proxies=None):
+        super().__init__(jira_conn_id)
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
         self.client = None
@@ -46,41 +46,41 @@ class JiraHook(BaseHook):
             get_server_info = True
             validate = True
             extra_options = {}
-            if not self.jira_conn_id:
-                raise AirflowException('Failed to create jira client. no jira_conn_id provided')
+            conn = None
 
-            conn = self.get_connection(self.jira_conn_id)
-            if conn.extra is not None:
-                extra_options = conn.extra_dejson
-                # only required attributes are taken for now,
-                # more can be added ex: async, logging, max_retries
+            if self.jira_conn_id is not None:
+                conn = self.get_connection(self.jira_conn_id)
+                if conn.extra is not None:
+                    extra_options = conn.extra_dejson
+                    # only required attributes are taken for now,
+                    # more can be added ex: async, logging, max_retries
 
-                # verify
-                if 'verify' in extra_options \
-                        and extra_options['verify'].lower() == 'false':
-                    extra_options['verify'] = False
+                    # verify
+                    if 'verify' in extra_options \
+                            and extra_options['verify'].lower() == 'false':
+                        extra_options['verify'] = False
 
-                # validate
-                if 'validate' in extra_options \
-                        and extra_options['validate'].lower() == 'false':
-                    validate = False
+                    # validate
+                    if 'validate' in extra_options \
+                            and extra_options['validate'].lower() == 'false':
+                        validate = False
 
-                if 'get_server_info' in extra_options \
-                        and extra_options['get_server_info'].lower() == 'false':
-                    get_server_info = False
+                    if 'get_server_info' in extra_options \
+                            and extra_options['get_server_info'].lower() == 'false':
+                        get_server_info = False
 
-            try:
-                self.client = JIRA(conn.host,
-                                   options=extra_options,
-                                   basic_auth=(conn.login, conn.password),
-                                   get_server_info=get_server_info,
-                                   validate=validate,
-                                   proxies=self.proxies)
-            except JIRAError as jira_error:
-                raise AirflowException('Failed to create jira client, jira error: %s'
-                                       % str(jira_error))
-            except Exception as e:
-                raise AirflowException('Failed to create jira client, error: %s'
-                                       % str(e))
+                try:
+                    self.client = JIRA(conn.host,
+                                       options=extra_options,
+                                       basic_auth=(conn.login, conn.password),
+                                       get_server_info=get_server_info,
+                                       validate=validate,
+                                       proxies=self.proxies)
+                except JIRAError as jira_error:
+                    raise AirflowException('Failed to create jira client, jira error: %s'
+                                           % str(jira_error))
+                except Exception as e:
+                    raise AirflowException('Failed to create jira client, error: %s'
+                                           % str(e))
 
         return self.client

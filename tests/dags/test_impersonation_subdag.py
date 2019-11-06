@@ -23,6 +23,7 @@ from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.operators.bash_operator import BashOperator
+from airflow.executors import SequentialExecutor
 
 
 DEFAULT_DATE = datetime(2016, 1, 1)
@@ -59,6 +60,5 @@ BashOperator(
 
 subdag_operator = SubDagOperator(task_id='test_subdag_operation',
                                  subdag=subdag,
-                                 mode='reschedule',
-                                 poke_interval=1,
+                                 executor=SequentialExecutor(),
                                  dag=dag)

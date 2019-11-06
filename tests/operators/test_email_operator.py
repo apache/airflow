@@ -21,10 +21,9 @@ import datetime
 from unittest import mock
 import unittest
 
-from airflow import DAG
+from airflow import configuration, DAG
 from airflow.operators.email_operator import EmailOperator
 from airflow.utils import timezone
-from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -57,6 +56,7 @@ class TestEmailOperator(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_execute(self):
-        with conf_vars({('email', 'email_backend'): 'tests.operators.test_email_operator.send_email_test'}):
-            self._run_as_operator()
+        configuration.conf.set('email', 'EMAIL_BACKEND',
+                               'tests.operators.test_email_operator.send_email_test')
+        self._run_as_operator()
         assert send_email_test.call_count == 1

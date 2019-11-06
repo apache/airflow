@@ -33,7 +33,7 @@ from airflow.security import utils
 from flask import url_for, redirect
 
 from airflow import models
-from airflow.configuration import conf
+from airflow import configuration
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -55,13 +55,13 @@ class KerberosUser(models.User, LoggingMixin):
     @staticmethod
     def authenticate(username, password):
         service_principal = "%s/%s" % (
-            conf.get('kerberos', 'principal'),
+            configuration.conf.get('kerberos', 'principal'),
             utils.get_fqdn()
         )
-        realm = conf.get("kerberos", "default_realm")
+        realm = configuration.conf.get("kerberos", "default_realm")
 
         try:
-            user_realm = conf.get("security", "default_realm")
+            user_realm = configuration.conf.get("security", "default_realm")
         except AirflowConfigException:
             user_realm = realm
 

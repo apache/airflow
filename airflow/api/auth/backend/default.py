@@ -17,23 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default authentication backend - everything is allowed"""
-from typing import Optional
 from functools import wraps
-from airflow.typing import Protocol
 
-
-class ClientAuthProtocol(Protocol):
-    """
-    Protocol type for CLIENT_AUTH
-    """
-    def handle_response(self, _):
-        """
-        CLIENT_AUTH.handle_response method
-        """
-        ...
-
-
-CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
+CLIENT_AUTH = None
 
 
 def init_app(_):

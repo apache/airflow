@@ -26,17 +26,13 @@
 # --------------------------------------------------------------------------------
 # Load The Dependencies
 # --------------------------------------------------------------------------------
-"""
-This is an example dag for managing twitter data.
-"""
-from datetime import date, timedelta
 
 import airflow
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
-from airflow.operators.hive_operator import HiveOperator
 from airflow.operators.python_operator import PythonOperator
-
+from airflow.operators.hive_operator import HiveOperator
+from datetime import date, timedelta
 
 # --------------------------------------------------------------------------------
 # Create a few placeholder scripts. In practice these would be different python
@@ -45,27 +41,19 @@ from airflow.operators.python_operator import PythonOperator
 
 
 def fetchtweets():
-    """
-    This is a placeholder for fetchtweets.
-    """
+    return None
 
 
 def cleantweets():
-    """
-    This is a placeholder for cleantweets.
-    """
+    return None
 
 
 def analyzetweets():
-    """
-    This is a placeholder for analyzetweets.
-    """
+    return None
 
 
 def transfertodb():
-    """
-    This is a placeholder for transfertodb.
-    """
+    return None
 
 
 # --------------------------------------------------------------------------------

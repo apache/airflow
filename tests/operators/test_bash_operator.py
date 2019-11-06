@@ -21,9 +21,8 @@ import os
 import unittest
 from datetime import datetime, timedelta
 from tempfile import NamedTemporaryFile
-from tests.compat import mock
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -33,7 +32,7 @@ END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
 INTERVAL = timedelta(hours=12)
 
 
-class TestBashOperator(unittest.TestCase):
+class BashOperatorTest(unittest.TestCase):
 
     def test_echo_env_variables(self):
         """
@@ -81,7 +80,7 @@ class TestBashOperator(unittest.TestCase):
             with open(tmp_file.name, 'r') as file:
                 output = ''.join(file.readlines())
                 self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
-                # exported in run-tests as part of PYTHONPATH
+                # exported in run_unit_tests.sh as part of PYTHONPATH
                 self.assertIn('tests/test_utils', output)
                 self.assertIn('bash_op_test', output)
                 self.assertIn('echo_env_vars', output)
@@ -99,23 +98,3 @@ class TestBashOperator(unittest.TestCase):
         return_value = bash_operator.execute(context={})
 
         self.assertEqual(return_value, 'stdout')
-
-    def test_task_retries(self):
-        bash_operator = BashOperator(
-            bash_command='echo "stdout"',
-            task_id='test_task_retries',
-            retries=2,
-            dag=None
-        )
-
-        self.assertEqual(bash_operator.retries, 2)
-
-    @mock.patch.object(configuration.conf, 'getint', return_value=3)
-    def test_default_retries(self, mock_config):
-        bash_operator = BashOperator(
-            bash_command='echo "stdout"',
-            task_id='test_default_retries',
-            dag=None
-        )
-
-        self.assertEqual(bash_operator.retries, 3)

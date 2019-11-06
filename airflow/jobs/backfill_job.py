@@ -18,11 +18,10 @@
 # under the License.
 #
 
-from datetime import datetime
 import time
 from collections import OrderedDict
 
-from sqlalchemy.orm.session import make_transient, Session
+from sqlalchemy.orm.session import make_transient
 
 from airflow import executors, models
 from airflow.exceptions import (
@@ -33,7 +32,7 @@ from airflow.exceptions import (
     TaskConcurrencyLimitReached,
 )
 from airflow.models import DAG, DagPickle, DagRun
-from airflow.ti_deps.dep_context import DepContext, BACKFILL_QUEUED_DEPS
+from airflow.ti_deps.dep_context import DepContext, RUN_DEPS
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.db import provide_session
@@ -258,30 +257,31 @@ class BackfillJob(BaseJob):
                     ti.handle_failure(msg)
 
     @provide_session
-    def _get_dag_run(self, run_date: datetime, dag: DAG, session: Session = None):
+    def _get_dag_run(self, run_date, session=None):
         """
         Returns a dag run for the given run date, which will be matched to an existing
         dag run if available or create a new dag run otherwise. If the max_active_runs
         limit is reached, this function will return None.
 
         :param run_date: the execution date for the dag run
-        :param dag: DAG
+        :type run_date: datetime.datetime
         :param session: the database session object
+        :type session: sqlalchemy.orm.session.Session
         :return: a DagRun in state RUNNING or None
         """
         run_id = BackfillJob.ID_FORMAT_PREFIX.format(run_date.isoformat())
 
         # consider max_active_runs but ignore when running subdags
         respect_dag_max_active_limit = (True
-                                        if (dag.schedule_interval and
-                                            not dag.is_subdag)
+                                        if (self.dag.schedule_interval and
+                                            not self.dag.is_subdag)
                                         else False)
 
-        current_active_dag_count = dag.get_num_active_runs(external_trigger=False)
+        current_active_dag_count = self.dag.get_num_active_runs(external_trigger=False)
 
         # check if we are scheduling on top of a already existing dag_run
         # we could find a "scheduled" run instead of a "backfill"
-        run = DagRun.find(dag_id=dag.dag_id,
+        run = DagRun.find(dag_id=self.dag.dag_id,
                           execution_date=run_date,
                           session=session)
 
@@ -295,10 +295,10 @@ class BackfillJob(BaseJob):
         # enforce max_active_runs limit for dag, special cases already
         # handled by respect_dag_max_active_limit
         if (respect_dag_max_active_limit and
-                current_active_dag_count >= dag.max_active_runs):
+                current_active_dag_count >= self.dag.max_active_runs):
             return None
 
-        run = run or dag.create_dagrun(
+        run = run or self.dag.create_dagrun(
             run_id=run_id,
             execution_date=run_date,
             start_date=timezone.utcnow(),
@@ -309,7 +309,7 @@ class BackfillJob(BaseJob):
         )
 
         # set required transient field
-        run.dag = dag
+        run.dag = self.dag
 
         # explicitly mark as backfill and running
         run.state = State.RUNNING
@@ -408,7 +408,7 @@ class BackfillJob(BaseJob):
             def _per_task_process(task, key, ti, session=None):
                 ti.refresh_from_db()
 
-                task = self.dag.get_task(ti.task_id, include_subdags=True)
+                task = self.dag.get_task(ti.task_id)
                 ti.task = task
 
                 ignore_depends_on_past = (
@@ -465,46 +465,47 @@ class BackfillJob(BaseJob):
                         return
 
                 backfill_context = DepContext(
-                    deps=BACKFILL_QUEUED_DEPS,
+                    deps=RUN_DEPS,
                     ignore_depends_on_past=ignore_depends_on_past,
                     ignore_task_deps=self.ignore_task_deps,
                     flag_upstream_failed=True)
 
-                ti.refresh_from_db(lock_for_update=True, session=session)
                 # Is the task runnable? -- then run it
                 # the dependency checker can change states of tis
                 if ti.are_dependencies_met(
                         dep_context=backfill_context,
                         session=session,
                         verbose=self.verbose):
-                    if executor.has_task(ti):
-                        self.log.debug(
-                            "Task Instance %s already in executor "
-                            "waiting for queue to clear",
-                            ti
-                        )
-                    else:
-                        self.log.debug('Sending %s to executor', ti)
-                        # Skip scheduled state, we are executing immediately
-                        ti.state = State.QUEUED
-                        ti.queued_dttm = timezone.utcnow() if not ti.queued_dttm else ti.queued_dttm
-                        session.merge(ti)
+                    ti.refresh_from_db(lock_for_update=True, session=session)
+                    if ti.state in (State.SCHEDULED, State.UP_FOR_RETRY, State.UP_FOR_RESCHEDULE):
+                        if executor.has_task(ti):
+                            self.log.debug(
+                                "Task Instance %s already in executor "
+                                "waiting for queue to clear",
+                                ti
+                            )
+                        else:
+                            self.log.debug('Sending %s to executor', ti)
+                            # Skip scheduled state, we are executing immediately
+                            ti.state = State.QUEUED
+                            ti.queued_dttm = timezone.utcnow() if not ti.queued_dttm else ti.queued_dttm
+                            session.merge(ti)
 
-                        cfg_path = None
-                        if executor.__class__ in (executors.LocalExecutor,
-                                                  executors.SequentialExecutor):
-                            cfg_path = tmp_configuration_copy()
+                            cfg_path = None
+                            if executor.__class__ in (executors.LocalExecutor,
+                                                      executors.SequentialExecutor):
+                                cfg_path = tmp_configuration_copy()
 
-                        executor.queue_task_instance(
-                            ti,
-                            mark_success=self.mark_success,
-                            pickle_id=pickle_id,
-                            ignore_task_deps=self.ignore_task_deps,
-                            ignore_depends_on_past=ignore_depends_on_past,
-                            pool=self.pool,
-                            cfg_path=cfg_path)
-                        ti_status.running[key] = ti
-                        ti_status.to_run.pop(key)
+                            executor.queue_task_instance(
+                                ti,
+                                mark_success=self.mark_success,
+                                pickle_id=pickle_id,
+                                ignore_task_deps=self.ignore_task_deps,
+                                ignore_depends_on_past=ignore_depends_on_past,
+                                pool=self.pool,
+                                cfg_path=cfg_path)
+                            ti_status.running[key] = ti
+                            ti_status.to_run.pop(key)
                     session.commit()
                     return
 
@@ -541,7 +542,7 @@ class BackfillJob(BaseJob):
                 ti_status.not_ready.add(key)
 
             try:
-                for task in self.dag.topological_sort(include_subdag_tasks=True):
+                for task in self.dag.topological_sort():
                     for key, ti in list(ti_status.to_run.items()):
                         if task.task_id != ti.task_id:
                             continue
@@ -682,15 +683,14 @@ class BackfillJob(BaseJob):
         :type session: sqlalchemy.orm.session.Session
         """
         for next_run_date in run_dates:
-            for dag in [self.dag] + self.dag.subdags:
-                dag_run = self._get_dag_run(next_run_date, dag, session=session)
-                tis_map = self._task_instances_for_dag_run(dag_run,
-                                                           session=session)
-                if dag_run is None:
-                    continue
+            dag_run = self._get_dag_run(next_run_date, session=session)
+            tis_map = self._task_instances_for_dag_run(dag_run,
+                                                       session=session)
+            if dag_run is None:
+                continue
 
-                ti_status.active_runs.append(dag_run)
-                ti_status.to_run.update(tis_map or {})
+            ti_status.active_runs.append(dag_run)
+            ti_status.to_run.update(tis_map or {})
 
         processed_dag_run_dates = self._process_backfill_task_instances(
             ti_status=ti_status,

@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 
-class TestHipChatOperator(unittest.TestCase):
+class HipChatOperatorTest(unittest.TestCase):
     @unittest.skipIf(mock is None, 'mock package not present')
     @mock.patch('requests.request')
     def test_execute(self, request_mock):

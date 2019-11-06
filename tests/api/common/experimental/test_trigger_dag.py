@@ -26,7 +26,7 @@ from airflow.models import DAG, DagRun
 from airflow.api.common.experimental.trigger_dag import _trigger_dag
 
 
-class TestTriggerDag(unittest.TestCase):
+class TriggerDagTests(unittest.TestCase):
 
     @mock.patch('airflow.models.DagRun')
     @mock.patch('airflow.models.DagBag')

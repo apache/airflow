@@ -17,26 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 import io
-import os
+import six
 import tempfile
-import unittest
-import copy
-from datetime import datetime
-
-import dateutil
-from google.cloud import storage
-from google.cloud import exceptions
+import os
 
 from airflow.contrib.hooks import gcs_hook
 from airflow.exceptions import AirflowException
-from airflow.version import version
 from tests.compat import mock
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from google.cloud import storage
+from google.cloud import exceptions
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 GCS_STRING = 'airflow.contrib.hooks.gcs_hook.{}'
 
-EMPTY_CONTENT = b''
+EMPTY_CONTENT = ''.encode('utf8')
 PROJECT_ID_TEST = 'project-id'
 
 
@@ -73,37 +73,14 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             self.gcs_hook = gcs_hook.GoogleCloudStorageHook(
                 google_cloud_storage_conn_id='test')
 
-    @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.client_info',
-        new_callable=mock.PropertyMock,
-        return_value="CLIENT_INFO"
-    )
-    @mock.patch(
-        BASE_STRING.format("GoogleCloudBaseHook._get_credentials_and_project_id"),
-        return_value=("CREDENTIALS", "PROJECT_ID")
-    )
-    @mock.patch('google.cloud.storage.Client')
-    def test_storage_client_creation(self,
-                                     mock_client,
-                                     mock_get_creds_and_project_id,
-                                     mock_client_info):
-        hook = gcs_hook.GoogleCloudStorageHook()
-        result = hook.get_conn()
-        # test that Storage Client is called with required arguments
-        mock_client.assert_called_once_with(
-            client_info="CLIENT_INFO",
-            credentials="CREDENTIALS",
-            project="PROJECT_ID")
-        self.assertEqual(mock_client.return_value, result)
-
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_exists(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
         # Given
-        bucket_mock = mock_service.return_value.bucket
-        blob_object = bucket_mock.return_value.blob
+        get_bucket_mock = mock_service.return_value.get_bucket
+        blob_object = get_bucket_mock.return_value.blob
         exists_method = blob_object.return_value.exists
         exists_method.return_value = True
 
@@ -112,7 +89,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         # Then
         self.assertTrue(response)
-        bucket_mock.assert_called_once_with(test_bucket)
+        get_bucket_mock.assert_called_once_with(test_bucket)
         blob_object.assert_called_once_with(blob_name=test_object)
         exists_method.assert_called_once_with()
 
@@ -122,8 +99,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_object = 'test_object'
 
         # Given
-        bucket_mock = mock_service.return_value.bucket
-        blob_object = bucket_mock.return_value.blob
+        get_bucket_mock = mock_service.return_value.get_bucket
+        blob_object = get_bucket_mock.return_value.blob
         exists_method = blob_object.return_value.exists
         exists_method.return_value = False
 
@@ -132,24 +109,6 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         # Then
         self.assertFalse(response)
-
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_is_updated_after(self, mock_service):
-        test_bucket = 'test_bucket'
-        test_object = 'test_object'
-
-        # Given
-        mock_service.return_value.bucket.return_value.get_blob\
-            .return_value.updated = datetime(2019, 8, 28, 14, 7, 20, 700000, dateutil.tz.tzutc())
-
-        # When
-        response = self.gcs_hook.is_updated_after(
-            bucket_name=test_bucket, object_name=test_object,
-            ts=datetime(2018, 1, 1, 1, 1, 1)
-        )
-
-        # Then
-        self.assertTrue(response)
 
     @mock.patch('google.cloud.storage.Bucket')
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -166,13 +125,13 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             name=destination_object)
 
         # Given
-        bucket_mock = mock_service.return_value.bucket
-        bucket_mock.return_value = mock_bucket
-        copy_method = bucket_mock.return_value.copy_blob
+        get_bucket_mock = mock_service.return_value.get_bucket
+        get_bucket_mock.return_value = mock_bucket
+        copy_method = get_bucket_mock.return_value.copy_blob
         copy_method.return_value = destination_blob
 
         # When
-        response = self.gcs_hook.copy(  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.copy(
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -251,14 +210,14 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         source_blob = mock_bucket.blob(source_object)
 
         # Given
-        bucket_mock = mock_service.return_value.bucket
-        bucket_mock.return_value = mock_bucket
-        get_blob_method = bucket_mock.return_value.blob
+        get_bucket_mock = mock_service.return_value.get_bucket
+        get_bucket_mock.return_value = mock_bucket
+        get_blob_method = get_bucket_mock.return_value.blob
         rewrite_method = get_blob_method.return_value.rewrite
         rewrite_method.side_effect = [(None, mock.ANY, mock.ANY), (mock.ANY, mock.ANY, mock.ANY)]
 
         # When
-        response = self.gcs_hook.rewrite(  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.rewrite(
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -315,9 +274,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         delete_method = get_blob_method.return_value.delete
         delete_method.return_value = blob_to_be_deleted
 
-        response = self.gcs_hook.delete(  # pylint:disable=assignment-from-no-return
-            bucket_name=test_bucket,
-            object_name=test_object)
+        response = self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
         self.assertIsNone(response)
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -325,8 +282,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
-        bucket_method = mock_service.return_value.bucket
-        blob = bucket_method.return_value.blob
+        get_bucket_method = mock_service.return_value.get_bucket
+        blob = get_bucket_method.return_value.blob
         delete_method = blob.return_value.delete
         delete_method.side_effect = exceptions.NotFound(message="Not Found")
 
@@ -339,14 +296,15 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_object = 'test_object'
         returned_file_size = 1200
 
-        bucket_method = mock_service.return_value.bucket
-        get_blob_method = bucket_method.return_value.get_blob
+        get_bucket_method = mock_service.return_value.get_bucket
+        get_blob_method = get_bucket_method.return_value.get_blob
         get_blob_method.return_value.size = returned_file_size
 
         response = self.gcs_hook.get_size(bucket_name=test_bucket,
                                           object_name=test_object)
 
         self.assertEqual(response, returned_file_size)
+        get_blob_method.return_value.reload.assert_called_once_with()
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_object_get_crc32c(self, mock_service):
@@ -354,8 +312,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_object = 'test_object'
         returned_file_crc32c = "xgdNfQ=="
 
-        bucket_method = mock_service.return_value.bucket
-        get_blob_method = bucket_method.return_value.get_blob
+        get_bucket_method = mock_service.return_value.get_bucket
+        get_blob_method = get_bucket_method.return_value.get_blob
         get_blob_method.return_value.crc32c = returned_file_crc32c
 
         response = self.gcs_hook.get_crc32c(bucket_name=test_bucket,
@@ -363,20 +321,26 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         self.assertEqual(response, returned_file_crc32c)
 
+        # Check that reload method is called
+        get_blob_method.return_value.reload.assert_called_once_with()
+
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_object_get_md5hash(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
         returned_file_md5hash = "leYUJBUWrRtks1UeUFONJQ=="
 
-        bucket_method = mock_service.return_value.bucket
-        get_blob_method = bucket_method.return_value.get_blob
+        get_bucket_method = mock_service.return_value.get_bucket
+        get_blob_method = get_bucket_method.return_value.get_blob
         get_blob_method.return_value.md5_hash = returned_file_md5hash
 
         response = self.gcs_hook.get_md5hash(bucket_name=test_bucket,
                                              object_name=test_object)
 
         self.assertEqual(response, returned_file_md5hash)
+
+        # Check that reload method is called
+        get_blob_method.return_value.reload.assert_called_once_with()
 
     @mock.patch('google.cloud.storage.Bucket')
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -387,12 +351,9 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_labels = {'env': 'prod'}
         test_storage_class = 'MULTI_REGIONAL'
 
-        labels_with_version = copy.deepcopy(test_labels)
-        labels_with_version['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
-
         mock_service.return_value.bucket.return_value.create.return_value = None
         mock_bucket.return_value.storage_class = test_storage_class
-        mock_bucket.return_value.labels = labels_with_version
+        mock_bucket.return_value.labels = test_labels
 
         sample_bucket = mock_service().bucket(bucket_name=test_bucket)
 
@@ -407,9 +368,9 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         self.assertEqual(response, sample_bucket.id)
 
         self.assertEqual(sample_bucket.storage_class, test_storage_class)
-        self.assertDictEqual(sample_bucket.labels, test_labels)
+        self.assertEqual(sample_bucket.labels, test_labels)
 
-        mock_service.return_value.bucket.return_value.create.assert_called_once_with(
+        mock_service.return_value.bucket.return_value.create.assert_called_with(
             project=test_project, location=test_location
         )
 
@@ -442,11 +403,11 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
         self.assertEqual(response, sample_bucket.id)
 
-        mock_service.return_value.bucket.return_value._patch_property.assert_called_once_with(
+        mock_service.return_value.bucket.return_value._patch_property.assert_called_with(
             name='versioning', value=test_versioning_enabled
         )
 
-        mock_service.return_value.bucket.return_value.create.assert_called_once_with(
+        mock_service.return_value.bucket.return_value.create.assert_called_with(
             project=test_project, location=test_location
         )
 
@@ -457,9 +418,9 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = 'test_object_composed'
 
-        mock_service.return_value.bucket.return_value\
+        mock_service.return_value.get_bucket.return_value\
             .blob.return_value = mock_blob(blob_name=mock.ANY)
-        method = mock_service.return_value.bucket.return_value.blob\
+        method = mock_service.return_value.get_bucket.return_value.blob\
             .return_value.compose
 
         self.gcs_hook.compose(
@@ -474,7 +435,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             ])
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_with_empty_source_objects(self, mock_service):  # pylint:disable=unused-argument
+    def test_compose_with_empty_source_objects(self, mock_service):
         test_bucket = 'test_bucket'
         test_source_objects = []
         test_destination_object = 'test_object_composed'
@@ -492,7 +453,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_without_bucket(self, mock_service):  # pylint:disable=unused-argument
+    def test_compose_without_bucket(self, mock_service):
         test_bucket = None
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = 'test_object_composed'
@@ -510,7 +471,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_without_destination_object(self, mock_service):  # pylint:disable=unused-argument
+    def test_compose_without_destination_object(self, mock_service):
         test_bucket = 'test_bucket'
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = None
@@ -533,7 +494,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_object = 'test_object'
         test_object_bytes = io.BytesIO(b"input")
 
-        download_method = mock_service.return_value.bucket.return_value \
+        download_method = mock_service.return_value.get_bucket.return_value \
             .blob.return_value.download_as_string
         download_method.return_value = test_object_bytes
 
@@ -551,11 +512,11 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_object_bytes = io.BytesIO(b"input")
         test_file = 'test_file'
 
-        download_filename_method = mock_service.return_value.bucket.return_value \
+        download_filename_method = mock_service.return_value.get_bucket.return_value \
             .blob.return_value.download_to_filename
         download_filename_method.return_value = None
 
-        download_as_a_string_method = mock_service.return_value.bucket.return_value \
+        download_as_a_string_method = mock_service.return_value.get_bucket.return_value \
             .blob.return_value.download_as_string
         download_as_a_string_method.return_value = test_object_bytes
 
@@ -587,11 +548,11 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
-        upload_method = mock_service.return_value.bucket.return_value\
+        upload_method = mock_service.return_value.get_bucket.return_value\
             .blob.return_value.upload_from_filename
         upload_method.return_value = None
 
-        response = self.gcs_hook.upload(test_bucket,  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.upload(test_bucket,
                                         test_object,
                                         self.testfile.name)
 
@@ -610,7 +571,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
             .blob.return_value.upload_from_filename
         upload_method.return_value = None
 
-        response = self.gcs_hook.upload(test_bucket,  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.upload(test_bucket,
                                         test_object,
                                         self.testfile.name,
                                         gzip=True)

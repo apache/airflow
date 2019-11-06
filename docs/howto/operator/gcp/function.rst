@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+..  Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,16 +6,14 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+..    http://www.apache.org/licenses/LICENSE-2.0
 
- .. Unless required by applicable law or agreed to in writing,
+..  Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
-
-
 
 Google Cloud Functions Operators
 ================================
@@ -32,7 +30,7 @@ GcfFunctionDeleteOperator
 Use the operator to delete a function from Google Cloud Functions.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.functions.GcfFunctionDeleteOperator`.
+:class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator`.
 
 Arguments
 """""""""
@@ -40,7 +38,7 @@ Arguments
 The following examples of OS environment variables show how you can build function name
 to use in the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_common_variables]
     :end-before: [END howto_operator_gcf_common_variables]
@@ -48,7 +46,7 @@ to use in the operator:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_delete]
@@ -57,7 +55,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/functions.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_function_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcf_function_delete_template_fields]
@@ -78,7 +76,7 @@ Use the operator to deploy a function to Google Cloud Functions.
 If a function with this name already exists, it will be updated.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.functions.GcfFunctionDeployOperator`.
+:class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator`.
 
 
 Arguments
@@ -87,19 +85,19 @@ Arguments
 In the example DAG the following environment variables are used to parameterize the
 operator's definition:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_common_variables]
     :end-before: [END howto_operator_gcf_common_variables]
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_variables]
     :end-before: [END howto_operator_gcf_deploy_variables]
 
 Some of those variables are used to create the request's body:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_body]
     :end-before: [END howto_operator_gcf_deploy_body]
@@ -107,7 +105,7 @@ Some of those variables are used to create the request's body:
 When a DAG is created, the default_args dictionary can be used to pass
 arguments common with other tasks:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_default_args]
     :end-before: [END howto_operator_gcf_default_args]
@@ -131,14 +129,14 @@ Using the operator
 Depending on the combination of parameters, the Function's source code can be obtained
 from different sources:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_variants]
     :end-before: [END howto_operator_gcf_deploy_variants]
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy]
@@ -147,7 +145,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_functions.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy_no_project_id]
@@ -156,7 +154,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/functions.py
+.. literalinclude:: ../../../../airflow/contrib/operators/gcp_function_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcf_function_deploy_template_fields]

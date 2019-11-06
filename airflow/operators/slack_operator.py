@@ -18,7 +18,6 @@
 # under the License.
 
 import json
-from typing import Dict, Optional, List
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -44,11 +43,11 @@ class SlackAPIOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 slack_conn_id: str = None,
-                 token: str = None,
-                 method: str = None,
-                 api_params: Dict = None,
-                 *args, **kwargs) -> None:
+                 slack_conn_id=None,
+                 token=None,
+                 method=None,
+                 api_params=None,
+                 *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         if token is None and slack_conn_id is None:
@@ -57,8 +56,8 @@ class SlackAPIOperator(BaseOperator):
             raise AirflowException('Cannot determine Slack credential '
                                    'when both token and slack_conn_id are supplied.')
 
-        self.token = token  # type: Optional[str]
-        self.slack_conn_id = slack_conn_id  # type: Optional[str]
+        self.token = token
+        self.slack_conn_id = slack_conn_id
 
         self.method = method
         self.api_params = api_params
@@ -101,7 +100,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :type icon_url: str
     :param attachments: extra formatting details. (templated)
         - see https://api.slack.com/docs/attachments.
-    :type attachments: list of hashes
+    :type attachments: array of hashes
     """
 
     template_fields = ('username', 'text', 'attachments', 'channel')
@@ -109,14 +108,14 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
     @apply_defaults
     def __init__(self,
-                 channel: str = '#general',
-                 username: str = 'Airflow',
-                 text: str = 'No message has been set.\n'
-                             'Here is a cat video instead\n'
-                             'https://www.youtube.com/watch?v=J---aiyznGQ',
-                 icon_url: str = 'https://raw.githubusercontent.com/apache/'
-                                 'airflow/master/airflow/www/static/pin_100.jpg',
-                 attachments: List = None,
+                 channel='#general',
+                 username='Airflow',
+                 text='No message has been set.\n'
+                      'Here is a cat video instead\n'
+                      'https://www.youtube.com/watch?v=J---aiyznGQ',
+                 icon_url='https://raw.githubusercontent.com/apache/'
+                          'airflow/master/airflow/www/static/pin_100.jpg',
+                 attachments=None,
                  *args, **kwargs):
         self.method = 'chat.postMessage'
         self.channel = channel

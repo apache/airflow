@@ -37,7 +37,7 @@ from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
-from airflow.configuration import conf
+from airflow import configuration as conf
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs import BaseJob
@@ -50,7 +50,6 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
-from tests.test_utils.config import conf_vars
 
 
 class TestBase(unittest.TestCase):
@@ -317,7 +316,7 @@ class TestAirflowBaseViews(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(TestAirflowBaseViews, cls).setUpClass()
         dagbag = models.DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
@@ -626,8 +625,8 @@ class TestConfigurationView(TestBase):
     def test_configuration_do_not_expose_config(self):
         self.logout()
         self.login()
-        with conf_vars({('webserver', 'expose_config'): 'False'}):
-            resp = self.client.get('configuration', follow_redirects=True)
+        conf.set("webserver", "expose_config", "False")
+        resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', '# Your Airflow administrator chose not to expose the configuration, '
                                       'most likely for security reasons.'], resp)
@@ -635,8 +634,8 @@ class TestConfigurationView(TestBase):
     def test_configuration_expose_config(self):
         self.logout()
         self.login()
-        with conf_vars({('webserver', 'expose_config'): 'True'}):
-            resp = self.client.get('configuration', follow_redirects=True)
+        conf.set("webserver", "expose_config", "True")
+        resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', 'Running Configuration'], resp)
 
@@ -1006,7 +1005,7 @@ class TestGraphView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(TestGraphView, cls).setUpClass()
 
     def setUp(self):
         super().setUp()
@@ -1020,7 +1019,7 @@ class TestGraphView(TestBase):
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
+        super(TestGraphView, cls).tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1045,7 +1044,7 @@ class TestGanttView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(TestGanttView, cls).setUpClass()
 
     def setUp(self):
         super().setUp()
@@ -1059,7 +1058,7 @@ class TestGanttView(TestBase):
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
+        super(TestGanttView, cls).tearDownClass()
 
     def test_dt_nr_dr_form_default_parameters(self):
         self.tester.test_with_default_parameters()
@@ -1086,7 +1085,7 @@ class TestDagACLView(TestBase):
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(TestDagACLView, cls).setUpClass()
         dagbag = models.DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
@@ -1257,7 +1256,7 @@ class TestDagACLView(TestBase):
         self.login(username='test',
                    password='test')
         test_role = self.appbuilder.sm.find_role('dag_acl_tester')
-        perms = {str(perm) for perm in test_role.permissions}
+        perms = set([str(perm) for perm in test_role.permissions])
         self.assertIn('can dag edit on example_bash_operator', perms)
         self.assertNotIn('can dag read on example_bash_operator', perms)
 
@@ -1702,7 +1701,7 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
-    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('mysql' in conf.conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
     def test_trigger_dag_button(self):
 
@@ -1858,7 +1857,7 @@ class TestExtraLinks(TestBase):
 class TestDagRunModelView(TestBase):
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(TestDagRunModelView, cls).setUpClass()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=cls.session)
         cls.clear_table(models.DagRun)
 

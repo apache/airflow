@@ -29,7 +29,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(TestDagRunsEndpoint, cls).setUpClass()
         session = Session()
         session.query(DagRun).delete()
         session.commit()

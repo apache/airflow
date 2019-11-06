@@ -23,7 +23,7 @@ from paramiko import SFTP_NO_SUCH_FILE, SFTP_FAILURE
 from airflow.contrib.sensors.sftp_sensor import SFTPSensor
 
 
-class TestSFTPSensor(unittest.TestCase):
+class SFTPSensorTest(unittest.TestCase):
     @patch('airflow.contrib.sensors.sftp_sensor.SFTPHook')
     def test_file_present(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
@@ -34,13 +34,13 @@ class TestSFTPSensor(unittest.TestCase):
             'ds': '1970-01-01'
         }
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
+        sftp_hook_mock.return_value.get_mod_time.assert_called_with(
             '/path/to/file/1970-01-01.txt')
         self.assertTrue(output)
 
     @patch('airflow.contrib.sensors.sftp_sensor.SFTPHook')
     def test_file_absent(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(
+        sftp_hook_mock.return_value.get_mod_time.side_effect = IOError(
             SFTP_NO_SUCH_FILE, 'File missing')
         sftp_sensor = SFTPSensor(
             task_id='unit_test',
@@ -49,13 +49,13 @@ class TestSFTPSensor(unittest.TestCase):
             'ds': '1970-01-01'
         }
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
+        sftp_hook_mock.return_value.get_mod_time.assert_called_with(
             '/path/to/file/1970-01-01.txt')
         self.assertFalse(output)
 
     @patch('airflow.contrib.sensors.sftp_sensor.SFTPHook')
     def test_sftp_failure(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(
+        sftp_hook_mock.return_value.get_mod_time.side_effect = IOError(
             SFTP_FAILURE, 'SFTP failure')
         sftp_sensor = SFTPSensor(
             task_id='unit_test',
@@ -63,7 +63,7 @@ class TestSFTPSensor(unittest.TestCase):
         context = {
             'ds': '1970-01-01'
         }
-        with self.assertRaises(OSError):
+        with self.assertRaises(IOError):
             sftp_sensor.poke(context)
-            sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
+            sftp_hook_mock.return_value.get_mod_time.assert_called_with(
                 '/path/to/file/1970-01-01.txt')

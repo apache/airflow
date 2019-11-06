@@ -27,7 +27,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
 
 
-class TestDb(unittest.TestCase):
+class DbTest(unittest.TestCase):
 
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
         all_meta_data = MetaData()

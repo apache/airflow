@@ -23,12 +23,12 @@ import copy
 import os
 import pathlib
 import shlex
+from six import iteritems
 import subprocess
 import sys
 import warnings
-# Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
-from configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError  # type: ignore
 
+from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -89,7 +89,7 @@ def run_command(command):
     return output
 
 
-def _read_default_config_file(file_name: str) -> str:
+def _read_default_config_file(file_name):
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
     with open(file_path, encoding='utf-8') as file:
@@ -147,12 +147,6 @@ class AirflowConfigParser(ConfigParser):
             'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
         },
     }
-
-    # This method transforms option names on every read, get, or set operation.
-    # This changes from the default behaviour of ConfigParser from lowercasing
-    # to instead be case-preserving
-    def optionxform(self, optionstr: str) -> str:
-        return optionstr
 
     def __init__(self, default_config=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -338,7 +332,7 @@ class AirflowConfigParser(ConfigParser):
                 key = env_var.replace(section_prefix, '').lower()
                 _section[key] = self._get_env_var_option(section, key)
 
-        for key, val in _section.items():
+        for key, val in iteritems(_section):
             try:
                 val = int(val)
             except ValueError:
@@ -395,7 +389,7 @@ class AirflowConfigParser(ConfigParser):
         if include_env:
             for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
                 try:
-                    _, section, key = ev.split('__', 2)
+                    _, section, key = ev.split('__')
                     opt = self._get_env_var_option(section, key)
                 except ValueError:
                     continue
@@ -405,15 +399,8 @@ class AirflowConfigParser(ConfigParser):
                     opt = opt.replace('%', '%%')
                 if display_source:
                     opt = (opt, 'env var')
-
-                section = section.lower()
-                # if we lower key for kubernetes_environment_variables section,
-                # then we won't be able to set any Airflow environment
-                # variables. Airflow only parse environment variables starts
-                # with AIRFLOW_. Therefore, we need to make it a special case.
-                if section != 'kubernetes_environment_variables':
-                    key = key.lower()
-                cfg.setdefault(section, OrderedDict()).update({key: opt})
+                cfg.setdefault(section.lower(), OrderedDict()).update(
+                    {key.lower(): opt})
 
         # add bash commands
         if include_cmds:
@@ -595,7 +582,7 @@ set = conf.set # noqa
 for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
              remove_option, as_dict, set]:
     deprecated(
-        func.__name__,
+        func,
         "Accessing configuration method '{f.__name__}' directly from "
         "the configuration module is deprecated. Please access the "
         "configuration from the 'configuration.conf' object via "

@@ -21,8 +21,7 @@ import logging
 import pandas as pd
 import sys
 
-from airflow import settings
-from airflow.configuration import conf
+from airflow import configuration, settings
 from airflow.jobs import SchedulerJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import timezone
@@ -105,7 +104,7 @@ class SchedulerMetricsJob(SchedulerJob):
         """
         Override the scheduler heartbeat to determine when the test is complete
         """
-        super().heartbeat()
+        super(SchedulerMetricsJob, self).heartbeat()
         session = settings.Session()
         # Get all the relevant task instances
         TI = TaskInstance
@@ -192,7 +191,7 @@ def main():
             logging.error('Specify a positive integer for timeout.')
             sys.exit(1)
 
-    conf.load_test_config()
+    configuration.load_test_config()
 
     set_dags_paused_state(False)
     clear_dag_runs()

@@ -17,12 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional
-from airflow.typing import Protocol
 import sys
 
 from math import pow
-from random import randint
 from time import sleep
 
 from airflow.exceptions import AirflowException
@@ -30,20 +27,6 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 from airflow.contrib.hooks.aws_hook import AwsHook
-
-
-class BatchProtocol(Protocol):
-    def submit_job(self, jobName, jobQueue, jobDefinition, containerOverrides):
-        ...
-
-    def get_waiter(self, x: str):
-        ...
-
-    def describe_jobs(self, jobs):
-        ...
-
-    def terminate_job(self, jobId: str, reason: str):
-        ...
 
 
 class AWSBatchOperator(BaseOperator):
@@ -76,8 +59,8 @@ class AWSBatchOperator(BaseOperator):
     """
 
     ui_color = '#c3dae0'
-    client = None  # type: Optional[BatchProtocol]
-    arn = None  # type: Optional[str]
+    client = None
+    arn = None
     template_fields = ('job_name', 'overrides',)
 
     @apply_defaults
@@ -93,8 +76,8 @@ class AWSBatchOperator(BaseOperator):
         self.overrides = overrides
         self.max_retries = max_retries
 
-        self.jobId = None  # pylint: disable=invalid-name
-        self.jobName = None  # pylint: disable=invalid-name
+        self.jobId = None
+        self.jobName = None
 
         self.hook = self.get_hook()
 
@@ -147,26 +130,19 @@ class AWSBatchOperator(BaseOperator):
             waiter.wait(jobs=[self.jobId])
         except ValueError:
             # If waiter not available use expo
+            retry = True
+            retries = 0
 
-            # Allow a batch job some time to spin up.  A random interval
-            # decreases the chances of exceeding an AWS API throttle
-            # limit when there are many concurrent tasks.
-            pause = randint(5, 30)
+            while retries < self.max_retries and retry:
+                self.log.info('AWS Batch retry in the next %s seconds', retries)
+                response = self.client.describe_jobs(
+                    jobs=[self.jobId]
+                )
+                if response['jobs'][-1]['status'] in ['SUCCEEDED', 'FAILED']:
+                    retry = False
 
-            retries = 1
-            while retries <= self.max_retries:
-                self.log.info('AWS Batch job (%s) status check (%d of %d) in the next %.2f seconds',
-                              self.jobId, retries, self.max_retries, pause)
-                sleep(pause)
-
-                response = self.client.describe_jobs(jobs=[self.jobId])
-                status = response['jobs'][-1]['status']
-                self.log.info('AWS Batch job (%s) status: %s', self.jobId, status)
-                if status in ['SUCCEEDED', 'FAILED']:
-                    break
-
+                sleep(1 + pow(retries * 0.1, 2))
                 retries += 1
-                pause = 1 + pow(retries * 0.3, 2)
 
     def _check_success_task(self):
         response = self.client.describe_jobs(
