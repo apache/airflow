@@ -215,7 +215,7 @@ Multi-Node Cluster
 -------------------
 
 Airflow uses :class:`airflow.executors.sequential_executor.SequentialExecutor` by default. It works fine in most cases. However, by its nature, the user is limited to executing at most
-one task at a time. It's also not suitable to work in a multi-node cluster. You should use :doc:`../howto/celery` or :doc:`../howto/kubernetes` in such cases.
+one task at a time. It's also not suitable to work in a multi-node cluster. You should use :doc:`../executor/celery` or :doc:`../executor/kubernetes` in such cases.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains the same configuration and dags.
