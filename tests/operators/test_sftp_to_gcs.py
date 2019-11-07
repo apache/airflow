@@ -209,5 +209,8 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
             sftp_conn_id=SFTP_CONN_ID,
             delegate_to=DELEGATE_TO,
         )
-        with self.assertRaises(AirflowException):
+        with self.assertRaises(AirflowException) as cm:
             task.execute(None)
+
+        err = cm.exception
+        self.assertIn("Only one wildcard '*' is allowed in source_path parameter", str(err))
