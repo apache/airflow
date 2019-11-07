@@ -383,8 +383,8 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
-     - :mod:`airflow.contrib.hooks.aws_sns_hook`
-     - :mod:`airflow.contrib.operators.sns_publish_operator`
+     - :mod:`airflow.providers.amazon.aws.hooks.sns`
+     - :mod:`airflow.providers.amazon.aws.operators.sns`
      -
 
    * - `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sqs/>`__

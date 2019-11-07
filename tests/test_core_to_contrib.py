@@ -145,7 +145,7 @@ HOOK = [
         "airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook",
     ),
     (
-        "airflow.providers.aws.hooks.sns.AwsSnsHook",
+        "airflow.providers.amazon.aws.hooks.sns.AwsSnsHook",
         "airflow.contrib.hooks.aws_sns_hook.AwsSnsHook",
     ),
 ]
@@ -763,7 +763,7 @@ OPERATOR = [
         "airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator",
     ),
     (
-        "airflow.providers.aws.operators.sns.SnsPublishOperator",
+        "airflow.providers.amazon.aws.operators.sns.SnsPublishOperator",
         "airflow.contrib.operators.sns_publish_operator.SnsPublishOperator",
     )
 ]

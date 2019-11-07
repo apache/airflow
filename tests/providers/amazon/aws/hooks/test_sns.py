@@ -20,7 +20,7 @@
 
 import unittest
 
-from airflow.providers.aws.hooks.sns import AwsSnsHook
+from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook
 
 try:
     from moto import mock_sns

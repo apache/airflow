@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.aws.operators.sns`."""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sns`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.aws.operators.sns import SnsPublishOperator  # noqa
+from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.aws.operators.sns`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sns`.",
     DeprecationWarning,
     stacklevel=2,
 )
