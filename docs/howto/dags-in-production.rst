@@ -101,7 +101,7 @@ Unit tests
 
 Unit tests ensure that there is no incorrect code in your DAG. You can write a unit test for your tasks as well as your DAG.
 
-Unit test for loading a DAG
+Unit test for loading a DAG:
 
 .. code::
 
@@ -110,7 +110,7 @@ Unit test for loading a DAG
 
  class TestHelloWorldDAG(unittest.TestCase):
  def setUp(self):
- self.dagbag = DagBag()
+     self.dagbag = DagBag()
 
  def test_dag_loaded(self):
  dag = self.dagbag.get_dag(dag_id='hello_world')
@@ -118,7 +118,7 @@ Unit test for loading a DAG
  self.assertIsNotNone(dag)
  self.assertEqual(len(dag.tasks), 1)
 
-Unit test for custom operator
+Unit test for custom operator:
 
 .. code::
 
