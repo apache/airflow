@@ -82,7 +82,7 @@ if [[ ${START_KUBERNETES_CLUSTER} == "true" ]]; then
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
       -f "${MY_DIR}/docker-compose-kubernetes.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
+         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
     set -u
 else
     set +u
@@ -90,7 +90,7 @@ else
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh;
+         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
     set -u
 fi
 
