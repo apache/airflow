@@ -24,7 +24,7 @@ import argparse
 import os
 import shutil
 
-from airflow.example_dags.example_sftp_to_gcs import (
+from airflow.providers.google.cloud.example_dags.example_sftp_to_gcs import (
     BUCKET_SRC, DIR, OBJECT_SRC_1, OBJECT_SRC_2, OBJECT_SRC_3, SUBDIR, TMP_PATH,
 )
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
