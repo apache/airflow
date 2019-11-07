@@ -86,6 +86,7 @@ Moving specific files
 ---------------------
 
 Use the ``wildcard`` in ``source_path`` parameter to move the specific files.
+You can use only one wildcard within your path.
 The ``destination_path`` defines the path that is prefixed to all copied files,
 e.g. ``tests_sftp_hook_dir/subdir/parent-1.bin`` is copied to ``specific_files/parent-1.bin``,
 and ``tests_sftp_hook_dir/subdir/parent-2.bin`` is copied to ``specific_files/parent-2.bin`` .
