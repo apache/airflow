@@ -24,7 +24,7 @@ import os
 
 import airflow
 from airflow import models
-from airflow.operators.sftp_to_gcs import SFTPToGoogleCloudStorageOperator
+from airflow.providers.google.cloud.operators.sftp_to_gcs import SFTPToGoogleCloudStorageOperator
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 

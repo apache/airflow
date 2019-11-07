@@ -52,8 +52,8 @@ DESTINATION_PATH_FILE = "destination_dir/copy.txt"
 
 # pylint: disable=unused-argument
 class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
-    @mock.patch("airflow.operators.sftp_to_gcs.GoogleCloudStorageHook")
-    @mock.patch("airflow.operators.sftp_to_gcs.SFTPHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.GoogleCloudStorageHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.SFTPHook")
     def test_execute_copy_single_file(self, sftp_hook, gcs_hook):
         task = SFTPToGoogleCloudStorageOperator(
             task_id=TASK_ID,
@@ -84,8 +84,8 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
 
         sftp_hook.return_value.delete_file.assert_not_called()
 
-    @mock.patch("airflow.operators.sftp_to_gcs.GoogleCloudStorageHook")
-    @mock.patch("airflow.operators.sftp_to_gcs.SFTPHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.GoogleCloudStorageHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.SFTPHook")
     def test_execute_move_single_file(self, sftp_hook, gcs_hook):
         task = SFTPToGoogleCloudStorageOperator(
             task_id=TASK_ID,
@@ -118,8 +118,8 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
             SOURCE_OBJECT_NO_WILDCARD
         )
 
-    @mock.patch("airflow.operators.sftp_to_gcs.GoogleCloudStorageHook")
-    @mock.patch("airflow.operators.sftp_to_gcs.SFTPHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.GoogleCloudStorageHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.SFTPHook")
     def test_execute_copy_with_wildcard(self, sftp_hook, gcs_hook):
         sftp_hook.return_value.get_tree_map.return_value = [
             ["main_dir/test_object3.json", "main_dir/sub_dir/test_object3.json"],
@@ -167,8 +167,8 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
             ]
         )
 
-    @mock.patch("airflow.operators.sftp_to_gcs.GoogleCloudStorageHook")
-    @mock.patch("airflow.operators.sftp_to_gcs.SFTPHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.GoogleCloudStorageHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.SFTPHook")
     def test_execute_move_with_wildcard(self, sftp_hook, gcs_hook):
         sftp_hook.return_value.get_tree_map.return_value = [
             ["main_dir/test_object3.json", "main_dir/sub_dir/test_object3.json"],
@@ -196,8 +196,8 @@ class TestSFTPToGoogleCloudStorageOperator(unittest.TestCase):
             ]
         )
 
-    @mock.patch("airflow.operators.sftp_to_gcs.GoogleCloudStorageHook")
-    @mock.patch("airflow.operators.sftp_to_gcs.SFTPHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.GoogleCloudStorageHook")
+    @mock.patch("airflow.providers.google.cloud.operators.sftp_to_gcs.SFTPHook")
     def test_execute_more_than_one_wildcard_exception(self, sftp_hook, gcs_hook):
         task = SFTPToGoogleCloudStorageOperator(
             task_id=TASK_ID,
