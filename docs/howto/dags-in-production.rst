@@ -29,7 +29,7 @@ Creating a new DAG in Airflow is quite simple. However, there are many things th
 to ensure the DAG run or failure does not produce unexpected results.
 
 Creating a task
-------------------
+---------------
 
 You should treat tasks in Airflow equivalent to transactions in a database. It implies that you should never produce
 incomplete results from your tasks. An example is not to produce incomplete data in ``HDFS`` or ``S3`` at the end of a task.
@@ -224,7 +224,7 @@ any other mechanism to sync DAGs and configs across your nodes, e.g., checkout D
 
 
 Logging
----------
+--------
 
 If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system such as ``S3`` or ``GFS``.
 A DFS makes these logs are available even after the node goes down or gets replaced. See :doc:`write-logs` for configurations.
