@@ -423,7 +423,9 @@ class TestPodGenerator(unittest.TestCase):
                     'dag_id': 'dag_id',
                     'execution_date': 'date',
                     'task_id': 'task_id',
-                    'try_number': '3'
+                    'try_number': '3',
+                    'airflow_version': '2.0.0.dev0',
+                    'kubernetes_executor': 'True'
                 },
                 'name': 'pod_id-' + self.static_uuid.hex,
                 'namespace': 'namespace'
@@ -495,7 +497,9 @@ class TestPodGenerator(unittest.TestCase):
                     'dag_id': 'dag_id',
                     'execution_date': 'date',
                     'task_id': 'task_id',
-                    'try_number': '3'
+                    'try_number': '3',
+                    'airflow_version': '2.0.0.dev0',
+                    'kubernetes_executor': 'True'
                 },
                 'name': 'pod_id-' + self.static_uuid.hex,
                 'namespace': 'namespace'

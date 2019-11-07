@@ -78,11 +78,6 @@ class TestKubernetesPodOperator(unittest.TestCase):
                     'envFrom': [],
                     'name': 'base',
                     'ports': [],
-                    'resources': {'limits': {'cpu': None,
-                                             'memory': None,
-                                             'nvidia.com/gpu': None},
-                                  'requests': {'cpu': None,
-                                               'memory': None}},
                     'volumeMounts': [],
                 }],
                 'hostNetwork': False,
@@ -650,7 +645,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
             task_id='task',
             namespace='',
             image='',
-            name='',
+            name="test",
             pod_template_file=fixture,
             do_xcom_push=True
         )

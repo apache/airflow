@@ -25,13 +25,13 @@ from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.version import version as airflow_version
 
 
 class WorkerConfiguration(LoggingMixin):
     """
     Contains Kubernetes Airflow Worker configuration logic
-    :param kube_config: the kubernetes configuration from airflow.cfg
+
+        :param kube_config: the kubernetes configuration from airflow.cfg
     :type kube_config: airflow.executors.kubernetes_executor.KubeConfig
     """
 
@@ -371,6 +371,8 @@ class WorkerConfiguration(LoggingMixin):
         :return: kubernetes.client.models.V1Pod
 
         Parses the airflow.cfg and returns the Pod configuration generated from it.
+
+        :rtype: kubernetes.client.models.V1Pod
         """
         static_pod = PodGenerator(
             image=self.kube_config.kube_image,

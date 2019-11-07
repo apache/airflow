@@ -354,8 +354,18 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_folder = 'dags'
 
         worker_config = WorkerConfiguration(self.kube_config)
-        pod = worker_config.make_pod("default", "sample-uuid", "test_pod_id", "test_dag_id",
-                                     "test_task_id", "2019-11-21 11:08:22.920875", 1, "bash -c 'ls /'")
+        pod = PodGenerator.construct_pod(
+            "test_dag_id",
+            "test_task_id",
+            "test_pod_id",
+            1,
+            "2019-11-21 11:08:22.920875",
+            ["bash -c 'ls /'"],
+            None,
+            worker_config.make_pod(),
+            "default",
+            "sample-uuid",
+        )
         expected_labels = {
             'airflow-worker': 'sample-uuid',
             'airflow_version': airflow_version.replace('+', '-'),

@@ -21,10 +21,9 @@ import hashlib
 import json
 import multiprocessing
 import re
-from queue import Queue
-from typing import Any, Dict, Optional, Tuple
+from queue import Queue  # pylint: disable=unused-import
 from queue import Empty
-from typing import Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import kubernetes
 from dateutil import parser
@@ -37,7 +36,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.kubernetes.kube_client import get_kube_client
-from airflow.kubernetes.pod_generator import PodGenerator, MAX_POD_ID_LEN
+from airflow.kubernetes.pod_generator import MAX_POD_ID_LEN, PodGenerator
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
@@ -414,6 +413,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
         safe_task_id = AirflowKubernetesScheduler._make_safe_label_value(task_id)
         safe_date = AirflowKubernetesScheduler._datetime_to_label_safe_datestring(execution_date)
         safe_pod_id = AirflowKubernetesScheduler._create_pod_id(dag_id, task_id)
+
+        if isinstance(command, str):
+            command = [command]
 
         pod = PodGenerator.construct_pod(
             dag_id=safe_dag_id,
