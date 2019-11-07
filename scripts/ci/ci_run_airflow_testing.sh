@@ -77,7 +77,7 @@ if [[ ${START_KUBERNETES_CLUSTER} == "true" ]]; then
     build_and_save_kubernetes_image
 
     set +u
-    # shellcheck: disable=SC2016
+    # shellcheck disable=SC2016
     docker-compose --log-level INFO \
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
@@ -91,7 +91,7 @@ if [[ ${START_KUBERNETES_CLUSTER} == "true" ]]; then
     set -u
 else
     set +u
-    # shellcheck: disable=SC2016
+    # shellcheck disable=SC2016
     docker-compose --log-level INFO \
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
