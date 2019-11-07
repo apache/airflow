@@ -57,6 +57,7 @@ Migrated are:
 | ------------------------------------------------------------ | -------------------------------------------------------- |
 | airflow.hooks.S3_hook.S3Hook                                 | airflow.providers.aws.hooks.s3.S3Hook                    |
 | airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.aws.hooks.athena.AWSAthenaHook         |
+| airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook          | airflow.providers.aws.hooks.lambda_function.AwsLambdaHook         |
 | airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.aws.hooks.sqs.SQSHook        |
 | airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.aws.operators.athena.AWSAthenaOperator |
 | airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.aws.operators.sqs.SQSPublishOperator |
