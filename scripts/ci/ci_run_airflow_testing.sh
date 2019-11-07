@@ -82,7 +82,7 @@ if [[ ${START_KUBERNETES_CLUSTER} == "true" ]]; then
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
       -f "${MY_DIR}/docker-compose-kubernetes.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh \
+         run airflow-testing '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \
            /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
          # Note the command is there twice (!) because it is passed via bash -c 
          # and bash -c starts passing parameters from $0 
@@ -93,7 +93,7 @@ else
       -f "${MY_DIR}/docker-compose.yml" \
       -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-         run airflow-testing /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh \
+         run airflow-testing '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \
            /opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"
          # Note the command is there twice (!) because it is passed via bash -c 
          # and bash -c starts passing parameters from $0 
