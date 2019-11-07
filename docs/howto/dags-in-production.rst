@@ -245,9 +245,3 @@ e.g. metadata DB, password. You can do it using the format ``$AIRFLOW__{SECTION}
 
  AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
-
-
-Additional Precautions
------------------------
-
- * Don't load default examples in prod. It can lead to more confusion.
