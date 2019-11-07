@@ -101,7 +101,7 @@ Unit tests
 
 Unit tests ensure that there is no incorrect code in your DAG. You can write a unit test for your tasks as well as your DAG.
 
-Unit test for loading a DAG:
+**Unit test for loading a DAG:**
 
 .. code::
 
@@ -109,16 +109,16 @@ Unit test for loading a DAG:
  import unittest
 
  class TestHelloWorldDAG(unittest.TestCase):
- def setUp(self):
-     self.dagbag = DagBag()
+    def setUp(self):
+        self.dagbag = DagBag()
 
- def test_dag_loaded(self):
- dag = self.dagbag.get_dag(dag_id='hello_world')
- self.assertDictEqual(self.dagbag.import_errors, {})
- self.assertIsNotNone(dag)
- self.assertEqual(len(dag.tasks), 1)
+    def test_dag_loaded(self):
+        dag = self.dagbag.get_dag(dag_id='hello_world')
+        self.assertDictEqual(self.dagbag.import_errors, {})
+        self.assertIsNotNone(dag)
+        self.assertEqual(len(dag.tasks), 1)
 
-Unit test for custom operator:
+**Unit test for custom operator:**
 
 .. code::
 
@@ -126,19 +126,19 @@ Unit test for custom operator:
  from airflow.utils.state import State
 
  class MyCustomOperatorTest(unittest.TestCase):
- def setUp(self):
- self.dag = DAG(TEST_DAG_ID, schedule_interval='@daily', default_args={'start_date' : DEFAULT_DATE})
- self.op = MyCustomOperator(
- dag = self.dag,
- task_id='test',
- prefix='s3://bucket/some/prefix',
- )
- self.ti = TaskInstance(task=self.op, execution_date=DEFAULT_DATE)
+    def setUp(self):
+        self.dag = DAG(TEST_DAG_ID, schedule_interval='@daily', default_args={'start_date' : DEFAULT_DATE})
+        self.op = MyCustomOperator(
+            dag = self.dag,
+            task_id='test',
+            prefix='s3://bucket/some/prefix',
+        )
+        self.ti = TaskInstance(task=self.op, execution_date=DEFAULT_DATE)
 
- def test_execute_no_trigger(self):
- self.ti.run(ignore_ti_state=True)
- self.assertEqual(self.ti.state, State.SUCCESS)
- # Assert something related to tasks results
+    def test_execute_no_trigger(self):
+        self.ti.run(ignore_ti_state=True)
+        self.assertEqual(self.ti.state, State.SUCCESS)
+        #Assert something related to tasks results
 
 Self-Checks
 ------------
@@ -153,7 +153,7 @@ Similarly, if you have a task that starts a microservice in Kubernetes or Mesos,
 
  task = PushToS3(...)
  check = S3KeySensor(
- bucket_key="s3://bucket/key/foo.parquet"
+    bucket_key="s3://bucket/key/foo.parquet"
  )
  task.set_downstream(check)
 
@@ -171,8 +171,8 @@ You can use Airflow Variables to parameterize the DAG.
 .. code::
 
  dest = Variable(
- "my_dag_dest",
- "s3://default-target/path/"
+    "my_dag_dest",
+    "s3://default-target/path/"
  )
 
 Deployment in Production
