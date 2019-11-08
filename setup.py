@@ -152,12 +152,13 @@ aws = [
     'boto3>=1.7.0, <1.8.0',
 ]
 azure = [
-    'azure-storage>=0.34.0',
-    'azure-mgmt-resource>=2.2.0',
-    'azure-mgmt-datalake-store>=0.5.0',
-    'azure-datalake-store>=0.0.45',
     'azure-cosmos>=3.0.1',
+    'azure-datalake-store>=0.0.45',
     'azure-mgmt-containerinstance>=1.5.0',
+    'azure-mgmt-datalake-store>=0.5.0',
+    'azure-mgmt-resource>=2.2.0',
+    'azure-storage-blob<12.0',
+    'azure-storage>=0.34.0'
 ]
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [

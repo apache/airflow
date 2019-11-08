@@ -16,35 +16,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -euo pipefail
+set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+TMP_FILE=$(mktemp)
+TMP_OUTPUT=$(mktemp)
 
-export PYTHON_VERSION=3.5
+cd "${MY_DIR}/../../" || exit;
 
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
+echo "
+.. code-block:: text
+" >"${TMP_FILE}"
 
-basic_sanity_checks
+export SEPARATOR_WIDTH=100
+export AIRFLOW_CI_SILENT="true"
+./breeze --help | sed 's/^/  /' | sed 's/ *$//' >>"${TMP_FILE}"
 
-script_start
+BREEZE_RST_FILE="${MY_DIR}/../../BREEZE.rst"
 
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-    echo
-    echo "Skip tests"
-    echo
-    script_end
-    exit
-fi
+LEAD='^ \.\. START BREEZE HELP MARKER$'
+TAIL='^ \.\. END BREEZE HELP MARKER$'
 
-rebuild_ci_slim_image_if_needed
-rebuild_checklicence_image_if_needed
+BEGIN_GEN=$(grep -n "${LEAD}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
+END_GEN=$(grep -n "${TAIL}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
+cat <(head -n "${BEGIN_GEN}" "${BREEZE_RST_FILE}") \
+    "${TMP_FILE}" \
+    <(tail -n +"${END_GEN}" "${BREEZE_RST_FILE}") \
+    >"${TMP_OUTPUT}"
 
-IMAGES_TO_CHECK=("SLIM_CI" "CHECKLICENCE")
-export IMAGES_TO_CHECK
-
-SKIP=pylint pre-commit run --all-files --show-diff-on-failure
-
-script_end
+mv "${TMP_OUTPUT}" "${BREEZE_RST_FILE}"

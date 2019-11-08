@@ -20,7 +20,7 @@
 
 import unittest
 
-from airflow.contrib.hooks.aws_sqs_hook import SQSHook
+from airflow.providers.aws.hooks.sqs import SQSHook
 
 try:
     from moto import mock_sqs

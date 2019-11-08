@@ -217,6 +217,8 @@ exclude_patterns = [
     '_api/airflow/providers/google/cloud/example_dags',
     '_api/airflow/providers/google/marketing_platform/index.rst',
     '_api/airflow/providers/google/marketing_platform/example_dags',
+    '_api/airflow/providers/google/cloud/index.rst',
+    '_api/airflow/providers/google/cloud/example_dags',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]

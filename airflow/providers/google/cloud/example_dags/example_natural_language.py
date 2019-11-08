@@ -25,15 +25,14 @@ from google.cloud.language_v1.proto.language_service_pb2 import Document
 
 import airflow
 from airflow import models
-from airflow.gcp.operators.natural_language import (
+from airflow.operators.bash_operator import BashOperator
+from airflow.providers.google.cloud.operators.natural_language import (
     CloudLanguageAnalyzeEntitiesOperator, CloudLanguageAnalyzeEntitySentimentOperator,
     CloudLanguageAnalyzeSentimentOperator, CloudLanguageClassifyTextOperator,
 )
-from airflow.operators.bash_operator import BashOperator
 
 # [START howto_operator_gcp_natural_language_document_text]
-TEXT = """
-Airflow is a platform to programmatically author, schedule and monitor workflows.
+TEXT = """Airflow is a platform to programmatically author, schedule and monitor workflows.
 
 Use Airflow to author workflows as Directed Acyclic Graphs (DAGs) of tasks. The Airflow scheduler executes
  your tasks on an array of workers while following the specified dependencies. Rich command line utilities

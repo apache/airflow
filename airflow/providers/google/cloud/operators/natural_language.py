@@ -26,8 +26,8 @@ from google.cloud.language_v1 import enums
 from google.cloud.language_v1.types import Document
 from google.protobuf.json_format import MessageToDict
 
-from airflow.gcp.hooks.natural_language import CloudNaturalLanguageHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
 
 MetaData = Sequence[Tuple[str, str]]
 

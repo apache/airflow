@@ -61,7 +61,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook",
     ),
     (
-        "airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook",
+        "airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook",
         "airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook",
     ),
     (
@@ -89,11 +89,11 @@ HOOK = [
         "airflow.contrib.hooks.datastore_hook.DatastoreHook",
     ),
     (
-        "airflow.gcp.hooks.natural_language.CloudNaturalLanguageHook",
+        "airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook",
         "airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook",
     ),
     (
-        "airflow.gcp.hooks.pubsub.PubSubHook",
+        "airflow.providers.google.cloud.hooks.pubsub.PubSubHook",
         "airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook",
     ),
     (
@@ -131,6 +131,14 @@ HOOK = [
     (
         "airflow.providers.aws.hooks.athena.AWSAthenaHook",
         "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
+    ),
+    (
+        "airflow.providers.aws.hooks.s3.S3Hook",
+        "airflow.hooks.S3_hook.S3Hook",
+    ),
+    (
+        "airflow.providers.aws.hooks.sqs.SQSHook",
+        "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
     ),
 ]
 OPERATOR = [
@@ -352,22 +360,23 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator",
     ),
     (
-        "airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator",
+        "airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator",
         "airflow.contrib.operators.gcp_natural_language_operator."
         "CloudLanguageAnalyzeEntitiesOperator",
     ),
     (
-        "airflow.gcp.operators.natural_language.CloudLanguageAnalyzeEntitySentimentOperator",
+        "airflow.providers.google.cloud.operators.natural_language."
+        "CloudLanguageAnalyzeEntitySentimentOperator",
         "airflow.contrib.operators.gcp_natural_language_operator."
         "CloudLanguageAnalyzeEntitySentimentOperator",
     ),
     (
-        "airflow.gcp.operators.natural_language.CloudLanguageAnalyzeSentimentOperator",
+        "airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeSentimentOperator",
         "airflow.contrib.operators.gcp_natural_language_operator."
         "CloudLanguageAnalyzeSentimentOperator",
     ),
     (
-        "airflow.gcp.operators.natural_language.CloudLanguageClassifyTextOperator",
+        "airflow.providers.google.cloud.operators.natural_language.CloudLanguageClassifyTextOperator",
         "airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator",
     ),
     (
@@ -584,23 +593,23 @@ OPERATOR = [
         "PostgresToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubPublishOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubPublishOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubSubscriptionCreateOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubSubscriptionDeleteOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubTopicCreateOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator",
     ),
     (
-        "airflow.gcp.operators.pubsub.PubSubTopicDeleteOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator",
     ),
     (
@@ -741,6 +750,10 @@ OPERATOR = [
         "airflow.providers.aws.operators.athena.AWSAthenaOperator",
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
     ),
+    (
+        "airflow.providers.aws.operators.sqs.SQSPublishOperator",
+        "airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator",
+    )
 ]
 SENSOR = [
     (
@@ -755,7 +768,7 @@ SENSOR = [
         "GCPTransferServiceWaitForJobStatusSensor",
     ),
     (
-        "airflow.gcp.sensors.pubsub.PubSubPullSensor",
+        "airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor",
         "airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor",
     ),
     (
@@ -782,6 +795,11 @@ SENSOR = [
         "airflow.providers.aws.sensors.athena.AthenaSensor",
         "airflow.contrib.sensors.aws_athena_sensor.AthenaSensor",
     ),
+    (
+        "airflow.providers.aws.sensors.sqs.SQSSensor",
+        "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
+    ),
+
 ]
 ALL = HOOK + OPERATOR + SENSOR
 RENAMED_HOOKS = [
