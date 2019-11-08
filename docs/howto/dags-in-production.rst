@@ -18,10 +18,11 @@
 Getting a DAG ready for production
 ==================================
 
-
 Running Airflow in production is seamless. It comes bundled with all the plugins and configs
 necessary to run most of the DAGs. However, you can come across certain pitfalls, which can cause occasional errors.
-Let's the steps you need to follow to avoid these pitfalls.
+Let's take a look at what you need to do at various stages to avoid these pitfalls, starting from writing the DAG 
+to the actual deployment in the production environment.
+
 
 Writing a DAG
 ^^^^^^^^^^^^^^
@@ -37,7 +38,7 @@ incomplete results from your tasks. An example is not to produce incomplete data
 Airflow retries a task if it fails. Thus, the tasks should produce the same outcome on every re-run.
 Some of the ways you can avoid producing a different result -
 
-* Don't use INSERT during a task re-run, an INSERT statement might lead to duplicate rows in your database.
+* Do not use INSERT during a task re-run, an INSERT statement might lead to duplicate rows in your database.
   Replace it with UPSERT.
 * Read and write in a specific partition. Never read the latest available data in a task. 
   Someone may update the input data between re-runs, which results in different outputs. 
@@ -70,7 +71,7 @@ Always use :ref:`Connections <concepts-connections>` to store data securely in A
 
 .. note::
 
-    Don't write any critical code outside the tasks. The code outside the tasks runs every time airflow parses the DAG, which happens every second by default.
+    Do not write any critical code outside the tasks. The code outside the tasks runs every time airflow parses the DAG, which happens every second by default.
 
     You should also avoid repeating arguments such as connection_id or S3 paths using default_args. It helps you to avoid mistakes while passing arguments.
 
@@ -85,14 +86,14 @@ You can write a wide variety of tests for a DAG. Let's take a look at some of th
 DAG Loader Test
 ---------------
 
-This test should ensure that your DAG doesn't contain a piece of code that raises error while loading.
+This test should ensure that your DAG does not contain a piece of code that raises error while loading.
 No additional code needs to be written by the user to run this test.
 
 .. code::
 
  python your-dag-file.py
 
-Running the above command without any error ensures your DAG doesn't contain any uninstalled dependency, syntax errors, etc. 
+Running the above command without any error ensures your DAG does not contain any uninstalled dependency, syntax errors, etc. 
 
 You can look into :ref:`Testing a DAG <testing>` for details on how to test individual operators.
 
@@ -208,7 +209,7 @@ Once that is done, you can run -
 
 .. note::
  
- Don't use ``airflow initdb`` as it can create a lot of default connection, charts, etc. which are not required in production DB.
+ Do not use ``airflow initdb`` as it can create a lot of default connection, charts, etc. which are not required in production DB.
 
 
 Multi-Node Cluster
@@ -219,14 +220,14 @@ one task at a time. It's also not suitable to work in a multi-node cluster. You 
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains the same configuration and dags.
-Airflow only sends simple instructions such as execute task X on node Y but doesn't send any dag files or configuration. You can use a simple CRON or
+Airflow only sends simple instructions such as execute task X on node Y but does not send any dag files or configuration. You can use a simple CRON or
 any other mechanism to sync DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 minutes on all nodes.
 
 
 Logging
 --------
 
-If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system such as ``S3`` or ``GFS``.
+If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system such as ``S3`` or ``GCS``.
 A DFS makes these logs are available even after the node goes down or gets replaced. See :doc:`write-logs` for configurations.
 
 .. note::
