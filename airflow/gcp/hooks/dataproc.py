@@ -427,7 +427,7 @@ class _DataProcOperation(LoggingMixin):
                         (self.operation_name, self.operation['error']['message']))
 
 
-class DataProcHook(GoogleCloudBaseHook):
+class DataprocHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Dataproc APIs.
 
@@ -576,7 +576,7 @@ class DataProcHook(GoogleCloudBaseHook):
         :return:
         """
         while True:
-            state = DataProcHook.get_cluster_state(self.get_conn(), project_id, region, cluster_name)
+            state = DataprocHook.get_cluster_state(self.get_conn(), project_id, region, cluster_name)
             if state is None:
                 logger.info("No state for cluster '%s'", cluster_name)
                 time.sleep(15)
@@ -595,7 +595,7 @@ class DataProcHook(GoogleCloudBaseHook):
         :param cluster_name:
         :return:
         """
-        cluster = DataProcHook.find_cluster(service, project_id, region, cluster_name)
+        cluster = DataprocHook.find_cluster(service, project_id, region, cluster_name)
         if cluster and 'status' in cluster:
             return cluster['status']['state']
         else:
@@ -612,7 +612,7 @@ class DataProcHook(GoogleCloudBaseHook):
         :param cluster_name:
         :return:
         """
-        cluster_list = DataProcHook.get_cluster_list_for_project(service, project_id, region)
+        cluster_list = DataprocHook.get_cluster_list_for_project(service, project_id, region)
         cluster = [c for c in cluster_list if c['clusterName'] == cluster_name]
         if cluster:
             return cluster[0]
@@ -702,7 +702,7 @@ class DataProcHook(GoogleCloudBaseHook):
         :param operation_name:
         :return:
         """
-        response = DataProcHook.wait_for_operation_done(service, operation_name)
+        response = DataprocHook.wait_for_operation_done(service, operation_name)
         if response.get('done'):
             if 'error' in response:
                 raise AirflowException(str(response['error']))
@@ -711,9 +711,9 @@ class DataProcHook(GoogleCloudBaseHook):
 
 
 setattr(
-    DataProcHook,
+    DataprocHook,
     "await",
     deprecation.deprecated(
-        DataProcHook.wait, "renamed to 'wait' for Python3.7 compatibility"
+        DataprocHook.wait, "renamed to 'wait' for Python3.7 compatibility"
     ),
 )

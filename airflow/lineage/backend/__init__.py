@@ -20,7 +20,9 @@
 
 
 class LineageBackend:
-    """Sends lineage metadata to a backend"""
+    """
+    Sends lineage metadata to a backend
+    """
     def send_lineage(self,
                      operator=None, inlets=None, outlets=None, context=None):
         """

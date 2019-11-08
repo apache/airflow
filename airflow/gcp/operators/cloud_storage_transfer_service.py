@@ -713,6 +713,10 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
         This operator is NOT idempotent. If you run it many times, many transfer
         jobs will be created in the Google Cloud Platform.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageToGoogleCloudStorageOperator`
+
     **Example**:
 
     .. code-block:: python

@@ -23,8 +23,10 @@ import unittest
 
 from parameterized import parameterized
 
+from airflow import AirflowException
 from airflow.gcp.hooks.dataflow import (
     DataFlowHook, DataflowJobStatus, DataflowJobType, _DataflowJobsController, _DataflowRunner,
+    _fallback_to_project_id_from_variables,
 )
 from tests.compat import MagicMock, mock
 
@@ -78,6 +80,62 @@ TEST_JOB_NAME = 'test-job-name'
 TEST_JOB_ID = 'test-job-id'
 TEST_LOCATION = 'us-central1'
 DEFAULT_PY_INTERPRETER = 'python2'
+
+
+class TestFallbackToVariables(unittest.TestCase):
+
+    def test_support_project_id_parameter(self):
+        mock_instance = mock.MagicMock()
+
+        class FixtureFallback:
+            @_fallback_to_project_id_from_variables
+            def test_fn(self, *args, **kwargs):
+                mock_instance(*args, **kwargs)
+
+        FixtureFallback().test_fn(project_id="TEST")
+
+        mock_instance.assert_called_once_with(project_id="TEST")
+
+    def test_support_project_id_from_variable_parameter(self):
+        mock_instance = mock.MagicMock()
+
+        class FixtureFallback:
+            @_fallback_to_project_id_from_variables
+            def test_fn(self, *args, **kwargs):
+                mock_instance(*args, **kwargs)
+
+        FixtureFallback().test_fn(variables={'project': "TEST"})
+
+        mock_instance.assert_called_once_with(project_id='TEST', variables={})
+
+    def test_raise_exception_on_conflict(self):
+        mock_instance = mock.MagicMock()
+
+        class FixtureFallback:
+            @_fallback_to_project_id_from_variables
+            def test_fn(self, *args, **kwargs):
+                mock_instance(*args, **kwargs)
+
+        with self.assertRaisesRegex(
+            AirflowException,
+            "The mutually exclusive parameter `project_id` and `project` key in `variables` parameters are "
+            "both present\\. Please remove one\\."
+        ):
+            FixtureFallback().test_fn(variables={'project': "TEST"}, project_id="TEST2")
+
+    def test_raise_exception_on_positional_argument(self):
+        mock_instance = mock.MagicMock()
+
+        class FixutureFallback:
+            @_fallback_to_project_id_from_variables
+            def test_fn(self, *args, **kwargs):
+                mock_instance(*args, **kwargs)
+
+        with self.assertRaisesRegex(
+            AirflowException,
+            "You must use keyword arguments in this methods rather than positional"
+        ):
+            FixutureFallback().test_fn({'project': "TEST"}, "TEST2")
 
 
 def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
@@ -250,8 +308,12 @@ class TestDataFlowTemplateHook(unittest.TestCase):
             dataflow_template=TEMPLATE)
         options_with_region = {'region': 'us-central1'}
         options_with_region.update(DATAFLOW_OPTIONS_TEMPLATE)
+        options_with_region_without_project = copy.deepcopy(options_with_region)
+        del options_with_region_without_project['project']
         internal_dataflow_mock.assert_called_once_with(
-            mock.ANY, options_with_region, PARAMETERS, TEMPLATE)
+            mock.ANY, options_with_region_without_project, PARAMETERS, TEMPLATE,
+            DATAFLOW_OPTIONS_JAVA['project']
+        )
 
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))

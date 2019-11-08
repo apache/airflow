@@ -27,7 +27,6 @@ import signal
 import subprocess
 import tempfile
 import unittest
-import warnings
 from datetime import timedelta
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -442,35 +441,32 @@ class TestCore(unittest.TestCase):
         """
         Tests that Operators reject illegal arguments
         """
-        with warnings.catch_warnings(record=True) as w:
-            BashOperator(
-                task_id='test_illegal_args',
-                bash_command='echo success',
-                dag=self.dag,
-                illegal_argument_1234='hello?')
-            self.assertTrue(
-                issubclass(w[0].category, PendingDeprecationWarning))
-            self.assertIn(
-                ('Invalid arguments were passed to BashOperator '
-                 '(task_id: test_illegal_args).'),
-                w[0].message.args[0])
+        msg = 'Invalid arguments were passed to BashOperator '
+        '(task_id: test_illegal_args).'
+        with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
+            with self.assertWarns(PendingDeprecationWarning) as warning:
+                BashOperator(
+                    task_id='test_illegal_args',
+                    bash_command='echo success',
+                    dag=self.dag,
+                    illegal_argument_1234='hello?')
+                assert any(msg in str(w) for w in warning.warnings)
 
     def test_illegal_args_forbidden(self):
         """
         Tests that operators raise exceptions on illegal arguments when
         illegal arguments are not allowed.
         """
-        with conf_vars({('operators', 'allow_illegal_arguments'): 'False'}):
-            with self.assertRaises(AirflowException) as ctx:
-                BashOperator(
-                    task_id='test_illegal_args',
-                    bash_command='echo success',
-                    dag=self.dag,
-                    illegal_argument_1234='hello?')
-            self.assertIn(
-                ('Invalid arguments were passed to BashOperator '
-                 '(task_id: test_illegal_args).'),
-                str(ctx.exception))
+        with self.assertRaises(AirflowException) as ctx:
+            BashOperator(
+                task_id='test_illegal_args',
+                bash_command='echo success',
+                dag=self.dag,
+                illegal_argument_1234='hello?')
+        self.assertIn(
+            ('Invalid arguments were passed to BashOperator '
+             '(task_id: test_illegal_args).'),
+            str(ctx.exception))
 
     def test_bash_operator(self):
         t = BashOperator(
@@ -813,26 +809,20 @@ class TestCore(unittest.TestCase):
     def test_config_override_original_when_non_empty_envvar_is_provided(self):
         key = "AIRFLOW__CORE__FERNET_KEY"
         value = "some value"
-        self.assertNotIn(key, os.environ)
 
-        os.environ[key] = value
-        FERNET_KEY = conf.get('core', 'FERNET_KEY')
+        with unittest.mock.patch.dict('os.environ', {key: value}):
+            FERNET_KEY = conf.get('core', 'FERNET_KEY')
+
         self.assertEqual(value, FERNET_KEY)
-
-        # restore the envvar back to the original state
-        del os.environ[key]
 
     def test_config_override_original_when_empty_envvar_is_provided(self):
         key = "AIRFLOW__CORE__FERNET_KEY"
         value = ""
-        self.assertNotIn(key, os.environ)
 
-        os.environ[key] = value
-        FERNET_KEY = conf.get('core', 'FERNET_KEY')
+        with unittest.mock.patch.dict('os.environ', {key: value}):
+            FERNET_KEY = conf.get('core', 'FERNET_KEY')
+
         self.assertEqual(value, FERNET_KEY)
-
-        # restore the envvar back to the original state
-        del os.environ[key]
 
     def test_round_time(self):
 
@@ -1104,6 +1094,10 @@ class TestCli(unittest.TestCase):
         for i in range(0, 3):
             self.assertIn('user{}'.format(i), stdout)
 
+    def test_cli_list_users_with_args(self):
+        cli.users_list(self.parser.parse_args(['users', 'list',
+                                               '--output', 'tsv']))
+
     def test_cli_import_users(self):
         def assertUserInRoles(email, roles):
             for role in roles:
@@ -1330,6 +1324,10 @@ class TestCli(unittest.TestCase):
         self.assertIn('FakeTeamA', stdout)
         self.assertIn('FakeTeamB', stdout)
 
+    def test_cli_list_roles_with_args(self):
+        cli.roles_list(self.parser.parse_args(['roles', 'list',
+                                               '--output', 'tsv']))
+
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():
             args = self.parser.parse_args(['tasks', 'list', dag_id])
@@ -1347,7 +1345,8 @@ class TestCli(unittest.TestCase):
         args = self.parser.parse_args(['dags', 'list_jobs', '--dag_id',
                                        'example_bash_operator',
                                        '--state', 'success',
-                                       '--limit', '100'])
+                                       '--limit', '100',
+                                       '--output', 'tsv'])
         cli.list_jobs(args)
 
     @mock.patch("airflow.bin.cli.db.initdb")
@@ -1381,6 +1380,11 @@ class TestCli(unittest.TestCase):
         self.assertIn(['postgres_default', 'postgres'], conns)
         self.assertIn(['wasb_default', 'wasb'], conns)
         self.assertIn(['segment_default', 'segment'], conns)
+
+    def test_cli_connections_list_with_args(self):
+        args = self.parser.parse_args(['connections', 'list',
+                                       '--output', 'tsv'])
+        cli.connections_list(args)
 
     def test_cli_connections_list_redirect(self):
         cmd = ['airflow', 'connections', 'list']
@@ -1646,6 +1650,17 @@ class TestCli(unittest.TestCase):
             cli.delete_dag(self.parser.parse_args([
                 'dags', 'delete', key, '--yes']))
             self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
+
+    def test_pool_list(self):
+        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.pool_list(self.parser.parse_args(['pools', 'list']))
+            stdout = mock_stdout.getvalue()
+        self.assertIn('foo', stdout)
+
+    def test_pool_list_with_args(self):
+        cli.pool_list(self.parser.parse_args(['pools', 'list',
+                                              '--output', 'tsv']))
 
     def test_pool_create(self):
         cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
@@ -2046,17 +2061,10 @@ class FakeHDFSHook:
 class TestConnection(unittest.TestCase):
     def setUp(self):
         utils.db.initdb()
-        os.environ['AIRFLOW_CONN_TEST_URI'] = (
-            'postgres://username:password@ec2.compute.com:5432/the_database')
-        os.environ['AIRFLOW_CONN_TEST_URI_NO_CREDS'] = (
-            'postgres://ec2.compute.com/the_database')
 
-    def tearDown(self):
-        env_vars = ['AIRFLOW_CONN_TEST_URI', 'AIRFLOW_CONN_AIRFLOW_DB']
-        for ev in env_vars:
-            if ev in os.environ:
-                del os.environ[ev]
-
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+    })
     def test_using_env_var(self):
         c = SqliteHook.get_connection(conn_id='test_uri')
         self.assertEqual('ec2.compute.com', c.host)
@@ -2065,6 +2073,9 @@ class TestConnection(unittest.TestCase):
         self.assertEqual('password', c.password)
         self.assertEqual(5432, c.port)
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
     def test_using_unix_socket_env_var(self):
         c = SqliteHook.get_connection(conn_id='test_uri_no_creds')
         self.assertEqual('ec2.compute.com', c.host)
@@ -2087,16 +2098,20 @@ class TestConnection(unittest.TestCase):
         c = SqliteHook.get_connection(conn_id='airflow_db')
         self.assertNotEqual('ec2.compute.com', c.host)
 
-        os.environ['AIRFLOW_CONN_AIRFLOW_DB'] = \
-            'postgres://username:password@ec2.compute.com:5432/the_database'
-        c = SqliteHook.get_connection(conn_id='airflow_db')
-        self.assertEqual('ec2.compute.com', c.host)
-        self.assertEqual('the_database', c.schema)
-        self.assertEqual('username', c.login)
-        self.assertEqual('password', c.password)
-        self.assertEqual(5432, c.port)
-        del os.environ['AIRFLOW_CONN_AIRFLOW_DB']
+        with unittest.mock.patch.dict('os.environ', {
+            'AIRFLOW_CONN_AIRFLOW_DB': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        }):
+            c = SqliteHook.get_connection(conn_id='airflow_db')
+            self.assertEqual('ec2.compute.com', c.host)
+            self.assertEqual('the_database', c.schema)
+            self.assertEqual('username', c.login)
+            self.assertEqual('password', c.password)
+            self.assertEqual(5432, c.port)
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
     def test_dbapi_get_uri(self):
         conn = BaseHook.get_connection(conn_id='test_uri')
         hook = conn.get_hook()
@@ -2105,6 +2120,10 @@ class TestConnection(unittest.TestCase):
         hook2 = conn2.get_hook()
         self.assertEqual('postgres://ec2.compute.com/the_database', hook2.get_uri())
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
     def test_dbapi_get_sqlalchemy_engine(self):
         conn = BaseHook.get_connection(conn_id='test_uri')
         hook = conn.get_hook()
@@ -2112,6 +2131,10 @@ class TestConnection(unittest.TestCase):
         self.assertIsInstance(engine, sqlalchemy.engine.Engine)
         self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', str(engine.url))
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
     def test_get_connections_env_var(self):
         conns = SqliteHook.get_connections(conn_id='test_uri')
         assert len(conns) == 1
@@ -2141,9 +2164,9 @@ snakebite = None  # type: None
 @unittest.skipIf(HDFSHook is None,
                  "Skipping test because HDFSHook is not installed")
 class TestHDFSHook(unittest.TestCase):
-    def setUp(self):
-        os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
-
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+    })
     def test_get_client(self):
         client = HDFSHook(proxy_user='foo').get_conn()
         self.assertIsInstance(client, snakebite.client.Client)
@@ -2151,6 +2174,9 @@ class TestHDFSHook(unittest.TestCase):
         self.assertEqual(8020, client.port)
         self.assertEqual('foo', client.service.channel.effective_user)
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+    })
     @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
     @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
     def test_get_autoconfig_client(self, mock_get_connections,
@@ -2163,6 +2189,9 @@ class TestHDFSHook(unittest.TestCase):
         MockAutoConfigClient.assert_called_once_with(effective_user='foo',
                                                      use_sasl=False)
 
+    @unittest.mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
+    })
     @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
     def test_get_autoconfig_client_no_conn(self, MockAutoConfigClient):
         HDFSHook(hdfs_conn_id='hdfs_missing', autoconfig=True).get_conn()

@@ -21,7 +21,8 @@ language: python
 env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
-    - AIRFLOW_CONTAINER_MOUNT_HOST_VOLUMES="false"
+    - MOUNT_LOCAL_SOURCES="false"
+    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="false"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - AIRFLOW_CI_SILENT="true"
     - CI="true"
@@ -31,36 +32,52 @@ stages:
   - test
 jobs:
   include:
-    - name: "Static checks (no pylint, no licence check)"
+    - name: "Static checks"
+      python: "3.5"
       stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests_except_pylint_licence.sh
-    - name: "Check licence compliance for Apache"
-      stage: pre-test
-      script: ./scripts/ci/ci_check_license.sh
-    - name: "Pylint checks"
-      stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests_pylint.sh
+      script: ./scripts/ci/ci_run_all_static_tests.sh
+      env: AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
     - name: "Build documentation"
+      python: "3.5"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
     - name: "Tests postgres kubernetes python 3.6 (persistent)"
-      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.15.0 KUBERNETES_MODE=persistent_mode
+      env: >-
+        BACKEND=postgres
+        ENV=kubernetes
+        KUBERNETES_VERSION=v1.15.0
+        KUBERNETES_MODE=persistent_mode
+        PYTHON_VERSION=3.6
       python: "3.6"
       stage: test
     - name: "Tests postgres kubernetes python 3.6 (git)"
-      env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.15.0 KUBERNETES_MODE=git_mode
+      env: >-
+        BACKEND=postgres
+        ENV=kubernetes
+        KUBERNETES_VERSION=v1.15.0
+        KUBERNETES_MODE=git_mode
+        PYTHON_VERSION=3.6
       python: "3.6"
       stage: test
     - name: "Tests postgres python 3.6"
-      env: BACKEND=postgres ENV=docker
+      env: >-
+        BACKEND=postgres
+        ENV=docker
+        PYTHON_VERSION=3.6
       python: "3.6"
       stage: test
     - name: "Tests sqlite python 3.5"
-      env: BACKEND=sqlite ENV=docker
+      env:
+        BACKEND=sqlite
+        ENV=docker
+        PYTHON_VERSION=3.5
       python: "3.5"
       stage: test
     - name: "Tests mysql python 3.7"
-      env: BACKEND=mysql ENV=docker
+      env:
+        BACKEND=mysql
+        ENV=docker
+        PYTHON_VERSION=3.7
       python: "3.7"
       stage: test
 services:

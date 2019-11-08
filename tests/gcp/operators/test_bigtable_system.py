@@ -16,30 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+
 
 from tests.gcp.operators.test_bigtable_system_helper import GCPBigtableTestHelper
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_BIGTABLE_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_BIGTABLE_KEY), SKIP_TEST_WARNING)
-class BigTableExampleDagsSystemTest(TestDagGcpSystem):
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name,
-            dag_id='example_gcp_bigtable_operators',
-            require_local_executor=True,
-            gcp_key=GCP_BIGTABLE_KEY)
-        self.helper = GCPBigtableTestHelper()
+@skip_gcp_system(GCP_BIGTABLE_KEY, require_local_executor=True)
+class BigTableExampleDagsSystemTest(SystemTest):
+    helper = GCPBigtableTestHelper()
 
+    @provide_gcp_context(GCP_BIGTABLE_KEY)
     def test_run_example_dag_gcs_bigtable(self):
-        self._run_dag()
+        self.run_dag('example_gcp_bigtable_operators', GCP_DAG_FOLDER)
 
+    @provide_gcp_context(GCP_BIGTABLE_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.delete_instance()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.delete_instance()
         super().tearDown()

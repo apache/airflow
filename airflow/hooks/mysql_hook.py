@@ -34,7 +34,7 @@ class MySqlHook(DbApiHook):
     ``{"cursor": "SSCursor"}``. Refer to the MySQLdb.cursors for more details.
 
     Note: For AWS IAM authentication, use iam in the extra connection parameters
-    and set it to true. Leave the password field empty. This will use the the
+    and set it to true. Leave the password field empty. This will use the
     "aws_default" connection to get the temporary token unless you override
     in extras.
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``

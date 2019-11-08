@@ -24,7 +24,7 @@ from pprint import pprint
 
 import airflow
 from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python_operator import PythonOperator, PythonVirtualenvOperator
 
 args = {
     'owner': 'Airflow',
@@ -71,3 +71,33 @@ for i in range(5):
 
     run_this >> task
 # [END howto_operator_python_kwargs]
+
+
+def callable_virtualenv():
+    """
+    Example function that will be performed in a virtual environment.
+
+    Importing at the module level ensures that it will not attempt to import the
+    library before it is installed.
+    """
+    from colorama import Fore, Back, Style
+    from time import sleep
+    print(Fore.RED + 'some red text')
+    print(Back.GREEN + 'and with a green background')
+    print(Style.DIM + 'and in dim text')
+    print(Style.RESET_ALL)
+    for _ in range(10):
+        print(Style.DIM + 'Please wait...', flush=True)
+        sleep(10)
+    print('Finished')
+
+
+virtualenv_task = PythonVirtualenvOperator(
+    task_id="virtualenv_python",
+    python_callable=callable_virtualenv,
+    requirements=[
+        "colorama==0.4.0"
+    ],
+    system_site_packages=False,
+    dag=dag,
+)

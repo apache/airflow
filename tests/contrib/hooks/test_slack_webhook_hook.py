@@ -105,7 +105,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         message = hook._build_slack_message()
 
         # Then
-        self.assertEqual(self.expected_message, message)
+        self.assertEqual(self.expected_message_dict, json.loads(message))
 
     @mock.patch('requests.Session')
     @mock.patch('requests.Request')

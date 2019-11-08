@@ -32,7 +32,7 @@ from airflow import AirflowException
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
-class CloudSpannerHook(GoogleCloudBaseHook):
+class SpannerHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Spanner APIs.
 

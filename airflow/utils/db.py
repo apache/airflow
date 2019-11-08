@@ -159,7 +159,7 @@ def initdb():
     merge_conn(
         Connection(
             conn_id='http_default', conn_type='http',
-            host='https://www.google.com/'))
+            host='https://www.httpbin.org/'))
     merge_conn(
         Connection(
             conn_id='mssql_default', conn_type='mssql',
@@ -298,6 +298,10 @@ def initdb():
         Connection(
             conn_id='opsgenie_default', conn_type='http',
             host='', password=''))
+    merge_conn(
+        Connection(
+            conn_id='pinot_admin_default', conn_type='pinot',
+            host='localhost', port=9000))
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM

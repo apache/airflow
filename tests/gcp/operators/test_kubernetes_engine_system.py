@@ -16,18 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
+
 from tests.gcp.utils.gcp_authenticator import GCP_GKE_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GKE_KEY), SKIP_TEST_WARNING)
-class KubernetesEngineExampleDagTest(TestDagGcpSystem):
-    def __init__(self, method_name="runTest"):
-        super().__init__(method_name, dag_id="example_gcp_gke", gcp_key=GCP_GKE_KEY)
-
+@skip_gcp_system(GCP_GKE_KEY, require_local_executor=True)
+class KubernetesEngineExampleDagTest(SystemTest):
+    @provide_gcp_context(GCP_GKE_KEY)
     def test_run_example_dag(self):
-        self.gcp_authenticator.gcp_authenticate()
-        self._run_dag()
-        self.gcp_authenticator.gcp_revoke_authentication()
+        self.run_dag('example_gcp_gke', GCP_DAG_FOLDER)

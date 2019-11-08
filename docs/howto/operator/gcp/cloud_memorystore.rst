@@ -60,7 +60,7 @@ account for your instance, run the :class:`~airflow.gcp.operators.cloud_memoryst
 :class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreGetInstancesOperator` and
 make a use of the service account listed under ``persistenceIamIdentity``.
 
-You can use :class:`airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`
+You can use :class:`airflow.contrib.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator`
 operator to set permissions.
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py

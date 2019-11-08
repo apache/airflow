@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG for Google Cloud Storage to Google Cloud Storage transfer operators.
+Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 """
 
 import os
@@ -39,13 +39,16 @@ DESTINATION_PATH_2 = "/tmp/dirs/"
 with models.DAG(
     "example_gcs_to_sftp", default_args=default_args, schedule_interval=None
 ) as dag:
+    # [START howto_operator_gcs_to_sftp_copy_single_file]
     copy_file_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="file-copy-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_1,
         destination_path=DESTINATION_PATH_1,
     )
+    # [END howto_operator_gcs_to_sftp_copy_single_file]
 
+    # [START howto_operator_gcs_to_sftp_move_single_file_destination]
     move_file_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="file-move-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
@@ -53,17 +56,22 @@ with models.DAG(
         destination_path=DESTINATION_PATH_1,
         move_object=True,
     )
+    # [END howto_operator_gcs_to_sftp_move_single_file_destination]
 
+    # [START howto_operator_gcs_to_sftp_copy_directory]
     copy_dir_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="dir-copy-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,
         destination_path=DESTINATION_PATH_2,
     )
+    # [END howto_operator_gcs_to_sftp_copy_directory]
 
+    # [START howto_operator_gcs_to_sftp_move_specific_files]
     move_dir_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
         task_id="dir-move-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,
         destination_path=DESTINATION_PATH_2,
     )
+    # [END howto_operator_gcs_to_sftp_move_specific_files]
