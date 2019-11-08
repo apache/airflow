@@ -18,6 +18,8 @@
 # under the License.
 #
 
+# pylint:disable=missing-docstring
+
 from airflow.jobs.backfill_job import BackfillJob  # noqa: F401
 from airflow.jobs.base_job import BaseJob  # noqa: F401
 from airflow.jobs.local_task_job import LocalTaskJob  # noqa: F401

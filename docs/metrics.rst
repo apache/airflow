@@ -64,6 +64,7 @@ Name                                    Description
 ``zombies_killed``                      Zombie tasks killed
 ``scheduler_heartbeat``                 Scheduler heartbeats
 ``dag_processing.processes``            Number of currently running DAG parsing processes
+``scheduler.tasks.killed_externally``   Number of tasks killed externally
 ======================================= ================================================================
 
 Gauges

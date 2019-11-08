@@ -80,11 +80,11 @@ def revoke_permissions():
 
 
 def check_original_docker_image():
-    if not os.path.isfile('/.dockerenv') or os.environ.get('APT_DEPS_IMAGE') is None:
+    if not os.path.isfile('/.dockerenv') or os.environ.get('PYTHON_BASE_IMAGE') is None:
         raise unittest.SkipTest("""Adding/removing a user as part of a test is very bad for host os
 (especially if the user already existed to begin with on the OS), therefore we check if we run inside a
 the official docker container and only allow to run the test there. This is done by checking /.dockerenv
-file (always present inside container) and checking for APT_DEPS_IMAGE variable.
+file (always present inside container) and checking for PYTHON_BASE_IMAGE variable.
 """)
 
 

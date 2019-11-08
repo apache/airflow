@@ -22,65 +22,45 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
-from requests.auth import HTTPBasicAuth
-
-from airflow.hooks.presto_hook import PrestoHook
+from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import Connection
 
 
-class TestPrestoHookConn(unittest.TestCase):
+class TestSqliteHookConn(unittest.TestCase):
 
     def setUp(self):
-        super().setUp()
 
-        self.connection = Connection(
-            login='login',
-            password='password',
-            host='host',
-            schema='hive',
-        )
+        self.connection = Connection(host='host')
 
-        class UnitTestPrestoHook(PrestoHook):
-            conn_name_attr = 'presto_conn_id'
+        class UnitTestSqliteHook(SqliteHook):
+            conn_name_attr = 'sqlite_conn_id'
 
-        self.db_hook = UnitTestPrestoHook()
+        self.db_hook = UnitTestSqliteHook()
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
-    @patch('airflow.hooks.presto_hook.presto.connect')
+    @patch('airflow.hooks.sqlite_hook.sqlite3.connect')
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(catalog='hive', host='host', port=None, protocol='http',
-                                             schema='hive', source='airflow', username='login',
-                                             requests_kwargs={'auth': HTTPBasicAuth('login', 'password')})
+        mock_connect.assert_called_once_with('host')
 
 
-class TestPrestoHook(unittest.TestCase):
+class TestSqliteHook(unittest.TestCase):
 
     def setUp(self):
-        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         conn = self.conn
 
-        class UnitTestPrestoHook(PrestoHook):
+        class UnitTestSqliteHook(SqliteHook):
             conn_name_attr = 'test_conn_id'
 
             def get_conn(self):
                 return conn
 
-        self.db_hook = UnitTestPrestoHook()
-
-    @patch('airflow.hooks.dbapi_hook.DbApiHook.insert_rows')
-    def test_insert_rows(self, mock_insert_rows):
-        table = "table"
-        rows = [("hello",),
-                ("world",)]
-        target_fields = None
-        self.db_hook.insert_rows(table, rows, target_fields)
-        mock_insert_rows.assert_called_once_with(table, rows, None, 0)
+        self.db_hook = UnitTestSqliteHook()
 
     def test_get_first_record(self):
         statement = 'SQL'
@@ -115,4 +95,4 @@ class TestPrestoHook(unittest.TestCase):
         self.assertEqual(result_sets[0][0], df.values.tolist()[0][0])
         self.assertEqual(result_sets[1][0], df.values.tolist()[1][0])
 
-        self.cur.execute.assert_called_once_with(statement, None)
+        self.cur.execute.assert_called_once_with(statement)

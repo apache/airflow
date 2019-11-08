@@ -606,10 +606,10 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud Pub/Sub <https://cloud.google.com/pubsub/>`__
-     -
-     - :mod:`airflow.gcp.hooks.pubsub`
-     - :mod:`airflow.gcp.operators.pubsub`
-     - :mod:`airflow.gcp.sensors.pubsub`
+     - :doc:`How to use <howto/operator/gcp/pubsub>`
+     - :mod:`airflow.providers.google.cloud..hooks.pubsub`
+     - :mod:`airflow.providers.google.cloud..operators.pubsub`
+     - :mod:`airflow.providers.google.cloud..sensors.pubsub`
 
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`
@@ -773,7 +773,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - SFTP
-     -
+     - :doc:`How to use <howto/operator/gcp/gcs_to_sftp>`
      - :mod:`airflow.operators.gcs_to_sftp`
 
 

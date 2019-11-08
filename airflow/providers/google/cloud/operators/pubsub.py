@@ -25,13 +25,17 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 from google.api_core.retry import Retry
 from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig
 
-from airflow.gcp.hooks.pubsub import PubSubHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.utils.decorators import apply_defaults
 
 
 class PubSubTopicCreateOperator(BaseOperator):
     """Create a PubSub topic.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PubSubTopicCreateOperator`
 
     By default, if the topic already exists, this operator will
     not cause the DAG to fail. ::
@@ -165,6 +169,10 @@ class PubSubTopicCreateOperator(BaseOperator):
 
 class PubSubSubscriptionCreateOperator(BaseOperator):
     """Create a PubSub subscription.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PubSubSubscriptionCreateOperator`
 
     By default, the subscription will be created in ``topic_project``. If
     ``subscription_project`` is specified and the GCP credentials allow, the
@@ -354,6 +362,10 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
 class PubSubTopicDeleteOperator(BaseOperator):
     """Delete a PubSub topic.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PubSubTopicDeleteOperator`
+
     By default, if the topic does not exist, this operator will
     not cause the DAG to fail. ::
 
@@ -461,6 +473,10 @@ class PubSubTopicDeleteOperator(BaseOperator):
 
 class PubSubSubscriptionDeleteOperator(BaseOperator):
     """Delete a PubSub subscription.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PubSubSubscriptionDeleteOperator`
 
     By default, if the subscription does not exist, this operator will
     not cause the DAG to fail. ::
@@ -571,6 +587,10 @@ class PubSubSubscriptionDeleteOperator(BaseOperator):
 
 class PubSubPublishOperator(BaseOperator):
     """Publish messages to a PubSub topic.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PubSubPublishOperator`
 
     Each Task publishes all provided messages to the same topic
     in a single GCP project. If the topic does not exist, this

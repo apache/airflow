@@ -24,12 +24,12 @@ from google.cloud.exceptions import NotFound
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
-from airflow.gcp.hooks.pubsub import PubSubException, PubSubHook
+from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubHook
 from airflow.version import version
 from tests.compat import mock
 
 BASE_STRING = 'airflow.gcp.hooks.base.{}'
-PUBSUB_STRING = 'airflow.gcp.hooks.pubsub.{}'
+PUBSUB_STRING = 'airflow.providers.google.cloud.hooks.pubsub.{}'
 
 EMPTY_CONTENT = b''
 TEST_PROJECT = 'test-project'
@@ -59,9 +59,10 @@ class TestPubSubHook(unittest.TestCase):
                         new=mock_init):
             self.pubsub_hook = PubSubHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.gcp.hooks.pubsub.PubSubHook.client_info", new_callable=mock.PropertyMock)
-    @mock.patch("airflow.gcp.hooks.pubsub.PubSubHook._get_credentials")
-    @mock.patch("airflow.gcp.hooks.pubsub.PublisherClient")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.client_info",
+                new_callable=mock.PropertyMock)
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
     def test_publisher_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         self.assertIsNone(self.pubsub_hook._client)
         result = self.pubsub_hook.get_conn()
@@ -72,9 +73,10 @@ class TestPubSubHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.pubsub_hook._client, result)
 
-    @mock.patch("airflow.gcp.hooks.pubsub.PubSubHook.client_info", new_callable=mock.PropertyMock)
-    @mock.patch("airflow.gcp.hooks.pubsub.PubSubHook._get_credentials")
-    @mock.patch("airflow.gcp.hooks.pubsub.SubscriberClient")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.client_info",
+                new_callable=mock.PropertyMock)
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.SubscriberClient")
     def test_subscriber_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         self.assertIsNone(self.pubsub_hook._client)
         result = self.pubsub_hook.subscriber_client
