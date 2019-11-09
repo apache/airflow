@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.aws.sensors.athena`."""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.athena`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.aws.sensors.athena import AthenaSensor  # noqa
+from airflow.providers.amazon.aws.sensors.athena import AthenaSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.aws.sensors.athena`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.athena`.",
     DeprecationWarning,
     stacklevel=2,
 )

@@ -105,8 +105,13 @@ class TestDataFlowPythonOperator(unittest.TestCase):
             'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION}
         }
         gcs_download_hook.assert_called_once_with(PY_FILE)
-        start_python_hook.assert_called_once_with(JOB_NAME, expected_options, mock.ANY,
-                                                  PY_OPTIONS, py_interpreter=PY_INTERPRETER)
+        start_python_hook.assert_called_once_with(
+            job_name=JOB_NAME,
+            variables=expected_options,
+            dataflow=mock.ANY,
+            py_options=PY_OPTIONS,
+            py_interpreter=PY_INTERPRETER
+        )
         self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
 
 
@@ -148,8 +153,14 @@ class TestDataFlowJavaOperator(unittest.TestCase):
         self.dataflow.execute(None)
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_called_once_with(JAR_FILE)
-        start_java_hook.assert_called_once_with(JOB_NAME, mock.ANY,
-                                                mock.ANY, JOB_CLASS, True, None)
+        start_java_hook.assert_called_once_with(
+            job_name=JOB_NAME,
+            variables=mock.ANY,
+            jar=mock.ANY,
+            job_class=JOB_CLASS,
+            append_job_name=True,
+            multiple_jobs=None
+        )
 
     @mock.patch('airflow.gcp.operators.dataflow.DataFlowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
@@ -167,7 +178,7 @@ class TestDataFlowJavaOperator(unittest.TestCase):
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_not_called()
         start_java_hook.assert_not_called()
-        dataflow_running.assert_called_once_with(JOB_NAME, mock.ANY)
+        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
 
     @mock.patch('airflow.gcp.operators.dataflow.DataFlowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
@@ -184,9 +195,15 @@ class TestDataFlowJavaOperator(unittest.TestCase):
         self.dataflow.execute(None)
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_called_once_with(JAR_FILE)
-        start_java_hook.assert_called_once_with(JOB_NAME, mock.ANY,
-                                                mock.ANY, JOB_CLASS, True, None)
-        dataflow_running.assert_called_once_with(JOB_NAME, mock.ANY)
+        start_java_hook.assert_called_once_with(
+            job_name=JOB_NAME,
+            variables=mock.ANY,
+            jar=mock.ANY,
+            job_class=JOB_CLASS,
+            append_job_name=True,
+            multiple_jobs=None
+        )
+        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
 
     @mock.patch('airflow.gcp.operators.dataflow.DataFlowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
@@ -204,9 +221,15 @@ class TestDataFlowJavaOperator(unittest.TestCase):
         self.dataflow.execute(None)
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_called_once_with(JAR_FILE)
-        start_java_hook.assert_called_once_with(JOB_NAME, mock.ANY,
-                                                mock.ANY, JOB_CLASS, True, True)
-        dataflow_running.assert_called_once_with(JOB_NAME, mock.ANY)
+        start_java_hook.assert_called_once_with(
+            job_name=JOB_NAME,
+            variables=mock.ANY,
+            jar=mock.ANY,
+            job_class=JOB_CLASS,
+            append_job_name=True,
+            multiple_jobs=True
+        )
+        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
 
 
 class TestDataFlowTemplateOperator(unittest.TestCase):
@@ -245,8 +268,12 @@ class TestDataFlowTemplateOperator(unittest.TestCase):
             'tempLocation': 'gs://test/temp',
             'zone': 'us-central1-f'
         }
-        start_template_hook.assert_called_once_with(JOB_NAME, expected_options,
-                                                    PARAMETERS, TEMPLATE)
+        start_template_hook.assert_called_once_with(
+            job_name=JOB_NAME,
+            variables=expected_options,
+            parameters=PARAMETERS,
+            dataflow_template=TEMPLATE
+        )
 
 
 class TestGoogleCloudBucketHelper(unittest.TestCase):

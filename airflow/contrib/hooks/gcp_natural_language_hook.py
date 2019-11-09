@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.hooks.natural_language`.
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.natural_language`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.natural_language import CloudNaturalLanguageHook  # noqa
+from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.natural_language`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.natural_language`",
     DeprecationWarning, stacklevel=2
 )

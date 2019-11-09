@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.aws.operators.athena`."""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.operators.athena`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.aws.operators.athena import AWSAthenaOperator  # noqa
+from airflow.providers.amazon.aws.operators.athena import AWSAthenaOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.aws.operators.athena`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.athena`.",
     DeprecationWarning,
     stacklevel=2,
 )
