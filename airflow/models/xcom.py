@@ -22,7 +22,7 @@ import pickle
 from typing import Any, Iterable, Optional, Union
 
 from pendulum import pendulum
-from sqlalchemy import Column, Index, Integer, LargeBinary, String, and_
+from sqlalchemy import Column, LargeBinary, String, and_
 from sqlalchemy.orm import Query, Session, reconstructor
 
 from airflow.configuration import conf
