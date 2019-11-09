@@ -31,6 +31,8 @@ build_image_on_ci
 
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
+mkdir -p "${AIRFLOW_SOURCES}/files"
+
 sudo pip install pre-commit
 
 script_end

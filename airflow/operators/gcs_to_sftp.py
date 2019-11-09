@@ -36,6 +36,10 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
     """
     Transfer files from a Google Cloud Storage bucket to SFTP server.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageToSFTPOperator`
+
     :param source_bucket: The source Google cloud storage bucket where the
          object is. (templated)
     :type source_bucket: str
