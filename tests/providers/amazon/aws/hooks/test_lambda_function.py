@@ -24,7 +24,7 @@ import textwrap
 import unittest
 import zipfile
 
-from airflow.providers.aws.hooks.lambda_function import AwsLambdaHook
+from airflow.providers.amazon.aws.hooks.lambda_function import AwsLambdaHook
 
 try:
     from moto import mock_lambda

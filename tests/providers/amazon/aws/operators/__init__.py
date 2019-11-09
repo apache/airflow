@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,16 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sqs`."""
-
-import warnings
-
-# pylint: disable=unused-import
-from airflow.providers.amazon.aws.hooks.sqs import SQSHook  # noqa
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sqs`.",
-    DeprecationWarning,
-    stacklevel=2,
-)

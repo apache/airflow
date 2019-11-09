@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.aws.hooks.lambda_function`."""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.lambda_function`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.aws.hooks.lambda_function import AwsLambdaHook  # noqa
+from airflow.providers.amazon.aws.hooks.lambda_function import AwsLambdaHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.aws.hooks.lambda_function`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.lambda_function`.",
     DeprecationWarning,
     stacklevel=2,
 )
