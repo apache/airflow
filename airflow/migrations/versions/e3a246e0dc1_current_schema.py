@@ -53,7 +53,7 @@ def upgrade():
             sa.Column('login', sa.String(length=500), nullable=True),
             sa.Column('password', sa.String(length=500), nullable=True),
             sa.Column('port', sa.Integer(), nullable=True),
-            sa.Column('extra', sa.String(length=5000), nullable=True),
+            sa.Column('extra', sa.Text(), nullable=True),
             sa.PrimaryKeyConstraint('id')
         )
     if 'dag' not in tables:
@@ -68,8 +68,8 @@ def upgrade():
             sa.Column('last_expired', sa.DateTime(), nullable=True),
             sa.Column('scheduler_lock', sa.Boolean(), nullable=True),
             sa.Column('pickle_id', sa.Integer(), nullable=True),
-            sa.Column('fileloc', sa.String(length=2000), nullable=True),
-            sa.Column('owners', sa.String(length=2000), nullable=True),
+            sa.Column('fileloc', sa.Text(), nullable=True),
+            sa.Column('owners', sa.Text(), nullable=True),
             sa.PrimaryKeyConstraint('dag_id')
         )
     if 'dag_pickle' not in tables:
@@ -86,7 +86,7 @@ def upgrade():
             'import_error',
             sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('timestamp', sa.DateTime(), nullable=True),
-            sa.Column('filename', sa.String(length=1024), nullable=True),
+            sa.Column('filename', sa.Text(), nullable=True),
             sa.Column('stacktrace', sa.Text(), nullable=True),
             sa.PrimaryKeyConstraint('id')
         )
@@ -102,7 +102,7 @@ def upgrade():
             sa.Column('latest_heartbeat', sa.DateTime(), nullable=True),
             sa.Column('executor_class', sa.String(length=500), nullable=True),
             sa.Column('hostname', sa.String(length=500), nullable=True),
-            sa.Column('unixname', sa.String(length=1000), nullable=True),
+            sa.Column('unixname', sa.Text(), nullable=True),
             sa.PrimaryKeyConstraint('id')
         )
         op.create_index(
@@ -155,8 +155,8 @@ def upgrade():
             sa.Column('duration', sa.Integer(), nullable=True),
             sa.Column('state', sa.String(length=20), nullable=True),
             sa.Column('try_number', sa.Integer(), nullable=True),
-            sa.Column('hostname', sa.String(length=1000), nullable=True),
-            sa.Column('unixname', sa.String(length=1000), nullable=True),
+            sa.Column('hostname', sa.Text(), nullable=True),
+            sa.Column('unixname', sa.Text(), nullable=True),
             sa.Column('job_id', sa.Integer(), nullable=True),
             sa.Column('pool', sa.String(length=50), nullable=True),
             sa.Column('queue', sa.String(length=50), nullable=True),
@@ -214,7 +214,7 @@ def upgrade():
             sa.Column('show_datatable', sa.Boolean(), nullable=True),
             sa.Column('show_sql', sa.Boolean(), nullable=True),
             sa.Column('height', sa.Integer(), nullable=True),
-            sa.Column('default_params', sa.String(length=5000), nullable=True),
+            sa.Column('default_params', sa.Text(), nullable=True),
             sa.Column('x_is_date', sa.Boolean(), nullable=True),
             sa.Column('iteration_no', sa.Integer(), nullable=True),
             sa.Column('last_modified', sa.DateTime(), nullable=True),

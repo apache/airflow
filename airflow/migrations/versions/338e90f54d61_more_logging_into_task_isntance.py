@@ -35,7 +35,7 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('task_instance', sa.Column('operator', sa.String(length=1000), nullable=True))
+    op.add_column('task_instance', sa.Column('operator', sa.Text(), nullable=True))
     op.add_column('task_instance', sa.Column('queued_dttm', sa.DateTime(), nullable=True))
 
 
