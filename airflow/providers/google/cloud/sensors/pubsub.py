@@ -24,13 +24,17 @@ from typing import Optional
 
 from google.protobuf.json_format import MessageToDict
 
-from airflow.gcp.hooks.pubsub import PubSubHook
+from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
 class PubSubPullSensor(BaseSensorOperator):
     """Pulls messages from a PubSub subscription and passes them through XCom.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PubSubPullSensor`
 
     This sensor operator will pull up to ``max_messages`` messages from the
     specified PubSub subscription. When the subscription returns messages,

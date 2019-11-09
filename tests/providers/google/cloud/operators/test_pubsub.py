@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow.gcp.operators.pubsub import (
+from airflow.providers.google.cloud.operators.pubsub import (
     PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
     PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
 )
@@ -41,7 +41,7 @@ TEST_POKE_INTERVAl = 0
 
 class TestPubSubTopicCreateOperator(unittest.TestCase):
 
-    @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
+    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_failifexists(self, mock_hook):
         operator = PubSubTopicCreateOperator(
             task_id=TASK_ID,
@@ -63,7 +63,7 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
+    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_succeedifexists(self, mock_hook):
         operator = PubSubTopicCreateOperator(
             task_id=TASK_ID,
@@ -88,7 +88,7 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
 
 class TestPubSubTopicDeleteOperator(unittest.TestCase):
 
-    @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
+    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubTopicDeleteOperator(
             task_id=TASK_ID,
@@ -109,7 +109,7 @@ class TestPubSubTopicDeleteOperator(unittest.TestCase):
 
 class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
 
-    @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
+    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubSubscriptionCreateOperator(
             task_id=TASK_ID,
@@ -136,7 +136,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
         )
         self.assertEqual(response, TEST_SUBSCRIPTION)
 
-    @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
+    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_different_project_ids(self, mock_hook):
         another_project = 'another-project'
         operator = PubSubSubscriptionCreateOperator(
@@ -165,7 +165,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
         )
         self.assertEqual(response, TEST_SUBSCRIPTION)
 
-    @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
+    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_no_subscription(self, mock_hook):
         operator = PubSubSubscriptionCreateOperator(
             task_id=TASK_ID,
@@ -194,7 +194,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
 
 class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
 
-    @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
+    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
         operator = PubSubSubscriptionDeleteOperator(
             task_id=TASK_ID,
@@ -215,7 +215,7 @@ class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
 
 class TestPubSubPublishOperator(unittest.TestCase):
 
-    @mock.patch('airflow.gcp.operators.pubsub.PubSubHook')
+    @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_publish(self, mock_hook):
         operator = PubSubPublishOperator(task_id=TASK_ID,
                                          project_id=TEST_PROJECT,

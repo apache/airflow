@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,35 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-set -euo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-
-export PYTHON_VERSION=3.5
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
-
-if [[ -f ${BUILD_CACHE_DIR}/.skip_tests ]]; then
-    echo
-    echo "Skip tests"
-    echo
-    script_end
-    exit
-fi
-
-rebuild_ci_slim_image_if_needed
-
-IMAGES_TO_CHECK=("SLIM_CI")
-export IMAGES_TO_CHECK
-
-SKIP=pylint,check-apache-license pre-commit run --all-files --show-diff-on-failure
-
-script_end

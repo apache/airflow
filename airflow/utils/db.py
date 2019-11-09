@@ -302,6 +302,10 @@ def initdb():
         Connection(
             conn_id='pinot_broker_default', conn_type='pinot',
             host='localhost', port=8099, extra='{"endpoint": "/query", "schema": "http"}'))
+    merge_conn(
+        Connection(
+            conn_id='pinot_admin_default', conn_type='pinot',
+            host='localhost', port=9000))
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
