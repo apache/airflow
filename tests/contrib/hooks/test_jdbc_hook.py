@@ -49,6 +49,14 @@ class TestJdbcHook(unittest.TestCase):
         self.assertIsInstance(jdbc_conn, Mock)
         self.assertEqual(jdbc_conn.name, jdbc_mock.return_value.name)  # pylint: disable=no-member
 
+        # Set autocommit
+        jdbc_hook.set_autocommit(jdbc_conn, False)
+        jdbc_conn.jconn.setAutoCommit.assert_called_with(False)
+
+        # Get autocommit
+        jdbc_hook.get_autocommit(jdbc_conn)
+        self.assertTrue(jdbc_conn.jconn.getAutoCommit.called)
+
 
 if __name__ == '__main__':
     unittest.main()
