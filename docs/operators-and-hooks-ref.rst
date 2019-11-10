@@ -355,9 +355,9 @@ These integrations allow you to perform various operations within the Amazon Web
      -
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
-     - :mod:`airflow.contrib.hooks.redshift_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.redshift`
      -
-     - :mod:`airflow.contrib.sensors.aws_redshift_cluster_sensor`
+     - :mod:`airflow.providers.amazon.aws.sensors.redshift`
 
    * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
      - :mod:`airflow.contrib.hooks.sagemaker_hook`
