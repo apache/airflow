@@ -54,7 +54,6 @@
 !.bash_completion.d
 !run-tests
 !run-tests-complete
-!scripts/ci/docker_build/ci_build_extract_tests.sh
 
 # Setup/version configuration
 !setup.cfg
