@@ -25,6 +25,7 @@ assists users migrating to a new version.
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow 1.10.7](#airflow-1107)
 - [Airflow 1.10.6](#airflow-1106)
 - [Airflow 1.10.5](#airflow-1105)
 - [Airflow 1.10.4](#airflow-1104)
@@ -38,6 +39,14 @@ assists users migrating to a new version.
 - [Airflow 1.7.1.2](#airflow-1712)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Airflow 1.10.7
+
+### Infinite pool size and pool size query optimisation
+
+Pool size can now be set to -1 to indicate infinite size (it also includes
+optimisation of pool query which lead to poor task n^2 performance of task
+pool queries in MySQL).
 
 ## Airflow 1.10.6
 
