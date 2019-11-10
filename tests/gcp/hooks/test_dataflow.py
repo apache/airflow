@@ -318,7 +318,7 @@ class TestDataFlowTemplateHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
-    def test_start_template_dataflow_with_runtime_env(self, mock_conn, mock_dataflowjob, mocck_uuid):
+    def test_start_template_dataflow_with_runtime_env(self, mock_conn, mock_dataflowjob, mock_uuid):
         dataflow_options_template = copy.deepcopy(DATAFLOW_OPTIONS_TEMPLATE)
         options_with_runtime_env = copy.deepcopy(RUNTIME_ENV)
         options_with_runtime_env.update(dataflow_options_template)
@@ -357,6 +357,7 @@ class TestDataFlowTemplateHook(unittest.TestCase):
             poll_sleep=10,
             project_number='test'
         )
+        mock_uuid.assert_called_once_with()
 
 
 class TestDataFlowJob(unittest.TestCase):
