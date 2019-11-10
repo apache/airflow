@@ -19,6 +19,8 @@
 
 import os
 
+from sqlalchemy import func
+
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance, DagBag, DagModel, DagRun
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -137,18 +139,20 @@ class ExternalTaskSensor(BaseSensorOperator):
                                                                                  self.external_dag_id))
 
         if self.external_task_id:
-            count = session.query(TI).filter(
+            # .count() is inefficient
+            count = session.query(func.count()).filter(
                 TI.dag_id == self.external_dag_id,
                 TI.task_id == self.external_task_id,
                 TI.state.in_(self.allowed_states),
                 TI.execution_date.in_(dttm_filter),
-            ).count()
+            ).scalar()
         else:
-            count = session.query(DR).filter(
+            # .count() is inefficient
+            count = session.query(func.count()).filter(
                 DR.dag_id == self.external_dag_id,
                 DR.state.in_(self.allowed_states),
                 DR.execution_date.in_(dttm_filter),
-            ).count()
+            ).scalar()
 
         session.commit()
         return count == len(dttm_filter)
