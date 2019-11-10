@@ -27,7 +27,7 @@ from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.contrib.operators.sftp_to_s3_operator import SFTPToS3Operator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
-from airflow.providers.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
