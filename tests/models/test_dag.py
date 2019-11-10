@@ -265,7 +265,7 @@ class TestDag(unittest.TestCase):
         timezone and then testing for equality after the DAG construction.  They'll be equal
         only if the same timezone was applied to both.
 
-        An explicit check the the `tzinfo` attributes for both are the same is an extra check.
+        An explicit check the `tzinfo` attributes for both are the same is an extra check.
         """
         dag = DAG('DAG', default_args={'start_date': '2019-06-05T00:00:00+05:00',
                                        'end_date': '2019-06-05T00:00:00'})

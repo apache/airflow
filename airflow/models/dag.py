@@ -1310,7 +1310,7 @@ class DAG(BaseDag, LoggingMixin):
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
 
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime
@@ -1623,7 +1623,7 @@ class DagModel(Base):
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
 
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime
