@@ -20,6 +20,7 @@
 import unittest
 
 import mock
+import requests
 from docker import APIClient
 
 from airflow.exceptions import AirflowException
@@ -39,8 +40,12 @@ class TestDockerSwarmOperator(unittest.TestCase):
                 yield [{'Status': {'State': 'pending'}}]
             yield [{'Status': {'State': 'complete'}}]
 
+        def _client_service_logs_effect():
+            yield b'Testing is awesome.'
+
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_service.return_value = {'ID': 'some_id'}
+        client_mock.service_logs.return_value = _client_service_logs_effect()
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.tasks.side_effect = _client_tasks_side_effect()
@@ -71,6 +76,10 @@ class TestDockerSwarmOperator(unittest.TestCase):
             base_url='unix://var/run/docker.sock', tls=None, version='1.19'
         )
 
+        client_mock.service_logs.assert_called_once_with(
+            'some_id', follow=True, stdout=True, stderr=True, is_tty=True
+        )
+
         csargs, cskwargs = client_mock.create_service.call_args_list[0]
         self.assertEqual(
             len(csargs), 1, 'create_service called with different number of arguments than expected'
@@ -99,7 +108,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
 
         client_class_mock.return_value = client_mock
 
-        operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest')
+        operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest', enable_logging=False)
         operator.execute(None)
 
         self.assertEqual(
@@ -125,16 +134,55 @@ class TestDockerSwarmOperator(unittest.TestCase):
 
         client_class_mock.return_value = client_mock
 
-        operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest')
+        operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest', enable_logging=False)
         msg = "Service failed: {'ID': 'some_id'}"
         with self.assertRaises(AirflowException) as error:
             operator.execute(None)
         self.assertEqual(str(error.exception), msg)
 
+    @mock.patch('airflow.operators.docker_operator.APIClient')
+    @mock.patch('airflow.contrib.operators.docker_swarm_operator.types')
+    def test_logging_with_requests_timeout(self, types_mock, client_class_mock):
+
+        mock_obj = mock.Mock()
+
+        def _client_tasks_side_effect():
+            for _ in range(2):
+                yield [{'Status': {'State': 'pending'}}]
+            yield [{'Status': {'State': 'complete'}}]
+
+        def _client_service_logs_effect():
+            yield b'Testing is awesome.'
+            raise requests.exceptions.ConnectionError('')
+
+        client_mock = mock.Mock(spec=APIClient)
+        client_mock.create_service.return_value = {'ID': 'some_id'}
+        client_mock.service_logs.return_value = _client_service_logs_effect()
+        client_mock.images.return_value = []
+        client_mock.pull.return_value = [b'{"status":"pull log"}']
+        client_mock.tasks.side_effect = _client_tasks_side_effect()
+        types_mock.TaskTemplate.return_value = mock_obj
+        types_mock.ContainerSpec.return_value = mock_obj
+        types_mock.RestartPolicy.return_value = mock_obj
+        types_mock.Resources.return_value = mock_obj
+
+        client_class_mock.return_value = client_mock
+
+        operator = DockerSwarmOperator(
+            api_version='1.19', command='env', environment={'UNIT': 'TEST'}, image='ubuntu:latest',
+            mem_limit='128m', user='unittest', task_id='unittest', auto_remove=True, tty=True,
+            enable_logging=True
+        )
+        operator.execute(None)
+
+        client_mock.service_logs.assert_called_once_with(
+            'some_id', follow=True, stdout=True, stderr=True, is_tty=True
+        )
+
     def test_on_kill(self):
         client_mock = mock.Mock(spec=APIClient)
 
-        operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest')
+        operator = DockerSwarmOperator(image='', auto_remove=False, task_id='unittest', enable_logging=False)
         operator.cli = client_mock
         operator.service = {'ID': 'some_id'}
 
