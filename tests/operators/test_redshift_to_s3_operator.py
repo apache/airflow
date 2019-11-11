@@ -40,6 +40,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = ['HEADER', ]
+        table_as_file_name=True
 
         RedshiftToS3Transfer(
             schema=schema,
@@ -51,6 +52,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
+            table_as_file_name=table_as_file_name,
             dag=None
         ).execute(None)
         
