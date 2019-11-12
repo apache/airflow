@@ -245,7 +245,8 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
     def _write_local_schema_file(self, cursor):
         """
         Takes a cursor, and writes the BigQuery schema for the results to a
-        local file system.
+        local file system. self.schema will be honored when provided, otherwise,
+        it will use the schema read from sql.
 
         :return: A dictionary where key is a filename to be used as an object
             name in GCS, and values are file handles to local files that
@@ -254,32 +255,12 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
         schema = [self.field_to_bigquery(field) for field in cursor.description]
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         if self.schema is not None and isinstance(self.schema, string_types):
-            schema = self.schema
-            tmp_schema_file_handle.write(schema)
+            tmp_schema_file_handle.write(self.schema)
+        else if self.schema is not None and isinstance(self.schema, list):
+            tmp_schema_file_handle.write(json.dumps(self.schema, sort_keys=True).encode('utf-8'))
         else:
-            if self.schema is not None and isinstance(self.schema, list):
-                schema = self.schema
-            else:
-                for field in cursor.description:
-                    # See PEP 249 for details about the description tuple.
-                    field_name = field[0]
-                    field_type = self.type_map(field[1])
-                    # Always allow TIMESTAMP to be nullable. MySQLdb returns None types
-                    # for required fields because some MySQL timestamps can't be
-                    # represented by Python's datetime (e.g. 0000-00-00 00:00:00).
-                    if field[6] or field_type == 'TIMESTAMP':
-                        field_mode = 'NULLABLE'
-                    else:
-                        field_mode = 'REQUIRED'
-                    schema.append({
-                        'name': field_name,
-                        'type': field_type,
-                        'mode': field_mode,
-                    })
-            s = json.dumps(schema, tmp_schema_file_handle)
-            if PY3:
-                s = s.encode('utf-8')
-            tmp_schema_file_handle.write(s)
+            schema = [self.field_to_bigquery(field) for field in cursor.description]
+            tmp_schema_file_handle.write(json.dumps(schema, sort_keys=True).encode('utf-8'))
 
         self.log.info('Using schema for %s: %s', self.schema_filename, schema)
         schema_file_to_upload = {
