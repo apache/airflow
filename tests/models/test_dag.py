@@ -951,8 +951,8 @@ class TestDag(unittest.TestCase):
 
         # Also verify that DAGs with duplicate task_ids don't raise errors
         dag1 = DAG("test_dag_1", start_date=DEFAULT_DATE)
-        t3 = DummyOperator(task_id="t3", dag=dag)
-        t4 = DummyOperator(task_id="t4", dag=dag)
+        t3 = DummyOperator(task_id="t3", dag=dag1)
+        t4 = DummyOperator(task_id="t4", dag=dag1)
         t3 >> t4
 
         self.assertEqual(dag1.task_dict, {t3.task_id: t3, t4.task_id: t4})
