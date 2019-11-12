@@ -1498,69 +1498,6 @@ class TestCli(unittest.TestCase):
     def test_process_subdir_path_with_placeholder(self):
         self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
 
-    def test_pool_list(self):
-        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.pool_list(self.parser.parse_args(['pools', 'list']))
-            stdout = mock_stdout.getvalue()
-        self.assertIn('foo', stdout)
-
-    def test_pool_list_with_args(self):
-        cli.pool_list(self.parser.parse_args(['pools', 'list',
-                                              '--output', 'tsv']))
-
-    def test_pool_create(self):
-        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        self.assertEqual(self.session.query(Pool).count(), 1)
-
-    def test_pool_get(self):
-        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        try:
-            cli.pool_get(self.parser.parse_args(['pools', 'get', 'foo']))
-        except Exception as e:
-            self.fail("The 'pool -g foo' command raised unexpectedly: %s" % e)
-
-    def test_pool_delete(self):
-        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        cli.pool_delete(self.parser.parse_args(['pools', 'delete', 'foo']))
-        self.assertEqual(self.session.query(Pool).count(), 0)
-
-    def test_pool_import_export(self):
-        # Create two pools first
-        pool_config_input = {
-            "foo": {
-                "description": "foo_test",
-                "slots": 1
-            },
-            "baz": {
-                "description": "baz_test",
-                "slots": 2
-            }
-        }
-        with open('pools_import.json', mode='w') as file:
-            json.dump(pool_config_input, file)
-
-        # Import json
-        try:
-            cli.pool_import(self.parser.parse_args(['pools', 'import', 'pools_import.json']))
-        except Exception as e:
-            self.fail("The 'pool import pools_import.json' failed: %s" % e)
-
-        # Export json
-        try:
-            cli.pool_export(self.parser.parse_args(['pools', 'export', 'pools_export.json']))
-        except Exception as e:
-            self.fail("The 'pool export pools_export.json' failed: %s" % e)
-
-        with open('pools_export.json', mode='r') as file:
-            pool_config_output = json.load(file)
-            self.assertEqual(
-                pool_config_input,
-                pool_config_output,
-                "Input and output pool files are not same")
-        os.remove('pools_import.json')
-        os.remove('pools_export.json')
-
     def test_cli_version(self):
         with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.version(self.parser.parse_args(['version']))

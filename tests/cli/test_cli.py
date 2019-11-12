@@ -18,6 +18,7 @@
 # under the License.
 import contextlib
 import io
+import json
 import os
 import subprocess
 import sys
@@ -34,7 +35,7 @@ import pytz
 import airflow.bin.cli as cli
 from airflow import AirflowException, models, settings
 from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
-from airflow.models import DagModel, TaskInstance, Variable
+from airflow.models import DagModel, Pool, TaskInstance, Variable
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -649,6 +650,72 @@ class TestCliTest(unittest.TestCase):
 
         with self.assertRaises(AirflowException):
             cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'foobar', '-dx', '--yes']))
+
+
+class TestCliPools(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = models.DagBag(include_examples=True)
+        cls.parser = cli.CLIFactory.get_parser()
+
+    def setUp(self):
+        super().setUp()
+        settings.configure_orm()
+        self.session = Session
+
+    def test_pool_list(self):
+        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.pool_list(self.parser.parse_args(['pools', 'list']))
+            stdout = mock_stdout.getvalue()
+        self.assertIn('foo', stdout)
+
+    def test_pool_list_with_args(self):
+        cli.pool_list(self.parser.parse_args(['pools', 'list',
+                                              '--output', 'tsv']))
+
+    def test_pool_create(self):
+        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
+        self.assertEqual(self.session.query(Pool).count(), 1)
+
+    def test_pool_get(self):
+        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
+        cli.pool_get(self.parser.parse_args(['pools', 'get', 'foo']))
+
+    def test_pool_delete(self):
+        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
+        cli.pool_delete(self.parser.parse_args(['pools', 'delete', 'foo']))
+        self.assertEqual(self.session.query(Pool).count(), 0)
+
+    def test_pool_import_export(self):
+        # Create two pools first
+        pool_config_input = {
+            "foo": {
+                "description": "foo_test",
+                "slots": 1
+            },
+            "baz": {
+                "description": "baz_test",
+                "slots": 2
+            }
+        }
+        with open('pools_import.json', mode='w') as file:
+            json.dump(pool_config_input, file)
+
+        # Import json
+        cli.pool_import(self.parser.parse_args(['pools', 'import', 'pools_import.json']))
+
+        # Export json
+        cli.pool_export(self.parser.parse_args(['pools', 'export', 'pools_export.json']))
+
+        with open('pools_export.json', mode='r') as file:
+            pool_config_output = json.load(file)
+            self.assertEqual(
+                pool_config_input,
+                pool_config_output,
+                "Input and output pool files are not same")
+        os.remove('pools_import.json')
+        os.remove('pools_export.json')
 
 
 class TestCliVariables(unittest.TestCase):
