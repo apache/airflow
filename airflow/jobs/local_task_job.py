@@ -20,7 +20,6 @@
 
 import os
 import signal
-import time
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -112,13 +111,6 @@ class LocalTaskJob(BaseJob):
                                            "exceeded limit ({}s)."
                                            .format(time_since_last_heartbeat,
                                                    heartbeat_time_limit))
-
-                if time_since_last_heartbeat < self.heartrate:
-                    sleep_for = self.heartrate - time_since_last_heartbeat
-                    self.log.debug("Time since last heartbeat(%.2f s) < heartrate(%s s)"
-                                   ", sleeping for %s s", time_since_last_heartbeat,
-                                   self.heartrate, sleep_for)
-                    time.sleep(sleep_for)
         finally:
             self.on_kill()
 
