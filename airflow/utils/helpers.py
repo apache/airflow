@@ -33,7 +33,7 @@ from builtins import input
 from past.builtins import basestring
 from datetime import datetime
 from functools import reduce
-from collections import Iterable
+from collections.abc import Iterable
 import os
 import re
 import signal
