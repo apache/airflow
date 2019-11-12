@@ -50,7 +50,7 @@ from airflow.hooks import hdfs_hook
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import (
-    BaseOperator, Connection, DagBag, DagModel, DagRun, Pool, TaskFail, TaskInstance, Variable,
+    BaseOperator, Connection, DagBag, DagRun, Pool, TaskFail, TaskInstance, Variable,
 )
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
@@ -1325,10 +1325,6 @@ class TestCli(unittest.TestCase):
             'tasks', 'list', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
 
-    def test_cli_list_jobs(self):
-        args = self.parser.parse_args(['dags', 'list_jobs'])
-        cli.list_jobs(args)
-
     @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['db', 'init']))
@@ -1540,10 +1536,6 @@ class TestCli(unittest.TestCase):
         cli.task_state(self.parser.parse_args([
             'tasks', 'state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
-
-    def test_dag_state(self):
-        self.assertEqual(None, cli.dag_state(self.parser.parse_args([
-            'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
 
     def test_subdag_clear(self):
         args = self.parser.parse_args([

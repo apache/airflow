@@ -32,9 +32,9 @@ import psutil
 import pytz
 
 import airflow.bin.cli as cli
-from airflow import models, settings, AirflowException
+from airflow import AirflowException, models, settings
 from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
-from airflow.models import TaskInstance, DagModel
+from airflow.models import DagModel, TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -108,16 +108,17 @@ def create_mock_args(  # pylint: disable=too-many-arguments
     return args
 
 
-class TestCLI(unittest.TestCase):
-
-    EXAMPLE_DAGS_FOLDER = os.path.join(
+EXAMPLE_DAGS_FOLDER = os.path.join(
+    os.path.dirname(
         os.path.dirname(
-            os.path.dirname(
-                os.path.dirname(os.path.realpath(__file__))
-            )
-        ),
-        "airflow/example_dags"
-    )
+            os.path.dirname(os.path.realpath(__file__))
+        )
+    ),
+    "airflow/example_dags"
+)
+
+
+class TestCLI(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -241,7 +242,13 @@ class TestCLI(unittest.TestCase):
         )
 
 
-class TestCliDags(unittest):
+class TestCliDags(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = models.DagBag(include_examples=True)
+        cls.parser = cli.CLIFactory.get_parser()
+
     @mock.patch("airflow.bin.cli.DAG.run")
     def test_backfill(self, mock_run):
         cli.backfill(self.parser.parse_args([
@@ -272,13 +279,10 @@ class TestCliDags(unittest):
                 '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
         mock_stdout.seek(0, 0)
-        self.assertListEqual(
-            [
-                "Dry run of DAG example_bash_operator on {}\n".format(DEFAULT_DATE.isoformat()),
-                "Task runme_0\n",
-            ],
-            mock_stdout.readlines()
-        )
+
+        output = mock_stdout.read()
+        self.assertIn("Dry run of DAG example_bash_operator on {}\n".format(DEFAULT_DATE.isoformat()), output)
+        self.assertIn("Task runme_0\n".format(DEFAULT_DATE.isoformat()), output)
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
@@ -461,7 +465,7 @@ class TestCliDags(unittest):
             reset_dr_db(dag_id)
 
             proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
-                                     "--subdir", self.EXAMPLE_DAGS_FOLDER],
+                                     "--subdir", EXAMPLE_DAGS_FOLDER],
                                     stdout=subprocess.PIPE)
             proc.wait()
             stdout = []
@@ -482,7 +486,7 @@ class TestCliDags(unittest):
             )
 
             proc = subprocess.Popen(["airflow", "dags", "next_execution", dag_id,
-                                     "--subdir", self.EXAMPLE_DAGS_FOLDER],
+                                     "--subdir", EXAMPLE_DAGS_FOLDER],
                                     stdout=subprocess.PIPE)
             proc.wait()
             stdout = []
@@ -566,3 +570,11 @@ class TestCliDags(unittest):
             cli.delete_dag(self.parser.parse_args([
                 'dags', 'delete', key, '--yes']))
             self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
+
+    def test_cli_list_jobs(self):
+        args = self.parser.parse_args(['dags', 'list_jobs'])
+        cli.list_jobs(args)
+
+    def test_dag_state(self):
+        self.assertEqual(None, cli.dag_state(self.parser.parse_args([
+            'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
