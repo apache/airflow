@@ -63,8 +63,7 @@ class TestHDFSHook(unittest.TestCase):
         )
         mock_get_connections.return_value = [conn]
         HDFSHook(hdfs_conn_id='hdfs').get_conn()
-        mock_client.assert_called_once_with(effective_user='foo',
-                                                     use_sasl=False)
+        mock_client.assert_called_once_with(effective_user='foo', use_sasl=False)
 
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
@@ -72,8 +71,7 @@ class TestHDFSHook(unittest.TestCase):
     @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
     def test_get_autoconfig_client_no_conn(self, mock_client):
         HDFSHook(hdfs_conn_id='hdfs_missing', autoconfig=True).get_conn()
-        mock_client.assert_called_once_with(effective_user=None,
-                                                     use_sasl=False)
+        mock_client.assert_called_once_with(effective_user=None, use_sasl=False)
 
     @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
     def test_get_ha_client(self, mock_get_connections):
