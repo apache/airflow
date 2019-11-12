@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Getting a DAG ready for production
-==================================
+Best Practices
+==============
 
 Running Airflow in production is seamless. It comes bundled with all the plugins and configs
 necessary to run most of the DAGs. However, you can come across certain pitfalls, which can cause occasional errors.
