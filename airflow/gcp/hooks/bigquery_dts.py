@@ -29,6 +29,7 @@ from google.cloud.bigquery_datatransfer_v1.types import (
     StartManualTransferRunsResponse, TransferConfig, TransferRun,
 )
 from google.protobuf.json_format import MessageToDict, ParseDict
+from googleapiclient.discovery import Resource
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
@@ -49,7 +50,7 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
 
      """
 
-    _conn = None
+    _conn = None  # type: Optional[Resource]
 
     def __init__(
         self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None

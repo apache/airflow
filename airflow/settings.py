@@ -33,6 +33,7 @@ from sqlalchemy.pool import NullPool
 import airflow
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
+from airflow.utils.module_loading import import_string
 from airflow.utils.sqlalchemy import setup_event_handlers
 
 log = logging.getLogger(__name__)
@@ -185,7 +186,14 @@ def configure_orm(disable_connection_pool=False):
     # For Python2 we get back a newstr and need a str
     engine_args['encoding'] = engine_args['encoding'].__str__()
 
-    engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
+    if conf.has_option('core', 'sql_alchemy_connect_args'):
+        connect_args = import_string(
+            conf.get('core', 'sql_alchemy_connect_args')
+        )
+    else:
+        connect_args = {}
+
+    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
     setup_event_handlers(engine)
 
     Session = scoped_session(

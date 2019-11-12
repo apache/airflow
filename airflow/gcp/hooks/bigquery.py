@@ -329,22 +329,10 @@ class BigQueryBaseCursor(LoggingMixin):
 
         num_retries = num_retries if num_retries else self.num_retries
 
-        self.log.info('Creating Table %s:%s.%s',
-                      project_id, dataset_id, table_id)
-
-        try:
-            self.service.tables().insert(
-                projectId=project_id,
-                datasetId=dataset_id,
-                body=table_resource).execute(num_retries=num_retries)
-
-            self.log.info('Table created successfully: %s:%s.%s',
-                          project_id, dataset_id, table_id)
-
-        except HttpError as err:
-            raise AirflowException(
-                'BigQuery job failed. Error was: {}'.format(err.content)
-            )
+        self.service.tables().insert(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=table_resource).execute(num_retries=num_retries)
 
     def create_external_table(self,  # pylint: disable=too-many-locals,too-many-arguments
                               external_project_dataset_table: str,
@@ -540,20 +528,14 @@ class BigQueryBaseCursor(LoggingMixin):
         if encryption_configuration:
             table_resource["encryptionConfiguration"] = encryption_configuration
 
-        try:
-            self.service.tables().insert(
-                projectId=project_id,
-                datasetId=dataset_id,
-                body=table_resource
-            ).execute(num_retries=self.num_retries)
+        self.service.tables().insert(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=table_resource
+        ).execute(num_retries=self.num_retries)
 
-            self.log.info('External table created successfully: %s',
-                          external_project_dataset_table)
-
-        except HttpError as err:
-            raise Exception(
-                'BigQuery job failed. Error was: {}'.format(err.content)
-            )
+        self.log.info('External table created successfully: %s',
+                      external_project_dataset_table)
 
     def patch_table(self,  # pylint: disable=too-many-arguments
                     dataset_id: str,
@@ -1748,20 +1730,9 @@ class BigQueryBaseCursor(LoggingMixin):
         dataset_id = dataset_reference.get("datasetReference").get("datasetId")  # type: ignore
         dataset_project_id = dataset_reference.get("datasetReference").get("projectId")  # type: ignore
 
-        self.log.info('Creating Dataset: %s in project: %s ', dataset_id,
-                      dataset_project_id)
-
-        try:
-            self.service.datasets().insert(
-                projectId=dataset_project_id,
-                body=dataset_reference).execute(num_retries=self.num_retries)
-            self.log.info('Dataset created successfully: In project %s '
-                          'Dataset %s', dataset_project_id, dataset_id)
-
-        except HttpError as err:
-            raise AirflowException(
-                'BigQuery job failed. Error was: {}'.format(err.content)
-            )
+        self.service.datasets().insert(
+            projectId=dataset_project_id,
+            body=dataset_reference).execute(num_retries=self.num_retries)
 
     def delete_dataset(self, project_id: str, dataset_id: str, delete_contents: bool = False) -> None:
         """

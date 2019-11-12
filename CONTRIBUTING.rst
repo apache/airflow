@@ -285,11 +285,13 @@ To fix a pylint issue, do the following:
 1.  Remove module/modules from the
     `scripts/ci/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
 
-2.  Run `scripts/ci/ci_pylint.sh <scripts/ci/ci_pylint.sh>`__.
+2.  Run `scripts/ci/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
+`scripts/ci/ci_pylint_tests.sh <scripts/ci/ci_pylint_tests.sh>`__.
 
 3.  Fix all the issues reported by pylint.
 
-4.  Re-run `scripts/ci/ci_pylint.sh <scripts/ci/ci_pylint.sh>`__.
+4.  Re-run `scripts/ci/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
+`scripts/ci/ci_pylint_tests.sh <scripts/ci/ci_pylint_tests.sh>`__.
 
 5.  If you see "success", submit a PR following
     `Pull Request guidelines <#pull-request-guidelines>`__.

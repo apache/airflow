@@ -20,7 +20,7 @@
 import json
 import pickle
 
-from sqlalchemy import Column, Index, Integer, LargeBinary, String, and_
+from sqlalchemy import Column, LargeBinary, String, and_
 from sqlalchemy.orm import reconstructor
 
 from airflow.configuration import conf
@@ -43,20 +43,15 @@ class XCom(Base, LoggingMixin):
     """
     __tablename__ = "xcom"
 
-    id = Column(Integer, primary_key=True)
-    key = Column(String(512))
+    key = Column(String(512), primary_key=True)
     value = Column(LargeBinary)
     timestamp = Column(
         UtcDateTime, default=timezone.utcnow, nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
+    execution_date = Column(UtcDateTime, primary_key=True)
 
     # source information
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
-
-    __table_args__ = (
-        Index('idx_xcom_dag_task_date', dag_id, task_id, execution_date, unique=False),
-    )
+    task_id = Column(String(ID_LEN), primary_key=True)
+    dag_id = Column(String(ID_LEN), primary_key=True)
 
     """
     TODO: "pickling" has been deprecated and JSON is preferred.
