@@ -2356,6 +2356,12 @@ class PoolModelView(wwwutils.SuperUserMixin, AirflowModelView):
     column_formatters = dict(
         pool=pool_link, used_slots=fused_slots, queued_slots=fqueued_slots)
     named_filter_urls = True
+
+    validators_columns = {
+        'pool': [validators.DataRequired()],
+        'slots': [validators.NumberRange(min=-1)]
+    }
+
     form_args = {
         'pool': {
             'validators': [
