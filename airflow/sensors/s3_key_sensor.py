@@ -88,7 +88,7 @@ class S3KeySensor(BaseSensorOperator):
         self.verify = verify
 
     def poke(self, context):
-        from airflow.hooks.S3_hook import S3Hook
+        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         self.log.info('Poking for key : s3://%s/%s', self.bucket_name, self.bucket_key)
         if self.wildcard_match:

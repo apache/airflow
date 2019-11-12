@@ -21,7 +21,7 @@
 import unittest
 from unittest import mock
 
-from airflow.contrib.operators.sns_publish_operator import SnsPublishOperator
+from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
 
 TASK_ID = "sns_publish_job"
 AWS_CONN_ID = "custom_aws_conn"
@@ -46,7 +46,7 @@ class TestSnsPublishOperator(unittest.TestCase):
         self.assertEqual(TARGET_ARN, operator.target_arn)
         self.assertEqual(MESSAGE, operator.message)
 
-    @mock.patch('airflow.contrib.operators.sns_publish_operator.AwsSnsHook')
+    @mock.patch('airflow.providers.amazon.aws.operators.sns.AwsSnsHook')
     def test_execute(self, mock_hook):
         # Given
         hook_response = {'MessageId': 'foobar'}

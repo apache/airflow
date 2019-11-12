@@ -25,7 +25,7 @@ from airflow.sensors.s3_prefix_sensor import S3PrefixSensor
 
 class TestS3PrefixSensor(unittest.TestCase):
 
-    @mock.patch('airflow.hooks.S3_hook.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook')
     def test_poke(self, mock_hook):
         s = S3PrefixSensor(
             task_id='s3_prefix',

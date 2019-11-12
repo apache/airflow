@@ -21,7 +21,7 @@ Reads and then deletes the message from SQS queue
 """
 
 from airflow.exceptions import AirflowException
-from airflow.providers.aws.hooks.sqs import SQSHook
+from airflow.providers.amazon.aws.hooks.sqs import SQSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

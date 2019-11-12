@@ -20,7 +20,7 @@
 
 import unittest
 
-from airflow.contrib.hooks.aws_sns_hook import AwsSnsHook
+from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook
 
 try:
     from moto import mock_sns
@@ -29,7 +29,7 @@ except ImportError:
 
 
 @unittest.skipIf(mock_sns is None, 'moto package not present')
-class TestAwsLambdaHook(unittest.TestCase):
+class TestAwsSnsHook(unittest.TestCase):
 
     @mock_sns
     def test_get_conn_returns_a_boto3_connection(self):

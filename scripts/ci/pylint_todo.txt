@@ -190,8 +190,8 @@
 ./airflow/operators/slack_operator.py
 ./airflow/operators/sqlite_operator.py
 ./airflow/plugins_manager.py
-./airflow/providers/aws/operators/athena.py
-./airflow/providers/aws/sensors/athena.py
+./airflow/providers/amazon/aws/operators/athena.py
+./airflow/providers/amazon/aws/sensors/athena.py
 ./airflow/sensors/base_sensor_operator.py
 ./airflow/sensors/external_task_sensor.py
 ./airflow/sensors/hdfs_sensor.py
@@ -266,7 +266,6 @@
 ./airflow/www/widgets.py
 ./scripts/perf/scheduler_ops_metrics.py
 ./tests/contrib/hooks/test_aws_hook.py
-./tests/contrib/hooks/test_aws_lambda_hook.py
 ./tests/contrib/hooks/test_azure_container_instance_hook.py
 ./tests/contrib/hooks/test_azure_cosmos_hook.py
 ./tests/contrib/hooks/test_cassandra_hook.py

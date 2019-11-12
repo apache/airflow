@@ -129,16 +129,28 @@ HOOK = [
         "airflow.contrib.hooks.bigquery_hook.BigQueryHook",
     ),
     (
-        "airflow.providers.aws.hooks.athena.AWSAthenaHook",
+        "airflow.providers.amazon.aws.hooks.athena.AWSAthenaHook",
         "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
     ),
     (
-        "airflow.providers.aws.hooks.s3.S3Hook",
+        "airflow.providers.amazon.aws.hooks.datasync.AWSDataSyncHook",
+        "airflow.contrib.hooks.aws_datasync_hook.AWSDataSyncHook",
+    ),
+    (
+        "airflow.providers.amazon.aws.hooks.s3.S3Hook",
         "airflow.hooks.S3_hook.S3Hook",
     ),
     (
-        "airflow.providers.aws.hooks.sqs.SQSHook",
+        "airflow.providers.amazon.aws.hooks.sqs.SQSHook",
         "airflow.contrib.hooks.aws_sqs_hook.SQSHook",
+    ),
+    (
+        "airflow.providers.amazon.aws.hooks.lambda_function.AwsLambdaHook",
+        "airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook",
+    ),
+    (
+        "airflow.providers.amazon.aws.hooks.sns.AwsSnsHook",
+        "airflow.contrib.hooks.aws_sns_hook.AwsSnsHook",
     ),
 ]
 OPERATOR = [
@@ -747,12 +759,16 @@ OPERATOR = [
         "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
     ),
     (
-        "airflow.providers.aws.operators.athena.AWSAthenaOperator",
+        "airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator",
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
     ),
     (
-        "airflow.providers.aws.operators.sqs.SQSPublishOperator",
+        "airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator",
         "airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.sns.SnsPublishOperator",
+        "airflow.contrib.operators.sns_publish_operator.SnsPublishOperator",
     )
 ]
 SENSOR = [
@@ -792,11 +808,11 @@ SENSOR = [
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor",
     ),
     (
-        "airflow.providers.aws.sensors.athena.AthenaSensor",
+        "airflow.providers.amazon.aws.sensors.athena.AthenaSensor",
         "airflow.contrib.sensors.aws_athena_sensor.AthenaSensor",
     ),
     (
-        "airflow.providers.aws.sensors.sqs.SQSSensor",
+        "airflow.providers.amazon.aws.sensors.sqs.SQSSensor",
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
     ),
 

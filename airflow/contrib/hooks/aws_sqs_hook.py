@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.aws.hooks.sqs`."""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sqs`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.aws.hooks.sqs import SQSHook  # noqa
+from airflow.providers.amazon.aws.hooks.sqs import SQSHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.aws.hooks.sqs`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sqs`.",
     DeprecationWarning,
     stacklevel=2,
 )

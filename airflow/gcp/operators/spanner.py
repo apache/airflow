@@ -315,7 +315,7 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
     :type database_id: str
     :param ddl_statements: The string list containing DDL to apply to the database.
     :type ddl_statements: list[str]
-    :param project_id: Optional, the ID of the project that owns the the Cloud Spanner
+    :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: str
     :param operation_id: (Optional) Unique per database operation id that can

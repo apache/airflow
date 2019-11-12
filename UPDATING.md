@@ -41,6 +41,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Idempotency in BigQuery operators
+Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`. 
+But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table` 
+methods of `BigQueryHook`. 
+
 ### Migration of AWS components
 
 All AWS components (hooks, operators, sensors, example DAGs) will be grouped together as decided in
@@ -50,13 +55,16 @@ Migrated are:
 
 | Old path                                                     | New path                                                 |
 | ------------------------------------------------------------ | -------------------------------------------------------- |
-| airflow.hooks.S3_hook.S3Hook                                 | airflow.providers.aws.hooks.s3.S3Hook                    |
-| airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.aws.hooks.athena.AWSAthenaHook         |
-| airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.aws.hooks.sqs.SQSHook        |
-| airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.aws.operators.athena.AWSAthenaOperator |
-| airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.aws.operators.sqs.SQSPublishOperator |
-| airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.aws.sensors.athena.AthenaSensor        |
-| airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.aws.sensors.sqs.SQSSensor        |
+| airflow.hooks.S3_hook.S3Hook                                 | airflow.providers.amazon.aws.hooks.s3.S3Hook                    |
+| airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.amazon.aws.hooks.athena.AWSAthenaHook         |
+| airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook          | airflow.providers.amazon.aws.hooks.lambda_function.AwsLambdaHook         |
+| airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.amazon.aws.hooks.sqs.SQSHook        |
+| airflow.contrib.hooks.aws_sns_hook.AwsSnsHook                   | airflow.providers.amazon.aws.hooks.sns.AwsSnsHook        |
+| airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator |
+| airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator |
+| airflow.contrib.operators.aws_sns_publish_operator.SnsPublishOperator | airflow.providers.amazon.aws.operators.sns.SnsPublishOperator |
+| airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.amazon.aws.sensors.athena.AthenaSensor        |
+| airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.amazon.aws.sensors.sqs.SQSSensor        |
 
 ### Additional arguments passed to BaseOperator cause an exception
 
@@ -80,8 +88,9 @@ in case they are called using positional parameters.
 
 Hooks involved:
 
-  * PubSubHook
+  * DataFlowHook
   * MLEngineHook
+  * PubSubHook
 
 Other GCP hooks are unaffected.
 

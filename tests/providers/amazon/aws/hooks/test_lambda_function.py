@@ -24,7 +24,7 @@ import textwrap
 import unittest
 import zipfile
 
-from airflow.contrib.hooks.aws_lambda_hook import AwsLambdaHook
+from airflow.providers.amazon.aws.hooks.lambda_function import AwsLambdaHook
 
 try:
     from moto import mock_lambda
@@ -75,8 +75,8 @@ def lambda_handler(event, context):
             Publish=True,
         )
 
-        input = {'hello': 'airflow'}
-        response = hook.invoke_lambda(payload=json.dumps(input))
+        payload = {'hello': 'airflow'}
+        response = hook.invoke_lambda(payload=json.dumps(payload))
 
         self.assertEqual(response["StatusCode"], 202)
 
