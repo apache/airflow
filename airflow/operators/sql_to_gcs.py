@@ -252,10 +252,36 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
             contains the BigQuery schema fields in .json format.
         """
         schema = [self.field_to_bigquery(field) for field in cursor.description]
+        tmp_schema_file_handle = NamedTemporaryFile(delete=True)
+        if self.schema is not None and isinstance(self.schema, string_types):
+            schema = self.schema
+            tmp_schema_file_handle.write(schema)
+        else:
+            if self.schema is not None and isinstance(self.schema, list):
+                schema = self.schema
+            else:
+                for field in cursor.description:
+                    # See PEP 249 for details about the description tuple.
+                    field_name = field[0]
+                    field_type = self.type_map(field[1])
+                    # Always allow TIMESTAMP to be nullable. MySQLdb returns None types
+                    # for required fields because some MySQL timestamps can't be
+                    # represented by Python's datetime (e.g. 0000-00-00 00:00:00).
+                    if field[6] or field_type == 'TIMESTAMP':
+                        field_mode = 'NULLABLE'
+                    else:
+                        field_mode = 'REQUIRED'
+                    schema.append({
+                        'name': field_name,
+                        'type': field_type,
+                        'mode': field_mode,
+                    })
+            s = json.dumps(schema, tmp_schema_file_handle)
+            if PY3:
+                s = s.encode('utf-8')
+            tmp_schema_file_handle.write(s)
 
         self.log.info('Using schema for %s: %s', self.schema_filename, schema)
-        tmp_schema_file_handle = NamedTemporaryFile(delete=True)
-        tmp_schema_file_handle.write(json.dumps(schema, sort_keys=True).encode('utf-8'))
         schema_file_to_upload = {
             'file_name': self.schema_filename,
             'file_handle': tmp_schema_file_handle,
