@@ -16,24 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
+#
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
-set -euxo pipefail
+set -euo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1; pwd )"
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
-export AIRFLOW_SOURCES
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
-gosu "${AIRFLOW_USER}" nosetests --collect-only --with-xunit --xunit-file="${HOME}/all_tests.xml"
+in_container_basic_sanity_check
 
-gosu "${AIRFLOW_USER}" \
-    python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" \
-                    "${HOME}/all_tests.xml" >"${HOME}/all_tests.txt"; \
+in_container_script_start
 
-echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
+TMP_FILE=$(mktemp)
 
-chmod +x "${HOME}/run-tests-complete"
+nosetests --collect-only --with-xunit --xunit-file="${TMP_FILE}"
 
-chmod +x "${HOME}/run-tests"
+python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" "${TMP_FILE}" | sort >> "${HOME}/all_tests.txt"
 
-chown "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.bashrc" "${HOME}/run-tests-complete" "${HOME}/run-tests"
+in_container_script_end
