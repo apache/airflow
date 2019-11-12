@@ -30,7 +30,7 @@ ENV AIRFLOW_VERSION=$AIRFLOW_VERSION
 RUN echo "Base image: ${PYTHON_BASE_IMAGE}"
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
-# Make sure noninteractie debian install is used and language variables set
+# Make sure noninteractive debian install is used and language variables set
 ENV DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
 
@@ -320,7 +320,6 @@ COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 # In non-CI optimized build this will install all dependencies before installing sources.
 RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
-
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www_rbac
 
 # Copy all www files here so that we can run npm building for production
@@ -329,25 +328,10 @@ COPY airflow/www_rbac/ ${AIRFLOW_SOURCES}/airflow/www_rbac/
 # Package NPM for production
 RUN npm run prod
 
-# Cache for this line will be automatically invalidated if any
-# of airflow sources change
-COPY . ${AIRFLOW_SOURCES}/
-
-WORKDIR ${AIRFLOW_SOURCES}
-
-# Finally install the requirements from the latest sources
-RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
-
-# Additional python deps to install
-ARG ADDITIONAL_PYTHON_DEPS=""
-
-RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        pip install ${ADDITIONAL_PYTHON_DEPS}; \
-    fi
-
 COPY ./scripts/docker/entrypoint.sh /entrypoint.sh
 
 COPY .bash_completion run-tests-complete run-tests ${HOME}/
+
 COPY .bash_completion.d/run-tests-complete \
      ${HOME}/.bash_completion.d/run-tests-complete
 
@@ -356,6 +340,29 @@ RUN echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
 RUN chmod +x "${HOME}/run-tests-complete"
 
 RUN chmod +x "${HOME}/run-tests"
+
+# Copy selected subdirectories only
+COPY .github/ ${AIRFLOW_SOURCES}/.github/
+COPY dags/ ${AIRFLOW_SOURCES}/dags/
+COPY common/ ${AIRFLOW_SOURCES}/common/
+COPY licenses/ ${AIRFLOW_SOURCES}/licenses/
+COPY scripts/ci/ ${AIRFLOW_SOURCES}/scripts/ci/
+COPY docs/ ${AIRFLOW_SOURCES}/docs/
+COPY tests/ ${AIRFLOW_SOURCES}/tests/
+COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
+COPY .coveragerc .rat-excludes .flake8 LICENSE MANIFEST.in NOTICE CHANGELOG.txt \
+     .github .bash_completion .bash_completion.d run-tests run-tests-complete \
+     setup.cfg setup.py \
+     ${AIRFLOW_SOURCES}/
+
+WORKDIR ${AIRFLOW_SOURCES}
+
+# Additional python deps to install
+ARG ADDITIONAL_PYTHON_DEPS=""
+
+RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
+        pip install ${ADDITIONAL_PYTHON_DEPS}; \
+    fi
 
 WORKDIR ${AIRFLOW_SOURCES}
 
