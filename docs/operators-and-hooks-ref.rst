@@ -319,6 +319,11 @@ These integrations allow you to perform various operations within the Amazon Web
      -
      -
 
+   * - `AWS DataSync <https://aws.amazon.com/datasync/>`__
+     - :mod:`airflow.providers.amazon.aws.hooks.datasync`
+     - :mod:`airflow.providers.amazon.aws.operators.datasync`
+     - 
+
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      - :mod:`airflow.contrib.hooks.aws_dynamodb_hook`
      -
@@ -438,6 +443,11 @@ These integrations allow you to copy data from/to Amazon Web Services.
      - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
      -
      - :mod:`airflow.operators.s3_to_redshift_operator`
+
+   * - `On-premises NFS or SMB using Amazon DataSync <https://aws.amazon.com/datasync/>`__
+     - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     -
+     - :mod:`airflow.providers.amazon.aws.operators.datasync`
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
