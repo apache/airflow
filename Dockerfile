@@ -364,7 +364,6 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
-
 WORKDIR ${AIRFLOW_SOURCES}
 
 ENV PATH="${HOME}:${PATH}"

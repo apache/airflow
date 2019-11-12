@@ -238,7 +238,6 @@ class PodGenerator:
             requests = {
                 'cpu': namespaced.get('request_cpu'),
                 'memory': namespaced.get('request_memory')
-
             }
             limits = {
                 'cpu': namespaced.get('limit_cpu'),

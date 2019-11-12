@@ -34,7 +34,7 @@ import pytz
 import airflow.bin.cli as cli
 from airflow import AirflowException, models, settings
 from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
-from airflow.models import DagModel, TaskInstance
+from airflow.models import DagModel, TaskInstance, Variable
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -42,6 +42,7 @@ from tests.compat import mock
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
+DEV_NULL = "/dev/null"
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1))
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(dag_folder_path), 'dags')
@@ -189,57 +190,6 @@ class TestCLI(unittest.TestCase):
             ti.refresh_from_db()
             state = ti.current_state()
             self.assertEqual(state, State.SUCCESS)
-
-    def test_test(self):
-        """Test the `airflow test` command"""
-        args = create_mock_args(
-            task_id='print_the_context',
-            dag_id='example_python_operator',
-            subdir=None,
-            execution_date=timezone.parse('2018-01-01')
-        )
-
-        saved_stdout = sys.stdout
-        try:
-            sys.stdout = out = io.StringIO()
-            cli.test(args)
-
-            output = out.getvalue()
-            # Check that prints, and log messages, are shown
-            self.assertIn("'example_python_operator__print_the_context__20180101'", output)
-        finally:
-            sys.stdout = saved_stdout
-
-    @mock.patch("airflow.bin.cli.jobs.LocalTaskJob")
-    def test_run_naive_taskinstance(self, mock_local_job):
-        """
-        Test that we can run naive (non-localized) task instances
-        """
-        naive_date = datetime(2016, 1, 1)
-        dag_id = 'test_run_ignores_all_dependencies'
-
-        dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
-
-        task0_id = 'test_run_dependent_task'
-        args0 = ['tasks',
-                 'run',
-                 '-A',
-                 '--local',
-                 dag_id,
-                 task0_id,
-                 naive_date.isoformat()]
-
-        cli.run(self.parser.parse_args(args0), dag=dag)
-        mock_local_job.assert_called_once_with(
-            task_instance=mock.ANY,
-            mark_success=False,
-            ignore_all_deps=True,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            pickle_id=None,
-            pool=None,
-        )
 
 
 class TestCliDags(unittest.TestCase):
@@ -578,3 +528,228 @@ class TestCliDags(unittest.TestCase):
     def test_dag_state(self):
         self.assertEqual(None, cli.dag_state(self.parser.parse_args([
             'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
+
+
+class TestCliTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = models.DagBag(include_examples=True)
+        cls.parser = cli.CLIFactory.get_parser()
+
+    def test_cli_list_tasks(self):
+        for dag_id in self.dagbag.dags:
+            args = self.parser.parse_args(['tasks', 'list', dag_id])
+            cli.list_tasks(args)
+
+        args = self.parser.parse_args([
+            'tasks', 'list', 'example_bash_operator', '--tree'])
+        cli.list_tasks(args)
+
+    def test_test(self):
+        """Test the `airflow test` command"""
+        args = create_mock_args(
+            task_id='print_the_context',
+            dag_id='example_python_operator',
+            subdir=None,
+            execution_date=timezone.parse('2018-01-01')
+        )
+
+        saved_stdout = sys.stdout
+        try:
+            sys.stdout = out = io.StringIO()
+            cli.test(args)
+
+            output = out.getvalue()
+            # Check that prints, and log messages, are shown
+            self.assertIn("'example_python_operator__print_the_context__20180101'", output)
+        finally:
+            sys.stdout = saved_stdout
+
+    @mock.patch("airflow.bin.cli.jobs.LocalTaskJob")
+    def test_run_naive_taskinstance(self, mock_local_job):
+        """
+        Test that we can run naive (non-localized) task instances
+        """
+        naive_date = datetime(2016, 1, 1)
+        dag_id = 'test_run_ignores_all_dependencies'
+
+        dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
+
+        task0_id = 'test_run_dependent_task'
+        args0 = ['tasks',
+                 'run',
+                 '-A',
+                 '--local',
+                 dag_id,
+                 task0_id,
+                 naive_date.isoformat()]
+
+        cli.run(self.parser.parse_args(args0), dag=dag)
+        mock_local_job.assert_called_once_with(
+            task_instance=mock.ANY,
+            mark_success=False,
+            ignore_all_deps=True,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            pickle_id=None,
+            pool=None,
+        )
+
+    def test_cli_test(self):
+        cli.test(self.parser.parse_args([
+            'tasks', 'test', 'example_bash_operator', 'runme_0',
+            DEFAULT_DATE.isoformat()]))
+        cli.test(self.parser.parse_args([
+            'tasks', 'test', 'example_bash_operator', 'runme_0', '--dry_run',
+            DEFAULT_DATE.isoformat()]))
+
+    def test_cli_test_with_params(self):
+        cli.test(self.parser.parse_args([
+            'tasks', 'test', 'example_passing_params_via_test_command', 'run_this',
+            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+        cli.test(self.parser.parse_args([
+            'tasks', 'test', 'example_passing_params_via_test_command', 'also_run_this',
+            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
+
+    def test_cli_run(self):
+        cli.run(self.parser.parse_args([
+            'tasks', 'run', 'example_bash_operator', 'runme_0', '-l',
+            DEFAULT_DATE.isoformat()]))
+
+    def test_task_state(self):
+        cli.task_state(self.parser.parse_args([
+            'tasks', 'state', 'example_bash_operator', 'runme_0',
+            DEFAULT_DATE.isoformat()]))
+
+    def test_subdag_clear(self):
+        args = self.parser.parse_args([
+            'tasks', 'clear', 'example_subdag_operator', '--yes'])
+        cli.clear(args)
+        args = self.parser.parse_args([
+            'tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude_subdags'])
+        cli.clear(args)
+
+    def test_parentdag_downstream_clear(self):
+        args = self.parser.parse_args([
+            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes'])
+        cli.clear(args)
+        args = self.parser.parse_args([
+            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes',
+            '--exclude_parentdag'])
+        cli.clear(args)
+
+    def test_get_dags(self):
+        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator',
+                                                    '--yes']))
+        self.assertEqual(len(dags), 1)
+
+        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'subdag', '-dx', '--yes']))
+        self.assertGreater(len(dags), 1)
+
+        with self.assertRaises(AirflowException):
+            cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'foobar', '-dx', '--yes']))
+
+
+class TestCliVariables(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = models.DagBag(include_examples=True)
+        cls.parser = cli.CLIFactory.get_parser()
+
+    def test_variables(self):
+        # Checks if all subcommands are properly received
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'foo', '{"foo":"bar"}']))
+        cli.variables_get(self.parser.parse_args([
+            'variables', 'get', 'foo']))
+        cli.variables_get(self.parser.parse_args([
+            'variables', 'get', 'baz', '-d', 'bar']))
+        cli.variables_list(self.parser.parse_args([
+            'variables', 'list']))
+        cli.variables_delete(self.parser.parse_args([
+            'variables', 'delete', 'bar']))
+        cli.variables_import(self.parser.parse_args([
+            'variables', 'import', DEV_NULL]))
+        cli.variables_export(self.parser.parse_args([
+            'variables', 'export', DEV_NULL]))
+
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'bar', 'original']))
+        # First export
+        cli.variables_export(self.parser.parse_args([
+            'variables', 'export', 'variables1.json']))
+
+        first_exp = open('variables1.json', 'r')
+
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'bar', 'updated']))
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'foo', '{"foo":"oops"}']))
+        cli.variables_delete(self.parser.parse_args([
+            'variables', 'delete', 'foo']))
+        # First import
+        cli.variables_import(self.parser.parse_args([
+            'variables', 'import', 'variables1.json']))
+
+        self.assertEqual('original', Variable.get('bar'))
+        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
+        # Second export
+        cli.variables_export(self.parser.parse_args([
+            'variables', 'export', 'variables2.json']))
+
+        second_exp = open('variables2.json', 'r')
+        self.assertEqual(first_exp.read(), second_exp.read())
+        second_exp.close()
+        first_exp.close()
+        # Second import
+        cli.variables_import(self.parser.parse_args([
+            'variables', 'import', 'variables2.json']))
+
+        self.assertEqual('original', Variable.get('bar'))
+        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
+
+        # Set a dict
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'dict', '{"foo": "oops"}']))
+        # Set a list
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'list', '["oops"]']))
+        # Set str
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'str', 'hello string']))
+        # Set int
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'int', '42']))
+        # Set float
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'float', '42.0']))
+        # Set true
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'true', 'true']))
+        # Set false
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'false', 'false']))
+        # Set none
+        cli.variables_set(self.parser.parse_args([
+            'variables', 'set', 'null', 'null']))
+
+        # Export and then import
+        cli.variables_export(self.parser.parse_args([
+            'variables', 'export', 'variables3.json']))
+        cli.variables_import(self.parser.parse_args([
+            'variables', 'import', 'variables3.json']))
+
+        # Assert value
+        self.assertEqual({'foo': 'oops'}, Variable.get('dict', deserialize_json=True))
+        self.assertEqual(['oops'], Variable.get('list', deserialize_json=True))
+        self.assertEqual('hello string', Variable.get('str'))  # cannot json.loads(str)
+        self.assertEqual(42, Variable.get('int', deserialize_json=True))
+        self.assertEqual(42.0, Variable.get('float', deserialize_json=True))
+        self.assertEqual(True, Variable.get('true', deserialize_json=True))
+        self.assertEqual(False, Variable.get('false', deserialize_json=True))
+        self.assertEqual(None, Variable.get('null', deserialize_json=True))
+
+        os.remove('variables1.json')
+        os.remove('variables2.json')
+        os.remove('variables3.json')

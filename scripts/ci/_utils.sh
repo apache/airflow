@@ -863,7 +863,9 @@ function build_image_on_ci() {
     echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
     echo
 
-    CHANGED_FILE_NAMES=$(git diff --name-only "${TRAVIS_BRANCH}...HEAD")
+    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+    git fetch origin "${TRAVIS_BRANCH}"
+    CHANGED_FILE_NAMES=$(git diff --name-only "remotes/origin/${TRAVIS_BRANCH}...HEAD")
     echo
     echo "Changed file names in this commit"
     echo "${CHANGED_FILE_NAMES}"
