@@ -99,7 +99,6 @@ function build_python_image {
     MY_IMAGE_TAG="${2}"
     TARGET_IMAGE="${3}"
     AIRFLOW_EXTRAS="${4:-all}"
-    AIRFLOW_USER="${5:-airflow}"
     HOME="${6:-/home/airflow}"
 
     echo "Build ${NAME} image: ${MY_IMAGE_TAG}"
@@ -111,7 +110,6 @@ function build_python_image {
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
-        --build-arg AIRFLOW_USER="${AIRFLOW_USER}" \
         --build-arg AIRFLOW_BRANCH="${AIRFLOW_CONTAINER_BRANCH_NAME}" \
         --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
         --build-arg HOME="${HOME}" \
