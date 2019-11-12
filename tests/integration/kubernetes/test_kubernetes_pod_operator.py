@@ -74,6 +74,11 @@ class TestKubernetesPodOperator(unittest.TestCase):
                     'envFrom': [],
                     'name': 'base',
                     'ports': [],
+                    'resources': {'limits': {'cpu': None,
+                                             'memory': None,
+                                             'nvidia.com/gpu': None},
+                                  'requests': {'cpu': None,
+                                               'memory': None}},
                     'volumeMounts': [],
                 }],
                 'hostNetwork': False,
@@ -100,7 +105,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            config_file=new_config_path
+            in_cluster=False,
+            do_xcom_push=False,
+            config_file=new_config_path,
         )
         k.execute(None)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
@@ -120,16 +127,17 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            config_file=file_path,
             in_cluster=False,
-            cluster_context='default'
+            do_xcom_push=False,
+            config_file=file_path,
+            cluster_context='default',
         )
         launcher_mock.return_value = (State.SUCCESS, None)
         k.execute(None)
         client_mock.assert_called_once_with(
             in_cluster=False,
             cluster_context='default',
-            config_file=file_path
+            config_file=file_path,
         )
 
     @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
@@ -146,9 +154,10 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            image_pull_secrets=fake_pull_secrets,
             in_cluster=False,
-            cluster_context='default'
+            do_xcom_push=False,
+            image_pull_secrets=fake_pull_secrets,
+            cluster_context='default',
         )
         launcher_mock.return_value = (State.SUCCESS, None)
         k.execute(None)
@@ -170,8 +179,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             name="test",
             task_id="task",
             in_cluster=False,
+            do_xcom_push=False,
             cluster_context='default',
-            is_delete_operator_pod=True
+            is_delete_operator_pod=True,
         )
         run_pod_mock.side_effect = AirflowException('fake failure')
         with self.assertRaises(AirflowException):
@@ -186,7 +196,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             arguments=["echo 10"],
             labels={"foo": "bar"},
             name="test",
-            task_id="task"
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
         )
         k.execute(None)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
@@ -201,7 +213,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            is_delete_operator_pod=True
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=True,
         )
         k.execute(None)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
@@ -216,7 +230,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            hostnetwork=True
+            in_cluster=False,
+            do_xcom_push=False,
+            hostnetwork=True,
         )
         k.execute(None)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
@@ -233,6 +249,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             hostnetwork=True,
             dnspolicy=dns_policy
         )
@@ -254,6 +272,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             node_selectors=node_selectors,
         )
         k.execute(None)
@@ -263,14 +283,10 @@ class TestKubernetesPodOperator(unittest.TestCase):
 
     def test_pod_resources(self):
         resources = {
-            'limits': {
-                'cpu': '250m',
-                'memory': '64Mi',
-            },
-            'requests': {
-                'cpu': '250m',
-                'memory': '64Mi',
-            }
+            'limit_cpu': 0.25,
+            'limit_memory': '64Mi',
+            'request_cpu': '250m',
+            'request_memory': '64Mi',
         }
         k = KubernetesPodOperator(
             namespace='default',
@@ -280,11 +296,23 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             resources=resources,
         )
         k.execute(None)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod['spec']['containers'][0]['resources'] = resources
+        self.expected_pod['spec']['containers'][0]['resources'] = {
+            'requests': {
+                'memory': '64Mi',
+                'cpu': '250m'
+            },
+            'limits': {
+                'memory': '64Mi',
+                'cpu': 0.25,
+                'nvidia.com/gpu': None
+            }
+        }
         self.assertEqual(self.expected_pod, actual_pod)
 
     def test_pod_affinity(self):
@@ -313,6 +341,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             affinity=affinity,
         )
         k.execute(None)
@@ -331,7 +361,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            ports=[port]
+            in_cluster=False,
+            do_xcom_push=False,
+            ports=[port],
         )
         k.execute(None)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
@@ -365,7 +397,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 volume_mounts=[volume_mount],
                 volumes=[volume],
                 name="test",
-                task_id="task"
+                task_id="task",
+                in_cluster=False,
+                do_xcom_push=False,
             )
             k.execute(None)
             mock_logger.info.assert_any_call(b"retrieved from mount\n")
@@ -398,6 +432,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             security_context=security_context,
         )
         k.execute(None)
@@ -420,6 +456,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             security_context=security_context,
         )
         k.execute(None)
@@ -442,6 +480,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             security_context=security_context,
         )
         k.execute(None)
@@ -459,7 +499,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            startup_timeout_seconds=5
+            in_cluster=False,
+            do_xcom_push=False,
+            startup_timeout_seconds=5,
         )
         with self.assertRaises(AirflowException):
             k.execute(None)
@@ -477,8 +519,10 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             startup_timeout_seconds=5,
-            service_account_name=bad_service_account_name
+            service_account_name=bad_service_account_name,
         )
         with self.assertRaises(ApiException):
             k.execute(None)
@@ -498,7 +542,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             arguments=bad_internal_command,
             labels={"foo": "bar"},
             name="test",
-            task_id="task"
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
         )
         with self.assertRaises(AirflowException):
             k.execute(None)
@@ -517,7 +563,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            do_xcom_push=True
+            in_cluster=False,
+            do_xcom_push=True,
         )
         self.assertEqual(k.execute(None), json.loads(return_value))
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
@@ -546,7 +593,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            configmaps=[configmap]
+            in_cluster=False,
+            do_xcom_push=False,
+            configmaps=[configmap],
         )
         # THEN
         mock_launcher.return_value = (State.SUCCESS, None)
@@ -575,6 +624,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
         )
         # THEN
         launcher_mock.return_value = (State.SUCCESS, None)
