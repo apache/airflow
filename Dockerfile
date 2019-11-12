@@ -214,16 +214,13 @@ ENV RAT_JAR_MD5="${RAT_JAR}.md5" \
 RUN echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
     && curl -sL "${RAT_URL}" > "${RAT_JAR}" \
     && curl -sL "${RAT_URL_MD5}" > "${RAT_JAR_MD5}" \
-    && jar -tf "${RAT_JAR}" \
+    && jar -tf "${RAT_JAR}" >/dev/null \
     && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
 
-ARG AIRFLOW_USER=airflow
-ENV AIRFLOW_USER=${AIRFLOW_USER}
-
-ARG HOME=/home/airflow
+ARG HOME=/root
 ENV HOME=${HOME}
 
-ARG AIRFLOW_HOME=${HOME}/airflow
+ARG AIRFLOW_HOME=/root/airflow
 ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 
 ARG AIRFLOW_SOURCES=/opt/airflow
@@ -233,8 +230,7 @@ WORKDIR ${AIRFLOW_SOURCES}
 
 RUN mkdir -pv ${AIRFLOW_HOME} \
     mkdir -pv ${AIRFLOW_HOME}/dags \
-    mkdir -pv ${AIRFLOW_HOME}/logs \
-    && chown -R ${AIRFLOW_USER}.${AIRFLOW_USER} ${AIRFLOW_HOME}
+    mkdir -pv ${AIRFLOW_HOME}/logs
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
 ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
@@ -297,12 +293,12 @@ RUN \
 # Install NPM dependencies here. The NPM dependencies don't change that often and we already have pip
 # installed dependencies in case of CI optimised build, so it is ok to install NPM deps here
 # Rather than after setup.py is added.
-COPY --chown=airflow:airflow airflow/www/package-lock.json ${AIRFLOW_SOURCES}/airflow/www/package-lock.json
-COPY --chown=airflow:airflow airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/package.json
+COPY airflow/www/package-lock.json ${AIRFLOW_SOURCES}/airflow/www/package-lock.json
+COPY airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/package.json
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 
-RUN gosu ${AIRFLOW_USER} npm ci
+RUN npm ci
 
 WORKDIR ${AIRFLOW_SOURCES}
 
@@ -312,12 +308,12 @@ WORKDIR ${AIRFLOW_SOURCES}
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy setup.py and other files needed to perform setup of dependencies
 # So in case setup.py changes we can install latest dependencies required.
-COPY --chown=airflow:airflow setup.py ${AIRFLOW_SOURCES}/setup.py
-COPY --chown=airflow:airflow setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
+COPY setup.py ${AIRFLOW_SOURCES}/setup.py
+COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
 
-COPY --chown=airflow:airflow airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
-COPY --chown=airflow:airflow airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
-COPY --chown=airflow:airflow airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
+COPY airflow/version.py ${AIRFLOW_SOURCES}/airflow/version.py
+COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/__init__.py
+COPY airflow/bin/airflow ${AIRFLOW_SOURCES}/airflow/bin/airflow
 
 # The goal of this line is to install the dependencies from the most current setup.py from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
@@ -328,14 +324,14 @@ RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 
 # Copy all www files here so that we can run npm building for production
-COPY --chown=airflow:airflow airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
+COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
 
 # Package NPM for production
-RUN gosu ${AIRFLOW_USER} npm run prod
+RUN npm run prod
 
 # Cache for this line will be automatically invalidated if any
 # of airflow sources change
-COPY --chown=airflow:airflow . ${AIRFLOW_SOURCES}/
+COPY . ${AIRFLOW_SOURCES}/
 
 WORKDIR ${AIRFLOW_SOURCES}
 
@@ -349,10 +345,10 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         pip install ${ADDITIONAL_PYTHON_DEPS}; \
     fi
 
-COPY --chown=airflow:airflow ./scripts/docker/entrypoint.sh /entrypoint.sh
+COPY ./scripts/docker/entrypoint.sh /entrypoint.sh
 
-COPY --chown=airflow:airflow .bash_completion run-tests-complete run-tests ${HOME}/
-COPY --chown=airflow:airflow .bash_completion.d/run-tests-complete \
+COPY .bash_completion run-tests-complete run-tests ${HOME}/
+COPY .bash_completion.d/run-tests-complete \
      ${HOME}/.bash_completion.d/run-tests-complete
 
 RUN echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
