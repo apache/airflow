@@ -18,7 +18,7 @@
 
 .. contents:: :local:
 
-About Local Virtual Environment (virtualenv)
+Local Virtual Environment (virtualenv)
 ============================================
 
 Use the local virtualenv development option in the combination with the _`Breeze <BREEZE.rst#aout-airflow-breeze>`_
