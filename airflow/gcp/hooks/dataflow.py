@@ -42,7 +42,8 @@ DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
 # https://github.com/apache/beam/blob/75eee7857bb80a0cdb4ce99ae3e184101092e2ed/sdks/go/pkg/beam/runners/
 # universal/runnerlib/execute.go#L85
-JOB_ID_PATTERN = re.compile(r'Submitted job:\s+([a-z|0-9|A-Z|\-|\_]+).*')
+JOB_ID_PATTERN = re.compile(
+    r'https?://console\.cloud\.google\.com/dataflow/jobsDetail/locations/.+?/jobs/([a-z|0-9|A-Z|\-|\_]+).*?')
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
 
