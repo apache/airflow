@@ -97,7 +97,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            config_file=new_config_path
+            in_cluster=False,
+            do_xcom_push=False,
+            config_file=new_config_path,
         )
         k.execute(None)
 
@@ -117,7 +119,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             task_id="task",
             config_file=file_path,
             in_cluster=False,
-            cluster_context='default'
+            do_xcom_push=False,
+            cluster_context='default',
         )
         launcher_mock.return_value = (State.SUCCESS, None)
         k.execute(None)
@@ -143,7 +146,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             task_id="task",
             image_pull_secrets=fake_pull_secrets,
             in_cluster=False,
-            cluster_context='default'
+            do_xcom_push=False,
+            cluster_context='default',
         )
         mock_launcher.return_value = (State.SUCCESS, None)
         k.execute(None)
@@ -163,8 +167,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             name="test",
             task_id="task",
             in_cluster=False,
+            do_xcom_push=False,
             cluster_context='default',
-            is_delete_operator_pod=True
+            is_delete_operator_pod=True,
         )
         run_pod_mock.side_effect = AirflowException('fake failure')
         with self.assertRaises(AirflowException):
@@ -179,7 +184,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             arguments=["echo 10"],
             labels={"foo": "bar"},
             name="test",
-            task_id="task"
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
         )
         k.execute(None)
 
@@ -192,7 +199,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            is_delete_operator_pod=True
+            is_delete_operator_pod=True,
+            in_cluster=False,
+            do_xcom_push=False,
         )
         k.execute(None)
 
@@ -205,7 +214,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            hostnetwork=True
+            in_cluster=False,
+            do_xcom_push=False,
+            hostnetwork=True,
         )
         k.execute(None)
 
@@ -219,8 +230,10 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             hostnetwork=True,
-            dnspolicy=dns_policy
+            dnspolicy=dns_policy,
         )
         k.execute(None)
 
@@ -236,20 +249,18 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             node_selectors=node_selectors,
         )
         k.execute(None)
 
     def test_pod_resources(self):
         resources = {
-            'limits': {
-                'cpu': '250m',
-                'memory': '64Mi',
-            },
-            'requests': {
-                'cpu': '250m',
-                'memory': '64Mi',
-            }
+            'limit_cpu': 0.25,
+            'limit_memory': '64Mi',
+            'request_cpu': '250m',
+            'request_memory': '64Mi',
         }
         k = KubernetesPodOperator(
             namespace='default',
@@ -259,6 +270,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             resources=resources,
         )
         k.execute(None)
@@ -289,6 +302,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             affinity=affinity,
         )
         k.execute(None)
@@ -304,7 +319,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            ports=[port]
+            in_cluster=False,
+            do_xcom_push=False,
+            ports=[port],
         )
         k.execute(None)
 
@@ -332,7 +349,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 volume_mounts=[volume_mount],
                 volumes=[volume],
                 name="test",
-                task_id="task"
+                task_id="task",
+                in_cluster=False,
+                do_xcom_push=False,
             )
             k.execute(None)
             mock_logger.info.assert_any_call(b"retrieved from mount\n")
@@ -351,6 +370,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             security_context=security_context,
         )
         k.execute(None)
@@ -370,6 +391,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             security_context=security_context,
         )
         k.execute(None)
@@ -389,6 +412,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             security_context=security_context,
         )
         k.execute(None)
@@ -403,6 +428,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             startup_timeout_seconds=5
         )
         with self.assertRaises(AirflowException):
@@ -418,6 +445,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             startup_timeout_seconds=5,
             service_account_name=bad_service_account_name
         )
@@ -436,7 +465,9 @@ class TestKubernetesPodOperator(unittest.TestCase):
             arguments=bad_internal_command,
             labels={"foo": "bar"},
             name="test",
-            task_id="task"
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
         )
         with self.assertRaises(AirflowException):
             k.execute(None)
@@ -452,7 +483,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            xcom_push=True
+            in_cluster=False,
+            do_xcom_push=True,
         )
         self.assertEqual(k.execute(None), json.loads(return_value))
 
@@ -471,6 +503,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
             configmaps=configmaps
         )
         # THEN
@@ -495,6 +529,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
         )
         # THEN
         mock_launcher.return_value = (State.SUCCESS, None)

@@ -17,6 +17,8 @@
 
 
 class Resources:
+    __slots__ = ('request_memory', 'request_cpu', 'limit_memory', 'limit_cpu', 'limit_gpu')
+
     def __init__(
             self,
             request_memory=None,
