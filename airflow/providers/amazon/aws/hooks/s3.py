@@ -68,8 +68,7 @@ class S3Hook(AwsHook):
     def get_conn(self):
         if self.connection is None:
             self.connection = self.get_client_type('s3')
-        else:
-            return self.connection
+        return self.connection
 
     @staticmethod
     def parse_s3_url(s3url):
