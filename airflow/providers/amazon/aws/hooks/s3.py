@@ -62,9 +62,14 @@ class S3Hook(AwsHook):
     """
     Interact with AWS S3, using the boto3 library.
     """
+    def __init__(self):
+        self.connection = None
 
     def get_conn(self):
-        return self.get_client_type('s3')
+        if self.connection == None:
+            self.connection = self.get_client_type('s3')
+        else:
+            return self.connection
 
     @staticmethod
     def parse_s3_url(s3url):
