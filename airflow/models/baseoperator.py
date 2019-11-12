@@ -528,7 +528,7 @@ class BaseOperator(LoggingMixin):
         elif self.has_dag() and self.dag is not dag:
             raise AirflowException(
                 "The DAG assigned to {} can not be changed.".format(self))
-        elif self.task_id not in dag.task_dict:
+        elif self.task_id:
             dag.add_task(self)
 
         self._dag = dag  # pylint: disable=attribute-defined-outside-init

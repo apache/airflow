@@ -31,7 +31,7 @@ import pendulum
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowDagCycleException, AirflowException
+from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
 from airflow.models import DAG, DagModel, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
@@ -915,3 +915,13 @@ class TestDag(unittest.TestCase):
             self.assertIn('t1', stdout_lines[0])
             self.assertIn('t2', stdout_lines[1])
             self.assertIn('t3', stdout_lines[2])
+
+    def test_duplicate_task_ids_not_allowed(self):
+        """Verify tasks with Duplicate task_id raises error"""
+        with self.assertRaisesRegex(
+            DuplicateTaskIdFound, "Task id 't1' has already been added to the DAG"
+        ):
+            with DAG("test_dag", start_date=DEFAULT_DATE):
+                t1 = DummyOperator(task_id="t1")
+                t2 = DummyOperator(task_id="t1")
+                t1 >> t2

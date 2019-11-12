@@ -95,6 +95,10 @@ class DagFileExists(AirflowBadRequest):
     """Raise when a DAG ID is still in DagBag i.e., DAG file is in DAG folder"""
 
 
+class DuplicateTaskIdFound(AirflowException):
+    """Raise when a Task with duplicate task_id is defined in the same DAG"""
+
+
 class TaskNotFound(AirflowNotFoundException):
     """Raise when a Task is not available in the system"""
 
