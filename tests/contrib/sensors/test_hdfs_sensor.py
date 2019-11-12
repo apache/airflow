@@ -21,10 +21,9 @@ import re
 import unittest
 from datetime import timedelta
 
-from tests.test_utils.hdfs_utils import FakeHDFSHook
-
 from airflow.contrib.sensors.hdfs_sensor import HdfsSensorFolder, HdfsSensorRegex
 from airflow.exceptions import AirflowSensorTimeout
+from tests.test_utils.hdfs_utils import FakeHDFSHook
 
 
 class TestHdfsSensorFolder(unittest.TestCase):

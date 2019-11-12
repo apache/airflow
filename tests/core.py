@@ -37,8 +37,6 @@ from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
-from tests.test_utils.config import conf_vars
-
 from airflow import DAG, configuration, exceptions, jobs, models, settings, utils
 from airflow.bin import cli
 from airflow.configuration import AirflowConfigException, conf, run_command
@@ -57,6 +55,7 @@ from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_tim
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.version import version
+from tests.test_utils.config import conf_vars
 
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
