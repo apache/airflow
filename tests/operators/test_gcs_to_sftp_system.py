@@ -17,48 +17,33 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Build operators"""
-import unittest
 
-from tests.gcp.utils.base_gcp_system_test_case import (
-    OPERATORS_EXAMPLES_DAG_FOLDER, SKIP_TEST_WARNING, TestDagGcpSystem,
-)
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.operators.test_gcs_to_sftp_system_helper import GcsToSFTPTestHelper
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
-class GcsToSftpExampleDagsSystemTest(TestDagGcpSystem):
+@skip_gcp_system(GCP_GCS_KEY)
+class GcsToSftpExampleDagsSystemTest(SystemTest):
     """
     System tests for Google Cloud Storage to SFTP transfer operator
 
     It use a real service.
     """
 
-    def __init__(self, method_name="runTest"):
-        super().__init__(
-            method_name,
-            dag_id="example_gcs_to_sftp",
-            dag_name="example_gcs_to_sftp.py",
-            example_dags_folder=OPERATORS_EXAMPLES_DAG_FOLDER,
-            gcp_key=GCP_GCS_KEY,
-        )
-        self.helper = GcsToSFTPTestHelper()
+    helper = GcsToSFTPTestHelper()
 
+    @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.create_buckets()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.create_buckets()
 
+    @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag(self):
-        self._run_dag()
+        self.run_dag("example_gcs_to_sftp", GCP_DAG_FOLDER)
 
+    @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.delete_buckets()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.delete_buckets()
         super().tearDown()

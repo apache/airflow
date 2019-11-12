@@ -305,11 +305,11 @@ These integrations allow you to perform various operations within the Amazon Web
      - Sensors
 
    * - `Amazon Athena <https://aws.amazon.com/athena/>`__
-     - :mod:`airflow.contrib.hooks.aws_athena_hook`
-     - :mod:`airflow.contrib.operators.aws_athena_operator`
-     - :mod:`airflow.contrib.sensors.aws_athena_sensor`
+     - :mod:`airflow.providers.amazon.aws.hooks.athena`
+     - :mod:`airflow.providers.amazon.aws.operators.athena`
+     - :mod:`airflow.providers.amazon.aws.sensors.athena`
 
-   * - `AWS Batch <https://aws.amazon.com/athena/>`__
+   * - `AWS Batch <https://aws.amazon.com/batch/>`__
      -
      - :mod:`airflow.contrib.operators.awsbatch_operator`
      -
@@ -348,8 +348,8 @@ These integrations allow you to perform various operations within the Amazon Web
      -
      -
 
-   * - `AWS Lambda <https://aws.amazon.com/kinesis/>`__
-     - :mod:`airflow.contrib.hooks.aws_lambda_hook`
+   * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
+     - :mod:`airflow.providers.amazon.aws.hooks.lambda_function`
      -
      -
 
@@ -359,7 +359,7 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.contrib.sensors.aws_redshift_cluster_sensor`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
-     - :mod:`airflow.hooks.S3_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.s3`
      - :mod:`airflow.operators.s3_file_transform_operator`,
        :mod:`airflow.contrib.operators.s3_copy_object_operator`,
        :mod:`airflow.contrib.operators.s3_delete_objects_operator`,
@@ -383,14 +383,14 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
-     - :mod:`airflow.contrib.hooks.aws_sns_hook`
-     - :mod:`airflow.contrib.operators.sns_publish_operator`
+     - :mod:`airflow.providers.amazon.aws.hooks.sns`
+     - :mod:`airflow.providers.amazon.aws.operators.sns`
      -
 
-   * - `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sns/>`__
-     - :mod:`airflow.contrib.hooks.aws_sqs_hook`
-     - :mod:`airflow.contrib.operators.aws_sqs_publish_operator`
-     - :mod:`airflow.contrib.sensors.aws_sqs_sensor`
+   * - `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sqs/>`__
+     - :mod:`airflow.providers.amazon.aws.hooks.sqs`
+     - :mod:`airflow.providers.amazon.aws.operators.sqs`
+     - :mod:`airflow.providers.amazon.aws.sensors.sqs`
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
@@ -601,15 +601,15 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Natural Language <https://cloud.google.com/natural-language/>`__
      - :doc:`How to use <howto/operator/gcp/natural_language>`
-     - :mod:`airflow.gcp.hooks.natural_language`
-     - :mod:`airflow.gcp.operators.natural_language`
+     - :mod:`airflow.providers.google.cloud.hooks.natural_language`
+     - :mod:`airflow.providers.google.cloud.operators.natural_language`
      -
 
    * - `Cloud Pub/Sub <https://cloud.google.com/pubsub/>`__
-     -
-     - :mod:`airflow.gcp.hooks.pubsub`
-     - :mod:`airflow.gcp.operators.pubsub`
-     - :mod:`airflow.gcp.sensors.pubsub`
+     - :doc:`How to use <howto/operator/gcp/pubsub>`
+     - :mod:`airflow.providers.google.cloud..hooks.pubsub`
+     - :mod:`airflow.providers.google.cloud..operators.pubsub`
+     - :mod:`airflow.providers.google.cloud..sensors.pubsub`
 
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`
@@ -667,8 +667,8 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Vision <https://cloud.google.com/vision/>`__
      - :doc:`How to use <howto/operator/gcp/vision>`
-     - :mod:`airflow.gcp.hooks.vision`
-     - :mod:`airflow.gcp.operators.vision`
+     - :mod:`airflow.providers.google.cloud.hooks.vision`
+     - :mod:`airflow.providers.google.cloud.operators.vision`
      -
 
 
@@ -773,7 +773,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - SFTP
-     -
+     - :doc:`How to use <howto/operator/gcp/gcs_to_sftp>`
      - :mod:`airflow.operators.gcs_to_sftp`
 
 
@@ -841,6 +841,11 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.contrib.sensors.datadog_sensor`
 
+   * - `Pagerduty <https://www.pagerduty.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.pagerduty_hook`
+     -
+     -
 
    * - `Dingding <https://oapi.dingtalk.com>`__
      - :doc:`How to use <howto/operator/dingding>`

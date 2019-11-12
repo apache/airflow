@@ -17,37 +17,32 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import unittest
 
 from tests.contrib.operators.test_dataproc_operator_system_helper import DataprocTestHelper
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_DATAPROC_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
 PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_DATAPROC_KEY), SKIP_TEST_WARNING)
-class DataprocExampleDagsTest(TestDagGcpSystem):
+@skip_gcp_system(GCP_DATAPROC_KEY, require_local_executor=True)
+class DataprocExampleDagsTest(SystemTest):
+    helper = DataprocTestHelper()
+
+    @provide_gcp_context(GCP_DATAPROC_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.create_test_bucket(BUCKET)
         self.helper.upload_test_file(PYSPARK_URI, PYSPARK_MAIN)
-        self.gcp_authenticator.gcp_revoke_authentication()
 
+    @provide_gcp_context(GCP_DATAPROC_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_gcs_bucket_elements(BUCKET)
-        self.gcp_authenticator.gcp_revoke_authentication()
         super().tearDown()
 
-    def __init__(self, method_name="runTest"):
-        super().__init__(
-            method_name, dag_id="example_gcp_dataproc", gcp_key=GCP_DATAPROC_KEY
-        )
-        self.helper = DataprocTestHelper()
-
+    @provide_gcp_context(GCP_DATAPROC_KEY)
     def test_run_example_dag(self):
-        self._run_dag()
+        self.run_dag(dag_id="example_gcp_dataproc", dag_folder=GCP_DAG_FOLDER)

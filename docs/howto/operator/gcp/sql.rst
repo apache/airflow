@@ -318,7 +318,7 @@ It is not the service account configured in Airflow that communicates with GCS,
 but rather the service account of the particular Cloud SQL instance.
 
 To grant the service account with the appropriate WRITE permissions for the GCS bucket
-you can use the :class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`,
+you can use the :class:`~airflow.contrib.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator`,
 as shown in the example:
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_sql.py

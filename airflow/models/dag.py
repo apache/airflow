@@ -662,15 +662,16 @@ class DAG(BaseDag, LoggingMixin):
         :param session:
         :return: number greater than 0 for active dag runs
         """
+        # .count() is inefficient
         query = (session
-                 .query(DagRun)
+                 .query(func.count())
                  .filter(DagRun.dag_id == self.dag_id)
                  .filter(DagRun.state == State.RUNNING))
 
         if external_trigger is not None:
             query = query.filter(DagRun.external_trigger == external_trigger)
 
-        return query.count()
+        return query.scalar()
 
     @provide_session
     def get_dagrun(self, execution_date, session=None):
@@ -1309,7 +1310,7 @@ class DAG(BaseDag, LoggingMixin):
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
 
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime
@@ -1622,7 +1623,7 @@ class DagModel(Base):
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
 
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime

@@ -153,7 +153,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
         with patch('boto3.session.Session', self.boto3_session_mock):
             operator = EmrJobFlowSensor(
                 task_id='test_task',
-                poke_interval=2,
+                poke_interval=0,
                 job_flow_id='j-8989898989',
                 aws_conn_id='aws_default'
             )

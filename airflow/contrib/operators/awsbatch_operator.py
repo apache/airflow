@@ -93,7 +93,7 @@ class AWSBatchOperator(BaseOperator):
         self.job_definition = job_definition
         self.job_queue = job_queue
         self.overrides = overrides
-        self.array_properties = array_properties
+        self.array_properties = array_properties or {}
         self.max_retries = max_retries
 
         self.jobId = None  # pylint: disable=invalid-name

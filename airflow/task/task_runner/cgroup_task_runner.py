@@ -179,7 +179,7 @@ class CgroupTaskRunner(BaseTaskRunner):
 
     def return_code(self):
         return_code = self.process.poll()
-        # TODO(plypaul) Monitoring the the control file in the cgroup fs is better than
+        # TODO(plypaul) Monitoring the control file in the cgroup fs is better than
         # checking the return code here. The PR to use this is here:
         # https://github.com/plypaul/airflow/blob/e144e4d41996300ffa93947f136eab7785b114ed/airflow/contrib/task_runner/cgroup_task_runner.py#L43
         # but there were some issues installing the python butter package and

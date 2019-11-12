@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.gcp.hooks.functions import GcfHook
+from airflow.gcp.hooks.functions import CloudFunctionsHook
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator, GcpFieldValidationException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -190,7 +190,7 @@ class GcfFunctionDeployOperator(BaseOperator):
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
 
     def execute(self, context):
-        hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = CloudFunctionsHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         if self.zip_path_preprocessor.should_upload_function():
             self.body[GCF_SOURCE_UPLOAD_URL] = self._upload_source_code(hook)
         self._validate_all_body_fields()
@@ -334,7 +334,7 @@ class GcfFunctionDeleteOperator(BaseOperator):
                     'Parameter name must match pattern: {}'.format(FUNCTION_NAME_PATTERN))
 
     def execute(self, context):
-        hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = CloudFunctionsHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         try:
             return hook.delete_function(self.name)
         except HttpError as e:
@@ -389,7 +389,7 @@ class GcfFunctionInvokeOperator(BaseOperator):
         self.api_version = api_version
 
     def execute(self, context: Dict):
-        hook = GcfHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudFunctionsHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         self.log.info('Calling function %s.', self.function_id)
         result = hook.call_function(
             function_id=self.function_id,

@@ -126,9 +126,8 @@ class TestStandardTaskRunner(unittest.TestCase):
 
         runner.terminate()
 
-        f = open(path, "r")
-        self.assertEqual("ON_KILL_TEST", f.readline())
-        f.close()
+        with open(path, "r") as f:
+            self.assertEqual("ON_KILL_TEST", f.readline())
 
 
 if __name__ == '__main__':

@@ -22,8 +22,8 @@ import argparse
 import os
 
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-from tests.gcp.utils.base_gcp_system_test_case import RetrieveVariables
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY, GcpAuthenticator
+from tests.test_utils.gcp_system_helpers import RetrieveVariables
 
 retrieve_variables = RetrieveVariables()
 

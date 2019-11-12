@@ -17,42 +17,36 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
 from airflow.gcp.example_dags.example_bigquery_dts import (
     BUCKET_URI, GCP_DTS_BQ_DATASET, GCP_DTS_BQ_TABLE, GCP_PROJECT_ID,
 )
 from tests.gcp.operators.test_bigquery_dts_system_helper import GcpBigqueryDtsTestHelper
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_BIGQUERY_KEY), SKIP_TEST_WARNING)
-class GcpBigqueryDtsSystemTest(TestDagGcpSystem):
-    def __init__(self, method_name="runTest"):
-        super(GcpBigqueryDtsSystemTest, self).__init__(
-            method_name, dag_id="example_gcp_bigquery_dts", gcp_key=GCP_BIGQUERY_KEY
-        )
-        self.helper = GcpBigqueryDtsTestHelper()
+@skip_gcp_system(GCP_BIGQUERY_KEY, require_local_executor=True)
+class GcpBigqueryDtsSystemTest(SystemTest):
+    helper = GcpBigqueryDtsTestHelper()
 
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.create_dataset(
             project_id=GCP_PROJECT_ID,
             dataset=GCP_DTS_BQ_DATASET,
             table=GCP_DTS_BQ_TABLE,
         )
         self.helper.upload_data(dataset=GCP_DTS_BQ_DATASET, table=GCP_DTS_BQ_TABLE, gcs_file=BUCKET_URI)
-        self.gcp_authenticator.gcp_revoke_authentication()
 
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_dataset(
             project_id=GCP_PROJECT_ID, dataset=GCP_DTS_BQ_DATASET
         )
-        self.gcp_authenticator.gcp_revoke_authentication()
         super().tearDown()
 
+    @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag_function(self):
-        self._run_dag()
+        self.run_dag('example_gcp_bigquery_dts', GCP_DAG_FOLDER)

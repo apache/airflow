@@ -20,7 +20,7 @@
 import unittest
 
 from airflow import AirflowException
-from airflow.gcp.hooks.spanner import CloudSpannerHook
+from airflow.gcp.hooks.spanner import SpannerHook
 from tests.compat import PropertyMock, mock
 from tests.gcp.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
@@ -37,10 +37,10 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
     def setUp(self):
         with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
-            self.spanner_hook_default_project_id = CloudSpannerHook(gcp_conn_id='test')
+            self.spanner_hook_default_project_id = SpannerHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.gcp.hooks.spanner.CloudSpannerHook.client_info", new_callable=mock.PropertyMock)
-    @mock.patch("airflow.gcp.hooks.spanner.CloudSpannerHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.spanner.SpannerHook.client_info", new_callable=mock.PropertyMock)
+    @mock.patch("airflow.gcp.hooks.spanner.SpannerHook._get_credentials")
     @mock.patch("airflow.gcp.hooks.spanner.Client")
     def test_spanner_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.spanner_hook_default_project_id._get_client(GCP_PROJECT_ID_HOOK_UNIT_TEST)
@@ -52,7 +52,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.spanner_hook_default_project_id._client, result)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_get_existing_instance(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -63,7 +63,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         instance_method.assert_called_once_with(instance_id='instance')
         self.assertIsNotNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_get_existing_instance_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -79,7 +79,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_create_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         create_method = instance_method.return_value.create
@@ -97,7 +97,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
             node_count=1)
         self.assertIsNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_create_instance_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         create_method = instance_method.return_value.create
@@ -121,7 +121,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_update_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -140,7 +140,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         update_method.assert_called_once_with()
         self.assertIsNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_update_instance_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -165,7 +165,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_delete_instance(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -180,7 +180,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         delete_method.assert_called_once_with()
         self.assertIsNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_delete_instance_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -201,7 +201,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_get_database(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -218,7 +218,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_exists_method.assert_called_once_with()
         self.assertIsNotNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_get_database_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -241,7 +241,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_create_database(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -258,7 +258,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_create_method.assert_called_once_with()
         self.assertIsNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_create_database_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -281,7 +281,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_update_database(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -298,7 +298,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_update_ddl_method.assert_called_once_with(ddl_statements=[], operation_id=None)
         self.assertIsNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_update_database_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -321,7 +321,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_delete_database(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -340,7 +340,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         database_drop_method.assert_called_once_with()
         self.assertTrue(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_delete_database_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -365,7 +365,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_execute_dml(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -382,7 +382,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         run_in_transaction_method.assert_called_once_with(mock.ANY)
         self.assertIsNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_execute_dml_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -406,14 +406,14 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
     def setUp(self):
         with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_no_default_project_id):
-            self.spanner_hook_no_default_project_id = CloudSpannerHook(gcp_conn_id='test')
+            self.spanner_hook_no_default_project_id = SpannerHook(gcp_conn_id='test')
 
     @mock.patch(
-        "airflow.gcp.hooks.spanner.CloudSpannerHook.client_info",
+        "airflow.gcp.hooks.spanner.SpannerHook.client_info",
         new_callable=mock.PropertyMock
     )
     @mock.patch(
-        "airflow.gcp.hooks.spanner.CloudSpannerHook._get_credentials",
+        "airflow.gcp.hooks.spanner.SpannerHook._get_credentials",
         return_value="CREDENTIALS"
     )
     @mock.patch("airflow.gcp.hooks.spanner.Client")
@@ -432,7 +432,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_get_existing_instance_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -445,7 +445,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         err = cm.exception
         self.assertIn("The project id must be passed", str(err))
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_get_existing_instance_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -456,7 +456,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         instance_method.assert_called_once_with(instance_id='instance')
         self.assertIsNotNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_get_non_existing_instance(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -472,7 +472,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_create_instance_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         create_method = instance_method.return_value.create
@@ -490,7 +490,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         err = cm.exception
         self.assertIn("The project id must be passed", str(err))
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_create_instance_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         create_method = instance_method.return_value.create
@@ -514,7 +514,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_update_instance_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -533,7 +533,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         err = cm.exception
         self.assertIn("The project id must be passed", str(err))
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_update_instance_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -558,7 +558,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_delete_instance_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -574,7 +574,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         err = cm.exception
         self.assertIn("The project id must be passed", str(err))
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_delete_instance_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -595,7 +595,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_get_database_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -613,7 +613,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         err = cm.exception
         self.assertIn("The project id must be passed", str(err))
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_get_database_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -636,7 +636,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_create_database_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -655,7 +655,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         err = cm.exception
         self.assertIn("The project id must be passed", str(err))
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_create_database_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -678,7 +678,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_update_database_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -697,7 +697,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         err = cm.exception
         self.assertIn("The project id must be passed", str(err))
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_update_database_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -715,7 +715,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         database_update_ddl_method.assert_called_once_with(ddl_statements=[], operation_id=None)
         self.assertIsNone(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_update_database_overridden_project_id_and_operation(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -739,7 +739,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_delete_database_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -760,7 +760,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         err = cm.exception
         self.assertIn("The project id must be passed", str(err))
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_delete_database_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -780,7 +780,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         database_drop_method.assert_called_once_with()
         self.assertTrue(res)
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_delete_database_missing_database(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -804,7 +804,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_execute_dml_missing_project_id(self, get_client, mock_project_id):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
@@ -823,7 +823,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         err = cm.exception
         self.assertIn("The project id must be passed", str(err))
 
-    @mock.patch('airflow.gcp.hooks.spanner.CloudSpannerHook._get_client')
+    @mock.patch('airflow.gcp.hooks.spanner.SpannerHook._get_client')
     def test_execute_dml_overridden_project_id(self, get_client):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists

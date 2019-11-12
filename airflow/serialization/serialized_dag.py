@@ -120,6 +120,11 @@ class SerializedDAG(DAG, Serialization):
         for task in dag.task_dict.values():
             task.dag = dag
             task = cast(SerializedBaseOperator, task)
+
+            for date_attr in ["start_date", "end_date"]:
+                if getattr(task, date_attr) is None:
+                    setattr(task, date_attr, getattr(dag, date_attr))
+
             if task.subdag is not None:
                 setattr(task.subdag, 'parent_dag', dag)
                 task.subdag.is_subdag = True

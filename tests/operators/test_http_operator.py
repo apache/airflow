@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import unittest
 
 import requests_mock
@@ -27,9 +26,8 @@ from airflow.operators.http_operator import SimpleHttpOperator
 from tests.compat import mock
 
 
+@mock.patch.dict('os.environ', AIRFLOW_CONN_HTTP_EXAMPLE='http://www.example.com')
 class TestSimpleHttpOp(unittest.TestCase):
-    def setUp(self):
-        os.environ['AIRFLOW_CONN_HTTP_EXAMPLE'] = 'http://www.example.com'
 
     @requests_mock.mock()
     def test_response_in_logs(self, m):

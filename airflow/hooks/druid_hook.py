@@ -81,11 +81,11 @@ class DruidHook(BaseHook):
         else:
             return None
 
-    def submit_indexing_job(self, json_index_spec):
+    def submit_indexing_job(self, json_index_spec: str):
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
-        req_index = requests.post(url, json=json_index_spec, headers=self.header, auth=self.get_auth())
+        req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
         if req_index.status_code != 200:
             raise AirflowException('Did not get 200 when '
                                    'submitting the Druid job to {}'.format(url))
@@ -173,9 +173,6 @@ class DruidDbApiHook(DbApiHook):
             conn_type=conn_type, host=host, endpoint=endpoint)
 
     def set_autocommit(self, conn, autocommit):
-        raise NotImplementedError()
-
-    def get_pandas_df(self, sql, parameters=None):
         raise NotImplementedError()
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
