@@ -24,7 +24,7 @@ from unittest import mock
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
 
-from airflow.gcp.operators.dataproc import (
+from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator, DataprocClusterCreateOperator, DataprocClusterDeleteOperator,
     DataprocClusterScaleOperator, DataProcHadoopOperator, DataProcHiveOperator, DataProcPigOperator,
     DataProcPySparkOperator, DataProcSparkOperator, DataProcSparkSqlOperator, DataprocSubmitJobOperator,
@@ -37,7 +37,7 @@ cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 
 AIRFLOW_VERSION = "v" + airflow_version.replace(".", "-").replace("+", "-")
 
-DATAPROC_PATH = "airflow.gcp.operators.dataproc.{}"
+DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc.{}"
 
 TASK_ID = "task-id"
 GCP_PROJECT = "test-project"

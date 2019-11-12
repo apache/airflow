@@ -22,7 +22,7 @@ import unittest
 from google.cloud.dataproc_v1beta2.types import JobStatus  # pylint:disable=no-name-in-module
 
 from airflow import AirflowException
-from airflow.gcp.hooks.dataproc import DataprocHook, DataProcJobBuilder
+from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.version import version
 from tests.compat import mock
 
@@ -39,7 +39,7 @@ CLUSTER_NAME = "cluster-name"
 PARENT = "parent"
 NAME = "name"
 BASE_STRING = "airflow.gcp.hooks.base.{}"
-DATAPROC_STRING = "airflow.gcp.hooks.dataproc.{}"
+DATAPROC_STRING = "airflow.providers.google.cloud.hooks.dataproc.{}"
 
 
 def mock_init(*args, **kwargs):

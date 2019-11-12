@@ -25,7 +25,7 @@ import os
 
 import airflow
 from airflow import models
-from airflow.gcp.operators.dataproc import (
+from airflow.providers.google.cloud.operators.dataproc import (
     DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
 )
