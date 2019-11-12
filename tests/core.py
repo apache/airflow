@@ -38,7 +38,7 @@ from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
-from airflow import DAG, configuration, exceptions, jobs, models, settings, utils
+from airflow import DAG, configuration, exceptions, jobs, settings, utils
 from airflow.bin import cli
 from airflow.configuration import AirflowConfigException, conf, run_command
 from airflow.exceptions import AirflowException
@@ -1311,15 +1311,6 @@ class TestCli(unittest.TestCase):
         cli.roles_list(self.parser.parse_args(['roles', 'list',
                                                '--output', 'tsv']))
 
-    def test_cli_list_tasks(self):
-        for dag_id in self.dagbag.dags.keys():
-            args = self.parser.parse_args(['tasks', 'list', dag_id])
-            cli.list_tasks(args)
-
-        args = self.parser.parse_args([
-            'tasks', 'list', 'example_bash_operator', '--tree'])
-        cli.list_tasks(args)
-
     @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['db', 'init']))
@@ -1506,60 +1497,6 @@ class TestCli(unittest.TestCase):
 
         session.close()
 
-    def test_cli_test(self):
-        cli.test(self.parser.parse_args([
-            'tasks', 'test', 'example_bash_operator', 'runme_0',
-            DEFAULT_DATE.isoformat()]))
-        cli.test(self.parser.parse_args([
-            'tasks', 'test', 'example_bash_operator', 'runme_0', '--dry_run',
-            DEFAULT_DATE.isoformat()]))
-
-    def test_cli_test_with_params(self):
-        cli.test(self.parser.parse_args([
-            'tasks', 'test', 'example_passing_params_via_test_command', 'run_this',
-            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
-        cli.test(self.parser.parse_args([
-            'tasks', 'test', 'example_passing_params_via_test_command', 'also_run_this',
-            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
-
-    def test_cli_run(self):
-        cli.run(self.parser.parse_args([
-            'tasks', 'run', 'example_bash_operator', 'runme_0', '-l',
-            DEFAULT_DATE.isoformat()]))
-
-    def test_task_state(self):
-        cli.task_state(self.parser.parse_args([
-            'tasks', 'state', 'example_bash_operator', 'runme_0',
-            DEFAULT_DATE.isoformat()]))
-
-    def test_subdag_clear(self):
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--yes'])
-        cli.clear(args)
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude_subdags'])
-        cli.clear(args)
-
-    def test_parentdag_downstream_clear(self):
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes'])
-        cli.clear(args)
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes',
-            '--exclude_parentdag'])
-        cli.clear(args)
-
-    def test_get_dags(self):
-        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator',
-                                                    '--yes']))
-        self.assertEqual(len(dags), 1)
-
-        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'subdag', '-dx', '--yes']))
-        self.assertGreater(len(dags), 1)
-
-        with self.assertRaises(AirflowException):
-            cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'foobar', '-dx', '--yes']))
-
     def test_process_subdir_path_with_placeholder(self):
         self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
 
@@ -1625,103 +1562,6 @@ class TestCli(unittest.TestCase):
                 "Input and output pool files are not same")
         os.remove('pools_import.json')
         os.remove('pools_export.json')
-
-    def test_variables(self):
-        # Checks if all subcommands are properly received
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'foo', '{"foo":"bar"}']))
-        cli.variables_get(self.parser.parse_args([
-            'variables', 'get', 'foo']))
-        cli.variables_get(self.parser.parse_args([
-            'variables', 'get', 'baz', '-d', 'bar']))
-        cli.variables_list(self.parser.parse_args([
-            'variables', 'list']))
-        cli.variables_delete(self.parser.parse_args([
-            'variables', 'delete', 'bar']))
-        cli.variables_import(self.parser.parse_args([
-            'variables', 'import', DEV_NULL]))
-        cli.variables_export(self.parser.parse_args([
-            'variables', 'export', DEV_NULL]))
-
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'bar', 'original']))
-        # First export
-        cli.variables_export(self.parser.parse_args([
-            'variables', 'export', 'variables1.json']))
-
-        first_exp = open('variables1.json', 'r')
-
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'bar', 'updated']))
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'foo', '{"foo":"oops"}']))
-        cli.variables_delete(self.parser.parse_args([
-            'variables', 'delete', 'foo']))
-        # First import
-        cli.variables_import(self.parser.parse_args([
-            'variables', 'import', 'variables1.json']))
-
-        self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
-        # Second export
-        cli.variables_export(self.parser.parse_args([
-            'variables', 'export', 'variables2.json']))
-
-        second_exp = open('variables2.json', 'r')
-        self.assertEqual(first_exp.read(), second_exp.read())
-        second_exp.close()
-        first_exp.close()
-        # Second import
-        cli.variables_import(self.parser.parse_args([
-            'variables', 'import', 'variables2.json']))
-
-        self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
-
-        # Set a dict
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'dict', '{"foo": "oops"}']))
-        # Set a list
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'list', '["oops"]']))
-        # Set str
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'str', 'hello string']))
-        # Set int
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'int', '42']))
-        # Set float
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'float', '42.0']))
-        # Set true
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'true', 'true']))
-        # Set false
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'false', 'false']))
-        # Set none
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'null', 'null']))
-
-        # Export and then import
-        cli.variables_export(self.parser.parse_args([
-            'variables', 'export', 'variables3.json']))
-        cli.variables_import(self.parser.parse_args([
-            'variables', 'import', 'variables3.json']))
-
-        # Assert value
-        self.assertEqual({'foo': 'oops'}, models.Variable.get('dict', deserialize_json=True))
-        self.assertEqual(['oops'], models.Variable.get('list', deserialize_json=True))
-        self.assertEqual('hello string', models.Variable.get('str'))  # cannot json.loads(str)
-        self.assertEqual(42, models.Variable.get('int', deserialize_json=True))
-        self.assertEqual(42.0, models.Variable.get('float', deserialize_json=True))
-        self.assertEqual(True, models.Variable.get('true', deserialize_json=True))
-        self.assertEqual(False, models.Variable.get('false', deserialize_json=True))
-        self.assertEqual(None, models.Variable.get('null', deserialize_json=True))
-
-        os.remove('variables1.json')
-        os.remove('variables2.json')
-        os.remove('variables3.json')
 
     def test_cli_version(self):
         with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
