@@ -287,7 +287,9 @@ def dispose_orm():
 
 
 def configure_adapters():
-    from pendulum import Pendulum
+    # NixOS uses Pendulum 2.x but Airflow has not been updated to use 2.x imports
+    # https://pendulum.eustace.io/blog/pendulum-2.0.0-is-out.html
+    from pendulum import DateTime as Pendulum
     try:
         from sqlite3 import register_adapter
         register_adapter(Pendulum, lambda val: val.isoformat(' '))

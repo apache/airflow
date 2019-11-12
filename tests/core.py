@@ -69,7 +69,7 @@ from airflow.configuration import (
 )
 from jinja2.exceptions import SecurityError
 from jinja2 import UndefinedError
-from pendulum import utcnow
+from pendulum import now
 import six
 
 from tests.test_utils.config import conf_vars
@@ -89,6 +89,12 @@ try:
 except ImportError:
     # Python 3
     import pickle  # type: ignore
+
+
+# Backported from Pendulum 1.x
+# https://github.com/sdispater/pendulum/blob/1.x/pendulum/pendulum.py#L288
+def utcnow():
+    return now('UTC')
 
 
 class OperatorSubclass(BaseOperator):
