@@ -376,14 +376,31 @@ class TestDataFlowJob(unittest.TestCase):
                                               jobId=TEST_JOB_ID)
 
     def test_dataflow_job_init_without_job_id(self):
-        mock_jobs = MagicMock()
-        self.mock_dataflow.projects.return_value.locations.return_value. \
-            jobs.return_value = mock_jobs
+        job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
+
+        mock_list = (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.list
+        )
+        (
+            mock_list.return_value.
+            execute.return_value
+        ) = {'jobs': [job]}
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list_next.return_value
+        ) = None
         _DataflowJobsController(
             self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
             TEST_LOCATION, 10).get_jobs()
-        mock_jobs.list.assert_called_once_with(projectId=TEST_PROJECT,
-                                               location=TEST_LOCATION)
+
+        mock_list.assert_called_once_with(
+            projectId=TEST_PROJECT,
+            location=TEST_LOCATION
+        )
 
     def test_dataflow_job_wait_for_multiple_jobs(self):
         job = {"id": TEST_JOB_ID, "name": TEST_JOB_NAME, "currentState": DataflowJobStatus.JOB_STATE_DONE}
@@ -397,6 +414,12 @@ class TestDataFlowJob(unittest.TestCase):
         ) = {
             "jobs": [job, job]
         }
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list_next.return_value
+        ) = None
 
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
@@ -431,6 +454,12 @@ class TestDataFlowJob(unittest.TestCase):
                 {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_FAILED}
             ]
         }
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list_next.return_value
+        ) = None
 
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
@@ -458,6 +487,12 @@ class TestDataFlowJob(unittest.TestCase):
                 {"id": "id-2", "name": "name-2", "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
             ]
         }
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list_next.return_value
+        ) = None
 
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
@@ -485,6 +520,12 @@ class TestDataFlowJob(unittest.TestCase):
                 {"id": "id-2", "name": "name-2", "currentState": "unknown"}
             ]
         }
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list_next.return_value
+        ) = None
 
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
@@ -516,6 +557,12 @@ class TestDataFlowJob(unittest.TestCase):
                 }
             ]
         }
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list_next.return_value
+        ) = None
 
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
@@ -536,6 +583,13 @@ class TestDataFlowJob(unittest.TestCase):
 
         self.mock_dataflow.projects.return_value.locations.return_value. \
             jobs.return_value.get.return_value.execute.return_value = job
+
+        (
+            self.mock_dataflow.projects.return_value.
+            locations.return_value.
+            jobs.return_value.
+            list_next.return_value
+        ) = None
 
         dataflow_job = _DataflowJobsController(
             dataflow=self.mock_dataflow,
