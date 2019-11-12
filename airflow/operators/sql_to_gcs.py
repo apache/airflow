@@ -245,8 +245,8 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
     def _write_local_schema_file(self, cursor):
         """
         Takes a cursor, and writes the BigQuery schema for the results to a
-        local file system. self.schema will be honored when provided, otherwise,
-        it will use the schema read from sql.
+        local file system. Schema for database will be read from cursor if not specified.
+
 
         :return: A dictionary where key is a filename to be used as an object
             name in GCS, and values are file handles to local files that
