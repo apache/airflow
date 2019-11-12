@@ -49,9 +49,7 @@ from airflow.executors import SequentialExecutor
 from airflow.hooks import hdfs_hook
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.models import (
-    BaseOperator, Connection, DagBag, DagModel, DagRun, Pool, TaskFail, TaskInstance, Variable,
-)
+from airflow.models import BaseOperator, Connection, DagBag, DagRun, Pool, TaskFail, TaskInstance, Variable
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -1039,18 +1037,6 @@ class TestCli(unittest.TestCase):
         session.commit()
         session.close()
 
-    def test_cli_list_dags(self):
-        args = self.parser.parse_args(['dags', 'list', '--report'])
-        cli.list_dags(args)
-
-    def test_cli_list_dag_runs(self):
-        cli.trigger_dag(self.parser.parse_args([
-            'dags', 'trigger', 'example_bash_operator', ]))
-        args = self.parser.parse_args(['dags', 'list_runs',
-                                       'example_bash_operator',
-                                       '--no_backfill'])
-        cli.list_dag_runs(args)
-
     def test_cli_create_user_random_password(self):
         args = self.parser.parse_args([
             'users', 'create', '--username', 'test1', '--lastname', 'doe',
@@ -1337,18 +1323,6 @@ class TestCli(unittest.TestCase):
             'tasks', 'list', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
 
-    def test_cli_list_jobs(self):
-        args = self.parser.parse_args(['dags', 'list_jobs'])
-        cli.list_jobs(args)
-
-    def test_cli_list_jobs_with_args(self):
-        args = self.parser.parse_args(['dags', 'list_jobs', '--dag_id',
-                                       'example_bash_operator',
-                                       '--state', 'success',
-                                       '--limit', '100',
-                                       '--output', 'tsv'])
-        cli.list_jobs(args)
-
     @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['db', 'init']))
@@ -1561,21 +1535,6 @@ class TestCli(unittest.TestCase):
             'tasks', 'state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
 
-    def test_dag_state(self):
-        self.assertEqual(None, cli.dag_state(self.parser.parse_args([
-            'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
-
-    def test_pause(self):
-        args = self.parser.parse_args([
-            'dags', 'pause', 'example_bash_operator'])
-        cli.pause(args)
-        self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [True, 1])
-
-        args = self.parser.parse_args([
-            'dags', 'unpause', 'example_bash_operator'])
-        cli.unpause(args)
-        self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [False, 0])
-
     def test_subdag_clear(self):
         args = self.parser.parse_args([
             'tasks', 'clear', 'example_subdag_operator', '--yes'])
@@ -1606,50 +1565,6 @@ class TestCli(unittest.TestCase):
 
     def test_process_subdir_path_with_placeholder(self):
         self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
-
-    def test_trigger_dag(self):
-        cli.trigger_dag(self.parser.parse_args([
-            'dags', 'trigger', 'example_bash_operator',
-            '-c', '{"foo": "bar"}']))
-        self.assertRaises(
-            ValueError,
-            cli.trigger_dag,
-            self.parser.parse_args([
-                'dags', 'trigger', 'example_bash_operator',
-                '--run_id', 'trigger_dag_xxx',
-                '-c', 'NOT JSON'])
-        )
-
-    def test_delete_dag(self):
-        DM = DagModel
-        key = "my_dag_id"
-        session = settings.Session()
-        session.add(DM(dag_id=key))
-        session.commit()
-        cli.delete_dag(self.parser.parse_args([
-            'dags', 'delete', key, '--yes']))
-        self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
-        self.assertRaises(
-            AirflowException,
-            cli.delete_dag,
-            self.parser.parse_args([
-                'dags', 'delete',
-                'does_not_exist_dag',
-                '--yes'])
-        )
-
-    def test_delete_dag_existing_file(self):
-        # Test to check that the DAG should be deleted even if
-        # the file containing it is not deleted
-        DM = DagModel
-        key = "my_dag_id"
-        session = settings.Session()
-        with tempfile.NamedTemporaryFile() as f:
-            session.add(DM(dag_id=key, fileloc=f.name))
-            session.commit()
-            cli.delete_dag(self.parser.parse_args([
-                'dags', 'delete', key, '--yes']))
-            self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
 
     def test_pool_list(self):
         cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
