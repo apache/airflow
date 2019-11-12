@@ -537,7 +537,7 @@ class TestCliTest(unittest.TestCase):
         cls.parser = cli.CLIFactory.get_parser()
 
     def test_cli_list_tasks(self):
-        for dag_id in self.dagbag.dags.keys():
+        for dag_id in self.dagbag.dags:
             args = self.parser.parse_args(['tasks', 'list', dag_id])
             cli.list_tasks(args)
 
