@@ -1170,6 +1170,10 @@ class DAG(BaseDag, LoggingMixin):
         :param task: the task you want to add
         :type task: task
         """
+        # If the task has already been added, so do nothing.
+        if task.task_id in self.task_dict and self.task_dict[task.task_id] == task:
+            return
+
         if not self.start_date and not task.start_date:
             raise AirflowException("Task is missing the start_date parameter")
         # if the task has no start date, assign it the same as the DAG
