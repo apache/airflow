@@ -38,6 +38,7 @@ from airflow.models import DagModel, TaskInstance, Variable
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
+from tests import conf_vars
 from tests.compat import mock
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
@@ -753,3 +754,83 @@ class TestCliVariables(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
         os.remove('variables3.json')
+
+
+class TestCliWebServer(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.CLIFactory.get_parser()
+
+    def _wait_pidfile(self, pidfile):
+        while True:
+            try:
+                with open(pidfile) as file:
+                    return int(file.read())
+            except Exception:  # pylint: disable=broad-except
+                sleep(1)
+
+    def test_cli_webserver_foreground(self):
+        # Confirm that webserver hasn't been launched.
+        # pgrep returns exit status 1 if no process matched.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Run webserver in foreground and terminate it.
+        proc = subprocess.Popen(["airflow", "webserver"])
+        proc.terminate()
+        proc.wait()
+
+        # Assert that no process remains.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
+                     "Skipping test due to lack of required file permission")
+    def test_cli_webserver_foreground_with_pid(self):
+        # Run webserver in foreground with --pid option
+        pidfile = tempfile.mkstemp()[1]
+        proc = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
+
+        # Check the file specified by --pid option exists
+        self._wait_pidfile(pidfile)
+
+        # Terminate webserver
+        proc.terminate()
+        proc.wait()
+
+    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
+                     "Skipping test due to lack of required file permission")
+    def test_cli_webserver_background(self):
+        # Confirm that webserver hasn't been launched.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Run webserver in background.
+        subprocess.Popen(["airflow", "webserver", "-D"])
+        pidfile = cli.setup_locations("webserver")[0]
+        self._wait_pidfile(pidfile)
+
+        # Assert that gunicorn and its monitor are launched.
+        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Terminate monitor process.
+        pidfile = cli.setup_locations("webserver-monitor")[0]
+        pid = self._wait_pidfile(pidfile)
+        proc = psutil.Process(pid)
+        proc.terminate()
+        proc.wait()
+
+        # Assert that no process remains.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+    # Patch for causing webserver timeout
+    @mock.patch("airflow.bin.cli.get_num_workers_running", return_value=0)
+    def test_cli_webserver_shutdown_when_gunicorn_master_is_killed(self, _):
+        # Shorten timeout so that this test doesn't take too long time
+        args = self.parser.parse_args(['webserver'])
+        with conf_vars({('webserver', 'web_server_master_timeout'): '10'}):
+            with self.assertRaises(SystemExit) as e:
+                cli.webserver(args)
+        self.assertEqual(e.exception.code, 1)
