@@ -49,9 +49,7 @@ from airflow.executors import SequentialExecutor
 from airflow.hooks import hdfs_hook
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.models import (
-    BaseOperator, Connection, DagBag, DagRun, Pool, TaskFail, TaskInstance, Variable,
-)
+from airflow.models import BaseOperator, Connection, DagBag, DagRun, Pool, TaskFail, TaskInstance, Variable
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy_operator import DummyOperator
