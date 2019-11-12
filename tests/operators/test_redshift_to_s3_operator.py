@@ -40,7 +40,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = ['HEADER', ]
-        table_as_file_name=True
+        table_as_file_name = True
 
         RedshiftToS3Transfer(
             schema=schema,
@@ -55,7 +55,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             table_as_file_name=table_as_file_name,
             dag=None
         ).execute(None)
-        
+
         unload_options = '\n\t\t\t'.join(unload_options)
         select_query = "SELECT * FROM {schema}.{table}".format(schema=schema, table=table)
         if table_as_file_name:
