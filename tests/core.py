@@ -30,7 +30,6 @@ import unittest
 from datetime import timedelta
 from tempfile import NamedTemporaryFile
 from time import sleep
-from typing import Optional
 from unittest import mock
 
 import sqlalchemy
@@ -43,7 +42,6 @@ from airflow.bin import cli
 from airflow.configuration import AirflowConfigException, conf, run_command
 from airflow.exceptions import AirflowException
 from airflow.executors import SequentialExecutor
-from airflow.hooks import hdfs_hook
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import BaseOperator, Connection, DagBag, DagRun, Pool, TaskFail, TaskInstance, Variable
@@ -1646,170 +1644,6 @@ class TestCli(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
-class FakeWebHDFSHook:
-    def __init__(self, conn_id):
-        self.conn_id = conn_id
-
-    def get_conn(self):
-        return self.conn_id
-
-    def check_for_path(self, hdfs_path):
-        return hdfs_path
-
-
-class FakeSnakeBiteClientException(Exception):
-    pass
-
-
-class FakeSnakeBiteClient:
-
-    def __init__(self):
-        self.started = True
-
-    def ls(self, path, include_toplevel=False):
-        """
-        the fake snakebite client
-
-        :param path: the array of path to test
-        :param include_toplevel: to return the toplevel directory info
-        :return: a list for path for the matching queries
-        """
-        if path[0] == '/datadirectory/empty_directory' and not include_toplevel:
-            return []
-        elif path[0] == '/datadirectory/datafile':
-            return [{
-                'group': 'supergroup',
-                'permission': 420,
-                'file_type': 'f',
-                'access_time': 1481122343796,
-                'block_replication': 3,
-                'modification_time': 1481122343862,
-                'length': 0,
-                'blocksize': 134217728,
-                'owner': 'hdfs',
-                'path': '/datadirectory/datafile'
-            }]
-        elif path[0] == '/datadirectory/empty_directory' and include_toplevel:
-            return [{
-                'group': 'supergroup',
-                'permission': 493,
-                'file_type': 'd',
-                'access_time': 0,
-                'block_replication': 0,
-                'modification_time': 1481132141540,
-                'length': 0,
-                'blocksize': 0,
-                'owner': 'hdfs',
-                'path': '/datadirectory/empty_directory'
-            }]
-        elif path[0] == '/datadirectory/not_empty_directory' and include_toplevel:
-            return [{
-                'group': 'supergroup',
-                'permission': 493,
-                'file_type': 'd',
-                'access_time': 0,
-                'block_replication': 0,
-                'modification_time': 1481132141540,
-                'length': 0,
-                'blocksize': 0,
-                'owner': 'hdfs',
-                'path': '/datadirectory/empty_directory'
-            }, {
-                'group': 'supergroup',
-                'permission': 420,
-                'file_type': 'f',
-                'access_time': 1481122343796,
-                'block_replication': 3,
-                'modification_time': 1481122343862,
-                'length': 0,
-                'blocksize': 134217728,
-                'owner': 'hdfs',
-                'path': '/datadirectory/not_empty_directory/test_file'
-            }]
-        elif path[0] == '/datadirectory/not_empty_directory':
-            return [{
-                'group': 'supergroup',
-                'permission': 420,
-                'file_type': 'f',
-                'access_time': 1481122343796,
-                'block_replication': 3,
-                'modification_time': 1481122343862,
-                'length': 0,
-                'blocksize': 134217728,
-                'owner': 'hdfs',
-                'path': '/datadirectory/not_empty_directory/test_file'
-            }]
-        elif path[0] == '/datadirectory/not_existing_file_or_directory':
-            raise FakeSnakeBiteClientException
-        elif path[0] == '/datadirectory/regex_dir':
-            return [{
-                'group': 'supergroup',
-                'permission': 420,
-                'file_type': 'f',
-                'access_time': 1481122343796,
-                'block_replication': 3,
-                'modification_time': 1481122343862, 'length': 12582912,
-                'blocksize': 134217728,
-                'owner': 'hdfs',
-                'path': '/datadirectory/regex_dir/test1file'
-            }, {
-                'group': 'supergroup',
-                'permission': 420,
-                'file_type': 'f',
-                'access_time': 1481122343796,
-                'block_replication': 3,
-                'modification_time': 1481122343862,
-                'length': 12582912,
-                'blocksize': 134217728,
-                'owner': 'hdfs',
-                'path': '/datadirectory/regex_dir/test2file'
-            }, {
-                'group': 'supergroup',
-                'permission': 420,
-                'file_type': 'f',
-                'access_time': 1481122343796,
-                'block_replication': 3,
-                'modification_time': 1481122343862,
-                'length': 12582912,
-                'blocksize': 134217728,
-                'owner': 'hdfs',
-                'path': '/datadirectory/regex_dir/test3file'
-            }, {
-                'group': 'supergroup',
-                'permission': 420,
-                'file_type': 'f',
-                'access_time': 1481122343796,
-                'block_replication': 3,
-                'modification_time': 1481122343862,
-                'length': 12582912,
-                'blocksize': 134217728,
-                'owner': 'hdfs',
-                'path': '/datadirectory/regex_dir/copying_file_1.txt._COPYING_'
-            }, {
-                'group': 'supergroup',
-                'permission': 420,
-                'file_type': 'f',
-                'access_time': 1481122343796,
-                'block_replication': 3,
-                'modification_time': 1481122343862,
-                'length': 12582912,
-                'blocksize': 134217728,
-                'owner': 'hdfs',
-                'path': '/datadirectory/regex_dir/copying_file_3.txt.sftp'
-            }]
-        else:
-            raise FakeSnakeBiteClientException
-
-
-class FakeHDFSHook:
-    def __init__(self, conn_id=None):
-        self.conn_id = conn_id
-
-    def get_conn(self):
-        client = FakeSnakeBiteClient()
-        return client
-
-
 class TestConnection(unittest.TestCase):
     def setUp(self):
         utils.db.initdb()
@@ -1895,70 +1729,6 @@ class TestConnection(unittest.TestCase):
         assert conns[0].login == 'username'
         assert conns[0].password == 'password'
         assert conns[0].port == 5432
-
-
-class TestWebHDFSHook(unittest.TestCase):
-    def test_simple_init(self):
-        from airflow.hooks.webhdfs_hook import WebHDFSHook
-        c = WebHDFSHook()
-        self.assertIsNone(c.proxy_user)
-
-    def test_init_proxy_user(self):
-        from airflow.hooks.webhdfs_hook import WebHDFSHook
-        c = WebHDFSHook(proxy_user='someone')
-        self.assertEqual('someone', c.proxy_user)
-
-
-HDFSHook = None  # type: Optional[hdfs_hook.HDFSHook]
-snakebite = None  # type: None
-
-
-@unittest.skipIf(HDFSHook is None,
-                 "Skipping test because HDFSHook is not installed")
-class TestHDFSHook(unittest.TestCase):
-    @unittest.mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
-    })
-    def test_get_client(self):
-        client = HDFSHook(proxy_user='foo').get_conn()
-        self.assertIsInstance(client, snakebite.client.Client)
-        self.assertEqual('localhost', client.host)
-        self.assertEqual(8020, client.port)
-        self.assertEqual('foo', client.service.channel.effective_user)
-
-    @unittest.mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
-    })
-    @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
-    @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
-    def test_get_autoconfig_client(self, mock_get_connections,
-                                   MockAutoConfigClient):
-        c = Connection(conn_id='hdfs', conn_type='hdfs',
-                       host='localhost', port=8020, login='foo',
-                       extra=json.dumps({'autoconfig': True}))
-        mock_get_connections.return_value = [c]
-        HDFSHook(hdfs_conn_id='hdfs').get_conn()
-        MockAutoConfigClient.assert_called_once_with(effective_user='foo',
-                                                     use_sasl=False)
-
-    @unittest.mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
-    })
-    @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
-    def test_get_autoconfig_client_no_conn(self, MockAutoConfigClient):
-        HDFSHook(hdfs_conn_id='hdfs_missing', autoconfig=True).get_conn()
-        MockAutoConfigClient.assert_called_once_with(effective_user=None,
-                                                     use_sasl=False)
-
-    @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
-    def test_get_ha_client(self, mock_get_connections):
-        c1 = Connection(conn_id='hdfs_default', conn_type='hdfs',
-                        host='localhost', port=8020)
-        c2 = Connection(conn_id='hdfs_default', conn_type='hdfs',
-                        host='localhost2', port=8020)
-        mock_get_connections.return_value = [c1, c2]
-        client = HDFSHook().get_conn()
-        self.assertIsInstance(client, snakebite.client.HAClient)
 
 
 if __name__ == '__main__':
