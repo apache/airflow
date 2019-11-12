@@ -355,9 +355,11 @@ COPY --chown=airflow:airflow .bash_completion run-tests-complete run-tests ${HOM
 COPY --chown=airflow:airflow .bash_completion.d/run-tests-complete \
      ${HOME}/.bash_completion.d/run-tests-complete
 
-RUN ${AIRFLOW_SOURCES}/scripts/ci/docker_build/ci_build_extract_tests.sh
+RUN echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
 
-USER ${AIRFLOW_USER}
+RUN chmod +x "${HOME}/run-tests-complete"
+
+RUN chmod +x "${HOME}/run-tests"
 
 WORKDIR ${AIRFLOW_SOURCES}
 

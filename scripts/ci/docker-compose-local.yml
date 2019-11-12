@@ -51,7 +51,8 @@ services:
       - ../../.inputrc:/root/.inputrc:cached
       - ../../.flake8:/opt/airflow/.flake8:cached
       - ../../.rat-excludes:/opt/airflow/.rat-excludes:cached
-      - ../../run-tests:/opt/airflow/run-tests:cached
+      - ../../run-tests:/root/run-tests:cached
+      - ../../run-tests-complete:/root/run-tests-complete:cached
       - ../../logs:/root/airflow/logs:cached
       - ../../tmp:/opt/airflow/tmp:cached
       - ../../files:/files:cached
