@@ -66,7 +66,7 @@ class S3Hook(AwsHook):
         self.connection = None
 
     def get_conn(self):
-        if self.connection == None:
+        if self.connection is None:
             self.connection = self.get_client_type('s3')
         else:
             return self.connection
