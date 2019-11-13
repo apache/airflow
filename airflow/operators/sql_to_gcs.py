@@ -256,7 +256,7 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         if self.schema is not None and isinstance(self.schema, string_types):
             tmp_schema_file_handle.write(self.schema)
-        else if self.schema is not None and isinstance(self.schema, list):
+        elif self.schema is not None and isinstance(self.schema, list):
             tmp_schema_file_handle.write(json.dumps(self.schema, sort_keys=True).encode('utf-8'))
         else:
             schema = [self.field_to_bigquery(field) for field in cursor.description]
