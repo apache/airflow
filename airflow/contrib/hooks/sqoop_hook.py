@@ -43,6 +43,7 @@ class SqoopHook(BaseHook):
         * ``archives``: Comma separated archives to be unarchived on the compute
             machines.
         * ``password_file``: Path to file containing the password.
+        * ``password_alias``: Alias to Password.
 
     :param conn_id: Reference to the sqoop connection.
     :type conn_id: str
@@ -66,6 +67,7 @@ class SqoopHook(BaseHook):
         self.files = connection_parameters.get('files', None)
         self.archives = connection_parameters.get('archives', None)
         self.password_file = connection_parameters.get('password_file', None)
+        self.password_alias = connection_parameters.get('password_alias', None)
         self.hcatalog_database = hcatalog_database
         self.hcatalog_table = hcatalog_table
         self.verbose = verbose
@@ -138,6 +140,8 @@ class SqoopHook(BaseHook):
             connection_cmd += ["--password", self.conn.password]
         if self.password_file:
             connection_cmd += ["--password-file", self.password_file]
+        if self.password_alias:
+            connection_cmd += ["--password-alias", self.password_alias]
         if self.verbose:
             connection_cmd += ["--verbose"]
         if self.num_mappers:
@@ -354,3 +358,4 @@ class SqoopHook(BaseHook):
                                relaxed_isolation, extra_export_options)
 
         self.Popen(cmd)
+        
