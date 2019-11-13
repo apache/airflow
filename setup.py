@@ -370,7 +370,7 @@ def do_setup():
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14.2, <0.15',
-            'funcsigs==1.0.0',
+            'funcsigs>=1.0.0, <2.0.0',
             'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
