@@ -16,19 +16,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.dataproc`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.dataproc`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.dataproc import (  # noqa
+from airflow.providers.google.cloud.operators.dataproc import (  # noqa
     DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocClusterScaleOperator,
-    DataProcHadoopOperator, DataProcHiveOperator, DataProcJobBaseOperator, DataprocOperationBaseOperator,
+    DataProcHadoopOperator, DataProcHiveOperator, DataProcJobBaseOperator, DataProcJobBuilder,
     DataProcPigOperator, DataProcPySparkOperator, DataProcSparkOperator, DataProcSparkSqlOperator,
+    DataprocSubmitJobOperator, DataprocUpdateClusterOperator,
     DataprocWorkflowTemplateInstantiateInlineOperator, DataprocWorkflowTemplateInstantiateOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.dataproc`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.dataproc`.",
+    DeprecationWarning,
+    stacklevel=2,
 )

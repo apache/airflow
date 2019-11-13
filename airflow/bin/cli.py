@@ -976,7 +976,7 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        app, _ = create_app(None, testing=conf.get('core', 'unit_test_mode'))
+        app, _ = create_app(None, testing=conf.getboolean('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=not app.config['TESTING'],
                 port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
@@ -1693,7 +1693,7 @@ def list_dag_runs(args, dag=None):
                                                                  'run_id',
                                                                  'state',
                                                                  'execution_date',
-                                                                 'state_date')
+                                                                 'start_date')
     print(header_template.format(dag_run_header=dag_run_header,
                                  line='-' * 120))
     for dag_run in dag_runs:

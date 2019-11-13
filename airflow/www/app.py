@@ -112,8 +112,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
-            appbuilder.add_view_no_menu(views.ConfigurationView())
-            appbuilder.add_view_no_menu(views.VersionView())
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
                                 category="Browse",
@@ -130,8 +128,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.TaskInstanceModelView,
                                 "Task Instances",
                                 category="Browse")
-            appbuilder.add_link("Configurations",
-                                href='/configuration',
+            appbuilder.add_view(views.ConfigurationView,
+                                "Configurations",
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,
@@ -153,8 +151,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_link("GitHub",
                                 href='https://github.com/apache/airflow',
                                 category="Docs")
-            appbuilder.add_link('Version',
-                                href='/version',
+            appbuilder.add_view(views.VersionView,
+                                'Version',
                                 category='About',
                                 category_icon='fa-th')
 

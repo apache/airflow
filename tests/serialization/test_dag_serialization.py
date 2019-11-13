@@ -296,6 +296,55 @@ class TestStringifiedDAGs(unittest.TestCase):
         )
 
     @parameterized.expand([
+        (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
+        (datetime(2019, 8, 1), datetime(2019, 8, 2), datetime(2019, 8, 2)),
+        (datetime(2019, 8, 1), datetime(2019, 7, 30), datetime(2019, 8, 1)),
+    ])
+    def test_deserialization_start_date(self,
+                                        dag_start_date,
+                                        task_start_date,
+                                        expected_task_start_date):
+        dag = DAG(dag_id='simple_dag', start_date=dag_start_date)
+        BaseOperator(task_id='simple_task', dag=dag, start_date=task_start_date)
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if not task_start_date or dag_start_date >= task_start_date:
+            # If dag.start_date > task.start_date -> task.start_date=dag.start_date
+            # because of the logic in dag.add_task()
+            self.assertNotIn("start_date", serialized_dag["dag"]["tasks"][0])
+        else:
+            self.assertIn("start_date", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict["simple_task"]
+        self.assertEqual(simple_task.start_date, expected_task_start_date)
+
+    @parameterized.expand([
+        (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
+        (datetime(2019, 8, 1), datetime(2019, 8, 2), datetime(2019, 8, 1)),
+        (datetime(2019, 8, 1), datetime(2019, 7, 30), datetime(2019, 7, 30)),
+    ])
+    def test_deserialization_end_date(self,
+                                      dag_end_date,
+                                      task_end_date,
+                                      expected_task_end_date):
+        dag = DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1),
+                  end_date=dag_end_date)
+        BaseOperator(task_id='simple_task', dag=dag, end_date=task_end_date)
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if not task_end_date or dag_end_date <= task_end_date:
+            # If dag.end_date < task.end_date -> task.end_date=dag.end_date
+            # because of the logic in dag.add_task()
+            self.assertNotIn("end_date", serialized_dag["dag"]["tasks"][0])
+        else:
+            self.assertIn("end_date", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict["simple_task"]
+        self.assertEqual(simple_task.end_date, expected_task_end_date)
+
+    @parameterized.expand([
         (None, None),
         ("@weekly", "@weekly"),
         ({"__type": "timedelta", "__var": 86400.0}, timedelta(days=1)),

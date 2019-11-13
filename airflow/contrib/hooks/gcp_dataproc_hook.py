@@ -16,27 +16,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.dataproc`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.dataproc`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.dataproc import DataprocHook, DataprocJobStatus  # noqa
+from airflow.providers.google.cloud.hooks.dataproc import DataprocHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.dataproc`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.dataproc`.",
     DeprecationWarning, stacklevel=2
 )
 
 
 class DataProcHook(DataprocHook):
     """
-    This class is deprecated. Please use `airflow.gcp.hooks.dataproc.DataprocHook`.
+    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.dataproc.DataprocHook`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "This class is deprecated. Please use `airflow.gcp.hooks.dataproc.DataprocHook`.",
+            "This class is deprecated. Please use `airflow.providers.google."
+            "cloud.hooks.dataproc.DataprocHook`.",
             DeprecationWarning, stacklevel=2
         )
 

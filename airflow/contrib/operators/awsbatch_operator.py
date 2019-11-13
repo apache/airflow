@@ -26,7 +26,7 @@ from typing import Optional
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.typing import Protocol
+from airflow.typing_compat import Protocol
 from airflow.utils.decorators import apply_defaults
 
 
@@ -93,7 +93,7 @@ class AWSBatchOperator(BaseOperator):
         self.job_definition = job_definition
         self.job_queue = job_queue
         self.overrides = overrides
-        self.array_properties = array_properties
+        self.array_properties = array_properties or {}
         self.max_retries = max_retries
 
         self.jobId = None  # pylint: disable=invalid-name

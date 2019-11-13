@@ -32,17 +32,13 @@ stages:
   - test
 jobs:
   include:
-    - name: "Static checks (no pylint, no license check)"
+    - name: "Static checks"
+      python: "3.5"
       stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests_except_pylint_licence.sh
-    - name: "Check license compliance for Apache"
-      stage: pre-test
-      script: ./scripts/ci/ci_check_license.sh
+      script: ./scripts/ci/ci_run_all_static_tests.sh
       env: AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
-    - name: "Pylint checks"
-      stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests_pylint.sh
     - name: "Build documentation"
+      python: "3.5"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
     - name: "Tests postgres kubernetes python 3.6 (persistent)"

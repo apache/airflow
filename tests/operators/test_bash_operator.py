@@ -20,9 +20,12 @@
 import unittest
 import unittest.mock
 from datetime import datetime, timedelta
+from subprocess import PIPE, STDOUT
 from tempfile import NamedTemporaryFile
 
-from airflow import DAG
+import mock
+
+from airflow import DAG, AirflowException
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -98,6 +101,18 @@ class TestBashOperator(unittest.TestCase):
 
         self.assertEqual(return_value, 'stdout')
 
+    def test_raise_exception_on_non_zero_exit_code(self):
+        bash_operator = BashOperator(
+            bash_command='exit 42',
+            task_id='test_return_value',
+            dag=None
+        )
+        with self.assertRaisesRegex(
+            AirflowException,
+            "Bash command failed\\. The command returned a non-zero exit code\\."
+        ):
+            bash_operator.execute(context={})
+
     def test_task_retries(self):
         bash_operator = BashOperator(
             bash_command='echo "stdout"',
@@ -116,3 +131,28 @@ class TestBashOperator(unittest.TestCase):
         )
 
         self.assertEqual(bash_operator.retries, 0)
+
+    @mock.patch.dict('os.environ', clear=True)
+    @mock.patch("airflow.operators.bash_operator.TemporaryDirectory", **{  # type: ignore
+        'return_value.__enter__.return_value': '/tmp/airflowtmpcatcat'
+    })
+    @mock.patch("airflow.operators.bash_operator.Popen", **{  # type: ignore
+        'return_value.stdout.readline.side_effect': [b'BAR', b'BAZ'],
+        'return_value.returncode': 0
+    })
+    def test_should_exec_subprocess(self, mock_popen, mock_temporary_directory):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_return_value',
+            dag=None
+        )
+        bash_operator.execute({})
+
+        mock_popen.assert_called_once_with(
+            ['bash', '-c', 'echo "stdout"'],
+            cwd='/tmp/airflowtmpcatcat',
+            env={},
+            preexec_fn=mock.ANY,
+            stderr=STDOUT,
+            stdout=PIPE
+        )

@@ -274,7 +274,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
                 input_serialization['CSV']['FileHeaderInfo'] = 'USE'
 
             # Confirm that select_key was called with the right params
-            with mock.patch('airflow.hooks.S3_hook.S3Hook.select_key',
+            with mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key',
                             return_value="") as mock_select_key:
                 # Execute S3ToHiveTransfer
                 s32hive = S3ToHiveTransfer(**self.kwargs)
