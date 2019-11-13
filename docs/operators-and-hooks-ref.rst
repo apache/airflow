@@ -165,6 +165,11 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.hive.operators.s3_to_hive`
 
+   * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
+     - `MySQL <https://www.mysql.com/>`__
+     -
+     - :mod:`airflow.providers.mysql.operators.s3_to_mysql`
+
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
