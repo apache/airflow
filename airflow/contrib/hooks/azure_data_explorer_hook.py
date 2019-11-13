@@ -20,7 +20,7 @@
 """This module contains Azure Data Explorer hook"""
 
 from azure.kusto.data.exceptions import KustoServiceError
-from azure.kusto.data.request import KustoClient, KustoConnectionStringBuilder, ClientRequestProperties
+from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook

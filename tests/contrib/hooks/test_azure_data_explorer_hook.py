@@ -27,7 +27,6 @@ from airflow.contrib.hooks.azure_data_explorer_hook import AzureDataExplorerHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
-
 from tests.compat import mock
 
 
