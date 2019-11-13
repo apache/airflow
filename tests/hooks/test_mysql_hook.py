@@ -236,3 +236,21 @@ class TestMySqlHook(unittest.TestCase):
 
     def test_serialize_cell(self):
         self.assertEqual('foo', self.db_hook._serialize_cell('foo', None))
+
+    def test_bulk_load_custom(self):
+        self.db_hook.bulk_load_custom(
+            'table',
+            '/tmp/file',
+            'IGNORE',
+            """FIELDS TERMINATED BY ';'
+            OPTIONALLY ENCLOSED BY '"'
+            IGNORE 1 LINES"""
+        )
+        self.cur.execute.assert_called_once_with("""
+            LOAD DATA LOCAL INFILE '/tmp/file'
+            IGNORE
+            INTO TABLE table
+            FIELDS TERMINATED BY ';'
+            OPTIONALLY ENCLOSED BY '"'
+            IGNORE 1 LINES
+            """)
