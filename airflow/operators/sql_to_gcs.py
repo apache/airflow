@@ -24,6 +24,7 @@ import abc
 import json
 import warnings
 from tempfile import NamedTemporaryFile
+from six import string_types
 
 import unicodecsv as csv
 
