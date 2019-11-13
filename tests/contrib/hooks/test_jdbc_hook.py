@@ -54,14 +54,14 @@ class TestJdbcHook(unittest.TestCase):
         jdbc_hook = JdbcHook()
         jdbc_conn = jdbc_hook.get_conn()
         jdbc_hook.set_autocommit(jdbc_conn, False)
-        jdbc_conn.jconn.setAutoCommit.assert_called_with(False)
+        jdbc_conn.jconn.setAutoCommit.assert_called_once_with(False)
 
     @patch("airflow.hooks.jdbc_hook.jaydebeapi.connect")
     def test_jdbc_conn_get_autocommit(self, _):
         jdbc_hook = JdbcHook()
         jdbc_conn = jdbc_hook.get_conn()
         jdbc_hook.get_autocommit(jdbc_conn)
-        self.assertTrue(jdbc_conn.jconn.getAutoCommit.called)
+        jdbc_conn.jconn.getAutoCommit.assert_called_once_with()
 
 
 if __name__ == '__main__':
