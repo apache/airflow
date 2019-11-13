@@ -1745,8 +1745,7 @@ class TestTriggerDag(TestBase):
         self.session = Session()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
         self.graph_endpoint = '/graph?dag_id=example_bash_operator'
-        self.trigger_url = ('/trigger?dag_id=example_bash_operator&amp;'
-                            'origin=%2F{}%3Fdag_id%3Dexample_bash_operator')
+        self.trigger_url = 'origin=%2F{}%3Fdag_id%3Dexample_bash_operator'
 
     def test_trigger_dag_button_normal_exist(self):
         resp = self.client.get('/', follow_redirects=True)
