@@ -1,30 +1,27 @@
 #!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
-#
-# Licensed to the Apache Software Foundation (ASF) under one or more
-# contributor license agreements.  See the NOTICE file distributed with
-# this work for additional information regarding copyright ownership.
-# The ASF licenses this file to You under the Apache License, Version 2.0
-# (the "License"); you may not use this file except in compliance with
-# the License.  You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-
-# Script to run Pylint on all code. Can be started from any working directory
-# ./scripts/ci/run_pylint.sh
-
+# Script to check licences for all code. Can be started from any working directory
 set -uo pipefail
 
 MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-# shellcheck source=./_in_container_utils.sh
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/_in_container_utils.sh"
 
 in_container_basic_sanity_check
@@ -35,8 +32,6 @@ echo
 echo "Running Licence check"
 echo
 
-sudo chown -R "${AIRFLOW_USER}.${AIRFLOW_USER}" "${AIRFLOW_SOURCES}/logs"
-
 # This is the target of a symlink in airflow/www/static/docs -
 # and rat exclude doesn't cope with the symlink target doesn't exist
 sudo mkdir -p docs/_build/html/
@@ -44,7 +39,7 @@ sudo mkdir -p docs/_build/html/
 echo "Running license checks. This can take a while."
 
 if ! java -jar "${RAT_JAR}" -E "${AIRFLOW_SOURCES}"/.rat-excludes \
-    -d "${AIRFLOW_SOURCES}" > "${AIRFLOW_SOURCES}/logs/rat-results.txt"; then
+    -d "${AIRFLOW_SOURCES}" | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
    echo >&2 "RAT exited abnormally"
    exit 1
 fi

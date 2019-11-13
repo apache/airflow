@@ -17,24 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import functools
 import inspect
-import json
-import time
-import markdown
-import re
-import zipfile
-import os
 import io
-
-from pygments import highlight, lexers
-from pygments.formatters import HtmlFormatter
-from flask import request, Response, Markup, url_for
-from flask_appbuilder.models.sqla.interface import SQLAInterface
-import flask_appbuilder.models.sqla.filters as fab_sqlafilters
-import sqlalchemy as sqla
+import json
+import os
+import re
+import time
+import zipfile
+from typing import Any, Optional
 from urllib.parse import urlencode
 
-from airflow import configuration
+import flask_appbuilder.models.sqla.filters as fab_sqlafilters
+import markdown
+import sqlalchemy as sqla
+from flask import Markup, Response, request, url_for
+from flask_appbuilder.models.sqla.interface import SQLAInterface
+from pygments import highlight, lexers
+from pygments.formatters import HtmlFormatter
+
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
@@ -55,19 +57,32 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
 def should_hide_value_for_key(key_name):
     # It is possible via importing variables from file that a key is empty.
     if key_name:
-        config_set = configuration.conf.getboolean('admin',
-                                                   'hide_sensitive_variable_fields')
+        config_set = conf.getboolean('admin',
+                                     'hide_sensitive_variable_fields')
         field_comp = any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
         return config_set and field_comp
     return False
 
 
 def get_params(**kwargs):
+    hide_paused_dags_by_default = conf.getboolean('webserver',
+                                                  'hide_paused_dags_by_default')
     if 'showPaused' in kwargs:
-        v = kwargs['showPaused']
-        if v or v is None:
+        show_paused_dags_url_param = kwargs['showPaused']
+        if _should_remove_show_paused_from_url_params(
+            show_paused_dags_url_param,
+            hide_paused_dags_by_default
+        ):
             kwargs.pop('showPaused')
     return urlencode({d: v if v is not None else '' for d, v in kwargs.items()})
+
+
+def _should_remove_show_paused_from_url_params(show_paused_dags_url_param,
+                                               hide_paused_dags_by_default):
+    return any([
+        show_paused_dags_url_param != hide_paused_dags_by_default,
+        show_paused_dags_url_param is None
+    ])
 
 
 def generate_pages(current_page, num_of_pages,
@@ -83,18 +98,13 @@ def generate_pages(current_page, num_of_pages,
     This component takes into account custom parameters such as search and showPaused,
     which could be added to the pages link in order to maintain the state between
     client and server. It also allows to make a bookmark on a specific paging state.
-    :param current_page:
-        the current page number, 0-indexed
-    :param num_of_pages:
-        the total number of pages
-    :param search:
-        the search query string, if any
-    :param showPaused:
-        false if paused dags will be hidden, otherwise true to show them
-    :param window:
-        the number of pages to be shown in the paging component (7 default)
-    :return:
-        the HTML string of the paging component
+
+    :param current_page: the current page number, 0-indexed
+    :param num_of_pages: the total number of pages
+    :param search: the search query string, if any
+    :param showPaused: false if paused dags will be hidden, otherwise true to show them
+    :param window: the number of pages to be shown in the paging component (7 default)
+    :return: the HTML string of the paging component
     """
 
     void_link = 'javascript:void(0)'
@@ -103,11 +113,11 @@ def generate_pages(current_page, num_of_pages,
 </li>""")
 
     previous_node = Markup("""<li class="paginate_button previous {disabled}" id="dags_previous">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lt;</a>
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lsaquo;</a>
 </li>""")
 
     next_node = Markup("""<li class="paginate_button next {disabled}" id="dags_next">
-    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&gt;</a>
+    <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&rsaquo;</a>
 </li>""")
 
     last_node = Markup("""<li class="paginate_button {disabled}" id="dags_last">
@@ -342,8 +352,7 @@ def get_attr_renderer():
         'doc_rst': lambda x: render(x, lexers.RstLexer),
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
-        'python_callable': lambda x: render(
-            inspect.getsource(x) if x is not None else None, lexers.PythonLexer),
+        'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
     }
 
 
@@ -372,6 +381,38 @@ def get_chart_height(dag):
     charts, that is charts that take up space based on the size of the components within.
     """
     return 600 + len(dag.tasks) * 10
+
+
+def get_python_source(x: Any) -> Optional[str]:
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    if isinstance(x, str):
+        return x
+
+    if x is None:
+        return None
+
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+    return source_code
 
 
 class UtcAwareFilterMixin:

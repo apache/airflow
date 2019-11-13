@@ -18,9 +18,9 @@
 # under the License.
 #
 
+import json
 import unittest
 from unittest.mock import Mock, patch
-import json
 
 from airflow.hooks.jdbc_hook import JdbcHook
 from airflow.models import Connection

@@ -17,19 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
-from airflow.utils.file import TemporaryDirectory
-import gzip
 import bz2
-import tempfile
+import gzip
 import os
+import tempfile
+from tempfile import NamedTemporaryFile
+from typing import Dict, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.S3_hook import S3Hook
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.compression import uncompress_file
+from airflow.utils.decorators import apply_defaults
+from airflow.utils.file import TemporaryDirectory
 
 
 class S3ToHiveTransfer(BaseOperator):
@@ -55,6 +56,8 @@ class S3ToHiveTransfer(BaseOperator):
     :param hive_table: target Hive table, use dot notation to target a
         specific database. (templated)
     :type hive_table: str
+    :param delimiter: field delimiter in the file
+    :type delimiter: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool
     :param recreate: whether to drop and recreate the table at every
@@ -72,8 +75,6 @@ class S3ToHiveTransfer(BaseOperator):
     :param wildcard_match: whether the s3_key should be interpreted as a Unix
         wildcard pattern
     :type wildcard_match: bool
-    :param delimiter: field delimiter in the file
-    :type delimiter: str
     :param aws_conn_id: source s3 connection
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
@@ -105,23 +106,23 @@ class S3ToHiveTransfer(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            s3_key,
-            field_dict,
-            hive_table,
-            delimiter=',',
-            create=True,
-            recreate=False,
-            partition=None,
-            headers=False,
-            check_headers=False,
-            wildcard_match=False,
-            aws_conn_id='aws_default',
-            verify=None,
-            hive_cli_conn_id='hive_cli_default',
-            input_compressed=False,
-            tblproperties=None,
-            select_expression=None,
-            *args, **kwargs):
+            s3_key: str,
+            field_dict: Dict,
+            hive_table: str,
+            delimiter: str = ',',
+            create: bool = True,
+            recreate: bool = False,
+            partition: Optional[Dict] = None,
+            headers: bool = False,
+            check_headers: bool = False,
+            wildcard_match: bool = False,
+            aws_conn_id: str = 'aws_default',
+            verify: Optional[Union[bool, str]] = None,
+            hive_cli_conn_id: str = 'hive_cli_default',
+            input_compressed: bool = False,
+            tblproperties: Optional[Dict] = None,
+            select_expression: Optional[str] = None,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.s3_key = s3_key
         self.field_dict = field_dict
@@ -162,7 +163,7 @@ class S3ToHiveTransfer(BaseOperator):
                     "The key {0} does not exists".format(self.s3_key))
             s3_key_object = self.s3.get_key(self.s3_key)
 
-        root, file_ext = os.path.splitext(s3_key_object.key)
+        _, file_ext = os.path.splitext(s3_key_object.key)
         if (self.select_expression and self.input_compressed and
                 file_ext.lower() != '.gz'):
             raise AirflowException("GZIP is the only compression " +
@@ -284,10 +285,8 @@ class S3ToHiveTransfer(BaseOperator):
         elif output_file_ext.lower() == '.bz2':
             open_fn = bz2.BZ2File
 
-        os_fh_output, fn_output = \
-            tempfile.mkstemp(suffix=output_file_ext, dir=dest_dir)
-        with open(input_file_name, 'rb') as f_in, \
-                open_fn(fn_output, 'wb') as f_out:
+        _, fn_output = tempfile.mkstemp(suffix=output_file_ext, dir=dest_dir)
+        with open(input_file_name, 'rb') as f_in, open_fn(fn_output, 'wb') as f_out:
             f_in.seek(0)
             next(f_in)
             for line in f_in:

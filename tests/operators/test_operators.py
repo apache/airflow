@@ -17,14 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
+import unittest
+from collections import OrderedDict
+from unittest import mock
+
 from airflow import DAG, configuration, operators
 from airflow.utils import timezone
-
-from collections import OrderedDict
-
-import os
-from unittest import mock
-import unittest
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -32,7 +31,7 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class MySqlTest(unittest.TestCase):
+class TestMySql(unittest.TestCase):
     def setUp(self):
         args = {
             'owner': 'airflow',
@@ -180,7 +179,7 @@ class MySqlTest(unittest.TestCase):
             assert "Unknown database 'foobar'" in str(e)
 
 
-class PostgresTest(unittest.TestCase):
+class TestPostgres(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
@@ -289,7 +288,7 @@ class PostgresTest(unittest.TestCase):
             assert 'database "foobar" does not exist' in str(e)
 
 
-class TransferTests(unittest.TestCase):
+class TestTransfer(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)

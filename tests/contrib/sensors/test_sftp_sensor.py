@@ -19,11 +19,13 @@
 
 import unittest
 from unittest.mock import patch
-from paramiko import SFTP_NO_SUCH_FILE, SFTP_FAILURE
+
+from paramiko import SFTP_FAILURE, SFTP_NO_SUCH_FILE
+
 from airflow.contrib.sensors.sftp_sensor import SFTPSensor
 
 
-class SFTPSensorTest(unittest.TestCase):
+class TestSFTPSensor(unittest.TestCase):
     @patch('airflow.contrib.sensors.sftp_sensor.SFTPHook')
     def test_file_present(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
@@ -34,7 +36,7 @@ class SFTPSensorTest(unittest.TestCase):
             'ds': '1970-01-01'
         }
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_with(
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
             '/path/to/file/1970-01-01.txt')
         self.assertTrue(output)
 
@@ -49,7 +51,7 @@ class SFTPSensorTest(unittest.TestCase):
             'ds': '1970-01-01'
         }
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_with(
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
             '/path/to/file/1970-01-01.txt')
         self.assertFalse(output)
 
@@ -65,5 +67,5 @@ class SFTPSensorTest(unittest.TestCase):
         }
         with self.assertRaises(OSError):
             sftp_sensor.poke(context)
-            sftp_hook_mock.return_value.get_mod_time.assert_called_with(
+            sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
                 '/path/to/file/1970-01-01.txt')

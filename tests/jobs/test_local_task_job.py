@@ -23,23 +23,24 @@ import time
 import unittest
 
 from airflow import AirflowException, models, settings
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.executors import SequentialExecutor
 from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from tests.compat import patch
 from tests.core import TEST_DAG_FOLDER
+from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-class LocalTaskJobTest(unittest.TestCase):
+class TestLocalTaskJob(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
 
@@ -110,15 +111,58 @@ class LocalTaskJobTest(unittest.TestCase):
         session.merge(ti)
         session.commit()
 
-        ret = job1.heartbeat_callback()
-        self.assertEqual(ret, None)
+        job1.heartbeat_callback()
 
         mock_pid.return_value = 2
         self.assertRaises(AirflowException, job1.heartbeat_callback)
 
-    @unittest.skipIf('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @patch('os.getpid')
+    def test_heartbeat_failed_fast(self, mock_getpid):
+        """
+        Test that task heartbeat will sleep when it fails fast
+        """
+        mock_getpid.return_value = 1
+
+        heartbeat_records = []
+
+        def heartbeat_recorder(**kwargs):
+            heartbeat_records.append(timezone.utcnow())
+
+        with create_session() as session:
+            dagbag = models.DagBag(
+                dag_folder=TEST_DAG_FOLDER,
+                include_examples=False,
+            )
+            dag_id = 'test_heartbeat_failed_fast'
+            task_id = 'test_heartbeat_failed_fast_op'
+            dag = dagbag.get_dag(dag_id)
+            task = dag.get_task(task_id)
+
+            dag.create_dagrun(run_id="test_heartbeat_failed_fast_run",
+                              state=State.RUNNING,
+                              execution_date=DEFAULT_DATE,
+                              start_date=DEFAULT_DATE,
+                              session=session)
+            ti = TI(task=task, execution_date=DEFAULT_DATE)
+            ti.refresh_from_db()
+            ti.state = State.RUNNING
+            ti.hostname = get_hostname()
+            ti.pid = 1
+            session.commit()
+
+            job = LocalTaskJob(task_instance=ti, executor=TestExecutor(do_update=False))
+            job.heartrate = 2
+            job.heartbeat_callback = heartbeat_recorder
+            job._execute()
+            self.assertGreater(len(heartbeat_records), 1)
+            for i in range(1, len(heartbeat_records)):
+                time1 = heartbeat_records[i - 1]
+                time2 = heartbeat_records[i]
+                self.assertGreaterEqual((time2 - time1).total_seconds(), job.heartrate)
+
+    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
-    @unittest.skipIf('postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('postgresql' in conf.get('core', 'sql_alchemy_conn'),
                      'flaky when run on postgresql')
     def test_mark_success_no_kill(self):
         """
@@ -181,13 +225,15 @@ class LocalTaskJobTest(unittest.TestCase):
         ti.state = State.RUNNING
         ti.hostname = get_hostname()
         ti.pid = 1
+        session.merge(ti)
         session.commit()
 
         ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+        ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run,
-                            ignore_ti_state=True,
                             executor=SequentialExecutor())
-        with patch.object(BaseTaskRunner, 'start', return_value=None) as mock_method:
+        from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+        with patch.object(StandardTaskRunner, 'start', return_value=None) as mock_method:
             job1.run()
             mock_method.assert_not_called()
 

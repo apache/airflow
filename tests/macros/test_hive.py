@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
 import unittest
+from datetime import datetime
 
 from airflow.macros import hive
 
 
-class Hive(unittest.TestCase):
+class TestHive(unittest.TestCase):
     def test_closest_ds_partition(self):
         d1 = datetime.strptime('2017-04-24', '%Y-%m-%d')
         d2 = datetime.strptime('2017-04-25', '%Y-%m-%d')

@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
 import unittest
+from unittest import mock
 
 from airflow.contrib.operators.winrm_operator import WinRMOperator
 from airflow.exceptions import AirflowException
 
 
-class WinRMOperatorTest(unittest.TestCase):
+class TestWinRMOperator(unittest.TestCase):
     def test_no_winrm_hook_no_ssh_conn_id(self):
         op = WinRMOperator(task_id='test_task_id',
                            winrm_hook=None,

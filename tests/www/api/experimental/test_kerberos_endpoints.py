@@ -18,43 +18,42 @@
 # under the License.
 
 import json
-import unittest
-from unittest import mock
 import os
 import socket
-
+import unittest
 from datetime import datetime
+from unittest import mock
 
-from airflow import configuration
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
+from airflow.configuration import conf
 from airflow.www import app as application
 
 
 @unittest.skipIf('KRB5_KTNAME' not in os.environ,
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
-class ApiKerberosTests(unittest.TestCase):
+class TestApiKerberos(unittest.TestCase):
     def setUp(self):
         try:
-            configuration.conf.add_section("api")
-        except Exception:
+            conf.add_section("api")
+        except Exception:  # pylint:disable=broad-except
             pass
-        configuration.conf.set("api",
-                               "auth_backend",
-                               "airflow.api.auth.backend.kerberos_auth")
+        conf.set("api",
+                 "auth_backend",
+                 "airflow.api.auth.backend.kerberos_auth")
         try:
-            configuration.conf.add_section("kerberos")
-        except Exception:
+            conf.add_section("kerberos")
+        except Exception:  # pylint:disable=broad-except
             pass
-        configuration.conf.set("kerberos",
-                               "keytab",
-                               os.environ['KRB5_KTNAME'])
+        conf.set("kerberos",
+                 "keytab",
+                 os.environ['KRB5_KTNAME'])
 
         self.app, _ = application.create_app(testing=True)
 
     def test_trigger_dag(self):
-        with self.app.test_client() as c:
+        with self.app.test_client() as client:
             url_template = '/api/experimental/dags/{}/dag_runs'
-            response = c.post(
+            response = client.post(
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
                 content_type="application/json"
@@ -81,7 +80,7 @@ class ApiKerberosTests(unittest.TestCase):
             CLIENT_AUTH.handle_response(response)
             self.assertIn('Authorization', response.request.headers)
 
-            response2 = c.post(
+            response2 = client.post(
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
                 content_type="application/json",
@@ -90,9 +89,9 @@ class ApiKerberosTests(unittest.TestCase):
             self.assertEqual(200, response2.status_code)
 
     def test_unauthorized(self):
-        with self.app.test_client() as c:
+        with self.app.test_client() as client:
             url_template = '/api/experimental/dags/{}/dag_runs'
-            response = c.post(
+            response = client.post(
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
                 content_type="application/json"

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional, Any, Iterable, Dict, SupportsAbs
+from typing import Any, Dict, Iterable, Optional, SupportsAbs
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -72,7 +72,7 @@ class CheckOperator(BaseOperator):
         conn_id: Optional[str] = None,
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
         self.sql = sql

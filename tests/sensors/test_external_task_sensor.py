@@ -17,12 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-from datetime import timedelta, time
+from datetime import time, timedelta
 
-from airflow import DAG, settings
-from airflow import exceptions
+from airflow import DAG, exceptions, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
-from airflow.models import TaskInstance, DagBag
+from airflow.models import DagBag, TaskInstance
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
@@ -36,7 +35,7 @@ TEST_TASK_ID = 'time_sensor_check'
 DEV_NULL = '/dev/null'
 
 
-class ExternalTaskSensorTests(unittest.TestCase):
+class TestExternalTaskSensor(unittest.TestCase):
 
     def setUp(self):
         self.dagbag = DagBag(

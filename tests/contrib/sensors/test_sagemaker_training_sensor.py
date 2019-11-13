@@ -20,9 +20,9 @@
 import unittest
 from datetime import datetime
 
-from airflow.contrib.sensors.sagemaker_training_sensor \
-    import SageMakerTrainingSensor
-from airflow.contrib.hooks.sagemaker_hook import SageMakerHook, LogState
+from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
+from airflow.contrib.hooks.sagemaker_hook import LogState, SageMakerHook
+from airflow.contrib.sensors.sagemaker_training_sensor import SageMakerTrainingSensor
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 
@@ -94,10 +94,15 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         self.assertEqual(mock_describe_job.call_count, 3)
 
         # make sure the hook was initialized with the specific params
-        hook_init.assert_called_with(aws_conn_id='aws_test')
+        calls = [
+            mock.call(aws_conn_id='aws_test'),
+            mock.call(aws_conn_id='aws_test'),
+            mock.call(aws_conn_id='aws_test')
+        ]
+        hook_init.assert_has_calls(calls)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
-    @mock.patch.object(SageMakerHook, 'get_log_conn')
+    @mock.patch.object(AwsLogsHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
     @mock.patch.object(SageMakerHook, 'describe_training_job_with_log')
     @mock.patch.object(SageMakerHook, 'describe_training_job')
@@ -124,7 +129,12 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         self.assertEqual(mock_describe_job_with_log.call_count, 3)
         self.assertEqual(mock_describe_job.call_count, 1)
 
-        hook_init.assert_called_with(aws_conn_id='aws_test')
+        calls = [
+            mock.call(aws_conn_id='aws_test'),
+            mock.call(aws_conn_id='aws_test'),
+            mock.call(aws_conn_id='aws_test')
+        ]
+        hook_init.assert_has_calls(calls)
 
 
 if __name__ == '__main__':

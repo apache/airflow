@@ -21,14 +21,13 @@
 from flask import g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.www.app import appbuilder
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
-
+from airflow.www.app import appbuilder
 
 EXISTING_ROLES = {
     'Admin',
@@ -273,7 +272,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # return a set of all dags that the user could access
         return {view for perm, view in user_perms_views if perm in self.DAG_PERMS}
 
-    def has_access(self, permission, view_name, user=None):
+    def has_access(self, permission, view_name, user=None) -> bool:
         """
         Verify whether a given user could perform certain permission
         (e.g can_read, can_write) on the given dag_id.
@@ -344,7 +343,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 sqla_models.PermissionView.view_menu == None,  # noqa pylint: disable=singleton-comparison
             ))
         )
-        deleted_count = pvms.delete()
+        # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
+        # to delete the _object_ so that SQLA knows to delete the many-to-many
+        # relationship object too. :(
+
+        deleted_count = 0
+        for pvm in pvms:
+            sesh.delete(pvm)
+            deleted_count += 1
         sesh.commit()
         if deleted_count:
             self.log.info('Deleted %s faulty permissions', deleted_count)
@@ -446,12 +452,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def update_admin_perm_view(self):
         """
-        Admin should have all the permission-views.
+        Admin should has all the permission-views, except the dag views.
+        because Admin have already have all_dags permission.
         Add the missing ones to the table for admin.
 
         :return: None.
         """
-        pvms = self.get_session.query(sqla_models.PermissionView).all()
+        all_dag_view = self.find_view_menu('all_dags')
+        dag_perm_ids = [self.find_permission('can_dag_edit').id, self.find_permission('can_dag_read').id]
+        pvms = self.get_session.query(sqla_models.PermissionView).filter(~and_(
+            sqla_models.PermissionView.permission_id.in_(dag_perm_ids),
+            sqla_models.PermissionView.view_menu_id != all_dag_view.id)
+        ).all()
+
         pvms = [p for p in pvms if p.permission and p.view_menu]
 
         admin = self.find_role('Admin')
@@ -489,7 +502,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         as only / refresh button or cli.sync_perm will call this function
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}
@@ -508,7 +521,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :type dag_id: string
+        :type dag_id: str
         :param access_control: a dict where each key is a rolename and
             each value is a set() of permission names (e.g.,
             {'can_dag_read'}

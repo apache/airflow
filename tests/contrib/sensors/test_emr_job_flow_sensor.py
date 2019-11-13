@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import unittest
 from unittest.mock import MagicMock, patch
-import datetime
+
 from dateutil.tz import tzlocal
 
 from airflow import AirflowException
@@ -152,7 +153,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
         with patch('boto3.session.Session', self.boto3_session_mock):
             operator = EmrJobFlowSensor(
                 task_id='test_task',
-                poke_interval=2,
+                poke_interval=0,
                 job_flow_id='j-8989898989',
                 aws_conn_id='aws_default'
             )
@@ -163,7 +164,11 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             self.assertEqual(self.mock_emr_client.describe_cluster.call_count, 2)
 
             # make sure it was called with the job_flow_id
-            self.mock_emr_client.describe_cluster.assert_called_with(ClusterId='j-8989898989')
+            calls = [
+                unittest.mock.call(ClusterId='j-8989898989'),
+                unittest.mock.call(ClusterId='j-8989898989')
+            ]
+            self.mock_emr_client.describe_cluster.assert_has_calls(calls)
 
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_failed_state_with_exception(self):
         self.mock_emr_client.describe_cluster.side_effect = [
@@ -185,7 +190,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
                 self.assertEqual(self.mock_emr_client.describe_cluster.call_count, 2)
 
                 # make sure it was called with the job_flow_id
-                self.mock_emr_client.describe_cluster.assert_called_with(ClusterId='j-8989898989')
+                self.mock_emr_client.describe_cluster.assert_called_once_with(ClusterId='j-8989898989')
 
 
 if __name__ == '__main__':

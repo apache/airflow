@@ -18,8 +18,8 @@
 # under the License.
 
 import unittest
-from unittest.mock import Mock, patch
 from datetime import timedelta
+from unittest.mock import Mock, patch
 
 from airflow.models import DAG, TaskInstance, TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
@@ -28,7 +28,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
 
-class NotInReschedulePeriodDepTest(unittest.TestCase):
+class TestNotInReschedulePeriodDep(unittest.TestCase):
 
     def _get_task_instance(self, state):
         dag = DAG('test_dag')

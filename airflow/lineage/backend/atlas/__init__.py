@@ -17,14 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow import configuration as conf
+
+# pylint:disable=missing-docstring
+
+from atlasclient.client import Atlas
+from atlasclient.exceptions import HttpError
+
+from airflow.configuration import conf
 from airflow.lineage import datasets
 from airflow.lineage.backend import LineageBackend
 from airflow.lineage.backend.atlas.typedefs import operator_typedef
 from airflow.utils.timezone import convert_to_utc
-
-from atlasclient.client import Atlas
-from atlasclient.exceptions import HttpError
 
 SERIALIZED_DATE_FORMAT_STR = "%Y-%m-%dT%H:%M:%S.%fZ"
 
@@ -34,9 +37,9 @@ _port = conf.get("atlas", "port")
 _host = conf.get("atlas", "host")
 
 
-class AtlasBackend(LineageBackend):
+class AtlasBackend(LineageBackend):  # pylint:disable=missing-docstring
     @staticmethod
-    def send_lineage(operator, inlets, outlets, context):
+    def send_lineage(operator, inlets, outlets, context):  # pylint:disable=signature-differs
         client = Atlas(_host, port=_port, username=_username, password=_password)
         try:
             client.typedefs.create(data=operator_typedef)

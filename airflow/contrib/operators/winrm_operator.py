@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from base64 import b64encode
 import logging
+from base64 import b64encode
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -31,7 +31,7 @@ from airflow.utils.decorators import apply_defaults
 # Hide the following error message in urllib3 when making WinRM connections:
 # requests.packages.urllib3.exceptions.HeaderParsingError: [StartBoundaryNotFoundDefect(),
 #   MultipartInvariantViolationDefect()], unparsed data: ''
-logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.CRITICAL)
+logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
 
 
 class WinRMOperator(BaseOperator):
@@ -124,7 +124,7 @@ class WinRMOperator(BaseOperator):
 
         if return_code == 0:
             # returning output if do_xcom_push is set
-            enable_pickling = configuration.conf.getboolean(
+            enable_pickling = conf.getboolean(
                 'core', 'enable_xcom_pickling'
             )
             if enable_pickling:

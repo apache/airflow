@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import requests
 import time
 
+import requests
 from pydruid.db import connect
 
 from airflow.exceptions import AirflowException
@@ -30,6 +30,9 @@ from airflow.hooks.dbapi_hook import DbApiHook
 class DruidHook(BaseHook):
     """
     Connection to Druid overlord for ingestion
+
+    To connect to a Druid cluster that is secured with the druid-basic-security
+    extension, add the username and password to the druid ingestion connection.
 
     :param druid_ingest_conn_id: The connection id to the Druid overlord machine
                                  which accepts index jobs
@@ -64,11 +67,25 @@ class DruidHook(BaseHook):
         return "{conn_type}://{host}:{port}/{endpoint}".format(
             conn_type=conn_type, host=host, port=port, endpoint=endpoint)
 
-    def submit_indexing_job(self, json_index_spec):
+    def get_auth(self):
+        """
+        Return username and password from connections tab as requests.auth.HTTPBasicAuth object.
+
+        If these details have not been set then returns None.
+        """
+        conn = self.get_connection(self.druid_ingest_conn_id)
+        user = conn.login
+        password = conn.password
+        if user is not None and password is not None:
+            return requests.auth.HTTPBasicAuth(user, password)
+        else:
+            return None
+
+    def submit_indexing_job(self, json_index_spec: str):
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
-        req_index = requests.post(url, json=json_index_spec, headers=self.header)
+        req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
         if req_index.status_code != 200:
             raise AirflowException('Did not get 200 when '
                                    'submitting the Druid job to {}'.format(url))
@@ -82,13 +99,13 @@ class DruidHook(BaseHook):
 
         sec = 0
         while running:
-            req_status = requests.get("{0}/{1}/status".format(url, druid_task_id))
+            req_status = requests.get("{0}/{1}/status".format(url, druid_task_id), auth=self.get_auth())
 
             self.log.info("Job still running for %s seconds...", sec)
 
             if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
-                requests.post("{0}/{1}/shutdown".format(url, druid_task_id))
+                requests.post("{0}/{1}/shutdown".format(url, druid_task_id), auth=self.get_auth())
                 raise AirflowException('Druid ingestion took more than '
                                        '%s seconds', self.max_ingestion_time)
 
@@ -133,9 +150,11 @@ class DruidDbApiHook(DbApiHook):
             host=conn.host,
             port=conn.port,
             path=conn.extra_dejson.get('endpoint', '/druid/v2/sql'),
-            scheme=conn.extra_dejson.get('schema', 'http')
+            scheme=conn.extra_dejson.get('schema', 'http'),
+            user=conn.login,
+            password=conn.password
         )
-        self.log.info('Get the connection to druid broker on %s', conn.host)
+        self.log.info('Get the connection to druid broker on %s using user %s', conn.host, conn.login)
         return druid_broker_conn
 
     def get_uri(self):
@@ -154,9 +173,6 @@ class DruidDbApiHook(DbApiHook):
             conn_type=conn_type, host=host, endpoint=endpoint)
 
     def set_autocommit(self, conn, autocommit):
-        raise NotImplementedError()
-
-    def get_pandas_df(self, sql, parameters=None):
         raise NotImplementedError()
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000):

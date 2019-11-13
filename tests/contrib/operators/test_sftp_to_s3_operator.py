@@ -23,16 +23,15 @@ import boto3
 from moto import mock_s3
 
 from airflow import models
+from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.contrib.operators.sftp_to_s3_operator import SFTPToS3Operator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-from airflow.contrib.hooks.ssh_hook import SSHHook
-from airflow.hooks.S3_hook import S3Hook
 from tests.test_utils.config import conf_vars
-
 
 BUCKET = 'test-bucket'
 S3_KEY = 'test/test_1_file.csv'
@@ -58,7 +57,7 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class SFTPToS3OperatorTest(unittest.TestCase):
+class TestSFTPToS3Operator(unittest.TestCase):
 
     @mock_s3
     def setUp(self):
@@ -68,7 +67,6 @@ class SFTPToS3OperatorTest(unittest.TestCase):
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE,
-            'provide_context': True
         }
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
         dag.schedule_interval = '@once'

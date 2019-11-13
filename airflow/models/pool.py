@@ -17,11 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, func
 
 from airflow.models.base import Base
-from airflow.utils.state import State
+from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils.db import provide_session
+from airflow.utils.state import State
 
 
 class Pool(Base):
@@ -29,6 +30,7 @@ class Pool(Base):
 
     id = Column(Integer, primary_key=True)
     pool = Column(String(50), unique=True)
+    # -1 for infinite
     slots = Column(Integer, default=0)
     description = Column(Text)
 
@@ -63,10 +65,10 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
         return (
             session
-            .query(TaskInstance)
+            .query(func.count())
             .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state.in_([State.QUEUED, State.RUNNING]))
-            .count()
+            .filter(TaskInstance.state.in_(STATES_TO_COUNT_AS_RUNNING))
+            .scalar()
         )
 
     @provide_session
@@ -78,10 +80,10 @@ class Pool(Base):
 
         running = (
             session
-            .query(TaskInstance)
+            .query(func.count())
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.RUNNING)
-            .count()
+            .scalar()
         )
         return running
 
@@ -94,10 +96,10 @@ class Pool(Base):
 
         return (
             session
-            .query(TaskInstance)
+            .query(func.count())
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.QUEUED)
-            .count()
+            .scalar()
         )
 
     @provide_session
@@ -105,4 +107,7 @@ class Pool(Base):
         """
         Returns the number of slots open at the moment
         """
-        return self.slots - self.occupied_slots(session)
+        if self.slots == -1:
+            return float('inf')
+        else:
+            return self.slots - self.occupied_slots(session)

@@ -1,3 +1,20 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 ..  Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -22,6 +39,11 @@ Google Cloud Speech Translate Operators
   :depth: 1
   :local:
 
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:GcpTranslateSpeechOperator:
 
 GcpTranslateSpeechOperator
@@ -30,7 +52,7 @@ GcpTranslateSpeechOperator
 Recognizes speech in audio input and translates it.
 
 For parameter definition, take a look at
-:class:`airflow.contrib.operators.gcp_translate_speech_operator.GcpTranslateSpeechOperator`
+:class:`airflow.gcp.operators.translate_speech.GcpTranslateSpeechOperator`
 
 Arguments
 """""""""
@@ -40,14 +62,14 @@ Config and audio arguments need to be dicts or objects of corresponding classes 
 
 for more information, see: https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/api.html#google.cloud.speech_v1.SpeechClient.recognize
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_speech.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
       :language: python
       :start-after: [START howto_operator_speech_to_text_api_arguments]
       :end-before: [END howto_operator_speech_to_text_api_arguments]
 
 Arguments for translation need to be specified.
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_speech.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
       :language: python
       :start-after: [START howto_operator_translate_speech_arguments]
       :end-before: [END howto_operator_translate_speech_arguments]
@@ -56,7 +78,7 @@ Arguments for translation need to be specified.
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_speech.py
+.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_translate_speech]
@@ -65,8 +87,18 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_translate_speech_operator.py
+.. literalinclude:: ../../../../airflow/gcp/operators/translate_speech.py
     :language: python
     :dedent: 4
     :start-after: [START translate_speech_template_fields]
     :end-before: [END translate_speech_template_fields]
+
+Reference
+---------
+
+For further information, look at:
+
+* `Google Cloud Translate - Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/translate/index.html>`__
+* `Google Cloud Translate - Product Documentation <https://cloud.google.com/translate/docs/>`__
+* `Google Cloud Speech - Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/speech/>`__
+* `Google Cloud Speech - Product Documentation <https://cloud.google.com/speech/>`__

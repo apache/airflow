@@ -19,21 +19,21 @@
 #
 
 import copy
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
 
 from airflow.contrib.utils.sendgrid import send_email
 from tests.compat import mock
 
 
-class SendEmailSendGridTest(unittest.TestCase):
+class TestSendEmailSendGrid(unittest.TestCase):
     # Unit test for sendgrid.send_email()
     def setUp(self):
-        self.to = ['foo@foo.com', 'bar@bar.com']
+        self.recepients = ['foo@foo.com', 'bar@bar.com']
         self.subject = 'sendgrid-send-email unit test'
         self.html_content = '<b>Foo</b> bar'
-        self.cc = ['foo-cc@foo.com', 'bar-cc@bar.com']
+        self.carbon_copy = ['foo-cc@foo.com', 'bar-cc@bar.com']
         self.bcc = ['foo-bcc@foo.com', 'bar-bcc@bar.com']
         self.expected_mail_data = {
             'content': [{'type': 'text/html', 'value': self.html_content}],
@@ -64,7 +64,7 @@ class SendEmailSendGridTest(unittest.TestCase):
         }
 
     # Test the right email is constructed.
-    @mock.patch('os.environ', dict(os.environ, SENDGRID_MAIL_FROM='foo@bar.com'))
+    @mock.patch.dict('os.environ', SENDGRID_MAIL_FROM='foo@bar.com')
     @mock.patch('airflow.contrib.utils.sendgrid._post_sendgrid_mail')
     def test_send_email_sendgrid_correct_email(self, mock_post):
         with tempfile.NamedTemporaryFile(mode='wt', suffix='.txt') as f:
@@ -83,31 +83,30 @@ class SendEmailSendGridTest(unittest.TestCase):
                 }],
             )
 
-            send_email(self.to,
+            send_email(self.recepients,
                        self.subject,
                        self.html_content,
-                       cc=self.cc,
+                       cc=self.carbon_copy,
                        bcc=self.bcc,
                        files=[f.name])
-            mock_post.assert_called_with(expected_mail_data)
+            mock_post.assert_called_once_with(expected_mail_data)
 
     # Test the right email is constructed.
-    @mock.patch(
+    @mock.patch.dict(
         'os.environ',
-        dict(os.environ,
-             SENDGRID_MAIL_FROM='foo@bar.com',
-             SENDGRID_MAIL_SENDER='Foo')
+        SENDGRID_MAIL_FROM='foo@bar.com',
+        SENDGRID_MAIL_SENDER='Foo'
     )
     @mock.patch('airflow.contrib.utils.sendgrid._post_sendgrid_mail')
     def test_send_email_sendgrid_correct_email_extras(self, mock_post):
-        send_email(self.to, self.subject, self.html_content, cc=self.cc, bcc=self.bcc,
+        send_email(self.recepients, self.subject, self.html_content, cc=self.carbon_copy, bcc=self.bcc,
                    personalization_custom_args=self.personalization_custom_args,
                    categories=self.categories)
-        mock_post.assert_called_with(self.expected_mail_data_extras)
+        mock_post.assert_called_once_with(self.expected_mail_data_extras)
 
-    @mock.patch('os.environ', {})
+    @mock.patch.dict('os.environ', clear=True)
     @mock.patch('airflow.contrib.utils.sendgrid._post_sendgrid_mail')
     def test_send_email_sendgrid_sender(self, mock_post):
-        send_email(self.to, self.subject, self.html_content, cc=self.cc, bcc=self.bcc,
+        send_email(self.recepients, self.subject, self.html_content, cc=self.carbon_copy, bcc=self.bcc,
                    from_email='foo@foo.bar', from_name='Foo Bar')
-        mock_post.assert_called_with(self.expected_mail_data_sender)
+        mock_post.assert_called_once_with(self.expected_mail_data_sender)

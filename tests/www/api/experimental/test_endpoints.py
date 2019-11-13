@@ -17,17 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import timedelta
 import json
 import unittest
+from datetime import timedelta
 from urllib.parse import quote_plus
-
 
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.settings import Session
-from airflow.utils.timezone import datetime, utcnow, parse as parse_datetime
+from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.www import app as application
 from tests.test_utils.db import clear_db_pools
 
@@ -58,9 +57,6 @@ class TestApiExperimental(TestBase):
         dagbag = DagBag(include_examples=True)
         for dag in dagbag.dags.values():
             dag.sync_to_db()
-
-    def setUp(self):
-        super().setUp()
 
     def tearDown(self):
         session = Session()
@@ -309,9 +305,6 @@ class TestPoolApiExperimental(TestBase):
             self.pools.append(pool)
         self.session.commit()
         self.pool = self.pools[-1]
-
-    def tearDown(self):
-        super().tearDown()
 
     def _get_pool_count(self):
         response = self.client.get('/api/experimental/pools')

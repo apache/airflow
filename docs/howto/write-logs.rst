@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Writing Logs
 ============
@@ -51,7 +53,7 @@ Enabling remote logging
 
 To enable this feature, ``airflow.cfg`` must be configured as follows:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     # Airflow can store logs remotely in AWS S3. Users must supply a remote
@@ -74,12 +76,12 @@ Airflow can be configured to read and write task logs in Azure Blob Storage.
 
 Follow the steps below to enable Azure Blob Storage logging:
 
-#. Airflow's logging system requires a custom `.py` file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
+#. Airflow's logging system requires a custom ``.py`` file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
 #. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
-#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in `Step 2`.
+#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in ``Step 2``.
 #. Customize the following portions of the template:
 
-    .. code-block:: bash
+    .. code-block:: ini
 
         # wasb buckets should start with "wasb" just to help Airflow select correct handler
         REMOTE_BASE_LOG_FOLDER = 'wasb-<whatever you want here>'
@@ -111,7 +113,7 @@ Follow the steps below to enable Google Cloud Storage logging.
 To enable this feature, ``airflow.cfg`` must be configured as in this
 example:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
@@ -128,7 +130,7 @@ example:
 #. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
 #. Verify that the Google Cloud Storage viewer is working in the UI. Pull up a newly executed task, and verify that you see something like:
 
-.. code-block:: bash
+.. code-block:: none
 
   *** Reading remote log from gs://<bucket where logs should be persisted>/example_bash_operator/run_this_last/2017-10-03T00:00:00/16.log.
   [2017-10-03 21:57:50,056] {cli.py:377} INFO - Running on host chrisr-00532
@@ -148,9 +150,9 @@ Airflow can be configured to read task logs from Elasticsearch and optionally wr
 You can choose to have all task logs from workers output to the highest parent level process, instead of the standard file locations. This allows for some additional flexibility in container environments like Kubernetes, where container stdout is already being logged to the host nodes. From there a log shipping tool can be used to forward them along to Elasticsearch. To use this feature, set the ``write_stdout`` option in ``airflow.cfg``.
 You can also choose to have the logs output in a JSON format, using the ``json_format`` option. Airflow uses the standard Python logging module and JSON fields are directly extracted from the LogRecord object. To use this feature, set the ``json_fields`` option in ``airflow.cfg``. Add the fields to the comma-delimited string that you want collected for the logs. These fields are from the LogRecord object in the ``logging`` module. `Documentation on different attributes can be found here <https://docs.python.org/3/library/logging.html#logrecord-objects/>`_.
 
-First, to use the handler, airflow.cfg must be configured as follows:
+First, to use the handler, ``airflow.cfg`` must be configured as follows:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
@@ -167,7 +169,7 @@ First, to use the handler, airflow.cfg must be configured as follows:
 
 To output task logs to stdout in JSON format, the following config could be used:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
@@ -182,3 +184,24 @@ To output task logs to stdout in JSON format, the following config could be used
     write_stdout = True
     json_format = True
     json_fields = asctime, filename, lineno, levelname, message
+
+.. _write-logs-elasticsearch-tls:
+
+Writing Logs to Elasticsearch over TLS
+----------------------------------------
+
+To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, adding a custom self-signed cert, etc.) use the ``elasticsearch_configs`` setting in your ``airfow.cfg``
+
+.. code-block:: ini
+
+    [core]
+    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Users must supply an Airflow connection id that provides access to the storage
+    # location. If remote_logging is set to true, see UPDATING.md for additional
+    # configuration requirements.
+    remote_logging = True
+
+    [elasticsearch_configs]
+    use_ssl=True
+    verify_certs=True
+    ca_certs=/path/to/CA_certs
