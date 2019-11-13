@@ -38,6 +38,7 @@ from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
 from airflow.models import DagModel, Pool, TaskInstance, Variable
 from airflow.settings import Session
 from airflow.utils import timezone
+from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from tests.compat import mock
 
@@ -671,9 +672,9 @@ class TestCliPools(unittest.TestCase):
     def _cleanup(session=None):
         if session is None:
             session = Session()
-
-        session.query(Pool).delete()
+        session.query(Pool).filter(Pool.pool != Pool.DEFAULT_POOL_NAME).delete()
         session.commit()
+        add_default_pool_if_not_exists()
         session.close()
 
     def test_pool_list(self):
@@ -689,7 +690,7 @@ class TestCliPools(unittest.TestCase):
 
     def test_pool_create(self):
         cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        self.assertEqual(self.session.query(Pool).count(), 1)
+        self.assertEqual(self.session.query(Pool).count(), 2)
 
     def test_pool_get(self):
         cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
@@ -698,7 +699,7 @@ class TestCliPools(unittest.TestCase):
     def test_pool_delete(self):
         cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
         cli.pool_delete(self.parser.parse_args(['pools', 'delete', 'foo']))
-        self.assertEqual(self.session.query(Pool).count(), 0)
+        self.assertEqual(self.session.query(Pool).count(), 1)
 
     def test_pool_import_export(self):
         # Create two pools first
@@ -706,6 +707,10 @@ class TestCliPools(unittest.TestCase):
             "foo": {
                 "description": "foo_test",
                 "slots": 1
+            },
+            'default_pool': {
+                'description': 'Default pool',
+                'slots': 128
             },
             "baz": {
                 "description": "baz_test",
