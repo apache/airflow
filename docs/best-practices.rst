@@ -48,6 +48,11 @@ Some of the ways you can avoid producing a different result -
   This function should never be used inside a task, especially to do the critical computation, as it leads to different outcomes on each run. 
   It's fine to use it, for example, to generate a temporary log.
 
+.. tip::
+
+    You should define repetitive parameters such as ``connection_id`` or S3 paths in ``default_args`` rather than declaring them for each task.
+    The ``default_args`` help to avoid mistakes such as typographical errors.
+
 
 Deleting a task
 ----------------
@@ -69,12 +74,30 @@ The tasks should also not store any authentication parameters such as passwords 
 Always use :ref:`Connections <concepts-connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
 
+Variables
+---------
+
+You should avoid usage of Variables outside a task. Variables create a connection to metadata DB of Airflow to fetch the value.
+Airflow parses all the DAGs in the background at a specific period.
+The default period is set using ``processor_poll_interval`` config, which is by default 1 second. During parsing, Airflow creates a new connection to the metadata DB for each Variable.
+It can result in a lot of open connections.
+
+If you really want to use Variables, we advice to use them from a jinja template with the syntax :
+
+.. code::
+
+    {{ var.value.<variable_name> }}
+
+or if you need to deserialize a json object from the variable :
+
+.. code::
+
+    {{ var.json.<variable_name> }}
+
+
 .. note::
 
-    Do not write any critical code outside the tasks. The code outside the tasks runs every time airflow parses the DAG, which happens every second by default.
-
-    You should also avoid repeating arguments such as connection_id or S3 paths using default_args. It helps you to avoid mistakes while passing arguments.
-
+    In general, you should not write any code outside the tasks. The code outside the tasks runs every time Airflow parses the DAG, which happens every second by default.
 
 
 Testing a DAG
@@ -188,7 +211,7 @@ Backend
 
 Airflow comes with an ``SQLite`` backend by default. It allows the user to run Airflow without any external database.
 However, such a setup is meant to be for testing purposes only. Running the default setup can lead to data loss in multiple scenarios. 
-If you want to run Airflow in production, make sure you :doc:`configure the backend <initialize-database>` to be an external database such as ``MySQL`` or ``Postgres``. 
+If you want to run Airflow in production, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as ``MySQL`` or ``Postgres``. 
 
 You can change the backend using the following config-
 
@@ -228,11 +251,11 @@ Logging
 --------
 
 If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system such as ``S3`` or ``GCS``.
-A DFS makes these logs are available even after the node goes down or gets replaced. See :doc:`write-logs` for configurations.
+A DFS makes these logs are available even after the node goes down or gets replaced. See :doc:`howto/write-logs` for configurations.
 
 .. note::
 
-    The logs only appear in DFS after the task has finished. You can view the logs while the task is running in UI itself.
+    The logs only appear in your DFS after the task has finished. You can view the logs while the task is running in UI itself.
 
 
 Configuration

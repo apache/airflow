@@ -34,7 +34,6 @@ configuring an Airflow environment.
     initialize-database
     operator/index
     custom-operator
-    dags-in-production
     connection/index
     write-logs
     run-behind-proxy
