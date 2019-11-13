@@ -25,7 +25,7 @@ from botocore.exceptions import NoCredentialsError
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
 
 try:
     from moto import mock_s3
@@ -252,24 +252,13 @@ class TestAwsS3Hook:
             def test_function(self, bucket_name=None):
                 return bucket_name
 
-            # pylint: disable=unused-argument
-            @provide_bucket_name
-            def test_function_with_key(self, key, bucket_name=None):
-                return bucket_name
-
-            # pylint: disable=unused-argument
-            @provide_bucket_name
-            def test_function_with_wildcard_key(self, wildcard_key, bucket_name=None):
-                return bucket_name
-
         fake_s3_hook = FakeS3Hook()
-        test_bucket_name = fake_s3_hook.test_function()
-        test_bucket_name_with_key = fake_s3_hook.test_function_with_key('test_key')
-        test_bucket_name_with_wildcard_key = fake_s3_hook.test_function_with_wildcard_key('test_*_key')
 
+        test_bucket_name = fake_s3_hook.test_function()
         assert test_bucket_name == mock_get_connection.return_value.schema
-        assert test_bucket_name_with_key is None
-        assert test_bucket_name_with_wildcard_key is None
+
+        test_bucket_name = fake_s3_hook.test_function(bucket_name='bucket')
+        assert test_bucket_name == 'bucket'
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         hook = S3Hook()
@@ -298,3 +287,31 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.delete_objects(bucket=s3_bucket, keys=keys)
         assert [o.key for o in mocked_s3_res.Bucket(s3_bucket).objects.all()] == []
+
+    def test_unify_bucket_name_and_key(self):
+
+        class FakeS3Hook(S3Hook):
+
+            @unify_bucket_name_and_key
+            def test_function_with_wildcard_key(self, wildcard_key, bucket_name=None):
+                return bucket_name, wildcard_key
+
+            @unify_bucket_name_and_key
+            def test_function_with_key(self, key, bucket_name=None):
+                return bucket_name, key
+
+            @unify_bucket_name_and_key
+            def test_function_with_test_key(self, test_key, bucket_name=None):
+                return bucket_name, test_key
+
+        fake_s3_hook = FakeS3Hook()
+
+        test_bucket_name_with_wildcard_key = fake_s3_hook.test_function_with_wildcard_key('s3://foo/bar*.csv')
+        assert ('foo', 'bar*.csv') == test_bucket_name_with_wildcard_key
+
+        test_bucket_name_with_key = fake_s3_hook.test_function_with_key('s3://foo/bar.csv')
+        assert ('foo', 'bar.csv') == test_bucket_name_with_key
+
+        with pytest.raises(ValueError) as err:
+            fake_s3_hook.test_function_with_test_key('s3://foo/bar.csv')
+        assert isinstance(err.value, ValueError)
