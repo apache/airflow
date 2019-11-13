@@ -745,7 +745,7 @@ class DataprocHook(GoogleCloudBaseHook):
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Job:
         """
-        Submits a job to a cluster.
+        Gets the resource representation for a job in a project.
 
         :param job_id: Id of the Dataproc job
         :type job_id: str
