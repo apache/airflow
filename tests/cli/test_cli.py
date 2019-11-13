@@ -682,6 +682,8 @@ class TestCliPools(unittest.TestCase):
         with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
             cli.pool_list(self.parser.parse_args(['pools', 'list']))
             stdout = mock_stdout.getvalue()
+
+        print("STDOUT=", stdout)
         self.assertIn('foo', stdout)
 
     def test_pool_list_with_args(self):
