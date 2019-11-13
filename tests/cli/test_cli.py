@@ -662,6 +662,19 @@ class TestCliPools(unittest.TestCase):
         super().setUp()
         settings.configure_orm()
         self.session = Session
+        self._cleanup()
+
+    def tearDown(self):
+        self._cleanup()
+
+    @staticmethod
+    def _cleanup(session=None):
+        if session is None:
+            session = Session()
+
+        session.query(Pool).delete()
+        session.commit()
+        session.close()
 
     def test_pool_list(self):
         cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
