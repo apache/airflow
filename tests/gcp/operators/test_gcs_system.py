@@ -18,27 +18,62 @@
 # under the License.
 
 
-from tests.gcp.operators.test_gcs_system_helper import GcsSystemTestHelper
+import pytest
+
+from airflow.gcp.example_dags.example_gcs import (
+    BUCKET_1, BUCKET_2, PATH_TO_SAVED_FILE, PATH_TO_TRANSFORM_SCRIPT, PATH_TO_UPLOAD_FILE,
+)
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+SCRIPT = """import sys
+source = sys.argv[1]
+destination = sys.argv[2]
+
+print('running script')
+with open(source, "r") as src, open(destination, "w+") as dest:
+    lines = [l.upper() for l in src.readlines()]
+    print(lines)
+    dest.writelines(lines)
+    """
+
+command = GcpSystemTest.commands_registry()
 
 
-@skip_gcp_system(GCP_GCS_KEY, require_local_executor=True)
-class GoogleCloudStorageExampleDagsTest(SystemTest):
-    helper = GcsSystemTestHelper()
+@command
+def create_files():
+    GcpSystemTest.create_temp_file(
+        dir_path="", filename=PATH_TO_UPLOAD_FILE, content="This is a test file"
+    )
+    GcpSystemTest.create_temp_file(
+        dir_path="", filename=PATH_TO_TRANSFORM_SCRIPT, content=SCRIPT
+    )
 
-    @provide_gcp_context(GCP_GCS_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_test_file()
 
-    @provide_gcp_context(GCP_GCS_KEY)
-    def tearDown(self):
-        self.helper.remove_test_files()
-        self.helper.remove_bucket()
-        super().tearDown()
+@command
+def delete_files():
+    GcpSystemTest.delete_temp_file(filename=PATH_TO_UPLOAD_FILE)
+    GcpSystemTest.delete_temp_file(filename=PATH_TO_TRANSFORM_SCRIPT)
+    GcpSystemTest.delete_temp_file(filename=PATH_TO_SAVED_FILE)
 
-    @provide_gcp_context(GCP_GCS_KEY)
-    def test_run_example_dag(self):
-        self.run_dag('example_gcs', GCP_DAG_FOLDER)
+
+@command
+def remove_buckets():
+    GcpSystemTest.delete_gcs_bucket(BUCKET_1)
+    GcpSystemTest.delete_gcs_bucket(BUCKET_2)
+
+
+@pytest.fixture()
+def helper():
+    create_files()
+    yield
+    delete_files()
+    remove_buckets()
+
+
+@command
+@GcpSystemTest.skip(GCP_GCS_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag():
+    with provide_gcp_context(GCP_GCS_KEY):
+        GcpSystemTest.run_dag("example_gcs", GCP_DAG_FOLDER)

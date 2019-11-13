@@ -16,16 +16,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import argparse
 import os
+import shutil
 from contextlib import ContextDecorator
 from shutil import move
 from tempfile import mkdtemp
-from unittest import TestCase, skip
+from typing import Callable, Dict, Optional
+
+import pytest
 
 from airflow import AirflowException, models
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
 from airflow.utils import db
 from airflow.utils.log.logging_mixin import LoggingMixin
+from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 AIRFLOW_MAIN_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
@@ -47,7 +52,7 @@ def resolve_dags_folder() -> str:
     try:
         dags = conf.get("core", "dags_folder")
     except AirflowException:
-        dags = os.path.join(AIRFLOW_HOME, 'dags')
+        dags = os.path.join(AIRFLOW_HOME, "dags")
     return dags
 
 
@@ -93,26 +98,61 @@ class empty_dags_directory(  # pylint: disable=invalid-name
             move(os.path.join(temp_dir, file), os.path.join(dag_folder, file))
 
 
-class SystemTest(TestCase, LoggingMixin):
+class DevCli:
+    commands: Dict[str, Callable] = {}
+
+    @classmethod
+    def commands_registry(cls) -> Callable:
+        """
+        Decorator that register commands tha will be available
+        in system tests cli.
+        """
+
+        def wraps(func):
+            cls.commands[func.__name__] = func
+            return func
+
+        return wraps
+
+    @classmethod
+    def cli(cls) -> None:
+        """
+        This is system test helper that help run setup
+        and teardown methods while developing.
+        """
+        desc = """
+        This is system test helper that will help you run
+        setup and teardown methods while developing.\n
+        """
+        parser = argparse.ArgumentParser(prog=desc)
+        subparsers = parser.add_subparsers()
+
+        for cmd, func in cls.commands.items():
+            sub = subparsers.add_parser(cmd, help=func.__doc__)
+            sub.set_defaults(func=func)
+            parser.add_argument(cmd, action="store_true")
+
+        args = parser.parse_args()
+        args.func()
+
+
+class SystemTest(DevCli):
+    # This can be used by classes that inherit from this one
+    # to create class methods.
+    executor = LoggingCommandExecutor()
+
     @staticmethod
-    def skip():
-        if os.environ.get('ENABLE_SYSTEM_TESTS') != 'true':
-            return skip(SKIP_SYSTEM_TEST_WARNING)
+    def skip(*args, **kwargs) -> Callable:
+        """
+        Skip decorator for system tests. Tests that use external
+        services should override this decorator with proper checks.
+        """
+        if os.environ.get("ENABLE_SYSTEM_TESTS") != "true":
+            pytest.skip(SKIP_SYSTEM_TEST_WARNING)
         return lambda cls: cls
 
-    def setUp(self) -> None:
-        """
-        We want to avoid random errors while database got reset - those
-        Are apparently triggered by parser trying to parse DAGs while
-        The tables are dropped. We move the dags temporarily out of the dags folder
-        and move them back after reset
-        """
-        dag_folder = resolve_dags_folder()
-        with empty_dags_directory(dag_folder):
-            db.resetdb()
-        super().setUp()
-
-    def run_dag(self, dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:
+    @staticmethod
+    def run_dag(dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:
         """
         Runs example dag by it's ID.
 
@@ -121,7 +161,16 @@ class SystemTest(TestCase, LoggingMixin):
         :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.
         :type dag_folder: str
         """
-        self.log.info("Looking for DAG: %s in %s", dag_id, dag_folder)
+
+        # We want to avoid random errors while database got reset - those
+        # Are apparently triggered by parser trying to parse DAGs while
+        # The tables are dropped. We move the dags temporarily out of the dags folder
+        # and move them back after reset
+        initial_dag_folder = resolve_dags_folder()
+        with empty_dags_directory(initial_dag_folder):
+            db.resetdb()
+
+        # Run example dag
         dag_bag = models.DagBag(dag_folder=dag_folder, include_examples=False)
         dag = dag_bag.get_dag(dag_id)
         if dag is None:
@@ -129,12 +178,42 @@ class SystemTest(TestCase, LoggingMixin):
                 "The Dag {dag_id} could not be found. It's either an import problem,"
                 "wrong dag_id or DAG is not in provided dag_folder."
                 "The content of the {dag_folder} folder is {content}".format(
-                    dag_id=dag_id,
-                    dag_folder=dag_folder,
-                    content=os.listdir(dag_folder),
+                    dag_id=dag_id, dag_folder=dag_folder, content=os.listdir(dag_folder)
                 )
             )
 
-        self.log.info("Attempting to run DAG: %s", dag_id)
         dag.clear(reset_dag_runs=True)
         dag.run(ignore_first_depends_on_past=True, verbose=True)
+
+    @classmethod
+    def create_temp_file(cls, filename: str, dir_path: str = "/tmp", content: Optional[str] = None) -> None:
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
+            full_path = os.path.join(dir_path, filename)
+        else:
+            full_path = filename
+
+        if content:
+            with open(full_path, "w+") as f:
+                f.write(content)
+        else:
+            with open(full_path, "wb") as f:  # type: ignore
+                f.write(os.urandom(1 * 1024 * 1024))  # type: ignore
+
+    @classmethod
+    def delete_temp_file(cls, filename: str, dir_path: Optional[str] = None) -> None:
+        full_path = os.path.join(dir_path, filename) if dir_path else filename
+        try:
+            os.remove(full_path)
+        except FileNotFoundError:
+            pass
+        if dir_path and dir_path != "/tmp":
+            shutil.rmtree(dir_path, ignore_errors=True)
+
+    @classmethod
+    def delete_temp_dir(cls, dir_path: str) -> None:
+        if dir_path != "/tmp":
+            shutil.rmtree(dir_path, ignore_errors=True)
+
+
+command = SystemTest.commands_registry()

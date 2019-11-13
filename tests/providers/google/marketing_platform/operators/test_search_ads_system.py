@@ -17,28 +17,38 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pytest
+
+from airflow.providers.google.marketing_platform.example_dags.example_search_ads import GCS_BUCKET
 from tests.gcp.utils.gcp_authenticator import GCP_SEARCHADS_KEY
-from tests.providers.google.marketing_platform.operators.test_search_ads_system_helper import (
-    GoogleSearchAdsSystemTestHelper,
-)
-from tests.test_utils.gcp_system_helpers import provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GcpSystemTest, provide_gcp_context
+
+command = GcpSystemTest.commands_registry()
 
 
-@skip_gcp_system(GCP_SEARCHADS_KEY)
-class SearchAdsSystemTest(SystemTest):
-    helper = GoogleSearchAdsSystemTestHelper()
+@command
+def create_bucket():
+    GcpSystemTest.create_gcs_bucket(GCS_BUCKET)
 
-    @provide_gcp_context(GCP_SEARCHADS_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_bucket()
 
-    @provide_gcp_context(GCP_SEARCHADS_KEY)
-    def tearDown(self):
-        self.helper.delete_bucket()
-        super().tearDown()
+@command
+def delete_bucket():
+    GcpSystemTest.delete_gcs_bucket(GCS_BUCKET)
 
-    @provide_gcp_context(GCP_SEARCHADS_KEY)
-    def test_run_example_dag(self):
-        self.run_dag("example_search_ads", "airflow/providers/google/marketing_platform/example_dags")
+
+@pytest.fixture
+def helper():
+    create_bucket()
+    yield
+    delete_bucket()
+
+
+@command
+@GcpSystemTest.skip(GCP_SEARCHADS_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag():
+    with provide_gcp_context(GCP_SEARCHADS_KEY):
+        GcpSystemTest.run_dag(
+            "example_search_ads",
+            "airflow/providers/google/marketing_platform/example_dags",
+        )

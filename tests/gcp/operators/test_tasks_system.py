@@ -18,12 +18,10 @@
 # under the License.
 
 from tests.gcp.utils.gcp_authenticator import GCP_TASKS_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
 
 
-@skip_gcp_system(GCP_TASKS_KEY)
-class GcpTasksExampleDagsSystemTest(SystemTest):
-    @provide_gcp_context(GCP_TASKS_KEY)
-    def test_run_example_dag_function(self):
-        self.run_dag('example_gcp_tasks', GCP_DAG_FOLDER)
+@GcpSystemTest.skip(GCP_TASKS_KEY)
+def test_run_example_dag_function():
+    with provide_gcp_context(GCP_TASKS_KEY):
+        GcpSystemTest.run_dag("example_gcp_tasks", GCP_DAG_FOLDER)

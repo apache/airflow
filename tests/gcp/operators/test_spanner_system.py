@@ -17,21 +17,42 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tests.gcp.operators.test_spanner_system_helper import GCPSpannerTestHelper
+import pytest
+
+from airflow.gcp.example_dags.example_spanner import GCP_PROJECT_ID, GCP_SPANNER_INSTANCE_ID
 from tests.gcp.utils.gcp_authenticator import GCP_SPANNER_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+command = GcpSystemTest.commands_registry()
 
 
-@skip_gcp_system(GCP_SPANNER_KEY, require_local_executor=True)
-class CloudSpannerExampleDagsTest(SystemTest):
-    helper = GCPSpannerTestHelper()
+@command
+def delete_instance():
+    GcpSystemTest.execute_with_ctx(
+        cmd=[
+            "gcloud",
+            "spanner",
+            "--project",
+            GCP_PROJECT_ID,
+            "--quiet",
+            "--verbosity=none",
+            "instances",
+            "delete",
+            GCP_SPANNER_INSTANCE_ID,
+        ],
+        key=GCP_SPANNER_KEY,
+    )
 
-    @provide_gcp_context(GCP_SPANNER_KEY)
-    def tearDown(self):
-        self.helper.delete_instance()
-        super().tearDown()
 
-    @provide_gcp_context(GCP_SPANNER_KEY)
-    def test_run_example_dag_spanner(self):
-        self.run_dag('example_gcp_spanner', GCP_DAG_FOLDER)
+@pytest.fixture
+def helper():
+    yield
+    delete_instance()
+
+
+@command
+@GcpSystemTest.skip(GCP_SPANNER_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag_spanner():
+    with provide_gcp_context(GCP_SPANNER_KEY):
+        GcpSystemTest.run_dag("example_gcp_spanner", GCP_DAG_FOLDER)

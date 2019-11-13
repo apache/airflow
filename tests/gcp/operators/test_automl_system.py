@@ -19,19 +19,16 @@
 
 
 from tests.gcp.utils.gcp_authenticator import GCP_AUTOML_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
 
 
-@skip_gcp_system(GCP_AUTOML_KEY, require_local_executor=True, long_lasting=True)
-class AutoMLDatasetOperationsSystemTest(SystemTest):
-    @provide_gcp_context(GCP_AUTOML_KEY)
-    def test_run_example_dag(self):
-        self.run_dag('example_automl_dataset', GCP_DAG_FOLDER)
+@GcpSystemTest.skip(GCP_AUTOML_KEY, long_lasting=True)
+def test_run_example_dag_operations():
+    with provide_gcp_context(GCP_AUTOML_KEY):
+        GcpSystemTest.run_dag("example_automl_dataset", GCP_DAG_FOLDER)
 
 
-@skip_gcp_system(GCP_AUTOML_KEY, require_local_executor=True, long_lasting=True)
-class AutoMLModelOperationsSystemTest(SystemTest):
-    @provide_gcp_context(GCP_AUTOML_KEY)
-    def test_run_example_dag(self):
-        self.run_dag('example_create_and_deploy', GCP_DAG_FOLDER)
+@GcpSystemTest.skip(GCP_AUTOML_KEY, long_lasting=True)
+def test_run_example_dag_create_deploy():
+    with provide_gcp_context(GCP_AUTOML_KEY):
+        GcpSystemTest.run_dag("example_create_and_deploy", GCP_DAG_FOLDER)

@@ -18,31 +18,35 @@
 # under the License.
 """System tests for Google Cloud Memorystore operators"""
 
-from tests.gcp.operators.test_cloud_memorystore_system_helper import GCPCloudMemorystoreTestHelper
+import pytest
+
+from airflow.gcp.example_dags.example_cloud_memorystore import BUCKET_NAME
 from tests.gcp.utils.gcp_authenticator import GCP_MEMORYSTORE  # TODO: Update it
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+command = GcpSystemTest.commands_registry()
 
 
-@skip_gcp_system(GCP_MEMORYSTORE, require_local_executor=True)
-class CloudBuildExampleDagsSystemTest(SystemTest):
-    """
-    System tests for Google Cloud Memorystore operators
+@command
+def create_bucket():
+    GcpSystemTest.create_gcs_bucket(BUCKET_NAME, location="europe-north1")
 
-    It use a real service.
-    """
-    helper = GCPCloudMemorystoreTestHelper()
 
-    @provide_gcp_context(GCP_MEMORYSTORE)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_bucket()
+@command
+def delete_bucket():
+    GcpSystemTest.delete_gcs_bucket(BUCKET_NAME)
 
-    @provide_gcp_context(GCP_MEMORYSTORE)
-    def test_run_example_dag(self):
-        self.run_dag('gcp_cloud_memorystore', GCP_DAG_FOLDER)
 
-    @provide_gcp_context(GCP_MEMORYSTORE)
-    def tearDown(self):
-        self.helper.delete_bucket()
-        super().tearDown()
+@pytest.fixture
+def helper():
+    create_bucket()
+    yield
+    delete_bucket()
+
+
+@command
+@GcpSystemTest.skip(GCP_MEMORYSTORE)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag():
+    with provide_gcp_context(GCP_MEMORYSTORE):
+        GcpSystemTest.run_dag("gcp_cloud_memorystore", GCP_DAG_FOLDER)

@@ -18,33 +18,32 @@
 # under the License.
 """System tests for Google Cloud Build operators"""
 
+import pytest
+
 from tests.gcp.operators.test_cloud_build_system_helper import GCPCloudBuildTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+# TODO: check how to refactor DAG / test helper
+test_helper = GCPCloudBuildTestHelper()
 
 
-@skip_gcp_system(GCP_CLOUD_BUILD_KEY, require_local_executor=True)
-class CloudBuildExampleDagsSystemTest(SystemTest):
+@pytest.fixture
+def helper():
+    test_helper.create_repository_and_bucket()
+    yield
+    test_helper.delete_bucket()
+    test_helper.delete_docker_images()
+    test_helper.delete_repo()
+
+
+@GcpSystemTest.skip(GCP_CLOUD_BUILD_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag():
     """
     System tests for Google Cloud Build operators
 
     It use a real service.
     """
-    helper = GCPCloudBuildTestHelper()
-
-    @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_repository_and_bucket()
-
-    @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
-    def test_run_example_dag(self):
-        self.run_dag("example_gcp_cloud_build", GCP_DAG_FOLDER)
-
-    @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
-    def tearDown(self):
-        self.helper.delete_bucket()
-        self.helper.delete_docker_images()
-        self.helper.delete_repo()
-        super().tearDown()
+    with provide_gcp_context(GCP_CLOUD_BUILD_KEY):
+        GcpSystemTest.run_dag("example_gcp_cloud_build", GCP_DAG_FOLDER)

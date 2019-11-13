@@ -56,6 +56,77 @@ There are a few guidelines that you should follow when writing unit tests:
 * We plann to convert all unittests to standard "asserts" semi-automatically but this will be done later
   in Airflow 2.0 development phase. That will include setUp/tearDown/context managers and decorators
 
+Writing system tests
+--------------------
+
+It's not necessary to add system tests. However, those tests help us to verify that everything works as expected.
+
+One of proposed way to write system tests is to run example DAG that will use functions / integrations you wish to
+test. To write such test u can use :class:`~tests.test_utils.system_test_class.SystemTest` that implements two
+useful methods:
+
+- ``skip`` decorator that check if environment variable ``ENABLE_SYSTEM_TESTS=true``
+- ``run_dag`` that run an DAG by its id.
+
+Example system test:
+
+.. code-block:: python
+
+  @SystemTest.skip()
+  class TestExampleDagSystem(SystemTest):
+      def test_dag_example(self):
+          self.run_dag(dag_id="example_bash_operator")
+
+In case of more complex system test that may require interaction with 3rd party services it's worth to create a
+custom test class. Such class may implement:
+
+- common methods used for setup and teardown of infrastructure.
+- custom ``skip`` decorator
+
+For example :class:`~tests.test_utils.gcp_system_helpers.GcpSystemTest` implements methods that allow a developer
+to create and delete GCS buckets.
+
+Moreover, if a test requires time consuming setup or teardown it's recommend to add simple cli. This helps a
+developer to perform selected steps of setups and teardowns. This is easily achieved by using
+``commands_registry`` method of ``SystemTest`` and using ``command`` decorator as used below:
+
+.. code-block:: python
+
+  import os
+  import pytest
+
+  from tests.gcp.utils.gcp_authenticator import GCP_DATAPROC_KEY
+  from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+  BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
+
+  command = GcpSystemTest.commands_registry()
+
+  @command
+  def create_bucket():
+      GcpSystemTest.create_gcs_bucket(BUCKET)
+
+  @command
+  def delete_bucket():
+      GcpSystemTest.delete_gcs_bucket(BUCKET)
+
+  @pytest.fixture
+  def helper():
+      create_bucket()
+      yield
+      delete_bucket()
+
+  @command
+  @GcpSystemTest.skip(GCP_DATAPROC_KEY)
+  @pytest.mark.usefixtures("helper")
+  def test_run_example_dag():
+      with provide_gcp_context(GCP_DATAPROC_KEY):
+          GcpSystemTest.run_dag(dag_id="example_gcp_dataproc", dag_folder=CLOUD_DAG_FOLDER)
+
+  if __name__ == "__main__":
+      DataprocExampleDagsTest().cli()
+
+
 Running Unit Tests from IDE
 ---------------------------
 

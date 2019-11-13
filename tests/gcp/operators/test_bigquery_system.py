@@ -18,31 +18,39 @@
 # under the License.
 """System tests for Google Cloud Build operators"""
 
-from tests.gcp.operators.test_bigquery_system_helper import GCPBigQueryTestHelper
+import pytest
+
+from airflow.gcp.example_dags.example_bigquery import DATA_EXPORT_BUCKET_NAME
 from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+command = GcpSystemTest.commands_registry()
 
 
-@skip_gcp_system(GCP_BIGQUERY_KEY, require_local_executor=True)
-class BigQueryExampleDagsSystemTest(SystemTest):
+@command
+def create_bucket():
+    GcpSystemTest.create_gcs_bucket(DATA_EXPORT_BUCKET_NAME)
+
+
+@command
+def delete_bucket():
+    GcpSystemTest.delete_gcs_bucket(DATA_EXPORT_BUCKET_NAME)
+
+
+@pytest.fixture
+def helper():
+    create_bucket()
+    yield
+    delete_bucket()
+
+
+@command
+@GcpSystemTest.skip(GCP_BIGQUERY_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag():
     """
     System tests for Google BigQuery operators
-
     It use a real service.
     """
-    helper = GCPBigQueryTestHelper()
-
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_repository_and_bucket()
-
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def test_run_example_dag(self):
-        self.run_dag('example_bigquery', GCP_DAG_FOLDER)
-
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def tearDown(self):
-        self.helper.delete_bucket()
-        super().tearDown()
+    with provide_gcp_context(GCP_BIGQUERY_KEY):
+        GcpSystemTest.run_dag("example_bigquery", GCP_DAG_FOLDER)

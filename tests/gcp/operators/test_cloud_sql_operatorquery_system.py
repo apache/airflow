@@ -20,21 +20,23 @@ import os
 import random
 import string
 import time
+import unittest
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_sql import CloudSqlProxyRunner
 from tests.gcp.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
 
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
+# TODO: refactor this test to use fixtures and new GCP approach
+
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "project-id")
 
 SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 
-@skip_gcp_system(GCP_CLOUDSQL_KEY)
-class CloudSqlProxySystemTest(SystemTest):
+@GcpSystemTest.skip(GCP_CLOUDSQL_KEY)
+class CloudSqlProxySystemTest(unittest.TestCase):
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def setUp(self):
         super().setUp()
@@ -42,13 +44,16 @@ class CloudSqlProxySystemTest(SystemTest):
 
     @staticmethod
     def generate_unique_path():
-        return ''.join(
-            random.choice(string.ascii_letters + string.digits) for _ in range(8))
+        return "".join(
+            random.choice(string.ascii_letters + string.digits) for _ in range(8)
+        )
 
     def test_start_proxy_fail_no_parameters(self):
-        runner = CloudSqlProxyRunner(path_prefix='/tmp/' + self.generate_unique_path(),
-                                     project_id=GCP_PROJECT_ID,
-                                     instance_specification='a')
+        runner = CloudSqlProxyRunner(
+            path_prefix="/tmp/" + self.generate_unique_path(),
+            project_id=GCP_PROJECT_ID,
+            instance_specification="a",
+        )
         with self.assertRaises(AirflowException) as cm:
             runner.start_proxy()
         err = cm.exception
@@ -60,9 +65,11 @@ class CloudSqlProxySystemTest(SystemTest):
         self.assertIsNone(runner.sql_proxy_process)
 
     def test_start_proxy_with_all_instances(self):
-        runner = CloudSqlProxyRunner(path_prefix='/tmp/' + self.generate_unique_path(),
-                                     project_id=GCP_PROJECT_ID,
-                                     instance_specification='')
+        runner = CloudSqlProxyRunner(
+            path_prefix="/tmp/" + self.generate_unique_path(),
+            project_id=GCP_PROJECT_ID,
+            instance_specification="",
+        )
         try:
             runner.start_proxy()
             time.sleep(1)
@@ -72,9 +79,11 @@ class CloudSqlProxySystemTest(SystemTest):
 
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_start_proxy_with_all_instances_generated_credential_file(self):
-        runner = CloudSqlProxyRunner(path_prefix='/tmp/' + self.generate_unique_path(),
-                                     project_id=GCP_PROJECT_ID,
-                                     instance_specification='')
+        runner = CloudSqlProxyRunner(
+            path_prefix="/tmp/" + self.generate_unique_path(),
+            project_id=GCP_PROJECT_ID,
+            instance_specification="",
+        )
         try:
             runner.start_proxy()
             time.sleep(1)
@@ -83,10 +92,12 @@ class CloudSqlProxySystemTest(SystemTest):
         self.assertIsNone(runner.sql_proxy_process)
 
     def test_start_proxy_with_all_instances_specific_version(self):
-        runner = CloudSqlProxyRunner(path_prefix='/tmp/' + self.generate_unique_path(),
-                                     project_id=GCP_PROJECT_ID,
-                                     instance_specification='',
-                                     sql_proxy_version='v1.13')
+        runner = CloudSqlProxyRunner(
+            path_prefix="/tmp/" + self.generate_unique_path(),
+            project_id=GCP_PROJECT_ID,
+            instance_specification="",
+            sql_proxy_version="v1.13",
+        )
         try:
             runner.start_proxy()
             time.sleep(1)
@@ -96,8 +107,8 @@ class CloudSqlProxySystemTest(SystemTest):
         self.assertEqual(runner.get_proxy_version(), "1.13")
 
 
-@skip_gcp_system(GCP_CLOUDSQL_KEY)
-class CloudSqlQueryExampleDagsSystemTest(SystemTest):
+@GcpSystemTest.skip(GCP_CLOUDSQL_KEY)
+class CloudSqlQueryExampleDagsSystemTest(unittest.TestCase):
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def setUp(self):
         super().setUp()
@@ -106,4 +117,4 @@ class CloudSqlQueryExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_run_example_dag_cloudsql_query(self):
-        self.run_dag('example_gcp_sql_query', GCP_DAG_FOLDER)
+        GcpSystemTest.run_dag("example_gcp_sql_query", GCP_DAG_FOLDER)

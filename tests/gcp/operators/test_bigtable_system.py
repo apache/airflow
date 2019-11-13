@@ -18,21 +18,42 @@
 # under the License.
 
 
-from tests.gcp.operators.test_bigtable_system_helper import GCPBigtableTestHelper
+import pytest
+
+from airflow.gcp.example_dags.example_bigtable import CBT_INSTANCE_ID, GCP_PROJECT_ID
 from tests.gcp.utils.gcp_authenticator import GCP_BIGTABLE_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+command = GcpSystemTest.commands_registry()
 
 
-@skip_gcp_system(GCP_BIGTABLE_KEY, require_local_executor=True)
-class BigTableExampleDagsSystemTest(SystemTest):
-    helper = GCPBigtableTestHelper()
+@command
+def delete_instance():
+    GcpSystemTest.execute_with_ctx(
+        cmd=[
+            "gcloud",
+            "bigtable",
+            "--project",
+            GCP_PROJECT_ID,
+            "--quiet",
+            "--verbosity=none",
+            "instances",
+            "delete",
+            CBT_INSTANCE_ID,
+        ],
+        key=GCP_BIGTABLE_KEY,
+    )
 
-    @provide_gcp_context(GCP_BIGTABLE_KEY)
-    def test_run_example_dag_gcs_bigtable(self):
-        self.run_dag('example_gcp_bigtable_operators', GCP_DAG_FOLDER)
 
-    @provide_gcp_context(GCP_BIGTABLE_KEY)
-    def tearDown(self):
-        self.helper.delete_instance()
-        super().tearDown()
+@pytest.fixture
+def helper():
+    yield
+    delete_instance()
+
+
+@command
+@GcpSystemTest.skip(GCP_BIGTABLE_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag_gcs_bigtable():
+    with provide_gcp_context(GCP_BIGTABLE_KEY):
+        GcpSystemTest.run_dag("example_gcp_bigtable_operators", GCP_DAG_FOLDER)

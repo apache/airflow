@@ -18,39 +18,41 @@
 # under the License.
 import os
 
+import pytest
+
 from airflow import AirflowException
 from tests.gcp.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
 
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "project-id")
 
 SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 
-@skip_gcp_system(GCP_CLOUDSQL_KEY, require_local_executor=True)
-class CloudSqlExampleDagsIntegrationTest(SystemTest):
-    @provide_gcp_context(GCP_CLOUDSQL_KEY)
-    def tearDown(self):
-        # Delete instances just in case the test failed and did not cleanup after itself
-        SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
-        SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
-        SQL_QUERY_TEST_HELPER.delete_instances()
-        SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
-        SQL_QUERY_TEST_HELPER.delete_service_account_acls()
-        super().tearDown()
+def helper():
+    yield
+    # Delete instances just in case the test failed and did not cleanup after itself
+    SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
+    SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
+    SQL_QUERY_TEST_HELPER.delete_instances()
+    SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
+    SQL_QUERY_TEST_HELPER.delete_service_account_acls()
 
-    @provide_gcp_context(GCP_CLOUDSQL_KEY)
-    def test_run_example_dag_cloudsql(self):
-        try:
-            self.run_dag('example_gcp_sql', GCP_DAG_FOLDER)
-        except AirflowException as e:
-            self.log.warning(
-                "In case you see 'The instance or operation is not in an appropriate "
-                "state to handle the request' error - you "
-                "can remove '.random' file from airflow folder and re-run "
-                "the test. This will generate random name of the database for next run "
-                "(the problem is that Cloud SQL keeps names of deleted instances in "
-                "short-term cache).")
-            raise e
+
+@GcpSystemTest.skip(GCP_CLOUDSQL_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag_cloudsql():
+    try:
+        with provide_gcp_context(GCP_CLOUDSQL_KEY):
+            GcpSystemTest.run_dag("example_gcp_sql", GCP_DAG_FOLDER)
+    except AirflowException as e:
+        print(
+            "In case you see 'The instance or operation is not in an appropriate "
+            "state to handle the request' error - you "
+            "can remove '.random' file from airflow folder and re-run "
+            "the test. This will generate random name of the database for next run "
+            "(the problem is that Cloud SQL keeps names of deleted instances in "
+            "short-term cache)."
+        )
+        raise e

@@ -17,36 +17,68 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pytest
+
 from airflow.gcp.example_dags.example_bigquery_dts import (
     BUCKET_URI, GCP_DTS_BQ_DATASET, GCP_DTS_BQ_TABLE, GCP_PROJECT_ID,
 )
-from tests.gcp.operators.test_bigquery_dts_system_helper import GcpBigqueryDtsTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+command = GcpSystemTest.commands_registry()
+
+DATASET_NAME = f"{GCP_PROJECT_ID}:{GCP_DTS_BQ_DATASET}"
+TABLE_NAME = f"{GCP_DTS_BQ_DATASET}.{GCP_DTS_BQ_TABLE}"
 
 
-@skip_gcp_system(GCP_BIGQUERY_KEY, require_local_executor=True)
-class GcpBigqueryDtsSystemTest(SystemTest):
-    helper = GcpBigqueryDtsTestHelper()
+@command
+def create_dataset():
+    GcpSystemTest.execute_with_ctx(
+        cmd=["bq", "--location", "us", "mk", "--dataset", DATASET_NAME],
+        key=GCP_BIGQUERY_KEY,
+    )
+    table_name = f"{DATASET_NAME}.{GCP_DTS_BQ_TABLE}"
+    GcpSystemTest.execute_with_ctx(
+        cmd=["bq", "mk", "--table", table_name], key=GCP_BIGQUERY_KEY
+    )
 
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_dataset(
-            project_id=GCP_PROJECT_ID,
-            dataset=GCP_DTS_BQ_DATASET,
-            table=GCP_DTS_BQ_TABLE,
-        )
-        self.helper.upload_data(dataset=GCP_DTS_BQ_DATASET, table=GCP_DTS_BQ_TABLE, gcs_file=BUCKET_URI)
 
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def tearDown(self):
-        self.helper.delete_dataset(
-            project_id=GCP_PROJECT_ID, dataset=GCP_DTS_BQ_DATASET
-        )
-        super().tearDown()
+@command
+def upload_data():
+    GcpSystemTest.execute_with_ctx(
+        cmd=[
+            "bq",
+            "--location",
+            "us",
+            "load",
+            "--autodetect",
+            "--source_format",
+            "CSV",
+            TABLE_NAME,
+            BUCKET_URI,
+        ],
+        key=GCP_BIGQUERY_KEY,
+    )
 
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def test_run_example_dag_function(self):
-        self.run_dag('example_gcp_bigquery_dts', GCP_DAG_FOLDER)
+
+@command
+def delete_dataset():
+    GcpSystemTest.execute_with_ctx(
+        cmd=["bq", "rm", "-r", "-f", "-d", DATASET_NAME], key=GCP_BIGQUERY_KEY
+    )
+
+
+@pytest.fixture
+def helper():
+    create_dataset()
+    upload_data()
+    yield
+    delete_dataset()
+
+
+@command
+@GcpSystemTest.skip(GCP_BIGQUERY_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag_function():
+    with provide_gcp_context(GCP_BIGQUERY_KEY):
+        GcpSystemTest.run_dag("example_gcp_bigquery_dts", GCP_DAG_FOLDER)

@@ -18,26 +18,35 @@
 # under the License.
 
 
-from tests.gcp.operators.test_speech_system_helper import GCPTextToSpeechTestHelper
-from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+import pytest
+
+from airflow.gcp.example_dags.example_speech import BUCKET_NAME
+from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+command = GcpSystemTest.commands_registry()
 
 
-@skip_gcp_system(GCP_GCS_KEY, require_local_executor=True)
-class GCPTextToSpeechExampleDagSystemTest(SystemTest):
-    helper = GCPTextToSpeechTestHelper()
+@command
+def create_bucket():
+    GcpSystemTest.create_gcs_bucket(BUCKET_NAME, location="europe-north1")
 
-    @provide_gcp_context(GCP_GCS_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_target_bucket()
 
-    @provide_gcp_context(GCP_GCS_KEY)
-    def tearDown(self):
-        self.helper.delete_target_bucket()
-        super().tearDown()
+@command
+def delete_bucket():
+    GcpSystemTest.delete_gcs_bucket(BUCKET_NAME)
 
-    @provide_gcp_context(GCP_GCS_KEY)
-    def test_run_example_dag_gcp_text_to_speech(self):
-        self.run_dag("example_gcp_speech", GCP_DAG_FOLDER)
+
+@pytest.fixture
+def helper():
+    create_bucket()
+    yield
+    delete_bucket()
+
+
+@command
+@GcpSystemTest.skip(GCP_AI_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag_gcp_text_to_speech():
+    with provide_gcp_context(GCP_AI_KEY):
+        GcpSystemTest.run_dag("example_gcp_speech", GCP_DAG_FOLDER)

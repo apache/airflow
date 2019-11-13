@@ -24,15 +24,16 @@ from airflow import AirflowException, LoggingMixin
 
 class LoggingCommandExecutor(LoggingMixin):
 
-    def execute_cmd(self, cmd, silent=False, cwd=None):
+    def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
         if silent:
             self.log.info("Executing in silent mode: '{}'".format(" ".join(cmd)))
             with open(os.devnull, 'w') as dev_null:
-                return subprocess.call(args=cmd, stdout=dev_null, stderr=subprocess.STDOUT)
+                return subprocess.call(args=cmd, stdout=dev_null, stderr=subprocess.STDOUT, env=env)
         else:
             self.log.info("Executing: '{}'".format(" ".join(cmd)))
             process = subprocess.Popen(
-                args=cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, cwd=cwd
+                args=cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, cwd=cwd,
+                env=env
             )
             output, err = process.communicate()
             retcode = process.poll()
@@ -42,10 +43,10 @@ class LoggingCommandExecutor(LoggingMixin):
                 self.log.warning("Error when executing %s", " ".join(cmd))
             return retcode
 
-    def check_output(self, cmd):
+    def check_output(self, cmd, env=None):
         self.log.info("Executing for output: '{}'".format(" ".join(cmd)))
         process = subprocess.Popen(args=cmd, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+                                   stderr=subprocess.PIPE, env=env)
         output, err = process.communicate()
         retcode = process.poll()
         if retcode:

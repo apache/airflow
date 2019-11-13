@@ -17,26 +17,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pytest
+
 from tests.gcp.operators.test_cloud_storage_transfer_service_system_helper import GCPTransferTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_TRANSFER_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+test_helper = GCPTransferTestHelper()
 
 
-@skip_gcp_system(GCP_GCS_TRANSFER_KEY, require_local_executor=True)
-class GcpTransferExampleDagsSystemTest(SystemTest):
-    helper = GCPTransferTestHelper()
+@pytest.fixture
+def helper():
+    test_helper.create_gcs_buckets()
+    yield
+    test_helper.delete_gcs_buckets()
 
-    @provide_gcp_context(GCP_GCS_TRANSFER_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_gcs_buckets()
 
-    @provide_gcp_context(GCP_GCS_TRANSFER_KEY)
-    def tearDown(self):
-        self.helper.delete_gcs_buckets()
-        super().tearDown()
-
-    @provide_gcp_context(GCP_GCS_TRANSFER_KEY)
-    def test_run_example_dag_compute(self):
-        self.run_dag('example_gcp_transfer', GCP_DAG_FOLDER)
+@GcpSystemTest.skip(GCP_GCS_TRANSFER_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag_compute():
+    with provide_gcp_context(GCP_GCS_TRANSFER_KEY):
+        GcpSystemTest.run_dag("example_gcp_transfer", GCP_DAG_FOLDER)

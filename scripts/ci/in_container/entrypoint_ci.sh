@@ -43,6 +43,8 @@ BACKEND=${BACKEND:=sqlite}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 
+export PYTHONPATH=${AIRFLOW_SOURCES}
+export PYTHONPATH="${PYTHONPATH}:/opt/airflow/tests/"
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 if [[ -z "${AIRFLOW_SOURCES:=}" ]]; then
@@ -228,7 +230,5 @@ else
     ARGS=("${TRAVIS_ARGS[@]}" "tests/integration/kubernetes")
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 fi
-
-export PYTHONPATH=${AIRFLOW_SOURCES}
 
 in_container_script_end

@@ -16,28 +16,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import pytest
 
-
-from tests.gcp.operators.test_datastore_system_helper import GcpDatastoreSystemTestHelper
+from airflow.gcp.example_dags.example_datastore import BUCKET
 from tests.gcp.utils.gcp_authenticator import GCP_DATASTORE_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, GcpSystemTest, provide_gcp_context
+
+command = GcpSystemTest.commands_registry()
 
 
-@skip_gcp_system(GCP_DATASTORE_KEY, require_local_executor=True)
-class GcpDatastoreSystemTest(SystemTest):
-    helper = GcpDatastoreSystemTestHelper()
+@command
+def create_bucket():
+    GcpSystemTest.create_gcs_bucket(BUCKET, location="europe-north1")
 
-    @provide_gcp_context(GCP_DATASTORE_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_bucket()
 
-    @provide_gcp_context(GCP_DATASTORE_KEY)
-    def tearDown(self):
-        self.helper.delete_bucket()
-        super().tearDown()
+@command
+def delete_bucket():
+    GcpSystemTest.delete_gcs_bucket(BUCKET)
 
-    @provide_gcp_context(GCP_DATASTORE_KEY)
-    def test_run_example_dag(self):
-        self.run_dag('example_gcp_datastore', GCP_DAG_FOLDER)
+
+@pytest.fixture
+def helper():
+    create_bucket()
+    yield
+    delete_bucket()
+
+
+@command
+@GcpSystemTest.skip(GCP_DATASTORE_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag():
+    with provide_gcp_context(GCP_DATASTORE_KEY):
+        GcpSystemTest.run_dag("example_gcp_datastore", GCP_DAG_FOLDER)

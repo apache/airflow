@@ -15,31 +15,41 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pytest
+
+from airflow.providers.google.marketing_platform.example_dags.example_display_video import BUCKET
 from tests.gcp.utils.gcp_authenticator import GCP_DISPLAY_VIDEO_KEY
-from tests.providers.google.marketing_platform.operators.test_display_video_system_helper import (
-    GcpDisplayVideoSystemTestHelper,
-)
-from tests.test_utils.gcp_system_helpers import provide_gcp_context, skip_gcp_system
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import GcpSystemTest, provide_gcp_context
 
 # Requires the following scope:
 SCOPES = ["https://www.googleapis.com/auth/doubleclickbidmanager"]
 
+command = GcpSystemTest.commands_registry()
 
-@skip_gcp_system(GCP_DISPLAY_VIDEO_KEY)
-class DisplayVideoSystemTest(SystemTest):
-    helper = GcpDisplayVideoSystemTestHelper()
 
-    @provide_gcp_context(GCP_DISPLAY_VIDEO_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_bucket()
+@command
+def create_bucket():
+    GcpSystemTest.create_gcs_bucket(BUCKET)
 
-    @provide_gcp_context(GCP_DISPLAY_VIDEO_KEY)
-    def tearDown(self):
-        self.helper.delete_bucket()
-        super().tearDown()
 
-    @provide_gcp_context(GCP_DISPLAY_VIDEO_KEY, scopes=SCOPES)
-    def test_run_example_dag(self):
-        self.run_dag('example_display_video', "airflow/providers/google/marketing_platform/example_dags")
+@command
+def delete_bucket():
+    GcpSystemTest.delete_gcs_bucket(BUCKET)
+
+
+@pytest.fixture
+def helper():
+    create_bucket()
+    yield
+    delete_bucket()
+
+
+@command
+@GcpSystemTest.skip(GCP_DISPLAY_VIDEO_KEY)
+@pytest.mark.usefixtures("helper")
+def test_run_example_dag():
+    with provide_gcp_context(GCP_DISPLAY_VIDEO_KEY, scopes=SCOPES):
+        GcpSystemTest.run_dag(
+            "example_display_video",
+            "airflow/providers/google/marketing_platform/example_dags",
+        )
