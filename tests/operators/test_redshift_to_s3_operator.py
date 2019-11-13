@@ -58,33 +58,23 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         unload_options = '\n\t\t\t'.join(unload_options)
         select_query = "SELECT * FROM {schema}.{table}".format(schema=schema, table=table)
-        if table_as_file_name:
-            unload_query = """
-                        UNLOAD ('{select_query}')
-                        TO 's3://{s3_bucket}/{s3_key}/{table}_'
-                        with credentials
-                        'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
-                        {unload_options};
-                        """.format(select_query=select_query,
-                                   table=table,
-                                   s3_bucket=s3_bucket,
-                                   s3_key=s3_key,
-                                   access_key=access_key,
-                                   secret_key=secret_key,
-                                   unload_options=unload_options)
-        else:
-            unload_query = """
-                        UNLOAD ('{select_query}')
-                        TO 's3://{s3_bucket}/{s3_key}'
-                        with credentials
-                        'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
-                        {unload_options};
-                        """.format(select_query=select_query,
-                                   s3_bucket=s3_bucket,
-                                   s3_key=s3_key,
-                                   access_key=access_key,
-                                   secret_key=secret_key,
-                                   unload_options=unload_options)
+        credentials = s3_hook.get_credentials()
+        unload_options = '\n\t\t\t'.join(self.unload_options)
+        s3_key = '{}/{}_'.format(self.s3_key, self.table) if self.table_as_file_name else self.s3_key
+        select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
+        unload_query = """
+                    UNLOAD ('{select_query}')
+                    TO 's3://{s3_bucket}/{s3_key}/{table}_'
+                    with credentials
+                    'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+                    {unload_options};
+                    """.format(select_query=select_query,
+                               table=self.table,
+                               s3_bucket=self.s3_bucket,
+                               s3_key=s3_key,
+                               access_key=credentials.access_key,
+                               secret_key=credentials.secret_key,
+                               unload_options=unload_options)
 
         assert mock_run.call_count == 1
         assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], unload_query)
