@@ -58,8 +58,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS files
-        files: \.js$
+        name: Add license for all JS/CSS files
+        files: \.(js|css)$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
           - --comment-style
