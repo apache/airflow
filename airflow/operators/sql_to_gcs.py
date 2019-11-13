@@ -24,9 +24,9 @@ import abc
 import json
 import warnings
 from tempfile import NamedTemporaryFile
-from six import string_types
 
 import unicodecsv as csv
+from six import string_types
 
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
