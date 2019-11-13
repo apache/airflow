@@ -58,7 +58,6 @@ import time
 import traceback
 
 from typing import Any
-from typing_extensions import Protocol
 
 import airflow
 from airflow import api
@@ -70,6 +69,7 @@ from airflow.models import (
     Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
 )
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
+from airflow.typing_compat import Protocol
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.net import get_hostname

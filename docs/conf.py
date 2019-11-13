@@ -211,6 +211,7 @@ exclude_patterns = [
     '_api/airflow/sentry',
     '_api/airflow/stats',
     '_api/airflow/task',
+    '_api/airflow/typing_compat',
     '_api/airflow/kubernetes',
     '_api/airflow/ti_deps',
     '_api/airflow/utils',
