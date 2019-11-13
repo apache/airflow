@@ -111,7 +111,7 @@ class RedshiftToS3Transfer(BaseOperator):
         select_query = "SELECT * FROM {schema}.{table}".format(schema=self.schema, table=self.table)
         unload_query = """
                     UNLOAD ('{select_query}')
-                    TO 's3://{s3_bucket}/{s3_key}/{table}_'
+                    TO 's3://{s3_bucket}/{s3_key}'
                     with credentials
                     'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                     {unload_options};
