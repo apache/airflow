@@ -358,4 +358,3 @@ class SqoopHook(BaseHook):
                                relaxed_isolation, extra_export_options)
 
         self.Popen(cmd)
-        
