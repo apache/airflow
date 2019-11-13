@@ -1744,11 +1744,22 @@ class TestTriggerDag(TestBase):
         super().setUp()
         self.session = Session()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
+        self.graph_endpoint = '/graph?dag_id=example_bash_operator'
+        self.trigger_url = 'origin=%2F{}%3Fdag_id%3Dexample_bash_operator'
 
     def test_trigger_dag_button_normal_exist(self):
         resp = self.client.get('/', follow_redirects=True)
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
+
+    def test_trigger_dag_default_view(self):
+        resp = self.client.get(self.graph_endpoint, follow_redirects=False)
+        self.assertIn(self.trigger_url.format('tree'), resp.data.decode('utf-8'))
+
+    def test_trigger_dag_graph_view(self):
+        conf.set("webserver", "dag_default_view", "graph")
+        resp = self.client.get(self.graph_endpoint, follow_redirects=False)
+        self.assertIn(self.trigger_url.format('graph'), resp.data.decode('utf-8'))
 
     @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
