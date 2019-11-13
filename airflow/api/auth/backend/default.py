@@ -20,7 +20,7 @@
 from functools import wraps
 from typing import Optional
 
-from airflow.typing import Protocol
+from airflow.typing_compat import Protocol
 
 
 class ClientAuthProtocol(Protocol):
