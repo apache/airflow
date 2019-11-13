@@ -21,12 +21,12 @@
 import json
 import unittest
 
-from azure.kusto.data.request import KustoClient, KustoConnectionStringBuilder, ClientRequestProperties
+from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 
+from airflow.contrib.hooks.azure_data_explorer_hook import AzureDataExplorerHook
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
-from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.azure_data_explorer_hook import AzureDataExplorerHook
 
 from tests.compat import mock
 
