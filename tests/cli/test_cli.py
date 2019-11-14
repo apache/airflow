@@ -679,12 +679,12 @@ class TestCliPools(unittest.TestCase):
 
     def test_pool_list(self):
         cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with self.assertLogs(level='INFO') as cm:
             cli.pool_list(self.parser.parse_args(['pools', 'list']))
-            stdout = mock_stdout.getvalue()
 
-        print("STDOUT=", stdout)
-        self.assertIn('foo', stdout)
+        stdout = cm.output
+
+        self.assertIn('foo', stdout[0])
 
     def test_pool_list_with_args(self):
         cli.pool_list(self.parser.parse_args(['pools', 'list',
