@@ -17,18 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.natural_language`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.natural_language`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.natural_language import (  # noqa
+from airflow.providers.google.cloud.operators.natural_language import (  # noqa
     CloudLanguageAnalyzeEntitiesOperator, CloudLanguageAnalyzeEntitySentimentOperator,
     CloudLanguageAnalyzeSentimentOperator, CloudLanguageClassifyTextOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.natural_language`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.natural_language`",
     DeprecationWarning, stacklevel=2
 )

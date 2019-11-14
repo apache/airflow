@@ -44,7 +44,7 @@ DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
-KEY_REGEX = re.compile(r'^[\w\-\.]+$')
+KEY_REGEX = re.compile(r'^[\w.-]+$')
 
 
 def validate_key(k, max_length=250):

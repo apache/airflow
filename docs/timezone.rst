@@ -147,18 +147,20 @@ It is left up to the DAG to handle this.
     local_tz = pendulum.timezone("Europe/Amsterdam")
     local_tz.convert(execution_date)
 
-
 Cron schedules
 ''''''''''''''
 
-In case you set a cron schedule, Airflow assumes you will always want to run at the exact same time. It will
-then ignore day light savings time. Thus, if you have a schedule that says
-run at the end of interval every day at 08:00 GMT+1 it will always run at the end of interval 08:00 GMT+1,
-regardless if day light savings time is in place.
-
+Time zone aware DAGs that use cron schedules respect daylight savings
+time. For example, a DAG with a start date in the ``US/Eastern`` time zone
+with a schedule of ``0 0 * * *`` will run daily at 04:00 UTC during
+daylight savings time and at 05:00 otherwise.
 
 Time deltas
 '''''''''''
-For schedules with time deltas Airflow assumes you always will want to run with the specified interval. So if you
-specify a ``timedelta(hours=2)`` you will always want to run two hours later. In this case day light savings time will
-be taken into account.
+
+Time zone aware DAGs that use ``timedelta`` or ``relativedelta`` schedules
+respect daylight savings time for the start date but do not adjust for
+daylight savings time when scheduling subsequent runs. For example, a
+DAG with a start date of ``pendulum.create(2020, 1, 1, tz="US/Eastern")``
+and a schedule interval of ``timedelta(days=1)`` will run daily at 05:00
+UTC regardless of daylight savings time.

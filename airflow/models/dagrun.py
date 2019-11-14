@@ -132,7 +132,7 @@ class DagRun(Base, LoggingMixin):
 
         :param dag_id: the dag_id to find dag runs for
         :type dag_id: int, list
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
         :type execution_date: datetime.datetime

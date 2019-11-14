@@ -28,7 +28,7 @@ from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
-class GCPSpeechToTextHook(GoogleCloudBaseHook):
+class CloudSpeechToTextHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Speech API.
 

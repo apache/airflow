@@ -20,7 +20,7 @@
 
 import unittest
 
-from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
+from airflow.gcp.hooks.text_to_speech import CloudTextToSpeechHook
 from tests.compat import PropertyMock, patch
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -35,10 +35,10 @@ class TestTextToSpeechHook(unittest.TestCase):
             "airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.gcp_text_to_speech_hook = GCPTextToSpeechHook(gcp_conn_id="test")
+            self.gcp_text_to_speech_hook = CloudTextToSpeechHook(gcp_conn_id="test")
 
-    @patch("airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook.client_info", new_callable=PropertyMock)
-    @patch("airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook._get_credentials")
+    @patch("airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook.client_info", new_callable=PropertyMock)
+    @patch("airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook._get_credentials")
     @patch("airflow.gcp.hooks.text_to_speech.TextToSpeechClient")
     def test_text_to_speech_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.gcp_text_to_speech_hook.get_conn()
@@ -49,7 +49,7 @@ class TestTextToSpeechHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.gcp_text_to_speech_hook._client, result)
 
-    @patch("airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook.get_conn")
+    @patch("airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook.get_conn")
     def test_synthesize_speech(self, get_conn):
         synthesize_method = get_conn.return_value.synthesize_speech
         synthesize_method.return_value = None

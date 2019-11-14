@@ -33,6 +33,7 @@ configuring an Airflow environment.
     set-config
     initialize-database
     operator/index
+    custom-operator
     connection/index
     write-logs
     run-behind-proxy

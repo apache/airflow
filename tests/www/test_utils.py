@@ -113,7 +113,7 @@ class TestUtils(unittest.TestCase):
         (None, True, ''),
         (None, False, ''),
     ])
-    def test_params_showPaused(self, show_paused, hide_by_default, expected_result):
+    def test_params_show_paused(self, show_paused, hide_by_default, expected_result):
         with conf_vars({('webserver', 'hide_paused_dags_by_default'): str(hide_by_default)}):
             self.assertEqual(expected_result,
                              utils.get_params(showPaused=show_paused))
@@ -139,9 +139,9 @@ class TestUtils(unittest.TestCase):
             )
 
     def test_params_none_and_zero(self):
-        qs = utils.get_params(a=0, b=None)
+        query_str = utils.get_params(a=0, b=None)
         # The order won't be consistent, but that doesn't affect behaviour of a browser
-        pairs = list(sorted(qs.split('&')))
+        pairs = list(sorted(query_str.split('&')))
         self.assertListEqual(['a=0', 'b='], pairs)
 
     def test_params_all(self):
@@ -172,15 +172,15 @@ class TestUtils(unittest.TestCase):
 
     @mock.patch("zipfile.is_zipfile")
     @mock.patch("zipfile.ZipFile")
-    def test_open_maybe_zipped_archive(self, mocked_ZipFile, mocked_is_zipfile):
+    def test_open_maybe_zipped_archive(self, mocked_zip_file, mocked_is_zipfile):
         mocked_is_zipfile.return_value = True
-        instance = mocked_ZipFile.return_value
+        instance = mocked_zip_file.return_value
         instance.open.return_value = mock.mock_open(read_data="data")
 
         utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
 
         mocked_is_zipfile.assert_called_once_with('/path/to/archive.zip')
-        mocked_ZipFile.assert_called_once_with('/path/to/archive.zip', mode='r')
+        mocked_zip_file.assert_called_once_with('/path/to/archive.zip', mode='r')
         instance.open.assert_called_once_with('deep/path/to/file.txt')
 
     def test_state_token(self):

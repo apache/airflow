@@ -30,7 +30,7 @@ class PythonSensor(BaseSensorOperator):
     User could put input argument in templates_dict
     e.g ``templates_dict = {'start_ds': 1970}``
     and access the argument by calling ``kwargs['templates_dict']['start_ds']``
-    in the the callable
+    in the callable
 
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable

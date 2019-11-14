@@ -21,7 +21,6 @@ FILES_FOR_REBUILD_CHECK=(
  "setup.py"
  "setup.cfg"
  "Dockerfile"
- "Dockerfile-checklicence"
  ".dockerignore"
  "airflow/version.py"
  "airflow/www/package.json"

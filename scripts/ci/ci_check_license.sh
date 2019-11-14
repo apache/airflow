@@ -22,6 +22,7 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export PYTHON_VERSION=3.5
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
+export MOUNT_LOCAL_SOURCES="true"
 
 export PYTHON_VERSION=3.5
 
@@ -32,7 +33,7 @@ basic_sanity_checks
 
 script_start
 
-rebuild_checklicence_image_if_needed
+rebuild_ci_image_if_needed
 
 run_check_license
 

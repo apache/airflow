@@ -97,8 +97,8 @@ class TestBase(unittest.TestCase):
         resp_html = resp.data.decode('utf-8')
         self.assertEqual(resp_code, resp.status_code)
         if isinstance(text, list):
-            for kw in text:
-                self.assertIn(kw, resp_html)
+            for line in text:
+                self.assertIn(line, resp_html)
         else:
             self.assertIn(text, resp_html)
 
@@ -106,8 +106,8 @@ class TestBase(unittest.TestCase):
         resp_html = resp.data.decode('utf-8')
         self.assertEqual(resp_code, resp.status_code)
         if isinstance(text, list):
-            for kw in text:
-                self.assertNotIn(kw, resp_html)
+            for line in text:
+                self.assertNotIn(line, resp_html)
         else:
             self.assertNotIn(text, resp_html)
 
@@ -744,8 +744,8 @@ class TestLogView(TestBase):
 
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
-        for m in [m for m in sys.modules if m not in self.old_modules]:
-            del sys.modules[m]
+        for mod in [m for m in sys.modules if m not in self.old_modules]:
+            del sys.modules[mod]
 
         sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
@@ -886,41 +886,40 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.test = test
         self.endpoint = endpoint
 
-    def setUp(self):
+    def setUp(self):  # pylint:disable=invalid-name
         from airflow.www.views import dagbag
-        from airflow.utils.state import State
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
         self.runs = []
-        for rd in self.RUNS_DATA:
+        for run_data in self.RUNS_DATA:
             run = dag.create_dagrun(
-                run_id=rd[0],
-                execution_date=rd[1],
+                run_id=run_data[0],
+                execution_date=run_data[1],
                 state=State.SUCCESS,
                 external_trigger=True
             )
             self.runs.append(run)
 
-    def tearDown(self):
+    def tearDown(self):  # pylint:disable=invalid-name
         self.test.session.query(DagRun).filter(
             DagRun.dag_id == self.DAG_ID).delete()
         self.test.session.commit()
         self.test.session.close()
 
-    def assertBaseDateAndNumRuns(self, base_date, num_runs, data):
+    def assert_base_date_and_num_runs(self, base_date, num_runs, data):
         self.test.assertNotIn('name="base_date" value="{}"'.format(base_date), data)
-        self.test.assertNotIn('<option selected="" value="{}">{}</option>'.format(
-            num_runs, num_runs), data)
+        self.test.assertNotIn('<option selected="" value="{num}">{num}</option>'.format(
+            num=num_runs), data)
 
-    def assertRunIsNotInDropdown(self, run, data):
+    def assert_run_is_not_in_dropdown(self, run, data):
         self.test.assertNotIn(run.execution_date.isoformat(), data)
         self.test.assertNotIn(run.run_id, data)
 
-    def assertRunIsInDropdownNotSelected(self, run, data):
+    def assert_run_is_in_dropdown_not_selected(self, run, data):
         self.test.assertIn('<option value="{}">{}</option>'.format(
             run.execution_date.isoformat(), run.run_id), data)
 
-    def assertRunIsSelected(self, run, data):
+    def assert_run_is_selected(self, run, data):
         self.test.assertIn('<option selected value="{}">{}</option>'.format(
             run.execution_date.isoformat(), run.run_id), data)
 
@@ -939,10 +938,10 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         data = response.data.decode('utf-8')
         self.test.assertIn('Base date:', data)
         self.test.assertIn('Number of runs:', data)
-        self.assertRunIsSelected(self.runs[0], data)
-        self.assertRunIsInDropdownNotSelected(self.runs[1], data)
-        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
-        self.assertRunIsInDropdownNotSelected(self.runs[3], data)
+        self.assert_run_is_selected(self.runs[0], data)
+        self.assert_run_is_in_dropdown_not_selected(self.runs[1], data)
+        self.assert_run_is_in_dropdown_not_selected(self.runs[2], data)
+        self.assert_run_is_in_dropdown_not_selected(self.runs[3], data)
 
     def test_with_execution_date_parameter_only(self):
         """
@@ -962,14 +961,14 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
-        self.assertBaseDateAndNumRuns(
+        self.assert_base_date_and_num_runs(
             self.runs[1].execution_date,
             conf.getint('webserver', 'default_dag_run_display_number'),
             data)
-        self.assertRunIsNotInDropdown(self.runs[0], data)
-        self.assertRunIsSelected(self.runs[1], data)
-        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
-        self.assertRunIsInDropdownNotSelected(self.runs[3], data)
+        self.assert_run_is_not_in_dropdown(self.runs[0], data)
+        self.assert_run_is_selected(self.runs[1], data)
+        self.assert_run_is_in_dropdown_not_selected(self.runs[2], data)
+        self.assert_run_is_in_dropdown_not_selected(self.runs[3], data)
 
     def test_with_base_date_and_num_runs_parmeters_only(self):
         """
@@ -989,11 +988,11 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
-        self.assertBaseDateAndNumRuns(self.runs[1].execution_date, 2, data)
-        self.assertRunIsNotInDropdown(self.runs[0], data)
-        self.assertRunIsSelected(self.runs[1], data)
-        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
-        self.assertRunIsNotInDropdown(self.runs[3], data)
+        self.assert_base_date_and_num_runs(self.runs[1].execution_date, 2, data)
+        self.assert_run_is_not_in_dropdown(self.runs[0], data)
+        self.assert_run_is_selected(self.runs[1], data)
+        self.assert_run_is_in_dropdown_not_selected(self.runs[2], data)
+        self.assert_run_is_not_in_dropdown(self.runs[3], data)
 
     def test_with_base_date_and_num_runs_and_execution_date_outside(self):
         """
@@ -1015,11 +1014,11 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
-        self.assertBaseDateAndNumRuns(self.runs[1].execution_date, 42, data)
-        self.assertRunIsNotInDropdown(self.runs[0], data)
-        self.assertRunIsSelected(self.runs[1], data)
-        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
-        self.assertRunIsInDropdownNotSelected(self.runs[3], data)
+        self.assert_base_date_and_num_runs(self.runs[1].execution_date, 42, data)
+        self.assert_run_is_not_in_dropdown(self.runs[0], data)
+        self.assert_run_is_selected(self.runs[1], data)
+        self.assert_run_is_in_dropdown_not_selected(self.runs[2], data)
+        self.assert_run_is_in_dropdown_not_selected(self.runs[3], data)
 
     def test_with_base_date_and_num_runs_and_execution_date_within(self):
         """
@@ -1041,11 +1040,11 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         )
         self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
-        self.assertBaseDateAndNumRuns(self.runs[2].execution_date, 5, data)
-        self.assertRunIsNotInDropdown(self.runs[0], data)
-        self.assertRunIsNotInDropdown(self.runs[1], data)
-        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
-        self.assertRunIsSelected(self.runs[3], data)
+        self.assert_base_date_and_num_runs(self.runs[2].execution_date, 5, data)
+        self.assert_run_is_not_in_dropdown(self.runs[0], data)
+        self.assert_run_is_not_in_dropdown(self.runs[1], data)
+        self.assert_run_is_in_dropdown_not_selected(self.runs[2], data)
+        self.assert_run_is_selected(self.runs[3], data)
 
 
 class TestGraphView(TestBase):
@@ -1773,8 +1772,8 @@ class TestExtraLinks(TestBase):
         from airflow.utils.tests import (
             Dummy2TestOperator, Dummy3TestOperator)
         super().setUp()
-        self.ENDPOINT = "extra_links"
-        self.DEFAULT_DATE = datetime(2017, 1, 1)
+        self.endpoint = "extra_links"
+        self.default_date = datetime(2017, 1, 1)
 
         class RaiseErrorLink(BaseOperatorLink):
             name = 'raise_error'
@@ -1810,13 +1809,10 @@ class TestExtraLinks(TestBase):
                 AirflowLink(),
             )
 
-        self.dag = DAG('dag', start_date=self.DEFAULT_DATE)
+        self.dag = DAG('dag', start_date=self.default_date)
         self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)
         self.task_2 = Dummy2TestOperator(task_id="some_dummy_task_2", dag=self.dag)
         self.task_3 = Dummy3TestOperator(task_id="some_dummy_task_3", dag=self.dag)
-
-    def tearDown(self):
-        super().tearDown()
 
     @mock.patch('airflow.www.views.dagbag.get_dag')
     def test_extra_links_works(self, get_dag_function):
@@ -1824,7 +1820,7 @@ class TestExtraLinks(TestBase):
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=foo-bar"
-            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+            .format(self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
@@ -1843,7 +1839,7 @@ class TestExtraLinks(TestBase):
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=github"
-            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+            .format(self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
@@ -1861,7 +1857,7 @@ class TestExtraLinks(TestBase):
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
-                self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+                self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
@@ -1879,7 +1875,7 @@ class TestExtraLinks(TestBase):
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=raise_error"
-            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+            .format(self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
         self.assertEqual(404, response.status_code)
@@ -1896,7 +1892,7 @@ class TestExtraLinks(TestBase):
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=no_response"
-            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+            .format(self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
         self.assertEqual(response.status_code, 404)
@@ -1920,7 +1916,7 @@ class TestExtraLinks(TestBase):
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
-                self.ENDPOINT, self.dag.dag_id, self.task_2.task_id, self.DEFAULT_DATE),
+                self.endpoint, self.dag.dag_id, self.task_2.task_id, self.default_date),
             follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
@@ -1946,7 +1942,7 @@ class TestExtraLinks(TestBase):
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
-                self.ENDPOINT, self.dag.dag_id, self.task_2.task_id, self.DEFAULT_DATE),
+                self.endpoint, self.dag.dag_id, self.task_2.task_id, self.default_date),
             follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
@@ -1960,7 +1956,7 @@ class TestExtraLinks(TestBase):
 
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
-                self.ENDPOINT, self.dag.dag_id, self.task_3.task_id, self.DEFAULT_DATE),
+                self.endpoint, self.dag.dag_id, self.task_3.task_id, self.default_date),
             follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
@@ -1975,7 +1971,7 @@ class TestExtraLinks(TestBase):
         # Also check that the other Operator Link defined for this operator exists
         response = self.client.get(
             "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=google".format(
-                self.ENDPOINT, self.dag.dag_id, self.task_3.task_id, self.DEFAULT_DATE),
+                self.endpoint, self.dag.dag_id, self.task_3.task_id, self.default_date),
             follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)

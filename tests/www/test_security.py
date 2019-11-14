@@ -31,6 +31,9 @@ from sqlalchemy import Column, Date, Float, Integer, String
 from airflow.exceptions import AirflowException
 from airflow.www.security import AirflowSecurityManager
 
+READ_WRITE = {'can_dag_read', 'can_dag_edit'}
+READ_ONLY = {'can_dag_read'}
+
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
 logging.getLogger().setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -267,9 +270,6 @@ class TestSecurity(unittest.TestCase):
         )
 
     def test_access_control_stale_perms_are_revoked(self):
-        READ_WRITE = {'can_dag_read', 'can_dag_edit'}
-        READ_ONLY = {'can_dag_read'}
-
         self.expect_user_is_in_role(self.user, rolename='team-a')
         self.security_manager.sync_perm_for_dag(
             'access_control_test',

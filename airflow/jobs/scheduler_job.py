@@ -1265,6 +1265,7 @@ class SchedulerJob(BaseJob):
                     msg = ("Executor reports task instance {} finished ({}) "
                            "although the task says its {}. Was the task "
                            "killed externally?".format(ti, state, ti.state))
+                    Stats.incr('scheduler.tasks.killed_externally')
                     self.log.error(msg)
                     try:
                         simple_dag = simple_dag_bag.get_dag(dag_id)

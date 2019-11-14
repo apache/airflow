@@ -22,7 +22,7 @@ This module allows you to connect to the Google Discovery API Service and query 
 """
 from typing import Dict, Optional
 
-from googleapiclient.discovery import build
+from googleapiclient.discovery import Resource, build
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
@@ -43,7 +43,7 @@ class GoogleDiscoveryApiHook(GoogleCloudBaseHook):
         domain-wide delegation enabled.
     :type delegate_to: str
     """
-    _conn = None
+    _conn = None  # type: Optional[Resource]
 
     def __init__(
         self,

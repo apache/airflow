@@ -33,7 +33,7 @@ TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 # noinspection PyAbstractClass
-class GcfHook(GoogleCloudBaseHook):
+class CloudFunctionsHook(GoogleCloudBaseHook):
     """
     Hook for the Google Cloud Functions APIs.
 

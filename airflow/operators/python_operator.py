@@ -330,16 +330,20 @@ class PythonVirtualenvOperator(PythonOperator):
         return len(self.op_args) + len(self.op_kwargs) > 0
 
     def _execute_in_subprocess(self, cmd):
-        try:
-            self.log.info("Executing cmd\n%s", cmd)
-            output = subprocess.check_output(cmd,
-                                             stderr=subprocess.STDOUT,
-                                             close_fds=True)
-            if output:
-                self.log.info("Got output\n%s", output)
-        except subprocess.CalledProcessError as e:
-            self.log.info("Got error output\n%s", e.output)
-            raise
+        self.log.info("Executing cmd\n{}".format(cmd))
+        self._sp = subprocess.Popen(cmd,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT,
+                                    bufsize=0,
+                                    close_fds=True)
+        self.log.info("Got output")
+        with self._sp.stdout:
+            for line in iter(self._sp.stdout.readline, b''):
+                self.log.info("%s", line.decode().rstrip())
+
+        returncode = self._sp.wait()
+        if returncode != 0:
+            raise subprocess.CalledProcessError(returncode, cmd)
 
     def _write_string_args(self, filename):
         # writes string_args to a file, which are read line by line

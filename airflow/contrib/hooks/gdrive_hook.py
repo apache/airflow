@@ -19,7 +19,7 @@
 """Hook for Google Drive service"""
 from typing import Any, Optional
 
-from googleapiclient.discovery import build
+from googleapiclient.discovery import Resource, build
 from googleapiclient.http import MediaFileUpload
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
@@ -40,7 +40,7 @@ class GoogleDriveHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    _conn = None
+    _conn = None  # type: Optional[Resource]
 
     def __init__(
         self,

@@ -16,10 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint:disable=missing-docstring
+
 from functools import wraps
 from itertools import chain
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.lineage.datasets import DataSet
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -35,10 +39,10 @@ def _get_backend():
 
     try:
         _backend_str = conf.get("lineage", "backend")
-        backend = import_string(_backend_str)
-    except ImportError as ie:
-        log.debug("Cannot import %s due to %s", _backend_str, ie)
-    except conf.AirflowConfigException:
+        backend = import_string(_backend_str)  # pylint:disable=protected-access
+    except ImportError as err:
+        log.debug("Cannot import %s due to %s", _backend_str, err)  # pylint:disable=protected-access
+    except AirflowConfigException:
         log.debug("Could not find lineage backend key in config")
 
     return backend
@@ -60,13 +64,13 @@ def apply_lineage(func):
         outlets = [x.as_dict() for x in self.outlets]
         inlets = [x.as_dict() for x in self.inlets]
 
-        if len(self.outlets) > 0:
+        if self.outlets:
             self.xcom_push(context,
                            key=PIPELINE_OUTLETS,
                            value=outlets,
                            execution_date=context['ti'].execution_date)
 
-        if len(self.inlets) > 0:
+        if self.inlets:
             self.xcom_push(context,
                            key=PIPELINE_INLETS,
                            value=inlets,
@@ -95,7 +99,7 @@ def prepare_lineage(func):
     def wrapper(self, context, *args, **kwargs):
         self.log.debug("Preparing lineage inlets and outlets")
 
-        task_ids = set(self._inlets['task_ids']).intersection(
+        task_ids = set(self._inlets['task_ids']).intersection(  # pylint:disable=protected-access
             self.get_flat_relative_ids(upstream=True)
         )
         if task_ids:
@@ -108,9 +112,9 @@ def prepare_lineage(func):
                       for i in inlets]
             self.inlets.extend(inlets)
 
-        if self._inlets['auto']:
+        if self._inlets['auto']:  # pylint:disable=protected-access
             # dont append twice
-            task_ids = set(self._inlets['task_ids']).symmetric_difference(
+            task_ids = set(self._inlets['task_ids']).symmetric_difference(  # pylint:disable=protected-access
                 self.upstream_task_ids
             )
             inlets = self.xcom_pull(context,
@@ -122,12 +126,12 @@ def prepare_lineage(func):
                       for i in inlets]
             self.inlets.extend(inlets)
 
-        if len(self._inlets['datasets']) > 0:
-            self.inlets.extend(self._inlets['datasets'])
+        if self._inlets['datasets']:  # pylint:disable=protected-access
+            self.inlets.extend(self._inlets['datasets'])  # pylint:disable=protected-access
 
         # outlets
-        if len(self._outlets['datasets']) > 0:
-            self.outlets.extend(self._outlets['datasets'])
+        if self._outlets['datasets']:  # pylint:disable=protected-access
+            self.outlets.extend(self._outlets['datasets'])  # pylint:disable=protected-access
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
 

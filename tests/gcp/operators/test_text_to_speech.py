@@ -36,7 +36,7 @@ TARGET_FILENAME = "target_filename"
 
 class TestGcpTextToSpeech(unittest.TestCase):
     @patch("airflow.gcp.operators.text_to_speech.GoogleCloudStorageHook")
-    @patch("airflow.gcp.operators.text_to_speech.GCPTextToSpeechHook")
+    @patch("airflow.gcp.operators.text_to_speech.CloudTextToSpeechHook")
     def test_synthesize_text_green_path(self, mock_text_to_speech_hook, mock_gcp_hook):
         mocked_response = Mock()
         type(mocked_response).audio_content = PropertyMock(return_value=b"audio")
@@ -74,7 +74,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
         ]
     )
     @patch("airflow.gcp.operators.text_to_speech.GoogleCloudStorageHook")
-    @patch("airflow.gcp.operators.text_to_speech.GCPTextToSpeechHook")
+    @patch("airflow.gcp.operators.text_to_speech.CloudTextToSpeechHook")
     def test_missing_arguments(
         self,
         missing_arg,

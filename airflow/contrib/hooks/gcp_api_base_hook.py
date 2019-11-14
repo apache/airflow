@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use `airflow.gcp.hooks.base`."""
-
 import warnings
 
 # pylint: disable=unused-import

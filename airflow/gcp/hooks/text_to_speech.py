@@ -30,7 +30,7 @@ from google.cloud.texttospeech_v1.types import (
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
-class GCPTextToSpeechHook(GoogleCloudBaseHook):
+class CloudTextToSpeechHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Text to Speech API.
 

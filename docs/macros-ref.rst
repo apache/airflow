@@ -52,7 +52,7 @@ Variable                                Description
 ``{{ ts_nodash_with_tz }}``             same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
 ``{{ execution_date }}``                the execution_date (`pendulum.Pendulum`_)
 ``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
-``{{ prev_execution_date_success }}``   execution date from prior succesful dag run (if available) (`pendulum.Pendulum`_)
+``{{ prev_execution_date_success }}``   execution date from prior successful dag run (if available) (`pendulum.Pendulum`_)
 ``{{ prev_start_date_success }}``       start date from prior successful dag run (if available) (`pendulum.Pendulum`_)
 ``{{ next_execution_date }}``           the next execution date (`pendulum.Pendulum`_)
 ``{{ dag }}``                           the DAG object

@@ -22,6 +22,7 @@ from contextlib import closing
 
 import psycopg2
 import psycopg2.extensions
+import psycopg2.extras
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -29,14 +30,17 @@ from airflow.hooks.dbapi_hook import DbApiHook
 class PostgresHook(DbApiHook):
     """
     Interact with Postgres.
+
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
+    Also you can choose cursor as ``{"cursor": "dictcursor"}``. Refer to the
+    psycopg2.extras for more details.
 
     Note: For Redshift, use keepalives_idle in the extra connection parameters
     and set it to less than 300 seconds.
 
     Note: For AWS IAM authentication, use iam in the extra connection parameters
-    and set it to true. Leave the password field empty. This will use the the
+    and set it to true. Leave the password field empty. This will use the
     "aws_default" connection to get the temporary token unless you override
     in extras.
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
@@ -53,6 +57,16 @@ class PostgresHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
+    def _get_cursor(self, raw_cursor):
+        _cursor = raw_cursor.lower()
+        if _cursor == 'dictcursor':
+            return psycopg2.extras.DictCursor
+        if _cursor == 'realdictcursor':
+            return psycopg2.extras.RealDictCursor
+        if _cursor == 'namedtuplecursor':
+            return psycopg2.extras.NamedTupleCursor
+        raise ValueError('Invalid cursor passed {}'.format(_cursor))
+
     def get_conn(self):
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.get_connection(conn_id)
@@ -67,6 +81,9 @@ class PostgresHook(DbApiHook):
             password=conn.password,
             dbname=self.schema or conn.schema,
             port=conn.port)
+        raw_cursor = conn.extra_dejson.get('cursor', False)
+        if raw_cursor:
+            conn_args['cursor_factory'] = self._get_cursor(raw_cursor)
         # check for ssl parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ['sslmode', 'sslcert', 'sslkey',

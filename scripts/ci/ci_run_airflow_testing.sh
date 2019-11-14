@@ -43,7 +43,7 @@ export BACKEND=${BACKEND:="sqlite"}
 export ENV=${ENV:="docker"}
 export KUBERNETES_MODE=${KUBERNETES_MODE:="git_mode"}
 
-# Whether local sources are mounted to docker
+# Whether necessary for airflow run local sources are mounted to docker
 export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
 
 # whethere verbose output should be produced

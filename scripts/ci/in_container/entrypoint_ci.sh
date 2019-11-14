@@ -105,7 +105,7 @@ if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
 fi
 
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
-export HADOOP_HOME="${HADOOP_HOME:="/tmp/hadoop-cdh"}"
+export HADOOP_HOME="${HADOOP_HOME:="/opt/hadoop-cdh"}"
 
 if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     echo
@@ -114,9 +114,6 @@ if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
 fi
 
 export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/tests/dags"
-
-# add test/test_utils to PYTHONPATH (TODO: Do we need it?)
-export PYTHONPATH=${PYTHONPATH:-${AIRFLOW_SOURCES}/tests/test_utils}
 
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
@@ -141,7 +138,7 @@ mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 
 if [[ "${ENV}" == "docker" ]]; then
     # Start MiniCluster
-    java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
+    java -cp "/opt/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
         >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
 
     # Set up ssh keys
@@ -214,6 +211,8 @@ set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" == "false" ]]; then
     if [[ ${#ARGS} == 0 ]]; then
+        nohup "${AIRFLOW_SOURCES}/scripts/ci/in_container/run_extract_tests.sh" \
+            >"${AIRFLOW_SOURCES}/logs/extract_tests.log" 2>&1 &
         exec /bin/bash
     else
         exec /bin/bash -c "$(printf "%q " "${ARGS[@]}")"
