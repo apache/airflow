@@ -74,7 +74,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         assert mock_run.call_count == 1
         assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], unload_query)
-        
+
     def test_execute_false(self, mock_run, mock_session):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
