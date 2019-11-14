@@ -77,12 +77,12 @@ Always use :ref:`Connections <concepts-connections>` to store data securely in A
 Variables
 ---------
 
-You should avoid usage of Variables outside a task. Variables create a connection to metadata DB of Airflow to fetch the value.
+You should avoid usage of Variables outside an operator's execute() method or Jinja templates. Variables create a connection to metadata DB of Airflow to fetch the value.
 Airflow parses all the DAGs in the background at a specific period.
 The default period is set using ``processor_poll_interval`` config, which is by default 1 second. During parsing, Airflow creates a new connection to the metadata DB for each Variable.
 It can result in a lot of open connections.
 
-If you really want to use Variables, we advice to use them from a jinja template with the syntax :
+If you really want to use Variables, we advice to use them from a Jinja template with the syntax :
 
 .. code::
 
@@ -97,7 +97,7 @@ or if you need to deserialize a json object from the variable :
 
 .. note::
 
-    In general, you should not write any code outside the tasks. The code outside the tasks runs every time Airflow parses the DAG, which happens every second by default.
+    In general, you should not write any complex code outside the tasks. The code outside the tasks runs every time Airflow parses the DAG, which happens every second by default.
 
 
 Testing a DAG
