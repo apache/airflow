@@ -24,7 +24,6 @@ import pickle
 import re
 import sys
 import traceback
-import warnings
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Callable, Dict, FrozenSet, Iterable, List, Optional, Type, Union
@@ -38,7 +37,7 @@ from sqlalchemy import Boolean, Column, Index, Integer, String, Text, func, or_
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound
+from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
 from airflow.executors import LocalExecutor, get_default_executor
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dagbag import DagBag
@@ -1189,14 +1188,9 @@ class DAG(BaseDag, LoggingMixin):
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
-        if task.task_id in self.task_dict:
-            # TODO: raise an error in Airflow 2.0
-            warnings.warn(
-                'The requested task could not be added to the DAG because a '
-                'task with task_id {} is already in the DAG. Starting in '
-                'Airflow 2.0, trying to overwrite a task will raise an '
-                'exception.'.format(task.task_id),
-                category=PendingDeprecationWarning)
+        if task.task_id in self.task_dict and self.task_dict[task.task_id] != task:
+            raise DuplicateTaskIdFound(
+                "Task id '{}' has already been added to the DAG".format(task.task_id))
         else:
             self.task_dict[task.task_id] = task
             task.dag = self

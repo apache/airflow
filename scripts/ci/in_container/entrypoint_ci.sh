@@ -211,6 +211,8 @@ set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" == "false" ]]; then
     if [[ ${#ARGS} == 0 ]]; then
+        nohup "${AIRFLOW_SOURCES}/scripts/ci/in_container/run_extract_tests.sh" \
+            >"${AIRFLOW_SOURCES}/logs/extract_tests.log" 2>&1 &
         exec /bin/bash
     else
         exec /bin/bash -c "$(printf "%q " "${ARGS[@]}")"

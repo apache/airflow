@@ -16,35 +16,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Default authentication backend - everything is allowed"""
-from functools import wraps
-from typing import Optional
+"""Contains the TaskNotRunningDep."""
 
-from airflow.typing_compat import Protocol
-
-
-class ClientAuthProtocol(Protocol):
-    """
-    Protocol type for CLIENT_AUTH
-    """
-    def handle_response(self, _):
-        """
-        CLIENT_AUTH.handle_response method
-        """
-        ...
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.utils.db import provide_session
+from airflow.utils.state import State
 
 
-CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
+class TaskNotRunningDep(BaseTIDep):
+    """Ensures that the task instance's state is not running."""
+    NAME = "Task Instance Not Running"
+    IGNOREABLE = False
 
+    def __eq__(self, other):
+        return type(self) == type(other)  # pylint: disable=C0123
 
-def init_app(_):
-    """Initializes authentication backend"""
+    def __hash__(self):
+        return hash(type(self))
 
+    @provide_session
+    def _get_dep_statuses(self, ti, session, dep_context=None):
+        if ti.state != State.RUNNING:
+            yield self._passing_status(reason="Task is not in running state.")
+            return
 
-def requires_authentication(function):
-    """Decorator for functions that require authentication"""
-    @wraps(function)
-    def decorated(*args, **kwargs):
-        return function(*args, **kwargs)
-
-    return decorated
+        yield self._failing_status(
+            reason='Task is in the running state')

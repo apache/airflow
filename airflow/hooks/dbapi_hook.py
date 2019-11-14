@@ -25,7 +25,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.typing import Protocol
+from airflow.typing_compat import Protocol
 
 
 class ConnectorProtocol(Protocol):

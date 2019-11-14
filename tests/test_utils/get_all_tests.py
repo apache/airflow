@@ -71,6 +71,6 @@ def print_all_cases(xunit_test_file_path):
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Please provide name of xml unit file as first parameter")
-        exit(0)
+        exit(1)
     file_name = sys.argv[1]
     print_all_cases(file_name)

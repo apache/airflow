@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,35 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Default authentication backend - everything is allowed"""
-from functools import wraps
-from typing import Optional
 
-from airflow.typing_compat import Protocol
+#
+# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
+set -euo pipefail
 
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-class ClientAuthProtocol(Protocol):
-    """
-    Protocol type for CLIENT_AUTH
-    """
-    def handle_response(self, _):
-        """
-        CLIENT_AUTH.handle_response method
-        """
-        ...
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
+in_container_basic_sanity_check
 
-CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
+in_container_script_start
 
+TMP_FILE=$(mktemp)
 
-def init_app(_):
-    """Initializes authentication backend"""
+nosetests --collect-only --with-xunit --xunit-file="${TMP_FILE}"
 
+python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" "${TMP_FILE}" | sort >> "${HOME}/all_tests.txt"
 
-def requires_authentication(function):
-    """Decorator for functions that require authentication"""
-    @wraps(function)
-    def decorated(*args, **kwargs):
-        return function(*args, **kwargs)
-
-    return decorated
+in_container_script_end

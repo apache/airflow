@@ -31,8 +31,9 @@ import pendulum
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowDagCycleException, AirflowException
+from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
 from airflow.models import DAG, DagModel, TaskInstance as TI
+from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
@@ -915,3 +916,55 @@ class TestDag(unittest.TestCase):
             self.assertIn('t1', stdout_lines[0])
             self.assertIn('t2', stdout_lines[1])
             self.assertIn('t3', stdout_lines[2])
+
+    def test_duplicate_task_ids_not_allowed_with_dag_context_manager(self):
+        """Verify tasks with Duplicate task_id raises error"""
+        with self.assertRaisesRegex(
+            DuplicateTaskIdFound, "Task id 't1' has already been added to the DAG"
+        ):
+            with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+                t1 = DummyOperator(task_id="t1")
+                t2 = BashOperator(task_id="t1", bash_command="sleep 1")
+                t1 >> t2
+
+        self.assertEqual(dag.task_dict, {t1.task_id: t1})
+
+        # Also verify that DAGs with duplicate task_ids don't raise errors
+        with DAG("test_dag_1", start_date=DEFAULT_DATE) as dag1:
+            t3 = DummyOperator(task_id="t3")
+            t4 = BashOperator(task_id="t4", bash_command="sleep 1")
+            t3 >> t4
+
+        self.assertEqual(dag1.task_dict, {t3.task_id: t3, t4.task_id: t4})
+
+    def test_duplicate_task_ids_not_allowed_without_dag_context_manager(self):
+        """Verify tasks with Duplicate task_id raises error"""
+        with self.assertRaisesRegex(
+            DuplicateTaskIdFound, "Task id 't1' has already been added to the DAG"
+        ):
+            dag = DAG("test_dag", start_date=DEFAULT_DATE)
+            t1 = DummyOperator(task_id="t1", dag=dag)
+            t2 = BashOperator(task_id="t1", bash_command="sleep 1", dag=dag)
+            t1 >> t2
+
+        self.assertEqual(dag.task_dict, {t1.task_id: t1})
+
+        # Also verify that DAGs with duplicate task_ids don't raise errors
+        dag1 = DAG("test_dag_1", start_date=DEFAULT_DATE)
+        t3 = DummyOperator(task_id="t3", dag=dag1)
+        t4 = DummyOperator(task_id="t4", dag=dag1)
+        t3 >> t4
+
+        self.assertEqual(dag1.task_dict, {t3.task_id: t3, t4.task_id: t4})
+
+    def test_duplicate_task_ids_for_same_task_is_allowed(self):
+        """Verify that same tasks with Duplicate task_id do not raise error"""
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            t1 = t2 = DummyOperator(task_id="t1")
+            t3 = DummyOperator(task_id="t3")
+            t1 >> t3
+            t2 >> t3
+
+        self.assertEqual(t1, t2)
+        self.assertEqual(dag.task_dict, {t1.task_id: t1, t3.task_id: t3})
+        self.assertEqual(dag.task_dict, {t2.task_id: t2, t3.task_id: t3})

@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+# -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,24 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
-set -euxo pipefail
+import unittest
+from datetime import datetime
+from unittest.mock import Mock
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1; pwd )"
+from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
+from airflow.utils.state import State
 
-AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../.." || exit 1; pwd)
-export AIRFLOW_SOURCES
 
-gosu "${AIRFLOW_USER}" nosetests --collect-only --with-xunit --xunit-file="${HOME}/all_tests.xml"
+class TestTaskNotRunningDep(unittest.TestCase):
 
-gosu "${AIRFLOW_USER}" \
-    python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" \
-                    "${HOME}/all_tests.xml" >"${HOME}/all_tests.txt"; \
+    def test_not_running_state(self):
+        ti = Mock(state=State.QUEUED, end_date=datetime(2016, 1, 1))
+        self.assertTrue(TaskNotRunningDep().is_met(ti=ti))
 
-echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
-
-chmod +x "${HOME}/run-tests-complete"
-
-chmod +x "${HOME}/run-tests"
-
-chown "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.bashrc" "${HOME}/run-tests-complete" "${HOME}/run-tests"
+    def test_running_state(self):
+        ti = Mock(state=State.RUNNING, end_date=datetime(2016, 1, 1))
+        self.assertFalse(TaskNotRunningDep().is_met(ti=ti))

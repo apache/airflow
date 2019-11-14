@@ -42,7 +42,8 @@ DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
 # https://github.com/apache/beam/blob/75eee7857bb80a0cdb4ce99ae3e184101092e2ed/sdks/go/pkg/beam/runners/
 # universal/runnerlib/execute.go#L85
-JOB_ID_PATTERN = re.compile(r'Submitted job:\s+([a-z|0-9|A-Z|\-|\_]+).*')
+JOB_ID_PATTERN = re.compile(
+    r'https?://console\.cloud\.google\.com/dataflow/jobsDetail/locations/.+?/jobs/([a-z|0-9|A-Z|\-|\_]+).*?')
 
 RT = TypeVar('RT')  # pylint: disable=invalid-name
 
@@ -164,14 +165,27 @@ class _DataflowJobsController(LoggingMixin):
             jobId=job_id
         ).execute(num_retries=self._num_retries)
 
-    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[Dict]:
-        jobs = self._dataflow.projects().locations().jobs().list(
+    def _fetch_all_jobs(self) -> List[Dict]:
+        request = self._dataflow.projects().locations().jobs().list(
             projectId=self._project_number,
             location=self._job_location
-        ).execute(num_retries=self._num_retries)
+        )
+        jobs = []  # type: List[Dict]
+        while request is not None:
+            response = request.execute(num_retries=self._num_retries)
+            jobs.extend(response["jobs"])
+
+            request = self._dataflow.projects().locations().jobs().list_next(
+                previous_request=request,
+                previous_response=response
+            )
+        return jobs
+
+    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[Dict]:
+        jobs = self._fetch_all_jobs()
         jobs = [
             job
-            for job in jobs['jobs']
+            for job in jobs
             if job['name'].startswith(prefix_name)
         ]
         return jobs
