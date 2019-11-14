@@ -117,4 +117,3 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         assert mock_run.call_count == 1
         assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], unload_query)
-
