@@ -20,6 +20,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -35,11 +36,12 @@ import pytz
 import airflow.bin.cli as cli
 from airflow import DAG, AirflowException, models, settings
 from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
-from airflow.models import DagModel, Pool, TaskInstance, Variable
+from airflow.models import Connection, DagModel, Pool, TaskInstance, Variable
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
+from airflow.version import version
 from tests import conf_vars
 from tests.compat import mock
 
@@ -195,6 +197,9 @@ class TestCLI(unittest.TestCase):
             ti.refresh_from_db()
             state = ti.current_state()
             self.assertEqual(state, State.SUCCESS)
+
+    def test_process_subdir_path_with_placeholder(self):
+        self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
 
 
 class TestCliDags(unittest.TestCase):
@@ -1266,3 +1271,213 @@ class TestCliWebServer(unittest.TestCase):
             with self.assertRaises(SystemExit) as e:
                 cli.webserver(args)
         self.assertEqual(e.exception.code, 1)
+
+
+class TestCliDb(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.CLIFactory.get_parser()
+
+    @mock.patch("airflow.bin.cli.db.initdb")
+    def test_cli_initdb(self, initdb_mock):
+        cli.initdb(self.parser.parse_args(['db', 'init']))
+
+        initdb_mock.assert_called_once_with()
+
+    @mock.patch("airflow.bin.cli.db.resetdb")
+    def test_cli_resetdb(self, resetdb_mock):
+        cli.resetdb(self.parser.parse_args(['db', 'reset', '--yes']))
+
+        resetdb_mock.assert_called_once_with()
+
+
+class TestCliConnections(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.CLIFactory.get_parser()
+
+    def test_cli_connections_list(self):
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.connections_list(self.parser.parse_args(['connections', 'list']))
+            stdout = mock_stdout.getvalue()
+        conns = [[x.strip("'") for x in re.findall(r"'\w+'", line)[:2]]
+                 for ii, line in enumerate(stdout.split('\n'))
+                 if ii % 2 == 1]
+        conns = [conn for conn in conns if len(conn) > 0]
+
+        # Assert that some of the connections are present in the output as
+        # expected:
+        self.assertIn(['aws_default', 'aws'], conns)
+        self.assertIn(['hive_cli_default', 'hive_cli'], conns)
+        self.assertIn(['emr_default', 'emr'], conns)
+        self.assertIn(['mssql_default', 'mssql'], conns)
+        self.assertIn(['mysql_default', 'mysql'], conns)
+        self.assertIn(['postgres_default', 'postgres'], conns)
+        self.assertIn(['wasb_default', 'wasb'], conns)
+        self.assertIn(['segment_default', 'segment'], conns)
+
+    def test_cli_connections_list_with_args(self):
+        args = self.parser.parse_args(['connections', 'list',
+                                       '--output', 'tsv'])
+        cli.connections_list(args)
+
+    def test_cli_connections_list_redirect(self):
+        cmd = ['airflow', 'connections', 'list']
+        with tempfile.TemporaryFile() as file:
+            proc = subprocess.Popen(cmd, stdout=file)
+            proc.wait()
+            self.assertEqual(0, proc.returncode)
+
+    def test_cli_connections_add_delete(self):
+        # Add connections:
+        uri = 'postgresql://airflow:airflow@host:5432/airflow'
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new1',
+                 '--conn_uri=%s' % uri]))
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new2',
+                 '--conn_uri=%s' % uri]))
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new3',
+                 '--conn_uri=%s' % uri, '--conn_extra', "{'extra': 'yes'}"]))
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new4',
+                 '--conn_uri=%s' % uri, '--conn_extra', "{'extra': 'yes'}"]))
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new5',
+                 '--conn_type=hive_metastore', '--conn_login=airflow',
+                 '--conn_password=airflow', '--conn_host=host',
+                 '--conn_port=9083', '--conn_schema=airflow']))
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new6',
+                 '--conn_uri', "", '--conn_type=google_cloud_platform', '--conn_extra', "{'extra': 'yes'}"]))
+            stdout = mock_stdout.getvalue()
+
+        # Check addition stdout
+        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        self.assertListEqual(lines, [
+            ("\tSuccessfully added `conn_id`=new1 : " +
+             "postgresql://airflow:airflow@host:5432/airflow"),
+            ("\tSuccessfully added `conn_id`=new2 : " +
+             "postgresql://airflow:airflow@host:5432/airflow"),
+            ("\tSuccessfully added `conn_id`=new3 : " +
+             "postgresql://airflow:airflow@host:5432/airflow"),
+            ("\tSuccessfully added `conn_id`=new4 : " +
+             "postgresql://airflow:airflow@host:5432/airflow"),
+            ("\tSuccessfully added `conn_id`=new5 : " +
+             "hive_metastore://airflow:airflow@host:9083/airflow"),
+            ("\tSuccessfully added `conn_id`=new6 : " +
+             "google_cloud_platform://:@:")
+        ])
+
+        # Attempt to add duplicate
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new1',
+                 '--conn_uri=%s' % uri]))
+            stdout = mock_stdout.getvalue()
+
+        # Check stdout for addition attempt
+        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        self.assertListEqual(lines, [
+            "\tA connection with `conn_id`=new1 already exists",
+        ])
+
+        # Attempt to add without providing conn_uri
+        with self.assertRaises(SystemExit) as exc:
+            cli.connections_add(self.parser.parse_args(
+                ['connections', 'add', 'new']))
+
+        self.assertEqual(
+            exc.exception.code,
+            "The following args are required to add a connection: ['conn_uri or conn_type']"
+        )
+
+        # Prepare to add connections
+        session = settings.Session()
+        extra = {'new1': None,
+                 'new2': None,
+                 'new3': "{'extra': 'yes'}",
+                 'new4': "{'extra': 'yes'}"}
+
+        # Add connections
+        for index in range(1, 6):
+            conn_id = 'new%s' % index
+            result = (session
+                      .query(Connection)
+                      .filter(Connection.conn_id == conn_id)
+                      .first())
+            result = (result.conn_id, result.conn_type, result.host,
+                      result.port, result.get_extra())
+            if conn_id in ['new1', 'new2', 'new3', 'new4']:
+                self.assertEqual(result, (conn_id, 'postgres', 'host', 5432,
+                                          extra[conn_id]))
+            elif conn_id == 'new5':
+                self.assertEqual(result, (conn_id, 'hive_metastore', 'host',
+                                          9083, None))
+            elif conn_id == 'new6':
+                self.assertEqual(result, (conn_id, 'google_cloud_platform',
+                                          None, None, "{'extra': 'yes'}"))
+
+        # Delete connections
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new1']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new2']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new3']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new4']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new5']))
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'new6']))
+            stdout = mock_stdout.getvalue()
+
+        # Check deletion stdout
+        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        self.assertListEqual(lines, [
+            "\tSuccessfully deleted `conn_id`=new1",
+            "\tSuccessfully deleted `conn_id`=new2",
+            "\tSuccessfully deleted `conn_id`=new3",
+            "\tSuccessfully deleted `conn_id`=new4",
+            "\tSuccessfully deleted `conn_id`=new5",
+            "\tSuccessfully deleted `conn_id`=new6"
+        ])
+
+        # Check deletions
+        for index in range(1, 7):
+            conn_id = 'new%s' % index
+            result = (session.query(Connection)
+                      .filter(Connection.conn_id == conn_id)
+                      .first())
+
+            self.assertTrue(result is None)
+
+        # Attempt to delete a non-existing connection
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.connections_delete(self.parser.parse_args(
+                ['connections', 'delete', 'fake']))
+            stdout = mock_stdout.getvalue()
+
+        # Check deletion attempt stdout
+        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        self.assertListEqual(lines, [
+            "\tDid not find a connection with `conn_id`=fake",
+        ])
+
+        session.close()
+
+
+class TestCliVersion(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.CLIFactory.get_parser()
+
+    def test_cli_version(self):
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            cli.version(self.parser.parse_args(['version']))
+            stdout = mock_stdout.getvalue()
+        self.assertIn(version, stdout)
