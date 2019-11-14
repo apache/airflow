@@ -820,7 +820,7 @@ class TestCliWebServer(unittest.TestCase):
         pidfile_webserver = cli.setup_locations("webserver")[0]
         pidfile_monitor = cli.setup_locations("webserver-monitor")[0]
 
-        # Run webserver as deamon in background. Note that the wait method is not called.
+        # Run webserver as daemon in background. Note that the wait method is not called.
         subprocess.Popen(["airflow", "webserver", "-D"])
 
         pid_monitor = self._wait_pidfile(pidfile_monitor)
