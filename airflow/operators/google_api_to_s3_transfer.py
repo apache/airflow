@@ -68,11 +68,11 @@ class GoogleApiToS3Transfer(BaseOperator):
     :param s3_overwrite: Specifies whether the s3 file will be overwritten if exists.
     :type s3_overwrite: bool
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param aws_conn_id: The connection id specifying the authentication information for the S3 Bucket.
     :type aws_conn_id: str
     """
