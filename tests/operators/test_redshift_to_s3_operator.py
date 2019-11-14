@@ -66,7 +66,6 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
                     'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                     {unload_options};
                     """.format(select_query=select_query,
-                               table=table,
                                s3_bucket=s3_bucket,
                                s3_key=s3_key,
                                access_key=access_key,
