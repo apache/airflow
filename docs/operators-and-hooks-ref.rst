@@ -350,7 +350,7 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.contrib.sensors.emr_step_sensor`
 
    * - `Amazon Kinesis Data Firehose <https://aws.amazon.com/kinesis/data-firehose/>`__
-     - :mod:`airflow.contrib.hooks.aws_firehose_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.kinesis`
      -
      -
 
