@@ -24,6 +24,7 @@ import signal
 import unittest
 from datetime import timedelta
 from time import sleep
+from unittest import mock
 
 import sqlalchemy
 from dateutil.relativedelta import relativedelta
@@ -795,7 +796,7 @@ class TestCore(unittest.TestCase):
         key = "AIRFLOW__CORE__FERNET_KEY"
         value = "some value"
 
-        with unittest.mock.patch.dict('os.environ', {key: value}):
+        with mock.patch.dict('os.environ', {key: value}):
             FERNET_KEY = conf.get('core', 'FERNET_KEY')
 
         self.assertEqual(value, FERNET_KEY)
@@ -804,7 +805,7 @@ class TestCore(unittest.TestCase):
         key = "AIRFLOW__CORE__FERNET_KEY"
         value = ""
 
-        with unittest.mock.patch.dict('os.environ', {key: value}):
+        with mock.patch.dict('os.environ', {key: value}):
             FERNET_KEY = conf.get('core', 'FERNET_KEY')
 
         self.assertEqual(value, FERNET_KEY)
@@ -1029,7 +1030,7 @@ class TestConnection(unittest.TestCase):
     def setUp(self):
         utils.db.initdb()
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
     })
     def test_using_env_var(self):
@@ -1040,7 +1041,7 @@ class TestConnection(unittest.TestCase):
         self.assertEqual('password', c.password)
         self.assertEqual(5432, c.port)
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
     })
     def test_using_unix_socket_env_var(self):
@@ -1065,7 +1066,7 @@ class TestConnection(unittest.TestCase):
         c = SqliteHook.get_connection(conn_id='airflow_db')
         self.assertNotEqual('ec2.compute.com', c.host)
 
-        with unittest.mock.patch.dict('os.environ', {
+        with mock.patch.dict('os.environ', {
             'AIRFLOW_CONN_AIRFLOW_DB': 'postgres://username:password@ec2.compute.com:5432/the_database',
         }):
             c = SqliteHook.get_connection(conn_id='airflow_db')
@@ -1075,7 +1076,7 @@ class TestConnection(unittest.TestCase):
             self.assertEqual('password', c.password)
             self.assertEqual(5432, c.port)
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
         'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
     })
@@ -1087,7 +1088,7 @@ class TestConnection(unittest.TestCase):
         hook2 = conn2.get_hook()
         self.assertEqual('postgres://ec2.compute.com/the_database', hook2.get_uri())
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
         'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
     })
@@ -1098,7 +1099,7 @@ class TestConnection(unittest.TestCase):
         self.assertIsInstance(engine, sqlalchemy.engine.Engine)
         self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', str(engine.url))
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
         'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
     })
