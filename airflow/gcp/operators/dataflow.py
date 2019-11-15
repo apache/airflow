@@ -371,6 +371,17 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         To track python versions supported by beam and related
         issues check: https://issues.apache.org/jira/browse/BEAM-1251
     :type py_interpreter: str
+    :param py_requirements: Additional python package(s) to install.
+        If a value is passed to this parameter, a new virtual environment has been created with
+        additional packages installed.
+
+        You could also install the apache_beam package if it is not installed on your system or you want
+        to use a different version.
+    :type py_requirements: List[str]
+    :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
+        See virtualenv documentation for more information.
+
+        This option is only relevant if the ``py_requirements`` parameter is passed.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
     :type gcp_conn_id: str
@@ -386,14 +397,16 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     template_fields = ['options', 'dataflow_default_options', 'job_name', 'py_file']
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             py_file: str,
             job_name: str = '{{task.task_id}}',
-            py_options: Optional[List[str]] = None,
             dataflow_default_options: Optional[dict] = None,
             options: Optional[dict] = None,
             py_interpreter: str = "python3",
+            py_options: Optional[List[str]] = None,
+            py_requirements: Optional[List[str]] = None,
+            py_system_site_packages: bool = False,
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,
@@ -410,6 +423,8 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         self.options.setdefault('labels', {}).update(
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
         self.py_interpreter = py_interpreter
+        self.py_requirements = py_requirements or []
+        self.py_system_site_packages = py_system_site_packages
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
@@ -434,7 +449,9 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             variables=formatted_options,
             dataflow=self.py_file,
             py_options=self.py_options,
-            py_interpreter=self.py_interpreter
+            py_interpreter=self.py_interpreter,
+            py_requirements=self.py_requirements,
+            py_system_site_packages=self.py_system_site_packages,
         )
 
 

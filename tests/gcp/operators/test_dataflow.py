@@ -111,7 +111,9 @@ class TestDataflowPythonOperator(unittest.TestCase):
             variables=expected_options,
             dataflow=mock.ANY,
             py_options=PY_OPTIONS,
-            py_interpreter=PY_INTERPRETER
+            py_interpreter=PY_INTERPRETER,
+            py_requirements=[],
+            py_system_site_packages=False
         )
         self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
 

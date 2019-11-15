@@ -27,6 +27,7 @@ import subprocess
 import time
 import uuid
 from copy import deepcopy
+from tempfile import TemporaryDirectory
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 from googleapiclient.discovery import build
@@ -34,6 +35,7 @@ from googleapiclient.discovery import build
 from airflow import AirflowException
 from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.python_virtualenv import prepare_virtualenv
 
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
@@ -485,9 +487,11 @@ class DataflowHook(CloudBaseHook):
         variables: Dict,
         dataflow: str,
         py_options: List[str],
+        py_interpreter: str = "python3",
+        py_requirements: Optional[List[str]] = None,
+        py_system_site_packages: bool = False,
         project_id: Optional[str] = None,
         append_job_name: bool = True,
-        py_interpreter: str = "python3"
     ):
         """
         Starts Dataflow job.
@@ -495,20 +499,31 @@ class DataflowHook(CloudBaseHook):
         :param job_name: The name of the job.
         :type job_name: str
         :param variables: Variables passed to the job.
-        :type variables: dict
+        :type variables: Dict
         :param dataflow: Name of the Dataflow process.
         :type dataflow: str
         :param py_options: Additional options.
-        :type py_options: list
-        :param append_job_name: True if unique suffix has to be appended to job name.
-        :type append_job_name: bool
-        :param project_id: Optional, the GCP project ID in which to start a job.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :type py_options: List[str]
         :param py_interpreter: Python version of the beam pipeline.
             If None, this defaults to the python3.
             To track python versions supported by beam and related
             issues check: https://issues.apache.org/jira/browse/BEAM-1251
+        :param py_requirements: Additional python package(s) to install.
+            If a value is passed to this parameter, a new virtual environment has been created with
+            additional packages installed.
+
+            You could also install the apache-beam package if it is not installed on your system or you want
+            to use a different version.
+        :type py_requirements: List[str]
+        :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
+            See virtualenv documentation for more information.
+
+            This option is only relevant if the ``py_requirements`` parameter is passed.
         :type py_interpreter: str
+        :param append_job_name: True if unique suffix has to be appended to job name.
+        :type append_job_name: bool
+        :param project_id: Optional, the GCP project ID in which to start a job.
+            If set to None or missing, the default project_id from the GCP connection is used.
         """
         if not project_id:
             raise ValueError("The project_id should be set")
@@ -520,8 +535,20 @@ class DataflowHook(CloudBaseHook):
             return ['--labels={}={}'.format(key, value)
                     for key, value in labels_dict.items()]
 
-        self._start_dataflow(variables, name, [py_interpreter] + py_options + [dataflow],
-                             label_formatter, project_id)
+        if py_requirements is not None:
+            with TemporaryDirectory(prefix='dataflow-venv') as tmp_dir:
+                py_interpreter = prepare_virtualenv(
+                    venv_directory=tmp_dir,
+                    python_bin=py_interpreter,
+                    system_site_packages=py_system_site_packages,
+                    requirements=py_requirements,
+                )
+
+                self._start_dataflow(variables, name, [py_interpreter] + py_options + [dataflow],
+                                     label_formatter, project_id)
+        else:
+            self._start_dataflow(variables, name, [py_interpreter] + py_options + [dataflow],
+                                 label_formatter, project_id)
 
     @staticmethod
     def _build_dataflow_job_name(job_name: str, append_job_name: bool = True) -> str:

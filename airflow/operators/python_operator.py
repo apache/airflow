@@ -20,7 +20,6 @@
 import inspect
 import os
 import pickle
-import subprocess
 import sys
 import types
 from inspect import signature
@@ -35,6 +34,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.process_utils import execute_in_subprocess
+from airflow.utils.python_virtualenv import prepare_virtualenv
 
 
 class PythonOperator(BaseOperator):
@@ -308,17 +309,20 @@ class PythonVirtualenvOperator(PythonOperator):
             script_filename = os.path.join(tmp_dir, 'script.py')
 
             # set up virtualenv
-            self._execute_in_subprocess(self._generate_virtualenv_cmd(tmp_dir))
-            cmd = self._generate_pip_install_cmd(tmp_dir)
-            if cmd:
-                self._execute_in_subprocess(cmd)
+            python_bin = 'python' + str(self.python_version) if self.python_version else None
+            prepare_virtualenv(
+                venv_directory=tmp_dir,
+                python_bin=python_bin,
+                system_site_packages=self.system_site_packages,
+                requirements=self.requirements,
+            )
 
             self._write_args(input_filename)
             self._write_script(script_filename)
             self._write_string_args(string_args_filename)
 
             # execute command in virtualenv
-            self._execute_in_subprocess(
+            execute_in_subprocess(
                 self._generate_python_cmd(tmp_dir,
                                           script_filename,
                                           input_filename,
@@ -329,22 +333,6 @@ class PythonVirtualenvOperator(PythonOperator):
     def _pass_op_args(self):
         # we should only pass op_args if any are given to us
         return len(self.op_args) + len(self.op_kwargs) > 0
-
-    def _execute_in_subprocess(self, cmd):
-        self.log.info("Executing cmd\n{}".format(cmd))
-        self._sp = subprocess.Popen(cmd,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT,
-                                    bufsize=0,
-                                    close_fds=True)
-        self.log.info("Got output")
-        with self._sp.stdout:
-            for line in iter(self._sp.stdout.readline, b''):
-                self.log.info("%s", line.decode().rstrip())
-
-        returncode = self._sp.wait()
-        if returncode != 0:
-            raise subprocess.CalledProcessError(returncode, cmd)
 
     def _write_string_args(self, filename):
         # writes string_args to a file, which are read line by line
@@ -381,22 +369,6 @@ class PythonVirtualenvOperator(PythonOperator):
             python_code = self._generate_python_code()
             self.log.debug('Writing code to file\n', python_code)
             file.write(python_code)
-
-    def _generate_virtualenv_cmd(self, tmp_dir):
-        cmd = ['virtualenv', tmp_dir]
-        if self.system_site_packages:
-            cmd.append('--system-site-packages')
-        if self.python_version is not None:
-            cmd.append('--python=python{}'.format(self.python_version))
-        return cmd
-
-    def _generate_pip_install_cmd(self, tmp_dir):
-        if len(self.requirements) == 0:
-            return []
-        else:
-            # direct path alleviates need to activate
-            cmd = ['{}/bin/pip'.format(tmp_dir), 'install']
-            return cmd + self.requirements
 
     @staticmethod
     def _generate_python_cmd(tmp_dir, script_filename,
