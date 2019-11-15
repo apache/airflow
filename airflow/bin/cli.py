@@ -39,8 +39,6 @@ import threading
 import time
 import traceback
 from argparse import RawTextHelpFormatter
-from importlib import import_module
-from typing import Any
 from urllib.parse import urlunparse
 
 import daemon
@@ -51,6 +49,7 @@ from tabulate import tabulate, tabulate_formats
 
 import airflow
 from airflow import api, jobs, settings
+from airflow.api.client import get_current_api_client
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
@@ -64,9 +63,6 @@ from airflow.utils.timezone import parse as parsedate
 from airflow.www.app import cached_app, cached_appbuilder, create_app
 
 api.load_auth()
-api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
-api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
-                               auth=api.API_AUTH.api_auth.CLIENT_AUTH)
 
 LOG = LoggingMixin().log
 
@@ -231,6 +227,7 @@ def trigger_dag(args):
     :param args:
     :return:
     """
+    api_client = get_current_api_client()
     log = LoggingMixin().log
     try:
         message = api_client.trigger_dag(dag_id=args.dag_id,
@@ -251,6 +248,7 @@ def delete_dag(args):
     :param args:
     :return:
     """
+    api_client = get_current_api_client()
     log = LoggingMixin().log
     if args.yes or input(
             "This will drop all existing records related to the specified DAG. "
@@ -272,6 +270,7 @@ def _tabulate_pools(pools, tablefmt="fancy_grid"):
 
 def pool_list(args):
     """Displays info of all the pools"""
+    api_client = get_current_api_client()
     log = LoggingMixin().log
     pools = api_client.get_pools()
     log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
@@ -279,6 +278,7 @@ def pool_list(args):
 
 def pool_get(args):
     """Displays pool info by a given name"""
+    api_client = get_current_api_client()
     log = LoggingMixin().log
     pools = [api_client.get_pool(name=args.pool)]
     log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
@@ -287,6 +287,7 @@ def pool_get(args):
 @cli_utils.action_logging
 def pool_set(args):
     """Creates new pool with a given name and slots"""
+    api_client = get_current_api_client()
     log = LoggingMixin().log
     pools = [api_client.create_pool(name=args.pool,
                                     slots=args.slots,
@@ -297,6 +298,7 @@ def pool_set(args):
 @cli_utils.action_logging
 def pool_delete(args):
     """Deletes pool by a given name"""
+    api_client = get_current_api_client()
     log = LoggingMixin().log
     pools = [api_client.delete_pool(name=args.pool)]
     log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
@@ -305,6 +307,7 @@ def pool_delete(args):
 @cli_utils.action_logging
 def pool_import(args):
     """Imports pools from the file"""
+    api_client = get_current_api_client()
     log = LoggingMixin().log
     if os.path.exists(args.file):
         pools = pool_import_helper(args.file)
@@ -323,6 +326,8 @@ def pool_export(args):
 
 def pool_import_helper(filepath):
     """Helps import pools from the json file"""
+    api_client = get_current_api_client()
+
     with open(filepath, 'r') as poolfile:
         data = poolfile.read()
     try:  # pylint: disable=too-many-nested-blocks
@@ -350,6 +355,7 @@ def pool_import_helper(filepath):
 
 def pool_export_helper(filepath):
     """Helps export all of the pools to the json file"""
+    api_client = get_current_api_client()
     pool_dict = {}
     pools = api_client.get_pools()
     for pool in pools:
