@@ -158,7 +158,7 @@ def get_dags(args):
 
 
 @cli_utils.action_logging
-def backfill(args, dag=None):
+def dag_backfill(args, dag=None):
     """Creates backfill job or dry run for a DAG"""
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
@@ -220,7 +220,7 @@ def backfill(args, dag=None):
 
 
 @cli_utils.action_logging
-def trigger_dag(args):
+def dag_trigger(args):
     """
     Creates a dag run for the specified dag
 
@@ -241,7 +241,7 @@ def trigger_dag(args):
 
 
 @cli_utils.action_logging
-def delete_dag(args):
+def dag_delete(args):
     """
     Deletes all DB records related to the specified dag
 
@@ -454,13 +454,13 @@ def variable_export_helper(filepath):
 
 
 @cli_utils.action_logging
-def pause(args):
+def dag_pause(args):
     """Pauses a DAG"""
     set_is_paused(True, args)
 
 
 @cli_utils.action_logging
-def unpause(args):
+def dag_unpause(args):
     """Unpauses a DAG"""
     set_is_paused(False, args)
 
@@ -474,7 +474,7 @@ def set_is_paused(is_paused, args):
     print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
 
 
-def show_dag(args):
+def dag_show(args):
     """Displays DAG or saves it's graphic representation to the file"""
     dag = get_dag(args)
     dot = render_dag(dag)
@@ -554,7 +554,7 @@ def _run(args, dag, ti):
 
 
 @cli_utils.action_logging
-def run(args, dag=None):
+def task_run(args, dag=None):
     """Runs a single task instance"""
     if dag:
         args.dag_id = dag.dag_id
@@ -658,7 +658,7 @@ def dag_state(args):
 
 
 @cli_utils.action_logging
-def next_execution(args):
+def dag_next_execution(args):
     """
     Returns the next execution datetime of a DAG at the command line.
     >>> airflow dags next_execution tutorial
@@ -694,7 +694,7 @@ def rotate_fernet_key(args):
 
 
 @cli_utils.action_logging
-def list_dags(args):
+def dag_list_dags(args):
     """Displays dags with or without stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
     list_template = textwrap.dedent("""\n
@@ -710,7 +710,7 @@ def list_dags(args):
 
 
 @cli_utils.action_logging
-def list_tasks(args, dag=None):
+def task_list(args, dag=None):
     """Lists the tasks within a DAG at the command line"""
     dag = dag or get_dag(args)
     if args.tree:
@@ -721,7 +721,7 @@ def list_tasks(args, dag=None):
 
 
 @cli_utils.action_logging
-def list_jobs(args, dag=None):
+def dag_list_jobs(args, dag=None):
     """Lists latest n jobs"""
     queries = []
     if dag:
@@ -753,7 +753,7 @@ def list_jobs(args, dag=None):
 
 
 @cli_utils.action_logging
-def test(args, dag=None):
+def task_test(args, dag=None):
     """Tests task for a given dag_id"""
     # We want log outout from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
@@ -786,7 +786,7 @@ def test(args, dag=None):
 
 
 @cli_utils.action_logging
-def render(args):
+def task_render(args):
     """Renders and displays templated fields for a given task"""
     dag = get_dag(args)
     task = dag.get_task(task_id=args.task_id)
@@ -802,7 +802,7 @@ def render(args):
 
 
 @cli_utils.action_logging
-def clear(args):
+def task_clear(args):
     """Clears all task instances or only those matched by regex for a DAG(s)"""
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
@@ -1659,7 +1659,7 @@ def roles_create(args):
 
 
 @cli_utils.action_logging
-def list_dag_runs(args, dag=None):
+def dag_list_dag_runs(args, dag=None):
     """Lists dag runs for a given DAG"""
     if dag:
         args.dag_id = dag.dag_id
@@ -2255,13 +2255,13 @@ class CLIFactory:
             'name': 'dags',
             'subcommands': (
                 {
-                    'func': list_dags,
+                    'func': dag_list_dags,
                     'name': 'list',
                     'help': "List all the DAGs",
                     'args': ('subdir', 'report'),
                 },
                 {
-                    'func': list_dag_runs,
+                    'func': dag_list_dag_runs,
                     'name': 'list_runs',
                     'help': "List dag runs given a DAG id. If state option is given, it will only "
                             "search for all the dagruns with the given state. "
@@ -2270,7 +2270,7 @@ class CLIFactory:
                     'args': ('dag_id', 'no_backfill', 'state'),
                 },
                 {
-                    'func': list_jobs,
+                    'func': dag_list_jobs,
                     'name': 'list_jobs',
                     'help': "List the jobs",
                     'args': ('dag_id_opt', 'state', 'limit', 'output',),
@@ -2282,43 +2282,43 @@ class CLIFactory:
                     'args': ('dag_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': next_execution,
+                    'func': dag_next_execution,
                     'name': 'next_execution',
                     'help': "Get the next execution datetime of a DAG.",
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': pause,
+                    'func': dag_pause,
                     'name': 'pause',
                     'help': 'Pause a DAG',
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': unpause,
+                    'func': dag_unpause,
                     'name': 'unpause',
                     'help': 'Resume a paused DAG',
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': trigger_dag,
+                    'func': dag_trigger,
                     'name': 'trigger',
                     'help': 'Trigger a DAG run',
                     'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
                 },
                 {
-                    'func': delete_dag,
+                    'func': dag_delete,
                     'name': 'delete',
                     'help': "Delete all DB records related to the specified DAG",
                     'args': ('dag_id', 'yes'),
                 },
                 {
-                    'func': show_dag,
+                    'func': dag_show,
                     'name': 'show',
                     'help': "Displays DAG's tasks with their dependencies",
                     'args': ('dag_id', 'subdir', 'save', 'imgcat',),
                 },
                 {
-                    'func': backfill,
+                    'func': dag_backfill,
                     'name': 'backfill',
                     'help': "Run subsections of a DAG for a specified date range. "
                             "If reset_dag_run option is used,"
@@ -2342,13 +2342,13 @@ class CLIFactory:
             'name': 'tasks',
             'subcommands': (
                 {
-                    'func': list_tasks,
+                    'func': task_list,
                     'name': 'list',
                     'help': "List the tasks within a DAG",
                     'args': ('dag_id', 'tree', 'subdir'),
                 },
                 {
-                    'func': clear,
+                    'func': task_clear,
                     'name': 'clear',
                     'help': "Clear a set of task instance, as if they never ran",
                     'args': (
@@ -2373,13 +2373,13 @@ class CLIFactory:
                     'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': render,
+                    'func': task_render,
                     'name': 'render',
                     'help': "Render a task instance's template(s)",
                     'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': run,
+                    'func': task_run,
                     'name': 'run',
                     'help': "Run a single task instance",
                     'args': (
@@ -2389,7 +2389,7 @@ class CLIFactory:
                         'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id', 'interactive',),
                 },
                 {
-                    'func': test,
+                    'func': task_test,
                     'name': 'test',
                     'help': (
                         "Test a task instance. This will run a task without checking for "

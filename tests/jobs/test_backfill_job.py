@@ -827,7 +827,7 @@ class TestBackfillJob(unittest.TestCase):
                  dag_id,
                  task0_id,
                  DEFAULT_DATE.isoformat()]
-        cli.run(self.parser.parse_args(args0))
+        cli.task_run(self.parser.parse_args(args0))
         ti_dependent0 = TI(
             task=dag.get_task(task0_id),
             execution_date=DEFAULT_DATE)
@@ -842,7 +842,7 @@ class TestBackfillJob(unittest.TestCase):
                  dag_id,
                  task1_id,
                  (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()]
-        cli.run(self.parser.parse_args(args1))
+        cli.task_run(self.parser.parse_args(args1))
 
         ti_dependency = TI(
             task=dag.get_task(task1_id),
@@ -857,7 +857,7 @@ class TestBackfillJob(unittest.TestCase):
                  dag_id,
                  task2_id,
                  (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()]
-        cli.run(self.parser.parse_args(args2))
+        cli.task_run(self.parser.parse_args(args2))
 
         ti_dependent = TI(
             task=dag.get_task(task2_id),
