@@ -46,7 +46,7 @@ from tabulate import tabulate, tabulate_formats
 import airflow
 from airflow import api, jobs, settings
 from airflow.api.client import get_current_api_client
-from airflow.cli.commands import role_command, user_command
+from airflow.cli.commands import role_command, rotate_fernet_key_command, sync_perm_command, user_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
@@ -57,7 +57,7 @@ from airflow.utils.dot_renderer import render_dag
 from airflow.utils.log.logging_mixin import LoggingMixin, redirect_stderr, redirect_stdout
 from airflow.utils.net import get_hostname
 from airflow.utils.timezone import parse as parsedate
-from airflow.www.app import cached_app, cached_appbuilder, create_app
+from airflow.www.app import cached_app, create_app
 
 api.load_auth()
 
@@ -677,17 +677,6 @@ def dag_next_execution(args):
     else:
         print("[WARN] Only applicable when there is execution record found for the DAG.")
         print(None)
-
-
-@cli_utils.action_logging
-def rotate_fernet_key(args):
-    """Rotates all encrypted connection credentials and variables"""
-    with db.create_session() as session:
-        for conn in session.query(Connection).filter(
-                Connection.is_encrypted | Connection.is_extra_encrypted):
-            conn.rotate_fernet_key()
-        for var in session.query(Variable).filter(Variable.is_encrypted):
-            var.rotate_fernet_key()
 
 
 @cli_utils.action_logging
@@ -1474,20 +1463,6 @@ def dag_list_dag_runs(args, dag=None):
                                                              dag_run['execution_date'],
                                                              dag_run['start_date'])
         print(record)
-
-
-@cli_utils.action_logging
-def sync_perm(args):
-    """Updates permissions for existing roles and DAGs"""
-    appbuilder = cached_appbuilder()
-    print('Updating permission, view-menu for all existing roles')
-    appbuilder.sm.sync_roles()
-    print('Updating permission on all DAG views')
-    dags = DagBag().dags.values()
-    for dag in dags:
-        appbuilder.sm.sync_perm_for_dag(
-            dag.dag_id,
-            dag.access_control)
 
 
 class Arg:
@@ -2395,12 +2370,12 @@ class CLIFactory:
                 },
             ),
         }, {
-            'func': sync_perm,
+            'func': sync_perm_command.sync_perm,
             'help': "Update permissions for existing roles and DAGs.",
             'args': tuple(),
         },
         {
-            'func': rotate_fernet_key,
+            'func': rotate_fernet_key_command.rotate_fernet_key,
             'help': 'Rotate all encrypted connection credentials and variables; see '
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
                     '#rotating-encryption-keys.',

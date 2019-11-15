@@ -34,7 +34,7 @@ import psutil
 import pytz
 
 import airflow.bin.cli as cli
-from airflow import DAG, AirflowException, models, settings
+from airflow import AirflowException, models, settings
 from airflow.bin.cli import get_dag, get_num_ready_workers_running, task_run
 from airflow.models import Connection, DagModel, Pool, TaskInstance, Variable
 from airflow.settings import Session
@@ -536,51 +536,6 @@ class TestCliDags(unittest.TestCase):
     def test_dag_state(self):
         self.assertEqual(None, cli.dag_state(self.parser.parse_args([
             'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
-
-
-class TestCliSyncPerms(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
-
-    def setUp(self):
-        from airflow.www import app as application
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
-
-    @mock.patch("airflow.bin.cli.DagBag")
-    def test_cli_sync_perm(self, dagbag_mock):
-        self.expect_dagbag_contains([
-            DAG('has_access_control',
-                access_control={
-                    'Public': {'can_dag_read'}
-                }),
-            DAG('no_access_control')
-        ], dagbag_mock)
-        self.appbuilder.sm = mock.Mock()
-
-        args = self.parser.parse_args([
-            'sync_perm'
-        ])
-        cli.sync_perm(args)
-
-        assert self.appbuilder.sm.sync_roles.call_count == 1
-
-        self.assertEqual(2,
-                         len(self.appbuilder.sm.sync_perm_for_dag.mock_calls))
-        self.appbuilder.sm.sync_perm_for_dag.assert_any_call(
-            'has_access_control',
-            {'Public': {'can_dag_read'}}
-        )
-        self.appbuilder.sm.sync_perm_for_dag.assert_any_call(
-            'no_access_control',
-            None,
-        )
-
-    def expect_dagbag_contains(self, dags, dagbag_mock):
-        dagbag = mock.Mock()
-        dagbag.dags = {dag.dag_id: dag for dag in dags}
-        dagbag_mock.return_value = dagbag
 
 
 class TestCliTasks(unittest.TestCase):
