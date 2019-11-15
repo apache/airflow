@@ -24,12 +24,15 @@ Utilities module for cli
 import functools
 import getpass
 import json
+import os
+import re
 import socket
 import sys
 from argparse import Namespace
 from datetime import datetime
 
-from airflow.models import Log
+from airflow import AirflowException, settings
+from airflow.models import DagBag, Log
 from airflow.utils import cli_action_loggers
 
 
@@ -115,3 +118,35 @@ def _build_metrics(func_name, namespace):
         execution_date=metrics.get('execution_date'))
     metrics['log'] = log
     return metrics
+
+
+def process_subdir(subdir):
+    """Expands path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
+    if subdir:
+        subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
+        subdir = os.path.abspath(os.path.expanduser(subdir))
+    return subdir
+
+
+def get_dag(args):
+    """Returns DAG of a given dag_id"""
+    dagbag = DagBag(process_subdir(args.subdir))
+    if args.dag_id not in dagbag.dags:
+        raise AirflowException(
+            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
+            'parse.'.format(args.dag_id))
+    return dagbag.dags[args.dag_id]
+
+
+def get_dags(args):
+    """Returns DAG(s) matching a given regex or dag_id"""
+    if not args.dag_regex:
+        return [get_dag(args)]
+    dagbag = DagBag(process_subdir(args.subdir))
+    matched_dags = [dag for dag in dagbag.dags.values() if re.search(
+        args.dag_id, dag.dag_id)]
+    if not matched_dags:
+        raise AirflowException(
+            'dag_id could not be found with regex: {}. Either the dag did not exist '
+            'or it failed to parse.'.format(args.dag_id))
+    return matched_dags

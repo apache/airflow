@@ -22,7 +22,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 import tempfile
 import unittest
 from argparse import Namespace
@@ -35,8 +34,8 @@ import pytz
 
 import airflow.bin.cli as cli
 from airflow import AirflowException, models, settings
-from airflow.bin.cli import get_dag, get_num_ready_workers_running, task_run
-from airflow.models import Connection, DagModel, Pool, TaskInstance, Variable
+from airflow.bin.cli import get_num_ready_workers_running
+from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.settings import Session
 from airflow.utils import db, timezone
 from airflow.utils.db import add_default_pool_if_not_exists
@@ -52,14 +51,6 @@ DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1))
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(dag_folder_path), 'dags')
 TEST_DAG_ID = 'unit_tests'
-
-
-def reset(dag_id):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
 
 
 def create_mock_args(  # pylint: disable=too-many-arguments
@@ -175,29 +166,6 @@ class TestCLI(unittest.TestCase):
             "webserver terminated with return code {} in debug mode".format(return_code))
         proc.terminate()
         proc.wait()
-
-    def test_local_run(self):
-        args = create_mock_args(
-            task_id='print_the_context',
-            dag_id='example_python_operator',
-            subdir='/root/dags/example_python_operator.py',
-            interactive=True,
-            execution_date=timezone.parse('2018-04-27T08:39:51.298439+00:00')
-        )
-
-        reset(args.dag_id)
-
-        with patch('argparse.Namespace', args) as mock_args:
-            task_run(mock_args)
-            dag = get_dag(mock_args)
-            task = dag.get_task(task_id=args.task_id)
-            ti = TaskInstance(task, args.execution_date)
-            ti.refresh_from_db()
-            state = ti.current_state()
-            self.assertEqual(state, State.SUCCESS)
-
-    def test_process_subdir_path_with_placeholder(self):
-        self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
 
 
 class TestCliDags(unittest.TestCase):
@@ -536,127 +504,6 @@ class TestCliDags(unittest.TestCase):
     def test_dag_state(self):
         self.assertEqual(None, cli.dag_state(self.parser.parse_args([
             'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
-
-
-class TestCliTasks(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
-
-    def test_cli_list_tasks(self):
-        for dag_id in self.dagbag.dags:
-            args = self.parser.parse_args(['tasks', 'list', dag_id])
-            cli.task_list(args)
-
-        args = self.parser.parse_args([
-            'tasks', 'list', 'example_bash_operator', '--tree'])
-        cli.task_list(args)
-
-    def test_test(self):
-        """Test the `airflow test` command"""
-        args = create_mock_args(
-            task_id='print_the_context',
-            dag_id='example_python_operator',
-            subdir=None,
-            execution_date=timezone.parse('2018-01-01')
-        )
-
-        saved_stdout = sys.stdout
-        try:
-            sys.stdout = out = io.StringIO()
-            cli.task_test(args)
-
-            output = out.getvalue()
-            # Check that prints, and log messages, are shown
-            self.assertIn("'example_python_operator__print_the_context__20180101'", output)
-        finally:
-            sys.stdout = saved_stdout
-
-    @mock.patch("airflow.bin.cli.jobs.LocalTaskJob")
-    def test_run_naive_taskinstance(self, mock_local_job):
-        """
-        Test that we can run naive (non-localized) task instances
-        """
-        naive_date = datetime(2016, 1, 1)
-        dag_id = 'test_run_ignores_all_dependencies'
-
-        dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
-
-        task0_id = 'test_run_dependent_task'
-        args0 = ['tasks',
-                 'run',
-                 '-A',
-                 '--local',
-                 dag_id,
-                 task0_id,
-                 naive_date.isoformat()]
-
-        cli.task_run(self.parser.parse_args(args0), dag=dag)
-        mock_local_job.assert_called_once_with(
-            task_instance=mock.ANY,
-            mark_success=False,
-            ignore_all_deps=True,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            pickle_id=None,
-            pool=None,
-        )
-
-    def test_cli_test(self):
-        cli.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_bash_operator', 'runme_0',
-            DEFAULT_DATE.isoformat()]))
-        cli.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_bash_operator', 'runme_0', '--dry_run',
-            DEFAULT_DATE.isoformat()]))
-
-    def test_cli_test_with_params(self):
-        cli.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_passing_params_via_test_command', 'run_this',
-            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
-        cli.task_test(self.parser.parse_args([
-            'tasks', 'test', 'example_passing_params_via_test_command', 'also_run_this',
-            '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
-
-    def test_cli_run(self):
-        cli.task_run(self.parser.parse_args([
-            'tasks', 'run', 'example_bash_operator', 'runme_0', '-l',
-            DEFAULT_DATE.isoformat()]))
-
-    def test_task_state(self):
-        cli.task_state(self.parser.parse_args([
-            'tasks', 'state', 'example_bash_operator', 'runme_0',
-            DEFAULT_DATE.isoformat()]))
-
-    def test_subdag_clear(self):
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--yes'])
-        cli.task_clear(args)
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator', '--yes', '--exclude_subdags'])
-        cli.task_clear(args)
-
-    def test_parentdag_downstream_clear(self):
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes'])
-        cli.task_clear(args)
-        args = self.parser.parse_args([
-            'tasks', 'clear', 'example_subdag_operator.section-1', '--yes',
-            '--exclude_parentdag'])
-        cli.task_clear(args)
-
-    def test_get_dags(self):
-        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'example_subdag_operator',
-                                                    '--yes']))
-        self.assertEqual(len(dags), 1)
-
-        dags = cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'subdag', '-dx', '--yes']))
-        self.assertGreater(len(dags), 1)
-
-        with self.assertRaises(AirflowException):
-            cli.get_dags(self.parser.parse_args(['tasks', 'clear', 'foobar', '-dx', '--yes']))
 
 
 class TestCliPools(unittest.TestCase):
