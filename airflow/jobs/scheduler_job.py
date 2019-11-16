@@ -917,6 +917,7 @@ class DagFileProcessor(LoggingMixin):
             self.log.info("Creating / updating %s in ORM", ti)
             session.merge(ti)
         # commit batch
+
         session.commit()
 
     @provide_session

@@ -18,6 +18,7 @@
 from airflow.models import (
     Connection, DagModel, DagRun, DagTag, Pool, RenderedTaskInstanceFields, SlaMiss, TaskInstance, errors,
 )
+from airflow.models.dagcode import DagCode
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
 from airflow.utils.session import create_session
 
@@ -54,6 +55,11 @@ def clear_db_connections():
     with create_session() as session:
         session.query(Connection).delete()
         create_default_connections(session)
+
+
+def clear_db_dag_code():
+    with create_session() as session:
+        session.query(DagCode).delete()
 
 
 def set_default_pool_slots(slots):

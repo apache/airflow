@@ -17,8 +17,7 @@
 # under the License.
 """Get code APIs."""
 from airflow.api.common.experimental import check_and_get_dag
-from airflow.exceptions import AirflowException
-from airflow.www import utils as wwwutils
+from airflow.exceptions import AirflowException, DagCodeNotFound
 
 
 def get_code(dag_id: str) -> str:
@@ -30,9 +29,7 @@ def get_code(dag_id: str) -> str:
     dag = check_and_get_dag(dag_id=dag_id)
 
     try:
-        with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as file:
-            code = file.read()
-            return code
-    except OSError as exception:
+        return dag.code()
+    except (OSError, DagCodeNotFound) as exception:
         error_message = "Error {} while reading Dag id {} Code".format(str(exception), dag_id)
-        raise AirflowException(error_message)
+        raise AirflowException(error_message, exception)
