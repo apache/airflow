@@ -28,9 +28,7 @@ import signal
 import subprocess
 import sys
 import textwrap
-import threading
 import time
-import traceback
 from argparse import RawTextHelpFormatter
 
 import daemon
@@ -41,14 +39,16 @@ from tabulate import tabulate, tabulate_formats
 from airflow import api, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.commands import (
-    connection_command, db_command, pool_command, role_command, rotate_fernet_key_command, sync_perm_command,
-    task_command, user_command, variable_command, version_command,
+    connection_command, db_command, pool_command, role_command, rotate_fernet_key_command, scheduler_command,
+    sync_perm_command, task_command, user_command, variable_command, version_command,
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import cli as cli_utils, db
-from airflow.utils.cli import alternative_conn_specs, get_dag, process_subdir
+from airflow.utils.cli import (
+    alternative_conn_specs, get_dag, process_subdir, setup_locations, setup_logging, sigint_handler,
+)
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import parse as parsedate
@@ -62,59 +62,6 @@ DAGS_FOLDER = settings.DAGS_FOLDER
 
 if "BUILDING_AIRFLOW_DOCS" in os.environ:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
-
-
-def sigint_handler(sig, frame):  # pylint: disable=unused-argument
-    """
-    Returns without error on SIGINT or SIGTERM signals in interactive command mode
-    e.g. CTRL+C or kill <PID>
-    """
-    sys.exit(0)
-
-
-def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
-    """
-    Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
-    e.g. kill -s QUIT <PID> or CTRL+\
-    """
-    print("Dumping stack traces for all threads in PID {}".format(os.getpid()))
-    id_to_name = {th.ident: th.name for th in threading.enumerate()}
-    code = []
-    for thread_id, stack in sys._current_frames().items():  # pylint: disable=protected-access
-        code.append("\n# Thread: {}({})"
-                    .format(id_to_name.get(thread_id, ""), thread_id))
-        for filename, line_number, name, line in traceback.extract_stack(stack):
-            code.append('File: "{}", line {}, in {}'
-                        .format(filename, line_number, name))
-            if line:
-                code.append("  {}".format(line.strip()))
-    print("\n".join(code))
-
-
-def setup_logging(filename):
-    """Creates log file handler for daemon process"""
-    root = logging.getLogger()
-    handler = logging.FileHandler(filename)
-    formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
-    handler.setFormatter(formatter)
-    root.addHandler(handler)
-    root.setLevel(settings.LOGGING_LEVEL)
-
-    return handler.stream
-
-
-def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
-    """Creates logging paths"""
-    if not stderr:
-        stderr = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.err'.format(process))
-    if not stdout:
-        stdout = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.out'.format(process))
-    if not log:
-        log = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.log'.format(process))
-    if not pid:
-        pid = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.pid'.format(process))
-
-    return pid, stdout, stderr, log
 
 
 @cli_utils.action_logging
@@ -621,44 +568,6 @@ def webserver(args):
             signal.signal(signal.SIGTERM, kill_proc)
 
             monitor_gunicorn(gunicorn_master_proc)
-
-
-@cli_utils.action_logging
-def scheduler(args):
-    """Starts Airflow Scheduler"""
-    print(settings.HEADER)
-    job = jobs.SchedulerJob(
-        dag_id=args.dag_id,
-        subdir=process_subdir(args.subdir),
-        num_runs=args.num_runs,
-        do_pickle=args.do_pickle)
-
-    if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("scheduler",
-                                                        args.pid,
-                                                        args.stdout,
-                                                        args.stderr,
-                                                        args.log_file)
-        handle = setup_logging(log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            files_preserve=[handle],
-            stdout=stdout,
-            stderr=stderr,
-        )
-        with ctx:
-            job.run()
-
-        stdout.close()
-        stderr.close()
-    else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-        signal.signal(signal.SIGQUIT, sigquit_handler)
-        job.run()
 
 
 @cli_utils.action_logging
@@ -1671,7 +1580,7 @@ class CLIFactory:
                      'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
                      'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
         }, {
-            'func': scheduler,
+            'func': scheduler_command.scheduler,
             'help': "Start a scheduler instance",
             'args': ('dag_id_opt', 'subdir', 'num_runs',
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',

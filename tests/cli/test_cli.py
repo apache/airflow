@@ -36,6 +36,7 @@ from airflow.bin.cli import get_num_ready_workers_running
 from airflow.models import DagModel
 from airflow.settings import Session
 from airflow.utils import timezone
+from airflow.utils.cli import setup_locations
 from airflow.utils.state import State
 from tests import conf_vars
 from tests.compat import mock
@@ -524,8 +525,8 @@ class TestCliWebServer(unittest.TestCase):
         self._check_processes()
 
     def _clean_pidfiles(self):
-        pidfile_webserver = cli.setup_locations("webserver")[0]
-        pidfile_monitor = cli.setup_locations("webserver-monitor")[0]
+        pidfile_webserver = setup_locations("webserver")[0]
+        pidfile_monitor = setup_locations("webserver-monitor")[0]
         if os.path.exists(pidfile_webserver):
             os.remove(pidfile_webserver)
         if os.path.exists(pidfile_monitor):
@@ -562,8 +563,8 @@ class TestCliWebServer(unittest.TestCase):
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_background(self):
-        pidfile_webserver = cli.setup_locations("webserver")[0]
-        pidfile_monitor = cli.setup_locations("webserver-monitor")[0]
+        pidfile_webserver = setup_locations("webserver")[0]
+        pidfile_monitor = setup_locations("webserver-monitor")[0]
 
         # Run webserver as daemon in background. Note that the wait method is not called.
         subprocess.Popen(["airflow", "webserver", "-D"])
