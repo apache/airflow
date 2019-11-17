@@ -40,7 +40,7 @@ from airflow import api, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.commands import (
     connection_command, db_command, pool_command, role_command, rotate_fernet_key_command, scheduler_command,
-    sync_perm_command, task_command, user_command, variable_command, version_command,
+    sync_perm_command, task_command, user_command, variable_command, version_command, worker_command,
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
@@ -588,71 +588,6 @@ def serve_logs(args):
 
     worker_log_server_port = int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
     flask_app.run(host='0.0.0.0', port=worker_log_server_port)
-
-
-@cli_utils.action_logging
-def worker(args):
-    """Starts Airflow Celery worker"""
-    env = os.environ.copy()
-    env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
-
-    if not settings.validate_session():
-        log = LoggingMixin().log
-        log.error("Worker exiting... database connection precheck failed! ")
-        sys.exit(1)
-
-    # Celery worker
-    from airflow.executors.celery_executor import app as celery_app
-    from celery.bin import worker  # pylint: disable=redefined-outer-name
-
-    autoscale = args.autoscale
-    if autoscale is None and conf.has_option("celery", "worker_autoscale"):
-        autoscale = conf.get("celery", "worker_autoscale")
-    worker = worker.worker(app=celery_app)   # pylint: disable=redefined-outer-name
-    options = {
-        'optimization': 'fair',
-        'O': 'fair',
-        'queues': args.queues,
-        'concurrency': args.concurrency,
-        'autoscale': autoscale,
-        'hostname': args.celery_hostname,
-        'loglevel': conf.get('core', 'LOGGING_LEVEL'),
-    }
-
-    if conf.has_option("celery", "pool"):
-        options["pool"] = conf.get("celery", "pool")
-
-    if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("worker",
-                                                        args.pid,
-                                                        args.stdout,
-                                                        args.stderr,
-                                                        args.log_file)
-        handle = setup_logging(log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            files_preserve=[handle],
-            stdout=stdout,
-            stderr=stderr,
-        )
-        with ctx:
-            sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
-            worker.run(**options)
-            sub_proc.kill()
-
-        stdout.close()
-        stderr.close()
-    else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
-        sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
-
-        worker.run(**options)
-        sub_proc.kill()
 
 
 @cli_utils.action_logging
@@ -1586,7 +1521,7 @@ class CLIFactory:
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
         }, {
-            'func': worker,
+            'func': worker_command.worker,
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale'),

@@ -16,14 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 from argparse import Namespace
 
 import sqlalchemy
 
 import airflow
-from airflow.bin import cli  # noqa
+from airflow.cli.commands import worker_command
 from tests.compat import mock, patch
 from tests.test_utils.config import conf_vars
 
@@ -41,7 +40,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         mock_validate_session.return_value = False
         with self.assertRaises(SystemExit) as cm:
             # airflow.bin.cli.worker(mock_args)
-            cli.worker(mock_args)
+            worker_command.worker(mock_args)
         self.assertEqual(cm.exception.code, 1)
 
     @conf_vars({('core', 'worker_precheck'): 'False'})
