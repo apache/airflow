@@ -21,7 +21,6 @@
 
 import argparse
 import os
-import signal
 import textwrap
 from argparse import RawTextHelpFormatter
 
@@ -31,13 +30,13 @@ from tabulate import tabulate_formats
 
 from airflow import api, settings
 from airflow.cli.commands import (
-    connection_command, dag_command, db_command, pool_command, role_command, rotate_fernet_key_command,
-    scheduler_command, serve_logs_command, sync_perm_command, task_command, user_command, variable_command,
-    version_command, webserver_command, worker_command,
+    connection_command, dag_command, db_command, flower_command, pool_command, role_command,
+    rotate_fernet_key_command, scheduler_command, serve_logs_command, sync_perm_command, task_command,
+    user_command, variable_command, version_command, webserver_command, worker_command,
 )
 from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import alternative_conn_specs, setup_locations, sigint_handler
+from airflow.utils.cli import alternative_conn_specs, setup_locations
 from airflow.utils.timezone import parse as parsedate
 
 api.load_auth()
@@ -46,53 +45,6 @@ DAGS_FOLDER = settings.DAGS_FOLDER
 
 if "BUILDING_AIRFLOW_DOCS" in os.environ:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
-
-
-@cli_utils.action_logging
-def flower(args):
-    """Starts Flower, Celery monitoring tool"""
-    broka = conf.get('celery', 'BROKER_URL')
-    address = '--address={}'.format(args.hostname)
-    port = '--port={}'.format(args.port)
-    api = ''  # pylint: disable=redefined-outer-name
-    if args.broker_api:
-        api = '--broker_api=' + args.broker_api
-
-    url_prefix = ''
-    if args.url_prefix:
-        url_prefix = '--url-prefix=' + args.url_prefix
-
-    basic_auth = ''
-    if args.basic_auth:
-        basic_auth = '--basic_auth=' + args.basic_auth
-
-    flower_conf = ''
-    if args.flower_conf:
-        flower_conf = '--conf=' + args.flower_conf
-
-    if args.daemon:
-        pid, stdout, stderr, _ = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            stdout=stdout,
-            stderr=stderr,
-        )
-
-        with ctx:
-            os.execvp("flower", ['flower', '-b',
-                                 broka, address, port, api, flower_conf, url_prefix, basic_auth])
-
-        stdout.close()
-        stderr.close()
-    else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
-        os.execvp("flower", ['flower', '-b',
-                             broka, address, port, api, flower_conf, url_prefix, basic_auth])
 
 
 @cli_utils.action_logging
@@ -931,7 +883,7 @@ class CLIFactory:
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale'),
         }, {
-            'func': flower,
+            'func': flower_command.flower,
             'help': "Start a Celery Flower",
             'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
                      'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
