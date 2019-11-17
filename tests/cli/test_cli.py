@@ -38,7 +38,7 @@ from airflow import DAG, AirflowException, models, settings
 from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
 from airflow.models import Connection, DagModel, Pool, TaskInstance, Variable
 from airflow.settings import Session
-from airflow.utils import timezone
+from airflow.utils import db, timezone
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.version import version
@@ -1329,6 +1329,7 @@ class TestCliConnections(unittest.TestCase):
             self.assertEqual(0, proc.returncode)
 
     def test_cli_connections_add_delete(self):
+        db.resetdb()
         # Add connections:
         uri = 'postgresql://airflow:airflow@host:5432/airflow'
         with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
