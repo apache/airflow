@@ -29,11 +29,11 @@ from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
 
-from airflow import AirflowException, models, settings
+from airflow import DAG, AirflowException, models, settings
 from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowSkipException
-from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule
+from airflow.models import DagRun, Pool, TaskFail, TaskInstance as TaskInstance, TaskReschedule
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
@@ -109,7 +109,7 @@ class TestTaskInstance(unittest.TestCase):
 
         # check ti without dag (just for bw compat)
         op_no_dag = DummyOperator(task_id='op_no_dag')
-        ti = TI(task=op_no_dag, execution_date=NAIVE_DATETIME)
+        ti = TaskInstance(task=op_no_dag, execution_date=NAIVE_DATETIME)
 
         self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
@@ -117,7 +117,7 @@ class TestTaskInstance(unittest.TestCase):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         op1 = DummyOperator(task_id='op_1')
         dag.add_task(op1)
-        ti = TI(task=op1, execution_date=NAIVE_DATETIME)
+        ti = TaskInstance(task=op1, execution_date=NAIVE_DATETIME)
 
         self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
@@ -125,7 +125,7 @@ class TestTaskInstance(unittest.TestCase):
         tz = pendulum.timezone("Europe/Amsterdam")
         execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tz)
         utc_date = timezone.convert_to_utc(execution_date)
-        ti = TI(task=op1, execution_date=execution_date)
+        ti = TaskInstance(task=op1, execution_date=execution_date)
         self.assertEqual(ti.execution_date, utc_date)
 
     def test_task_naive_datetime(self):
@@ -232,8 +232,8 @@ class TestTaskInstance(unittest.TestCase):
                   max_active_runs=1, concurrency=2)
         task = DummyOperator(task_id='test_requeue_over_dag_concurrency_op', dag=dag)
 
-        ti = TI(task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
-        # TI.run() will sync from DB before validating deps.
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
+        # TaskInstance.run() will sync from DB before validating deps.
         with create_session() as session:
             session.add(ti)
             session.commit()
@@ -246,8 +246,8 @@ class TestTaskInstance(unittest.TestCase):
         task = DummyOperator(task_id='test_requeue_over_task_concurrency_op', dag=dag,
                              task_concurrency=0)
 
-        ti = TI(task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
-        # TI.run() will sync from DB before validating deps.
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
+        # TaskInstance.run() will sync from DB before validating deps.
         with create_session() as session:
             session.add(ti)
             session.commit()
@@ -260,8 +260,8 @@ class TestTaskInstance(unittest.TestCase):
         task = DummyOperator(task_id='test_requeue_over_pool_concurrency_op', dag=dag,
                              task_concurrency=0)
 
-        ti = TI(task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
-        # TI.run() will sync from DB before validating deps.
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
+        # TaskInstance.run() will sync from DB before validating deps.
         with create_session() as session:
             pool = session.query(Pool).filter(Pool.pool == 'test_pool').one()
             pool.slots = 0
@@ -280,7 +280,7 @@ class TestTaskInstance(unittest.TestCase):
             pool='test_pool',
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=timezone.utcnow(), state=State.QUEUED)
         with create_session() as session:
             session.add(ti)
@@ -322,9 +322,9 @@ class TestTaskInstance(unittest.TestCase):
             pool='test_pool',
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=timezone.utcnow(), state=non_runnable_state)
-        # TI.run() will sync from DB before validating deps.
+        # TaskInstance.run() will sync from DB before validating deps.
         with create_session() as session:
             session.add(ti)
             session.commit()
@@ -339,7 +339,7 @@ class TestTaskInstance(unittest.TestCase):
         task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
                              pool='test_pool', owner='airflow',
                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=timezone.utcnow())
         ti.run()
 
@@ -355,7 +355,7 @@ class TestTaskInstance(unittest.TestCase):
         task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag, owner='airflow',
                              executor_config={'foo': 'bar'},
                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=timezone.utcnow())
 
         ti.run(session=session)
@@ -366,7 +366,7 @@ class TestTaskInstance(unittest.TestCase):
                               executor_config={'bar': 'baz'},
                               start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
-        ti = TI(
+        ti = TaskInstance(
             task=task2, execution_date=timezone.utcnow())
         ti.run(session=session)
         tis = dag.get_task_instances()
@@ -385,7 +385,7 @@ class TestTaskInstance(unittest.TestCase):
             pool='test_pool',
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=timezone.utcnow())
         ti.run(mark_success=True)
         self.assertEqual(ti.state, State.SUCCESS)
@@ -406,7 +406,7 @@ class TestTaskInstance(unittest.TestCase):
             python_callable=raise_skip_exception,
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=timezone.utcnow())
         ti.run()
         self.assertEqual(State.SKIPPED, ti.state)
@@ -431,7 +431,7 @@ class TestTaskInstance(unittest.TestCase):
             except AirflowException:
                 pass
 
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=timezone.utcnow())
 
         self.assertEqual(ti.try_number, 1)
@@ -469,7 +469,7 @@ class TestTaskInstance(unittest.TestCase):
             except AirflowException:
                 pass
 
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=timezone.utcnow())
         self.assertEqual(ti.try_number, 1)
 
@@ -485,7 +485,7 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(ti._try_number, 2)
         self.assertEqual(ti.try_number, 3)
 
-        # Clear the TI state since you can't run a task with a FAILED state without
+        # Clear the TaskInstance state since you can't run a task with a FAILED state without
         # clearing it first
         dag.clear()
 
@@ -517,7 +517,7 @@ class TestTaskInstance(unittest.TestCase):
             dag=dag,
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=DEFAULT_DATE)
         ti.end_date = pendulum.instance(timezone.utcnow())
 
@@ -561,7 +561,7 @@ class TestTaskInstance(unittest.TestCase):
             dag=dag,
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=DEFAULT_DATE)
         ti.end_date = pendulum.instance(timezone.utcnow())
 
@@ -570,7 +570,7 @@ class TestTaskInstance(unittest.TestCase):
         period = ti.end_date.add(seconds=1) - ti.end_date.add(seconds=15)
         self.assertTrue(dt in period)
 
-    @patch.object(TI, 'pool_full')
+    @patch.object(TaskInstance, 'pool_full')
     def test_reschedule_handling(self, mock_pool_full):
         """
         Test that task reschedules are handled properly
@@ -597,7 +597,7 @@ class TestTaskInstance(unittest.TestCase):
             pool='test_pool',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
-        ti = TI(task=task, execution_date=timezone.utcnow())
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
         self.assertEqual(ti._try_number, 0)
         self.assertEqual(ti.try_number, 1)
 
@@ -666,7 +666,7 @@ class TestTaskInstance(unittest.TestCase):
         done, fail = True, False
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
-    @patch.object(TI, 'pool_full')
+    @patch.object(TaskInstance, 'pool_full')
     def test_reschedule_handling_clear_reschedules(self, mock_pool_full):
         """
         Test that task reschedules clearing are handled properly
@@ -693,7 +693,7 @@ class TestTaskInstance(unittest.TestCase):
             pool='test_pool',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
-        ti = TI(task=task, execution_date=timezone.utcnow())
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
         self.assertEqual(ti._try_number, 0)
         self.assertEqual(ti.try_number, 1)
 
@@ -746,7 +746,7 @@ class TestTaskInstance(unittest.TestCase):
 
         run_date = task.start_date + datetime.timedelta(days=5)
 
-        ti = TI(task, run_date)
+        ti = TaskInstance(task, run_date)
 
         # depends_on_past prevents the run
         task.run(start_date=run_date, end_date=run_date)
@@ -820,7 +820,7 @@ class TestTaskInstance(unittest.TestCase):
             task.set_downstream(downstream)
         run_date = task.start_date + datetime.timedelta(days=5)
 
-        ti = TI(downstream, run_date)
+        ti = TaskInstance(downstream, run_date)
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
             successes=successes,
@@ -846,12 +846,12 @@ class TestTaskInstance(unittest.TestCase):
 
         # Push a value
         task1 = DummyOperator(task_id='test_xcom_1', dag=dag, owner='airflow')
-        ti1 = TI(task=task1, execution_date=exec_date)
+        ti1 = TaskInstance(task=task1, execution_date=exec_date)
         ti1.xcom_push(key='foo', value='bar')
 
         # Push another value with the same key (but by a different task)
         task2 = DummyOperator(task_id='test_xcom_2', dag=dag, owner='airflow')
-        ti2 = TI(task=task2, execution_date=exec_date)
+        ti2 = TaskInstance(task=task2, execution_date=exec_date)
         ti2.xcom_push(key='foo', value='baz')
 
         # Pull with no arguments
@@ -886,7 +886,7 @@ class TestTaskInstance(unittest.TestCase):
             owner='airflow',
             start_date=timezone.datetime(2016, 6, 2, 0, 0, 0))
         exec_date = timezone.utcnow()
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=exec_date)
         ti.run(mark_success=True)
         ti.xcom_push(key=key, value=value)
@@ -920,14 +920,14 @@ class TestTaskInstance(unittest.TestCase):
             owner='airflow',
             start_date=timezone.datetime(2016, 6, 2, 0, 0, 0))
         exec_date = timezone.utcnow()
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=exec_date)
         ti.run(mark_success=True)
         ti.xcom_push(key=key, value=value)
         self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
         ti.run()
         exec_date += datetime.timedelta(days=1)
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=exec_date)
         ti.run()
         # We have set a new execution date (and did not pass in
@@ -957,7 +957,7 @@ class TestTaskInstance(unittest.TestCase):
             owner='airflow',
             start_date=datetime.datetime(2017, 1, 1)
         )
-        ti = TI(task=task, execution_date=datetime.datetime(2017, 1, 1))
+        ti = TaskInstance(task=task, execution_date=datetime.datetime(2017, 1, 1))
         ti.run()
         self.assertEqual(
             ti.xcom_pull(
@@ -987,7 +987,7 @@ class TestTaskInstance(unittest.TestCase):
             python_callable=lambda: 'error',
             owner='airflow',
             start_date=timezone.datetime(2017, 2, 1))
-        ti = TI(task=task, execution_date=timezone.utcnow())
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
 
         with self.assertRaises(TestError):
             ti.run()
@@ -995,7 +995,7 @@ class TestTaskInstance(unittest.TestCase):
     def test_check_and_change_state_before_execution(self):
         dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=timezone.utcnow())
         self.assertEqual(ti._try_number, 0)
         self.assertTrue(ti._check_and_change_state_before_execution())
@@ -1008,7 +1008,7 @@ class TestTaskInstance(unittest.TestCase):
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
         task2 = DummyOperator(task_id='task2', dag=dag, start_date=DEFAULT_DATE)
         task >> task2
-        ti = TI(
+        ti = TaskInstance(
             task=task2, execution_date=timezone.utcnow())
         self.assertFalse(ti._check_and_change_state_before_execution())
 
@@ -1018,7 +1018,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
-        ti = TI(task=task, execution_date=timezone.utcnow())
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
         self.assertEqual(1, ti.try_number)
         ti.try_number = 2
         ti.state = State.RUNNING
@@ -1034,9 +1034,9 @@ class TestTaskInstance(unittest.TestCase):
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
         task2 = DummyOperator(task_id='task', dag=dag2, start_date=DEFAULT_DATE)
 
-        ti1 = TI(task=task, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=task, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
-        ti3 = TI(task=task2, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti2 = TaskInstance(task=task, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+        ti3 = TaskInstance(task=task2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
         ti3.state = State.RUNNING
@@ -1053,7 +1053,7 @@ class TestTaskInstance(unittest.TestCase):
     #     now = pendulum.now('Europe/Brussels')
     #     dag = DAG('dag', start_date=DEFAULT_DATE)
     #     task = DummyOperator(task_id='op', dag=dag)
-    #     ti = TI(task=task, execution_date=now)
+    #     ti = TaskInstance(task=task, execution_date=now)
     #     d = urllib.parse.parse_qs(
     #         urllib.parse.urlparse(ti.log_url).query,
     #         keep_blank_values=True, strict_parsing=True)
@@ -1064,7 +1064,7 @@ class TestTaskInstance(unittest.TestCase):
     def test_log_url(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='op', dag=dag)
-        ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
+        ti = TaskInstance(task=task, execution_date=datetime.datetime(2018, 1, 1))
 
         expected_url = (
             'http://localhost:8080/log?'
@@ -1078,7 +1078,7 @@ class TestTaskInstance(unittest.TestCase):
         now = pendulum.now('Europe/Brussels')
         dag = DAG('dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='op', dag=dag)
-        ti = TI(task=task, execution_date=now)
+        ti = TaskInstance(task=task, execution_date=now)
         d = urllib.parse.parse_qs(
             urllib.parse.urlparse(ti.mark_success_url).query,
             keep_blank_values=True, strict_parsing=True)
@@ -1088,7 +1088,7 @@ class TestTaskInstance(unittest.TestCase):
 
     def test_overwrite_params_with_dag_run_conf(self):
         task = DummyOperator(task_id='op')
-        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti = TaskInstance(task=task, execution_date=datetime.datetime.now())
         dag_run = DagRun()
         dag_run.conf = {"override": True}
         params = {"override": False}
@@ -1099,7 +1099,7 @@ class TestTaskInstance(unittest.TestCase):
 
     def test_overwrite_params_with_dag_run_none(self):
         task = DummyOperator(task_id='op')
-        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti = TaskInstance(task=task, execution_date=datetime.datetime.now())
         params = {"override": False}
 
         ti.overwrite_params_with_dag_run_conf(params, None)
@@ -1108,7 +1108,7 @@ class TestTaskInstance(unittest.TestCase):
 
     def test_overwrite_params_with_dag_run_conf_none(self):
         task = DummyOperator(task_id='op')
-        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti = TaskInstance(task=task, execution_date=datetime.datetime.now())
         params = {"override": False}
         dag_run = DagRun()
 
@@ -1126,7 +1126,7 @@ class TestTaskInstance(unittest.TestCase):
             start_date=DEFAULT_DATE,
             email='to')
 
-        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti = TaskInstance(task=task, execution_date=datetime.datetime.now())
 
         try:
             ti.run()
@@ -1149,7 +1149,7 @@ class TestTaskInstance(unittest.TestCase):
             start_date=DEFAULT_DATE,
             email='to')
 
-        ti = TI(
+        ti = TaskInstance(
             task=task, execution_date=datetime.datetime.now())
 
         conf.set('email', 'subject_template', '/subject/path')
@@ -1169,7 +1169,7 @@ class TestTaskInstance(unittest.TestCase):
 
     def test_set_duration(self):
         task = DummyOperator(task_id='op', email='test@test.test')
-        ti = TI(
+        ti = TaskInstance(
             task=task,
             execution_date=datetime.datetime.now(),
         )
@@ -1180,7 +1180,7 @@ class TestTaskInstance(unittest.TestCase):
 
     def test_set_duration_empty_dates(self):
         task = DummyOperator(task_id='op', email='test@test.test')
-        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti = TaskInstance(task=task, execution_date=datetime.datetime.now())
         ti.set_duration()
         self.assertIsNone(ti.duration)
 
@@ -1196,10 +1196,10 @@ class TestTaskInstance(unittest.TestCase):
             def success_handler(self, context):  # pylint: disable=unused-argument
                 self.callback_ran = True
                 session = settings.Session()
-                temp_instance = session.query(TI).filter(
-                    TI.task_id == self.task_id).filter(
-                    TI.dag_id == self.dag_id).filter(
-                    TI.execution_date == self.execution_date).one()
+                temp_instance = session.query(TaskInstance).filter(
+                    TaskInstance.task_id == self.task_id).filter(
+                    TaskInstance.dag_id == self.dag_id).filter(
+                    TaskInstance.execution_date == self.execution_date).one()
                 self.task_state_in_callback = temp_instance.state
 
         cw = CallbackWrapper()
@@ -1207,7 +1207,7 @@ class TestTaskInstance(unittest.TestCase):
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task = DummyOperator(task_id='op', email='test@test.test',
                              on_success_callback=cw.success_handler, dag=dag)
-        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti = TaskInstance(task=task, execution_date=datetime.datetime.now())
         ti.state = State.RUNNING
         session = settings.Session()
         session.merge(ti)
@@ -1226,7 +1226,7 @@ class TestTaskInstance(unittest.TestCase):
         dag = models.DAG(dag_id=dag_id, schedule_interval=schedule_interval, catchup=catchup)
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
 
-        def get_test_ti(session, execution_date: pendulum.datetime, state: str) -> TI:
+        def get_test_ti(session, execution_date: pendulum.datetime, state: str) -> TaskInstance:
             dag.create_dagrun(
                 run_id='scheduled__{}'.format(execution_date.to_iso8601_string()),
                 state=state,
@@ -1234,7 +1234,7 @@ class TestTaskInstance(unittest.TestCase):
                 start_date=pendulum.utcnow(),
                 session=session
             )
-            ti = TI(task=task, execution_date=execution_date)
+            ti = TaskInstance(task=task, execution_date=execution_date)
             ti.set_state(state=State.SUCCESS, session=session)
             return ti
 
@@ -1341,7 +1341,7 @@ class TestTaskInstance(unittest.TestCase):
             start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
         task = DummyOperator(task_id='test_pendulum_template_dates_task', dag=dag)
 
-        ti = TI(task=task, execution_date=timezone.utcnow())
+        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
 
         template_context = ti.get_template_context()
 

@@ -28,7 +28,7 @@ from unittest.mock import MagicMock, PropertyMock
 
 from airflow.configuration import conf
 from airflow.jobs import DagFileProcessor, LocalTaskJob as LJ
-from airflow.models import DagBag, TaskInstance as TI
+from airflow.models import DagBag, TaskInstance as TaskInstance
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (
     DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, SimpleTaskInstance, correct_maybe_zipped,
@@ -195,7 +195,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             dag = dagbag.get_dag('example_branch_operator')
             task = dag.get_task(task_id='run_this_first')
 
-            ti = TI(task, DEFAULT_DATE, State.RUNNING)
+            ti = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
             lj = LJ(ti)
             lj.state = State.SHUTDOWN
             lj.id = 1
@@ -215,7 +215,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             self.assertEqual(ti.task_id, zombies[0].task_id)
             self.assertEqual(ti.execution_date, zombies[0].execution_date)
 
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
             session.query(LJ).delete()
 
     def test_zombies_are_correctly_passed_to_dag_file_processor(self):
@@ -231,7 +231,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 dag = dagbag.get_dag('test_example_bash_operator')
                 task = dag.get_task(task_id='run_this_last')
 
-                ti = TI(task, DEFAULT_DATE, State.RUNNING)
+                ti = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
                 lj = LJ(ti)
                 lj.state = State.SHUTDOWN
                 lj.id = 1

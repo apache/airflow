@@ -29,7 +29,7 @@ from unittest.mock import ANY, patch
 import airflow.example_dags
 from airflow import models
 from airflow.configuration import conf
-from airflow.models import DagBag, DagModel, TaskInstance as TI
+from airflow.models import DagBag, DagModel, TaskInstance as TaskInstance
 from airflow.utils.dag_processing import SimpleTaskInstance
 from airflow.utils.db import create_session
 from airflow.utils.state import State
@@ -315,7 +315,7 @@ class TestDagBag(unittest.TestCase):
     def test_load_subdags(self):
         # Define Dag to load
         def standard_subdag():
-            from airflow.models import DAG
+            from airflow import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
             import datetime
@@ -370,7 +370,7 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdags():
-            from airflow.models import DAG
+            from airflow import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
             import datetime
@@ -468,7 +468,7 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def basic_cycle():
-            from airflow.models import DAG
+            from airflow import DAG
             from airflow.operators.dummy_operator import DummyOperator
             import datetime
             DAG_NAME = 'cycle_dag'
@@ -501,7 +501,7 @@ class TestDagBag(unittest.TestCase):
 
         # Define Dag to load
         def nested_subdag_cycle():
-            from airflow.models import DAG
+            from airflow import DAG
             from airflow.operators.dummy_operator import DummyOperator
             from airflow.operators.subdag_operator import SubDagOperator
             import datetime
@@ -603,18 +603,18 @@ class TestDagBag(unittest.TestCase):
 
         self.assertEqual([], dagbag.process_file(None))
 
-    @patch.object(TI, 'handle_failure')
+    @patch.object(TaskInstance, 'handle_failure')
     def test_kill_zombies(self, mock_ti_handle_failure):
         """
         Test that kill zombies call TIs failure handler with proper context
         """
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
         with create_session() as session:
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
             dag = dagbag.get_dag('example_branch_operator')
             task = dag.get_task(task_id='run_this_first')
 
-            ti = TI(task, DEFAULT_DATE, State.RUNNING)
+            ti = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
 
             session.add(ti)
             session.commit()

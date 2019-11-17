@@ -58,7 +58,7 @@ default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Natural Language Text Classification
-with models.DAG(
+with models.dag.DAG(
     "example_automl_text_cls",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

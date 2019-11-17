@@ -26,7 +26,7 @@ import psutil
 
 from airflow import models, settings
 from airflow.jobs import LocalTaskJob
-from airflow.models import TaskInstance as TI
+from airflow.models import TaskInstance as TaskInstance
 from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -115,7 +115,7 @@ class TestStandardTaskRunner(unittest.TestCase):
                           execution_date=DEFAULT_DATE,
                           start_date=DEFAULT_DATE,
                           session=session)
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
 
         runner = StandardTaskRunner(job1)

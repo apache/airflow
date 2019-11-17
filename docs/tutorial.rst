@@ -36,7 +36,7 @@ complicated, a line by line explanation follows below.
     Code that goes along with the Airflow tutorial located at:
     https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
-    from airflow import DAG
+    from airflow.models.dag import DAG
     from airflow.operators.bash_operator import BashOperator
     from datetime import datetime, timedelta
 
@@ -116,7 +116,7 @@ Airflow DAG object. Let's start by importing the libraries we will need.
 .. code:: python
 
     # The DAG object; we'll need this to instantiate a DAG
-    from airflow import DAG
+    from airflow.models.dag import DAG
 
     # Operators; we need this to operate!
     from airflow.operators.bash_operator import BashOperator
@@ -312,7 +312,7 @@ something like this:
     Code that goes along with the Airflow tutorial located at:
     https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
-    from airflow import DAG
+    from airflow.models.dag import DAG
     from airflow.operators.bash_operator import BashOperator
     from datetime import datetime, timedelta
 

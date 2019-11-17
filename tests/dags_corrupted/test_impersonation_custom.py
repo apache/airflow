@@ -28,7 +28,7 @@ from datetime import datetime
 # variable correctly.
 from fake_datetime import FakeDatetime
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)

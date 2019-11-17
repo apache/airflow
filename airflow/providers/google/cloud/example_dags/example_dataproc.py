@@ -120,7 +120,7 @@ HADOOP_JOB = {
     },
 }
 
-with models.DAG(
+with models.dag.DAG(
     "example_gcp_dataproc",
     default_args={"start_date": airflow.utils.dates.days_ago(1)},
     schedule_interval=None,

@@ -21,7 +21,7 @@
 from inspect import signature
 from typing import cast
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.serialization.base_serialization import BaseSerialization
 from airflow.serialization.json_schema import load_dag_schema
 

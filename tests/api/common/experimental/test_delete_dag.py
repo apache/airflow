@@ -29,7 +29,7 @@ from airflow.utils.state import State
 
 DM = models.DagModel
 DR = models.DagRun
-TI = models.TaskInstance
+TaskInstance = models.TaskInstance
 LOG = models.log.Log
 TF = models.taskfail.TaskFail
 TR = models.taskreschedule.TaskReschedule
@@ -66,9 +66,9 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         with create_session() as session:
             session.add(DM(dag_id=self.key, fileloc=self.dag_file_path))
             session.add(DR(dag_id=self.key))
-            session.add(TI(task=task,
-                           execution_date=test_date,
-                           state=State.SUCCESS))
+            session.add(TaskInstance(task=task,
+                                     execution_date=test_date,
+                                     state=State.SUCCESS))
             # flush to ensure task instance if written before
             # task reschedule because of FK constraint
             session.flush()
@@ -86,7 +86,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         with create_session() as session:
             session.query(TR).filter(TR.dag_id == self.key).delete()
             session.query(TF).filter(TF.dag_id == self.key).delete()
-            session.query(TI).filter(TI.dag_id == self.key).delete()
+            session.query(TaskInstance).filter(TaskInstance.dag_id == self.key).delete()
             session.query(DR).filter(DR.dag_id == self.key).delete()
             session.query(DM).filter(DM.dag_id == self.key).delete()
             session.query(LOG).filter(LOG.dag_id == self.key).delete()
@@ -96,7 +96,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         with create_session() as session:
             self.assertEqual(session.query(DM).filter(DM.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(DR).filter(DR.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(TI).filter(TI.dag_id == self.key).count(), 1)
+            self.assertEqual(session.query(TaskInstance).filter(TaskInstance.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
@@ -108,7 +108,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         with create_session() as session:
             self.assertEqual(session.query(DM).filter(DM.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(DR).filter(DR.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(TI).filter(TI.dag_id == self.key).count(), 0)
+            self.assertEqual(session.query(TaskInstance).filter(TaskInstance.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
@@ -120,7 +120,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         with create_session() as session:
             self.assertEqual(session.query(DM).filter(DM.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(DR).filter(DR.dag_id == self.key).count(), 1)
-            self.assertEqual(session.query(TI).filter(TI.dag_id == self.key).count(), 1)
+            self.assertEqual(session.query(TaskInstance).filter(TaskInstance.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
@@ -132,7 +132,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         with create_session() as session:
             self.assertEqual(session.query(DM).filter(DM.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(DR).filter(DR.dag_id == self.key).count(), 0)
-            self.assertEqual(session.query(TI).filter(TI.dag_id == self.key).count(), 0)
+            self.assertEqual(session.query(TaskInstance).filter(TaskInstance.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 0)

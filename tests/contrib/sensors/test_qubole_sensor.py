@@ -22,9 +22,9 @@ import unittest
 from datetime import datetime
 from unittest.mock import patch
 
-from airflow import AirflowException
+from airflow import DAG, AirflowException
 from airflow.contrib.sensors.qubole_sensor import QuboleFileSensor, QubolePartitionSensor
-from airflow.models import DAG, Connection
+from airflow.models import Connection
 from airflow.utils import db
 
 DAG_ID = "qubole_test_dag"

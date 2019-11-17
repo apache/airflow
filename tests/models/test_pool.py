@@ -19,10 +19,9 @@
 
 import unittest
 
-from airflow import settings
-from airflow.models import DAG
+from airflow import DAG, settings
 from airflow.models.pool import Pool
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance as TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -48,8 +47,8 @@ class TestPool(unittest.TestCase):
             start_date=DEFAULT_DATE, )
         t1 = DummyOperator(task_id='dummy1', dag=dag, pool='test_pool')
         t2 = DummyOperator(task_id='dummy2', dag=dag, pool='test_pool')
-        ti1 = TI(task=t1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=t1, execution_date=DEFAULT_DATE)
+        ti2 = TaskInstance(task=t2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 
@@ -72,8 +71,8 @@ class TestPool(unittest.TestCase):
             start_date=DEFAULT_DATE, )
         t1 = DummyOperator(task_id='dummy1', dag=dag, pool='test_pool')
         t2 = DummyOperator(task_id='dummy2', dag=dag, pool='test_pool')
-        ti1 = TI(task=t1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=t1, execution_date=DEFAULT_DATE)
+        ti2 = TaskInstance(task=t2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 
@@ -98,8 +97,8 @@ class TestPool(unittest.TestCase):
             start_date=DEFAULT_DATE, )
         t1 = DummyOperator(task_id='dummy1', dag=dag)
         t2 = DummyOperator(task_id='dummy2', dag=dag)
-        ti1 = TI(task=t1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=t1, execution_date=DEFAULT_DATE)
+        ti2 = TaskInstance(task=t2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 

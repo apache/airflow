@@ -24,7 +24,7 @@ from datetime import datetime
 
 from sqlalchemy.orm.session import Session, make_transient
 
-from airflow import models
+from airflow import DAG, models
 from airflow.exceptions import (
     AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
@@ -32,7 +32,7 @@ from airflow.exceptions import (
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagPickle, DagRun
+from airflow.models import DagPickle, DagRun
 from airflow.ti_deps.dep_context import BACKFILL_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy

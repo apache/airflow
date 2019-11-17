@@ -642,8 +642,7 @@ class TestCore(unittest.TestCase):
         t.resolve_template_files()
 
     def test_task_get_template(self):
-        TI = TaskInstance
-        ti = TI(
+        ti = TaskInstance(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
         ti.run(ignore_ti_state=True)
@@ -672,15 +671,13 @@ class TestCore(unittest.TestCase):
         self.assertEqual(context['tomorrow_ds_nodash'], '20150102')
 
     def test_local_task_job(self):
-        TI = TaskInstance
-        ti = TI(
+        ti = TaskInstance(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         job = jobs.LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         job.run()
 
     def test_raw_job(self):
-        TI = TaskInstance
-        ti = TI(
+        ti = TaskInstance(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
         ti.run(ignore_ti_state=True)
@@ -870,11 +867,10 @@ class TestCore(unittest.TestCase):
     def test_terminate_task(self):
         """If a task instance's db state get deleted, it should fail"""
         from airflow.executors.sequential_executor import SequentialExecutor
-        TI = TaskInstance
         dag = self.dagbag.dags.get('test_utils')
         task = dag.task_dict.get('sleeps_forever')
 
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         job = jobs.LocalTaskJob(
             task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
 
@@ -887,7 +883,7 @@ class TestCore(unittest.TestCase):
         ti.refresh_from_db(session=session)
         # making sure it's actually running
         self.assertEqual(State.RUNNING, ti.state)
-        ti = session.query(TI).filter_by(
+        ti = session.query(TaskInstance).filter_by(
             dag_id=task.dag_id,
             task_id=task.task_id,
             execution_date=DEFAULT_DATE
@@ -950,7 +946,6 @@ class TestCore(unittest.TestCase):
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
 
     def test_externally_triggered_dagrun(self):
-        TI = TaskInstance
 
         # Create the dagrun between two "scheduled" execution dates of the DAG
         EXECUTION_DATE = DEFAULT_DATE + timedelta(days=2)
@@ -971,7 +966,7 @@ class TestCore(unittest.TestCase):
         task.run(
             start_date=EXECUTION_DATE, end_date=EXECUTION_DATE)
 
-        ti = TI(task=task, execution_date=EXECUTION_DATE)
+        ti = TaskInstance(task=task, execution_date=EXECUTION_DATE)
         context = ti.get_template_context()
 
         # next_ds/prev_ds should be the execution date for manually triggered runs

@@ -21,7 +21,7 @@ import unittest
 from datetime import datetime
 from unittest.mock import Mock
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -69,7 +69,7 @@ class TestPrevDagrunDep(unittest.TestCase):
 
     def test_first_task_run(self):
         """
-        The first task run for a TI should pass since it has no previous dagrun.
+        The first task run for a TaskInstance should pass since it has no previous dagrun.
         """
         task = self._get_task(depends_on_past=True,
                               start_date=datetime(2016, 1, 1),
@@ -83,7 +83,7 @@ class TestPrevDagrunDep(unittest.TestCase):
 
     def test_prev_ti_bad_state(self):
         """
-        If the previous TI did not complete execution this dep should fail.
+        If the previous TaskInstance did not complete execution this dep should fail.
         """
         task = self._get_task(depends_on_past=True,
                               start_date=datetime(2016, 1, 1),
@@ -98,9 +98,9 @@ class TestPrevDagrunDep(unittest.TestCase):
 
     def test_failed_wait_for_downstream(self):
         """
-        If the previous TI specified to wait for the downstream tasks of the
+        If the previous TaskInstance specified to wait for the downstream tasks of the
         previous dagrun then it should fail this dep if the downstream TIs of
-        the previous TI are not done.
+        the previous TaskInstance are not done.
         """
         task = self._get_task(depends_on_past=True,
                               start_date=datetime(2016, 1, 1),

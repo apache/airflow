@@ -26,8 +26,9 @@ from unittest import mock
 import elasticsearch
 import pendulum
 
+from airflow import DAG
 from airflow.configuration import conf
-from airflow.models import DAG, TaskInstance
+from airflow.modesl import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.log.es_task_handler import ElasticsearchTaskHandler

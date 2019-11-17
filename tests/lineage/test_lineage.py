@@ -18,9 +18,10 @@
 # under the License.
 import unittest
 
+from airflow import DAG
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.lineage.datasets import File
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import TaskInstance as TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from tests.compat import mock
@@ -64,10 +65,10 @@ class TestLineage(unittest.TestCase):
             op3.set_downstream(op4)
             op4.set_downstream(op5)
 
-        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE)}
-        ctx2 = {"ti": TI(task=op2, execution_date=DEFAULT_DATE)}
-        ctx3 = {"ti": TI(task=op3, execution_date=DEFAULT_DATE)}
-        ctx5 = {"ti": TI(task=op5, execution_date=DEFAULT_DATE)}
+        ctx1 = {"ti": TaskInstance(task=op1, execution_date=DEFAULT_DATE)}
+        ctx2 = {"ti": TaskInstance(task=op2, execution_date=DEFAULT_DATE)}
+        ctx3 = {"ti": TaskInstance(task=op3, execution_date=DEFAULT_DATE)}
+        ctx5 = {"ti": TaskInstance(task=op5, execution_date=DEFAULT_DATE)}
 
         func = mock.Mock()
         func.__name__ = 'foo'

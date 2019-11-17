@@ -20,8 +20,8 @@
 """Example DAG demonstrating the usage of the SubDagOperator."""
 
 import airflow
+from airflow import DAG
 from airflow.example_dags.subdags.subdag import subdag
-from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 

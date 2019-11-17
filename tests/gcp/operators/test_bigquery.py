@@ -21,14 +21,14 @@ import unittest
 from datetime import datetime
 from unittest.mock import MagicMock
 
-from airflow import AirflowException, models
+from airflow import DAG, AirflowException, models
 from airflow.gcp.operators.bigquery import (
     BigQueryConsoleLink, BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator,
     BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator, BigQueryGetDataOperator,
     BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator, BigQueryOperator,
     BigQueryPatchDatasetOperator, BigQueryTableDeleteOperator, BigQueryUpdateDatasetOperator,
 )
-from airflow.models import DAG, TaskFail, TaskInstance, XCom
+from airflow.models import TaskFail, TaskInstance, XCom
 from airflow.settings import Session
 from airflow.utils.db import provide_session
 from tests.compat import mock

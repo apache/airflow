@@ -62,7 +62,7 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 
 
 # Example DAG for AutoML Translation
-with models.DAG(
+with models.dag.DAG(
     "example_automl_translation",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

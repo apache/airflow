@@ -73,7 +73,7 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
         """
         Executes command received and stores result state in queue.
 
-        :param key: the key to identify the TI
+        :param key: the key to identify the TaskInstance
         :type key: tuple(dag_id, task_id, execution_date)
         :param command: the command to execute
         :type command: str
@@ -139,7 +139,7 @@ class LocalExecutor(BaseExecutor):
 
         def execute_async(self, key, command):
             """
-            :param key: the key to identify the TI
+            :param key: the key to identify the TaskInstance
             :type key: tuple(dag_id, task_id, execution_date)
             :param command: the command to execute
             :type command: str
@@ -182,7 +182,7 @@ class LocalExecutor(BaseExecutor):
 
         def execute_async(self, key, command):
             """
-            :param key: the key to identify the TI
+            :param key: the key to identify the TaskInstance
             :type key: tuple(dag_id, task_id, execution_date)
             :param command: the command to execute
             :type command: str

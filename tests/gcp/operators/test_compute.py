@@ -26,12 +26,12 @@ from copy import deepcopy
 import httplib2
 from googleapiclient.errors import HttpError
 
-from airflow import AirflowException
+from airflow import DAG, AirflowException
 from airflow.gcp.operators.compute import (
     GceInstanceGroupManagerUpdateTemplateOperator, GceInstanceStartOperator, GceInstanceStopOperator,
     GceInstanceTemplateCopyOperator, GceSetMachineTypeOperator,
 )
-from airflow.models import DAG, TaskInstance
+from airflow.models import TaskInstance
 from airflow.utils import timezone
 from tests.compat import mock
 

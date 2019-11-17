@@ -144,7 +144,6 @@ exit 0
             ignore_ti_state=True)
 
         session = settings.Session()
-        TI = TaskInstance
         try:
             task_external_with_failure.run(
                 start_date=DEFAULT_DATE,
@@ -154,10 +153,10 @@ exit 0
             # once per minute (the run on the first second of
             # each minute).
         except Exception as e:
-            failed_tis = session.query(TI).filter(
-                TI.dag_id == dag_external_id,
-                TI.state == State.FAILED,
-                TI.execution_date == DEFAULT_DATE + timedelta(seconds=1)).all()
+            failed_tis = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == dag_external_id,
+                TaskInstance.state == State.FAILED,
+                TaskInstance.execution_date == DEFAULT_DATE + timedelta(seconds=1)).all()
             if len(failed_tis) == 1 and \
                failed_tis[0].task_id == 'task_external_with_failure':
                 pass

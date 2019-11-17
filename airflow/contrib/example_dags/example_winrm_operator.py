@@ -32,9 +32,9 @@ This is an example dag for using the WinRMOperator.
 from datetime import timedelta
 
 import airflow
+from airflow import DAG
 from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.contrib.operators.winrm_operator import WinRMOperator
-from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 
 default_args = {

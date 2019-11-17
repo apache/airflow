@@ -22,7 +22,8 @@ import tempfile
 from datetime import datetime
 from unittest import TestCase
 
-from airflow.models import DAG, DagModel, DagRun, Log, TaskInstance
+from airflow import DAG
+from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session
@@ -32,7 +33,7 @@ TEST_DAG_ID = "testdag"
 TRIGGERED_DAG_ID = "triggerdag"
 DAG_SCRIPT = (
     "from datetime import datetime\n\n"
-    "from airflow.models import DAG\n"
+    "from airflow import DAG\n"
     "from airflow.operators.dummy_operator import DummyOperator\n\n"
     "dag = DAG(\n"
     'dag_id="{dag_id}", \n'

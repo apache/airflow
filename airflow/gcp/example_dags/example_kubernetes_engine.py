@@ -36,7 +36,7 @@ CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 
-with models.DAG(
+with models.dag.DAG(
     "example_gcp_gke",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

@@ -22,9 +22,9 @@ from base64 import b64encode
 
 from parameterized import parameterized
 
-from airflow import AirflowException, models
+from airflow import DAG, AirflowException, models
 from airflow.contrib.operators.ssh_operator import SSHOperator
-from airflow.models import DAG, TaskInstance
+from airflow.models import TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime

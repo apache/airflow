@@ -22,8 +22,9 @@ import logging.config
 import os
 import unittest
 
+from airflow import DAG
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.db import create_session

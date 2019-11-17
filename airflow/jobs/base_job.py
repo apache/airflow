@@ -255,21 +255,21 @@ class BaseJob(Base, LoggingMixin):
         running_tis = self.executor.running
 
         resettable_states = [State.SCHEDULED, State.QUEUED]
-        TI = models.TaskInstance
+        TaskInstance = models.TaskInstance
         DR = models.DagRun
         if filter_by_dag_run is None:
             resettable_tis = (
                 session
-                .query(TI)
+                .query(TaskInstance)
                 .join(
                     DR,
                     and_(
-                        TI.dag_id == DR.dag_id,
-                        TI.execution_date == DR.execution_date))
+                        TaskInstance.dag_id == DR.dag_id,
+                        TaskInstance.execution_date == DR.execution_date))
                 .filter(
                     DR.state == State.RUNNING,
                     DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'),
-                    TI.state.in_(resettable_states))).all()
+                    TaskInstance.state.in_(resettable_states))).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
                                                                   session=session)
@@ -283,14 +283,14 @@ class BaseJob(Base, LoggingMixin):
             return []
 
         def query(result, items):
-            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
-                                    TI.task_id == ti.task_id,
-                                    TI.execution_date == ti.execution_date)
+            filter_for_tis = ([and_(TaskInstance.dag_id == ti.dag_id,
+                                    TaskInstance.task_id == ti.task_id,
+                                    TaskInstance.execution_date == ti.execution_date)
                                for ti in items])
             reset_tis = (
                 session
-                .query(TI)
-                .filter(or_(*filter_for_tis), TI.state.in_(resettable_states))
+                .query(TaskInstance)
+                .filter(or_(*filter_for_tis), TaskInstance.state.in_(resettable_states))
                 .with_for_update()
                 .all())
             for ti in reset_tis:

@@ -414,6 +414,8 @@ image built locally):
 =================================== ================================================================ ============
 **Hooks**                             **Description**                                                 **Breeze**
 =================================== ================================================================ ============
+``airflow-dag``                       Make sure airflow DAG is imported from correct package
+----------------------------------- ---------------------------------------------------------------- ------------
 ``airflow-exception``                 Make sure airflow exception is imported from correct package
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``base-operator``                     Checks that BaseOperator is imported properly
@@ -538,6 +540,14 @@ BaseOperator
 The BaseOperator should be imported:
 * as ``from airflow.models import BaseOperator`` in external DAG, provider's operator, or custom operator
 * as ``from airflow.models.baseoperator import BaseOperator`` in Airflow core to avoid cyclic imports
+
+DAG
+---
+
+The DAG should be imported:
+* as ``from airflow import DAG`` in external DAG, provider's operator, or custom operator
+* as ``from airflow.models.dag import DAG`` in Airflow core to avoid cyclic imports
+
 
 AirflowException
 ----------------

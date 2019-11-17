@@ -213,7 +213,7 @@ class TaskInstance(Base, LoggingMixin):
         Return the try number that this task number will be when it is actually
         run.
 
-        If the TI is currently running, this will match the column in the
+        If the TaskInstance is currently running, this will match the column in the
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
@@ -395,11 +395,11 @@ class TaskInstance(Base, LoggingMixin):
         we use and looking up the state becomes part of the session, otherwise
         a new session is used.
         """
-        TI = TaskInstance
-        ti = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id == self.task_id,
-            TI.execution_date == self.execution_date,
+        TaskInstance
+        ti = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.execution_date == self.execution_date,
         ).all()
         if ti:
             state = ti[0].state
@@ -429,12 +429,12 @@ class TaskInstance(Base, LoggingMixin):
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
-        TI = TaskInstance
+        TaskInstance
 
-        qry = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id == self.task_id,
-            TI.execution_date == self.execution_date)
+        qry = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.execution_date == self.execution_date)
 
         if lock_for_update:
             ti = qry.with_for_update().first()
@@ -528,7 +528,7 @@ class TaskInstance(Base, LoggingMixin):
 
             # LEGACY: most likely running from unit tests
             if not dr:
-                # Means that this TI is NOT being run from a DR, but from a catchup
+                # Means that this TaskInstance is NOT being run from a DR, but from a catchup
                 previous_scheduled_date = dag.previous_schedule(self.execution_date)
                 if not previous_scheduled_date:
                     return None
@@ -742,7 +742,7 @@ class TaskInstance(Base, LoggingMixin):
         :type ignore_all_deps: bool
         :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
         :type ignore_depends_on_past: bool
-        :param ignore_task_deps: Don't check the dependencies of this TI's task
+        :param ignore_task_deps: Don't check the dependencies of this TaskInstance's task
         :type ignore_task_deps: bool
         :param ignore_ti_state: Disregards previous task instance state
         :type ignore_ti_state: bool
@@ -1056,7 +1056,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # Let's go deeper
         try:
-            # Since this function is called only when the TI state is running,
+            # Since this function is called only when the TaskInstance state is running,
             # try_number contains the current try_number (not the next). We
             # only mark task instance as FAILED if the next task instance
             # try_number exceeds the max_tries.
@@ -1379,12 +1379,12 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def get_num_running_task_instances(self, session):
-        TI = TaskInstance
+        TaskInstance
         # .count() is inefficient
         return session.query(func.count()).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id == self.task_id,
-            TI.state == State.RUNNING
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.task_id == self.task_id,
+            TaskInstance.state == State.RUNNING
         ).scalar()
 
     def init_run_context(self, raw=False):

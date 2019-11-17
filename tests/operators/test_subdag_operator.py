@@ -24,8 +24,8 @@ from unittest.mock import Mock
 from parameterized import parameterized
 
 import airflow
-from airflow import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow import DAG, AirflowException
+from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SkippedStatePropagationOptions, SubDagOperator
 from airflow.utils.db import create_session

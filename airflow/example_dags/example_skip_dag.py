@@ -20,8 +20,8 @@
 """Example DAG demonstrating the DummyOperator and a custom DummySkipOperator which skips by default."""
 
 import airflow
+from airflow import DAG
 from airflow.exceptions import AirflowSkipException
-from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 
 args = {

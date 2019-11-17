@@ -25,8 +25,8 @@ import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
 
-from airflow import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow import DAG, AirflowException
+from airflow.models import DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator, PythonOperator, ShortCircuitOperator
 from airflow.utils import timezone
@@ -75,7 +75,7 @@ class TestPythonOperator(unittest.TestCase):
 
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
 
     def setUp(self):
         super().setUp()
@@ -94,7 +94,7 @@ class TestPythonOperator(unittest.TestCase):
 
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
 
     def do_run(self):
         self.run = True
@@ -328,7 +328,7 @@ class TestBranchOperator(unittest.TestCase):
 
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
 
     def setUp(self):
         self.dag = DAG('branch_operator_test',
@@ -345,7 +345,7 @@ class TestBranchOperator(unittest.TestCase):
 
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
 
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
@@ -359,9 +359,9 @@ class TestBranchOperator(unittest.TestCase):
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
+            tis = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.dag.dag_id,
+                TaskInstance.execution_date == DEFAULT_DATE
             )
 
             for ti in tis:
@@ -389,9 +389,9 @@ class TestBranchOperator(unittest.TestCase):
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
+            tis = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.dag.dag_id,
+                TaskInstance.execution_date == DEFAULT_DATE
             )
 
             expected = {
@@ -502,14 +502,14 @@ class TestShortCircuitOperator(unittest.TestCase):
 
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
 
     def tearDown(self):
         super().tearDown()
 
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
 
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
@@ -534,9 +534,9 @@ class TestShortCircuitOperator(unittest.TestCase):
         short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
+            tis = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.execution_date == DEFAULT_DATE
             )
 
             for ti in tis:

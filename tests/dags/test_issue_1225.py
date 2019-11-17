@@ -25,7 +25,7 @@ Addresses issue #1225.
 """
 from datetime import datetime, timedelta
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule

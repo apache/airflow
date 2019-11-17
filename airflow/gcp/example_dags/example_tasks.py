@@ -31,10 +31,10 @@ from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
 
 import airflow
+from airflow import DAG
 from airflow.gcp.operators.tasks import (
     CloudTasksQueueCreateOperator, CloudTasksTaskCreateOperator, CloudTasksTaskRunOperator,
 )
-from airflow.models import DAG
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 timestamp = timestamp_pb2.Timestamp()

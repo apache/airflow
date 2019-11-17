@@ -22,12 +22,11 @@ import unittest
 from datetime import datetime
 
 import airflow.contrib.operators.databricks_operator as databricks_operator
-from airflow import AirflowException
+from airflow import DAG, AirflowException
 from airflow.contrib.hooks.databricks_hook import RunState
 from airflow.contrib.operators.databricks_operator import (
     DatabricksRunNowOperator, DatabricksSubmitRunOperator,
 )
-from airflow.models import DAG
 from tests.compat import mock
 
 DATE = '2017-04-20'

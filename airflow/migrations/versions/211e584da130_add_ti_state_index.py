@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add TI state index
+"""add TaskInstance state index
 
 Revision ID: 211e584da130
 Revises: 2e82aab8ef20

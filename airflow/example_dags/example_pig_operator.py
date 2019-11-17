@@ -20,7 +20,7 @@
 """Example DAG demonstrating the usage of the PigOperator."""
 
 import airflow
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.pig_operator import PigOperator
 
 args = {

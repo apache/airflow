@@ -20,6 +20,7 @@
 from sqlalchemy import case, func
 
 import airflow
+from airflow.models import TaskInstance
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
@@ -36,7 +37,6 @@ class TriggerRuleDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        TI = airflow.models.TaskInstance
         TR = airflow.utils.trigger_rule.TriggerRule
 
         # Checking that all upstream dependencies have succeeded
@@ -56,20 +56,20 @@ class TriggerRuleDep(BaseTIDep):
             session
             .query(
                 func.coalesce(func.sum(
-                    case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
+                    case([(TaskInstance.state == State.SUCCESS, 1)], else_=0)), 0),
                 func.coalesce(func.sum(
-                    case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
+                    case([(TaskInstance.state == State.SKIPPED, 1)], else_=0)), 0),
                 func.coalesce(func.sum(
-                    case([(TI.state == State.FAILED, 1)], else_=0)), 0),
+                    case([(TaskInstance.state == State.FAILED, 1)], else_=0)), 0),
                 func.coalesce(func.sum(
-                    case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
-                func.count(TI.task_id),
+                    case([(TaskInstance.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
+                func.count(TaskInstance.task_id),
             )
             .filter(
-                TI.dag_id == ti.dag_id,
-                TI.task_id.in_(ti.task.upstream_task_ids),
-                TI.execution_date == ti.execution_date,
-                TI.state.in_([
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.task_id.in_(ti.task.upstream_task_ids),
+                TaskInstance.execution_date == ti.execution_date,
+                TaskInstance.state.in_([
                     State.SUCCESS, State.FAILED,
                     State.UPSTREAM_FAILED, State.SKIPPED]),
             )

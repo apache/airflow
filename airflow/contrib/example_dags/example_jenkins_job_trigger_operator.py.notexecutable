@@ -19,7 +19,7 @@
 
 
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.contrib.operators.jenkins_job_trigger_operator import JenkinsJobTriggerOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.contrib.hooks.jenkins_hook import JenkinsHook

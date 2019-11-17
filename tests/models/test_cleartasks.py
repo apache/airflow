@@ -21,9 +21,9 @@ import datetime
 import os
 import unittest
 
-from airflow import settings
+from airflow import DAG, settings
 from airflow.configuration import conf
-from airflow.models import DAG, TaskInstance as TI, XCom, clear_task_instances
+from airflow.models import TaskInstance as TaskInstance, XCom, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session
@@ -35,21 +35,21 @@ class TestClearTasks(unittest.TestCase):
 
     def tearDown(self):
         with create_session() as session:
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
 
     def test_clear_task_instances(self):
         dag = DAG('test_clear_task_instances', start_date=DEFAULT_DATE,
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task0 = DummyOperator(task_id='0', owner='test', dag=dag)
         task1 = DummyOperator(task_id='1', owner='test', dag=dag, retries=2)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ti0 = TaskInstance(task=task0, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=task1, execution_date=DEFAULT_DATE)
 
         ti0.run()
         ti1.run()
         with create_session() as session:
-            qry = session.query(TI).filter(
-                TI.dag_id == dag.dag_id).all()
+            qry = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == dag.dag_id).all()
             clear_task_instances(qry, session, dag=dag)
 
         ti0.refresh_from_db()
@@ -65,8 +65,8 @@ class TestClearTasks(unittest.TestCase):
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task0 = DummyOperator(task_id='task0', owner='test', dag=dag)
         task1 = DummyOperator(task_id='task1', owner='test', dag=dag, retries=2)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ti0 = TaskInstance(task=task0, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=task1, execution_date=DEFAULT_DATE)
         ti0.run()
         ti1.run()
 
@@ -76,8 +76,8 @@ class TestClearTasks(unittest.TestCase):
         self.assertFalse(dag.has_task(task1.task_id))
 
         with create_session() as session:
-            qry = session.query(TI).filter(
-                TI.dag_id == dag.dag_id).all()
+            qry = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == dag.dag_id).all()
             clear_task_instances(qry, session)
 
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
@@ -94,14 +94,14 @@ class TestClearTasks(unittest.TestCase):
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task0 = DummyOperator(task_id='task_0', owner='test', dag=dag)
         task1 = DummyOperator(task_id='task_1', owner='test', dag=dag, retries=2)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ti0 = TaskInstance(task=task0, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=task1, execution_date=DEFAULT_DATE)
         ti0.run()
         ti1.run()
 
         with create_session() as session:
-            qry = session.query(TI).filter(
-                TI.dag_id == dag.dag_id).all()
+            qry = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == dag.dag_id).all()
             clear_task_instances(qry, session)
 
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
@@ -117,7 +117,7 @@ class TestClearTasks(unittest.TestCase):
         dag = DAG('test_dag_clear', start_date=DEFAULT_DATE,
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task0 = DummyOperator(task_id='test_dag_clear_task_0', owner='test', dag=dag)
-        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+        ti0 = TaskInstance(task=task0, execution_date=DEFAULT_DATE)
         # Next try to run will be try 1
         self.assertEqual(ti0.try_number, 1)
         ti0.run()
@@ -130,7 +130,7 @@ class TestClearTasks(unittest.TestCase):
 
         task1 = DummyOperator(task_id='test_dag_clear_task_1', owner='test',
                               dag=dag, retries=2)
-        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=task1, execution_date=DEFAULT_DATE)
         self.assertEqual(ti1.max_tries, 2)
         ti1.try_number = 1
         # Next try will be 2
@@ -156,9 +156,8 @@ class TestClearTasks(unittest.TestCase):
         for i in range(num_of_dags):
             dag = DAG('test_dag_clear_' + str(i), start_date=DEFAULT_DATE,
                       end_date=DEFAULT_DATE + datetime.timedelta(days=10))
-            ti = TI(task=DummyOperator(task_id='test_task_clear_' + str(i), owner='test',
-                                       dag=dag),
-                    execution_date=DEFAULT_DATE)
+            ti = TaskInstance(task=DummyOperator(task_id='test_task_clear_' + str(i), owner='test', dag=dag),
+                              execution_date=DEFAULT_DATE)
             dags.append(dag)
             tis.append(ti)
 
@@ -220,8 +219,8 @@ class TestClearTasks(unittest.TestCase):
 
         t2.set_upstream(t1)
 
-        ti1 = TI(task=t1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=t1, execution_date=DEFAULT_DATE)
+        ti2 = TaskInstance(task=t2, execution_date=DEFAULT_DATE)
         ti2.run()
         # Dependency not met
         self.assertEqual(ti2.try_number, 1)

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.timezone import datetime
 

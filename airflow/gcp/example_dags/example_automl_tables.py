@@ -75,7 +75,7 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
 
 
 # Example DAG to create dataset, train model_id and deploy it.
-with models.DAG(
+with models.dag.DAG(
     "example_create_and_deploy",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
@@ -183,7 +183,7 @@ with models.DAG(
 
 
 # Example DAG for AutoML datasets operations
-with models.DAG(
+with models.dag.DAG(
     "example_automl_dataset",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
@@ -248,7 +248,7 @@ with models.DAG(
         >> delete_datasets_task  # noqa
     )
 
-with models.DAG(
+with models.dag.DAG(
     "example_gcp_get_deploy",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
@@ -272,7 +272,7 @@ with models.DAG(
     # [END howto_operator_deploy_model]
 
 
-with models.DAG(
+with models.dag.DAG(
     "example_gcp_predict",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs

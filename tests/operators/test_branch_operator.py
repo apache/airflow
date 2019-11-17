@@ -20,7 +20,8 @@
 import datetime
 import unittest
 
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow import DAG
+from airflow.models import DagRun, TaskInstance as TaskInstance
 from airflow.operators.branch_operator import BaseBranchOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -48,7 +49,7 @@ class TestBranchOperator(unittest.TestCase):
 
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
 
     def setUp(self):
         self.dag = DAG('branch_operator_test',
@@ -67,7 +68,7 @@ class TestBranchOperator(unittest.TestCase):
 
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.query(TaskInstance).delete()
 
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
@@ -79,9 +80,9 @@ class TestBranchOperator(unittest.TestCase):
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
+            tis = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.dag.dag_id,
+                TaskInstance.execution_date == DEFAULT_DATE
             )
 
             for ti in tis:
@@ -107,9 +108,9 @@ class TestBranchOperator(unittest.TestCase):
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
-            tis = session.query(TI).filter(
-                TI.dag_id == self.dag.dag_id,
-                TI.execution_date == DEFAULT_DATE
+            tis = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.dag.dag_id,
+                TaskInstance.execution_date == DEFAULT_DATE
             )
 
             expected = {

@@ -26,7 +26,7 @@ from botocore.credentials import Credentials
 from freezegun import freeze_time
 from parameterized import parameterized
 
-from airflow import AirflowException
+from airflow import DAG, AirflowException
 from airflow.gcp.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, FILTER_JOB_NAMES, GCS_DATA_SINK,
     GCS_DATA_SOURCE, HTTP_DATA_SOURCE, LIST_URL, NAME, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
@@ -40,7 +40,7 @@ from airflow.gcp.operators.cloud_storage_transfer_service import (
     GoogleCloudStorageToGoogleCloudStorageTransferOperator, S3ToGoogleCloudStorageTransferOperator,
     TransferJobPreprocessor, TransferJobValidator,
 )
-from airflow.models import DAG, TaskInstance
+from airflow.models import TaskInstance
 from airflow.utils import timezone
 from tests.compat import mock
 

@@ -20,7 +20,7 @@
 
 from datetime import datetime
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 
 for i in range(1, 2):

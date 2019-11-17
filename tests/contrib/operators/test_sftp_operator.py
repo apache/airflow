@@ -22,10 +22,10 @@ import unittest
 from base64 import b64encode
 from unittest import mock
 
-from airflow import AirflowException, models
+from airflow import DAG, AirflowException
 from airflow.contrib.operators.sftp_operator import SFTPOperation, SFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
-from airflow.models import DAG, TaskInstance
+from airflow.models import TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
@@ -38,7 +38,7 @@ TEST_CONN_ID = "conn_id_for_testing"
 
 def reset(dag_id=TEST_DAG_ID):
     session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
+    tis = session.query(TaskInstance).filter_by(dag_id=dag_id)
     tis.delete()
     session.commit()
     session.close()

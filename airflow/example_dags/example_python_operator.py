@@ -23,7 +23,7 @@ import time
 from pprint import pprint
 
 import airflow
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.python_operator import PythonOperator, PythonVirtualenvOperator
 
 args = {

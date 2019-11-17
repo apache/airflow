@@ -118,7 +118,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         )
 
         DM = DagModel
-        TI = TaskInstance
         DR = DagRun
 
         # we only do the check for 1st time, no need for subsequent poke
@@ -146,10 +145,10 @@ class ExternalTaskSensor(BaseSensorOperator):
         if self.external_task_id:
             # .count() is inefficient
             count = session.query(func.count()).filter(
-                TI.dag_id == self.external_dag_id,
-                TI.task_id == self.external_task_id,
-                TI.state.in_(self.allowed_states),
-                TI.execution_date.in_(dttm_filter),
+                TaskInstance.dag_id == self.external_dag_id,
+                TaskInstance.task_id == self.external_task_id,
+                TaskInstance.state.in_(self.allowed_states),
+                TaskInstance.execution_date.in_(dttm_filter),
             ).scalar()
         else:
             # .count() is inefficient

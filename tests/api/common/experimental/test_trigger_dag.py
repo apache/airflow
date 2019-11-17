@@ -21,9 +21,9 @@ import json
 import unittest
 from unittest import mock
 
-from airflow import AirflowException
+from airflow import DAG, AirflowException
 from airflow.api.common.experimental.trigger_dag import _trigger_dag
-from airflow.models import DAG, DagRun
+from airflow.models import DagRun
 
 
 class TestTriggerDag(unittest.TestCase):

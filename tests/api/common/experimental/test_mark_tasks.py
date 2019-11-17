@@ -84,20 +84,20 @@ class TestMarkTasks(unittest.TestCase):
 
     @staticmethod
     def snapshot_state(dag, execution_dates):
-        TI = models.TaskInstance
+        TaskInstance = models.TaskInstance
         with create_session() as session:
-            return session.query(TI).filter(
-                TI.dag_id == dag.dag_id,
-                TI.execution_date.in_(execution_dates)
+            return session.query(TaskInstance).filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.execution_date.in_(execution_dates)
             ).all()
 
     @provide_session
     def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None):
-        TI = models.TaskInstance
+        TaskInstance = models.TaskInstance
 
-        tis = session.query(TI).filter(
-            TI.dag_id == dag.dag_id,
-            TI.execution_date.in_(execution_dates)
+        tis = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.execution_date.in_(execution_dates)
         ).all()
 
         self.assertTrue(len(tis) > 0)
@@ -311,9 +311,9 @@ class TestMarkDAGRun(unittest.TestCase):
 
     @provide_session
     def _verify_task_instance_states(self, dag, date, state, session=None):
-        TI = models.TaskInstance
-        tis = session.query(TI)\
-            .filter(TI.dag_id == dag.dag_id, TI.execution_date == date)
+        TaskInstance = models.TaskInstance
+        tis = session.query(TaskInstance)\
+            .filter(TaskInstance.dag_id == dag.dag_id, TaskInstance.execution_date == date)
         for ti in tis:
             self.assertEqual(ti.state, state)
 

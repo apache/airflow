@@ -22,11 +22,12 @@ import multiprocessing
 import time
 import unittest
 
-from airflow import AirflowException, models, settings
+from ariflow.models import TaskInstance
+
+from airflow import DAG, AirflowException, models, settings
 from airflow.configuration import conf
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs import LocalTaskJob
-from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session
@@ -143,7 +144,7 @@ class TestLocalTaskJob(unittest.TestCase):
                               execution_date=DEFAULT_DATE,
                               start_date=DEFAULT_DATE,
                               session=session)
-            ti = TI(task=task, execution_date=DEFAULT_DATE)
+            ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
             ti.refresh_from_db()
             ti.state = State.RUNNING
             ti.hostname = get_hostname()
@@ -184,7 +185,7 @@ class TestLocalTaskJob(unittest.TestCase):
                           execution_date=DEFAULT_DATE,
                           start_date=DEFAULT_DATE,
                           session=session)
-        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         process = multiprocessing.Process(target=job1.run)
@@ -228,7 +229,7 @@ class TestLocalTaskJob(unittest.TestCase):
         session.merge(ti)
         session.commit()
 
-        ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+        ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti_run.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti_run,
                             executor=SequentialExecutor())

@@ -22,16 +22,14 @@ import unittest
 
 from sqlalchemy.exc import StatementError
 
-from airflow import settings
-from airflow.models import DAG
-from airflow.settings import Session
+from airflow import DAG, settings
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
 
 class TestSqlAlchemyUtils(unittest.TestCase):
     def setUp(self):
-        session = Session()
+        session = settings.Session()
 
         # make sure NOT to run in UTC. Only postgres supports storing
         # timezone information in the datetime field

@@ -42,7 +42,7 @@ import airflow.models
 from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
-from airflow.models import errors
+from airflow.models import TaskInstance, errors
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
@@ -220,12 +220,10 @@ class SimpleTaskInstance:
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
-        TI = airflow.models.TaskInstance
-
-        qry = session.query(TI).filter(
-            TI.dag_id == self._dag_id,
-            TI.task_id == self._task_id,
-            TI.execution_date == self._execution_date)
+        qry = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self._dag_id,
+            TaskInstance.task_id == self._task_id,
+            TaskInstance.execution_date == self._execution_date)
 
         if lock_for_update:
             ti = qry.with_for_update().first()
@@ -1274,15 +1272,15 @@ class DagFileProcessorManager(LoggingMixin):
             # to avoid circular imports
             from airflow.jobs import LocalTaskJob as LJ
             self.log.info("Finding 'running' jobs without a recent heartbeat")
-            TI = airflow.models.TaskInstance
+            TaskInstance = airflow.models.TaskInstance
             limit_dttm = timezone.utcnow() - timedelta(
                 seconds=self._zombie_threshold_secs)
             self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
 
             tis = (
-                session.query(TI)
-                .join(LJ, TI.job_id == LJ.id)
-                .filter(TI.state == State.RUNNING)
+                session.query(TaskInstance)
+                .join(LJ, TaskInstance.job_id == LJ.id)
+                .filter(TaskInstance.state == State.RUNNING)
                 .filter(
                     or_(
                         LJ.state != State.RUNNING,

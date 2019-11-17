@@ -40,7 +40,7 @@ class TestTriggerRuleDep(unittest.TestCase):
 
     def test_no_upstream_tasks(self):
         """
-        If the TI has no upstream TIs then there is nothing to check and the dep is passed
+        If the TaskInstance has no upstream TIs then there is nothing to check and the dep is passed
         """
         ti = self._get_task_instance(TriggerRule.ALL_DONE, State.UP_FOR_RETRY)
         self.assertTrue(TriggerRuleDep().is_met(ti=ti))

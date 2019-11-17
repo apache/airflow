@@ -208,11 +208,11 @@ class DagRun(Base, LoggingMixin):
         """
 
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
-        TI = TaskInstance
-        ti = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.execution_date == self.execution_date,
-            TI.task_id == task_id
+        TaskInstance
+        ti = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.execution_date == self.execution_date,
+            TaskInstance.task_id == task_id
         ).first()
 
         return ti

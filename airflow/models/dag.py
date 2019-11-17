@@ -577,10 +577,10 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def _get_concurrency_reached(self, session=None):
-        TI = TaskInstance
-        qry = session.query(func.count(TI.task_id)).filter(
-            TI.dag_id == self.dag_id,
-            TI.state == State.RUNNING,
+        TaskInstance
+        qry = session.query(func.count(TaskInstance.task_id)).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.state == State.RUNNING,
         )
         return qry.scalar() >= self.concurrency
 
@@ -907,20 +907,20 @@ class DAG(BaseDag, LoggingMixin):
         Clears a set of task instances associated with the current dag for
         a specified date range.
         """
-        TI = TaskInstance
-        tis = session.query(TI)
+        TaskInstance
+        tis = session.query(TaskInstance)
         if include_subdags:
             # Crafting the right filter for dag_id and task_ids combo
             conditions = []
             for dag in self.subdags + [self]:
                 conditions.append(
-                    TI.dag_id.like(dag.dag_id) &
-                    TI.task_id.in_(dag.task_ids)
+                    TaskInstance.dag_id.like(dag.dag_id) &
+                    TaskInstance.task_id.in_(dag.task_ids)
                 )
             tis = tis.filter(or_(*conditions))
         else:
-            tis = session.query(TI).filter(TI.dag_id == self.dag_id)
-            tis = tis.filter(TI.task_id.in_(self.task_ids))
+            tis = session.query(TaskInstance).filter(TaskInstance.dag_id == self.dag_id)
+            tis = tis.filter(TaskInstance.task_id.in_(self.task_ids))
 
         if include_parentdag and self.is_subdag:
 
@@ -942,15 +942,15 @@ class DAG(BaseDag, LoggingMixin):
             ))
 
         if start_date:
-            tis = tis.filter(TI.execution_date >= start_date)
+            tis = tis.filter(TaskInstance.execution_date >= start_date)
         if end_date:
-            tis = tis.filter(TI.execution_date <= end_date)
+            tis = tis.filter(TaskInstance.execution_date <= end_date)
         if only_failed:
             tis = tis.filter(or_(
-                TI.state == State.FAILED,
-                TI.state == State.UPSTREAM_FAILED))
+                TaskInstance.state == State.FAILED,
+                TaskInstance.state == State.UPSTREAM_FAILED))
         if only_running:
-            tis = tis.filter(TI.state == State.RUNNING)
+            tis = tis.filter(TaskInstance.state == State.RUNNING)
 
         if get_tis:
             return tis

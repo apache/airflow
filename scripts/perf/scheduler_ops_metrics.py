@@ -69,11 +69,10 @@ class SchedulerMetricsJob(SchedulerJob):
         Print operational metrics for the scheduler test.
         """
         session = settings.Session()
-        TI = TaskInstance
         tis = (
             session
-            .query(TI)
-            .filter(TI.dag_id.in_(DAG_IDS))
+            .query(TaskInstance)
+            .filter(TaskInstance.dag_id.in_(DAG_IDS))
             .all()
         )
         successful_tis = [x for x in tis if x.state == State.SUCCESS]
@@ -109,12 +108,11 @@ class SchedulerMetricsJob(SchedulerJob):
         super().heartbeat()
         session = settings.Session()
         # Get all the relevant task instances
-        TI = TaskInstance
         successful_tis = (
             session
-            .query(TI)
-            .filter(TI.dag_id.in_(DAG_IDS))
-            .filter(TI.state.in_([State.SUCCESS]))
+            .query(TaskInstance)
+            .filter(TaskInstance.dag_id.in_(DAG_IDS))
+            .filter(TaskInstance.state.in_([State.SUCCESS]))
             .all()
         )
         session.commit()
@@ -155,11 +153,10 @@ def clear_dag_task_instances():
     Remove any existing task instances for the perf test DAGs.
     """
     session = settings.Session()
-    TI = TaskInstance
     tis = (
         session
-        .query(TI)
-        .filter(TI.dag_id.in_(DAG_IDS))
+        .query(TaskInstance)
+        .filter(TaskInstance.dag_id.in_(DAG_IDS))
         .all()
     )
     for ti in tis:

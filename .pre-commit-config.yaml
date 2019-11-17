@@ -224,6 +224,13 @@ repos:
         pass_filenames: true
         exclude: ^airflow/__init__\.py$
         files: \.py$
+      - id: airflow-dag
+        language: pygrep
+        name: Make sure DAG is imported using 'from airflow import DAG'
+        entry: "from airflow.models import.* DAG|from airflow.models.dag import.* DAG"
+        pass_filenames: true
+        exclude: ^airflow/models/__init__\.py$|^airflow/__init__\.py$
+        files: \.py$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh

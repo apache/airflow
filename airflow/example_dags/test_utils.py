@@ -18,7 +18,7 @@
 # under the License.
 """Used for unit tests"""
 import airflow
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 
 dag = DAG(dag_id='test_utils', schedule_interval=None)

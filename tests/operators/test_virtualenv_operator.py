@@ -24,7 +24,7 @@ from subprocess import CalledProcessError
 
 import funcsigs
 
-from airflow import DAG, AirflowException
+from airflow import AirflowException
 from airflow.operators.python_operator import PythonVirtualenvOperator
 from airflow.utils import timezone
 

@@ -21,7 +21,8 @@ import os
 import unittest
 from unittest import mock
 
-from airflow.models import DAG, TaskInstance
+from airflow import DAG
+from airflow.models import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.s3_task_handler import S3TaskHandler

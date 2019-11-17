@@ -457,7 +457,7 @@ class BaseOperator(LoggingMixin):
 
         If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
+        from airflow import DAG
         if isinstance(other, DAG):
             # if this dag is already assigned, do nothing
             # otherwise, do normal dag assignment
@@ -473,7 +473,7 @@ class BaseOperator(LoggingMixin):
 
         If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
+        from airflow import DAG
         if isinstance(other, DAG):
             # if this dag is already assigned, do nothing
             # otherwise, do normal dag assignment
@@ -518,7 +518,7 @@ class BaseOperator(LoggingMixin):
         Operators can be assigned to one DAG, one time. Repeat assignments to
         that same DAG are ok.
         """
-        from airflow.models.dag import DAG
+        from airflow import DAG
         if dag is None:
             self._dag = None
             return

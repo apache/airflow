@@ -1451,7 +1451,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> from airflow.settings import *
 >>>
 >>> from datetime import datetime
->>> from airflow import DAG
+>>> from airflow.models.dag import DAG
 >>> from airflow.operators.dummy_operator import DummyOperator
 >>>
 >>> dag = DAG('simple_dag', start_date=datetime(2017, 9, 1))

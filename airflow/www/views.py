@@ -332,7 +332,7 @@ class Airflow(AirflowBaseView):
     @has_access
     @provide_session
     def task_stats(self, session=None):
-        TI = models.TaskInstance
+        TaskInstance = models.TaskInstance
         DagRun = models.DagRun
         Dag = models.DagModel
 
@@ -362,16 +362,16 @@ class Airflow(AirflowBaseView):
         # Select all task_instances from active dag_runs.
         # If no dag_run is active, return task instances from most recent dag_run.
         LastTI = (
-            session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
+            session.query(TaskInstance.dag_id.label('dag_id'), TaskInstance.state.label('state'))
                    .join(LastDagRun,
-                         and_(LastDagRun.c.dag_id == TI.dag_id,
-                              LastDagRun.c.execution_date == TI.execution_date))
+                         and_(LastDagRun.c.dag_id == TaskInstance.dag_id,
+                              LastDagRun.c.execution_date == TaskInstance.execution_date))
         )
         RunningTI = (
-            session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
+            session.query(TaskInstance.dag_id.label('dag_id'), TaskInstance.state.label('state'))
                    .join(RunningDagRun,
-                         and_(RunningDagRun.c.dag_id == TI.dag_id,
-                              RunningDagRun.c.execution_date == TI.execution_date))
+                         and_(RunningDagRun.c.dag_id == TaskInstance.dag_id,
+                              RunningDagRun.c.execution_date == TaskInstance.execution_date))
         )
 
         UnionTI = union_all(LastTI, RunningTI).alias('union_ti')
@@ -463,11 +463,11 @@ class Airflow(AirflowBaseView):
         title = "DAG details"
         root = request.args.get('root', '')
 
-        TI = models.TaskInstance
+        TaskInstance = models.TaskInstance
         states = (
-            session.query(TI.state, sqla.func.count(TI.dag_id))
-                   .filter(TI.dag_id == dag_id)
-                   .group_by(TI.state)
+            session.query(TaskInstance.state, sqla.func.count(TaskInstance.dag_id))
+                   .filter(TaskInstance.dag_id == dag_id)
+                   .group_by(TaskInstance.state)
                    .all()
         )
 
@@ -671,7 +671,7 @@ class Airflow(AirflowBaseView):
     @has_access
     @action_logging
     def task(self):
-        TI = models.TaskInstance
+        TaskInstance = models.TaskInstance
 
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
@@ -691,7 +691,7 @@ class Airflow(AirflowBaseView):
             return redirect(url_for('Airflow.index'))
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
-        ti = TI(task=task, execution_date=dttm)
+        ti = TaskInstance(task=task, execution_date=dttm)
         ti.refresh_from_db()
 
         ti_attrs = []

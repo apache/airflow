@@ -39,7 +39,7 @@ from airflow.executors.all_executors import AllExecutors
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
+from airflow.models.dag import DAG
 
 __version__ = version.version
 

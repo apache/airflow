@@ -20,10 +20,11 @@
 import unittest
 from configparser import DuplicateSectionError
 
+from airflow import DAG
 from airflow.configuration import AirflowConfigException, conf
 from airflow.lineage.backend.atlas import AtlasBackend
 from airflow.lineage.datasets import File
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import TaskInstance as TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from tests.compat import mock
@@ -69,7 +70,7 @@ class TestAtlas(unittest.TestCase):
                                 inlets={"datasets": inlets_d},
                                 outlets={"datasets": outlets_d})
 
-        ctx = {"ti": TI(task=op1, execution_date=DEFAULT_DATE)}
+        ctx = {"ti": TaskInstance(task=op1, execution_date=DEFAULT_DATE)}
 
         self.atlas.send_lineage(operator=op1, inlets=inlets_d,
                                 outlets=outlets_d, context=ctx)

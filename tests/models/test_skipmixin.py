@@ -23,8 +23,8 @@ from unittest.mock import Mock, patch
 
 import pendulum
 
-from airflow import settings
-from airflow.models import DAG, SkipMixin, TaskInstance as TI
+from airflow import DAG, settings
+from airflow.models import SkipMixin, TaskInstance as TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -55,12 +55,12 @@ class TestSkipMixin(unittest.TestCase):
             tasks=tasks,
             session=session)
 
-        session.query(TI).filter(
-            TI.dag_id == 'dag',
-            TI.task_id == 'task',
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == 'dag',
+            TaskInstance.task_id == 'task',
+            TaskInstance.state == State.SKIPPED,
+            TaskInstance.start_date == now,
+            TaskInstance.end_date == now,
         ).one()
 
     @patch('airflow.utils.timezone.utcnow')
@@ -80,12 +80,12 @@ class TestSkipMixin(unittest.TestCase):
             tasks=tasks,
             session=session)
 
-        session.query(TI).filter(
-            TI.dag_id == 'dag',
-            TI.task_id == 'task',
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == 'dag',
+            TaskInstance.task_id == 'task',
+            TaskInstance.state == State.SKIPPED,
+            TaskInstance.start_date == now,
+            TaskInstance.end_date == now,
         ).one()
 
     def test_skip_none_tasks(self):

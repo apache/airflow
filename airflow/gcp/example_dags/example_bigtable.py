@@ -77,7 +77,7 @@ default_args = {
     'start_date': airflow.utils.dates.days_ago(1)
 }
 
-with models.DAG(
+with models.dag.DAG(
     'example_gcp_bigtable_operators',
     default_args=default_args,
     schedule_interval=None  # Override to match your needs

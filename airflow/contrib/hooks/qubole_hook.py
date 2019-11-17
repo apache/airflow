@@ -123,7 +123,7 @@ class QuboleHook(BaseHook):
                 log = LoggingMixin().log
                 if cmd.status == 'done':
                     log.info('Command ID: %s has been succeeded, hence marking this '
-                             'TI as Success.', cmd_id)
+                             'TaskInstance as Success.', cmd_id)
                     ti.state = State.SUCCESS
                 elif cmd.status == 'running':
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)

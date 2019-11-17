@@ -20,9 +20,9 @@
 import datetime
 import unittest
 
-from airflow import models, settings
+from airflow import DAG, models, settings
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models import DagRun, TaskInstance as TaskInstance, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.utils import timezone
@@ -71,11 +71,11 @@ class TestDagRun(unittest.TestCase):
         self.create_dag_run(dag, execution_date=now, is_backfill=True)
 
         task0 = DummyOperator(task_id='backfill_task_0', owner='test', dag=dag)
-        ti0 = TI(task=task0, execution_date=now)
+        ti0 = TaskInstance(task=task0, execution_date=now)
         ti0.run()
 
-        qry = session.query(TI).filter(
-            TI.dag_id == dag.dag_id).all()
+        qry = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dag.dag_id).all()
         clear_task_instances(qry, session)
         session.commit()
         ti0.refresh_from_db()

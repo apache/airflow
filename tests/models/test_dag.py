@@ -29,10 +29,10 @@ from unittest.mock import patch
 
 import pendulum
 
-from airflow import AirflowException, models, settings
+from airflow import DAG, AirflowException, models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowDagCycleException, DuplicateTaskIdFound
-from airflow.models import DAG, DagModel, TaskInstance as TI
+from airflow.models import DagModel, TaskInstance
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
@@ -383,13 +383,13 @@ class TestDag(unittest.TestCase):
         test_dag = DAG(dag_id=test_dag_id, start_date=DEFAULT_DATE)
         test_task = DummyOperator(task_id=test_task_id, dag=test_dag)
 
-        ti1 = TI(task=test_task, execution_date=DEFAULT_DATE)
+        ti1 = TaskInstance(task=test_task, execution_date=DEFAULT_DATE)
         ti1.state = None
-        ti2 = TI(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+        ti2 = TaskInstance(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
         ti2.state = State.RUNNING
-        ti3 = TI(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=2))
+        ti3 = TaskInstance(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=2))
         ti3.state = State.QUEUED
-        ti4 = TI(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=3))
+        ti4 = TaskInstance(task=test_task, execution_date=DEFAULT_DATE + datetime.timedelta(days=3))
         ti4.state = State.RUNNING
         session = settings.Session()
         session.merge(ti1)

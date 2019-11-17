@@ -20,7 +20,7 @@
 
 from datetime import timedelta
 
-from airflow.models import DAG
+from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.timezone import datetime
 
