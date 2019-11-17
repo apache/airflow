@@ -45,7 +45,7 @@ import airflow
 from airflow import api, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.commands import (
-    role_command, rotate_fernet_key_command, sync_perm_command, task_command, user_command,
+    pool_command, role_command, rotate_fernet_key_command, sync_perm_command, task_command, user_command,
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
@@ -224,109 +224,6 @@ def dag_delete(args):
         log.info(message)
     else:
         print("Bail.")
-
-
-def _tabulate_pools(pools, tablefmt="fancy_grid"):
-    return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
-                             tablefmt=tablefmt)
-
-
-def pool_list(args):
-    """Displays info of all the pools"""
-    api_client = get_current_api_client()
-    log = LoggingMixin().log
-    pools = api_client.get_pools()
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-def pool_get(args):
-    """Displays pool info by a given name"""
-    api_client = get_current_api_client()
-    log = LoggingMixin().log
-    pools = [api_client.get_pool(name=args.pool)]
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-@cli_utils.action_logging
-def pool_set(args):
-    """Creates new pool with a given name and slots"""
-    api_client = get_current_api_client()
-    log = LoggingMixin().log
-    pools = [api_client.create_pool(name=args.pool,
-                                    slots=args.slots,
-                                    description=args.description)]
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-@cli_utils.action_logging
-def pool_delete(args):
-    """Deletes pool by a given name"""
-    api_client = get_current_api_client()
-    log = LoggingMixin().log
-    pools = [api_client.delete_pool(name=args.pool)]
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-@cli_utils.action_logging
-def pool_import(args):
-    """Imports pools from the file"""
-    api_client = get_current_api_client()
-    log = LoggingMixin().log
-    if os.path.exists(args.file):
-        pools = pool_import_helper(args.file)
-    else:
-        print("Missing pools file.")
-        pools = api_client.get_pools()
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-def pool_export(args):
-    """Exports all of the pools to the file"""
-    log = LoggingMixin().log
-    pools = pool_export_helper(args.file)
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-def pool_import_helper(filepath):
-    """Helps import pools from the json file"""
-    api_client = get_current_api_client()
-
-    with open(filepath, 'r') as poolfile:
-        data = poolfile.read()
-    try:  # pylint: disable=too-many-nested-blocks
-        pools_json = json.loads(data)
-    except Exception as e:  # pylint: disable=broad-except
-        print("Please check the validity of the json file: " + str(e))
-    else:
-        try:
-            pools = []
-            counter = 0
-            for k, v in pools_json.items():
-                if isinstance(v, dict) and len(v) == 2:
-                    pools.append(api_client.create_pool(name=k,
-                                                        slots=v["slots"],
-                                                        description=v["description"]))
-                    counter += 1
-                else:
-                    pass
-        except Exception:  # pylint: disable=broad-except
-            pass
-        finally:
-            print("{} of {} pool(s) successfully updated.".format(counter, len(pools_json)))
-            return pools  # pylint: disable=lost-exception
-
-
-def pool_export_helper(filepath):
-    """Helps export all of the pools to the json file"""
-    api_client = get_current_api_client()
-    pool_dict = {}
-    pools = api_client.get_pools()
-    for pool in pools:
-        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
-    with open(filepath, 'w') as poolfile:
-        poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
-    print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
-    return pools
 
 
 def variables_list(args):
@@ -1880,37 +1777,37 @@ class CLIFactory:
             'name': 'pools',
             'subcommands': (
                 {
-                    'func': pool_list,
+                    'func': pool_command.pool_list,
                     'name': 'list',
                     'help': 'List pools',
                     'args': ('output',),
                 },
                 {
-                    'func': pool_get,
+                    'func': pool_command.pool_get,
                     'name': 'get',
                     'help': 'Get pool size',
                     'args': ('pool_name', 'output',),
                 },
                 {
-                    'func': pool_set,
+                    'func': pool_command.pool_set,
                     'name': 'set',
                     'help': 'Configure pool',
                     'args': ('pool_name', 'pool_slots', 'pool_description', 'output',),
                 },
                 {
-                    'func': pool_delete,
+                    'func': pool_command.pool_delete,
                     'name': 'delete',
                     'help': 'Delete pool',
                     'args': ('pool_name', 'output',),
                 },
                 {
-                    'func': pool_import,
+                    'func': pool_command.pool_import,
                     'name': 'import',
                     'help': 'Import pool',
                     'args': ('pool_import', 'output',),
                 },
                 {
-                    'func': pool_export,
+                    'func': pool_command.pool_export,
                     'name': 'export',
                     'help': 'Export pool',
                     'args': ('pool_export', 'output',),
