@@ -23,17 +23,14 @@ import argparse
 import os
 import textwrap
 from argparse import RawTextHelpFormatter
+from typing import Callable
 
 from tabulate import tabulate_formats
 
 from airflow import api, settings
-from airflow.cli.commands import (
-    connection_command, dag_command, db_command, flower_command, kerberos_command, pool_command, role_command,
-    rotate_fernet_key_command, scheduler_command, serve_logs_command, sync_perm_command, task_command,
-    user_command, variable_command, version_command, webserver_command, worker_command,
-)
 from airflow.configuration import conf
 from airflow.utils.cli import alternative_conn_specs
+from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
 
 api.load_auth()
@@ -42,6 +39,19 @@ DAGS_FOLDER = settings.DAGS_FOLDER
 
 if "BUILDING_AIRFLOW_DOCS" in os.environ:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
+
+
+def lazy_load_command(import_path: str) -> Callable:
+    """Create a lazy loader for command"""
+    _, _, name = import_path.rpartition('.')
+
+    def command(*args, **kwargs):
+        func = import_string(import_path)
+        return func(*args, **kwargs)
+
+    command.__name__ = name  # type: ignore
+
+    return command
 
 
 class Arg:
@@ -574,13 +584,13 @@ class CLIFactory:
             'name': 'dags',
             'subcommands': (
                 {
-                    'func': dag_command.dag_list_dags,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
                     'name': 'list',
                     'help': "List all the DAGs",
                     'args': ('subdir', 'report'),
                 },
                 {
-                    'func': dag_command.dag_list_dag_runs,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
                     'name': 'list_runs',
                     'help': "List dag runs given a DAG id. If state option is given, it will only "
                             "search for all the dagruns with the given state. "
@@ -589,55 +599,55 @@ class CLIFactory:
                     'args': ('dag_id', 'no_backfill', 'state'),
                 },
                 {
-                    'func': dag_command.dag_list_jobs,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
                     'name': 'list_jobs',
                     'help': "List the jobs",
                     'args': ('dag_id_opt', 'state', 'limit', 'output',),
                 },
                 {
-                    'func': dag_command.dag_state,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_state'),
                     'name': 'state',
                     'help': "Get the status of a dag run",
                     'args': ('dag_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': dag_command.dag_next_execution,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
                     'name': 'next_execution',
                     'help': "Get the next execution datetime of a DAG.",
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': dag_command.dag_pause,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_pause'),
                     'name': 'pause',
                     'help': 'Pause a DAG',
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': dag_command.dag_unpause,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_unpause'),
                     'name': 'unpause',
                     'help': 'Resume a paused DAG',
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': dag_command.dag_trigger,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_trigger'),
                     'name': 'trigger',
                     'help': 'Trigger a DAG run',
                     'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
                 },
                 {
-                    'func': dag_command.dag_delete,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_delete'),
                     'name': 'delete',
                     'help': "Delete all DB records related to the specified DAG",
                     'args': ('dag_id', 'yes'),
                 },
                 {
-                    'func': dag_command.dag_show,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_show'),
                     'name': 'show',
                     'help': "Displays DAG's tasks with their dependencies",
                     'args': ('dag_id', 'subdir', 'save', 'imgcat',),
                 },
                 {
-                    'func': dag_command.dag_backfill,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_backfill'),
                     'name': 'backfill',
                     'help': "Run subsections of a DAG for a specified date range. "
                             "If reset_dag_run option is used,"
@@ -661,13 +671,13 @@ class CLIFactory:
             'name': 'tasks',
             'subcommands': (
                 {
-                    'func': task_command.task_list,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_list'),
                     'name': 'list',
                     'help': "List the tasks within a DAG",
                     'args': ('dag_id', 'tree', 'subdir'),
                 },
                 {
-                    'func': task_command.task_clear,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_clear'),
                     'name': 'clear',
                     'help': "Clear a set of task instance, as if they never ran",
                     'args': (
@@ -676,13 +686,13 @@ class CLIFactory:
                         'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
                 },
                 {
-                    'func': task_command.task_state,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_state'),
                     'name': 'state',
                     'help': "Get the status of a task instance",
                     'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': task_command.task_failed_deps,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_failed_deps'),
                     'name': 'failed_deps',
                     'help': (
                         "Returns the unmet dependencies for a task instance from the perspective "
@@ -692,13 +702,13 @@ class CLIFactory:
                     'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': task_command.task_render,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_render'),
                     'name': 'render',
                     'help': "Render a task instance's template(s)",
                     'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': task_command.task_run,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_run'),
                     'name': 'run',
                     'help': "Run a single task instance",
                     'args': (
@@ -708,7 +718,7 @@ class CLIFactory:
                         'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id', 'interactive',),
                 },
                 {
-                    'func': task_command.task_test,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_test'),
                     'name': 'test',
                     'help': (
                         "Test a task instance. This will run a task without checking for "
@@ -723,37 +733,37 @@ class CLIFactory:
             'name': 'pools',
             'subcommands': (
                 {
-                    'func': pool_command.pool_list,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_list'),
                     'name': 'list',
                     'help': 'List pools',
                     'args': ('output',),
                 },
                 {
-                    'func': pool_command.pool_get,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_get'),
                     'name': 'get',
                     'help': 'Get pool size',
                     'args': ('pool_name', 'output',),
                 },
                 {
-                    'func': pool_command.pool_set,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_set'),
                     'name': 'set',
                     'help': 'Configure pool',
                     'args': ('pool_name', 'pool_slots', 'pool_description', 'output',),
                 },
                 {
-                    'func': pool_command.pool_delete,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_delete'),
                     'name': 'delete',
                     'help': 'Delete pool',
                     'args': ('pool_name', 'output',),
                 },
                 {
-                    'func': pool_command.pool_import,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
                     'name': 'import',
                     'help': 'Import pool',
                     'args': ('pool_import', 'output',),
                 },
                 {
-                    'func': pool_command.pool_export,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
                     'name': 'export',
                     'help': 'Export pool',
                     'args': ('pool_export', 'output',),
@@ -764,37 +774,37 @@ class CLIFactory:
             'name': 'variables',
             'subcommands': (
                 {
-                    'func': variable_command.variables_list,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_list'),
                     'name': 'list',
                     'help': 'List variables',
                     'args': (),
                 },
                 {
-                    'func': variable_command.variables_get,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
                     'name': 'get',
                     'help': 'Get variable',
                     'args': ('var', 'json', 'default'),
                 },
                 {
-                    'func': variable_command.variables_set,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_set'),
                     'name': 'set',
                     'help': 'Set variable',
                     'args': ('var', 'var_value', 'json'),
                 },
                 {
-                    'func': variable_command.variables_delete,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_delete'),
                     'name': 'delete',
                     'help': 'Delete variable',
                     'args': ('var',),
                 },
                 {
-                    'func': variable_command.variables_import,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_import'),
                     'name': 'import',
                     'help': 'Import variables',
                     'args': ('var_import',),
                 },
                 {
-                    'func': variable_command.variables_export,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_export'),
                     'name': 'export',
                     'help': 'Export variables',
                     'args': ('var_export',),
@@ -807,57 +817,64 @@ class CLIFactory:
             'name': 'db',
             'subcommands': (
                 {
-                    'func': db_command.initdb,
+                    'func': lazy_load_command('airflow.cli.commands.db_command.initdb'),
                     'name': 'init',
                     'help': "Initialize the metadata database",
                     'args': (),
                 },
                 {
-                    'func': db_command.resetdb,
+                    'func': lazy_load_command('airflow.cli.commands.db_command.resetdb'),
                     'name': 'reset',
                     'help': "Burn down and rebuild the metadata database",
                     'args': ('yes',),
                 },
                 {
-                    'func': db_command.upgradedb,
+                    'func': lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
                     'name': 'upgrade',
                     'help': "Upgrade the metadata database to latest version",
                     'args': tuple(),
                 },
             ),
         }, {
-            'func': kerberos_command.kerberos,
+            'name': 'kerberos',
+            'func': lazy_load_command('airflow.cli.commands.kerberos_command.kerberos'),
             'help': "Start a kerberos ticket renewer",
             'args': ('principal', 'keytab', 'pid',
                      'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
-            'func': serve_logs_command.serve_logs,
+            'name': 'serve_logs',
+            'func': lazy_load_command('airflow.cli.commands.serve_logs_command.serve_logs'),
             'help': "Serve logs generate by worker",
             'args': tuple(),
         }, {
-            'func': webserver_command.webserver,
+            'name': 'webserver',
+            'func': lazy_load_command('airflow.cli.commands.webserver_command.webserver'),
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
                      'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
         }, {
-            'func': scheduler_command.scheduler,
+            'name': 'scheduler',
+            'func': lazy_load_command('airflow.cli.commands.scheduler_command.scheduler'),
             'help': "Start a scheduler instance",
             'args': ('dag_id_opt', 'subdir', 'num_runs',
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
         }, {
-            'func': worker_command.worker,
+            'name': 'worker',
+            'func': lazy_load_command('airflow.cli.commands.worker_command.worker'),
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale'),
         }, {
-            'func': flower_command.flower,
+            'name': 'flower',
+            'func': lazy_load_command('airflow.cli.commands.flower_command.flower'),
             'help': "Start a Celery Flower",
             'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
                      'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
-            'func': version_command.version,
+            'name': 'version',
+            'func': lazy_load_command('airflow.cli.commands.version_command.version'),
             'help': "Show the version",
             'args': tuple(),
         }, {
@@ -865,19 +882,19 @@ class CLIFactory:
             'name': 'connections',
             'subcommands': (
                 {
-                    'func': connection_command.connections_list,
+                    'func': lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
                     'name': 'list',
                     'help': 'List connections',
                     'args': ('output',),
                 },
                 {
-                    'func': connection_command.connections_add,
+                    'func': lazy_load_command('airflow.cli.commands.connection_command.connections_add'),
                     'name': 'add',
                     'help': 'Add a connection',
                     'args': ('conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
                 },
                 {
-                    'func': connection_command.connections_delete,
+                    'func': lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
                     'name': 'delete',
                     'help': 'Delete a connection',
                     'args': ('conn_id',),
@@ -888,44 +905,44 @@ class CLIFactory:
             'name': 'users',
             'subcommands': (
                 {
-                    'func': user_command.users_list,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_list'),
                     'name': 'list',
                     'help': 'List users',
                     'args': ('output',),
                 },
                 {
-                    'func': user_command.users_create,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_create'),
                     'name': 'create',
                     'help': 'Create a user',
                     'args': ('role', 'username', 'email', 'firstname', 'lastname', 'password',
                              'use_random_password')
                 },
                 {
-                    'func': user_command.users_delete,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_delete'),
                     'name': 'delete',
                     'help': 'Delete a user',
                     'args': ('username',),
                 },
                 {
-                    'func': user_command.add_role,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.add_role'),
                     'name': 'add_role',
                     'help': 'Add role to a user',
                     'args': ('username_optional', 'email_optional', 'role'),
                 },
                 {
-                    'func': user_command.remove_role,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.remove_role'),
                     'name': 'remove_role',
                     'help': 'Remove role from a user',
                     'args': ('username_optional', 'email_optional', 'role'),
                 },
                 {
-                    'func': user_command.users_import,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_import'),
                     'name': 'import',
                     'help': 'Import a user',
                     'args': ('user_import',),
                 },
                 {
-                    'func': user_command.users_export,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_export'),
                     'name': 'export',
                     'help': 'Export a user',
                     'args': ('user_export',),
@@ -936,32 +953,34 @@ class CLIFactory:
             'name': 'roles',
             'subcommands': (
                 {
-                    'func': role_command.roles_list,
+                    'func': lazy_load_command('airflow.cli.commands.role_command.roles_list'),
                     'name': 'list',
                     'help': 'List roles',
                     'args': ('output',),
                 },
                 {
-                    'func': role_command.roles_create,
+                    'func': lazy_load_command('airflow.cli.commands.role_command.roles_create'),
                     'name': 'create',
                     'help': 'Create role',
                     'args': ('roles',),
                 },
             ),
         }, {
-            'func': sync_perm_command.sync_perm,
+            'name': 'sync_perm',
+            'func': lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
             'help': "Update permissions for existing roles and DAGs.",
             'args': tuple(),
         },
         {
-            'func': rotate_fernet_key_command.rotate_fernet_key,
+            'name': 'rotate_fernet_key',
+            'func': lazy_load_command('airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key'),
             'help': 'Rotate all encrypted connection credentials and variables; see '
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
                     '#rotating-encryption-keys.',
             'args': (),
         },
     )
-    subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}
+    subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
     dag_subparsers = (
         'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
 
@@ -982,7 +1001,9 @@ class CLIFactory:
     @classmethod
     def _add_subcommand(cls, subparsers, sub):
         dag_parser = False
-        sub_proc = subparsers.add_parser(sub.get('name') or sub['func'].__name__, help=sub['help'])
+        sub_proc = subparsers.add_parser(
+            sub.get('name') or sub['func'].__name__, help=sub['help']  # type: ignore
+        )
         sub_proc.formatter_class = RawTextHelpFormatter
 
         subcommands = sub.get('subcommands', [])
