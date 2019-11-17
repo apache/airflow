@@ -6,7 +6,7 @@
  to you under the Apache License, Version 2.0 (the
  "License"); you may not use this file except in compliance
  with the License.  You may obtain a copy of the License at
-https://guides.github.com/activities/hello-world/
+
    http://www.apache.org/licenses/LICENSE-2.0
 
  Unless required by applicable law or agreed to in writing,
@@ -848,7 +848,6 @@ compatibility, this option is enabled by default.
 
 ### Changes in Google Cloud Platform related operators
 
-
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
 the project id configured in
 [GCP Connection](https://airflow.apache.org/howto/manage-connections.html#connection-type-gcp) is used.
@@ -891,6 +890,13 @@ Other GCP hooks are unaffected.
 ### Changed behaviour of using default value when accessing variables
 It's now possible to use `None` as a default value with the `default_var` parameter when getting a variable, e.g.
 
+```python
+foo = Variable.get("foo", default_var=None)
+if foo is None:
+    handle_missing_foo()
+```
+
+(Note: there is already `Variable.setdefault()` which me be helpful in some cases.)
 
 This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, then don't pass the `default_var` argument.
 
