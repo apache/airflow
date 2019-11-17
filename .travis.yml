@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-dist: xenial
+dist: bionic
 language: python
 env:
   global:
@@ -33,12 +33,16 @@ stages:
 jobs:
   include:
     - name: "Static checks"
-      python: "3.5"
+      python: "3.6"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_tests.sh
-      env: AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+      env: >-
+        PYTHON_VERSION=3.6
+        AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
     - name: "Build documentation"
-      python: "3.5"
+      env: >-
+        PYTHON_VERSION=3.6
+      python: "3.6"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
     - name: "Tests postgres kubernetes python 3.6 (persistent)"
@@ -66,12 +70,12 @@ jobs:
         PYTHON_VERSION=3.6
       python: "3.6"
       stage: test
-    - name: "Tests sqlite python 3.5"
+    - name: "Tests sqlite python 3.6"
       env:
         BACKEND=sqlite
         ENV=docker
-        PYTHON_VERSION=3.5
-      python: "3.5"
+        PYTHON_VERSION=3.6
+      python: "3.6"
       stage: test
     - name: "Tests mysql python 3.7"
       env:
