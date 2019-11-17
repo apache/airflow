@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from past.builtins import basestring
-
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -51,19 +49,19 @@ class NamedHivePartitionSensor(BaseSensorOperator):
                  hook=None,
                  *args,
                  **kwargs):
-        super(NamedHivePartitionSensor, self).__init__(
+        super().__init__(
             poke_interval=poke_interval, *args, **kwargs)
 
-        if isinstance(partition_names, basestring):
+        if isinstance(partition_names, str):
             raise TypeError('partition_names must be an array of strings')
 
         self.metastore_conn_id = metastore_conn_id
         self.partition_names = partition_names
         self.hook = hook
         if self.hook and metastore_conn_id != 'metastore_default':
-            self.log.warning('A hook was passed but a non default'
-                             'metastore_conn_id='
-                             '{} was used'.format(metastore_conn_id))
+            self.log.warning(
+                'A hook was passed but a non defaul metastore_conn_id=%s was used', metastore_conn_id
+            )
 
     @staticmethod
     def parse_partition_name(partition):
@@ -89,9 +87,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
         schema, table, partition = self.parse_partition_name(partition)
 
-        self.log.info(
-            'Poking for {schema}.{table}/{partition}'.format(**locals())
-        )
+        self.log.info('Poking for %s.%s/%s', schema, table, partition)
         return self.hook.check_for_named_partition(
             schema, table, partition)
 

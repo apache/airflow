@@ -20,7 +20,6 @@
 """
 Utilities module for cli
 """
-from __future__ import absolute_import
 
 import functools
 import getpass
@@ -30,7 +29,7 @@ import sys
 from argparse import Namespace
 from datetime import datetime
 
-from airflow.models.log import Log
+from airflow.models import Log
 from airflow.utils import cli_action_loggers
 
 
@@ -60,8 +59,9 @@ def action_logging(f):
         """
         An wrapper for cli functions. It assumes to have Namespace instance
         at 1st positional argument
+
         :param args: Positional argument. It assumes to have Namespace instance
-        at 1st positional argument
+            at 1st positional argument
         :param kwargs: A passthrough keyword argument
         """
         assert args
@@ -104,7 +104,7 @@ def _build_metrics(func_name, namespace):
     metrics['execution_date'] = tmp_dic.get('execution_date')
     metrics['host_name'] = socket.gethostname()
 
-    extra = json.dumps(dict((k, metrics[k]) for k in ('host_name', 'full_command')))
+    extra = json.dumps({k: metrics[k] for k in ('host_name', 'full_command')})
     log = Log(
         event='cli_{}'.format(func_name),
         task_instance=None,

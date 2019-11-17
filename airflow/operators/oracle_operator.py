@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Iterable, Mapping, Optional, Union
 
 from airflow.hooks.oracle_hook import OracleHook
 from airflow.models import BaseOperator
@@ -46,9 +47,13 @@ class OracleOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, sql, oracle_conn_id='oracle_default', parameters=None,
-            autocommit=False, *args, **kwargs):
-        super(OracleOperator, self).__init__(*args, **kwargs)
+            self,
+            sql: str,
+            oracle_conn_id: str = 'oracle_default',
+            parameters: Optional[Union[Mapping, Iterable]] = None,
+            autocommit: bool = False,
+            *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.oracle_conn_id = oracle_conn_id
         self.sql = sql
         self.autocommit = autocommit

@@ -18,11 +18,12 @@
 # under the License.
 import json
 
-from airflow.contrib.hooks.mongo_hook import MongoHook
-from airflow.hooks.S3_hook import S3Hook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from bson import json_util
+
+from airflow.contrib.hooks.mongo_hook import MongoHook
+from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.utils.decorators import apply_defaults
 
 
 class MongoToS3Operator(BaseOperator):
@@ -51,7 +52,7 @@ class MongoToS3Operator(BaseOperator):
                  mongo_db=None,
                  replace=False,
                  *args, **kwargs):
-        super(MongoToS3Operator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # Conn Ids
         self.mongo_conn_id = mongo_conn_id
         self.s3_conn_id = s3_conn_id

@@ -20,10 +20,12 @@
 """
 RedisHook module
 """
-from redis import StrictRedis
+from redis import Redis
+
 from airflow.hooks.base_hook import BaseHook
 
 
+# noinspection PyAbstractClass
 class RedisHook(BaseHook):
     """
     Wrapper for connection to interact with Redis in-memory data structure store
@@ -57,7 +59,7 @@ class RedisHook(BaseHook):
                 'Initializing redis object for conn_id "%s" on %s:%s:%s',
                 self.redis_conn_id, self.host, self.port, self.db
             )
-            self.redis = StrictRedis(
+            self.redis = Redis(
                 host=self.host,
                 port=self.port,
                 password=self.password,

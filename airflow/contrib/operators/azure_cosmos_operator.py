@@ -47,7 +47,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
                  azure_cosmos_conn_id='azure_cosmos_default',
                  *args,
                  **kwargs):
-        super(AzureCosmosInsertDocumentOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.database_name = database_name
         self.collection_name = collection_name
         self.document = document

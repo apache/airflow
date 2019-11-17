@@ -18,17 +18,17 @@
 # under the License.
 
 
-from time import sleep
 from datetime import timedelta
+from time import sleep
+from typing import Dict, Iterable
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, \
-    AirflowSkipException, AirflowRescheduleException
-from airflow.models import BaseOperator
-from airflow.models.skipmixin import SkipMixin
-from airflow.models.taskreschedule import TaskReschedule
+from airflow.exceptions import (
+    AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
+)
+from airflow.models import BaseOperator, SkipMixin, TaskReschedule
+from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
-from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -50,46 +50,56 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         When set to ``poke`` the sensor is taking up a worker slot for its
         whole execution time and sleeps between pokes. Use this mode if the
         expected runtime of the sensor is short or if a short poke interval
-        is required.
+        is required. Note that the sensor will hold onto a worker slot and
+        a pool slot for the duration of the sensor's runtime in this mode.
         When set to ``reschedule`` the sensor task frees the worker slot when
         the criteria is not yet met and it's rescheduled at a later time. Use
-        this mode if the expected time until the criteria is met is. The poke
-        interval should be more than one minute to prevent too much load on
-        the scheduler.
+        this mode if the time before the criteria is met is expected to be
+        quite long. The poke interval should be more than one minute to
+        prevent too much load on the scheduler.
     :type mode: str
     """
-    ui_color = '#e6f1f2'
-    valid_modes = ['poke', 'reschedule']
+    ui_color = '#e6f1f2'  # type: str
+    valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
 
     @apply_defaults
     def __init__(self,
-                 poke_interval=60,
-                 timeout=60 * 60 * 24 * 7,
-                 soft_fail=False,
-                 mode='poke',
+                 poke_interval: float = 60,
+                 timeout: float = 60 * 60 * 24 * 7,
+                 soft_fail: bool = False,
+                 mode: str = 'poke',
                  *args,
-                 **kwargs):
-        super(BaseSensorOperator, self).__init__(*args, **kwargs)
+                 **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout
-        if mode not in self.valid_modes:
+        self.mode = mode
+        self._validate_input_values()
+
+    def _validate_input_values(self) -> None:
+        if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
+            raise AirflowException(
+                "The poke_interval must be a non-negative number")
+        if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
+            raise AirflowException(
+                "The timeout must be a non-negative number")
+        if self.mode not in self.valid_modes:
             raise AirflowException(
                 "The mode must be one of {valid_modes},"
                 "'{d}.{t}'; received '{m}'."
                 .format(valid_modes=self.valid_modes,
                         d=self.dag.dag_id if self.dag else "",
-                        t=self.task_id, m=mode))
-        self.mode = mode
+                        t=self.task_id, m=self.mode))
 
-    def poke(self, context):
+    def poke(self, context: Dict) -> bool:
         """
         Function that the sensors defined while deriving this class should
         override.
         """
         raise AirflowException('Override me.')
 
-    def execute(self, context):
+    def execute(self, context: Dict) -> None:
         started_at = timezone.utcnow()
         if self.reschedule:
             # If reschedule, use first start date of current try
@@ -114,7 +124,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 sleep(self.poke_interval)
         self.log.info("Success criteria met. Exiting.")
 
-    def _do_skip_downstream_tasks(self, context):
+    def _do_skip_downstream_tasks(self, context: Dict) -> None:
         downstream_tasks = context['task'].get_flat_relatives(upstream=False)
         self.log.debug("Downstream task_ids %s", downstream_tasks)
         if downstream_tasks:

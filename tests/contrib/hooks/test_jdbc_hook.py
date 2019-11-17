@@ -18,15 +18,12 @@
 # under the License.
 #
 
-import unittest
 import json
+import unittest
+from unittest.mock import Mock, patch
 
-from mock import Mock
-from mock import patch
-
-from airflow import configuration
 from airflow.hooks.jdbc_hook import JdbcHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 
 jdbc_conn_mock = Mock(
@@ -36,7 +33,6 @@ jdbc_conn_mock = Mock(
 
 class TestJdbcHook(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='jdbc_default', conn_type='jdbc',
@@ -51,7 +47,21 @@ class TestJdbcHook(unittest.TestCase):
         jdbc_conn = jdbc_hook.get_conn()
         self.assertTrue(jdbc_mock.called)
         self.assertIsInstance(jdbc_conn, Mock)
-        self.assertEqual(jdbc_conn.name, jdbc_mock.return_value.name)
+        self.assertEqual(jdbc_conn.name, jdbc_mock.return_value.name)  # pylint: disable=no-member
+
+    @patch("airflow.hooks.jdbc_hook.jaydebeapi.connect")
+    def test_jdbc_conn_set_autocommit(self, _):
+        jdbc_hook = JdbcHook()
+        jdbc_conn = jdbc_hook.get_conn()
+        jdbc_hook.set_autocommit(jdbc_conn, False)
+        jdbc_conn.jconn.setAutoCommit.assert_called_once_with(False)
+
+    @patch("airflow.hooks.jdbc_hook.jaydebeapi.connect")
+    def test_jdbc_conn_get_autocommit(self, _):
+        jdbc_hook = JdbcHook()
+        jdbc_conn = jdbc_hook.get_conn()
+        jdbc_hook.get_autocommit(jdbc_conn)
+        jdbc_conn.jconn.getAutoCommit.assert_called_once_with()
 
 
 if __name__ == '__main__':

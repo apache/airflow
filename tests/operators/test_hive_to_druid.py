@@ -18,11 +18,12 @@
 # under the License.
 #
 
-import requests
-import requests_mock
 import unittest
 
-from airflow import DAG, configuration
+import requests
+import requests_mock
+
+from airflow import DAG
 from airflow.operators.hive_to_druid import HiveToDruidTransfer
 
 
@@ -61,9 +62,8 @@ class TestDruidHook(unittest.TestCase):
     }
 
     def setUp(self):
-        super(TestDruidHook, self).setUp()
+        super().setUp()
 
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': '2017-01-01'

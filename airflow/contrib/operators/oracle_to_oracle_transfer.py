@@ -55,7 +55,7 @@ class OracleToOracleTransfer(BaseOperator):
             source_sql_params=None,
             rows_chunk=5000,
             *args, **kwargs):
-        super(OracleToOracleTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if source_sql_params is None:
             source_sql_params = {}
         self.oracle_destination_conn_id = oracle_destination_conn_id
@@ -68,8 +68,7 @@ class OracleToOracleTransfer(BaseOperator):
     def _execute(self, src_hook, dest_hook, context):
         with src_hook.get_conn() as src_conn:
             cursor = src_conn.cursor()
-            self.log.info("Querying data from source: {0}".format(
-                self.oracle_source_conn_id))
+            self.log.info("Querying data from source: %s", self.oracle_source_conn_id)
             cursor.execute(self.source_sql, self.source_sql_params)
             target_fields = list(map(lambda field: field[0], cursor.description))
 
@@ -81,7 +80,7 @@ class OracleToOracleTransfer(BaseOperator):
                                            target_fields=target_fields,
                                            commit_every=self.rows_chunk)
                 rows = cursor.fetchmany(self.rows_chunk)
-                self.log.info("Total inserted: {0} rows".format(rows_total))
+                self.log.info("Total inserted: %s rows", rows_total)
 
             self.log.info("Finished data transfer.")
             cursor.close()

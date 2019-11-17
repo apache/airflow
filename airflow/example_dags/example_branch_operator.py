@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Example DAG demonstrating the usage of the BranchPythonOperator."""
+
 import random
 
 import airflow
@@ -25,7 +27,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
 }
 

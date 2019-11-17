@@ -16,7 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import six
+import json
+from typing import List
 
 from jinja2 import Environment
 
@@ -27,8 +28,8 @@ def _inherited(cls):
     )
 
 
-class DataSet(object):
-    attributes = []
+class DataSet:
+    attributes = []  # type: List[str]
     type_name = "dataSet"
 
     def __init__(self, qualified_name=None, data=None, **kwargs):
@@ -36,15 +37,13 @@ class DataSet(object):
         self.context = None
         self._data = dict()
 
-        self._data.update(dict((key, value) for key, value in six.iteritems(kwargs)
-                               if key in set(self.attributes)))
+        self._data.update({key: value for key, value in kwargs.items() if key in set(self.attributes)})
 
         if data:
             if "qualifiedName" in data:
                 self._qualified_name = data.pop("qualifiedName")
 
-            self._data = dict((key, value) for key, value in six.iteritems(data)
-                              if key in set(self.attributes))
+            self._data = {key: value for key, value in data.items() if key in set(self.attributes)}
 
     def set_context(self, context):
         self.context = context
@@ -61,7 +60,11 @@ class DataSet(object):
         if attr in self.attributes:
             if self.context:
                 env = Environment()
-                return env.from_string(self._data.get(attr)).render(**self.context)
+                # dump to json here in order to be able to manage dicts and lists
+                rendered = env.from_string(
+                    json.dumps(self._data.get(attr))
+                ).render(**self.context)
+                return json.loads(rendered)
 
             return self._data.get(attr)
 
@@ -71,8 +74,7 @@ class DataSet(object):
         return self.__getattr__(item)
 
     def __iter__(self):
-        for key, value in six.iteritems(self._data):
-            yield (key, value)
+        yield from self._data.items()
 
     def as_dict(self):
         attributes = dict(self._data)
@@ -80,8 +82,10 @@ class DataSet(object):
 
         env = Environment()
         if self.context:
-            for key, value in six.iteritems(attributes):
-                attributes[key] = env.from_string(value).render(**self.context)
+            for key, value in attributes.items():
+                attributes[key] = json.loads(
+                    env.from_string(json.dumps(value)).render(**self.context)
+                )
 
         d = {
             "typeName": self.type_name,
@@ -111,7 +115,7 @@ class File(DataSet):
     attributes = ["name", "path", "isFile", "isSymlink"]
 
     def __init__(self, name=None, data=None):
-        super(File, self).__init__(name=name, data=data)
+        super().__init__(name=name, data=data)
 
         self._qualified_name = 'file://' + self.name
         self._data['path'] = self.name
@@ -124,7 +128,7 @@ class HadoopFile(File):
     type_name = "hdfs_file"
 
     def __init__(self, name=None, data=None):
-        super(File, self).__init__(name=name, data=data)
+        super().__init__(name=name, data=data)
 
         self._qualified_name = "{}@{}".format(self.name, self.cluster_name)
         self._data['path'] = self.name

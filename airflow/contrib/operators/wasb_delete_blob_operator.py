@@ -49,7 +49,7 @@ class WasbDeleteBlobOperator(BaseOperator):
                  is_prefix=False, ignore_if_missing=False,
                  *args,
                  **kwargs):
-        super(WasbDeleteBlobOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if check_options is None:
             check_options = {}
         self.wasb_conn_id = wasb_conn_id
@@ -61,8 +61,7 @@ class WasbDeleteBlobOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info(
-            'Deleting blob: {self.blob_name}\n'
-            'in wasb://{self.container_name}'.format(**locals())
+            'Deleting blob: %s\nin wasb://%s', self.blob_name, self.container_name
         )
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
 

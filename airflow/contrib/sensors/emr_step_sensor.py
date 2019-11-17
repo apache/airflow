@@ -43,7 +43,7 @@ class EmrStepSensor(EmrBaseSensor):
                  step_id,
                  *args,
                  **kwargs):
-        super(EmrStepSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id
         self.step_id = step_id
 
@@ -56,3 +56,12 @@ class EmrStepSensor(EmrBaseSensor):
     @staticmethod
     def state_from_response(response):
         return response['Step']['Status']['State']
+
+    @staticmethod
+    def failure_message_from_response(response):
+        fail_details = response['Step']['Status'].get('FailureDetails')
+        if fail_details:
+            return 'for reason {} with message {} and log file {}'.format(fail_details.get('Reason'),
+                                                                          fail_details.get('Message'),
+                                                                          fail_details.get('LogFile'))
+        return None

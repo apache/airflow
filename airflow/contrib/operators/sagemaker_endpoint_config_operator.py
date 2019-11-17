@@ -18,8 +18,8 @@
 # under the License.
 
 from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
+from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
@@ -45,8 +45,8 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     def __init__(self,
                  config,
                  *args, **kwargs):
-        super(SageMakerEndpointConfigOperator, self).__init__(config=config,
-                                                              *args, **kwargs)
+        super().__init__(config=config,
+                         *args, **kwargs)
 
         self.config = config
 

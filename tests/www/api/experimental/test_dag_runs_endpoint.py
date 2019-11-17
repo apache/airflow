@@ -19,9 +19,8 @@
 import json
 import unittest
 
-from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import DagRun
+from airflow.models import DagBag, DagRun
 from airflow.settings import Session
 from airflow.www import app as application
 
@@ -30,15 +29,17 @@ class TestDagRunsEndpoint(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestDagRunsEndpoint, cls).setUpClass()
+        super().setUpClass()
         session = Session()
         session.query(DagRun).delete()
         session.commit()
         session.close()
+        dagbag = DagBag(include_examples=True)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
 
     def setUp(self):
-        super(TestDagRunsEndpoint, self).setUp()
-        configuration.load_test_config()
+        super().setUp()
         app, _ = application.create_app(testing=True)
         self.app = app.test_client()
 
@@ -47,7 +48,7 @@ class TestDagRunsEndpoint(unittest.TestCase):
         session.query(DagRun).delete()
         session.commit()
         session.close()
-        super(TestDagRunsEndpoint, self).tearDown()
+        super().tearDown()
 
     def test_get_dag_runs_success(self):
         url_template = '/api/experimental/dags/{}/dag_runs'

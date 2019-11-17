@@ -52,7 +52,7 @@ class HivePartitionSensor(BaseSensorOperator):
                  poke_interval=60 * 3,
                  *args,
                  **kwargs):
-        super(HivePartitionSensor, self).__init__(
+        super().__init__(
             poke_interval=poke_interval, *args, **kwargs)
         if not partition:
             partition = "ds='{{ ds }}'"
@@ -65,8 +65,8 @@ class HivePartitionSensor(BaseSensorOperator):
         if '.' in self.table:
             self.schema, self.table = self.table.split('.')
         self.log.info(
-            'Poking for table {self.schema}.{self.table}, '
-            'partition {self.partition}'.format(**locals()))
+            'Poking for table %s.%s, partition %s', self.schema, self.table, self.partition
+        )
         if not hasattr(self, 'hook'):
             from airflow.hooks.hive_hooks import HiveMetastoreHook
             self.hook = HiveMetastoreHook(

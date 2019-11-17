@@ -21,8 +21,8 @@
 import datetime
 import ftplib
 import os.path
+
 from airflow.hooks.base_hook import BaseHook
-from past.builtins import basestring
 
 
 def mlsd(conn, path="", facts=None):
@@ -174,7 +174,7 @@ class FTPHook(BaseHook):
             [default: output_handle.write()]
         :type callback: callable
 
-        :Example::
+        .. code-block:: python
 
             hook = FTPHook(ftp_conn_id='my_conn')
 
@@ -197,10 +197,11 @@ class FTPHook(BaseHook):
 
             # without a custom callback data is written to the local_path
             hook.retrieve_file(remote_path, local_path)
+
         """
         conn = self.get_conn()
 
-        is_path = isinstance(local_full_path_or_buffer, basestring)
+        is_path = isinstance(local_full_path_or_buffer, str)
 
         # without a callback, default to writing to a user-provided file or
         # file-like buffer
@@ -238,7 +239,7 @@ class FTPHook(BaseHook):
         """
         conn = self.get_conn()
 
-        is_path = isinstance(local_full_path_or_buffer, basestring)
+        is_path = isinstance(local_full_path_or_buffer, str)
 
         if is_path:
             input_handle = open(local_full_path_or_buffer, 'rb')
@@ -276,7 +277,7 @@ class FTPHook(BaseHook):
         Returns a datetime object representing the last time the file was modified
 
         :param path: remote file path
-        :type path: string
+        :type path: str
         """
         conn = self.get_conn()
         ftp_mdtm = conn.sendcmd('MDTM ' + path)
@@ -292,7 +293,7 @@ class FTPHook(BaseHook):
         Returns the size of a file (in bytes)
 
         :param path: remote file path
-        :type path: string
+        :type path: str
         """
         conn = self.get_conn()
         return conn.size(path)

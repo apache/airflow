@@ -16,28 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import contextlib
 import os
 import sys
 import unittest
-import contextlib
 from multiprocessing import Pool
+from unittest import mock
 
-import mock
-
-from celery import Celery
-from celery import states as celery_states
+# leave this it is used by the test worker
+import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=ungrouped-imports
+from celery import Celery, states as celery_states
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
-from airflow.utils.state import State
+from airflow.configuration import conf
 from airflow.executors import celery_executor
-
-from airflow import configuration
-configuration.load_test_config()
-
-# leave this it is used by the test worker
-import celery.contrib.testing.tasks  # noqa: F401
+from airflow.utils.state import State
 
 
 def _prepare_test_bodies():
@@ -46,14 +41,14 @@ def _prepare_test_bodies():
             (url, )
             for url in os.environ['CELERY_BROKER_URLS'].split(',')
         ]
-    return [(configuration.conf.get('celery', 'BROKER_URL'))]
+    return [(conf.get('celery', 'BROKER_URL'))]
 
 
-class CeleryExecutorTest(unittest.TestCase):
+class TestCeleryExecutor(unittest.TestCase):
 
     @contextlib.contextmanager
     def _prepare_app(self, broker_url=None, execute=None):
-        broker_url = broker_url or configuration.conf.get('celery', 'BROKER_URL')
+        broker_url = broker_url or conf.get('celery', 'BROKER_URL')
         execute = execute or celery_executor.execute_command.__wrapped__
 
         test_config = dict(celery_executor.celery_configuration)
@@ -71,14 +66,14 @@ class CeleryExecutorTest(unittest.TestCase):
                 set_event_loop(None)
 
     @parameterized.expand(_prepare_test_bodies())
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "sqlite is configured with SequentialExecutor")
     def test_celery_integration(self, broker_url):
         with self._prepare_app(broker_url) as app:
             executor = celery_executor.CeleryExecutor()
             executor.start()
 
-            with start_worker(app=app, logfile=sys.stdout, loglevel='debug'):
+            with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
                 success_command = ['true', 'some_parameter']
                 fail_command = ['false', 'some_parameter']
 
@@ -124,7 +119,7 @@ class CeleryExecutorTest(unittest.TestCase):
         self.assertNotIn('success', executor.last_state)
         self.assertNotIn('fail', executor.last_state)
 
-    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
                      "sqlite is configured with SequentialExecutor")
     def test_error_sending_task(self):
         def fake_execute_command():
@@ -153,14 +148,24 @@ class CeleryExecutorTest(unittest.TestCase):
             executor.tasks = {'key': fake_celery_task()}
             executor.sync()
 
-        mock_log.error.assert_called_once()
+        assert mock_log.error.call_count == 1
         args, kwargs = mock_log.error.call_args_list[0]
-        log = args[0]
         # Result of queuing is not a celery task but a dict,
         # and it should raise AttributeError and then get propagated
         # to the error log.
-        self.assertIn(celery_executor.CELERY_FETCH_ERR_MSG_HEADER, log)
-        self.assertIn('AttributeError', log)
+        self.assertIn(celery_executor.CELERY_FETCH_ERR_MSG_HEADER, args[0])
+        self.assertIn('AttributeError', args[1])
+
+    @mock.patch('airflow.executors.celery_executor.CeleryExecutor.sync')
+    @mock.patch('airflow.executors.celery_executor.CeleryExecutor.trigger_tasks')
+    @mock.patch('airflow.stats.Stats.gauge')
+    def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
+        executor = celery_executor.CeleryExecutor()
+        executor.heartbeat()
+        calls = [mock.call('executor.open_slots', mock.ANY),
+                 mock.call('executor.queued_tasks', mock.ANY),
+                 mock.call('executor.running_tasks', mock.ANY)]
+        mock_stats_gauge.assert_has_calls(calls)
 
 
 if __name__ == '__main__':

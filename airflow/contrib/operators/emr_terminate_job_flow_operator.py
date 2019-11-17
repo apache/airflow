@@ -16,10 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.contrib.hooks.emr_hook import EmrHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.emr_hook import EmrHook
 
 
 class EmrTerminateJobFlowOperator(BaseOperator):
@@ -41,7 +41,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             job_flow_id,
             aws_conn_id='aws_default',
             *args, **kwargs):
-        super(EmrTerminateJobFlowOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
 

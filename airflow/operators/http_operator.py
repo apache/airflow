@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Callable, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
@@ -46,31 +47,26 @@ class SimpleHttpOperator(BaseOperator):
         'requests' documentation (options to modify timeout, ssl, etc.)
     :type extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
-    :param xcom_push: Push the response to Xcom (default: False).
-        If xcom_push is True, response of an HTTP request will also
-        be pushed to an XCom.
-    :type xcom_push: bool
     :param log_response: Log the response (default: False)
     :type log_response: bool
     """
 
-    template_fields = ('endpoint', 'data',)
+    template_fields = ['endpoint', 'data', 'headers', ]
     template_ext = ()
     ui_color = '#f4a460'
 
     @apply_defaults
     def __init__(self,
-                 endpoint,
-                 method='POST',
-                 data=None,
-                 headers=None,
-                 response_check=None,
-                 extra_options=None,
-                 xcom_push=False,
-                 http_conn_id='http_default',
-                 log_response=False,
-                 *args, **kwargs):
-        super(SimpleHttpOperator, self).__init__(*args, **kwargs)
+                 endpoint: str,
+                 method: str = 'POST',
+                 data: Any = None,
+                 headers: Optional[Dict[str, str]] = None,
+                 response_check: Optional[Callable] = None,
+                 extra_options: Optional[Dict[str, Any]] = None,
+                 http_conn_id: str = 'http_default',
+                 log_response: bool = False,
+                 *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.method = method
         self.endpoint = endpoint
@@ -78,8 +74,9 @@ class SimpleHttpOperator(BaseOperator):
         self.data = data or {}
         self.response_check = response_check
         self.extra_options = extra_options or {}
-        self.xcom_push_flag = xcom_push
         self.log_response = log_response
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context):
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
@@ -90,10 +87,9 @@ class SimpleHttpOperator(BaseOperator):
                             self.data,
                             self.headers,
                             self.extra_options)
+        if self.log_response:
+            self.log.info(response.text)
         if self.response_check:
             if not self.response_check(response):
                 raise AirflowException("Response check returned False.")
-        if self.xcom_push_flag:
-            return response.text
-        if self.log_response:
-            self.log.info(response.text)
+        return response.text

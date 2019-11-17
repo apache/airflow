@@ -22,7 +22,6 @@ import unittest
 
 import boto3
 
-from airflow import configuration
 from airflow.contrib.sensors.aws_redshift_cluster_sensor import AwsRedshiftClusterSensor
 
 try:
@@ -32,9 +31,6 @@ except ImportError:
 
 
 class TestAwsRedshiftClusterSensor(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
     @staticmethod
     def _create_cluster():
         client = boto3.client('redshift', region_name='us-east-1')

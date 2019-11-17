@@ -24,11 +24,10 @@ import time
 import traceback
 from multiprocessing import Pool, cpu_count
 
-from celery import Celery
-from celery import states as celery_states
+from celery import Celery, states as celery_states
 
-from airflow import configuration
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -45,15 +44,15 @@ To start the celery worker, run the command:
 airflow worker
 '''
 
-if configuration.conf.has_option('celery', 'celery_config_options'):
+if conf.has_option('celery', 'celery_config_options'):
     celery_configuration = import_string(
-        configuration.conf.get('celery', 'celery_config_options')
+        conf.get('celery', 'celery_config_options')
     )
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
 app = Celery(
-    configuration.conf.get('celery', 'CELERY_APP_NAME'),
+    conf.get('celery', 'CELERY_APP_NAME'),
     config_source=celery_configuration)
 
 
@@ -72,7 +71,7 @@ def execute_command(command_to_exec):
         raise AirflowException('Celery command failed')
 
 
-class ExceptionWithTraceback(object):
+class ExceptionWithTraceback:
     """
     Wrapper class used to propagate exceptions to parent processes from subprocesses.
 
@@ -112,7 +111,7 @@ def fetch_celery_task_state(celery_task):
 
 
 def send_task_to_executor(task_tuple):
-    key, simple_ti, command, queue, task = task_tuple
+    key, _, command, queue, task = task_tuple
     try:
         with timeout(seconds=2):
             result = task.apply_async(args=[command], queue=queue)
@@ -135,13 +134,13 @@ class CeleryExecutor(BaseExecutor):
     """
 
     def __init__(self):
-        super(CeleryExecutor, self).__init__()
+        super().__init__()
 
         # Celery doesn't support querying the state of multiple tasks in parallel
         # (which can become a bottleneck on bigger clusters) so we use
         # a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
-        self._sync_parallelism = configuration.getint('celery', 'SYNC_PARALLELISM')
+        self._sync_parallelism = conf.getint('celery', 'SYNC_PARALLELISM')
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
 
@@ -151,8 +150,9 @@ class CeleryExecutor(BaseExecutor):
 
     def start(self):
         self.log.debug(
-            'Starting Celery Executor using {} processes for syncing'.format(
-                self._sync_parallelism))
+            'Starting Celery Executor using %s processes for syncing',
+            self._sync_parallelism
+        )
 
     def _num_tasks_per_send_process(self, to_send_count):
         """
@@ -174,17 +174,13 @@ class CeleryExecutor(BaseExecutor):
         return max(1,
                    int(math.ceil(1.0 * len(self.tasks) / self._sync_parallelism)))
 
-    def heartbeat(self):
-        # Triggering new jobs
-        if not self.parallelism:
-            open_slots = len(self.queued_tasks)
-        else:
-            open_slots = self.parallelism - len(self.running)
+    def trigger_tasks(self, open_slots):
+        """
+        Overwrite trigger_tasks function from BaseExecutor
 
-        self.log.debug("{} running task instances".format(len(self.running)))
-        self.log.debug("{} in queue".format(len(self.queued_tasks)))
-        self.log.debug("{} open slots".format(open_slots))
-
+        :param open_slots: Number of open slots
+        :return:
+        """
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
             key=lambda x: x[1][1],
@@ -192,7 +188,7 @@ class CeleryExecutor(BaseExecutor):
 
         task_tuples_to_send = []
 
-        for i in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             task_tuples_to_send.append((key, simple_ti, command, queue,
                                         execute_command))
@@ -224,8 +220,8 @@ class CeleryExecutor(BaseExecutor):
             for key, command, result in key_and_async_results:
                 if isinstance(result, ExceptionWithTraceback):
                     self.log.error(
-                        CELERY_SEND_ERR_MSG_HEADER + ":{}\n{}\n".format(
-                            result.exception, result.traceback))
+                        CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
+                    )
                 elif result is not None:
                     # Only pops when enqueued successfully, otherwise keep it
                     # and expect scheduler loop to deal with it.
@@ -234,10 +230,6 @@ class CeleryExecutor(BaseExecutor):
                     self.running[key] = command
                     self.tasks[key] = result
                     self.last_state[key] = celery_states.PENDING
-
-        # Calling child class sync method
-        self.log.debug("Calling the {} sync method".format(self.__class__))
-        self.sync()
 
     def sync(self):
         num_processes = min(len(self.tasks), self._sync_parallelism)
@@ -267,8 +259,9 @@ class CeleryExecutor(BaseExecutor):
         for key_and_state in task_keys_to_states:
             if isinstance(key_and_state, ExceptionWithTraceback):
                 self.log.error(
-                    CELERY_FETCH_ERR_MSG_HEADER + ", ignoring it:{}\n{}\n".format(
-                        key_and_state.exception, key_and_state.traceback))
+                    CELERY_FETCH_ERR_MSG_HEADER + ", ignoring it:%s\n%s\n",
+                    repr(key_and_state.exception), key_and_state.traceback
+                )
                 continue
             key, state = key_and_state
             try:
@@ -286,7 +279,7 @@ class CeleryExecutor(BaseExecutor):
                         del self.tasks[key]
                         del self.last_state[key]
                     else:
-                        self.log.info("Unexpected state: " + state)
+                        self.log.info("Unexpected state: %s", state)
                         self.last_state[key] = state
             except Exception:
                 self.log.exception("Error syncing the Celery executor, ignoring it.")

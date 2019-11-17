@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-#
 # flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
@@ -20,6 +19,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 # Airflow documentation build configuration file, created by
 # sphinx-quickstart on Thu Oct  9 20:50:01 2014.
 #
@@ -31,8 +31,10 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
+"""Configuration of Airflow Docs"""
 import os
 import sys
+from typing import Dict
 
 import airflow
 
@@ -50,6 +52,7 @@ autodoc_mock_imports = [
     'cassandra',
     'celery',
     'cloudant',
+    'cryptography',
     'cx_Oracle',
     'datadog',
     'distributed',
@@ -57,13 +60,13 @@ autodoc_mock_imports = [
     'google',
     'google_auth_httplib2',
     'googleapiclient',
+    'grpc',
     'hdfs',
     'httplib2',
     'jaydebeapi',
     'jenkins',
     'jira',
     'kubernetes',
-    'mesos',
     'msrestazure',
     'pandas',
     'pandas_gbq',
@@ -98,6 +101,8 @@ os.environ['BUILDING_AIRFLOW_DOCS'] = 'TRUE'
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
+sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -110,17 +115,24 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
+    'sphinx.ext.graphviz',
     'sphinxarg.ext',
     'sphinxcontrib.httpdomain',
     'sphinx.ext.intersphinx',
+    'autoapi.extension',
+    'exampleinclude',
+    'docroles'
 ]
 
-autodoc_default_flags = ['show-inheritance', 'members']
+autodoc_default_options = {
+    'show-inheritance': True,
+    'members': True
+}
 
-viewcode_import = True
+viewcode_follow_imported_members = True
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ['templates']
 
 # The suffix of source filenames.
 source_suffix = '.rst'
@@ -132,8 +144,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Airflow'
-# copyright = u''
+project = 'Airflow'
+# copyright = ''
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -158,7 +170,62 @@ release = airflow.__version__
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build']
+exclude_patterns = [
+    '_api/airflow/_vendor',
+    '_api/airflow/api',
+    '_api/airflow/bin',
+    '_api/airflow/config_templates',
+    '_api/airflow/configuration',
+    '_api/airflow/contrib/auth',
+    '_api/airflow/contrib/example_dags',
+    '_api/airflow/contrib/index.rst',
+    '_api/airflow/contrib/kubernetes',
+    '_api/airflow/contrib/task_runner',
+    '_api/airflow/contrib/utils',
+    '_api/airflow/dag',
+    '_api/airflow/default_login',
+    '_api/airflow/example_dags',
+    '_api/airflow/exceptions',
+    '_api/airflow/index.rst',
+    '_api/airflow/jobs',
+    '_api/airflow/lineage',
+    '_api/airflow/typing_compat',
+    '_api/airflow/logging_config',
+    '_api/airflow/macros',
+    '_api/airflow/migrations',
+    '_api/airflow/plugins_manager',
+    '_api/airflow/security',
+    '_api/airflow/serialization',
+    '_api/airflow/settings',
+    '_api/airflow/sentry',
+    '_api/airflow/stats',
+    '_api/airflow/task',
+    '_api/airflow/kubernetes',
+    '_api/airflow/ti_deps',
+    '_api/airflow/utils',
+    '_api/airflow/version',
+    '_api/airflow/www',
+    '_api/main',
+    '_api/airflow/gcp/index.rst',
+    '_api/airflow/gcp/example_dags',
+    '_api/airflow/gcp/utils',
+    '_api/airflow/providers/index.rst',
+    '_api/airflow/providers/amazon/index.rst',
+    '_api/airflow/providers/amazon/aws/index.rst',
+    '_api/airflow/providers/amazon/aws/example_dags',
+    '_api/airflow/providers/google/index.rst',
+    '_api/airflow/providers/google/cloud/index.rst',
+    '_api/airflow/providers/google/cloud/example_dags',
+    '_api/airflow/providers/google/marketing_platform/index.rst',
+    '_api/airflow/providers/google/marketing_platform/example_dags',
+    '_api/airflow/providers/google/cloud/index.rst',
+    '_api/airflow/providers/google/cloud/example_dags',
+    '_api/airflow/providers/amazon/index.rst',
+    '_api/airflow/providers/amazon/aws/index.rst',
+    '_api/airflow/providers/amazon/aws/example_dags',
+    'autoapi_templates',
+    'howto/operator/gcp/_partials',
+]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -182,18 +249,39 @@ pygments_style = 'sphinx'
 # modindex_common_prefix = []
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
-# keep_warnings = False
+keep_warnings = True
 
 
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
-    'google-cloud-python': (
-        'https://googleapis.github.io/google-cloud-python/latest/', None),
     'mongodb': ('https://api.mongodb.com/python/current/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'python': ('https://docs.python.org/3/', None),
-    'requests': ('http://docs.python-requests.org/en/master/', None),
+    'requests': ('https://requests.readthedocs.io/en/master/', None),
     'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
+    'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
+    # google-cloud-python
+    'google-cloud-automl': ('https://googleapis.dev/python/automl/latest', None),
+    'google-cloud-bigquery': ('https://googleapis.dev/python/bigquery/latest', None),
+    'google-cloud-bigquery-datatransfer': ('https://googleapis.dev/python/bigquerydatatransfer/latest', None),
+    'google-cloud-bigquery-storage': ('https://googleapis.dev/python/bigquerystorage/latest', None),
+    'google-cloud-bigtable': ('https://googleapis.dev/python/bigtable/latest', None),
+    'google-cloud-container': ('https://googleapis.dev/python/container/latest', None),
+    'google-cloud-core': ('https://googleapis.dev/python/google-cloud-core/latest', None),
+    'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest', None),
+    'google-cloud-dlp': ('https://googleapis.dev/python/dlp/latest', None),
+    'google-cloud-kms': ('https://googleapis.dev/python/cloudkms/latest', None),
+    'google-cloud-language': ('https://googleapis.dev/python/language/latest', None),
+    'google-cloud-pubsub': ('https://googleapis.dev/python/pubsub/latest', None),
+    'google-cloud-redis': ('https://googleapis.dev/python/redis/latest', None),
+    'google-cloud-spanner': ('https://googleapis.dev/python/spanner/latest', None),
+    'google-cloud-speech': ('https://googleapis.dev/python/speech/latest', None),
+    'google-cloud-storage': ('https://googleapis.dev/python/storage/latest', None),
+    'google-cloud-tasks': ('https://googleapis.dev/python/cloudtasks/latest', None),
+    'google-cloud-texttospeech': ('https://googleapis.dev/python/texttospeech/latest', None),
+    'google-cloud-translate': ('https://googleapis.dev/python/translation/latest', None),
+    'google-cloud-videointelligence': ('https://googleapis.dev/python/videointelligence/latest', None),
+    'google-cloud-vision': ('https://googleapis.dev/python/vision/latest', None),
 }
 
 # -- Options for HTML output ----------------------------------------------
@@ -209,7 +297,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
-import sphinx_rtd_theme
+import sphinx_rtd_theme  # isort:skip pylint: disable=wrong-import-position,wrong-import-order
 
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
@@ -224,10 +312,7 @@ html_short_title = ""
 # of the sidebar.
 # html_logo = None
 
-# The name of an image file (within the static path) to use as favicon of the
-# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
-# pixels large.
-# html_favicon = None
+html_favicon = "../airflow/www/static/pin_32.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -294,14 +379,14 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     # 'preamble': '',
-}
+}  # type: Dict[str,str]
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    ('index', 'Airflow.tex', u'Airflow Documentation',
-     u'Apache Airflow', 'manual'),
+    ('index', 'Airflow.tex', 'Airflow Documentation',
+     'Apache Airflow', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -330,8 +415,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'airflow', u'Airflow Documentation',
-     [u'Apache Airflow'], 1)
+    ('index', 'airflow', 'Airflow Documentation',
+     ['Apache Airflow'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -344,9 +429,9 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [(
-    'index', 'Airflow', u'Airflow Documentation',
-    u'Apache Airflow', 'Airflow',
-    'Airflow is a system to programmaticaly author, schedule and monitor data pipelines.',
+    'index', 'Airflow', 'Airflow Documentation',
+    'Apache Airflow', 'Airflow',
+    'Airflow is a system to programmatically author, schedule and monitor data pipelines.',
     'Miscellaneous'
 ), ]
 
@@ -361,3 +446,38 @@ texinfo_documents = [(
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 # texinfo_no_detailmenu = False
+
+# sphinx-autoapi configuration
+# See:
+# https://sphinx-autoapi.readthedocs.io/en/latest/config.html
+
+# Paths (relative or absolute) to the source code that you wish to generate
+# your API documentation from.
+autoapi_dirs = [
+    os.path.abspath('../airflow'),
+]
+
+# A directory that has user-defined templates to override our default templates.
+autoapi_template_dir = 'autoapi_templates'
+
+# A list of patterns to ignore when finding files
+autoapi_ignore = [
+    # These modules are backcompat shims, don't build docs for them
+    '*/airflow/contrib/operators/s3_to_gcs_transfer_operator.py',
+    '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
+    '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
+    '*/airflow/kubernetes/kubernetes_request_factory/*',
+
+    '*/node_modules/*',
+    '*/migrations/*',
+]
+# Keep the AutoAPI generated files on the filesystem after the run.
+# Useful for debugging.
+autoapi_keep_files = True
+
+# Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
+# anywhere in your documentation hierarchy.
+autoapi_root = '_api'
+
+# -- Options for example include ------------------------------------------
+exampleinclude_sourceroot = os.path.abspath('..')

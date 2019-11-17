@@ -18,8 +18,7 @@
 # under the License.
 
 
-from airflow.contrib.hooks.jira_hook import JIRAError
-from airflow.contrib.hooks.jira_hook import JiraHook
+from airflow.contrib.hooks.jira_hook import JIRAError, JiraHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -54,7 +53,7 @@ class JiraOperator(BaseOperator):
                  get_jira_resource_method=None,
                  *args,
                  **kwargs):
-        super(JiraOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.jira_conn_id = jira_conn_id
         self.method_name = jira_method
         self.jira_method_args = jira_method_args

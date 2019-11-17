@@ -21,7 +21,7 @@
 import datetime
 import unittest
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.operators.sqoop_operator import SqoopOperator
 from airflow.exceptions import AirflowException
 
@@ -64,12 +64,12 @@ class TestSqoopOperator(unittest.TestCase):
         },
         'extra_export_options': {
             'update-key': 'id',
-            'update-mode': 'allowinsert'
+            'update-mode': 'allowinsert',
+            'fetch-size': 1
         }
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': datetime.datetime(2017, 1, 1)
@@ -154,7 +154,9 @@ class TestSqoopOperator(unittest.TestCase):
             extra_import_options={
                 'hcatalog-storage-stanza': "\"stored as orcfile\"",
                 'hive-partition-key': 'day',
-                'hive-partition-value': '2017-10-18'},
+                'hive-partition-value': '2017-10-18',
+                'fetch-size': 1
+            },
             dag=self.dag
         )
 

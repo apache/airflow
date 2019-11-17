@@ -16,10 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import absolute_import
 
 import unittest
-from mock import patch
+from unittest.mock import patch
 
 from airflow.contrib.sensors.celery_queue_sensor import CeleryQueueSensor
 
@@ -76,5 +75,5 @@ class TestCeleryQueueSensor(unittest.TestCase):
     def test_poke_success_with_taskid(self, mock_inspect):
         test_sensor = self.sensor(celery_queue='test_queue',
                                   task_id='test-task',
-                                  af_task_id='target-task')
+                                  target_task_id='target-task')
         self.assertTrue(test_sensor.poke(None))

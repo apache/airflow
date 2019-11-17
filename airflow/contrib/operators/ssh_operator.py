@@ -20,7 +20,7 @@
 from base64 import b64encode
 from select import select
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -45,8 +45,14 @@ class SSHOperator(BaseOperator):
     :type command: str
     :param timeout: timeout (in seconds) for executing the command.
     :type timeout: int
-    :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
-    :type do_xcom_push: bool
+    :param environment: a dict of shell environment variables. Note that the
+        server will reject them silently if `AcceptEnv` is not set in SSH config.
+    :type environment: dict
+    :param get_pty: request a pseudo-terminal from the server. Set to ``True``
+        to have the remote process killed upon task timeout.
+        The default is ``False`` but note that `get_pty` is forced to ``True``
+        when the `command` starts with ``sudo``.
+    :type get_pty: bool
     """
 
     template_fields = ('command', 'remote_host')
@@ -59,16 +65,18 @@ class SSHOperator(BaseOperator):
                  remote_host=None,
                  command=None,
                  timeout=10,
-                 do_xcom_push=False,
+                 environment=None,
+                 get_pty=False,
                  *args,
                  **kwargs):
-        super(SSHOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.ssh_hook = ssh_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.command = command
         self.timeout = timeout
-        self.do_xcom_push = do_xcom_push
+        self.environment = environment
+        self.get_pty = self.command.startswith('sudo') or get_pty
 
     def execute(self, context):
         try:
@@ -94,15 +102,13 @@ class SSHOperator(BaseOperator):
                 raise AirflowException("SSH command not specified. Aborting.")
 
             with self.ssh_hook.get_conn() as ssh_client:
-                # Auto apply tty when its required in case of sudo
-                get_pty = False
-                if self.command.startswith('sudo'):
-                    get_pty = True
+                self.log.info("Running command: %s", self.command)
 
                 # set timeout taken as params
                 stdin, stdout, stderr = ssh_client.exec_command(command=self.command,
-                                                                get_pty=get_pty,
-                                                                timeout=self.timeout
+                                                                get_pty=self.get_pty,
+                                                                timeout=self.timeout,
+                                                                environment=self.environment
                                                                 )
                 # get channels
                 channel = stdout.channel
@@ -148,15 +154,13 @@ class SSHOperator(BaseOperator):
 
                 exit_status = stdout.channel.recv_exit_status()
                 if exit_status == 0:
-                    # returning output if do_xcom_push is set
-                    if self.do_xcom_push:
-                        enable_pickling = configuration.conf.getboolean(
-                            'core', 'enable_xcom_pickling'
-                        )
-                        if enable_pickling:
-                            return agg_stdout
-                        else:
-                            return b64encode(agg_stdout).decode('utf-8')
+                    enable_pickling = conf.getboolean(
+                        'core', 'enable_xcom_pickling'
+                    )
+                    if enable_pickling:
+                        return agg_stdout
+                    else:
+                        return b64encode(agg_stdout).decode('utf-8')
 
                 else:
                     error_msg = agg_stderr.decode('utf-8')

@@ -19,11 +19,9 @@
 #
 import unittest
 
-from airflow import configuration
-from airflow.models.connection import Connection
-from airflow.utils import db
-
 from airflow.contrib.hooks.spark_jdbc_hook import SparkJDBCHook
+from airflow.models import Connection
+from airflow.utils import db
 
 
 class TestSparkJDBCHook(unittest.TestCase):
@@ -66,7 +64,6 @@ class TestSparkJDBCHook(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='spark-default', conn_type='spark',

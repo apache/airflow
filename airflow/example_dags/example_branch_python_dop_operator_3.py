@@ -17,20 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+Example DAG demonstrating the usage of BranchPythonOperator with depends_on_past=True, where tasks may be run
+or skipped on alternating runs.
+"""
+
 import airflow
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
     'depends_on_past': True,
 }
 
-# BranchPython operator that depends on past
-# and where tasks may run or be skipped on
-# alternating runs
 dag = DAG(
     dag_id='example_branch_dop_operator_v3',
     schedule_interval='*/1 * * * *',
@@ -39,6 +41,13 @@ dag = DAG(
 
 
 def should_run(**kwargs):
+    """
+    Determine which dummy_task should be run based on if the execution date minute is even or odd.
+
+    :param dict kwargs: Context
+    :return: Id of the task to run
+    :rtype: str
+    """
     print('------------- exec dttm = {} and minute = {}'.
           format(kwargs['execution_date'], kwargs['execution_date'].minute))
     if kwargs['execution_date'].minute % 2 == 0:
@@ -49,7 +58,6 @@ def should_run(**kwargs):
 
 cond = BranchPythonOperator(
     task_id='condition',
-    provide_context=True,
     python_callable=should_run,
     dag=dag,
 )

@@ -19,16 +19,12 @@
 
 import unittest
 
-from airflow import configuration
 from airflow.contrib.sensors.emr_base_sensor import EmrBaseSensor
 from airflow.exceptions import AirflowException
 
 
 class TestEmrBaseSensor(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
-    def test_subclasses_that_implment_required_methods_and_constants_succeed_when_response_is_good(self):
+    def test_subclasses_that_implement_required_methods_and_constants_succeed_when_response_is_good(self):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
             FAILED_STATE = ['FAILED']
@@ -44,11 +40,17 @@ class TestEmrBaseSensor(unittest.TestCase):
             def state_from_response(response):
                 return response['SomeKey']['State']
 
+            @staticmethod
+            def failure_message_from_response(response):
+                change_reason = response['Cluster']['Status'].get('StateChangeReason')
+                if change_reason:
+                    return 'for code: {} with message {}'.format(change_reason.get('Code', 'No code'),
+                                                                 change_reason.get('Message', 'Unknown'))
+                return None
+
         operator = EmrBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_test'
         )
 
         operator.execute(None)
@@ -72,8 +74,6 @@ class TestEmrBaseSensor(unittest.TestCase):
         operator = EmrBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_test'
         )
 
         self.assertEqual(operator.poke(None), False)
@@ -97,8 +97,6 @@ class TestEmrBaseSensor(unittest.TestCase):
         operator = EmrBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_test'
         )
 
         self.assertEqual(operator.poke(None), False)
@@ -107,11 +105,14 @@ class TestEmrBaseSensor(unittest.TestCase):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
             FAILED_STATE = ['FAILED']
+            EXPECTED_CODE = 'EXPECTED_TEST_FAILURE'
+            EMPTY_CODE = 'No code'
 
             @staticmethod
             def get_emr_response():
                 return {
-                    'SomeKey': {'State': 'FAILED'},
+                    'SomeKey': {'State': 'FAILED',
+                                'StateChangeReason': {'Code': EmrBaseSensorSubclass.EXPECTED_CODE}},
                     'ResponseMetadata': {'HTTPStatusCode': 200}
                 }
 
@@ -119,17 +120,25 @@ class TestEmrBaseSensor(unittest.TestCase):
             def state_from_response(response):
                 return response['SomeKey']['State']
 
+            @staticmethod
+            def failure_message_from_response(response):
+                state_change_reason = response['SomeKey']['StateChangeReason']
+                if state_change_reason:
+                    return 'with code: {}'.format(state_change_reason.get('Code',
+                                                                          EmrBaseSensorSubclass.EMPTY_CODE))
+                return None
+
         operator = EmrBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_test'
         )
 
         with self.assertRaises(AirflowException) as context:
             operator.poke(None)
 
         self.assertIn('EMR job failed', str(context.exception))
+        self.assertIn(EmrBaseSensorSubclass.EXPECTED_CODE, str(context.exception))
+        self.assertNotIn(EmrBaseSensorSubclass.EMPTY_CODE, str(context.exception))
 
 
 if __name__ == '__main__':

@@ -63,7 +63,7 @@ class MetastorePartitionSensor(SqlSensor):
         # The inheritance model needs to be reworked in order to support overriding args/
         # kwargs with arguments here, then 'conn_id' and 'sql' can be passed into the
         # constructor below and apply_defaults will no longer throw an exception.
-        super(SqlSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def poke(self, context):
         if self.first_poke:
@@ -80,4 +80,4 @@ class MetastorePartitionSensor(SqlSensor):
                 C0.NAME = '{self.schema}' AND
                 A0.PART_NAME = '{self.partition_name}';
             """.format(self=self)
-        return super(MetastorePartitionSensor, self).poke(context)
+        return super().poke(context)

@@ -19,16 +19,14 @@
 
 import unittest
 
-from airflow import configuration
-from airflow.models.connection import Connection
 from airflow.contrib.hooks.azure_container_volume_hook import AzureContainerVolumeHook
+from airflow.models import Connection
 from airflow.utils import db
 
 
 class TestAzureContainerVolumeHook(unittest.TestCase):
 
     def test_get_file_volume(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='wasb_test_key',

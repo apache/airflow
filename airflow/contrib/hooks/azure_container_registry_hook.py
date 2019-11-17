@@ -16,9 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Hook for Azure Container Registry"""
+
+from azure.mgmt.containerinstance.models import ImageRegistryCredential
 
 from airflow.hooks.base_hook import BaseHook
-from azure.mgmt.containerinstance.models import ImageRegistryCredential
 
 
 class AzureContainerRegistryHook(BaseHook):

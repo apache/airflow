@@ -35,7 +35,7 @@ class ValidStateDep(BaseTIDep):
     :return: whether or not the task instance's state is valid
     """
     def __init__(self, valid_states):
-        super(ValidStateDep, self).__init__()
+        super().__init__()
 
         if not valid_states:
             raise AirflowException(

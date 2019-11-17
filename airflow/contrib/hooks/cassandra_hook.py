@@ -17,10 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from cassandra.cluster import Cluster
-from cassandra.policies import (RoundRobinPolicy, DCAwareRoundRobinPolicy,
-                                TokenAwarePolicy, WhiteListRoundRobinPolicy)
 from cassandra.auth import PlainTextAuthProvider
+from cassandra.cluster import Cluster
+from cassandra.policies import (
+    DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy,
+)
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin

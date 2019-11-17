@@ -19,8 +19,10 @@
 
 import os
 
+from sqlalchemy import func
+
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance, DagBag, DagModel, DagRun
+from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
@@ -36,8 +38,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         wait for
     :type external_dag_id: str
     :param external_task_id: The task_id that contains the task you want to
-        wait for. If ``None`` the sensor waits for the DAG
-    :type external_task_id: str
+        wait for. If ``None`` (default value) the sensor waits for the DAG
+    :type external_task_id: str or None
     :param allowed_states: list of allowed states, default is ``['success']``
     :type allowed_states: list
     :param execution_delta: time difference with the previous execution to
@@ -62,14 +64,14 @@ class ExternalTaskSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  external_dag_id,
-                 external_task_id,
+                 external_task_id=None,
                  allowed_states=None,
                  execution_delta=None,
                  execution_date_fn=None,
                  check_existence=False,
                  *args,
                  **kwargs):
-        super(ExternalTaskSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.allowed_states = allowed_states or [State.SUCCESS]
         if external_task_id:
             if not set(self.allowed_states) <= set(State.task_states):
@@ -111,10 +113,9 @@ class ExternalTaskSensor(BaseSensorOperator):
             [datetime.isoformat() for datetime in dttm_filter])
 
         self.log.info(
-            'Poking for '
-            '{self.external_dag_id}.'
-            '{self.external_task_id} on '
-            '{} ... '.format(serialized_dttm_filter, **locals()))
+            'Poking for %s.%s on %s ... ',
+            self.external_dag_id, self.external_task_id, serialized_dttm_filter
+        )
 
         DM = DagModel
         TI = TaskInstance
@@ -143,18 +144,20 @@ class ExternalTaskSensor(BaseSensorOperator):
             self.has_checked_existence = True
 
         if self.external_task_id:
-            count = session.query(TI).filter(
+            # .count() is inefficient
+            count = session.query(func.count()).filter(
                 TI.dag_id == self.external_dag_id,
                 TI.task_id == self.external_task_id,
                 TI.state.in_(self.allowed_states),
                 TI.execution_date.in_(dttm_filter),
-            ).count()
+            ).scalar()
         else:
-            count = session.query(DR).filter(
+            # .count() is inefficient
+            count = session.query(func.count()).filter(
                 DR.dag_id == self.external_dag_id,
                 DR.state.in_(self.allowed_states),
                 DR.execution_date.in_(dttm_filter),
-            ).count()
+            ).scalar()
 
         session.commit()
         return count == len(dttm_filter)

@@ -16,10 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""TaskReschedule tracks rescheduled task instances."""
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
 
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.utils.db import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -47,7 +47,8 @@ class TaskReschedule(Base):
         ForeignKeyConstraint([task_id, dag_id, execution_date],
                              ['task_instance.task_id', 'task_instance.dag_id',
                               'task_instance.execution_date'],
-                             name='task_reschedule_dag_task_date_fkey')
+                             name='task_reschedule_dag_task_date_fkey',
+                             ondelete='CASCADE')
     )
 
     def __init__(self, task, execution_date, try_number, start_date, end_date,

@@ -44,8 +44,8 @@ class SparkSubmitOperator(BaseOperator):
     :type py_files: str
     :param jars: Submit additional jars to upload and place them in executor classpath. (templated)
     :type jars: str
-    :param driver_classpath: Additional, driver-specific, classpath settings. (templated)
-    :type driver_classpath: str
+    :param driver_class_path: Additional, driver-specific, classpath settings. (templated)
+    :type driver_class_path: str
     :param java_class: the main class of the Java application
     :type java_class: str
     :param packages: Comma-separated list of maven coordinates of jars to include on the
@@ -70,6 +70,8 @@ class SparkSubmitOperator(BaseOperator):
     :type keytab: str
     :param principal: The name of the kerberos principal used for keytab (templated)
     :type principal: str
+    :param proxy_user: User to impersonate when submitting the application (templated)
+    :type proxy_user: str
     :param name: Name of the job (default airflow-spark). (templated)
     :type name: str
     :param num_executors: Number of executors to launch
@@ -82,10 +84,10 @@ class SparkSubmitOperator(BaseOperator):
     :type verbose: bool
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit.
-    :type spark_binary: string
+    :type spark_binary: str
     """
-    template_fields = ('_application', '_conf', '_files', '_py_files', '_jars', '_driver_classpath',
-                       '_packages', '_exclude_packages', '_keytab', '_principal', '_name',
+    template_fields = ('_application', '_conf', '_files', '_py_files', '_jars', '_driver_class_path',
+                       '_packages', '_exclude_packages', '_keytab', '_principal', '_proxy_user', '_name',
                        '_application_args', '_env_vars')
     ui_color = WEB_COLORS['LIGHTORANGE']
 
@@ -97,7 +99,7 @@ class SparkSubmitOperator(BaseOperator):
                  files=None,
                  py_files=None,
                  archives=None,
-                 driver_classpath=None,
+                 driver_class_path=None,
                  jars=None,
                  java_class=None,
                  packages=None,
@@ -109,6 +111,7 @@ class SparkSubmitOperator(BaseOperator):
                  driver_memory=None,
                  keytab=None,
                  principal=None,
+                 proxy_user=None,
                  name='airflow-spark',
                  num_executors=None,
                  application_args=None,
@@ -117,13 +120,13 @@ class SparkSubmitOperator(BaseOperator):
                  spark_binary="spark-submit",
                  *args,
                  **kwargs):
-        super(SparkSubmitOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._application = application
         self._conf = conf
         self._files = files
         self._py_files = py_files
         self._archives = archives
-        self._driver_classpath = driver_classpath
+        self._driver_class_path = driver_class_path
         self._jars = jars
         self._java_class = java_class
         self._packages = packages
@@ -135,6 +138,7 @@ class SparkSubmitOperator(BaseOperator):
         self._driver_memory = driver_memory
         self._keytab = keytab
         self._principal = principal
+        self._proxy_user = proxy_user
         self._name = name
         self._num_executors = num_executors
         self._application_args = application_args
@@ -154,7 +158,7 @@ class SparkSubmitOperator(BaseOperator):
             files=self._files,
             py_files=self._py_files,
             archives=self._archives,
-            driver_classpath=self._driver_classpath,
+            driver_class_path=self._driver_class_path,
             jars=self._jars,
             java_class=self._java_class,
             packages=self._packages,
@@ -166,6 +170,7 @@ class SparkSubmitOperator(BaseOperator):
             driver_memory=self._driver_memory,
             keytab=self._keytab,
             principal=self._principal,
+            proxy_user=self._proxy_user,
             name=self._name,
             num_executors=self._num_executors,
             application_args=self._application_args,

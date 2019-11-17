@@ -17,7 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
+"""
+This module contains AWS Glue Catalog Hook
+"""
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 
@@ -38,7 +40,8 @@ class AwsGlueCatalogHook(AwsHook):
                  *args,
                  **kwargs):
         self.region_name = region_name
-        super(AwsGlueCatalogHook, self).__init__(aws_conn_id=aws_conn_id, *args, **kwargs)
+        self.conn = None
+        super().__init__(aws_conn_id=aws_conn_id, *args, **kwargs)
 
     def get_conn(self):
         """
@@ -87,8 +90,8 @@ class AwsGlueCatalogHook(AwsHook):
 
         partitions = set()
         for page in response:
-            for p in page['Partitions']:
-                partitions.add(tuple(p['Values']))
+            for partition in page['Partitions']:
+                partitions.add(tuple(partition['Values']))
 
         return partitions
 
@@ -112,7 +115,38 @@ class AwsGlueCatalogHook(AwsHook):
         """
         partitions = self.get_partitions(database_name, table_name, expression, max_items=1)
 
-        if partitions:
-            return True
-        else:
-            return False
+        return bool(partitions)
+
+    def get_table(self, database_name, table_name):
+        """
+        Get the information of the table
+
+        :param database_name: Name of hive database (schema) @table belongs to
+        :type database_name: str
+        :param table_name: Name of hive table
+        :type table_name: str
+        :rtype: dict
+
+        >>> hook = AwsGlueCatalogHook()
+        >>> r = hook.get_table('db', 'table_foo')
+        >>> r['Name'] = 'table_foo'
+        """
+
+        result = self.get_conn().get_table(DatabaseName=database_name, Name=table_name)
+
+        return result['Table']
+
+    def get_table_location(self, database_name, table_name):
+        """
+        Get the physical location of the table
+
+        :param database_name: Name of hive database (schema) @table belongs to
+        :type database_name: str
+        :param table_name: Name of hive table
+        :type table_name: str
+        :return: str
+        """
+
+        table = self.get_table(database_name, table_name)
+
+        return table['StorageDescriptor']['Location']

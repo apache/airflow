@@ -18,6 +18,7 @@
 # under the License.
 
 import json
+from typing import Iterable
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.models import BaseOperator
@@ -38,14 +39,14 @@ class SageMakerBaseOperator(BaseOperator):
     template_ext = ()
     ui_color = '#ededed'
 
-    integer_fields = []
+    integer_fields = []  # type: Iterable[Iterable[str]]
 
     @apply_defaults
     def __init__(self,
                  config,
                  aws_conn_id='aws_default',
                  *args, **kwargs):
-        super(SageMakerBaseOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.aws_conn_id = aws_conn_id
         self.config = config

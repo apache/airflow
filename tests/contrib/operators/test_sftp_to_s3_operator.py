@@ -19,19 +19,19 @@
 
 import unittest
 
-from airflow import configuration
+import boto3
+from moto import mock_s3
+
 from airflow import models
+from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.contrib.operators.sftp_to_s3_operator import SFTPToS3Operator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-from airflow.contrib.hooks.ssh_hook import SSHHook
-from airflow.hooks.S3_hook import S3Hook
-
-import boto3
-from moto import mock_s3
+from tests.test_utils.config import conf_vars
 
 BUCKET = 'test-bucket'
 S3_KEY = 'test/test_1_file.csv'
@@ -57,19 +57,16 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class SFTPToS3OperatorTest(unittest.TestCase):
+class TestSFTPToS3Operator(unittest.TestCase):
 
     @mock_s3
     def setUp(self):
-        configuration.load_test_config()
-
         hook = SSHHook(ssh_conn_id='ssh_default')
         s3_hook = S3Hook('aws_default')
         hook.no_host_key_check = True
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE,
-            'provide_context': True
         }
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
         dag.schedule_interval = '@once'
@@ -86,9 +83,9 @@ class SFTPToS3OperatorTest(unittest.TestCase):
         self.s3_key = S3_KEY
 
     @mock_s3
+    @conf_vars({('core', 'enable_xcom_pickling'): 'True'})
     def test_sftp_to_s3_operation(self):
         # Setting
-        configuration.conf.set("core", "enable_xcom_pickling", "True")
         test_remote_file_content = \
             "This is remote file content \n which is also multiline " \
             "another line here \n this is last line. EOF"
@@ -109,7 +106,7 @@ class SFTPToS3OperatorTest(unittest.TestCase):
         # Test for creation of s3 bucket
         conn = boto3.client('s3')
         conn.create_bucket(Bucket=self.s3_bucket)
-        self.assertTrue((self.s3_hook.check_for_bucket(self.s3_bucket)))
+        self.assertTrue(self.s3_hook.check_for_bucket(self.s3_bucket))
 
         # get remote file to local
         run_task = SFTPToS3Operator(
@@ -137,7 +134,7 @@ class SFTPToS3OperatorTest(unittest.TestCase):
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
-        self.assertFalse((self.s3_hook.check_for_bucket(self.s3_bucket)))
+        self.assertFalse(self.s3_hook.check_for_bucket(self.s3_bucket))
 
 
 if __name__ == '__main__':

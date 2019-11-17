@@ -17,32 +17,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 import datetime
 import os
 import unittest
+from unittest import mock
 
-import mock
 import nose
 
-from airflow import DAG, configuration, operators
+from airflow import DAG, operators
+from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
-
-configuration.load_test_config()
-
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
-class HiveEnvironmentTest(unittest.TestCase):
+class TestHiveEnvironment(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
@@ -62,7 +57,32 @@ class HiveEnvironmentTest(unittest.TestCase):
         """
 
 
-class HiveOperatorConfigTest(HiveEnvironmentTest):
+class TestHiveCli(unittest.TestCase):
+
+    def setUp(self):
+        self.nondefault_schema = "nondefault"
+        os.environ["AIRFLOW__CORE__SECURITY"] = "kerberos"
+
+    def tearDown(self):
+        del os.environ["AIRFLOW__CORE__SECURITY"]
+
+    def test_get_proxy_user_value(self):
+        from airflow.hooks.hive_hooks import HiveCliHook
+
+        hook = HiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = {'proxy_user': 'a_user_proxy'}
+        hook.use_beeline = True
+        hook.conn = returner
+
+        # Run
+        result = hook._prepare_cli_cmd()
+
+        # Verify
+        self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])
+
+
+class HiveOperatorConfigTest(TestHiveEnvironment):
 
     def test_hive_airflow_default_config_queue(self):
         t = HiveOperator(
@@ -73,7 +93,7 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
             dag=self.dag)
 
         # just check that the correct default value in test_default.cfg is used
-        test_config_hive_mapred_queue = configuration.conf.get(
+        test_config_hive_mapred_queue = conf.get(
             'hive',
             'default_hive_mapred_queue'
         )
@@ -92,7 +112,7 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
         self.assertEqual(t.get_hook().mapred_queue, specific_mapred_queue)
 
 
-class HiveOperatorTest(HiveEnvironmentTest):
+class HiveOperatorTest(TestHiveEnvironment):
 
     def test_hiveconf_jinja_translate(self):
         hql = "SELECT ${num_col} FROM ${hiveconf:table};"
@@ -139,7 +159,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
     import airflow.hooks.hive_hooks
     import airflow.operators.presto_to_mysql
 
-    class HivePrestoTest(HiveEnvironmentTest):
+    class TestHivePresto(TestHiveEnvironment):
 
         def test_hive(self):
             t = HiveOperator(
@@ -163,7 +183,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
         def test_beeline(self):
             t = HiveOperator(
-                task_id='beeline_hql', hive_cli_conn_id='beeline_default',
+                task_id='beeline_hql', hive_cli_conn_id='hive_cli_default',
                 hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                   ignore_ti_state=True)

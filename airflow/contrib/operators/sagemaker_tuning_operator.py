@@ -19,8 +19,8 @@
 
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
+from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerTuningOperator(SageMakerBaseOperator):
@@ -62,8 +62,8 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                  check_interval=30,
                  max_ingestion_time=None,
                  *args, **kwargs):
-        super(SageMakerTuningOperator, self).__init__(config=config,
-                                                      *args, **kwargs)
+        super().__init__(config=config,
+                         *args, **kwargs)
         self.config = config
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval

@@ -17,34 +17,25 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+from unittest.mock import patch
 
 import requests
-from mock import patch
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
+from airflow.models import TaskInstance
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor
 from airflow.utils.timezone import datetime
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
-configuration.load_test_config()
+from tests.compat import mock
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 TEST_DAG_ID = 'unit_test_dag'
 
 
-class HttpSensorTests(unittest.TestCase):
+class TestHttpSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -71,12 +62,12 @@ class HttpSensorTests(unittest.TestCase):
             response_check=resp_check,
             timeout=5,
             poke_interval=1)
-        with self.assertRaisesRegexp(AirflowException, 'AirflowException raised here!'):
-            task.execute(None)
+        with self.assertRaisesRegex(AirflowException, 'AirflowException raised here!'):
+            task.execute(context={})
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
     def test_head_method(self, mock_session_send):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         task = HttpSensor(
@@ -90,25 +81,49 @@ class HttpSensorTests(unittest.TestCase):
             timeout=5,
             poke_interval=1)
 
-        task.execute(None)
+        task.execute(context={})
 
         args, kwargs = mock_session_send.call_args
         received_request = args[0]
 
         prep_request = requests.Request(
             'HEAD',
-            'https://www.google.com',
+            'https://www.httpbin.org',
             {}).prepare()
 
         self.assertEqual(prep_request.url, received_request.url)
         self.assertTrue(prep_request.method, received_request.method)
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
+    def test_poke_context(self, mock_session_send):
+        response = requests.Response()
+        response.status_code = 200
+        mock_session_send.return_value = response
+
+        def resp_check(resp, execution_date):
+            if execution_date == DEFAULT_DATE:
+                return True
+            raise AirflowException('AirflowException raised here!')
+
+        task = HttpSensor(
+            task_id='http_sensor_poke_exception',
+            http_conn_id='http_default',
+            endpoint='',
+            request_params={},
+            response_check=resp_check,
+            timeout=5,
+            poke_interval=1,
+            dag=self.dag)
+
+        task_instance = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        task.execute(task_instance.get_template_context())
+
+    @patch("airflow.hooks.http_hook.requests.Session.send")
     def test_logging_head_error_request(
         self,
         mock_session_send
     ):
-        def resp_check(resp):
+        def resp_check(_):
             return True
 
         response = requests.Response()
@@ -133,16 +148,24 @@ class HttpSensorTests(unittest.TestCase):
                 task.execute(None)
 
             self.assertTrue(mock_errors.called)
-            mock_errors.assert_called_with('HTTP error: %s', 'Not Found')
+            calls = [
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('HTTP error: %s', 'Not Found'),
+            ]
+            mock_errors.assert_has_calls(calls)
 
 
-class FakeSession(object):
+class FakeSession:
     def __init__(self):
         self.response = requests.Response()
         self.response.status_code = 200
         self.response._content = 'apache/airflow'.encode('ascii', 'ignore')
 
-    def send(self, request, **kwargs):
+    def send(self, *args, **kwargs):
         return self.response
 
     def prepare_request(self, request):
@@ -153,9 +176,8 @@ class FakeSession(object):
         return self.response
 
 
-class HttpOpSensorTest(unittest.TestCase):
+class TestHttpOpSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag

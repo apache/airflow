@@ -18,6 +18,7 @@
 # under the License.
 #
 import os
+
 from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
 from airflow.exceptions import AirflowException
 
@@ -141,7 +142,7 @@ class SparkJDBCHook(SparkSubmitHook):
                  *args,
                  **kwargs
                  ):
-        super(SparkJDBCHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._name = spark_app_name
         self._conn_id = spark_conn_id
         self._conf = spark_conf

@@ -20,8 +20,8 @@
 import json
 import re
 
-from airflow.hooks.http_hook import HttpHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.http_hook import HttpHook
 
 
 class DiscordWebhookHook(HttpHook):
@@ -64,7 +64,7 @@ class DiscordWebhookHook(HttpHook):
                  proxy=None,
                  *args,
                  **kwargs):
-        super(DiscordWebhookHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.webhook_endpoint = self._get_webhook_endpoint(http_conn_id, webhook_endpoint)
         self.message = message

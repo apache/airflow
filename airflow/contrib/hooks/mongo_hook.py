@@ -16,10 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Hook for Mongo DB"""
 from ssl import CERT_NONE
 
-from airflow.hooks.base_hook import BaseHook
 from pymongo import MongoClient, ReplaceOne
+
+from airflow.hooks.base_hook import BaseHook
 
 
 class MongoHook(BaseHook):
@@ -29,17 +31,34 @@ class MongoHook(BaseHook):
     https://docs.mongodb.com/manual/reference/connection-string/index.html
     You can specify connection string options in extra field of your connection
     https://docs.mongodb.com/manual/reference/connection-string/index.html#connection-string-options
-    ex. ``{replicaSet: test, ssl: True, connectTimeoutMS: 30000}``
+
+    If you want use DNS seedlist, set `srv` to True.
+
+    ex.
+        {"srv": true, "replicaSet": "test", "ssl": true, "connectTimeoutMS": 30000}
     """
     conn_type = 'mongo'
 
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
-        super(MongoHook, self).__init__(source='mongo')
 
         self.mongo_conn_id = conn_id
         self.connection = self.get_connection(conn_id)
-        self.extras = self.connection.extra_dejson
+        self.extras = self.connection.extra_dejson.copy()
         self.client = None
+
+        srv = self.extras.pop('srv', False)
+        scheme = 'mongodb+srv' if srv else 'mongodb'
+
+        self.uri = '{scheme}://{creds}{host}{port}/{database}'.format(
+            scheme=scheme,
+            creds='{}:{}@'.format(
+                self.connection.login, self.connection.password
+            ) if self.connection.login else '',
+
+            host=self.connection.host,
+            port='' if self.connection.port is None else ':{}'.format(self.connection.port),
+            database=self.connection.schema
+        )
 
     def __enter__(self):
         return self
@@ -55,18 +74,6 @@ class MongoHook(BaseHook):
         if self.client is not None:
             return self.client
 
-        conn = self.connection
-
-        uri = 'mongodb://{creds}{host}{port}/{database}'.format(
-            creds='{}:{}@'.format(
-                conn.login, conn.password
-            ) if conn.login is not None else '',
-
-            host=conn.host,
-            port='' if conn.port is None else ':{}'.format(conn.port),
-            database='' if conn.schema is None else conn.schema
-        )
-
         # Mongo Connection Options dict that is unpacked when passed to MongoClient
         options = self.extras
 
@@ -74,11 +81,12 @@ class MongoHook(BaseHook):
         if options.get('ssl', False):
             options.update({'ssl_cert_reqs': CERT_NONE})
 
-        self.client = MongoClient(uri, **options)
+        self.client = MongoClient(self.uri, **options)
 
         return self.client
 
-    def close_conn(self):
+    def close_conn(self) -> None:
+        """Closes connection"""
         client = self.client
         if client is not None:
             client.close()

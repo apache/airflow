@@ -23,72 +23,43 @@ Authentication is implemented using flask_login and different environments can
 implement their own login mechanisms by providing an `airflow_login` module
 in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
+
+isort:skip_file
 """
-from builtins import object
+
+# flake8: noqa: F401
+# pylint:disable=wrong-import-position
+from typing import Callable, Optional
+
+from airflow import settings
 from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.models import DAG
+
 
 __version__ = version.version
 
-import sys
+settings.initialize()
 
-# flake8: noqa: F401
-from airflow import settings, configuration as conf
-from airflow.models import DAG
-from flask_admin import BaseView
-from importlib import import_module
-from airflow.exceptions import AirflowException
+login = None  # type: Optional[Callable]
 
-if settings.DAGS_FOLDER not in sys.path:
-    sys.path.append(settings.DAGS_FOLDER)
-
-login = None
+from airflow import executors
+from airflow import hooks
+from airflow import macros
+from airflow import operators
+from airflow import sensors
 
 
-def load_login():
-    log = LoggingMixin().log
-
-    auth_backend = 'airflow.default_login'
-    try:
-        if conf.getboolean('webserver', 'AUTHENTICATE'):
-            auth_backend = conf.get('webserver', 'auth_backend')
-    except conf.AirflowConfigException:
-        if conf.getboolean('webserver', 'AUTHENTICATE'):
-            log.warning(
-                "auth_backend not found in webserver config reverting to "
-                "*deprecated*  behavior of importing airflow_login")
-            auth_backend = "airflow_login"
-
-    try:
-        global login
-        login = import_module(auth_backend)
-    except ImportError as err:
-        log.critical(
-            "Cannot import authentication module %s. "
-            "Please correct your authentication backend or disable authentication: %s",
-            auth_backend, err
-        )
-        if conf.getboolean('webserver', 'AUTHENTICATE'):
-            raise AirflowException("Failed to import authentication backend")
-
-
-class AirflowViewPlugin(BaseView):
-    pass
-
-
-class AirflowMacroPlugin(object):
+class AirflowMacroPlugin:
+    # pylint:disable=missing-docstring
     def __init__(self, namespace):
         self.namespace = namespace
 
 
-from airflow import operators  # noqa: E402
-from airflow import sensors  # noqa: E402
-from airflow import hooks  # noqa: E402
-from airflow import executors  # noqa: E402
-from airflow import macros  # noqa: E402
-
-operators._integrate_plugins()
-sensors._integrate_plugins()  # noqa: E402
-hooks._integrate_plugins()
-executors._integrate_plugins()
-macros._integrate_plugins()
+operators._integrate_plugins()  # pylint:disable=protected-access
+sensors._integrate_plugins()  # pylint:disable=protected-access
+hooks._integrate_plugins()  # pylint:disable=protected-access
+executors._integrate_plugins()  # pylint:disable=protected-access
+macros._integrate_plugins()  # pylint:disable=protected-access

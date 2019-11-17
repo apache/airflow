@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Concepts
 ########
@@ -52,8 +54,10 @@ the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
-.. note:: When searching for DAGs, Airflow will only consider files where the string
-   "airflow" and "DAG" both appear in the contents of the ``.py`` file.
+.. note:: When searching for DAGs, Airflow only considers python files
+   that contain the strings "airflow" and "DAG" by default. To consider
+   all python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
+   configuration flag.
 
 Scope
 -----
@@ -75,6 +79,8 @@ scope.
 Sometimes this can be put to good use. For example, a common pattern with
 ``SubDagOperator`` is to define the subdag inside a function so that Airflow
 doesn't try to load it as a standalone DAG.
+
+.. _default-args:
 
 Default Arguments
 -----------------
@@ -118,7 +124,7 @@ actually gets done.
 An operator describes a single task in a workflow. Operators are usually (but
 not always) atomic, meaning they can stand on their own and don't need to share
 resources with any other operators. The DAG will make sure that operators run in
-the correct certain order; other than those dependencies, operators generally
+the correct order; other than those dependencies, operators generally
 run independently. In fact, they may run on two completely different machines.
 
 This is a subtle but very important point: in general, if two operators need to
@@ -129,32 +135,27 @@ described elsewhere in this document.
 
 Airflow provides operators for many common tasks, including:
 
-- :class:`airflow.operators.bash_operator.BashOperator` - executes a bash command
-- :class:`airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
-- :class:`airflow.operators.email_operator.EmailOperator` - sends an email
-- :class:`airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
-- :class:`airflow.operators.mysql_operator.MySqlOperator`,
-  :class:`airflow.operators.sqlite_operator.SqliteOperator`,
-  :class:`airflow.operators.postgres_operator.PostgresOperator`,
-  :class:`airflow.operators.mssql_operator.MsSqlOperator`,
-  :class:`airflow.operators.oracle_operator.OracleOperator`,
-  :class:`airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
+- :class:`~airflow.operators.bash_operator.BashOperator` - executes a bash command
+- :class:`~airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
+- :class:`~airflow.operators.email_operator.EmailOperator` - sends an email
+- :class:`~airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
+- :class:`~airflow.operators.mysql_operator.MySqlOperator`,
+  :class:`~airflow.operators.sqlite_operator.SqliteOperator`,
+  :class:`~airflow.operators.postgres_operator.PostgresOperator`,
+  :class:`~airflow.operators.mssql_operator.MsSqlOperator`,
+  :class:`~airflow.operators.oracle_operator.OracleOperator`,
+  :class:`~airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
-operators: :class:`airflow.operators.docker_operator.DockerOperator`,
-:class:`airflow.operators.hive_operator.HiveOperator`, :class:`airflow.operators.s3_file_transform_operator.S3FileTransformOperator(`,
-:class:`airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
-:class:`airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
-
-The ``airflow/contrib/`` directory contains yet more operators built by the
-community. These operators aren't always as complete or well-tested as those in
-the main distribution, but allow users to more easily add new functionality to
-the platform.
+operators: :class:`~airflow.operators.docker_operator.DockerOperator`,
+:class:`~airflow.operators.hive_operator.HiveOperator`, :class:`~airflow.operators.s3_file_transform_operator.S3FileTransformOperator`,
+:class:`~airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`~airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
 
-See :doc:`howto/operator` for how to use Airflow operators.
+See :doc:`howto/operator/index` for how to use Airflow operators.
 
 DAG Assignment
 --------------
@@ -187,6 +188,9 @@ Bitshift Composition
 --------------------
 
 *Added in Airflow 1.8*
+
+We recommend you setting operator relationships with bitshift operators rather than ``set_upstream()``
+and ``set_downstream()``.
 
 Traditionally, operator relationships are set with the ``set_upstream()`` and
 ``set_downstream()`` methods. In Airflow 1.8, this can be done with the Python
@@ -251,20 +255,91 @@ Bitshift can also be used with lists. For example:
 
 .. code:: python
 
-    op1 >> [op2, op3]
+    op1 >> [op2, op3] >> op4
 
 is equivalent to:
 
 .. code:: python
 
-    op1 >> op2
-    op1 >> op3
-    
+    op1 >> op2 >> op4
+    op1 >> op3 >> op4
+
 and equivalent to:
 
 .. code:: python
 
     op1.set_downstream([op2, op3])
+
+
+Relationship Helper
+--------------------
+
+``chain`` and ``cross_downstream`` function provide easier ways to set relationships
+between operators in specific situation.
+
+When setting relationships between two list of operators and wish all up list
+operators as upstream to all down list operators, we have to split one list
+manually using bitshift composition.
+
+.. code:: python
+
+    [op1, op2, op3] >> op4
+    [op1, op2, op3] >> op5
+    [op1, op2, op3] >> op6
+
+``cross_downstream`` could handle list relationships easier.
+
+.. code:: python
+
+    cross_downstream([op1, op2, op3], [op4, op5, op6])
+
+When setting single direction relationships to many operators, we could
+concat them with bitshift composition.
+
+.. code:: python
+
+    op1 >> op2 >> op3 >> op4 >> op5
+
+use ``chain`` could do that
+
+.. code:: python
+
+    chain(op1, op2, op3, op4, op5)
+
+even without operator's name
+
+.. code:: python
+
+    chain([DummyOperator(task_id='op' + i, dag=dag) for i in range(1, 6)])
+
+``chain`` could handle list of operators
+
+.. code:: python
+
+    chain(op1, [op2, op3], op4)
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> [op2, op3] >> op4
+
+Have to same size when ``chain`` set relationships between two list
+of operators.
+
+.. code:: python
+
+    chain(op1, [op2, op3], [op4, op5], op6)
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> [op2, op3]
+    op2 >> op4
+    op3 >> op5
+    [op4, op5] >> op6
+
 
 Tasks
 =====
@@ -303,7 +378,7 @@ DAGs/tasks:
 .. image:: img/task_manual_vs_scheduled.png
 
 The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
-DAGs/tasks are manually triggered, i.e. by `airflow trigger_dag`.
+DAGs/tasks are manually triggered, i.e. by ``airflow dags trigger``.
 
 Workflows
 =========
@@ -378,8 +453,11 @@ reached, runnable tasks get queued and their state will show as such in the
 UI. As slots free up, queued tasks start running based on the
 ``priority_weight`` (of the task and its descendants).
 
-Note that by default tasks aren't assigned to any pool and their
-execution parallelism is only limited to the executor's setting.
+Note that if tasks are not given a pool, they are assigned to a default
+pool ``default_pool``.  ``default_pool`` is initialized with 128 slots and
+can changed through the UI or CLI (though it cannot be removed).
+
+To combine Pools with SubDAGs see the `SubDAGs`_ section.
 
 .. _concepts-connections:
 
@@ -400,13 +478,13 @@ for some basic load balancing and fault tolerance when used in conjunction
 with retries.
 
 Airflow also has the ability to reference connections via environment
-variables from the operating system. But it only supports URI format. If you
-need to specify ``extra`` for your connection, please use web UI.
+variables from the operating system. Then connection parameters must
+be saved in URI format.
 
 If connections with the same ``conn_id`` are defined in both Airflow metadata
 database and environment variables, only the one in environment variables
-will be referenced by Airflow (for example, given ``conn_id`` ``postgres_master``,
-Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
+will be referenced by Airflow (for example, given ``conn_id``
+``postgres_master``, Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
 in environment variables first and directly reference it if found,
 before it starts to search in metadata database).
 
@@ -415,7 +493,7 @@ need to supply an explicit connection ID. For example, the default
 ``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
 ``postgres_default``.
 
-See :doc:`howto/manage-connections` for how to create and manage connections.
+See :doc:`howto/connection/index` for how to create and manage connections.
 
 Queues
 ======
@@ -437,6 +515,8 @@ resource perspective (for say very lightweight tasks where one worker
 could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from within the Spark cluster
 itself because it needs a very specific environment and security rights).
+
+.. _concepts:xcom:
 
 XComs
 =====
@@ -471,14 +551,17 @@ passed, then a corresponding list of XCom values is returned.
     def push_function():
         return value
 
-    # inside another PythonOperator where provide_context=True
-    def pull_function(**context):
-        value = context['task_instance'].xcom_pull(task_ids='pushing_task')
+    # inside another PythonOperator
+    def pull_function(task_instance):
+        value = task_instance.xcom_pull(task_ids='pushing_task')
+
+When specifying arguments that are part of the context, they will be
+automatically passed to the function.
 
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
 
-.. code:: sql
+.. code:: jinja
 
     SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
 
@@ -504,10 +587,14 @@ accessible and modifiable through the UI.
     from airflow.models import Variable
     foo = Variable.get("foo")
     bar = Variable.get("bar", deserialize_json=True)
+    baz = Variable.get("baz", default_var=None)
 
 The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
-as such.
+as such. The third call uses the ``default_var`` parameter with the value
+``None``, which either returns an existing value or ``None`` if the variable
+isn't defined. The get function will throw a ``KeyError`` if the variable
+doesn't exist and no default is provided.
 
 You can use a variable from a jinja template with the syntax :
 
@@ -536,12 +623,6 @@ task_id returned is followed, and all of the other paths are skipped.
 The task_id returned by the Python function has to reference a task
 directly downstream from the BranchPythonOperator task.
 
-Note that using tasks with ``depends_on_past=True`` downstream from
-``BranchPythonOperator`` is logically unsound as ``skipped`` status
-will invariably lead to block tasks that depend on their past successes.
-``skipped`` states propagates where all directly upstream tasks are
-``skipped``.
-
 Note that when a path is a downstream task of the returned task (list), it will
 not be skipped:
 
@@ -557,8 +638,7 @@ For example:
 
 .. code:: python
 
-  def branch_func(**kwargs):
-      ti = kwargs['ti']
+  def branch_func(ti):
       xcom_value = int(ti.xcom_pull(task_ids='start_task'))
       if xcom_value >= 5:
           return 'continue_task'
@@ -573,7 +653,6 @@ For example:
 
   branch_op = BranchPythonOperator(
       task_id='branch_task',
-      provide_context=True,
       python_callable=branch_func,
       dag=dag)
 
@@ -581,6 +660,26 @@ For example:
   stop_op = DummyOperator(task_id='stop_task', dag=dag)
 
   start_op >> branch_op >> [continue_op, stop_op]
+
+If you wish to implement your own operators with branching functionality, you
+can inherit from :class:`~airflow.operators.branch_operator.BaseBranchOperator`,
+which behaves similarly to ``BranchPythonOperator`` but expects you to provide
+an implementation of the method ``choose_branch``. As with the callable for
+``BranchPythonOperator``, this method should return the ID of a downstream task,
+or a list of task IDs, which will be run, and all others will be skipped.
+
+.. code:: python
+
+  class MyBranchOperator(BaseBranchOperator):
+      def choose_branch(self, context):
+          """
+          Run an extra branch on the first day of the month
+          """
+          if context['execution_date'].day == 1:
+              return ['daily_task_id', 'monthly_task_id']
+          else:
+              return 'daily_task_id'
+
 
 SubDAGs
 =======
@@ -682,6 +781,9 @@ Some other tips when using SubDAGs:
 
 See ``airflow/example_dags`` for a demonstration.
 
+Note that airflow pool is not honored by SubDagOperator. Hence resources could be
+consumed by SubdagOperators.
+
 SLAs
 ====
 
@@ -691,6 +793,11 @@ one or many instances have not succeeded by that time, an alert email is sent
 detailing the list of tasks that missed their SLA. The event is also recorded
 in the database and made available in the web UI under ``Browse->SLA Misses``
 where events can be analyzed and documented.
+
+SLAs can be configured for scheduled tasks by using the ``sla`` parameter.
+In addition to sending alerts to the addresses specified in a task's ``email`` parameter,
+the ``sla_miss_callback`` specifies an additional ``Callable``
+object to be invoked when the SLA is not met.
 
 Email Configuration
 -------------------
@@ -721,6 +828,8 @@ For example a ``html_content_template`` file could look like this:
   Log file: {{ti.log_filepath}}<br>
   Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
 
+.. _concepts/trigger_rule:
+
 Trigger Rules
 =============
 
@@ -741,12 +850,74 @@ while creating tasks:
 * ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
 * ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
 * ``none_failed``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
+* ``none_skipped``: no parent is in a ``skipped`` state, i.e. all parents are in a ``success``, ``failed``, or ``upstream_failed`` state
 * ``dummy``: dependencies are just for show, trigger at will
 
 Note that these can be used in conjunction with ``depends_on_past`` (boolean)
 that, when set to ``True``, keeps a task from getting triggered if the
 previous schedule for the task hasn't succeeded.
 
+One must be aware of the interaction between trigger rules and skipped tasks
+in schedule level. Skipped tasks will cascade through trigger rules
+``all_success`` and ``all_failed`` but not ``all_done``, ``one_failed``, ``one_success``,
+``none_failed``, ``none_skipped`` and ``dummy``.
+
+For example, consider the following DAG:
+
+.. code:: python
+
+  #dags/branch_without_trigger.py
+  import datetime as dt
+
+  from airflow.models import DAG
+  from airflow.operators.dummy_operator import DummyOperator
+  from airflow.operators.python_operator import BranchPythonOperator
+
+  dag = DAG(
+      dag_id='branch_without_trigger',
+      schedule_interval='@once',
+      start_date=dt.datetime(2019, 2, 28)
+  )
+
+  run_this_first = DummyOperator(task_id='run_this_first', dag=dag)
+  branching = BranchPythonOperator(
+      task_id='branching', dag=dag,
+      python_callable=lambda: 'branch_a'
+  )
+
+  branch_a = DummyOperator(task_id='branch_a', dag=dag)
+  follow_branch_a = DummyOperator(task_id='follow_branch_a', dag=dag)
+
+  branch_false = DummyOperator(task_id='branch_false', dag=dag)
+
+  join = DummyOperator(task_id='join', dag=dag)
+
+  run_this_first >> branching
+  branching >> branch_a >> follow_branch_a >> join
+  branching >> branch_false >> join
+
+In the case of this DAG, ``join`` is downstream of ``follow_branch_a``
+and ``branch_false``. The ``join`` task will show up as skipped
+because its ``trigger_rule`` is set to ``all_success`` by default and
+skipped tasks will cascade through ``all_success``.
+
+.. image:: img/branch_without_trigger.png
+
+By setting ``trigger_rule`` to ``none_failed`` in ``join`` task,
+
+.. code:: python
+
+  #dags/branch_with_trigger.py
+  ...
+  join = DummyOperator(task_id='join', dag=dag, trigger_rule='none_failed')
+  ...
+
+The ``join`` task will be triggered as soon as
+``branch_false`` has been skipped (a valid completion state) and
+``follow_branch_a`` has succeeded. Because skipped tasks **will not**
+cascade through ``none_failed``.
+
+.. image:: img/branch_with_trigger.png
 
 Latest Run Only
 ===============
@@ -759,21 +930,9 @@ a pause just wastes CPU cycles.
 
 For situations like this, you can use the ``LatestOnlyOperator`` to skip
 tasks that are not being run during the most recent scheduled run for a
-DAG. The ``LatestOnlyOperator`` skips all immediate downstream tasks, and
-itself, if the time right now is not between its ``execution_time`` and the
-next scheduled ``execution_time``.
-
-One must be aware of the interaction between skipped tasks and trigger
-rules. Skipped tasks will cascade through trigger rules ``all_success``
-and ``all_failed`` but not ``all_done``, ``one_failed``, ``one_success``,
-and ``dummy``. If you would like to use the ``LatestOnlyOperator`` with
-trigger rules that do not cascade skips, you will need to ensure that the
-``LatestOnlyOperator`` is **directly** upstream of the task you would like
-to skip.
-
-It is possible, through use of trigger rules to mix tasks that should run
-in the typical date/time dependent mode and those using the
-``LatestOnlyOperator``.
+DAG. The ``LatestOnlyOperator`` skips all downstream tasks, if the time
+right now is not between its ``execution_time`` and the next scheduled
+``execution_time``.
 
 For example, consider the following DAG:
 
@@ -790,8 +949,8 @@ For example, consider the following DAG:
 
   dag = DAG(
       dag_id='latest_only_with_trigger',
-      schedule_interval=dt.timedelta(hours=4),
-      start_date=dt.datetime(2016, 9, 20),
+      schedule_interval=dt.timedelta(hours=1),
+      start_date=dt.datetime(2019, 2, 28),
   )
 
   latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
@@ -815,9 +974,8 @@ for all runs except the latest run. ``task1`` is directly downstream of
 scheduled periods. ``task3`` is downstream of ``task1`` and ``task2`` and
 because of the default ``trigger_rule`` being ``all_success`` will receive
 a cascaded skip from ``task1``. ``task4`` is downstream of ``task1`` and
-``task2`` but since its ``trigger_rule`` is set to ``all_done`` it will
-trigger as soon as ``task1`` has been skipped (a valid completion state)
-and ``task2`` has succeeded.
+``task2``. It will be first skipped directly by ``LatestOnlyOperator``,
+even its ``trigger_rule`` is set to ``all_done``.
 
 .. image:: img/latest_only_with_trigger.png
 
@@ -916,7 +1074,7 @@ Jinja Templating
 
 Airflow leverages the power of
 `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_ and this can be a
-powerful tool to use in combination with macros (see the :ref:`macros` section).
+powerful tool to use in combination with macros (see the :doc:`macros-ref` section).
 
 For example, say you want to pass the execution date as an environment variable
 to a Bash script using the ``BashOperator``.
@@ -938,6 +1096,76 @@ as an environment variable named ``EXECUTION_DATE`` in your Bash script.
 You can use Jinja templating with every parameter that is marked as "templated"
 in the documentation. Template substitution occurs just before the pre_execute
 function of your operator is called.
+
+You can also use Jinja templating with nested fields, as long as these nested fields
+are marked as templated in the structure they belong to: fields registered in
+``template_fields`` property will be submitted to template substitution, like the
+``path`` field in the example below:
+
+.. code:: python
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataReader('/tmp/{{ ds }}/my_file')
+      ],
+      dag=dag)
+
+.. note:: ``template_fields`` property can equally be a class variable or an
+   instance variable.
+
+Deep nested fields can also be substituted, as long as all intermediate fields are
+marked as template fields:
+
+.. code:: python
+
+  class MyDataTransformer:
+    template_fields = ['reader']
+
+    def __init__(self, my_reader):
+      self.reader = my_reader
+
+    # [additional code here...]
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataTransformer(MyDataReader('/tmp/{{ ds }}/my_file'))
+      ],
+      dag=dag)
+
+You can pass custom options to the Jinja ``Environment`` when creating your DAG.
+One common usage is to avoid Jinja from dropping a trailing newline from a
+template string:
+
+.. code:: python
+
+  my_dag = DAG(dag_id='my-dag',
+               jinja_environment_kwargs={
+                    'keep_trailing_newline': True,
+                    # some other jinja2 Environment options here
+               })
+
+See `Jinja documentation <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
+to find all available options.
 
 Packaged DAGs
 '''''''''''''
@@ -963,7 +1191,7 @@ It will not go into subdirectories as these are considered to be potential
 packages.
 
 In case you would like to add module dependencies to your DAG you basically would
-do the same, but then it is more to use a virtualenv and pip.
+do the same, but then it is more suitable to use a virtualenv and pip.
 
 .. code-block:: bash
 
@@ -997,7 +1225,8 @@ that Airflow should intentionally ignore. Each line in ``.airflowignore``
 specifies a regular expression pattern, and directories or files whose names
 (not DAG id) match any of the patterns would be ignored (under the hood,
 ``re.findall()`` is used to match the pattern). Overall it works like a
-``.gitignore`` file.
+``.gitignore`` file. Use the ``#`` character to indicate a comment; all
+characters on a line following a ``#`` will be ignored.
 
 ``.airflowignore`` file should be put in your ``DAG_FOLDER``.
 For example, you can prepare a ``.airflowignore`` file with contents
@@ -1008,8 +1237,8 @@ For example, you can prepare a ``.airflowignore`` file with contents
     tenant_[\d]
 
 
-Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
-"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
+``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your ``DAG_FOLDER`` would be ignored
 (If a directory's name matches any of the patterns, this directory and all its subfolders
 would not be scanned by Airflow at all. This improves efficiency of DAG finding).
 

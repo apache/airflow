@@ -17,12 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import with_statement
-from alembic import context
 from logging.config import fileConfig
 
-from airflow import settings
-from airflow.jobs import models
+from alembic import context
+
+from airflow import models, settings
+
+
+def include_object(_, name, type_, *args):
+    """Filter objects for autogenerating revisions"""
+    # Ignore _anything_ to do with Flask AppBuilder's tables
+    if type_ == "table" and name.startswith("ab_"):
+        return False
+    else:
+        return True
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -78,8 +87,10 @@ def run_migrations_online():
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
+            transaction_per_migration=True,
             target_metadata=target_metadata,
             compare_type=COMPARE_TYPE,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

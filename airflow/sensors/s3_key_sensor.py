@@ -66,7 +66,7 @@ class S3KeySensor(BaseSensorOperator):
                  verify=None,
                  *args,
                  **kwargs):
-        super(S3KeySensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # Parse
         if bucket_name is None:
             parsed_url = urlparse(bucket_key)
@@ -88,10 +88,9 @@ class S3KeySensor(BaseSensorOperator):
         self.verify = verify
 
     def poke(self, context):
-        from airflow.hooks.S3_hook import S3Hook
+        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        full_url = "s3://" + self.bucket_name + "/" + self.bucket_key
-        self.log.info('Poking for key : {full_url}'.format(**locals()))
+        self.log.info('Poking for key : s3://%s/%s', self.bucket_name, self.bucket_key)
         if self.wildcard_match:
             return hook.check_for_wildcard_key(self.bucket_key,
                                                self.bucket_name)

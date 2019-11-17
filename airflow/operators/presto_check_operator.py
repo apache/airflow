@@ -16,10 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Any, Dict
 
 from airflow.hooks.presto_hook import PrestoHook
-from airflow.operators.check_operator import CheckOperator, \
-    ValueCheckOperator, IntervalCheckOperator
+from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -48,7 +48,7 @@ class PrestoCheckOperator(CheckOperator):
     This operator can be used as a data quality check in your pipeline, and
     depending on where you put it in your DAG, you have the choice to
     stop the critical path, preventing from
-    publishing dubious data, or on the side and receive email alterts
+    publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
@@ -59,10 +59,11 @@ class PrestoCheckOperator(CheckOperator):
 
     @apply_defaults
     def __init__(
-            self, sql,
-            presto_conn_id='presto_default',
-            *args, **kwargs):
-        super(PrestoCheckOperator, self).__init__(sql=sql, *args, **kwargs)
+            self,
+            sql: str,
+            presto_conn_id: str = 'presto_default',
+            *args, **kwargs) -> None:
+        super().__init__(sql=sql, *args, **kwargs)
 
         self.presto_conn_id = presto_conn_id
         self.sql = sql
@@ -83,10 +84,13 @@ class PrestoValueCheckOperator(ValueCheckOperator):
 
     @apply_defaults
     def __init__(
-            self, sql, pass_value, tolerance=None,
-            presto_conn_id='presto_default',
+            self,
+            sql: str,
+            pass_value: Any,
+            tolerance: Any = None,
+            presto_conn_id: str = 'presto_default',
             *args, **kwargs):
-        super(PrestoValueCheckOperator, self).__init__(
+        super().__init__(
             sql=sql, pass_value=pass_value, tolerance=tolerance,
             *args, **kwargs)
         self.presto_conn_id = presto_conn_id
@@ -113,11 +117,14 @@ class PrestoIntervalCheckOperator(IntervalCheckOperator):
 
     @apply_defaults
     def __init__(
-            self, table, metrics_thresholds,
-            date_filter_column='ds', days_back=-7,
-            presto_conn_id='presto_default',
+            self,
+            table: str,
+            metrics_thresholds: Dict,
+            date_filter_column: str = 'ds',
+            days_back: int = -7,
+            presto_conn_id: str = 'presto_default',
             *args, **kwargs):
-        super(PrestoIntervalCheckOperator, self).__init__(
+        super().__init__(
             table=table, metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column, days_back=days_back,
             *args, **kwargs)

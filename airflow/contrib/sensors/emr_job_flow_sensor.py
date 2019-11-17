@@ -41,7 +41,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
                  job_flow_id,
                  *args,
                  **kwargs):
-        super(EmrJobFlowSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id
 
     def get_emr_response(self):
@@ -53,3 +53,11 @@ class EmrJobFlowSensor(EmrBaseSensor):
     @staticmethod
     def state_from_response(response):
         return response['Cluster']['Status']['State']
+
+    @staticmethod
+    def failure_message_from_response(response):
+        state_change_reason = response['Cluster']['Status'].get('StateChangeReason')
+        if state_change_reason:
+            return 'for code: {} with message {}'.format(state_change_reason.get('Code', 'No code'),
+                                                         state_change_reason.get('Message', 'Unknown'))
+        return None

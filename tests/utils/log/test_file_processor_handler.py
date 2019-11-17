@@ -17,19 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import shutil
 import os
+import shutil
 import unittest
-
-from airflow.utils.log.file_processor_handler import FileProcessorHandler
-from airflow.utils import timezone
 from datetime import timedelta
+
 from freezegun import freeze_time
+
+from airflow.utils import timezone
+from airflow.utils.log.file_processor_handler import FileProcessorHandler
 
 
 class TestFileProcessorHandler(unittest.TestCase):
     def setUp(self):
-        super(TestFileProcessorHandler, self).setUp()
+        super().setUp()
         self.base_log_folder = "/tmp/log_test"
         self.filename = "{filename}"
         self.filename_template = "{{ filename }}.log"
