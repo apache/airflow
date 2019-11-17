@@ -34,7 +34,7 @@ import pytz
 import airflow.bin.cli as cli
 from airflow import AirflowException, models, settings
 from airflow.bin.cli import get_num_ready_workers_running
-from airflow.models import Connection, DagModel, Variable
+from airflow.models import Connection, DagModel
 from airflow.settings import Session
 from airflow.utils import db, timezone
 from airflow.utils.state import State
@@ -44,7 +44,6 @@ from tests.compat import mock
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
-DEV_NULL = "/dev/null"
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1))
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(dag_folder_path), 'dags')
@@ -502,110 +501,6 @@ class TestCliDags(unittest.TestCase):
     def test_dag_state(self):
         self.assertEqual(None, cli.dag_state(self.parser.parse_args([
             'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
-
-
-class TestCliVariables(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli.CLIFactory.get_parser()
-
-    def test_variables(self):
-        # Checks if all subcommands are properly received
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'foo', '{"foo":"bar"}']))
-        cli.variables_get(self.parser.parse_args([
-            'variables', 'get', 'foo']))
-        cli.variables_get(self.parser.parse_args([
-            'variables', 'get', 'baz', '-d', 'bar']))
-        cli.variables_list(self.parser.parse_args([
-            'variables', 'list']))
-        cli.variables_delete(self.parser.parse_args([
-            'variables', 'delete', 'bar']))
-        cli.variables_import(self.parser.parse_args([
-            'variables', 'import', DEV_NULL]))
-        cli.variables_export(self.parser.parse_args([
-            'variables', 'export', DEV_NULL]))
-
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'bar', 'original']))
-        # First export
-        cli.variables_export(self.parser.parse_args([
-            'variables', 'export', 'variables1.json']))
-
-        first_exp = open('variables1.json', 'r')
-
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'bar', 'updated']))
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'foo', '{"foo":"oops"}']))
-        cli.variables_delete(self.parser.parse_args([
-            'variables', 'delete', 'foo']))
-        # First import
-        cli.variables_import(self.parser.parse_args([
-            'variables', 'import', 'variables1.json']))
-
-        self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
-        # Second export
-        cli.variables_export(self.parser.parse_args([
-            'variables', 'export', 'variables2.json']))
-
-        second_exp = open('variables2.json', 'r')
-        self.assertEqual(first_exp.read(), second_exp.read())
-        second_exp.close()
-        first_exp.close()
-        # Second import
-        cli.variables_import(self.parser.parse_args([
-            'variables', 'import', 'variables2.json']))
-
-        self.assertEqual('original', Variable.get('bar'))
-        self.assertEqual('{\n  "foo": "bar"\n}', Variable.get('foo'))
-
-        # Set a dict
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'dict', '{"foo": "oops"}']))
-        # Set a list
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'list', '["oops"]']))
-        # Set str
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'str', 'hello string']))
-        # Set int
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'int', '42']))
-        # Set float
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'float', '42.0']))
-        # Set true
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'true', 'true']))
-        # Set false
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'false', 'false']))
-        # Set none
-        cli.variables_set(self.parser.parse_args([
-            'variables', 'set', 'null', 'null']))
-
-        # Export and then import
-        cli.variables_export(self.parser.parse_args([
-            'variables', 'export', 'variables3.json']))
-        cli.variables_import(self.parser.parse_args([
-            'variables', 'import', 'variables3.json']))
-
-        # Assert value
-        self.assertEqual({'foo': 'oops'}, Variable.get('dict', deserialize_json=True))
-        self.assertEqual(['oops'], Variable.get('list', deserialize_json=True))
-        self.assertEqual('hello string', Variable.get('str'))  # cannot json.loads(str)
-        self.assertEqual(42, Variable.get('int', deserialize_json=True))
-        self.assertEqual(42.0, Variable.get('float', deserialize_json=True))
-        self.assertEqual(True, Variable.get('true', deserialize_json=True))
-        self.assertEqual(False, Variable.get('false', deserialize_json=True))
-        self.assertEqual(None, Variable.get('null', deserialize_json=True))
-
-        os.remove('variables1.json')
-        os.remove('variables2.json')
-        os.remove('variables3.json')
 
 
 class TestCliWebServer(unittest.TestCase):

@@ -46,10 +46,11 @@ from airflow import api, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.commands import (
     pool_command, role_command, rotate_fernet_key_command, sync_perm_command, task_command, user_command,
+    variable_command,
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
-from airflow.models import DAG, Connection, DagBag, DagModel, DagRun, TaskInstance, Variable
+from airflow.models import DAG, Connection, DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.cli import get_dag, process_subdir
 from airflow.utils.dot_renderer import render_dag
@@ -224,93 +225,6 @@ def dag_delete(args):
         log.info(message)
     else:
         print("Bail.")
-
-
-def variables_list(args):
-    """Displays all of the variables"""
-    with db.create_session() as session:
-        variables = session.query(Variable)
-    print("\n".join(var.key for var in variables))
-
-
-def variables_get(args):
-    """Displays variable by a given name"""
-    try:
-        var = Variable.get(args.key,
-                           deserialize_json=args.json,
-                           default_var=args.default)
-        print(var)
-    except ValueError as e:
-        print(e)
-
-
-@cli_utils.action_logging
-def variables_set(args):
-    """Creates new variable with a given name and value"""
-    Variable.set(args.key, args.value, serialize_json=args.json)
-
-
-@cli_utils.action_logging
-def variables_delete(args):
-    """Deletes variable by a given name"""
-    Variable.delete(args.key)
-
-
-@cli_utils.action_logging
-def variables_import(args):
-    """Imports variables from a given file"""
-    if os.path.exists(args.file):
-        import_helper(args.file)
-    else:
-        print("Missing variables file.")
-
-
-def variables_export(args):
-    """Exports all of the variables to the file"""
-    variable_export_helper(args.file)
-
-
-def import_helper(filepath):
-    """Helps import variables from the file"""
-    with open(filepath, 'r') as varfile:
-        data = varfile.read()
-
-    try:
-        var_json = json.loads(data)
-    except Exception:  # pylint: disable=broad-except
-        print("Invalid variables file.")
-    else:
-        suc_count = fail_count = 0
-        for k, v in var_json.items():
-            try:
-                Variable.set(k, v, serialize_json=not isinstance(v, str))
-            except Exception as e:  # pylint: disable=broad-except
-                print('Variable import failed: {}'.format(repr(e)))
-                fail_count += 1
-            else:
-                suc_count += 1
-        print("{} of {} variables successfully updated.".format(suc_count, len(var_json)))
-        if fail_count:
-            print("{} variable(s) failed to be updated.".format(fail_count))
-
-
-def variable_export_helper(filepath):
-    """Helps export all of the variables to the file"""
-    var_dict = {}
-    with db.create_session() as session:
-        qry = session.query(Variable).all()
-
-        data = json.JSONDecoder()
-        for var in qry:
-            try:
-                val = data.decode(var.val)
-            except Exception:  # pylint: disable=broad-except
-                val = var.val
-            var_dict[var.key] = val
-
-    with open(filepath, 'w') as varfile:
-        varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
-    print("{} variables successfully exported to {}".format(len(var_dict), filepath))
 
 
 @cli_utils.action_logging
@@ -1818,37 +1732,37 @@ class CLIFactory:
             'name': 'variables',
             'subcommands': (
                 {
-                    'func': variables_list,
+                    'func': variable_command.variables_list,
                     'name': 'list',
                     'help': 'List variables',
                     'args': (),
                 },
                 {
-                    'func': variables_get,
+                    'func': variable_command.variables_get,
                     'name': 'get',
                     'help': 'Get variable',
                     'args': ('var', 'json', 'default'),
                 },
                 {
-                    'func': variables_set,
+                    'func': variable_command.variables_set,
                     'name': 'set',
                     'help': 'Set variable',
                     'args': ('var', 'var_value', 'json'),
                 },
                 {
-                    'func': variables_delete,
+                    'func': variable_command.variables_delete,
                     'name': 'delete',
                     'help': 'Delete variable',
                     'args': ('var',),
                 },
                 {
-                    'func': variables_import,
+                    'func': variable_command.variables_import,
                     'name': 'import',
                     'help': 'Import variables',
                     'args': ('var_import',),
                 },
                 {
-                    'func': variables_export,
+                    'func': variable_command.variables_export,
                     'name': 'export',
                     'help': 'Export variables',
                     'args': ('var_export',),
