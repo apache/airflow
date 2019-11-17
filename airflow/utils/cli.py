@@ -150,3 +150,7 @@ def get_dags(args):
             'dag_id could not be found with regex: {}. Either the dag did not exist '
             'or it failed to parse.'.format(args.dag_id))
     return matched_dags
+
+
+alternative_conn_specs = ['conn_type', 'conn_host',
+                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']

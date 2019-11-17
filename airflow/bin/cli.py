@@ -24,7 +24,6 @@ import errno
 import json
 import logging
 import os
-import reprlib
 import signal
 import subprocess
 import sys
@@ -33,26 +32,24 @@ import threading
 import time
 import traceback
 from argparse import RawTextHelpFormatter
-from urllib.parse import urlunparse
 
 import daemon
 import psutil
 from daemon.pidfile import TimeoutPIDLockFile
-from sqlalchemy.orm import exc
 from tabulate import tabulate, tabulate_formats
 
 import airflow
 from airflow import api, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.commands import (
-    db_command, pool_command, role_command, rotate_fernet_key_command, sync_perm_command, task_command,
-    user_command, variable_command,
+    connection_command, db_command, pool_command, role_command, rotate_fernet_key_command, sync_perm_command,
+    task_command, user_command, variable_command,
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
-from airflow.models import DAG, Connection, DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import cli as cli_utils, db
-from airflow.utils.cli import get_dag, process_subdir
+from airflow.utils.cli import alternative_conn_specs, get_dag, process_subdir
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import parse as parsedate
@@ -754,109 +751,6 @@ def worker(args):
 def version(args):
     """Displays Airflow version at the command line"""
     print(settings.HEADER + "  v" + airflow.__version__)
-
-
-alternative_conn_specs = ['conn_type', 'conn_host',
-                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
-
-
-def connections_list(args):
-    """Lists all connections at the command line"""
-    with db.create_session() as session:
-        conns = session.query(Connection.conn_id, Connection.conn_type,
-                              Connection.host, Connection.port,
-                              Connection.is_encrypted,
-                              Connection.is_extra_encrypted,
-                              Connection.extra).all()
-        conns = [map(reprlib.repr, conn) for conn in conns]
-        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
-                               'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                       tablefmt=args.output)
-        print(msg)
-
-
-@cli_utils.action_logging
-def connections_add(args):
-    """Adds new connection"""
-    # Check that the conn_id and conn_uri args were passed to the command:
-    missing_args = list()
-    invalid_args = list()
-    if args.conn_uri:
-        for arg in alternative_conn_specs:
-            if getattr(args, arg) is not None:
-                invalid_args.append(arg)
-    elif not args.conn_type:
-        missing_args.append('conn_uri or conn_type')
-    if missing_args:
-        msg = ('The following args are required to add a connection:' +
-               ' {missing!r}'.format(missing=missing_args))
-        raise SystemExit(msg)
-    if invalid_args:
-        msg = ('The following args are not compatible with the ' +
-               '--add flag and --conn_uri flag: {invalid!r}')
-        msg = msg.format(invalid=invalid_args)
-        raise SystemExit(msg)
-
-    if args.conn_uri:
-        new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
-    else:
-        new_conn = Connection(conn_id=args.conn_id,
-                              conn_type=args.conn_type,
-                              host=args.conn_host,
-                              login=args.conn_login,
-                              password=args.conn_password,
-                              schema=args.conn_schema,
-                              port=args.conn_port)
-    if args.conn_extra is not None:
-        new_conn.set_extra(args.conn_extra)
-
-    with db.create_session() as session:
-        if not (session.query(Connection)
-                .filter(Connection.conn_id == new_conn.conn_id).first()):
-            session.add(new_conn)
-            msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = msg.format(conn_id=new_conn.conn_id,
-                             uri=args.conn_uri or
-                             urlunparse((args.conn_type,
-                                         '{login}:{password}@{host}:{port}'
-                                             .format(login=args.conn_login or '',
-                                                     password=args.conn_password or '',
-                                                     host=args.conn_host or '',
-                                                     port=args.conn_port or ''),
-                                         args.conn_schema or '', '', '', '')))
-            print(msg)
-        else:
-            msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-            msg = msg.format(conn_id=new_conn.conn_id)
-            print(msg)
-
-
-@cli_utils.action_logging
-def connections_delete(args):
-    """Deletes connection from DB"""
-    with db.create_session() as session:
-        try:
-            to_delete = (session
-                         .query(Connection)
-                         .filter(Connection.conn_id == args.conn_id)
-                         .one())
-        except exc.NoResultFound:
-            msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
-        except exc.MultipleResultsFound:
-            msg = ('\n\tFound more than one connection with ' +
-                   '`conn_id`={conn_id}\n')
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
-        else:
-            deleted_conn_id = to_delete.conn_id
-            session.delete(to_delete)
-            msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=deleted_conn_id)
-            print(msg)
 
 
 @cli_utils.action_logging
@@ -1808,19 +1702,19 @@ class CLIFactory:
             'name': 'connections',
             'subcommands': (
                 {
-                    'func': connections_list,
+                    'func': connection_command.connections_list,
                     'name': 'list',
                     'help': 'List connections',
                     'args': ('output',),
                 },
                 {
-                    'func': connections_add,
+                    'func': connection_command.connections_add,
                     'name': 'add',
                     'help': 'Add a connection',
                     'args': ('conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
                 },
                 {
-                    'func': connections_delete,
+                    'func': connection_command.connections_delete,
                     'name': 'delete',
                     'help': 'Delete a connection',
                     'args': ('conn_id',),
