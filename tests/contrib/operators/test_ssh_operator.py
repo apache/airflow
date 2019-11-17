@@ -23,14 +23,19 @@ from unittest import TestCase, main
 import six
 
 
+from parameterized import parameterized
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
+TEST_CONN_ID = "conn_id_for_testing"
+TIMEOUT = 5
 TEST_DAG_ID = 'unit_tests_ssh_test_op'
 DEFAULT_DATE = datetime(2017, 1, 1)
+COMMAND = "echo -n airflow"
+COMMAND_WITH_SUDO = "sudo " + COMMAND
 
 
 class SSHOperatorTest(TestCase):
@@ -53,7 +58,7 @@ class SSHOperatorTest(TestCase):
         SSH_ID = "ssh_default"
         task = SSHOperator(
             task_id="test",
-            command="echo -n airflow",
+            command=COMMAND,
             dag=self.dag,
             timeout=TIMEOUT,
             ssh_conn_id="ssh_default"
@@ -70,7 +75,7 @@ class SSHOperatorTest(TestCase):
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
-            command="echo -n airflow",
+            command=COMMAND,
             do_xcom_push=True,
             dag=self.dag,
         )
@@ -89,7 +94,7 @@ class SSHOperatorTest(TestCase):
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
-            command="echo -n airflow",
+            command=COMMAND,
             do_xcom_push=True,
             dag=self.dag,
         )
@@ -106,7 +111,7 @@ class SSHOperatorTest(TestCase):
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
-            command="echo -n airflow",
+            command=COMMAND,
             do_xcom_push=True,
             dag=self.dag,
             environment={'TEST': 'value'}
@@ -151,7 +156,7 @@ class SSHOperatorTest(TestCase):
             self.assertRaisesRegex = self.assertRaisesRegexp
         with self.assertRaisesRegex(AirflowException,
                                     "Cannot operate without ssh_hook or ssh_conn_id."):
-            task_0 = SSHOperator(task_id="test", command="echo -n airflow",
+            task_0 = SSHOperator(task_id="test", command=COMMAND,
                                  timeout=TIMEOUT, dag=self.dag)
             task_0.execute(None)
 
@@ -159,8 +164,8 @@ class SSHOperatorTest(TestCase):
         task_1 = SSHOperator(
             task_id="test_1",
             ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
-            ssh_conn_id=conn_id,
-            command="echo -n airflow",
+            ssh_conn_id=TEST_CONN_ID,
+            command=COMMAND,
             timeout=TIMEOUT,
             dag=self.dag
         )
@@ -172,8 +177,8 @@ class SSHOperatorTest(TestCase):
 
         task_2 = SSHOperator(
             task_id="test_2",
-            ssh_conn_id=conn_id,  # no ssh_hook provided
-            command="echo -n airflow",
+            ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
+            command=COMMAND,
             timeout=TIMEOUT,
             dag=self.dag
         )
@@ -187,8 +192,8 @@ class SSHOperatorTest(TestCase):
         task_3 = SSHOperator(
             task_id="test_3",
             ssh_hook=self.hook,
-            ssh_conn_id=conn_id,
-            command="echo -n airflow",
+            ssh_conn_id=TEST_CONN_ID,
+            command=COMMAND,
             timeout=TIMEOUT,
             dag=self.dag
         )
@@ -197,6 +202,27 @@ class SSHOperatorTest(TestCase):
         except Exception:
             pass
         self.assertEqual(task_3.ssh_hook.ssh_conn_id, self.hook.ssh_conn_id)
+
+    @parameterized.expand([
+        (COMMAND, False, False),
+        (COMMAND, True, True),
+        (COMMAND_WITH_SUDO, False, True),
+        (COMMAND_WITH_SUDO, True, True),
+    ])
+    def test_get_pyt_set_correctly(self, command, get_pty_in, get_pty_out):
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command=command,
+            timeout=TIMEOUT,
+            get_pty=get_pty_in,
+            dag=self.dag
+        )
+        try:
+            task.execute(None)
+        except Exception:
+            pass
+        self.assertEqual(task.get_pty, get_pty_out)
 
 
 if __name__ == '__main__':

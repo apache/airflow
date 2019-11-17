@@ -50,6 +50,11 @@ class SSHOperator(BaseOperator):
     :type environment: dict
     :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
     :type do_xcom_push: bool
+    :param get_pty: request a pseudo-terminal from the server. Set to ``True``
+        to have the remote process killed upon task timeout.
+        The default is ``False`` but note that `get_pty` is forced to ``True``
+        when the `command` starts with ``sudo``.
+    :type get_pty: bool
     """
 
     template_fields = ('command', 'remote_host')
@@ -64,6 +69,7 @@ class SSHOperator(BaseOperator):
                  timeout=10,
                  do_xcom_push=False,
                  environment=None,
+                 get_pty=False,
                  *args,
                  **kwargs):
         super(SSHOperator, self).__init__(*args, **kwargs)
@@ -74,6 +80,7 @@ class SSHOperator(BaseOperator):
         self.timeout = timeout
         self.environment = environment
         self.do_xcom_push = do_xcom_push
+        self.get_pty = self.command.startswith('sudo') or get_pty
 
     def execute(self, context):
         try:
@@ -99,14 +106,11 @@ class SSHOperator(BaseOperator):
                 raise AirflowException("SSH command not specified. Aborting.")
 
             with self.ssh_hook.get_conn() as ssh_client:
-                # Auto apply tty when its required in case of sudo
-                get_pty = False
-                if self.command.startswith('sudo'):
-                    get_pty = True
+                self.log.info("Running command: %s", self.command)
 
                 # set timeout taken as params
                 stdin, stdout, stderr = ssh_client.exec_command(command=self.command,
-                                                                get_pty=get_pty,
+                                                                get_pty=self.get_pty,
                                                                 timeout=self.timeout,
                                                                 environment=self.environment
                                                                 )
