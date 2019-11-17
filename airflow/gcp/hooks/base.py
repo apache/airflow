@@ -42,8 +42,7 @@ from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
 from googleapiclient.http import set_user_agent
 
-from airflow import LoggingMixin, version
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin, version
 from airflow.hooks.base_hook import BaseHook
 
 logger = LoggingMixin().log

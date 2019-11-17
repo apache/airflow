@@ -20,7 +20,7 @@
 import logging
 import unittest
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from tests.compat import mock
 
 try:

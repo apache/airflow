@@ -27,10 +27,9 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import BaseHTTPError
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 from .kube_client import get_kube_client

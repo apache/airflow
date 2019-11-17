@@ -527,7 +527,7 @@ if not os.path.isfile(AIRFLOW_CONFIG):
 
 log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
-conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
+conf: AirflowConfigParser = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
 
 conf.read(AIRFLOW_CONFIG)
 

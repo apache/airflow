@@ -27,12 +27,11 @@ import sqlalchemy_jsonfield
 from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.sql import exists
 
-from airflow import DAG
+from airflow import DAG, LoggingMixin
 from airflow.models.base import ID_LEN, Base
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils import db, timezone
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
 log = LoggingMixin().log

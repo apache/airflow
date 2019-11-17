@@ -21,8 +21,8 @@ import json
 import unittest
 from unittest import mock
 
+from airflow import AirflowException
 from airflow.contrib.hooks.datadog_hook import DatadogHook
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 
 APP_KEY = 'app_key'

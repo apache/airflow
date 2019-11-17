@@ -36,7 +36,7 @@ from airflow import settings
 from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowConfigException
 from airflow.models.dag import DAG
 
 __version__ = version.version

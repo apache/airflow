@@ -35,9 +35,7 @@ from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.session import make_transient
 
-from airflow import models, settings
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin, conf, models, settings
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
@@ -53,7 +51,7 @@ from airflow.utils.dag_processing import (
 from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.file import list_py_file_paths
-from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.log.logging_mixin import StreamLogWriter, set_context
 from airflow.utils.state import State
 
 

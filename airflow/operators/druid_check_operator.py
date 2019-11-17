@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.druid_hook import DruidDbApiHook
 from airflow.operators.check_operator import CheckOperator
 from airflow.utils.decorators import apply_defaults

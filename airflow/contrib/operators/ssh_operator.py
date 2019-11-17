@@ -20,9 +20,8 @@
 from base64 import b64encode
 from select import select
 
-from airflow.configuration import conf
+from airflow import AirflowException, conf
 from airflow.contrib.hooks.ssh_hook import SSHHook
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

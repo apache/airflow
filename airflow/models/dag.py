@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -34,10 +33,9 @@ from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Boolean, Column, Index, Integer, String, Text, func, or_
 
-from airflow import settings, utils
-from airflow.configuration import conf
+from airflow import AirflowException, LoggingMixin, conf, settings, utils
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
+from airflow.exceptions import AirflowDagCycleException, DagNotFound, DuplicateTaskIdFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -50,7 +48,6 @@ from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
 

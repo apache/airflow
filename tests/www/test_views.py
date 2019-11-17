@@ -38,9 +38,8 @@ from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
-from airflow import models, settings, version
+from airflow import conf, models, settings, version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs import BaseJob
 from airflow.models import DAG, Connection, DagRun, TaskInstance

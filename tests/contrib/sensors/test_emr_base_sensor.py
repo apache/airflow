@@ -19,8 +19,8 @@
 
 import unittest
 
+from airflow import AirflowException
 from airflow.contrib.sensors.emr_base_sensor import EmrBaseSensor
-from airflow.exceptions import AirflowException
 
 
 class TestEmrBaseSensor(unittest.TestCase):

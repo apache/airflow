@@ -146,6 +146,13 @@ persisted in the database.
   airflow/models/index
 
 
+Exceptions
+----------
+Exceptions are the mechanism to raise exceptions by Airflow operators, hooks and sensors.
+
+* :mod:`airflow.exceptions`
+
+
 Core and community package
 --------------------------
 Formerly the core code was maintained by the original creators - Airbnb. The code

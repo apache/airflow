@@ -24,7 +24,7 @@ This module contains a sqoop 1.x hook
 import subprocess
 from copy import deepcopy
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 

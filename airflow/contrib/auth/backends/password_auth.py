@@ -31,9 +31,8 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from airflow import models
+from airflow import LoggingMixin, models
 from airflow.utils.db import create_session, provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 LOGIN_MANAGER = flask_login.LoginManager()
 LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below

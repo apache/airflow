@@ -20,7 +20,7 @@
 
 from urllib.parse import urlparse
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -20,8 +20,8 @@
 import os
 import signal
 
+from airflow import LoggingMixin
 from airflow.exceptions import AirflowTaskTimeout
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class timeout(LoggingMixin):

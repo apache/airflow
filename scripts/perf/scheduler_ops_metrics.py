@@ -22,8 +22,7 @@ import sys
 
 import pandas as pd
 
-from airflow import settings
-from airflow.configuration import conf
+from airflow import conf, settings
 from airflow.jobs import SchedulerJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import timezone

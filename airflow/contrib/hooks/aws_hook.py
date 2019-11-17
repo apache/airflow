@@ -31,7 +31,7 @@ import logging
 import boto3
 from botocore.config import Config
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 

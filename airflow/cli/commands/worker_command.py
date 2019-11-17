@@ -23,8 +23,7 @@ import sys
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
-from airflow import settings
-from airflow.configuration import conf
+from airflow import conf, settings
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler
 

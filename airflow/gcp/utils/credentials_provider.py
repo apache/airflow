@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 
 from google.auth.environment_vars import CREDENTIALS
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
 

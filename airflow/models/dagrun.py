@@ -25,13 +25,12 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 

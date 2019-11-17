@@ -20,8 +20,7 @@
 import contextlib
 import os
 
-from airflow import settings
-from airflow.configuration import conf
+from airflow import conf, settings
 
 
 @contextlib.contextmanager

@@ -20,7 +20,7 @@
 import requests
 import tenacity
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 

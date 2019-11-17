@@ -21,7 +21,7 @@
 import unittest
 from datetime import datetime
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.models import DAG
 from airflow.operators.druid_check_operator import DruidCheckOperator
 from tests.compat import mock

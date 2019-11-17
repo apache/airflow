@@ -28,8 +28,7 @@ from functools import reduce
 import psutil
 from jinja2 import Template
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, conf
 
 try:
     # Fix Python > 3.7 deprecation

@@ -20,11 +20,10 @@ from typing import Dict, List
 
 import kubernetes.client.models as k8s
 
-from airflow.configuration import conf
+from airflow import LoggingMixin, conf
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version as airflow_version
 
 

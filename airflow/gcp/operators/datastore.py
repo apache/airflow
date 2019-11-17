@@ -22,7 +22,7 @@ This module contains Google Datastore operators.
 """
 from typing import Optional
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.gcp.hooks.datastore import DatastoreHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator

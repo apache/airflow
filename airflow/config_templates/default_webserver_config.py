@@ -21,7 +21,7 @@ import os
 
 from flask_appbuilder.security.manager import AUTH_DB
 
-from airflow.configuration import conf
+from airflow import conf
 
 # from flask_appbuilder.security.manager import AUTH_LDAP
 # from flask_appbuilder.security.manager import AUTH_OAUTH

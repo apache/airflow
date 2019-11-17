@@ -24,8 +24,9 @@ from typing import Optional
 
 from sqlalchemy.orm.session import Session
 
+from airflow import AirflowException
 from airflow.api.common.experimental.get_task_instance import get_task_instance
-from airflow.exceptions import AirflowException, TaskInstanceNotFound
+from airflow.exceptions import TaskInstanceNotFound
 from airflow.models import DagRun
 from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool

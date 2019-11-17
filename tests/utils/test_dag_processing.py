@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
-from airflow.configuration import conf
+from airflow import conf
 from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.jobs.scheduler_job import DagFileProcessorProcess
 from airflow.models import DagBag, TaskInstance as TI

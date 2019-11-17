@@ -29,10 +29,9 @@ from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
 
-from airflow import models, settings
-from airflow.configuration import conf
+from airflow import AirflowException, conf, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator

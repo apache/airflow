@@ -22,7 +22,7 @@ from typing import Any
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 
-from airflow.configuration import conf
+from airflow import conf
 
 SQL_ALCHEMY_SCHEMA = conf.get("core", "SQL_ALCHEMY_SCHEMA")
 

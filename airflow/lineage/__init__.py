@@ -27,8 +27,8 @@ import attr
 import jinja2
 from cattr import structure, unstructure
 
+from airflow import LoggingMixin
 from airflow.models.base import Operator
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
 ENV = jinja2.Environment()

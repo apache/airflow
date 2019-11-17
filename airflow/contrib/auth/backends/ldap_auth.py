@@ -28,10 +28,8 @@ from ldap3 import LEVEL, SUBTREE, Connection, Server, Tls, set_config_parameter
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from airflow import models
-from airflow.configuration import AirflowConfigException, conf
+from airflow import AirflowConfigException, LoggingMixin, conf, models
 from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() below

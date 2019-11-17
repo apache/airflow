@@ -28,7 +28,7 @@ from datetime import datetime
 import dateutil
 from google.cloud import exceptions, storage
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.gcp.hooks import gcs
 from airflow.version import version
 from tests.compat import mock

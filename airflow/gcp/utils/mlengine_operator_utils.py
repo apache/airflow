@@ -28,7 +28,7 @@ from urllib.parse import urlsplit
 
 import dill
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.operators.dataflow import DataFlowPythonOperator
 from airflow.gcp.operators.mlengine import MLEngineBatchPredictionOperator

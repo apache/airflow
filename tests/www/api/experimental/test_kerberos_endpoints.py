@@ -24,8 +24,8 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
+from airflow import conf
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
-from airflow.configuration import conf
 from airflow.www import app as application
 
 

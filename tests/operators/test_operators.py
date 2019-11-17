@@ -22,8 +22,7 @@ import unittest
 from collections import OrderedDict
 from unittest import mock
 
-from airflow import DAG, operators
-from airflow.configuration import conf
+from airflow import DAG, conf, operators
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)

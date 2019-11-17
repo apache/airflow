@@ -23,7 +23,7 @@ from typing import Optional
 
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.typing_compat import Protocol
 

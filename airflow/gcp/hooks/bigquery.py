@@ -36,10 +36,9 @@ from pandas_gbq.gbq import (
     _test_google_api_imports as gbq_test_google_api_imports,
 )
 
-from airflow import AirflowException
+from airflow import AirflowException, LoggingMixin
 from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class BigQueryHook(CloudBaseHook, DbApiHook):

@@ -23,10 +23,8 @@ from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from sqlalchemy import and_, or_
 
-from airflow import models
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin, models
 from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 EXISTING_ROLES = {
     'Admin',

@@ -30,8 +30,7 @@ from sqlalchemy.orm import Session
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from airflow import AirflowException, settings, version
-from airflow.configuration import conf
+from airflow import AirflowException, conf, settings, version
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files

@@ -35,8 +35,7 @@ from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
-from airflow import settings
-from airflow.configuration import conf
+from airflow import LoggingMixin, conf, settings
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSkipException, AirflowTaskTimeout,
 )
@@ -54,7 +53,6 @@ from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State

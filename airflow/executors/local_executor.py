@@ -48,12 +48,11 @@ from multiprocessing.managers import SyncManager
 from queue import Empty, Queue  # pylint: disable=unused-import  # noqa: F401
 from typing import Any, List, Optional, Tuple, Union  # pylint: disable=unused-import # noqa: F401
 
-from airflow import AirflowException
+from airflow import AirflowException, LoggingMixin
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor, CommandType
 from airflow.models.taskinstance import (  # pylint: disable=unused-import # noqa: F401
     TaskInstanceKeyType, TaskInstanceStateType,
 )
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 # This is a work to be executed by a worker.

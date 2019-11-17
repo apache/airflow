@@ -50,8 +50,7 @@ import kerberos
 from flask import Response, _request_ctx_stack as stack, g, make_response, request  # type: ignore
 from requests_kerberos import HTTPKerberosAuth
 
-from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow import LoggingMixin, conf
 
 # pylint: disable=c-extension-no-member
 CLIENT_AUTH = HTTPKerberosAuth(service='airflow')

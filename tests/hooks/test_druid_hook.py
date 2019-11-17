@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, patch
 import requests
 import requests_mock
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.druid_hook import DruidDbApiHook, DruidHook
 
 

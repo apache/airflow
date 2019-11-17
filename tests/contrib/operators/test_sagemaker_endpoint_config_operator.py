@@ -19,9 +19,9 @@
 
 import unittest
 
+from airflow import AirflowException
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.contrib.operators.sagemaker_endpoint_config_operator import SageMakerEndpointConfigOperator
-from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 model_name = 'test-model-name'

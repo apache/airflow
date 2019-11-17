@@ -26,8 +26,8 @@ from typing import Callable, Dict, List, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from airflow import LoggingMixin
 from airflow.gcp.hooks.base import CloudBaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version as airflow_version
 
 _AIRFLOW_VERSION = 'v' + airflow_version.replace('.', '-').replace('+', '-')

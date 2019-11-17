@@ -29,8 +29,7 @@ import six
 from parameterized import parameterized
 
 import airflow.example_dags
-from airflow import AirflowException, models, settings
-from airflow.configuration import conf
+from airflow import AirflowException, conf, models, settings
 from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.jobs.scheduler_job import DagFileProcessor

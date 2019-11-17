@@ -31,9 +31,8 @@ from kubernetes import client, watch
 from kubernetes.client import Configuration
 from kubernetes.client.rest import ApiException
 
-from airflow import settings
-from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow import AirflowException, LoggingMixin, conf, settings
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
@@ -42,7 +41,6 @@ from airflow.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
 from airflow.models.taskinstance import TaskInstanceKeyType
 from airflow.utils.db import create_session, provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 MAX_POD_ID_LEN = 253

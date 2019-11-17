@@ -22,8 +22,7 @@ import os
 import unittest
 from unittest import mock
 
-from airflow import DAG, operators
-from airflow.configuration import conf
+from airflow import DAG, conf, operators
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import TaskInstance
 from airflow.operators.hive_operator import HiveOperator

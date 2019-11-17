@@ -29,8 +29,8 @@ from sendgrid.helpers.mail import (
     Attachment, Category, Content, CustomArg, Email, Mail, MailSettings, Personalization, SandBoxMode,
 )
 
+from airflow import LoggingMixin
 from airflow.utils.email import get_email_address_list
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def send_email(to, subject, html_content, files=None, cc=None,

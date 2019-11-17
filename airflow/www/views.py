@@ -42,13 +42,12 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, or_, union_all
 from wtforms import SelectField, validators
 
-import airflow
-from airflow import jobs, models, settings
+from airflow import __version__ as airflow_version, conf, jobs, models, settings
 from airflow._vendor import nvd3
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
-from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.configuration import AIRFLOW_CONFIG
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.settings import STORE_SERIALIZED_DAGS
@@ -1932,12 +1931,7 @@ class VersionView(AirflowBaseView):
     @expose('/version')
     @has_access
     def version(self):
-        try:
-            airflow_version = airflow.__version__
-        except Exception as e:
-            airflow_version = None
-            logging.error(e)
-
+        assert airflow_version, "Airflow version not defined"
         # Get the Git repo and git hash
         git_version = None
         try:
@@ -1989,9 +1983,10 @@ class ConfigurationView(AirflowBaseView):
                 lexers.IniLexer(),  # Lexer call
                 HtmlFormatter(noclasses=True))
             )
+            assert airflow_version, "Airflow Version not defined"
             return self.render_template(
                 'airflow/config.html',
-                pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
+                pre_subtitle=settings.HEADER + "  v" + airflow_version,
                 code_html=code_html, title=title, subtitle=subtitle,
                 table=table)
 

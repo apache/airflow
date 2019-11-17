@@ -23,7 +23,7 @@ import requests
 import requests_mock
 import tenacity
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.models import Connection
 from tests.compat import mock

@@ -48,7 +48,7 @@ def print_today():
 
 
 def check_hive_conf():
-    from airflow.configuration import conf
+    from airflow import conf
     assert conf.get('hive', 'default_hive_mapred_queue') == 'airflow'
 
 

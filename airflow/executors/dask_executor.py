@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional
 from distributed import Client, Future, as_completed
 from distributed.security import Security
 
-from airflow.configuration import conf
+from airflow import conf
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKeyType
 

@@ -25,7 +25,7 @@ import textwrap
 from functools import wraps
 from typing import Any
 
-from airflow.configuration import conf
+from airflow import conf
 from airflow.exceptions import InvalidStatsNameException
 
 log = logging.getLogger(__name__)

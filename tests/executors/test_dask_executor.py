@@ -20,7 +20,7 @@ import unittest
 from datetime import timedelta
 from unittest import mock
 
-from airflow.configuration import conf
+from airflow import conf
 from airflow.jobs import BackfillJob
 from airflow.models import DagBag
 from airflow.utils import timezone

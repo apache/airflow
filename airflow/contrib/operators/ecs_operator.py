@@ -21,9 +21,9 @@ import sys
 from datetime import datetime
 from typing import Optional
 
+from airflow import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.typing_compat import Protocol
 from airflow.utils.decorators import apply_defaults

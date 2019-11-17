@@ -27,7 +27,7 @@ field (see connection `wasb_default` for an example).
 """
 from azure.storage.blob import BlockBlobService
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 

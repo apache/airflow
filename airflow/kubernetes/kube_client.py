@@ -18,7 +18,7 @@
 
 from typing import Optional
 
-from airflow.configuration import conf
+from airflow import conf
 
 try:
     from kubernetes import config, client

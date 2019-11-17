@@ -39,7 +39,7 @@ class ExecutorLoader:
         if cls._default_executor is not None:
             return cls._default_executor
 
-        from airflow.configuration import conf
+        from airflow import conf
         executor_name = conf.get('core', 'EXECUTOR')
 
         cls._default_executor = ExecutorLoader._get_executor(executor_name)

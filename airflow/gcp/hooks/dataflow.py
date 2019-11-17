@@ -31,9 +31,8 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 from googleapiclient.discovery import build
 
-from airflow import AirflowException
+from airflow import AirflowException, LoggingMixin
 from airflow.gcp.hooks.base import CloudBaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params

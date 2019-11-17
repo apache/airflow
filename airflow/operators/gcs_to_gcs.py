@@ -22,7 +22,7 @@ This module contains a Google Cloud Storage operator.
 import warnings
 from typing import Optional
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

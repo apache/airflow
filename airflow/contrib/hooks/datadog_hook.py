@@ -21,9 +21,8 @@ import time
 
 from datadog import api, initialize
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class DatadogHook(BaseHook, LoggingMixin):

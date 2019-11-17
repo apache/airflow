@@ -28,12 +28,10 @@ from flask_login import current_user
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from airflow import models
-from airflow.configuration import conf
+from airflow import LoggingMixin, conf, models
 from airflow.exceptions import AirflowConfigException
 from airflow.security import utils
 from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 # pylint: disable=c-extension-no-member
 LOGIN_MANAGER = flask_login.LoginManager()

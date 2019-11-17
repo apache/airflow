@@ -19,7 +19,7 @@
 #
 import subprocess
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 

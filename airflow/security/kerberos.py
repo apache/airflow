@@ -39,8 +39,7 @@ import sys
 import time
 from typing import Optional
 
-from airflow import LoggingMixin
-from airflow.configuration import conf
+from airflow import LoggingMixin, conf
 
 NEED_KRB181_WORKAROUND = None  # type: Optional[bool]
 

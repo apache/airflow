@@ -31,11 +31,10 @@ from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
-from airflow import DAG, exceptions, settings, utils
+from airflow import DAG, AirflowException, exceptions, settings, utils
 from airflow.configuration import (
     DEFAULT_CONFIG, AirflowConfigException, conf, parameterized_config, run_command,
 )
-from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.jobs.local_task_job import LocalTaskJob

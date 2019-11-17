@@ -23,10 +23,8 @@ from flask import redirect, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_oauthlib.client import OAuth
 
-from airflow import models
-from airflow.configuration import conf
+from airflow import LoggingMixin, conf, models
 from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
 

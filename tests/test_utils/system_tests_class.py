@@ -22,10 +22,9 @@ from shutil import move
 from tempfile import mkdtemp
 from unittest import TestCase, skip
 
-from airflow import AirflowException, models
+from airflow import AirflowException, LoggingMixin, models
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
 from airflow.utils import db
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 AIRFLOW_MAIN_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)

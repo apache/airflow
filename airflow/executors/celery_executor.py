@@ -27,12 +27,10 @@ from typing import Any, List, Optional, Tuple, Union
 from celery import Celery, Task, states as celery_states
 from celery.result import AsyncResult
 
+from airflow import AirflowException, LoggingMixin, conf
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor, CommandType, QueuedTaskInstanceType
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType, TaskInstanceStateType
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.timeout import timeout
 

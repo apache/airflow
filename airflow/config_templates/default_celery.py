@@ -19,9 +19,8 @@
 """Default celery configuration."""
 import ssl
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow import AirflowException, LoggingMixin, conf
+from airflow.exceptions import AirflowConfigException
 
 
 def _broker_supports_visibility_timeout(url):

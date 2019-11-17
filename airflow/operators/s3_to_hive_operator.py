@@ -28,7 +28,7 @@ import tempfile
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional, Union
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook

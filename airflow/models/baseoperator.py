@@ -34,8 +34,8 @@ from cached_property import cached_property
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+from airflow import AirflowException, LoggingMixin, conf
+from airflow.exceptions import DuplicateTaskIdFound
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
 from airflow.models.pool import Pool
@@ -50,7 +50,6 @@ from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule

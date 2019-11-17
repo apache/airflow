@@ -19,8 +19,7 @@
 
 # pylint: disable=missing-docstring
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, conf
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 
 _TASK_RUNNER = conf.get('core', 'TASK_RUNNER')

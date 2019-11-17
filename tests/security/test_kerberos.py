@@ -21,8 +21,7 @@ import os
 import unittest
 from argparse import Namespace
 
-from airflow import LoggingMixin
-from airflow.configuration import conf
+from airflow import LoggingMixin, conf
 from airflow.security.kerberos import renew_from_kt
 from tests.test_utils.config import conf_vars
 

@@ -19,10 +19,8 @@
 """Hook for Web HDFS"""
 from hdfs import HdfsError, InsecureClient
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin, conf
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 _kerberos_security_mode = conf.get("core", "security") == "kerberos"
 if _kerberos_security_mode:

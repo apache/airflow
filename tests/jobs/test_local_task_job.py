@@ -22,8 +22,7 @@ import multiprocessing
 import time
 import unittest
 
-from airflow import AirflowException, models, settings
-from airflow.configuration import conf
+from airflow import AirflowException, conf, models, settings
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI

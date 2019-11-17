@@ -237,6 +237,43 @@ repos:
           ^airflow/sensors/.*$|
           ^airflow/providers/.*\.py$|
           ^airflow/contrib/.*\.py$
+      - id: common-imports
+        language: pygrep
+        name: Make sure LoggingMixin is imported consistently 'from airflow'
+        entry: "from airflow\\.utils\\.log\\.logging_mixin import.* LoggingMixin"
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/__init__\.py$|
+          ^airflow/plugins_manager.py$|
+          ^airflow/configuration.py$|
+          ^airflow/utils/sqlalchemy.py$
+        files: \.py$
+      - id: common-imports
+        language: pygrep
+        name: Make sure conf is imported consistently 'from airflow'
+        entry: "from airflow\\.configuration import.* conf"
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/__init__\.py$|
+          ^airflow/logging_config.py$|
+          ^airflow/settings.py$
+        files: \.py$
+      - id: common-imports
+        language: pygrep
+        name: Make sure AirflowConfigException is imported consistently 'from airflow'
+        entry: "from airflow\\.exception import.* AirflowConfigException"
+        pass_filenames: true
+        exclude: ^airflow/__init__\.py$
+        files: \.py$
+      - id: common-imports
+        language: pygrep
+        name: Make sure AirflowException is imported consistently 'from airflow'
+        entry: "from airflow\\.exceptions import.* AirflowException"
+        pass_filenames: true
+        exclude: ^airflow/__init__\.py$
+        files: \.py$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh

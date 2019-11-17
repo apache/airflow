@@ -29,10 +29,8 @@ from qds_sdk.commands import (
 )
 from qds_sdk.qubole import Qubole
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin, conf
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 COMMAND_CLASSES = {

@@ -21,9 +21,7 @@ import contextlib
 import os
 from functools import wraps
 
-from airflow import settings
-from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow import LoggingMixin, conf, settings
 
 log = LoggingMixin().log
 

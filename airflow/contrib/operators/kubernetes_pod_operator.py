@@ -20,7 +20,7 @@ from typing import Dict, List, Optional
 
 import kubernetes.client.models as k8s
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Port, Resources

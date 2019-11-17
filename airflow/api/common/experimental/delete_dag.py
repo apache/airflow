@@ -20,13 +20,12 @@
 
 from sqlalchemy import or_
 
-from airflow import models
+from airflow import LoggingMixin, models
 from airflow.exceptions import DagNotFound
 from airflow.models import DagModel, TaskFail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 @provide_session

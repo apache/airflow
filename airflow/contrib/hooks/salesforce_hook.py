@@ -29,8 +29,8 @@ import time
 import pandas as pd
 from simple_salesforce import Salesforce
 
+from airflow import LoggingMixin
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class SalesforceHook(BaseHook):

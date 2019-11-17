@@ -20,7 +20,7 @@
 import re
 from typing import Dict, Optional
 
-from airflow.configuration import conf
+from airflow import conf
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

@@ -35,9 +35,8 @@ from sqlalchemy import or_
 from tabulate import tabulate
 
 import airflow.models
-from airflow.configuration import conf
+from airflow import AirflowException, LoggingMixin, conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
-from airflow.exceptions import AirflowException
 from airflow.models import Connection, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
@@ -46,7 +45,6 @@ from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.helpers import reap_process_group
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 

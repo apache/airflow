@@ -27,8 +27,7 @@ from typing import Callable
 
 from tabulate import tabulate_formats
 
-from airflow import api, settings
-from airflow.configuration import conf
+from airflow import api, conf, settings
 from airflow.utils.cli import alternative_conn_specs
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate

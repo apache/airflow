@@ -31,8 +31,7 @@ from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
-from airflow import DAG
-from airflow.configuration import conf
+from airflow import DAG, conf
 from airflow.executors import celery_executor
 from airflow.models import TaskInstance
 from airflow.models.taskinstance import SimpleTaskInstance

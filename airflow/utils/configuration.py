@@ -21,7 +21,7 @@ import json
 import os
 from tempfile import mkstemp
 
-from airflow.configuration import conf
+from airflow import conf
 
 
 def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):

@@ -23,8 +23,8 @@ from collections import namedtuple
 
 from azure.mgmt.containerinstance.models import ContainerState, Event
 
+from airflow import AirflowException
 from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
-from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 

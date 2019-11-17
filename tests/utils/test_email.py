@@ -24,8 +24,7 @@ from email.mime.text import MIMEText
 
 import mock
 
-from airflow import utils
-from airflow.configuration import conf
+from airflow import conf, utils
 from airflow.utils.email import get_email_address_list
 from tests.test_utils.config import conf_vars
 

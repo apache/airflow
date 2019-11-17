@@ -27,9 +27,8 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 from typing import Iterable, List, Union
 
-from airflow.configuration import conf
+from airflow import LoggingMixin, conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def send_email(to, subject, html_content,

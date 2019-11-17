@@ -20,9 +20,8 @@
 
 from importlib import import_module
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow import AirflowException, LoggingMixin, conf
+from airflow.exceptions import AirflowConfigException
 
 
 class ApiAuth:  # pylint: disable=too-few-public-methods

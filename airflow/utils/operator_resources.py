@@ -17,8 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, conf
 
 # Constants for resources (megabytes are the base unit)
 MB = 1

@@ -25,7 +25,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from zope.deprecation import deprecation
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 

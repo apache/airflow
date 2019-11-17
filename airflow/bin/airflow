@@ -25,7 +25,7 @@ import os
 import argcomplete
 
 from airflow.bin.cli import CLIFactory
-from airflow.configuration import conf
+from airflow import conf
 
 if __name__ == '__main__':
 

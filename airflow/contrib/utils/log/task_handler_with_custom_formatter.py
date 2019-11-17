@@ -23,7 +23,7 @@ Custom logging formatter for Airflow
 import logging
 from logging import StreamHandler
 
-from airflow.configuration import conf
+from airflow import conf
 from airflow.utils.helpers import parse_template_string
 
 

@@ -27,8 +27,7 @@ from datetime import datetime
 
 import psutil
 
-from airflow import DAG
-from airflow.exceptions import AirflowException
+from airflow import DAG, AirflowException
 from airflow.models import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers

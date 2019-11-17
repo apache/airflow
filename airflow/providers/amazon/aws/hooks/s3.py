@@ -29,8 +29,8 @@ from urllib.parse import urlparse
 
 from botocore.exceptions import ClientError
 
+from airflow import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
-from airflow.exceptions import AirflowException
 
 
 def provide_bucket_name(func):

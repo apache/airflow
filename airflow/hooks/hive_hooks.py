@@ -28,8 +28,7 @@ from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, conf
 from airflow.hooks.base_hook import BaseHook
 from airflow.security import utils
 from airflow.utils.file import TemporaryDirectory
