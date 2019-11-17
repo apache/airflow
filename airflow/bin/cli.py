@@ -20,33 +20,24 @@
 """Command-line interface"""
 
 import argparse
-import errno
-import json
-import logging
 import os
 import signal
-import subprocess
 import textwrap
 from argparse import RawTextHelpFormatter
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
-from tabulate import tabulate, tabulate_formats
+from tabulate import tabulate_formats
 
-from airflow import api, jobs, settings
-from airflow.api.client import get_current_api_client
+from airflow import api, settings
 from airflow.cli.commands import (
-    connection_command, db_command, pool_command, role_command, rotate_fernet_key_command, scheduler_command,
-    sync_perm_command, task_command, user_command, variable_command, version_command, webserver_command,
-    worker_command,
+    connection_command, dag_command, db_command, pool_command, role_command, rotate_fernet_key_command,
+    scheduler_command, sync_perm_command, task_command, user_command, variable_command, version_command,
+    webserver_command, worker_command,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance
-from airflow.utils import cli as cli_utils, db
-from airflow.utils.cli import alternative_conn_specs, get_dag, process_subdir, setup_locations, sigint_handler
-from airflow.utils.dot_renderer import render_dag
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils import cli as cli_utils
+from airflow.utils.cli import alternative_conn_specs, setup_locations, sigint_handler
 from airflow.utils.timezone import parse as parsedate
 
 api.load_auth()
@@ -55,246 +46,6 @@ DAGS_FOLDER = settings.DAGS_FOLDER
 
 if "BUILDING_AIRFLOW_DOCS" in os.environ:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
-
-
-@cli_utils.action_logging
-def dag_backfill(args, dag=None):
-    """Creates backfill job or dry run for a DAG"""
-    logging.basicConfig(
-        level=settings.LOGGING_LEVEL,
-        format=settings.SIMPLE_LOG_FORMAT)
-
-    signal.signal(signal.SIGTERM, sigint_handler)
-
-    dag = dag or get_dag(args)
-
-    if not args.start_date and not args.end_date:
-        raise AirflowException("Provide a start_date and/or end_date")
-
-    # If only one date is passed, using same as start and end
-    args.end_date = args.end_date or args.start_date
-    args.start_date = args.start_date or args.end_date
-
-    if args.task_regex:
-        dag = dag.sub_dag(
-            task_regex=args.task_regex,
-            include_upstream=not args.ignore_dependencies)
-
-    run_conf = None
-    if args.conf:
-        run_conf = json.loads(args.conf)
-
-    if args.dry_run:
-        print("Dry run of DAG {0} on {1}".format(args.dag_id,
-                                                 args.start_date))
-        for task in dag.tasks:
-            print("Task {0}".format(task.task_id))
-            ti = TaskInstance(task, args.start_date)
-            ti.dry_run()
-    else:
-        if args.reset_dagruns:
-            DAG.clear_dags(
-                [dag],
-                start_date=args.start_date,
-                end_date=args.end_date,
-                confirm_prompt=not args.yes,
-                include_subdags=True,
-            )
-
-        dag.run(
-            start_date=args.start_date,
-            end_date=args.end_date,
-            mark_success=args.mark_success,
-            local=args.local,
-            donot_pickle=(args.donot_pickle or
-                          conf.getboolean('core', 'donot_pickle')),
-            ignore_first_depends_on_past=args.ignore_first_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            pool=args.pool,
-            delay_on_limit_secs=args.delay_on_limit,
-            verbose=args.verbose,
-            conf=run_conf,
-            rerun_failed_tasks=args.rerun_failed_tasks,
-            run_backwards=args.run_backwards
-        )
-
-
-@cli_utils.action_logging
-def dag_trigger(args):
-    """
-    Creates a dag run for the specified dag
-
-    :param args:
-    :return:
-    """
-    api_client = get_current_api_client()
-    log = LoggingMixin().log
-    try:
-        message = api_client.trigger_dag(dag_id=args.dag_id,
-                                         run_id=args.run_id,
-                                         conf=args.conf,
-                                         execution_date=args.exec_date)
-    except OSError as err:
-        log.error(err)
-        raise AirflowException(err)
-    log.info(message)
-
-
-@cli_utils.action_logging
-def dag_delete(args):
-    """
-    Deletes all DB records related to the specified dag
-
-    :param args:
-    :return:
-    """
-    api_client = get_current_api_client()
-    log = LoggingMixin().log
-    if args.yes or input(
-            "This will drop all existing records related to the specified DAG. "
-            "Proceed? (y/n)").upper() == "Y":
-        try:
-            message = api_client.delete_dag(dag_id=args.dag_id)
-        except OSError as err:
-            log.error(err)
-            raise AirflowException(err)
-        log.info(message)
-    else:
-        print("Bail.")
-
-
-@cli_utils.action_logging
-def dag_pause(args):
-    """Pauses a DAG"""
-    set_is_paused(True, args)
-
-
-@cli_utils.action_logging
-def dag_unpause(args):
-    """Unpauses a DAG"""
-    set_is_paused(False, args)
-
-
-def set_is_paused(is_paused, args):
-    """Sets is_paused for DAG by a given dag_id"""
-    DagModel.get_dagmodel(args.dag_id).set_is_paused(
-        is_paused=is_paused,
-    )
-
-    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
-
-
-def dag_show(args):
-    """Displays DAG or saves it's graphic representation to the file"""
-    dag = get_dag(args)
-    dot = render_dag(dag)
-    if args.save:
-        filename, _, fileformat = args.save.rpartition('.')
-        dot.render(filename=filename, format=fileformat, cleanup=True)
-        print("File {} saved".format(args.save))
-    elif args.imgcat:
-        data = dot.pipe(format='png')
-        try:
-            proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                raise AirflowException(
-                    "Failed to execute. Make sure the imgcat executables are on your systems \'PATH\'"
-                )
-            else:
-                raise
-        out, err = proc.communicate(data)
-        if out:
-            print(out.decode('utf-8'))
-        if err:
-            print(err.decode('utf-8'))
-    else:
-        print(dot.source)
-
-
-@cli_utils.action_logging
-def dag_state(args):
-    """
-    Returns the state of a DagRun at the command line.
-    >>> airflow dags state tutorial 2015-01-01T00:00:00.000000
-    running
-    """
-    dag = get_dag(args)
-    dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
-    print(dr[0].state if len(dr) > 0 else None)  # pylint: disable=len-as-condition
-
-
-@cli_utils.action_logging
-def dag_next_execution(args):
-    """
-    Returns the next execution datetime of a DAG at the command line.
-    >>> airflow dags next_execution tutorial
-    2018-08-31 10:38:00
-    """
-    dag = get_dag(args)
-
-    if dag.is_paused:
-        print("[INFO] Please be reminded this DAG is PAUSED now.")
-
-    if dag.latest_execution_date:
-        next_execution_dttm = dag.following_schedule(dag.latest_execution_date)
-
-        if next_execution_dttm is None:
-            print("[WARN] No following schedule can be found. " +
-                  "This DAG may have schedule interval '@once' or `None`.")
-
-        print(next_execution_dttm)
-    else:
-        print("[WARN] Only applicable when there is execution record found for the DAG.")
-        print(None)
-
-
-@cli_utils.action_logging
-def dag_list_dags(args):
-    """Displays dags with or without stats at the command line"""
-    dagbag = DagBag(process_subdir(args.subdir))
-    list_template = textwrap.dedent("""\n
-    -------------------------------------------------------------------
-    DAGS
-    -------------------------------------------------------------------
-    {dag_list}
-    """)
-    dag_list = "\n".join(sorted(dagbag.dags))
-    print(list_template.format(dag_list=dag_list))
-    if args.report:
-        print(dagbag.dagbag_report())
-
-
-@cli_utils.action_logging
-def dag_list_jobs(args, dag=None):
-    """Lists latest n jobs"""
-    queries = []
-    if dag:
-        args.dag_id = dag.dag_id
-    if args.dag_id:
-        dagbag = DagBag()
-
-        if args.dag_id not in dagbag.dags:
-            error_message = "Dag id {} not found".format(args.dag_id)
-            raise AirflowException(error_message)
-        queries.append(jobs.BaseJob.dag_id == args.dag_id)
-
-    if args.state:
-        queries.append(jobs.BaseJob.state == args.state)
-
-    with db.create_session() as session:
-        all_jobs = (session
-                    .query(jobs.BaseJob)
-                    .filter(*queries)
-                    .order_by(jobs.BaseJob.start_date.desc())
-                    .limit(args.limit)
-                    .all())
-        fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
-        all_jobs = [[job.__getattribute__(field) for field in fields] for job in all_jobs]
-        msg = tabulate(all_jobs,
-                       [field.capitalize().replace('_', ' ') for field in fields],
-                       tablefmt=args.output)
-        print(msg)
 
 
 @cli_utils.action_logging
@@ -390,59 +141,6 @@ def kerberos(args):
         stderr.close()
     else:
         airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
-
-
-@cli_utils.action_logging
-def dag_list_dag_runs(args, dag=None):
-    """Lists dag runs for a given DAG"""
-    if dag:
-        args.dag_id = dag.dag_id
-
-    dagbag = DagBag()
-
-    if args.dag_id not in dagbag.dags:
-        error_message = "Dag id {} not found".format(args.dag_id)
-        raise AirflowException(error_message)
-
-    dag_runs = list()
-    state = args.state.lower() if args.state else None
-    for dag_run in DagRun.find(dag_id=args.dag_id,
-                               state=state,
-                               no_backfills=args.no_backfill):
-        dag_runs.append({
-            'id': dag_run.id,
-            'run_id': dag_run.run_id,
-            'state': dag_run.state,
-            'dag_id': dag_run.dag_id,
-            'execution_date': dag_run.execution_date.isoformat(),
-            'start_date': ((dag_run.start_date or '') and
-                           dag_run.start_date.isoformat()),
-        })
-    if not dag_runs:
-        print('No dag runs for {dag_id}'.format(dag_id=args.dag_id))
-
-    header_template = textwrap.dedent("""\n
-    {line}
-    DAG RUNS
-    {line}
-    {dag_run_header}
-    """)
-
-    dag_runs.sort(key=lambda x: x['execution_date'], reverse=True)
-    dag_run_header = '%-3s | %-20s | %-10s | %-20s | %-20s |' % ('id',
-                                                                 'run_id',
-                                                                 'state',
-                                                                 'execution_date',
-                                                                 'start_date')
-    print(header_template.format(dag_run_header=dag_run_header,
-                                 line='-' * 120))
-    for dag_run in dag_runs:
-        record = '%-3s | %-20s | %-10s | %-20s | %-20s |' % (dag_run['id'],
-                                                             dag_run['run_id'],
-                                                             dag_run['state'],
-                                                             dag_run['execution_date'],
-                                                             dag_run['start_date'])
-        print(record)
 
 
 class Arg:
@@ -975,13 +673,13 @@ class CLIFactory:
             'name': 'dags',
             'subcommands': (
                 {
-                    'func': dag_list_dags,
+                    'func': dag_command.dag_list_dags,
                     'name': 'list',
                     'help': "List all the DAGs",
                     'args': ('subdir', 'report'),
                 },
                 {
-                    'func': dag_list_dag_runs,
+                    'func': dag_command.dag_list_dag_runs,
                     'name': 'list_runs',
                     'help': "List dag runs given a DAG id. If state option is given, it will only "
                             "search for all the dagruns with the given state. "
@@ -990,55 +688,55 @@ class CLIFactory:
                     'args': ('dag_id', 'no_backfill', 'state'),
                 },
                 {
-                    'func': dag_list_jobs,
+                    'func': dag_command.dag_list_jobs,
                     'name': 'list_jobs',
                     'help': "List the jobs",
                     'args': ('dag_id_opt', 'state', 'limit', 'output',),
                 },
                 {
-                    'func': dag_state,
+                    'func': dag_command.dag_state,
                     'name': 'state',
                     'help': "Get the status of a dag run",
                     'args': ('dag_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': dag_next_execution,
+                    'func': dag_command.dag_next_execution,
                     'name': 'next_execution',
                     'help': "Get the next execution datetime of a DAG.",
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': dag_pause,
+                    'func': dag_command.dag_pause,
                     'name': 'pause',
                     'help': 'Pause a DAG',
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': dag_unpause,
+                    'func': dag_command.dag_unpause,
                     'name': 'unpause',
                     'help': 'Resume a paused DAG',
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': dag_trigger,
+                    'func': dag_command.dag_trigger,
                     'name': 'trigger',
                     'help': 'Trigger a DAG run',
                     'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
                 },
                 {
-                    'func': dag_delete,
+                    'func': dag_command.dag_delete,
                     'name': 'delete',
                     'help': "Delete all DB records related to the specified DAG",
                     'args': ('dag_id', 'yes'),
                 },
                 {
-                    'func': dag_show,
+                    'func': dag_command.dag_show,
                     'name': 'show',
                     'help': "Displays DAG's tasks with their dependencies",
                     'args': ('dag_id', 'subdir', 'save', 'imgcat',),
                 },
                 {
-                    'func': dag_backfill,
+                    'func': dag_command.dag_backfill,
                     'name': 'backfill',
                     'help': "Run subsections of a DAG for a specified date range. "
                             "If reset_dag_run option is used,"

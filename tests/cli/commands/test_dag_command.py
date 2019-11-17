@@ -30,6 +30,7 @@ import pytz
 
 import airflow.bin.cli as cli
 from airflow import AirflowException, models, settings
+from airflow.cli.commands import dag_command
 from airflow.models import DagModel
 from airflow.settings import Session
 from airflow.utils import timezone
@@ -113,9 +114,9 @@ class TestCliDags(unittest.TestCase):
         cls.dagbag = models.DagBag(include_examples=True)
         cls.parser = cli.CLIFactory.get_parser()
 
-    @mock.patch("airflow.bin.cli.DAG.run")
+    @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_backfill(self, mock_run):
-        cli.dag_backfill(self.parser.parse_args([
+        dag_command.dag_backfill(self.parser.parse_args([
             'dags', 'backfill', 'example_bash_operator',
             '-s', DEFAULT_DATE.isoformat()]))
 
@@ -138,7 +139,7 @@ class TestCliDags(unittest.TestCase):
         dag = self.dagbag.get_dag('example_bash_operator')
 
         with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.dag_backfill(self.parser.parse_args([
+            dag_command.dag_backfill(self.parser.parse_args([
                 'dags', 'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
                 '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
@@ -150,13 +151,13 @@ class TestCliDags(unittest.TestCase):
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
-        cli.dag_backfill(self.parser.parse_args([
+        dag_command.dag_backfill(self.parser.parse_args([
             'dags', 'backfill', 'example_bash_operator', '--dry_run',
             '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
-        cli.dag_backfill(self.parser.parse_args([
+        dag_command.dag_backfill(self.parser.parse_args([
             'dags', 'backfill', 'example_bash_operator', '-l',
             '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
@@ -180,18 +181,18 @@ class TestCliDags(unittest.TestCase):
     def test_show_dag_print(self):
         temp_stdout = io.StringIO()
         with contextlib.redirect_stdout(temp_stdout):
-            cli.dag_show(self.parser.parse_args([
+            dag_command.dag_show(self.parser.parse_args([
                 'dags', 'show', 'example_bash_operator']))
         out = temp_stdout.getvalue()
         self.assertIn("label=example_bash_operator", out)
         self.assertIn("graph [label=example_bash_operator labelloc=t rankdir=LR]", out)
         self.assertIn("runme_2 -> run_after_loop", out)
 
-    @mock.patch("airflow.bin.cli.render_dag")
+    @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_dave(self, mock_render_dag):
         temp_stdout = io.StringIO()
         with contextlib.redirect_stdout(temp_stdout):
-            cli.dag_show(self.parser.parse_args([
+            dag_command.dag_show(self.parser.parse_args([
                 'dags', 'show', 'example_bash_operator', '--save', 'awesome.png']
             ))
         out = temp_stdout.getvalue()
@@ -200,14 +201,14 @@ class TestCliDags(unittest.TestCase):
         )
         self.assertIn("File awesome.png saved", out)
 
-    @mock.patch("airflow.bin.cli.subprocess.Popen")
-    @mock.patch("airflow.bin.cli.render_dag")
+    @mock.patch("airflow.cli.commands.dag_command.subprocess.Popen")
+    @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_imgcat(self, mock_render_dag, mock_popen):
         mock_render_dag.return_value.pipe.return_value = b"DOT_DATA"
         mock_popen.return_value.communicate.return_value = (b"OUT", b"ERR")
         temp_stdout = io.StringIO()
         with contextlib.redirect_stdout(temp_stdout):
-            cli.dag_show(self.parser.parse_args([
+            dag_command.dag_show(self.parser.parse_args([
                 'dags', 'show', 'example_bash_operator', '--imgcat']
             ))
         out = temp_stdout.getvalue()
@@ -216,7 +217,7 @@ class TestCliDags(unittest.TestCase):
         self.assertIn("OUT", out)
         self.assertIn("ERR", out)
 
-    @mock.patch("airflow.bin.cli.DAG.run")
+    @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_cli_backfill_depends_on_past(self, mock_run):
         """
         Test that CLI respects -I argument
@@ -237,7 +238,7 @@ class TestCliDags(unittest.TestCase):
         ]
         dag = self.dagbag.get_dag(dag_id)
 
-        cli.dag_backfill(self.parser.parse_args(args), dag=dag)
+        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
 
         mock_run.assert_called_once_with(
             start_date=run_date,
@@ -255,7 +256,7 @@ class TestCliDags(unittest.TestCase):
             verbose=False,
         )
 
-    @mock.patch("airflow.bin.cli.DAG.run")
+    @mock.patch("airflow.cli.commands.dag_command.DAG.run")
     def test_cli_backfill_depends_on_past_backwards(self, mock_run):
         """
         Test that CLI respects -B argument and raises on interaction with depends_on_past
@@ -277,7 +278,7 @@ class TestCliDags(unittest.TestCase):
         ]
         dag = self.dagbag.get_dag(dag_id)
 
-        cli.dag_backfill(self.parser.parse_args(args), dag=dag)
+        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
         mock_run.assert_called_once_with(
             start_date=start_date,
             end_date=end_date,
@@ -362,15 +363,15 @@ class TestCliDags(unittest.TestCase):
 
     def test_cli_list_dags(self):
         args = self.parser.parse_args(['dags', 'list', '--report'])
-        cli.dag_list_dags(args)
+        dag_command.dag_list_dags(args)
 
     def test_cli_list_dag_runs(self):
-        cli.dag_trigger(self.parser.parse_args([
+        dag_command.dag_trigger(self.parser.parse_args([
             'dags', 'trigger', 'example_bash_operator', ]))
         args = self.parser.parse_args(['dags', 'list_runs',
                                        'example_bash_operator',
                                        '--no_backfill'])
-        cli.dag_list_dag_runs(args)
+        dag_command.dag_list_dag_runs(args)
 
     def test_cli_list_jobs_with_args(self):
         args = self.parser.parse_args(['dags', 'list_jobs', '--dag_id',
@@ -378,26 +379,26 @@ class TestCliDags(unittest.TestCase):
                                        '--state', 'success',
                                        '--limit', '100',
                                        '--output', 'tsv'])
-        cli.dag_list_jobs(args)
+        dag_command.dag_list_jobs(args)
 
     def test_pause(self):
         args = self.parser.parse_args([
             'dags', 'pause', 'example_bash_operator'])
-        cli.dag_pause(args)
+        dag_command.dag_pause(args)
         self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [True, 1])
 
         args = self.parser.parse_args([
             'dags', 'unpause', 'example_bash_operator'])
-        cli.dag_unpause(args)
+        dag_command.dag_unpause(args)
         self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [False, 0])
 
     def test_trigger_dag(self):
-        cli.dag_trigger(self.parser.parse_args([
+        dag_command.dag_trigger(self.parser.parse_args([
             'dags', 'trigger', 'example_bash_operator',
             '-c', '{"foo": "bar"}']))
         self.assertRaises(
             ValueError,
-            cli.dag_trigger,
+            dag_command.dag_trigger,
             self.parser.parse_args([
                 'dags', 'trigger', 'example_bash_operator',
                 '--run_id', 'trigger_dag_xxx',
@@ -410,12 +411,12 @@ class TestCliDags(unittest.TestCase):
         session = settings.Session()
         session.add(DM(dag_id=key))
         session.commit()
-        cli.dag_delete(self.parser.parse_args([
+        dag_command.dag_delete(self.parser.parse_args([
             'dags', 'delete', key, '--yes']))
         self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
         self.assertRaises(
             AirflowException,
-            cli.dag_delete,
+            dag_command.dag_delete,
             self.parser.parse_args([
                 'dags', 'delete',
                 'does_not_exist_dag',
@@ -431,14 +432,14 @@ class TestCliDags(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as f:
             session.add(DM(dag_id=key, fileloc=f.name))
             session.commit()
-            cli.dag_delete(self.parser.parse_args([
+            dag_command.dag_delete(self.parser.parse_args([
                 'dags', 'delete', key, '--yes']))
             self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(['dags', 'list_jobs'])
-        cli.dag_list_jobs(args)
+        dag_command.dag_list_jobs(args)
 
     def test_dag_state(self):
-        self.assertEqual(None, cli.dag_state(self.parser.parse_args([
+        self.assertEqual(None, dag_command.dag_state(self.parser.parse_args([
             'dags', 'state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
