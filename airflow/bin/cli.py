@@ -24,19 +24,16 @@ import os
 import textwrap
 from argparse import RawTextHelpFormatter
 
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
 from tabulate import tabulate_formats
 
 from airflow import api, settings
 from airflow.cli.commands import (
-    connection_command, dag_command, db_command, flower_command, pool_command, role_command,
+    connection_command, dag_command, db_command, flower_command, kerberos_command, pool_command, role_command,
     rotate_fernet_key_command, scheduler_command, serve_logs_command, sync_perm_command, task_command,
     user_command, variable_command, version_command, webserver_command, worker_command,
 )
 from airflow.configuration import conf
-from airflow.utils import cli as cli_utils
-from airflow.utils.cli import alternative_conn_specs, setup_locations
+from airflow.utils.cli import alternative_conn_specs
 from airflow.utils.timezone import parse as parsedate
 
 api.load_auth()
@@ -45,34 +42,6 @@ DAGS_FOLDER = settings.DAGS_FOLDER
 
 if "BUILDING_AIRFLOW_DOCS" in os.environ:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
-
-
-@cli_utils.action_logging
-def kerberos(args):
-    """Start a kerberos ticket renewer"""
-    print(settings.HEADER)
-    import airflow.security.kerberos  # pylint: disable=redefined-outer-name
-
-    if args.daemon:
-        pid, stdout, stderr, _ = setup_locations(
-            "kerberos", args.pid, args.stdout, args.stderr, args.log_file
-        )
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            stdout=stdout,
-            stderr=stderr,
-        )
-
-        with ctx:
-            airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
-
-        stdout.close()
-        stderr.close()
-    else:
-        airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
 
 
 class Arg:
@@ -857,7 +826,7 @@ class CLIFactory:
                 },
             ),
         }, {
-            'func': kerberos,
+            'func': kerberos_command.kerberos,
             'help': "Start a kerberos ticket renewer",
             'args': ('principal', 'keytab', 'pid',
                      'daemon', 'stdout', 'stderr', 'log_file'),
