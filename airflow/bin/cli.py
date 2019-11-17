@@ -45,8 +45,8 @@ import airflow
 from airflow import api, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.commands import (
-    pool_command, role_command, rotate_fernet_key_command, sync_perm_command, task_command, user_command,
-    variable_command,
+    db_command, pool_command, role_command, rotate_fernet_key_command, sync_perm_command, task_command,
+    user_command, variable_command,
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
@@ -748,31 +748,6 @@ def worker(args):
 
         worker.run(**options)
         sub_proc.kill()
-
-
-def initdb(args):
-    """Initializes the metadata database"""
-    print("DB: " + repr(settings.engine.url))
-    db.initdb()
-    print("Done.")
-
-
-def resetdb(args):
-    """Resets the metadata database"""
-    print("DB: " + repr(settings.engine.url))
-    if args.yes or input("This will drop existing tables "
-                         "if they exist. Proceed? "
-                         "(y/n)").upper() == "Y":
-        db.resetdb()
-    else:
-        print("Bail.")
-
-
-@cli_utils.action_logging
-def upgradedb(args):
-    """Upgrades the metadata database"""
-    print("DB: " + repr(settings.engine.url))
-    db.upgradedb()
 
 
 @cli_utils.action_logging
@@ -1775,19 +1750,19 @@ class CLIFactory:
             'name': 'db',
             'subcommands': (
                 {
-                    'func': initdb,
+                    'func': db_command.initdb,
                     'name': 'init',
                     'help': "Initialize the metadata database",
                     'args': (),
                 },
                 {
-                    'func': resetdb,
+                    'func': db_command.resetdb,
                     'name': 'reset',
                     'help': "Burn down and rebuild the metadata database",
                     'args': ('yes',),
                 },
                 {
-                    'func': upgradedb,
+                    'func': db_command.upgradedb,
                     'name': 'upgrade',
                     'help': "Upgrade the metadata database to latest version",
                     'args': tuple(),

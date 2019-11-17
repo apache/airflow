@@ -593,24 +593,6 @@ class TestCliWebServer(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
-class TestCliDb(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = cli.CLIFactory.get_parser()
-
-    @mock.patch("airflow.bin.cli.db.initdb")
-    def test_cli_initdb(self, initdb_mock):
-        cli.initdb(self.parser.parse_args(['db', 'init']))
-
-        initdb_mock.assert_called_once_with()
-
-    @mock.patch("airflow.bin.cli.db.resetdb")
-    def test_cli_resetdb(self, resetdb_mock):
-        cli.resetdb(self.parser.parse_args(['db', 'reset', '--yes']))
-
-        resetdb_mock.assert_called_once_with()
-
-
 class TestCliConnections(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
