@@ -37,7 +37,6 @@ from airflow.models import DagModel
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.version import version
 from tests import conf_vars
 from tests.compat import mock
 
@@ -590,15 +589,3 @@ class TestCliWebServer(unittest.TestCase):
             with self.assertRaises(SystemExit) as e:
                 cli.webserver(args)
         self.assertEqual(e.exception.code, 1)
-
-
-class TestCliVersion(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.parser = cli.CLIFactory.get_parser()
-
-    def test_cli_version(self):
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.version(self.parser.parse_args(['version']))
-            stdout = mock_stdout.getvalue()
-        self.assertIn(version, stdout)

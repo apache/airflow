@@ -38,12 +38,11 @@ import psutil
 from daemon.pidfile import TimeoutPIDLockFile
 from tabulate import tabulate, tabulate_formats
 
-import airflow
 from airflow import api, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.cli.commands import (
     connection_command, db_command, pool_command, role_command, rotate_fernet_key_command, sync_perm_command,
-    task_command, user_command, variable_command,
+    task_command, user_command, variable_command, version_command,
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
@@ -745,12 +744,6 @@ def worker(args):
 
         worker.run(**options)
         sub_proc.kill()
-
-
-@cli_utils.action_logging
-def version(args):
-    """Displays Airflow version at the command line"""
-    print(settings.HEADER + "  v" + airflow.__version__)
 
 
 @cli_utils.action_logging
@@ -1694,7 +1687,7 @@ class CLIFactory:
             'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
                      'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
-            'func': version,
+            'func': version_command.version,
             'help': "Show the version",
             'args': tuple(),
         }, {
