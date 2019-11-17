@@ -20,7 +20,7 @@
 import json
 import re
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.http_hook import HttpHook
 
 

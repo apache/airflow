@@ -20,8 +20,8 @@
 import unittest
 from unittest import mock
 
+from airflow import AirflowException
 from airflow.contrib.operators.winrm_operator import WinRMOperator
-from airflow.exceptions import AirflowException
 
 
 class TestWinRMOperator(unittest.TestCase):

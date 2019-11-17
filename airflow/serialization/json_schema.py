@@ -25,7 +25,7 @@ from typing import Iterable
 import jsonschema
 from typing_extensions import Protocol
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.settings import json
 
 

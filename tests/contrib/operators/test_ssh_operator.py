@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import unittest.mock
 from base64 import b64encode
 

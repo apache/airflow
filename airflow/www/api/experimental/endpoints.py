@@ -19,14 +19,13 @@
 from flask import Blueprint, g, jsonify, request, url_for
 
 import airflow.api
-from airflow import models
+from airflow import AirflowException, models
 from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
-from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean

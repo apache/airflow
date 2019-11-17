@@ -26,9 +26,8 @@ from sqlalchemy import Column, Index, Integer, String, and_, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-from airflow import models
+from airflow import AirflowException, models
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.all_executors import AllExecutors
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats

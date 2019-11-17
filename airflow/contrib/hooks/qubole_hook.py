@@ -30,8 +30,8 @@ from qds_sdk.commands import (
 )
 from qds_sdk.qubole import Qubole
 
+from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import TaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin

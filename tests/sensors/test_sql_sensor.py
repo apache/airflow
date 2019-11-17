@@ -19,9 +19,8 @@
 import unittest
 from unittest import mock
 
-from airflow import DAG
+from airflow import DAG, AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.timezone import datetime
 

@@ -22,7 +22,7 @@ import re
 import warnings
 from typing import List, Optional
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.gcp.hooks.mlengine import MLEngineHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

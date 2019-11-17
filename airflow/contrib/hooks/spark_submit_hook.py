@@ -22,7 +22,7 @@ import re
 import subprocess
 import time
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.kubernetes import kube_client
 from airflow.utils.log.logging_mixin import LoggingMixin

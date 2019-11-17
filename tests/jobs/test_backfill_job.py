@@ -27,11 +27,12 @@ import unittest
 import sqlalchemy
 from parameterized import parameterized
 
-from airflow import AirflowException, settings
+from airflow import settings
 from airflow.bin import cli
 from airflow.configuration import conf
 from airflow.exceptions import (
-    AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached,
+    AirflowException, AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot,
+    TaskConcurrencyLimitReached,
 )
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI

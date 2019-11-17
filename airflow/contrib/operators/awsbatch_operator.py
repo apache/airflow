@@ -23,8 +23,8 @@ from random import randint
 from time import sleep
 from typing import Optional
 
+from airflow import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.typing_compat import Protocol
 from airflow.utils.decorators import apply_defaults

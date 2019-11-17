@@ -39,9 +39,9 @@ from tabulate import tabulate
 
 # To avoid circular imports
 import airflow.models
+from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
-from airflow.exceptions import AirflowException
 from airflow.models import errors
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats

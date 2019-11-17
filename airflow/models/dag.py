@@ -34,10 +34,10 @@ from croniter import croniter
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import Boolean, Column, Index, Integer, String, Text, func, or_
 
-from airflow import settings, utils
+from airflow import AirflowException, settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
+from airflow.exceptions import AirflowDagCycleException, DagNotFound, DuplicateTaskIdFound
 from airflow.executors.all_executors import AllExecutors
 from airflow.executors.local_executor import LocalExecutor
 from airflow.models.base import ID_LEN, Base

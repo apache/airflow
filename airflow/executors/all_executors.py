@@ -18,8 +18,8 @@
 import sys
 from typing import Optional
 
+from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
 

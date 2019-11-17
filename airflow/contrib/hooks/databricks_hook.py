@@ -30,8 +30,7 @@ import requests
 from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
 
-from airflow import __version__
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, __version__
 from airflow.hooks.base_hook import BaseHook
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")

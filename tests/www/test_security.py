@@ -28,7 +28,7 @@ from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.www.security import AirflowSecurityManager
 
 READ_WRITE = {'can_dag_read', 'can_dag_edit'}

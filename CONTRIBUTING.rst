@@ -414,6 +414,8 @@ image built locally):
 =================================== ================================================================ ============
 **Hooks**                             **Description**                                                 **Breeze**
 =================================== ================================================================ ============
+``airflow-exception``                 Make sure airflow exception is imported from correct package
+----------------------------------- ---------------------------------------------------------------- ------------
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``build``                             Builds image for check-apache-licence, mypy, pylint, flake8.         *
@@ -534,9 +536,17 @@ BaseOperator
 ------------
 
 The BaseOperator should be imported:
-* as ``from airflow.models import BaseOperator`` in external DAG/operator
+* as ``from airflow.models import BaseOperator`` in external DAG, provider's operator, or custom operator
 * as ``from airflow.models.baseoperator import BaseOperator`` in Airflow core to avoid cyclic imports
 
+AirflowException
+----------------
+
+The AirflowException should be imported directly from airflow package:
+
+.. code-block:: python
+
+    from airflow import AirflowException
 
 Travis CI Testing Framework
 ===========================

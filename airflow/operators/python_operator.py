@@ -30,7 +30,7 @@ from typing import Callable, Dict, Iterable, List, Optional
 
 import dill
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory

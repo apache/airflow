@@ -28,7 +28,7 @@ from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
 
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
 from airflow.models import BaseOperator, BaseOperatorLink

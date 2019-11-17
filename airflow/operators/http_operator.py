@@ -18,7 +18,7 @@
 # under the License.
 from typing import Any, Callable, Dict, Optional
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

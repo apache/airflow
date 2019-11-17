@@ -23,8 +23,7 @@ from unittest.mock import ANY, patch
 import httplib2
 from googleapiclient.errors import HttpError
 
-from airflow import DAG
-from airflow.exceptions import AirflowException
+from airflow import DAG, AirflowException
 from airflow.gcp.operators.mlengine import (
     MLEngineBatchPredictionOperator, MLEngineCreateModelOperator, MLEngineCreateVersionOperator,
     MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator, MLEngineGetModelOperator,

@@ -23,7 +23,7 @@ import os
 from copy import copy
 from functools import wraps
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 
 signature = inspect.signature
 

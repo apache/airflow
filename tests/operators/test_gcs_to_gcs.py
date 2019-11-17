@@ -20,7 +20,7 @@
 import unittest
 from datetime import datetime
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.operators.gcs_to_gcs import (
     WILDCARD, GoogleCloudStorageSynchronizeBuckets, GoogleCloudStorageToGoogleCloudStorageOperator,
 )

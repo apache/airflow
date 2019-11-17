@@ -21,7 +21,7 @@ import os
 import random
 from typing import Iterable
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin

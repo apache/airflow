@@ -19,8 +19,8 @@
 #
 import os
 
+from airflow import AirflowException
 from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
-from airflow.exceptions import AirflowException
 
 
 class SparkJDBCHook(SparkSubmitHook):

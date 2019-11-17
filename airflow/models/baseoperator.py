@@ -32,8 +32,9 @@ import jinja2
 from cached_property import cached_property
 from dateutil.relativedelta import relativedelta
 
+from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import DuplicateTaskIdFound
 from airflow.lineage import DataSet, apply_lineage, prepare_lineage
 from airflow.models.pool import Pool
 # noinspection PyPep8Naming

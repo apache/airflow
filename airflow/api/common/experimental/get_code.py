@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Get code APIs."""
+from airflow import AirflowException
 from airflow.api.common.experimental import check_and_get_dag
-from airflow.exceptions import AirflowException
 from airflow.www import utils as wwwutils
 
 

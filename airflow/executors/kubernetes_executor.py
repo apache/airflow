@@ -29,9 +29,9 @@ from dateutil import parser
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 
-from airflow import settings
+from airflow import AirflowException, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator

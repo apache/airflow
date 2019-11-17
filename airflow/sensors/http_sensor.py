@@ -18,7 +18,7 @@
 # under the License.
 from typing import Callable, Dict, Optional
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.operators.python_operator import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator

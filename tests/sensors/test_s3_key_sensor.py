@@ -22,7 +22,7 @@ from unittest import mock
 
 from parameterized import parameterized
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.sensors.s3_key_sensor import S3KeySensor
 
 

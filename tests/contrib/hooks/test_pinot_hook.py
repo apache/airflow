@@ -24,8 +24,8 @@ import subprocess
 import unittest
 from unittest import mock
 
+from airflow import AirflowException
 from airflow.contrib.hooks.pinot_hook import PinotAdminHook, PinotDbApiHook
-from airflow.exceptions import AirflowException
 
 
 class TestPinotAdminHook(unittest.TestCase):

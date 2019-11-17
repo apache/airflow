@@ -20,7 +20,7 @@
 from jira import JIRA
 from jira.exceptions import JIRAError
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 

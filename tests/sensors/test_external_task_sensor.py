@@ -19,8 +19,8 @@
 import unittest
 from datetime import time, timedelta
 
-from airflow import DAG, exceptions, settings
-from airflow.exceptions import AirflowException, AirflowSensorTimeout
+from airflow import DAG, AirflowException, settings
+from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import DagBag, TaskInstance
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -246,7 +246,7 @@ exit 0
             poke_interval=1,
             dag=self.dag
         )
-        with self.assertRaises(exceptions.AirflowSensorTimeout):
+        with self.assertRaises(AirflowSensorTimeout):
             t2.run(
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE,

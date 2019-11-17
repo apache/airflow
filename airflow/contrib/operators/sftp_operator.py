@@ -18,8 +18,8 @@
 # under the License.
 import os
 
+from airflow import AirflowException
 from airflow.contrib.hooks.ssh_hook import SSHHook
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

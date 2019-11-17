@@ -18,8 +18,8 @@
 # under the License.
 from datadog import api
 
+from airflow import AirflowException
 from airflow.contrib.hooks.datadog_hook import DatadogHook
-from airflow.exceptions import AirflowException
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

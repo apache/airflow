@@ -20,10 +20,10 @@
 import unittest
 from datetime import datetime
 
+from airflow import AirflowException
 from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
 from airflow.contrib.hooks.sagemaker_hook import LogState, SageMakerHook
 from airflow.contrib.sensors.sagemaker_training_sensor import SageMakerTrainingSensor
-from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 DESCRIBE_TRAINING_COMPELETED_RESPONSE = {

@@ -21,8 +21,8 @@ from typing import Optional
 
 from cryptography.fernet import Fernet, MultiFernet
 
+from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 

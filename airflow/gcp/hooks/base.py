@@ -41,8 +41,7 @@ from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
 
-from airflow import LoggingMixin, version
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin, version
 from airflow.hooks.base_hook import BaseHook
 
 logger = LoggingMixin().log

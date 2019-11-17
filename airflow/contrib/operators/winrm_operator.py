@@ -22,9 +22,9 @@ from base64 import b64encode
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
+from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.contrib.hooks.winrm_hook import WinRMHook
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

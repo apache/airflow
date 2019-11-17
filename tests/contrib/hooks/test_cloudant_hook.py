@@ -18,8 +18,8 @@
 # under the License.
 import unittest
 
+from airflow import AirflowException
 from airflow.contrib.hooks.cloudant_hook import CloudantHook
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from tests.compat import patch
 

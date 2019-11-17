@@ -31,7 +31,7 @@ from urllib.parse import urlparse
 
 from google.cloud import storage
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.version import version
 

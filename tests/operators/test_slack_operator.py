@@ -20,7 +20,7 @@
 import json
 import unittest
 
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.operators.slack_operator import SlackAPIPostOperator
 from tests.compat import mock
 

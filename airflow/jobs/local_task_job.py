@@ -22,8 +22,8 @@ import os
 import signal
 import time
 
+from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner

@@ -29,8 +29,7 @@ from unittest import mock
 import pandas as pd
 from hmsclient import HMSClient
 
-from airflow import DAG
-from airflow.exceptions import AirflowException
+from airflow import DAG, AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.models.connection import Connection
 from airflow.operators.hive_operator import HiveOperator

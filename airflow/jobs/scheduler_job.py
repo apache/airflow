@@ -35,9 +35,8 @@ from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.session import make_transient
 
-from airflow import models, settings
+from airflow import AirflowException, models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob

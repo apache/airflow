@@ -28,8 +28,7 @@ from typing import Dict, Optional, Set, Union
 import pendulum
 from dateutil import relativedelta
 
-from airflow import DAG
-from airflow.exceptions import AirflowException
+from airflow import DAG, AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding

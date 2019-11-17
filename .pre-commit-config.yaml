@@ -217,6 +217,13 @@ repos:
           ^airflow/sensors/.*$|
           ^airflow/providers/.*\.py$|
           ^airflow/contrib/.*\.py$
+      - id: airflow-exception
+        language: pygrep
+        name: Make sure AirflowException is imported using 'from airflow import AirflowException'
+        entry: "from airflow.exceptions import.* AirflowException"
+        pass_filenames: true
+        exclude: ^airflow/__init__\.py$
+        files: \.py$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh

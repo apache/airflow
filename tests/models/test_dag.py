@@ -29,9 +29,9 @@ from unittest.mock import patch
 
 import pendulum
 
-from airflow import models, settings
+from airflow import AirflowException, models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import AirflowDagCycleException, DuplicateTaskIdFound
 from airflow.models import DAG, DagModel, TaskInstance as TI
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator

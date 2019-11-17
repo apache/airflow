@@ -24,8 +24,7 @@ from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
-from airflow import LoggingMixin
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, LoggingMixin
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 

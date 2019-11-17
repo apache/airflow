@@ -65,7 +65,7 @@ class TestPigCliHook(unittest.TestCase):
 
         hook = self.pig_hook()
 
-        from airflow.exceptions import AirflowException
+        from airflow import AirflowException
         self.assertRaises(AirflowException, hook.run_cli, "")
 
     @mock.patch('subprocess.Popen')

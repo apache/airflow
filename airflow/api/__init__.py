@@ -20,8 +20,9 @@
 
 from importlib import import_module
 
+from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

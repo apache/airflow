@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for HDFS operations"""
+from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 try:

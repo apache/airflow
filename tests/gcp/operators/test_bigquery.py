@@ -21,8 +21,7 @@ import unittest
 from datetime import datetime
 from unittest.mock import MagicMock
 
-from airflow import models
-from airflow.exceptions import AirflowException
+from airflow import AirflowException, models
 from airflow.gcp.operators.bigquery import (
     BigQueryConsoleLink, BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator,
     BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator, BigQueryGetDataOperator,
