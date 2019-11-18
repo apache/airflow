@@ -45,24 +45,6 @@ jobs:
       python: "3.6"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
-    - name: "Tests postgres kubernetes python 3.6 (persistent)"
-      env: >-
-        BACKEND=postgres
-        ENV=kubernetes
-        KUBERNETES_VERSION=v1.15.0
-        KUBERNETES_MODE=persistent_mode
-        PYTHON_VERSION=3.6
-      python: "3.6"
-      stage: test
-    - name: "Tests postgres kubernetes python 3.6 (git)"
-      env: >-
-        BACKEND=postgres
-        ENV=kubernetes
-        KUBERNETES_VERSION=v1.15.0
-        KUBERNETES_MODE=git_mode
-        PYTHON_VERSION=3.6
-      python: "3.6"
-      stage: test
     - name: "Tests postgres python 3.6"
       env: >-
         BACKEND=postgres
@@ -84,8 +66,28 @@ jobs:
         PYTHON_VERSION=3.7
       python: "3.7"
       stage: test
-services:
-  - docker
+    - name: "Tests postgres kubernetes python 3.6 (persistent)"
+      env: >-
+        BACKEND=postgres
+        ENV=kubernetes
+        KUBERNETES_VERSION=v1.15.0
+        KUBERNETES_MODE=persistent_mode
+        PYTHON_VERSION=3.6
+      python: "3.6"
+      stage: test
+      script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
+    - name: "Tests postgres kubernetes python 3.6 (git)"
+      env: >-
+        BACKEND=postgres
+        ENV=kubernetes
+        KUBERNETES_VERSION=v1.15.0
+        KUBERNETES_MODE=git_mode
+        PYTHON_VERSION=3.6
+      python: "3.6"
+      stage: test
+      script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
+  services:
+    - docker
 before_install:
   - ./scripts/ci/ci_before_install.sh
-script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
+script: "./scripts/ci/ci_run_airflow_testing.sh"
