@@ -1329,6 +1329,7 @@ class TestCliConnections(unittest.TestCase):
             self.assertEqual(0, proc.returncode)
 
     def test_cli_connections_add_delete(self):
+        # TODO: We should not delete the entire database, but only reset the contents of the Connection table.
         db.resetdb()
         # Add connections:
         uri = 'postgresql://airflow:airflow@host:5432/airflow'
