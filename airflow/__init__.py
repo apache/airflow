@@ -37,8 +37,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-# Load SQLAlchemy models during package initialization
-from airflow import jobs  # noqa: F401
 
 __version__ = version.version
 

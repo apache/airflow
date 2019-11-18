@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
+# Load SQLAlchemy models during package initialization
+import airflow.jobs  # noqa: F401
 from airflow.models.base import ID_LEN, Base  # noqa: F401
 from airflow.models.baseoperator import BaseOperator  # noqa: F401
 from airflow.models.connection import Connection  # noqa: F401
