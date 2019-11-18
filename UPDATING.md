@@ -43,10 +43,11 @@ assists users migrating to a new version.
 
 ### Changes to SQLSensor
 
-SQLSensor now consistent with python `bool()` function. It will resolve after receiving any value 
-that is casted to `True` with python `bool(value)`. That changes the previous response 
-receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success criteria. `NULL` has been treated
-depending on value of `allow_null`parameter. Currently `allow_null` is removed. But all the previous
+SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
+
+It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That 
+changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success 
+criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
 behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
 
 ### BaseOperator::render_template function signature changed
