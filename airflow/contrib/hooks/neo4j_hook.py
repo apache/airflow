@@ -26,7 +26,6 @@ class Neo4JHook(BaseHook):
     """
     Interact with Neo4J.
     This class is a thin wrapper around the neo4j python library.
-    :param: n4j_conn_id: Name of neo4j connection
     """
     _config = None
     _driver = None
@@ -35,14 +34,15 @@ class Neo4JHook(BaseHook):
 
     def __init__(self, n4j_conn_id='n4j_default', *args, **kwargs):
         # super().__init__(*args, **kwargs) TypeError: __init__() missing 1 required positional argument: 'source'
+        super().__init__()
         self._n4j_conn_id = n4j_conn_id
 
     def _get_config(self):
         """
         Obtain the Username + Password from the Airflow connection definition
         Store them in _config dictionary as:
-         credentials = a tuple of username/password eg. ("neo4j", "P@ssw0rd")
-         host = String for Neo4J URI eg. "bolt://10.41.17.128:7687"
+         credentials = a tuple of username/password eg. ("username", "password")
+         host = String for Neo4J URI eg. "bolt://1.1.1.1:7687"
         :return: None
         """
         if self._n4j_conn_id:
@@ -53,7 +53,8 @@ class Neo4JHook(BaseHook):
             connection_object = self.get_connection(self._n4j_conn_id)
             if connection_object.login and connection_object.host:
                 self._config['credentials'] = connection_object.login, connection_object.password
-                self._config['host'] = connection_object.host
+                host_string = "bolt://{0}:{1}".format(connection_object.host, connection_object.port)
+                self._config['host'] = host_string
         else:
             raise AirflowException("No Neo4J connection: {}".format(self._n4j_conn_id))
 
@@ -90,14 +91,13 @@ class Neo4JHook(BaseHook):
         """
         Uses a session to execute submit a query for execution
         :param cypher_query: Cypher query eg. MATCH (a) RETURN (a)
-        :param parameters: Optionally supply parameters to inject into the cypher query
-        :return:
+        :param parameters: Optional list of parameters to use with the query
+        :return: neo4j.BoltStatementResult see https://neo4j.com/docs/api/python-driver/current/results.html
         """
         with self._get_session() as session:
             self.log.info("Executing query: {}".format(cypher_query))
             result = session.read_transaction(
-                lambda tx, inputs: tx.run(cypher_query, inputs)
-                ,
+                lambda tx, inputs: tx.run(cypher_query, inputs),
                 parameters
             )
         return result
