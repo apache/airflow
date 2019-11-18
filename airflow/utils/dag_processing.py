@@ -904,7 +904,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.exception("Error removing old import errors")
 
             if STORE_SERIALIZED_DAGS:
-                from airflow.models import SerializedDagModel
+                from airflow.models.serialized_dag import SerializedDagModel
                 from airflow.models.dag import DagModel
                 SerializedDagModel.remove_deleted_dags(self._file_paths)
                 DagModel.deactivate_deleted_dags(self._file_paths)

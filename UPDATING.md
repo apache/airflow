@@ -41,6 +41,14 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to settings
+
+CONTEXT_MANAGER_DAG was removed from settings. It's role has been taken by `DagContext` in
+'airflow.models.dag'. One of the reasons was that settings should be rather static than store
+dynamic context from the DAG, but the main one is that moving the context out of settings allowed to
+untangle cyclic imports between DAG, BaseOperator, SerializedDAG, SerializedBaseOperator which was
+part of AIRFLOW-6010.
+
 ### Removal of redirect_stdout, redirect_stderr
 
 Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has 

@@ -336,8 +336,12 @@ def resetdb():
     Clear out the database
     """
     from airflow import models
+    # We need to add this model manually to get reset working well
+    # noinspection PyUnresolvedReferences
+    from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 
     # alembic adds significant import time, so we import it lazily
+    # noinspection PyUnresolvedReferences
     from alembic.migration import MigrationContext
 
     log.info("Dropping tables that exist")

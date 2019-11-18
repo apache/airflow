@@ -23,7 +23,7 @@ from typing import Iterable
 from airflow.contrib.hooks.qubole_hook import (
     COMMAND_ARGS, HYPHEN_ARGS, POSITIONAL_ARGS, QuboleHook, flatten_list,
 )
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.utils.decorators import apply_defaults
 
 
