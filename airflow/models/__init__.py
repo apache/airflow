@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
-# Load SQLAlchemy models during package initialization
-import airflow.jobs  # noqa: F401
 from airflow.models.base import ID_LEN, Base  # noqa: F401
 from airflow.models.baseoperator import BaseOperator  # noqa: F401
 from airflow.models.connection import Connection  # noqa: F401
@@ -38,3 +36,7 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances  # no
 from airflow.models.taskreschedule import TaskReschedule  # noqa: F401
 from airflow.models.variable import Variable  # noqa: F401
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom  # noqa: F401
+
+# Load SQLAlchemy models during package initialization
+# Must be loaded after loading DAG model.
+import airflow.jobs  # noqa: F401 isort # isort:skip
