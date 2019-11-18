@@ -167,8 +167,7 @@ def chain(*tasks):
     :param tasks: List of tasks or List[airflow.models.BaseOperator] to set dependencies
     :type tasks: List[airflow.models.BaseOperator] or airflow.models.BaseOperator
     """
-    from airflow.models import BaseOperator
-
+    from airflow.models.baseoperator import BaseOperator
     for index, up_task in enumerate(tasks[:-1]):
         down_task = tasks[index + 1]
         if isinstance(up_task, BaseOperator):

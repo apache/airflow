@@ -21,22 +21,19 @@
 
 import hashlib
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
 from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.sql import exists
 
+from airflow import DAG
 from airflow.models.base import ID_LEN, Base
+from airflow.serialization.serialized_dag import SerializedDAG
 from airflow.settings import json
 from airflow.utils import db, timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
-
-if TYPE_CHECKING:
-    from airflow.models import DAG  # noqa: F401; # pylint: disable=cyclic-import
-    from airflow.serialization import SerializedDAG  # noqa: F401
-
 
 log = LoggingMixin().log
 
@@ -72,9 +69,7 @@ class SerializedDagModel(Base):
         Index('idx_fileloc_hash', fileloc_hash, unique=False),
     )
 
-    def __init__(self, dag: 'DAG'):
-        from airflow.serialization import SerializedDAG  # noqa # pylint: disable=redefined-outer-name
-
+    def __init__(self, dag: DAG):
         self.dag_id = dag.dag_id
         self.fileloc = dag.full_filepath
         self.fileloc_hash = self.dag_fileloc_hash(self.fileloc)
@@ -96,7 +91,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @db.provide_session
-    def write_dag(cls, dag: 'DAG', min_update_interval: Optional[int] = None, session=None):
+    def write_dag(cls, dag: DAG, min_update_interval: Optional[int] = None, session=None):
         """Serializes a DAG and writes it into database.
 
         :param dag: a DAG to be written into database
@@ -143,8 +138,6 @@ class SerializedDagModel(Base):
     @property
     def dag(self):
         """The DAG deserialized from the ``data`` column"""
-        from airflow.serialization import SerializedDAG  # noqa # pylint: disable=redefined-outer-name
-
         if isinstance(self.data, dict):
             dag = SerializedDAG.from_dict(self.data)  # type: Any
         else:

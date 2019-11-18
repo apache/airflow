@@ -37,7 +37,7 @@ from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
 from airflow.configuration import conf
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder

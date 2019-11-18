@@ -414,7 +414,7 @@ image built locally):
 =================================== ================================================================ ============
 **Hooks**                             **Description**                                                 **Breeze**
 =================================== ================================================================ ============
-``airflow-settings``                  Check if airflow import settings are used well.
+``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``build``                             Builds image for check-apache-licence, mypy, pylint, flake8.         *
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -512,6 +512,35 @@ You can always skip running the tests by providing ``--no-verify`` flag to the
 ``git commit`` command.
 
 To check other usage types of the pre-commit framework, see `Pre-commit website <https://pre-commit.com/>`__.
+
+Importing Airflow core objects
+==============================
+
+When you implement core features or DAGs you might need to import some of the core objects or modules.
+Since Apache Airflow can be used both as application (by internal classes) and as library (by DAGs), there are
+different ways those core objects and packages are imported.
+
+Airflow imports some of the core objects directly to 'airflow' package so that they can be used from there.
+
+Those criteria were assumed for choosing what import path to use:
+
+* If you work on a core feature inside Apache Airflow, you should import the objects directly from the
+  package where the object is defined - this minimises the risk of cyclic imports.
+* If you import the objects from any of 'providers' classes, you should import the objects from
+  'airflow' or 'airflow.models', It is very important for back-porting operators/hooks/sensors
+  to Airflow 1.10.* (AIP-21)
+* If you import objects from within a DAG you write, you should import them from 'airflow' or
+  'airflow.models' package where stable location of such import is important.
+
+Those checks enforced for the most important and repeated objects via pre-commit hooks as described below.
+
+BaseOperator
+------------
+
+The BaseOperator should be imported:
+* as ``from airflow.models import BaseOperator`` in external DAG/operator
+* as ``from airflow.models.baseoperator import BaseOperator`` in Airflow core to avoid cyclic imports
+
 
 Travis CI Testing Framework
 ===========================

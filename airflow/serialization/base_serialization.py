@@ -22,17 +22,18 @@
 import datetime
 import enum
 import logging
-from typing import TYPE_CHECKING, Dict, Optional, Union
+from inspect import Parameter
+from typing import Dict, Optional, Set, Union
 
 import pendulum
 from dateutil import relativedelta
 
-import airflow
 from airflow.exceptions import AirflowException
+from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.json_schema import Validator
 from airflow.settings import json
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
@@ -43,8 +44,8 @@ LOG = LoggingMixin().log
 FAILED = 'serialization_failed'
 
 
-class Serialization:
-    """Serialization provides utils for serialization."""
+class BaseSerialization:
+    """BaseSerialization provides utils for serialization."""
 
     # JSON primitive types.
     _primitive_types = (int, bool, float, str)
@@ -78,14 +79,12 @@ class Serialization:
         raise NotImplementedError()
 
     @classmethod
-    def from_json(cls, serialized_obj: str) -> Union[
-            'SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]:
+    def from_json(cls, serialized_obj: str) -> Union['BaseSerialization', dict, list, set, tuple]:
         """Deserializes json_str and reconstructs all DAGs and operators it contains."""
         return cls.from_dict(json.loads(serialized_obj))
 
     @classmethod
-    def from_dict(cls, serialized_obj: dict) -> Union[
-            'SerializedDAG', 'SerializedBaseOperator', dict, list, set, tuple]:
+    def from_dict(cls, serialized_obj: dict) -> Union['BaseSerialization', dict, list, set, tuple]:
         """Deserializes a python dict stored with type decorators and
         reconstructs all DAGs and operators it contains."""
         return cls._deserialize(serialized_obj)
@@ -124,6 +123,26 @@ class Serialization:
         )
 
     @classmethod
+    def serialize_to_json(cls, object_to_serialize: Union[BaseOperator, DAG], decorated_fields: Set):
+        """Serializes an object to json"""
+        serialized_object = {}
+        keys_to_serialize = object_to_serialize.get_serialized_fields()
+        for key in keys_to_serialize:
+            # None is ignored in serialized form and is added back in deserialization.
+            value = getattr(object_to_serialize, key, None)
+            if cls._is_excluded(value, key, object_to_serialize):
+                continue
+
+            if key in decorated_fields:
+                serialized_object[key] = cls._serialize(value)
+            else:
+                value = cls._serialize(value)
+                if isinstance(value, dict) and "__type" in value:
+                    value = value["__var"]
+                serialized_object[key] = value
+        return serialized_object
+
+    @classmethod
     def _serialize(cls, var):  # pylint: disable=too-many-return-statements
         """Helper function of depth first search for serialization.
 
@@ -135,6 +154,8 @@ class Serialization:
         (3) Operator has a special field CLASS to record the original class
             name for displaying in UI.
         """
+        from airflow.serialization.serialized_dag import SerializedDAG
+        from airflow.serialization.serialized_baseoperator import SerializedBaseOperator
         try:
             if cls._is_primitive(var):
                 # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
@@ -149,9 +170,9 @@ class Serialization:
             elif isinstance(var, list):
                 return [cls._serialize(v) for v in var]
             elif isinstance(var, DAG):
-                return airflow.serialization.SerializedDAG.serialize_dag(var)
+                return SerializedDAG.serialize_dag(var)
             elif isinstance(var, BaseOperator):
-                return airflow.serialization.SerializedBaseOperator.serialize_operator(var)
+                return SerializedBaseOperator.serialize_operator(var)
             elif isinstance(var, cls._datetime_types):
                 return cls._encode(var.timestamp(), type_=DAT.DATETIME)
             elif isinstance(var, datetime.timedelta):
@@ -186,6 +207,8 @@ class Serialization:
     @classmethod
     def _deserialize(cls, encoded_var):  # pylint: disable=too-many-return-statements
         """Helper function of depth first search for deserialization."""
+        from airflow.serialization.serialized_dag import SerializedDAG
+        from airflow.serialization.serialized_baseoperator import SerializedBaseOperator
         # JSON primitives (except for dict) are not encoded.
         if cls._is_primitive(encoded_var):
             return encoded_var
@@ -199,9 +222,9 @@ class Serialization:
         if type_ == DAT.DICT:
             return {k: cls._deserialize(v) for k, v in var.items()}
         elif type_ == DAT.DAG:
-            return airflow.serialization.SerializedDAG.deserialize_dag(var)
+            return SerializedDAG.deserialize_dag(var)
         elif type_ == DAT.OP:
-            return airflow.serialization.SerializedBaseOperator.deserialize_operator(var)
+            return SerializedBaseOperator.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
             return pendulum.from_timestamp(var)
         elif type_ == DAT.TIMEDELTA:
@@ -242,10 +265,3 @@ class Serialization:
         if attrname in cls._CONSTRUCTOR_PARAMS and cls._CONSTRUCTOR_PARAMS[attrname].default is value:
             return True
         return False
-
-
-if TYPE_CHECKING:
-    from airflow.serialization.json_schema import Validator
-    from airflow.serialization.serialized_baseoperator import SerializedBaseOperator  # noqa: F401, E501; # pylint: disable=cyclic-import
-    from airflow.serialization.serialized_dag import SerializedDAG  # noqa: F401, E501; # pylint: disable=cyclic-import
-    from inspect import Parameter

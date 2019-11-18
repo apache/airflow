@@ -26,7 +26,7 @@ import sys
 import traceback
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Callable, Dict, FrozenSet, Iterable, List, Optional, Type, Union
+from typing import Callable, Dict, FrozenSet, Iterable, List, Optional, Type, Union
 
 import jinja2
 import pendulum
@@ -40,10 +40,10 @@ from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
 from airflow.executors import LocalExecutor, get_default_executor
 from airflow.models.base import ID_LEN, Base
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
@@ -54,9 +54,6 @@ from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
-
-if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator  # Avoid circular dependency
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -186,7 +183,6 @@ class DAG(BaseDag, LoggingMixin):
 
     :type jinja_environment_kwargs: dict
     """
-
     _comps = {
         'dag_id',
         'task_ids',
@@ -198,7 +194,7 @@ class DAG(BaseDag, LoggingMixin):
         'last_loaded',
     }
 
-    _serialized_fields = frozenset()  # type: FrozenSet[str]
+    _serialized_fields: Optional[FrozenSet[str]] = None
 
     def __init__(
         self,
@@ -311,7 +307,6 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
         self.doc_md = doc_md
 
-        self._old_context_manager_dags = []  # type: Iterable[DAG]
         self._access_control = access_control
         self.is_paused_upon_creation = is_paused_upon_creation
 
@@ -351,14 +346,12 @@ class DAG(BaseDag, LoggingMixin):
         return hash(tuple(hash_components))
 
     # Context Manager -----------------------------------------------
-
     def __enter__(self):
-        self._old_context_manager_dags.append(settings.CONTEXT_MANAGER_DAG)
-        settings.CONTEXT_MANAGER_DAG = self
+        DagContext.push_context_managed_dag(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        settings.CONTEXT_MANAGER_DAG = self._old_context_manager_dags.pop()
+        DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
 
@@ -812,12 +805,12 @@ class DAG(BaseDag, LoggingMixin):
         return tis
 
     @property
-    def roots(self) -> List["BaseOperator"]:
+    def roots(self) -> List[BaseOperator]:
         """Return nodes with no parents. These are first to execute and are called roots or root nodes."""
         return [task for task in self.tasks if not task.upstream_list]
 
     @property
-    def leaves(self) -> List["BaseOperator"]:
+    def leaves(self) -> List[BaseOperator]:
         """Return nodes with no children. These are last to execute and are called leaves or leaf nodes."""
         return [task for task in self.tasks if not task.downstream_list]
 
@@ -1100,8 +1093,8 @@ class DAG(BaseDag, LoggingMixin):
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # made the cut
-            t._upstream_task_ids = t._upstream_task_ids.intersection(dag.task_dict.keys())
-            t._downstream_task_ids = t._downstream_task_ids.intersection(
+            t._upstream_task_ids = t.upstream_task_ids.intersection(dag.task_dict.keys())
+            t._downstream_task_ids = t.downstream_task_ids.intersection(
                 dag.task_dict.keys())
 
         if len(dag.tasks) < len(self.tasks):
@@ -1353,6 +1346,7 @@ class DAG(BaseDag, LoggingMixin):
         :type sync_time: datetime
         :return: None
         """
+        from airflow.models.serialized_dag import SerializedDagModel
 
         if owner is None:
             owner = self.owner
@@ -1509,6 +1503,18 @@ class DAG(BaseDag, LoggingMixin):
                 self._test_cycle_helper(visit_map, descendant_id)
 
         visit_map[task_id] = DagBag.CYCLE_DONE
+
+    @classmethod
+    def get_serialized_fields(cls):
+        """Stringified DAGs and operators contain exactly these fields."""
+        if not cls._serialized_fields:
+            cls._serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
+                'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
+                '_full_filepath', 'user_defined_filters', 'user_defined_macros',
+                '_schedule_interval', 'partial', '_old_context_manager_dags',
+                '_pickle_id', '_log', 'is_subdag', 'task_dict'
+            }
+        return cls._serialized_fields
 
 
 class DagModel(Base):
@@ -1702,12 +1708,44 @@ class DagModel(Base):
             raise
 
 
-# Stringified DAGs and operators contain exactly these fields.
+class DagContext:
+    """
+    DAG context is used to keep the current DAG when DAG is used as ContextManager.
 
-# pylint: disable=protected-access
-DAG._serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
-    'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
-    '_full_filepath', 'user_defined_filters', 'user_defined_macros',
-    '_schedule_interval', 'partial', '_old_context_manager_dags',
-    '_pickle_id', '_log', 'is_subdag', 'task_dict'
-}
+    You can use DAG as context:
+
+    .. code-block:: python
+
+        with DAG(
+            dag_id='example_dag',
+            default_args=default_args,
+            schedule_interval='0 0 * * *',
+            dagrun_timeout=timedelta(minutes=60)
+        ) as dag:
+
+    If you do this the context stores the DAG and whenever new task is created, it will use
+    such stored DAG as the parent DAG.
+
+    """
+
+    _context_managed_dag: Optional[DAG] = None
+    _previous_context_managed_dags: List[DAG] = []
+
+    @classmethod
+    def push_context_managed_dag(cls, dag: DAG):
+        if cls._context_managed_dag:
+            cls._previous_context_managed_dags.append(cls._context_managed_dag)
+        cls._context_managed_dag = dag
+
+    @classmethod
+    def pop_context_managed_dag(cls) -> Optional[DAG]:
+        old_dag = cls._context_managed_dag
+        if cls._previous_context_managed_dags:
+            cls._context_managed_dag = cls._previous_context_managed_dags.pop()
+        else:
+            cls._context_managed_dag = None
+        return old_dag
+
+    @classmethod
+    def get_current_dag(cls) -> Optional[DAG]:
+        return cls._context_managed_dag

@@ -197,6 +197,33 @@ repos:
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: base-operator
+        language: pygrep
+        name: Make sure BaseOperator is imported from airflow.models.baseoperator in core
+        entry: "from airflow.models import.* BaseOperator"
+        files: \.py$
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/gcp/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/sensors/.*$|
+          ^airflow/providers/.*$|
+          ^airflow/contrib/.*$
+      - id: base-operator
+        language: pygrep
+        name: Make sure BaseOperator is imported from airflow.models outside of core
+        entry: "from airflow.models.baseoperator import.* BaseOperator"
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow/gcp/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/sensors/.*$|
+          ^airflow/providers/.*\.py$|
+          ^airflow/contrib/.*\.py$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh
