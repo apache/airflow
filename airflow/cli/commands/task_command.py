@@ -25,7 +25,7 @@ import textwrap
 from contextlib import redirect_stderr, redirect_stdout
 
 from airflow import DAG, AirflowException, conf, jobs, settings
-from airflow.executors import get_default_executor
+from airflow.executors.all_executors import AllExecutors
 from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import cli as cli_utils, db
@@ -69,7 +69,7 @@ def _run(args, dag, ti):
                 print(e)
                 raise e
 
-        executor = get_default_executor()
+        executor = AllExecutors.get_default_executor()
         executor.start()
         print("Sending to executor.")
         executor.queue_task_instance(

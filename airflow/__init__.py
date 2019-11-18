@@ -31,9 +31,11 @@ isort:skip_file
 # pylint:disable=wrong-import-position
 from typing import Callable, Optional
 
+# noinspection PyUnresolvedReferences
 from airflow import utils
 from airflow import settings
 from airflow import version
+from airflow.executors.all_executors import AllExecutors
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -45,7 +47,6 @@ settings.initialize()
 
 login = None  # type: Optional[Callable]
 
-from airflow import executors
 from airflow import hooks
 from airflow import macros
 from airflow import operators
@@ -61,5 +62,5 @@ class AirflowMacroPlugin:
 operators._integrate_plugins()  # pylint:disable=protected-access
 sensors._integrate_plugins()  # pylint:disable=protected-access
 hooks._integrate_plugins()  # pylint:disable=protected-access
-executors._integrate_plugins()  # pylint:disable=protected-access
+AllExecutors._integrate_plugins()  # pylint:disable=protected-access
 macros._integrate_plugins()  # pylint:disable=protected-access

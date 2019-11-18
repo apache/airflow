@@ -130,6 +130,12 @@ def is_valid_plugin(plugin_obj, existing_plugins):
     return False
 
 
+def converts_camel_case_to_snake_case(name: str) -> str:
+    """Converts SomeCase name to some_case."""
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+
 plugins = []  # type: List[AirflowPlugin]
 
 norm_pattern = re.compile(r'[/|.]')
@@ -205,7 +211,9 @@ for p in plugins:
     )
     hooks_modules.append(make_module('airflow.hooks.' + p.name, p.hooks))
     executors_modules.append(
-        make_module('airflow.executors.' + p.name, p.executors))
+        make_module('airflow.executors.' +
+                    converts_camel_case_to_snake_case(p.name) + "." +
+                    p.name, p.executors))
     macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
 
     admin_views.extend(p.admin_views)

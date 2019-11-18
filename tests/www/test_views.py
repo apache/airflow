@@ -583,7 +583,7 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post('run', data=form)
         self.check_content_in_response('', resp, resp_code=302)
 
-    @mock.patch('airflow.executors.get_default_executor')
+    @mock.patch('airflow.executors.all_executors.AllExecutors.get_default_executor')
     def test_run_with_runnable_states(self, get_default_executor_function):
         executor = CeleryExecutor()
         executor.heartbeat = lambda: True
@@ -613,7 +613,7 @@ class TestAirflowBaseViews(TestBase):
                   .format(state) + "The task must be cleared in order to be run"
             self.assertFalse(re.search(msg, resp.get_data(as_text=True)))
 
-    @mock.patch('airflow.executors.get_default_executor')
+    @mock.patch('airflow.executors.all_excutors.AllExecutors.get_default_executor')
     def test_run_with_not_runnable_states(self, get_default_executor_function):
         get_default_executor_function.return_value = CeleryExecutor()
 

@@ -26,7 +26,7 @@ import uuid
 
 import kubernetes.client.models as k8s
 
-from airflow.executors import Executors
+from airflow.executors.all_executors import AllExecutors
 
 
 class PodDefaults:
@@ -230,7 +230,7 @@ class PodGenerator:
                 'Cannot convert a non-dictionary or non-PodGenerator '
                 'object into a KubernetesExecutorConfig')
 
-        namespaced = obj.get(Executors.KubernetesExecutor, {})
+        namespaced = obj.get(AllExecutors.KUBERNETES_EXECUTOR, {})
 
         resources = namespaced.get('resources')
 

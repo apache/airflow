@@ -38,7 +38,8 @@ from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
-from airflow.executors import LocalExecutor, get_default_executor
+from airflow.executors.all_executors import AllExecutors
+from airflow.executors.local_executor import LocalExecutor
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -1256,7 +1257,7 @@ class DAG(BaseDag, LoggingMixin):
         if not executor and local:
             executor = LocalExecutor()
         elif not executor:
-            executor = get_default_executor()
+            executor = AllExecutors.get_default_executor()
         job = BackfillJob(
             self,
             start_date=start_date,

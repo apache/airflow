@@ -51,6 +51,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.executors.all_executors import AllExecutors
 from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
@@ -807,8 +808,7 @@ class Airflow(AirflowBaseView):
         ignore_task_deps = request.form.get('ignore_task_deps') == "true"
         ignore_ti_state = request.form.get('ignore_ti_state') == "true"
 
-        from airflow.executors import get_default_executor
-        executor = get_default_executor()
+        executor = AllExecutors.get_default_executor()
         valid_celery_config = False
         valid_kubernetes_config = False
 

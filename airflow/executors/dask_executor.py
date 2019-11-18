@@ -45,8 +45,7 @@ class DaskExecutor(BaseExecutor):
 
     def start(self):
         if self.tls_ca or self.tls_key or self.tls_cert:
-            from distributed.security import Security
-            security = Security(
+            security = distributed.Security(
                 tls_client_key=self.tls_key,
                 tls_client_cert=self.tls_cert,
                 tls_ca_file=self.tls_ca,
@@ -90,6 +89,7 @@ class DaskExecutor(BaseExecutor):
             self._process_future(future)
 
     def end(self):
+        import distributed
         for future in distributed.as_completed(self.futures.copy()):
             self._process_future(future)
 

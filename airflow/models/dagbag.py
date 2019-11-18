@@ -33,7 +33,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
-from airflow.executors import get_default_executor
+from airflow.executors.all_executors import AllExecutors
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_processing import correct_maybe_zipped, list_py_file_paths
@@ -88,7 +88,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
-            executor = get_default_executor()
+            executor = AllExecutors.get_default_executor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags = {}

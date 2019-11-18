@@ -35,9 +35,11 @@ from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.session import make_transient
 
-from airflow import executors, models, settings
+from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
 from airflow.stats import Stats
@@ -1282,8 +1284,7 @@ class SchedulerJob(BaseJob):
 
         # DAGs can be pickled for easier remote execution by some executors
         pickle_dags = False
-        if self.do_pickle and self.executor.__class__ not in \
-                (executors.LocalExecutor, executors.SequentialExecutor):
+        if self.do_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
             pickle_dags = True
 
         self.log.info("Processing each file at most %s times", self.num_runs)

@@ -244,12 +244,14 @@ repos:
         files: \.py$
         exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
         pass_filenames: true
+        require_serial: true
       - id: pylint
         name: Run pylint for tests
         language: system
         entry: "./scripts/ci/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
