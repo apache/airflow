@@ -149,8 +149,6 @@ these guidelines:
 -   Adhere to guidelines for commit messages described in this `article <http://chris.beams.io/posts/git-commit/>`__.
     This makes the lives of those who come after you a lot easier.
 
-
-
 Development Environments
 ========================
 
@@ -269,67 +267,6 @@ Limitations:
 They are optimized for repeatability of tests, maintainability and speed of building rather
 than production performance. The production images are not yet officially published.
 
-Pylint Checks
-=============
-
-We are in the process of fixing code flagged with pylint checks for the whole Airflow project.
-This is a huge task so we implemented an incremental approach for the process.
-Currently most of the code is excluded from pylint checks via scripts/ci/pylint_todo.txt.
-We have an open JIRA issue AIRFLOW-4364 which has a number of sub-tasks for each of
-the modules that should be made compatible. Fixing problems identified with pylint is one of
-straightforward and easy tasks to do (but time-consuming), so if you are a first-time
-contributor to Airflow, you can choose one of the sub-tasks as your first issue to fix.
-
-To fix a pylint issue, do the following:
-
-1.  Remove module/modules from the
-    `scripts/ci/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
-
-2.  Run `scripts/ci/ci_pylint.sh <scripts/ci/ci_pylint.sh>`__.
-
-3.  Fix all the issues reported by pylint.
-
-4.  Re-run `scripts/ci/ci_pylint.sh <scripts/ci/ci_pylint.sh>`__.
-
-5.  If you see "success", submit a PR following
-    `Pull Request guidelines <#pull-request-guidelines>`__.
- 
-
-These are guidelines for fixing errors reported by pylint:
-
--   Fix the errors rather than disable pylint checks. Often you can easily
-    refactor the code (IntelliJ/PyCharm might be helpful when extracting methods
-    in complex code or moving methods around).
-
--   If disabling a particular problem, make sure to disable only that error by
-    using the symbolic name of the error as reported by pylint.
-
-.. code-block:: python
-
-    import airflow.*  # pylint: disable=wildcard-import
-
-
--   If there is a single line where you need to disable a particular error,
-    consider adding a comment to the line that causes the problem. For example:
-
-.. code-block:: python
-
-    def  MakeSummary(pcoll, metric_fn, metric_keys): # pylint: disable=invalid-name
-
-
--   For multiple lines/block of code, to disable an error, you can surround the
-    block with ``pylint:disable/pylint:enable`` comment lines. For example:
-
-.. code-block:: python
-
-    # pylint: disable=too-few-public-methods
-    class  LoginForm(Form):
-        """Form for the user"""
-        username = StringField('Username', [InputRequired()])
-        password = PasswordField('Password', [InputRequired()])
-    # pylint: enable=too-few-public-methods
-
-
 Pre-commit Hooks
 ================
 
@@ -408,47 +345,56 @@ inform you that you should rebuild the image.
 Supported Pre-commit Hooks
 --------------------------
 
-In Airflow, we have the following checks:
+In Airflow, we have the following checks (The checks with stare in Breeze require `BREEZE.rst <BREEZE.rst>`__
+image built locally):
 
-=================================== =======================================================
-**Hooks**                             **Description**
-=================================== =======================================================
-``check-apache-license``              Checks compatibility with Apache License requirements.
------------------------------------ -------------------------------------------------------
+=================================== ================================================================ ============
+**Hooks**                             **Description**                                                 **Breeze**
+=================================== ================================================================ ============
+``airflow-settings``                  Check if airflow import settings are used well.
+----------------------------------- ---------------------------------------------------------------- ------------
+``build``                             Builds image for check-apache-licence, mypy, flake8.                 *
+----------------------------------- ---------------------------------------------------------------- ------------
+``check-apache-license``              Checks compatibility with Apache License requirements.               *
+----------------------------------- ---------------------------------------------------------------- ------------
 ``check-executables-have-shebangs``   Checks that executables have shebang.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``check-hooks-apply``                 Checks which hooks are applicable to the repository.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``check-merge-conflict``              Checks if a merge conflict is committed.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``check-xml``                         Checks XML files with xmllint.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``detect-private-key``                Detects if private key is added to the repository.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``doctoc``                            Refreshes the table of contents for md files.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``end-of-file-fixer``                 Makes sure that there is an empty line at the end.
------------------------------------ -------------------------------------------------------
-``flake8``                            Runs flake8.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
+``flake8``                            Runs flake8.                                                         *
+----------------------------------- ---------------------------------------------------------------- ------------
 ``forbid-tabs``                       Fails if tabs are used in the project.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``insert-license``                    Adds licenses for most file types.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``isort``                             Sorts imports in python files.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``lint-dockerfile``                   Lints a dockerfile.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
 ``mixed-line-ending``                 Detects if mixed line ending is used (\r vs. \r\n).
------------------------------------ -------------------------------------------------------
-``mypy``                              Runs mypy.
------------------------------------ -------------------------------------------------------
-``pylint``                            Runs pylint.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
+``mypy``                              Runs mypy.                                                           *
+----------------------------------- ---------------------------------------------------------------- ------------
+``python-no-log-warn``                Checks if there are no deprecate log warn.
+----------------------------------- ---------------------------------------------------------------- ------------
+``rst-backticks``                     Checks if RST files use double backticks for code.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
------------------------------------ -------------------------------------------------------
+----------------------------------- ---------------------------------------------------------------- ------------
+``update-breeze-file``                Update output of breeze command in BREEZE.rst.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``yamllint``                          Checks yaml files with yamllint.
-=================================== =======================================================
+=================================== ================================================================ ============
 
 
 Using Pre-commit Hooks
@@ -490,7 +436,7 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=pylint,mypy pre-commit run --all-files
+    SKIP=mypy,flake8 pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
