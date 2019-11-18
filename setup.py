@@ -287,6 +287,7 @@ mssql = [
     'pymssql~=2.1.1',
 ]
 mysql = [
+    'mysql-connector-python>=8.0.11, <=8.0.18',
     'mysqlclient>=1.3.6,<1.4',
 ]
 odbc = [
