@@ -545,6 +545,13 @@ class AirflowKubernetesScheduler(LoggingMixin):
             )
             return None
 
+        # only do the below expensive task find if the task_id/dag_id are not "k8 label safe"
+        if (
+            self._make_safe_label_value(dag_id) == dag_id and
+            self._make_safe_label_value(task_id) == task_id
+        ):
+            return (dag_id, task_id, ex_time, try_num)
+
         with create_session() as session:
             tasks = (
                 session
