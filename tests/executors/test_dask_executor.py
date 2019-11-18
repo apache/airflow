@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -58,8 +57,8 @@ class TestBaseDask(unittest.TestCase):
         success_command = ['true', 'some_parameter']
         fail_command = ['false', 'some_parameter']
 
-        executor.execute_async(key='success', command=success_command)
-        executor.execute_async(key='fail', command=fail_command)
+        executor.execute_async(key='success', command_string=success_command)
+        executor.execute_async(key='fail', command_string=fail_command)
 
         success_future = next(
             k for k, v in executor.futures.items() if v == 'success')

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint:disable=missing-docstring
+# pylint: disable=missing-docstring
 
 from functools import wraps
 from itertools import chain
@@ -39,9 +39,9 @@ def _get_backend():
 
     try:
         _backend_str = conf.get("lineage", "backend")
-        backend = import_string(_backend_str)  # pylint:disable=protected-access
+        backend = import_string(_backend_str)  # pylint: disable=protected-access
     except ImportError as err:
-        log.debug("Cannot import %s due to %s", _backend_str, err)  # pylint:disable=protected-access
+        log.debug("Cannot import %s due to %s", _backend_str, err)  # pylint: disable=protected-access
     except AirflowConfigException:
         log.debug("Could not find lineage backend key in config")
 
@@ -99,7 +99,7 @@ def prepare_lineage(func):
     def wrapper(self, context, *args, **kwargs):
         self.log.debug("Preparing lineage inlets and outlets")
 
-        task_ids = set(self._inlets['task_ids']).intersection(  # pylint:disable=protected-access
+        task_ids = set(self._inlets['task_ids']).intersection(  # pylint: disable=protected-access
             self.get_flat_relative_ids(upstream=True)
         )
         if task_ids:
@@ -112,9 +112,9 @@ def prepare_lineage(func):
                       for i in inlets]
             self.inlets.extend(inlets)
 
-        if self._inlets['auto']:  # pylint:disable=protected-access
+        if self._inlets['auto']:  # pylint: disable=protected-access
             # dont append twice
-            task_ids = set(self._inlets['task_ids']).symmetric_difference(  # pylint:disable=protected-access
+            task_ids = set(self._inlets['task_ids']).symmetric_difference(  # pylint: disable=protected-access
                 self.upstream_task_ids
             )
             inlets = self.xcom_pull(context,
@@ -126,12 +126,12 @@ def prepare_lineage(func):
                       for i in inlets]
             self.inlets.extend(inlets)
 
-        if self._inlets['datasets']:  # pylint:disable=protected-access
-            self.inlets.extend(self._inlets['datasets'])  # pylint:disable=protected-access
+        if self._inlets['datasets']:  # pylint: disable=protected-access
+            self.inlets.extend(self._inlets['datasets'])  # pylint: disable=protected-access
 
         # outlets
-        if self._outlets['datasets']:  # pylint:disable=protected-access
-            self.outlets.extend(self._outlets['datasets'])  # pylint:disable=protected-access
+        if self._outlets['datasets']:  # pylint: disable=protected-access
+            self.outlets.extend(self._outlets['datasets'])  # pylint: disable=protected-access
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
 

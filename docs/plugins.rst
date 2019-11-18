@@ -167,7 +167,7 @@ definitions in Airflow.
     from airflow.models.baseoperator import BaseOperatorLink
     from airflow.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
-    from airflow.executors.base_executor import BaseExecutor
+    from airflow.executors.base_executors import BaseExecutor
 
     # Will show up under airflow.hooks.test_plugin.PluginHook
     class PluginHook(BaseHook):

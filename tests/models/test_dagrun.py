@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,7 +21,8 @@ import unittest
 
 from airflow import models, settings
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models.clear_task_instances import clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.utils import timezone
@@ -56,9 +56,9 @@ class TestDagRun(unittest.TestCase):
 
         if task_states is not None:
             session = settings.Session()
-            for task_id, state in task_states.items():
+            for task_id, task_state in task_states.items():
                 ti = dag_run.get_task_instance(task_id)
-                ti.set_state(state, session)
+                ti.set_state(task_state, session)
             session.close()
 
         return dag_run
@@ -559,3 +559,20 @@ class TestDagRun(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
+
+    def test_overwrite_params_with_dag_run_conf(self):
+        dag_run = DagRun()
+        dag_run.conf = {"override": True}
+        params = {"override": False}
+
+        dag_run.overwrite_params_with_dag_run_conf(params)
+
+        self.assertEqual(True, params["override"])
+
+    def test_overwrite_params_with_dag_run_conf_none(self):
+        dag_run = DagRun()
+        params = {"override": False}
+
+        dag_run.overwrite_params_with_dag_run_conf(params)
+
+        self.assertEqual(False, params["override"])

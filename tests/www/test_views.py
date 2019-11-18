@@ -47,7 +47,7 @@ from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
-from airflow.ti_deps.dep_context import QUEUEABLE_STATES, RUNNABLE_STATES
+from airflow.ti_deps.dep_constants import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
@@ -583,7 +583,7 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post('run', data=form)
         self.check_content_in_response('', resp, resp_code=302)
 
-    @mock.patch('airflow.executors.get_default_executor')
+    @mock.patch('airflow.executors.all_executors.AllExecutors.get_default_executor')
     def test_run_with_runnable_states(self, get_default_executor_function):
         executor = CeleryExecutor()
         executor.heartbeat = lambda: True
@@ -613,7 +613,7 @@ class TestAirflowBaseViews(TestBase):
                   .format(state) + "The task must be cleared in order to be run"
             self.assertFalse(re.search(msg, resp.get_data(as_text=True)))
 
-    @mock.patch('airflow.executors.get_default_executor')
+    @mock.patch('airflow.executors.all_executors.AllExecutors.get_default_executor')
     def test_run_with_not_runnable_states(self, get_default_executor_function):
         get_default_executor_function.return_value = CeleryExecutor()
 
@@ -920,7 +920,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.test = test
         self.endpoint = endpoint
 
-    def setUp(self):  # pylint:disable=invalid-name
+    def setUp(self):  # pylint: disable=invalid-name
         from airflow.www.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
@@ -934,7 +934,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             )
             self.runs.append(run)
 
-    def tearDown(self):  # pylint:disable=invalid-name
+    def tearDown(self):  # pylint: disable=invalid-name
         self.test.session.query(DagRun).filter(
             DagRun.dag_id == self.DAG_ID).delete()
         self.test.session.commit()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -38,18 +37,17 @@ from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
-from airflow.executors import LocalExecutor, get_default_executor
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance
 from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
-from airflow.utils.dag_processing import correct_maybe_zipped
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
+from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
@@ -972,10 +970,8 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
-            clear_task_instances(tis.all(),
-                                 session,
-                                 dag=self,
-                                 )
+            from airflow.models.clear_task_instances import clear_task_instances
+            clear_task_instances(tis.all(), session, dag=self)
             if reset_dag_runs:
                 self.set_dag_runs_state(session=session,
                                         start_date=start_date,
@@ -1254,9 +1250,11 @@ class DAG(BaseDag, LoggingMixin):
         """
         from airflow.jobs import BackfillJob
         if not executor and local:
+            from airflow.executors.local_executor import LocalExecutor
             executor = LocalExecutor()
         elif not executor:
-            executor = get_default_executor()
+            from airflow.executors.all_executors import AllExecutors
+            executor = AllExecutors.get_default_executor()
         job = BackfillJob(
             self,
             start_date=start_date,

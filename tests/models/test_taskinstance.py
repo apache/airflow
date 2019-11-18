@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -33,13 +32,13 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule
+from airflow.models import DAG, Pool, TaskFail, TaskInstance as TI, TaskReschedule
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
-from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
+from airflow.ti_deps.dep_constants import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
+from airflow.ti_deps.dep_context import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.db import create_session, provide_session
@@ -1085,36 +1084,6 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(d['dag_id'][0], 'dag')
         self.assertEqual(d['task_id'][0], 'op')
         self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
-
-    def test_overwrite_params_with_dag_run_conf(self):
-        task = DummyOperator(task_id='op')
-        ti = TI(task=task, execution_date=datetime.datetime.now())
-        dag_run = DagRun()
-        dag_run.conf = {"override": True}
-        params = {"override": False}
-
-        ti.overwrite_params_with_dag_run_conf(params, dag_run)
-
-        self.assertEqual(True, params["override"])
-
-    def test_overwrite_params_with_dag_run_none(self):
-        task = DummyOperator(task_id='op')
-        ti = TI(task=task, execution_date=datetime.datetime.now())
-        params = {"override": False}
-
-        ti.overwrite_params_with_dag_run_conf(params, None)
-
-        self.assertEqual(False, params["override"])
-
-    def test_overwrite_params_with_dag_run_conf_none(self):
-        task = DummyOperator(task_id='op')
-        ti = TI(task=task, execution_date=datetime.datetime.now())
-        params = {"override": False}
-        dag_run = DagRun()
-
-        ti.overwrite_params_with_dag_run_conf(params, dag_run)
-
-        self.assertEqual(False, params["override"])
 
     @patch('airflow.models.taskinstance.send_email')
     def test_email_alert(self, mock_send_email):

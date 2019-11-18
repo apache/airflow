@@ -18,12 +18,12 @@
 # under the License.
 """DAG run APIs."""
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional
 
 from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
 
 
-def get_dag_run_state(dag_id: str, execution_date: datetime) -> Dict[str, str]:
+def get_dag_run_state(dag_id: str, execution_date: datetime) -> Dict[str, Optional[str]]:
     """Return the task object identified by the given dag_id and task_id.
 
     :param dag_id: DAG id

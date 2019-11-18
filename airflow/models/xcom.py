@@ -19,9 +19,9 @@
 
 import json
 import pickle
+from datetime import datetime
 from typing import Any, Iterable, Optional, Union
 
-from pendulum import pendulum
 from sqlalchemy import Column, LargeBinary, String, and_
 from sqlalchemy.orm import Query, Session, reconstructor
 
@@ -118,7 +118,7 @@ class XCom(Base, LoggingMixin):
     @classmethod
     @provide_session
     def get_many(cls,
-                 execution_date: pendulum.datetime,
+                 execution_date: datetime,
                  key: Optional[str] = None,
                  task_ids: Optional[Union[str, Iterable[str]]] = None,
                  dag_ids: Optional[Union[str, Iterable[str]]] = None,
@@ -129,7 +129,7 @@ class XCom(Base, LoggingMixin):
         Composes a query to get one or more values from the xcom table.
 
         :param execution_date: Execution date for the task
-        :type execution_date: pendulum.datetime
+        :type execution_date: datetime
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. To remove the filter, pass key=None.
         :type key: str

@@ -555,8 +555,8 @@ class CloudSqlProxyRunner(LoggingMixin):
             raise AirflowException("The sql proxy is already running: {}".format(
                 self.sql_proxy_process))
         else:
-            command_to_run = [self.sql_proxy_path]
-            command_to_run.extend(self.command_line_parameters)
+            command = [self.sql_proxy_path]
+            command.extend(self.command_line_parameters)
             try:
                 self.log.info("Creating directory %s",
                               self.cloud_sql_proxy_socket_directory)
@@ -564,9 +564,9 @@ class CloudSqlProxyRunner(LoggingMixin):
             except OSError:
                 # Needed for python 2 compatibility (exists_ok missing)
                 pass
-            command_to_run.extend(self._get_credential_parameters())  # pylint: disable=no-value-for-parameter
-            self.log.info("Running the command: `%s`", " ".join(command_to_run))
-            self.sql_proxy_process = Popen(command_to_run,
+            command.extend(self._get_credential_parameters())  # pylint: disable=no-value-for-parameter
+            self.log.info("Running the command: `%s`", " ".join(command))
+            self.sql_proxy_process = Popen(command,
                                            stdin=PIPE, stdout=PIPE, stderr=PIPE)
             self.log.info("The pid of cloud_sql_proxy: %s", self.sql_proxy_process.pid)
             while True:
@@ -626,10 +626,10 @@ class CloudSqlProxyRunner(LoggingMixin):
         Returns version of the Cloud SQL Proxy.
         """
         self._download_sql_proxy_if_needed()
-        command_to_run = [self.sql_proxy_path]
-        command_to_run.extend(['--version'])
-        command_to_run.extend(self._get_credential_parameters())  # pylint: disable=no-value-for-parameter
-        result = subprocess.check_output(command_to_run).decode('utf-8')
+        command = [self.sql_proxy_path]
+        command.extend(['--version'])
+        command.extend(self._get_credential_parameters())  # pylint: disable=no-value-for-parameter
+        result = subprocess.check_output(command).decode('utf-8')
         pattern = re.compile("^.*[V|v]ersion ([^;]*);.*$")
         matched = pattern.match(result)
         if matched:

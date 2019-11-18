@@ -16,13 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Base task runner"""
 import getpass
 import os
 import subprocess
 import threading
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -50,7 +51,7 @@ class BaseTaskRunner(LoggingMixin):
         else:
             try:
                 self.run_as_user = conf.get('core', 'default_impersonation')
-            except conf.AirflowConfigException:
+            except AirflowConfigException:
                 self.run_as_user = None
 
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
@@ -103,7 +104,7 @@ class BaseTaskRunner(LoggingMixin):
             line = stream.readline()
             if isinstance(line, bytes):
                 line = line.decode('utf-8')
-            if len(line) == 0:
+            if not line:
                 break
             self.log.info('Job %s: Subtask %s %s',
                           self._task_instance.job_id, self._task_instance.task_id,
@@ -122,6 +123,7 @@ class BaseTaskRunner(LoggingMixin):
         full_cmd = run_with + self._command
 
         self.log.info('Running: %s', full_cmd)
+        # pylint: disable=subprocess-popen-preexec-fn
         proc = subprocess.Popen(
             full_cmd,
             stdout=subprocess.PIPE,

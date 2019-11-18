@@ -116,3 +116,6 @@ class State:
             cls.UP_FOR_RETRY,
             cls.UP_FOR_RESCHEDULE
         ]
+
+
+STATES_TO_COUNT_AS_RUNNING = [State.RUNNING, State.QUEUED]

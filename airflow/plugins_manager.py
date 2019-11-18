@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,17 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import imp
+"""Manages all plugins."""
+# noinspection PyDeprecation
+import imp  # pylint: disable=deprecated-module
 import inspect
 import os
 import re
-from typing import Any, List
+import sys
+from typing import Any, Callable, List, Optional
 
 import pkg_resources
 
 from airflow import settings
-from airflow.models.baseoperator import BaseOperatorLink
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -35,28 +35,29 @@ import_errors = {}
 
 
 class AirflowPluginException(Exception):
-    pass
+    """Exception when loading plugin."""
 
 
 class AirflowPlugin:
-    name = None  # type: str
-    operators = []  # type: List[Any]
-    sensors = []  # type: List[Any]
-    hooks = []  # type: List[Any]
-    executors = []  # type: List[Any]
-    macros = []  # type: List[Any]
-    admin_views = []  # type: List[Any]
-    flask_blueprints = []  # type: List[Any]
-    menu_links = []  # type: List[Any]
-    appbuilder_views = []  # type: List[Any]
-    appbuilder_menu_items = []  # type: List[Any]
+    """Class used to define AirflowPlugin."""
+    name: Optional[str] = None
+    operators: List[Any] = []
+    sensors: List[Any] = []
+    hooks: List[Any] = []
+    executors: List[Any] = []
+    macros: List[Any] = []
+    admin_views: List[Any] = []
+    flask_blueprints: List[Any] = []
+    menu_links: List[Any] = []
+    appbuilder_views: List[Any] = []
+    appbuilder_menu_items: List[Any] = []
 
     # A function that validate the statsd stat name, apply changes
     # to the stat name if necessary and return the transformed stat name.
     #
     # The function should have the following signature:
     # def func_name(stat_name: str) -> str:
-    stat_name_handler = None  # type: Any
+    stat_name_handler: Optional[Callable[[str], str]] = None
 
     # A list of global operator extra links that can redirect users to
     # external systems. These extra links will be available on the
@@ -64,16 +65,17 @@ class AirflowPlugin:
     #
     # Note: the global operator extra link can be overridden at each
     # operator level.
-    global_operator_extra_links = []  # type: List[BaseOperatorLink]
+    global_operator_extra_links: List[Any] = []
 
     # A list of operator extra links to override or add operator links
     # to existing Airflow Operators.
     # These extra links will be available on the task page in form of
     # buttons.
-    operator_extra_links = []  # type: List[BaseOperatorLink]
+    operator_extra_links: List[Any] = []
 
     @classmethod
     def validate(cls):
+        """Validates that plugin has a name."""
         if not cls.name:
             raise AirflowPluginException("Your plugin needs a name.")
 
@@ -142,26 +144,30 @@ for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
     for f in files:
         try:
             filepath = os.path.join(root, f)
-            if not os.path.isfile(filepath):
-                continue
-            mod_name, file_ext = os.path.splitext(
-                os.path.split(filepath)[-1])
-            if file_ext != '.py':
-                continue
+            try:
+                if not os.path.isfile(filepath):
+                    continue
+                mod_name, file_ext = os.path.splitext(
+                    os.path.split(filepath)[-1])
+                if file_ext != '.py':
+                    continue
 
-            log.debug('Importing plugin module %s', filepath)
-            # normalize root path as namespace
-            namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
+                log.debug('Importing plugin module %s', filepath)
+                # normalize root path as namespace
+                namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
-            m = imp.load_source(namespace, filepath)
-            for obj in list(m.__dict__.values()):
-                if is_valid_plugin(obj, plugins):
-                    plugins.append(obj)
-
-        except Exception as e:
+                m = imp.load_source(namespace, filepath)
+                for obj in list(m.__dict__.values()):
+                    if is_valid_plugin(obj, plugins):
+                        plugins.append(obj)
+            except Exception as e:  # pylint: disable=broad-except
+                log.exception(e)
+                log.error('Failed to import plugin %s', filepath)
+                import_errors[filepath] = str(e)
+        except Exception as e:  # pylint: disable=broad-except
             log.exception(e)
-            log.error('Failed to import plugin %s', filepath)
-            import_errors[filepath] = str(e)
+            log.error('Failed to import plugin %s', str(f))
+            import_errors[str(f)] = str(e)
 
 plugins = load_entrypoint_plugins(
     pkg_resources.iter_entry_points('airflow.plugins'),
@@ -169,14 +175,18 @@ plugins = load_entrypoint_plugins(
 )
 
 
-def make_module(name, objects):
+# pylint: disable=protected-access
+# noinspection Mypy
+def make_module(name: str, objects: List[Any]):
+    """Creates new module."""
     log.debug('Creating module %s', name)
     name = name.lower()
     module = imp.new_module(name)
-    module._name = name.split('.')[-1]
-    module._objects = objects
+    module._name = name.split('.')[-1]  # type: ignore
+    module._objects = objects           # type: ignore
     module.__dict__.update((o.__name__, o) for o in objects)
     return module
+# pylint: enable=protected-access
 
 
 # Plugin components to integrate as modules
@@ -187,26 +197,29 @@ executors_modules = []
 macros_modules = []
 
 # Plugin components to integrate directly
-admin_views = []  # type: List[Any]
-flask_blueprints = []  # type: List[Any]
-menu_links = []  # type: List[Any]
-flask_appbuilder_views = []  # type: List[Any]
-flask_appbuilder_menu_links = []  # type: List[Any]
-stat_name_handler = None  # type: Any
-global_operator_extra_links = []  # type: List[BaseOperatorLink]
-operator_extra_links = []  # type: List[BaseOperatorLink]
+admin_views: List[Any] = []
+flask_blueprints: List[Any] = []
+menu_links: List[Any] = []
+flask_appbuilder_views: List[Any] = []
+flask_appbuilder_menu_links: List[Any] = []
+stat_name_handler: Any = None
+global_operator_extra_links: List[Any] = []
+operator_extra_links: List[Any] = []
 
 stat_name_handlers = []
 for p in plugins:
+    if not p.name:
+        raise AirflowPluginException("Plugin name is missing.")
+    plugin_name: str = p.name
     operators_modules.append(
-        make_module('airflow.operators.' + p.name, p.operators + p.sensors))
+        make_module('airflow.operators.' + plugin_name, p.operators + p.sensors))
     sensors_modules.append(
-        make_module('airflow.sensors.' + p.name, p.sensors)
+        make_module('airflow.sensors.' + plugin_name, p.sensors)
     )
-    hooks_modules.append(make_module('airflow.hooks.' + p.name, p.hooks))
+    hooks_modules.append(make_module('airflow.hooks.' + plugin_name, p.hooks))
     executors_modules.append(
-        make_module('airflow.executors.' + p.name, p.executors))
-    macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
+        make_module('airflow.executors.' + plugin_name, p.executors))
+    macros_modules.append(make_module('airflow.macros.' + plugin_name, p.macros))
 
     admin_views.extend(p.admin_views)
     menu_links.extend(p.menu_links)
@@ -230,3 +243,11 @@ if len(stat_name_handlers) > 1:
         'is not allowed.'.format(stat_name_handlers))
 
 stat_name_handler = stat_name_handlers[0] if len(stat_name_handlers) == 1 else None
+
+
+def _integrate_plugins() -> None:
+    """Integrate plugins to the context."""
+    for executors_module in executors_modules:
+        sys.modules[executors_module.__name__] = executors_module
+        # noinspection PyProtectedMember
+        globals()[executors_module._name] = executors_module  # pylint: disable=protected-access

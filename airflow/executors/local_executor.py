@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -43,40 +42,44 @@ parallelism of just 1 worker, i.e. `self.parallelism = 1`.
 This option could lead to the unification of the executor implementations, running
 locally, into just one `LocalExecutor` with multiple modes.
 """
-
-import multiprocessing
 import subprocess
-from queue import Empty
+from multiprocessing import Manager, Process, Queue as MultiprocessingQueue
+from multiprocessing.managers import SyncManager
+from queue import Empty, Queue  # pylint: disable=unused-import  # noqa: F401
+from typing import List, Optional, Tuple, Union  # pylint: disable=unused-import # noqa: F401
 
-from airflow.executors.base_executor import BaseExecutor
+from airflow import AirflowException
+from airflow.executors.base_executor import PARALLELISM, BaseExecutor, CommandType
+from airflow.models.taskinstance import (  # pylint: disable=unused-import # noqa: F401
+    TaskInstanceKey, TaskInstanceState,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
+# This is a work to be executed by a worker.
+# It can Key and Command - but it can also be None, None which is actually a
+# "Poison Pill" - worker seeing Poison Pill should take the pill and ... die instantly.
+ExecutorWorkTodo = Tuple[Optional[TaskInstanceKey], Optional[CommandType]]
 
-class LocalWorker(multiprocessing.Process, LoggingMixin):
 
-    """LocalWorker Process implementation to run airflow commands. Executes the given
-    command and puts the result into a result queue when done, terminating execution."""
+class LocalWorkerBase(Process, LoggingMixin):
+    """
+    LocalWorker Process implementation to run airflow commands. Executes the given
+    command and puts the result into a result queue when done, terminating execution.
 
-    def __init__(self, result_queue):
-        """
-        :param result_queue: the queue to store result states tuples (key, State)
-        :type result_queue: multiprocessing.Queue
-        """
+    :param result_queue: the queue to store result state
+    """
+    def __init__(self, result_queue: 'MultiprocessingQueue[TaskInstanceState]'):
         super().__init__()
-        self.daemon = True
-        self.result_queue = result_queue
-        self.key = None
-        self.command = None
+        self.daemon: bool = True
+        self.result_queue: 'MultiprocessingQueue[TaskInstanceState]' = result_queue
 
-    def execute_work(self, key, command):
+    def execute_work(self, key: TaskInstanceKey, command: CommandType):
         """
         Executes command received and stores result state in queue.
 
-        :param key: the key to identify the TI
-        :type key: tuple(dag_id, task_id, execution_date)
+        :param key: the key to identify the task instance
         :param command: the command to execute
-        :type command: str
         """
         if key is None:
             return
@@ -89,19 +92,41 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
             self.log.error("Failed to execute task %s.", str(e))
         self.result_queue.put((key, state))
 
-    def run(self):
-        self.execute_work(self.key, self.command)
+
+class LocalWorker(LocalWorkerBase):
+    """
+    Local worker that executes the task.
+
+    :param result_queue: queue wehere results of the tasks are put.
+    :param key: key identifying task instance
+    :param command: Command to execute
+    """
+    def __init__(self,
+                 result_queue: 'MultiprocessingQueue[TaskInstanceState]',
+                 key: TaskInstanceKey,
+                 command: CommandType):
+        super().__init__(result_queue)
+        self.key: TaskInstanceKey = key
+        self.command: CommandType = command
+
+    def run(self) -> None:
+        self.execute_work(key=self.key, command=self.command)
 
 
-class QueuedLocalWorker(LocalWorker):
+class QueuedLocalWorker(LocalWorkerBase):
+    """
+    LocalWorker implementation that is waiting for tasks from a queue and will
+    continue executing commands as they become available in the queue.
+    It will terminate execution once the poison token is found.
 
-    """LocalWorker implementation that is waiting for tasks from a queue and will
-    continue executing commands as they become available in the queue. It will terminate
-    execution once the poison token is found."""
-
-    def __init__(self, task_queue, result_queue):
+    :param task_queue: queue from which worker reads tasks
+    :param result_queue: queue where worker puts results after finishing tasks
+    """
+    def __init__(self,
+                 task_queue: 'MultiprocessingQueue[TaskInstanceState]',
+                 result_queue: 'MultiprocessingQueue[TaskInstanceState]'):
         super().__init__(result_queue=result_queue)
-        self.task_queue = task_queue
+        self.task_queue: MultiprocessingQueue = task_queue
 
     def run(self):
         while True:
@@ -110,65 +135,91 @@ class QueuedLocalWorker(LocalWorker):
                 if key is None:
                     # Received poison pill, no more tasks to run
                     break
-                self.execute_work(key, command)
+                self.execute_work(key=key, command=command)
             finally:
                 self.task_queue.task_done()
 
 
 class LocalExecutor(BaseExecutor):
     """
-    LocalExecutor executes tasks locally in parallel. It uses the
-    multiprocessing Python library and queues to parallelize the execution
+    LocalExecutor executes tasks locally in parallel.
+    It uses the multiprocessing Python library and queues to parallelize the execution
     of tasks.
+
+    :param parallelism: how many parallel processes are run in the executor
     """
+    def __init__(self, parallelism: int = PARALLELISM):
+        super().__init__(parallelism=parallelism)
+        self.manager: Optional[SyncManager] = None
+        self.result_queue: Optional['MultiprocessingQueue[TaskInstanceState]'] = None
+        self.workers: List[QueuedLocalWorker] = []
+        self.workers_used: int = 0
+        self.workers_active: int = 0
+        self.impl: Optional[Union['LocalExecutor.UnlimitedParallelism',
+                                  'LocalExecutor.LimitedParallelism']] = None
 
-    class _UnlimitedParallelism:
-        """Implements LocalExecutor with unlimited parallelism, starting one process
-        per each command to execute."""
+    class UnlimitedParallelism:
+        """
+        Implements LocalExecutor with unlimited parallelism, starting one process
+        per each command to execute.
 
-        def __init__(self, executor):
-            """
-            :param executor: the executor instance to implement.
-            :type executor: LocalExecutor
-            """
-            self.executor = executor
+        :param executor: the executor instance to implement.
+        """
+        def __init__(self, executor: 'LocalExecutor'):
+            self.executor: 'LocalExecutor' = executor
 
         def start(self):
+            """Starts the executor."""
             self.executor.workers_used = 0
             self.executor.workers_active = 0
 
-        def execute_async(self, key, command):
+        def execute_async(self,
+                          key: TaskInstanceKey,
+                          command: CommandType):
             """
-            :param key: the key to identify the TI
-            :type key: tuple(dag_id, task_id, execution_date)
+            Executes task asynchronously.
+
+            :param key: the key to identify the task instance
             :param command: the command to execute
-            :type command: str
             """
-            local_worker = LocalWorker(self.executor.result_queue)
-            local_worker.key = key
-            local_worker.command = command
+            if not self.executor.result_queue:
+                raise AirflowException("Executor should be started first")
+            local_worker = LocalWorker(self.executor.result_queue, key=key, command=command)
             self.executor.workers_used += 1
             self.executor.workers_active += 1
             local_worker.start()
 
         def sync(self):
+            """
+            Sync will get called periodically by the heartbeat method.
+            """
             while not self.executor.result_queue.empty():
                 results = self.executor.result_queue.get()
                 self.executor.change_state(*results)
                 self.executor.workers_active -= 1
 
         def end(self):
+            """
+            This method is called when the caller is done submitting job and
+            wants to wait synchronously for the job submitted previously to be
+            all done.
+            """
             while self.executor.workers_active > 0:
                 self.executor.sync()
 
-    class _LimitedParallelism:
-        """Implements LocalExecutor with limited parallelism using a task queue to
-        coordinate work distribution."""
+    class LimitedParallelism:
+        """
+        Implements LocalExecutor with limited parallelism using a task queue to
+        coordinate work distribution.
 
-        def __init__(self, executor):
-            self.executor = executor
+        :param executor: the executor instance to implement.
+        """
+        def __init__(self, executor: 'LocalExecutor'):
+            self.executor: 'LocalExecutor' = executor
+            self.queue: Optional['Queue[ExecutorWorkTodo]'] = None
 
         def start(self):
+            """Starts limited parallelism implementation."""
             self.queue = self.executor.manager.Queue()
             self.executor.workers = [
                 QueuedLocalWorker(self.queue, self.executor.result_queue)
@@ -177,19 +228,26 @@ class LocalExecutor(BaseExecutor):
 
             self.executor.workers_used = len(self.executor.workers)
 
-            for w in self.executor.workers:
-                w.start()
+            for worker in self.executor.workers:
+                worker.start()
 
-        def execute_async(self, key, command):
+        def execute_async(self,
+                          key: TaskInstanceKey,
+                          command: CommandType):
             """
-            :param key: the key to identify the TI
-            :type key: tuple(dag_id, task_id, execution_date)
+            Executes task asynchronously.
+
+            :param key: the key to identify the task instance
             :param command: the command to execute
-            :type command: str
             """
+            if not self.queue:
+                raise AirflowException("The executor has not been started.")
             self.queue.put((key, command))
 
         def sync(self):
+            """
+            Sync will get called periodically by the heartbeat method.
+            """
             while True:
                 try:
                     results = self.executor.result_queue.get_nowait()
@@ -201,7 +259,7 @@ class LocalExecutor(BaseExecutor):
                     break
 
         def end(self):
-            # Sending poison pill to all worker
+            """Ends the executor. Sends the poison pill to all workers."""
             for _ in self.executor.workers:
                 self.queue.put((None, None))
 
@@ -210,22 +268,35 @@ class LocalExecutor(BaseExecutor):
             self.executor.sync()
 
     def start(self):
-        self.manager = multiprocessing.Manager()
+        """Starts the executor"""
+        self.manager = Manager()
         self.result_queue = self.manager.Queue()
         self.workers = []
         self.workers_used = 0
         self.workers_active = 0
-        self.impl = (LocalExecutor._UnlimitedParallelism(self) if self.parallelism == 0
-                     else LocalExecutor._LimitedParallelism(self))
+        self.impl = (LocalExecutor.UnlimitedParallelism(self) if self.parallelism == 0
+                     else LocalExecutor.LimitedParallelism(self))
 
         self.impl.start()
 
-    def execute_async(self, key, command, queue=None, executor_config=None):
+    def execute_async(self, key: TaskInstanceKey,
+                      command: CommandType,
+                      _=None):
+        """Execute asynchronously."""
+        if not self.impl:
+            raise AirflowException("The executor should be started first.")
         self.impl.execute_async(key=key, command=command)
 
     def sync(self):
+        """
+        Sync will get called periodically by the heartbeat method.
+        """
         self.impl.sync()
 
     def end(self):
+        """
+        Ends the executor.
+        :return:
+        """
         self.impl.end()
         self.manager.shutdown()

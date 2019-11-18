@@ -83,9 +83,11 @@ bp = Blueprint(
     static_url_path='/static/test_plugin')
 
 
-# Create a handler to validate statsd stat name
-def stat_name_dummy_handler(stat_name):
-    return stat_name
+class StatsClass:
+    @staticmethod
+    # Create a handler to validate statsd stat name
+    def stat_name_dummy_handler(stat_name: str) -> str:
+        return stat_name
 
 
 # Defining the plugin class
@@ -99,7 +101,7 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
-    stat_name_handler = staticmethod(stat_name_dummy_handler)
+    stat_name_handler = StatsClass.stat_name_dummy_handler
     global_operator_extra_links = [
         AirflowLink(),
         GithubLink(),

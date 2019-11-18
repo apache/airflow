@@ -37,11 +37,7 @@ from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.lineage import DataSet, apply_lineage, prepare_lineage
 from airflow.models.pool import Pool
 # noinspection PyPep8Naming
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
-from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
-from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
@@ -286,10 +282,10 @@ class BaseOperator(LoggingMixin):
         email: Optional[Union[str, Iterable[str]]] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
-        retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
+        retries: int = conf.getint('core', 'default_task_retries', fallback=0),
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
-        max_retry_delay: Optional[datetime] = None,
+        max_retry_delay: Optional[timedelta] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         depends_on_past: bool = False,
@@ -557,6 +553,9 @@ class BaseOperator(LoggingMixin):
         context dependencies in that they are specific to tasks and can be
         extended/overridden by subclasses.
         """
+        from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+        from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
+        from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
         return {
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
@@ -674,7 +673,9 @@ class BaseOperator(LoggingMixin):
         self.__dict__ = state  # pylint: disable=attribute-defined-outside-init
         self._log = logging.getLogger("airflow.task.operators")
 
-    def render_template_fields(self, context: Dict, jinja_env: Optional[jinja2.Environment] = None) -> None:
+    def render_template_fields(self,
+                               context: Dict[str, Any],
+                               jinja_env: Optional[jinja2.Environment] = None) -> None:
         """
         Template all attributes listed in template_fields. Note this operation is irreversible.
 
@@ -834,6 +835,7 @@ class BaseOperator(LoggingMixin):
         Clears the state of task instances associated with the task, following
         the parameters specified.
         """
+        from airflow.models import TaskInstance  # avoid circular imports
         qry = session.query(TaskInstance).filter(TaskInstance.dag_id == self.dag_id)
 
         if start_date:
@@ -855,6 +857,7 @@ class BaseOperator(LoggingMixin):
 
         count = qry.count()
 
+        from airflow.models.clear_task_instances import clear_task_instances
         clear_task_instances(qry.all(), session, dag=self.dag)
 
         session.commit()
@@ -862,12 +865,13 @@ class BaseOperator(LoggingMixin):
         return count
 
     @provide_session
-    def get_task_instances(self, start_date=None, end_date=None, session=None):
+    def get_task_instances(self, start_date=None, end_date=None, session=None) -> List[Any]:
         """
         Get a set of task instance related to this task for a specific date
         range.
         """
         end_date = end_date or timezone.utcnow()
+        from airflow.models import TaskInstance   # Avoid circular imports
         return session.query(TaskInstance)\
             .filter(TaskInstance.dag_id == self.dag_id)\
             .filter(TaskInstance.task_id == self.task_id)\
@@ -913,6 +917,7 @@ class BaseOperator(LoggingMixin):
         """
         start_date = start_date or self.start_date
         end_date = end_date or self.end_date or timezone.utcnow()
+        from airflow.models import TaskInstance
 
         for execution_date in self.dag.date_range(start_date, end_date=end_date):
             TaskInstance(self, execution_date).run(

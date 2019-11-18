@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,7 +17,7 @@
 # under the License.
 """Contains the TaskNotRunningDep."""
 
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.ti_deps.dep_context import BaseTIDep
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 

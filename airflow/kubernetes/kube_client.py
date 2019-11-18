@@ -68,7 +68,7 @@ except ImportError as e:
 
 def get_kube_client(in_cluster: bool = conf.getboolean('kubernetes', 'in_cluster'),
                     cluster_context: Optional[str] = None,
-                    config_file: Optional[str] = None):
+                    config_file: Optional[str] = None) -> client.CoreV1Api:
     """
     Retrieves Kubernetes client
 

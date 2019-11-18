@@ -105,11 +105,6 @@
 ./airflow/contrib/sensors/sftp_sensor.py
 ./airflow/contrib/sensors/wasb_sensor.py
 ./airflow/contrib/sensors/weekday_sensor.py
-./airflow/executors/base_executor.py
-./airflow/executors/celery_executor.py
-./airflow/executors/dask_executor.py
-./airflow/executors/local_executor.py
-./airflow/executors/sequential_executor.py
 ./airflow/hooks/dbapi_hook.py
 ./airflow/hooks/docker_hook.py
 ./airflow/hooks/druid_hook.py
@@ -145,9 +140,7 @@
 ./airflow/models/kubernetes.py
 ./airflow/models/log.py
 ./airflow/models/pool.py
-./airflow/models/skipmixin.py
 ./airflow/models/slamiss.py
-./airflow/models/taskinstance.py
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
 ./airflow/operators/bash_operator.py
@@ -182,7 +175,6 @@
 ./airflow/operators/s3_to_redshift_operator.py
 ./airflow/operators/slack_operator.py
 ./airflow/operators/sqlite_operator.py
-./airflow/plugins_manager.py
 ./airflow/providers/amazon/aws/hooks/redshift.py
 ./airflow/providers/amazon/aws/operators/athena.py
 ./airflow/providers/amazon/aws/sensors/athena.py
@@ -207,14 +199,10 @@
 ./airflow/stats.py
 ./airflow/task/task_runner/base_task_runner.py
 ./airflow/task/task_runner/standard_task_runner.py
-./airflow/ti_deps/dep_context.py
-./airflow/ti_deps/deps/base_ti_dep.py
-./airflow/ti_deps/deps/dag_ti_slots_available_dep.py
 ./airflow/ti_deps/deps/dag_unpaused_dep.py
 ./airflow/ti_deps/deps/dagrun_exists_dep.py
 ./airflow/ti_deps/deps/exec_date_after_start_date_dep.py
 ./airflow/ti_deps/deps/not_in_retry_period_dep.py
-./airflow/ti_deps/deps/prev_dagrun_dep.py
 ./airflow/ti_deps/deps/ready_to_reschedule.py
 ./airflow/ti_deps/deps/runnable_exec_date_dep.py
 ./airflow/ti_deps/deps/task_concurrency_dep.py
@@ -224,7 +212,6 @@
 ./airflow/utils/cli_action_loggers.py
 ./airflow/utils/compression.py
 ./airflow/utils/configuration.py
-./airflow/utils/dag_processing.py
 ./airflow/utils/dates.py
 ./airflow/utils/db.py
 ./airflow/utils/decorators.py
@@ -310,7 +297,6 @@
 ./tests/models/test_cleartasks.py
 ./tests/models/test_dag.py
 ./tests/models/test_dagbag.py
-./tests/models/test_dagrun.py
 ./tests/models/test_pool.py
 ./tests/models/test_taskinstance.py
 ./tests/operators/test_bash_operator.py

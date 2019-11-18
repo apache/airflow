@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,17 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""DAG Slots available dependencies."""
+from typing import Any, Generator, Optional
 
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from sqlalchemy.orm import Session
+
+from airflow.ti_deps.dep_context import BaseTIDep, DepContext, TIDepStatus
 from airflow.utils.db import provide_session
 
 
 class DagTISlotsAvailableDep(BaseTIDep):
+    """Task instance slots available"""
     NAME = "Task Instance Slots Available"
     IGNOREABLE = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    def _get_dep_statuses(self, ti: Any,
+                          session: Session,
+                          dep_context: Optional[DepContext] = None) -> \
+            Generator[TIDepStatus, None, None]:
         if ti.task.dag.concurrency_reached:
             yield self._failing_status(
                 reason="The maximum number of running tasks ({0}) for this task's DAG "

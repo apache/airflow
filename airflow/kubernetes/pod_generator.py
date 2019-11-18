@@ -26,35 +26,7 @@ import uuid
 
 import kubernetes.client.models as k8s
 
-from airflow.executors import Executors
-
-
-class PodDefaults:
-    """
-    Static defaults for the PodGenerator
-    """
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
-    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(
-        name='xcom',
-        mount_path=XCOM_MOUNT_PATH
-    )
-    VOLUME = k8s.V1Volume(
-        name='xcom',
-        empty_dir=k8s.V1EmptyDirVolumeSource()
-    )
-    SIDECAR_CONTAINER = k8s.V1Container(
-        name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
-        volume_mounts=[VOLUME_MOUNT],
-        resources=k8s.V1ResourceRequirements(
-            requests={
-                "cpu": "1m",
-            }
-        ),
-    )
+from airflow.kubernetes.pod_defaults import PodDefaults
 
 
 class PodGenerator:
@@ -229,8 +201,9 @@ class PodGenerator:
             raise TypeError(
                 'Cannot convert a non-dictionary or non-PodGenerator '
                 'object into a KubernetesExecutorConfig')
-
-        namespaced = obj.get(Executors.KubernetesExecutor, {})
+        # We do not want to extract constant here from AllExecutors because it is just
+        # A name in dictionary rather than executor selection mechanism and it causes cyclic import
+        namespaced = obj.get("KubernetesExecutor", {})
 
         resources = namespaced.get('resources')
 

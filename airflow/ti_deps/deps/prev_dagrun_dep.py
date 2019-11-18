@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,8 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Dependencies for previous DAG run."""
+from typing import Generator, Optional
 
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from sqlalchemy.orm import Session
+
+from airflow.models import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.ti_deps.dep_context import BaseTIDep, DepContext, TIDepStatus
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 
@@ -32,8 +36,11 @@ class PrevDagrunDep(BaseTIDep):
     IS_TASK_DEP = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
-        if dep_context.ignore_depends_on_past:
+    def _get_dep_statuses(self, ti: TaskInstance,
+                          session: Session,
+                          dep_context: Optional[DepContext] = None) -> \
+            Generator[TIDepStatus, None, None]:
+        if dep_context and dep_context.ignore_depends_on_past:
             yield self._passing_status(
                 reason="The context specified that the state of past DAGs could be "
                        "ignored.")
@@ -57,7 +64,7 @@ class PrevDagrunDep(BaseTIDep):
                     reason="This task instance was the first task instance for its task.")
                 return
         else:
-            dr = ti.get_dagrun()
+            dr = DagRun.get_dagrun(dag_id=ti.dag_id, execution_date=ti.execution_date, session=session)
             last_dagrun = dr.get_previous_dagrun() if dr else None
 
             if not last_dagrun:

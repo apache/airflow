@@ -28,10 +28,10 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from cached_property import cached_property
 from google.api_core.retry import Retry
-from google.cloud.dataproc_v1beta2 import (  # pylint:disable=no-name-in-module
+from google.cloud.dataproc_v1beta2 import (  # pylint: disable=no-name-in-module
     ClusterControllerClient, JobControllerClient, WorkflowTemplateServiceClient,
 )
-from google.cloud.dataproc_v1beta2.types import (  # pylint:disable=no-name-in-module
+from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-module
     Cluster, Duration, FieldMask, Job, JobStatus, WorkflowTemplate,
 )
 
@@ -472,7 +472,7 @@ class DataprocHook(GoogleCloudBaseHook):
         return result
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def update_cluster(  # pylint:disable=too-many-arguments
+    def update_cluster(  # pylint: disable=too-many-arguments
         self,
         location: str,
         cluster_name: str,
@@ -823,7 +823,7 @@ class DataprocHook(GoogleCloudBaseHook):
         project_id: str,
         job: Dict,
         region: str = 'global',
-        job_error_states: Optional[Iterable[str]] = None  # pylint:disable=unused-argument
+        job_error_states: Optional[Iterable[str]] = None  # pylint: disable=unused-argument
     ) -> None:
         """
         Submits Google Cloud Dataproc job.

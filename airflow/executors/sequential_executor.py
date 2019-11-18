@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Sequential executor."""
 import subprocess
+from typing import Any, Optional
 
-from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.base_executor import BaseExecutor, CommandType
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.state import State
 
 
@@ -36,8 +37,11 @@ class SequentialExecutor(BaseExecutor):
         super().__init__()
         self.commands_to_run = []
 
-    def execute_async(self, key, command, queue=None, executor_config=None):
-        self.commands_to_run.append((key, command,))
+    def execute_async(self,
+                      key: TaskInstanceKey,
+                      command: CommandType,
+                      executor_config: Optional[Any] = None):
+        self.commands_to_run.append((key, command))
 
     def sync(self):
         for key, command in self.commands_to_run:

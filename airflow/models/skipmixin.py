@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,8 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Mixin for skipping tasks."""
 
 from typing import Iterable, Set, Union
+
+from sqlalchemy.orm import Session
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -27,6 +28,7 @@ from airflow.utils.state import State
 
 
 class SkipMixin(LoggingMixin):
+    """Mixin for skipping tasks."""
     @provide_session
     def skip(self, dag_run, execution_date, tasks, session=None):
         """
@@ -47,7 +49,7 @@ class SkipMixin(LoggingMixin):
             session.query(TaskInstance).filter(
                 TaskInstance.dag_id == dag_run.dag_id,
                 TaskInstance.execution_date == dag_run.execution_date,
-                TaskInstance.task_id.in_(task_ids)
+                TaskInstance.task_id.in_(task_ids)  # type: ignore
             ).update({TaskInstance.state: State.SKIPPED,
                       TaskInstance.start_date: now,
                       TaskInstance.end_date: now},
@@ -68,7 +70,10 @@ class SkipMixin(LoggingMixin):
 
             session.commit()
 
-    def skip_all_except(self, ti: TaskInstance, branch_task_ids: Union[str, Iterable[str]]):
+    @provide_session
+    def skip_all_except(self, ti: TaskInstance,
+                        branch_task_ids: Union[str, Iterable[str]],
+                        session: Session = None):
         """
         This method implements the logic for a branching operator; given a single
         task ID or list of task IDs to follow, this skips all other tasks
@@ -78,7 +83,10 @@ class SkipMixin(LoggingMixin):
         if isinstance(branch_task_ids, str):
             branch_task_ids = [branch_task_ids]
 
-        dag_run = ti.get_dagrun()
+        from airflow.models.dagrun import DagRun
+        dag_run: DagRun = DagRun.get_dagrun(dag_id=ti.dag_id,
+                                            execution_date=ti.execution_date,
+                                            session=session)
         task = ti.task
         dag = task.dag
 
@@ -87,10 +95,10 @@ class SkipMixin(LoggingMixin):
         if downstream_tasks:
             # Also check downstream tasks of the branch task. In case the task to skip
             # is also a downstream task of the branch task, we exclude it from skipping.
-            branch_downstream_task_ids = set()  # type: Set[str]
-            for b in branch_task_ids:
+            branch_downstream_task_ids: Set[str] = set()
+            for branch_task_id in branch_task_ids:
                 branch_downstream_task_ids.update(dag.
-                                                  get_task(b).
+                                                  get_task(branch_task_id).
                                                   get_flat_relative_ids(upstream=False))
 
             skip_tasks = [t for t in downstream_tasks

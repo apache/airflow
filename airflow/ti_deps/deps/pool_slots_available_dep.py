@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,11 +18,9 @@
 
 """This module defines dep for pool slots availability"""
 
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.ti_deps.dep_context import BaseTIDep
 from airflow.utils.db import provide_session
-from airflow.utils.state import State
-
-STATES_TO_COUNT_AS_RUNNING = [State.RUNNING, State.QUEUED]
+from airflow.utils.state import STATES_TO_COUNT_AS_RUNNING
 
 
 class PoolSlotsAvailableDep(BaseTIDep):
@@ -46,8 +43,8 @@ class PoolSlotsAvailableDep(BaseTIDep):
         :type dep_context: DepContext
         :return: True if there are available slots in the pool.
         """
-        from airflow import models  # To avoid a circular dependency
-        P = models.Pool
+        from airflow.models import Pool  # To avoid a circular dependency
+        P = Pool
         pool_name = ti.pool
 
         pools = session.query(P).filter(P.pool == pool_name).all()

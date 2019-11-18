@@ -44,15 +44,21 @@ from sqlalchemy import and_, desc, or_, union_all
 from wtforms import SelectField, validators
 
 import airflow
+import airflow.models
+import airflow.models.task_instances
+import airflow.models.taskinstance
 from airflow import jobs, models, settings
 from airflow._vendor import nvd3
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.executors.all_executors import AllExecutors
 from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models.clear_task_instances import clear_task_instances
 from airflow.settings import STORE_SERIALIZED_DAGS
-from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
+from airflow.ti_deps.dep_constants import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
+from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import create_session, provide_session
@@ -807,8 +813,7 @@ class Airflow(AirflowBaseView):
         ignore_task_deps = request.form.get('ignore_task_deps') == "true"
         ignore_ti_state = request.form.get('ignore_ti_state') == "true"
 
-        from airflow.executors import get_default_executor
-        executor = get_default_executor()
+        executor = AllExecutors.get_default_executor()
         valid_celery_config = False
         valid_kubernetes_config = False
 
@@ -2497,7 +2502,7 @@ class TaskInstanceModelView(AirflowModelView):
                 tis.append(ti)
 
             for dag, tis in dag_to_tis.items():
-                models.clear_task_instances(tis, session, dag=dag)
+                clear_task_instances(tis, session, dag=dag)
 
             session.commit()
             flash("{0} task instances have been cleared".format(len(tis)))

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,23 +14,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Standard rask runner"""
-import psutil
-
-from airflow.task.task_runner.base_task_runner import BaseTaskRunner
-from airflow.utils.helpers import reap_process_group
+"""Defaults for Pods"""
+from kubernetes.client import models as k8s
 
 
-class StandardTaskRunner(BaseTaskRunner):
+class PodDefaults:
     """
-    Standard runner for all tasks.
+    Static defaults for Pods
     """
-    def start(self):
-        self.process = self.run_command()
-
-    def return_code(self):
-        return self.process.poll()
-
-    def terminate(self):
-        if self.process and psutil.pid_exists(self.process.pid):
-            reap_process_group(self.process.pid, self.log)
+    XCOM_MOUNT_PATH = '/airflow/xcom'
+    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
+    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
+    VOLUME_MOUNT = k8s.V1VolumeMount(
+        name='xcom',
+        mount_path=XCOM_MOUNT_PATH
+    )
+    VOLUME = k8s.V1Volume(
+        name='xcom',
+        empty_dir=k8s.V1EmptyDirVolumeSource()
+    )
+    SIDECAR_CONTAINER = k8s.V1Container(
+        name=SIDECAR_CONTAINER_NAME,
+        command=['sh', '-c', XCOM_CMD],
+        image='alpine',
+        volume_mounts=[VOLUME_MOUNT],
+        resources=k8s.V1ResourceRequirements(
+            requests={
+                "cpu": "1m",
+            }
+        ),
+    )

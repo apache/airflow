@@ -23,7 +23,8 @@ from kubernetes.client import ApiClient
 
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Resources
-from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
+from airflow.kubernetes.pod_defaults import PodDefaults
+from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 
 

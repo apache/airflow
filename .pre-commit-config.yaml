@@ -200,7 +200,7 @@ repos:
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator is imported from airflow.models.baseoperator in core
-        entry: "from airflow.models import.* BaseOperator"
+        entry: "from airflow\\.models import.* BaseOperator"
         files: \.py$
         pass_filenames: true
         exclude: >
@@ -214,7 +214,7 @@ repos:
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator is imported from airflow.models outside of core
-        entry: "from airflow.models.baseoperator import.* BaseOperator"
+        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
         pass_filenames: true
         files: >
           (?x)
@@ -251,12 +251,14 @@ repos:
         files: \.py$
         exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
         pass_filenames: true
-      - id: pylint
+        require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
+      - id: pylint-tests
         name: Run pylint for tests
         language: system
         entry: "./scripts/ci/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
+        require_serial: false  # For tests, it's perfectly OK to run pylint in parallel
       - id: flake8
         name: Run flake8
         language: system

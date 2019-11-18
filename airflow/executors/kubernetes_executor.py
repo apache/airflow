@@ -16,28 +16,31 @@
 # under the License.
 """Kubernetes executor"""
 import base64
+import datetime
 import hashlib
 import json
 import multiprocessing
 import re
-from queue import Empty
-from typing import Union
+from queue import Empty, Queue
+from typing import Any, Dict, Optional, Tuple, Union
 from uuid import uuid4
 
 import kubernetes
 from dateutil import parser
 from kubernetes import client, watch
+from kubernetes.client import Configuration
 from kubernetes.client.rest import ApiException
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
+from airflow.models.taskinstance import TaskInstanceKey
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
@@ -241,17 +244,22 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     """Watches for Kubernetes jobs"""
-    def __init__(self, namespace, watcher_queue, resource_version, worker_uuid, kube_config):
+    def __init__(self,
+                 namespace: str,
+                 watcher_queue: Queue,
+                 resource_version: str,
+                 worker_uuid: str,
+                 kube_config: Configuration):
         multiprocessing.Process.__init__(self)
-        self.namespace = namespace
-        self.worker_uuid = worker_uuid
-        self.watcher_queue = watcher_queue
-        self.resource_version = resource_version
-        self.kube_config = kube_config
+        self.namespace: str = namespace
+        self.worker_uuid: str = worker_uuid
+        self.watcher_queue: Queue = watcher_queue
+        self.resource_version: str = resource_version
+        self.kube_config: Configuration = kube_config
 
     def run(self):
         """Performs watching"""
-        kube_client = get_kube_client()
+        kube_client: client.CoreV1Api = get_kube_client()
         while True:
             try:
                 self.resource_version = self._run(kube_client, self.resource_version,
@@ -263,7 +271,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 self.log.warning('Watch died gracefully, starting back up with: '
                                  'last resource_version: %s', self.resource_version)
 
-    def _run(self, kube_client, resource_version, worker_uuid, kube_config):
+    def _run(self,
+             kube_client: client.CoreV1Api,
+             resource_version: Any,
+             worker_uuid: str,
+             kube_config: Any) -> Any:
         self.log.info(
             'Event: and now my watch begins starting at resource_version: %s',
             resource_version
@@ -295,7 +307,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
         return last_resource_version
 
-    def process_error(self, event):
+    def process_error(self, event: Any) -> str:
         """Process error response"""
         self.log.error(
             'Encountered Error response from k8s list namespaced pod stream => %s',
@@ -314,7 +326,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             (raw_object['reason'], raw_object['code'], raw_object['message'])
         )
 
-    def process_status(self, pod_id, status, labels, resource_version):
+    def process_status(self, pod_id: str, status: str, labels: Dict[str, str], resource_version: Any):
         """Process status response"""
         if status == 'Pending':
             self.log.info('Event: %s Pending', pod_id)
@@ -335,7 +347,13 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
 class AirflowKubernetesScheduler(LoggingMixin):
     """Airflow Scheduler for Kubernetes"""
-    def __init__(self, kube_config, task_queue, result_queue, kube_client, worker_uuid):
+    def __init__(self,
+                 kube_config: Any,
+                 task_queue: Queue,
+                 result_queue: Queue,
+                 kube_client: client.CoreV1Api,
+                 worker_uuid: str):
+        super().__init__()
         self.log.debug("Creating Kubernetes executor")
         self.kube_config = kube_config
         self.task_queue = task_queue
@@ -350,7 +368,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.worker_uuid = worker_uuid
         self.kube_watcher = self._make_kube_watcher()
 
-    def _make_kube_watcher(self):
+    def _make_kube_watcher(self) -> KubernetesJobWatcher:
         resource_version = KubeResourceVersion.get_current_resource_version()
         watcher = KubernetesJobWatcher(self.namespace, self.watcher_queue,
                                        resource_version, self.worker_uuid, self.kube_config)
@@ -366,7 +384,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 'Process died for unknown reasons')
             self.kube_watcher = self._make_kube_watcher()
 
-    def run_next(self, next_job):
+    def run_next(self, next_job: Tuple[Tuple[str, str, datetime.datetime, int], str, Any]):
         """
         The run_next command will check the task_queue for any un-run jobs.
         It will then create a unique job-id, launch that job in the cluster,
@@ -428,7 +446,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             except Empty:
                 break
 
-    def process_watcher_task(self, task):
+    def process_watcher_task(self, task: Tuple[str, str, Dict[str, str], Any]):
         """Process the task by watcher."""
         pod_id, state, labels, resource_version = task
         self.log.info(
@@ -441,7 +459,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             self.result_queue.put((key, state, pod_id, resource_version))
 
     @staticmethod
-    def _strip_unsafe_kubernetes_special_chars(string):
+    def _strip_unsafe_kubernetes_special_chars(string: str) -> str:
         """
         Kubernetes only supports lowercase alphanumeric characters and "-" and "." in
         the pod name
@@ -456,7 +474,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         return ''.join(ch.lower() for ind, ch in enumerate(string) if ch.isalnum())
 
     @staticmethod
-    def _make_safe_pod_id(safe_dag_id, safe_task_id, safe_uuid):
+    def _make_safe_pod_id(safe_dag_id: str, safe_task_id: str, safe_uuid: str):
         """
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
@@ -474,7 +492,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         return safe_pod_id
 
     @staticmethod
-    def _make_safe_label_value(string):
+    def _make_safe_label_value(string: str) -> str:
         """
         Valid label values must be 63 characters or less and must be empty or begin and
         end with an alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_),
@@ -493,7 +511,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         return safe_label
 
     @staticmethod
-    def _create_pod_id(dag_id, task_id):
+    def _create_pod_id(dag_id: str, task_id: str) -> str:
         safe_dag_id = AirflowKubernetesScheduler._strip_unsafe_kubernetes_special_chars(
             dag_id)
         safe_task_id = AirflowKubernetesScheduler._strip_unsafe_kubernetes_special_chars(
@@ -504,7 +522,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                                                             safe_uuid)
 
     @staticmethod
-    def _label_safe_datestring_to_datetime(string):
+    def _label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
         """
         Kubernetes doesn't permit ":" in labels. ISO datetime format uses ":" but not
         "_", let's
@@ -516,7 +534,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         return parser.parse(string.replace('_plus_', '+').replace("_", ":"))
 
     @staticmethod
-    def _datetime_to_label_safe_datestring(datetime_obj):
+    def _datetime_to_label_safe_datestring(datetime_obj: datetime.datetime) -> str:
         """
         Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but
         not "_" let's
@@ -527,7 +545,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
 
-    def _labels_to_key(self, labels):
+    def _labels_to_key(self, labels: Dict[str, str]):
         try_num = 1
         try:
             try_num = int(labels.get('try_number', '1'))
@@ -567,7 +585,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     )
                     dag_id = task.dag_id
                     task_id = task.task_id
-                    return (dag_id, task_id, ex_time, try_num)
+                    return dag_id, task_id, ex_time, try_num
         self.log.warning(
             'Failed to find and match task details to a pod; labels: %s',
             labels
@@ -601,6 +619,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
 class KubernetesExecutor(BaseExecutor, LoggingMixin):
     """Executor for Kubernetes"""
+
     def __init__(self):
         self.kube_config = KubeConfig()
         self.task_queue = None
@@ -723,7 +742,10 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self._inject_secrets()
         self.clear_not_launched_queued_tasks()
 
-    def execute_async(self, key, command, queue=None, executor_config=None):
+    def execute_async(self,
+                      key: TaskInstanceKey,
+                      command: CommandType,
+                      executor_config: Optional[Any] = None):
         """Executes task asynchronously"""
         self.log.info(
             'Add task %s with command %s with executor_config %s',
@@ -778,13 +800,13 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 break
         # pylint: enable=too-many-nested-blocks
 
-    def _change_state(self, key, state, pod_id: str) -> None:
+    def _change_state(self, key: TaskInstanceKey, state: str, pod_id: str) -> None:
         if state != State.RUNNING:
             if self.kube_config.delete_worker_pods:
                 self.kube_scheduler.delete_pod(pod_id)
                 self.log.info('Deleted pod: %s', str(key))
             try:
-                self.running.pop(key)
+                self.running.remove(key)
             except KeyError:
                 self.log.debug('Could not find key: %s', str(key))
         self.event_buffer[key] = state
