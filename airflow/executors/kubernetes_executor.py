@@ -545,11 +545,23 @@ class AirflowKubernetesScheduler(LoggingMixin):
             )
             return None
 
+        safe_task_id = self._make_safe_label_value(task_id)
+        safe_dag_id = self._make_safe_label_value(dag_id)
+
+        # only do the below expensive task find if the task_id/dag_id are not "k8 label safe"
+        if (
+            safe_dag_id == dag_id and
+            safe_task_id == task_id
+        ):
+            return (dag_id, task_id, ex_time, try_num)
+
         with create_session() as session:
             tasks = (
                 session
                 .query(TaskInstance)
-                .filter_by(execution_date=ex_time).all()
+                .filter_by(
+                    execution_date=ex_time
+                ).all()
             )
             self.log.info(
                 'Checking %s task instances.',
@@ -557,8 +569,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             )
             for task in tasks:
                 if (
-                    self._make_safe_label_value(task.dag_id) == dag_id and
-                    self._make_safe_label_value(task.task_id) == task_id and
+                    safe_dag_id == dag_id and
+                    safe_task_id == task_id and
                     task.execution_date == ex_time
                 ):
                     self.log.info(
