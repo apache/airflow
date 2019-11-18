@@ -50,6 +50,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
@@ -147,11 +148,12 @@ def show_traceback(error):
 
 
 class AirflowBaseView(BaseView):
+    from airflow import macros
     route_base = ''
 
     # Make our macros available to our UI templates too.
     extra_args = {
-        'macros': airflow.macros,
+        'macros': macros,
     }
 
     def render_template(self, *args, **kwargs):
@@ -807,8 +809,7 @@ class Airflow(AirflowBaseView):
         ignore_task_deps = request.form.get('ignore_task_deps') == "true"
         ignore_ti_state = request.form.get('ignore_ti_state') == "true"
 
-        from airflow.executors import get_default_executor
-        executor = get_default_executor()
+        executor = ExecutorLoader.get_default_executor()
         valid_celery_config = False
         valid_kubernetes_config = False
 

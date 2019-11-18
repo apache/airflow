@@ -18,7 +18,7 @@
 """Serve logs command"""
 import os
 
-from airflow import conf
+from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
 
 

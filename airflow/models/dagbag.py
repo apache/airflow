@@ -33,11 +33,10 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
-from airflow.executors import get_default_executor
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dag_processing import correct_maybe_zipped, list_py_file_paths
 from airflow.utils.db import provide_session
+from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
@@ -88,7 +87,8 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
-            executor = get_default_executor()
+            from airflow.executors.executor_loader import ExecutorLoader
+            executor = ExecutorLoader.get_default_executor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags = {}
@@ -317,9 +317,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         had a heartbeat for too long, in the current DagBag.
 
         :param zombies: zombie task instances to kill.
-        :type zombies: airflow.utils.dag_processing.SimpleTaskInstance
         :param session: DB session.
-        :type session: sqlalchemy.orm.session.Session
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
@@ -406,8 +404,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
 
+        from airflow.utils.file import correct_maybe_zipped, list_py_file_paths
         dag_folder = correct_maybe_zipped(dag_folder)
-
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
             try:

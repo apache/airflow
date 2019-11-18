@@ -76,18 +76,18 @@ class TestStandardTaskRunner(unittest.TestCase):
         pgid = os.getpgid(runner.process.pid)
         self.assertTrue(pgid)
 
-        procs = []
-        for p in psutil.process_iter():
+        processes = []
+        for process in psutil.process_iter():
             try:
-                if os.getpgid(p.pid) == pgid:
-                    procs.append(p)
+                if os.getpgid(process.pid) == pgid:
+                    processes.append(process)
             except OSError:
                 pass
 
         runner.terminate()
 
-        for p in procs:
-            self.assertFalse(psutil.pid_exists(p.pid))
+        for process in processes:
+            self.assertFalse(psutil.pid_exists(process.pid))
 
     def test_on_kill(self):
         """

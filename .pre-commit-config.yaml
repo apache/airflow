@@ -264,12 +264,14 @@ repos:
         files: \.py$
         exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
         pass_filenames: true
-      - id: pylint
+        require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
+      - id: pylint-tests
         name: Run pylint for tests
         language: system
         entry: "./scripts/ci/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
+        require_serial: false  # For tests, it's perfectly OK to run pylint in parallel
       - id: flake8
         name: Run flake8
         language: system

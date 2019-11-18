@@ -31,10 +31,11 @@ from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
-from airflow import DAG, configuration, exceptions, jobs, settings, utils
-from airflow.configuration import AirflowConfigException, conf, run_command
+from airflow import DAG, exceptions, jobs, settings, utils
+from airflow.configuration import (
+    DEFAULT_CONFIG, AirflowConfigException, conf, parameterized_config, run_command,
+)
 from airflow.exceptions import AirflowException
-from airflow.executors import SequentialExecutor
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import Connection, DagBag, DagRun, TaskFail, TaskInstance, Variable
@@ -754,7 +755,7 @@ class TestCore(unittest.TestCase):
 
     def test_parameterized_config_gen(self):
 
-        cfg = configuration.parameterized_config(configuration.DEFAULT_CONFIG)
+        cfg = parameterized_config(DEFAULT_CONFIG)
 
         # making sure some basic building blocks are present:
         self.assertIn("[core]", cfg)
@@ -870,6 +871,7 @@ class TestCore(unittest.TestCase):
 
     def test_terminate_task(self):
         """If a task instance's db state get deleted, it should fail"""
+        from airflow.executors.sequential_executor import SequentialExecutor
         TI = TaskInstance
         dag = self.dagbag.dags.get('test_utils')
         task = dag.task_dict.get('sleeps_forever')

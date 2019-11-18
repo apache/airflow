@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Standard task runner"""
 import psutil
 
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -25,7 +25,7 @@ from airflow.utils.helpers import reap_process_group
 
 class StandardTaskRunner(BaseTaskRunner):
     """
-    Runs the raw Airflow task by invoking through the Bash shell.
+    Standard runner for all tasks.
     """
     def __init__(self, local_task_job):
         super().__init__(local_task_job)
@@ -39,6 +39,3 @@ class StandardTaskRunner(BaseTaskRunner):
     def terminate(self):
         if self.process and psutil.pid_exists(self.process.pid):
             reap_process_group(self.process.pid, self.log)
-
-    def on_finish(self):
-        super().on_finish()

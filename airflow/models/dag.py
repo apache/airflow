@@ -38,7 +38,6 @@ from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
-from airflow.executors import LocalExecutor, get_default_executor
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -47,9 +46,9 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
-from airflow.utils.dag_processing import correct_maybe_zipped
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
+from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
@@ -1254,9 +1253,11 @@ class DAG(BaseDag, LoggingMixin):
         """
         from airflow.jobs import BackfillJob
         if not executor and local:
+            from airflow.executors.local_executor import LocalExecutor
             executor = LocalExecutor()
         elif not executor:
-            executor = get_default_executor()
+            from airflow.executors.executor_loader import ExecutorLoader
+            executor = ExecutorLoader.get_default_executor()
         job = BackfillJob(
             self,
             start_date=start_date,

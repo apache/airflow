@@ -1090,7 +1090,7 @@ class BaseOperatorLink(metaclass=ABCMeta):
     Abstract base class that defines how we get an operator link.
     """
 
-    operators = []   # type: List[Type[BaseOperator]]
+    operators: List[Type[BaseOperator]] = []
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link

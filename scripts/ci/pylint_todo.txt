@@ -103,11 +103,6 @@
 ./airflow/contrib/sensors/sftp_sensor.py
 ./airflow/contrib/sensors/wasb_sensor.py
 ./airflow/contrib/sensors/weekday_sensor.py
-./airflow/executors/base_executor.py
-./airflow/executors/celery_executor.py
-./airflow/executors/dask_executor.py
-./airflow/executors/local_executor.py
-./airflow/executors/sequential_executor.py
 ./airflow/hooks/dbapi_hook.py
 ./airflow/hooks/docker_hook.py
 ./airflow/hooks/druid_hook.py
@@ -174,7 +169,6 @@
 ./airflow/operators/s3_to_redshift_operator.py
 ./airflow/operators/slack_operator.py
 ./airflow/operators/sqlite_operator.py
-./airflow/plugins_manager.py
 ./airflow/providers/amazon/aws/hooks/redshift.py
 ./airflow/providers/amazon/aws/operators/athena.py
 ./airflow/providers/amazon/aws/sensors/athena.py
@@ -213,7 +207,6 @@
 ./airflow/utils/cli_action_loggers.py
 ./airflow/utils/compression.py
 ./airflow/utils/configuration.py
-./airflow/utils/dag_processing.py
 ./airflow/utils/dates.py
 ./airflow/utils/db.py
 ./airflow/utils/decorators.py
