@@ -25,8 +25,6 @@ from airflow.bin import cli
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
 
-DEV_NULL = "/dev/null"
-
 
 class TestCliVariables(unittest.TestCase):
     @classmethod
@@ -47,9 +45,9 @@ class TestCliVariables(unittest.TestCase):
         variable_command.variables_delete(self.parser.parse_args([
             'variables', 'delete', 'bar']))
         variable_command.variables_import(self.parser.parse_args([
-            'variables', 'import', DEV_NULL]))
+            'variables', 'import', os.devnull]))
         variable_command.variables_export(self.parser.parse_args([
-            'variables', 'export', DEV_NULL]))
+            'variables', 'export', os.devnull]))
 
         variable_command.variables_set(self.parser.parse_args([
             'variables', 'set', 'bar', 'original']))
