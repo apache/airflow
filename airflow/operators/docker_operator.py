@@ -119,6 +119,9 @@ class DockerOperator(BaseOperator):
     :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
         greater than 0. If omitted uses system default.
     :type shm_size: int
+    :param tty: Allocate pseudo-TTY to the container
+        This needs to be set see logs of the Docker container.
+    :type tty: bool
     """
     template_fields = ('command', 'environment', 'container_name')
     template_ext = ('.sh', '.bash',)
@@ -153,6 +156,7 @@ class DockerOperator(BaseOperator):
             dns_search: Optional[List[str]] = None,
             auto_remove: bool = False,
             shm_size: Optional[int] = None,
+            tty: Optional[bool] = False,
             *args,
             **kwargs) -> None:
 
@@ -183,6 +187,7 @@ class DockerOperator(BaseOperator):
         self.xcom_all = xcom_all
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
+        self.tty = tty
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
@@ -226,7 +231,8 @@ class DockerOperator(BaseOperator):
                     mem_limit=self.mem_limit),
                 image=self.image,
                 user=self.user,
-                working_dir=self.working_dir
+                working_dir=self.working_dir,
+                tty=self.tty,
             )
             self.cli.start(self.container['Id'])
 

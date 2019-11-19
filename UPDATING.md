@@ -45,6 +45,28 @@ assists users migrating to a new version.
 
 This one is supersede by `XCom.get_many().first()` which will return the same result.
 
+### Changes to SQLSensor
+
+SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
+
+It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That 
+changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success 
+criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
+behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
+
+### BaseOperator::render_template function signature changed
+
+Previous versions of the `BaseOperator::render_template` function required an `attr` argument as the first
+positional argument, along with `content` and `context`. This function signature was changed in 1.10.6 and
+the `attr` argument is no longer required (or accepted).
+
+In order to use this function in subclasses of the `BaseOperator`, the `attr` argument must be removed:
+```python
+result = self.render_template('myattr', self.myattr, context)  # Pre-1.10.6 call
+...
+result = self.render_template(self.myattr, context)  # Post-1.10.6 call
+```
+
 ### Idempotency in BigQuery operators
 Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`. 
 But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table` 
@@ -63,8 +85,10 @@ Migrated are:
 | airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook          | airflow.providers.amazon.aws.hooks.athena.AWSAthenaHook         |
 | airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook          | airflow.providers.amazon.aws.hooks.lambda_function.AwsLambdaHook         |
 | airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.amazon.aws.hooks.sqs.SQSHook        |
+| airflow.contrib.hooks.aws_sns_hook.AwsSnsHook                   | airflow.providers.amazon.aws.hooks.sns.AwsSnsHook        |
 | airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator |
 | airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator |
+| airflow.contrib.operators.aws_sns_publish_operator.SnsPublishOperator | airflow.providers.amazon.aws.operators.sns.SnsPublishOperator |
 | airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.amazon.aws.sensors.athena.AthenaSensor        |
 | airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.amazon.aws.sensors.sqs.SQSSensor        |
 

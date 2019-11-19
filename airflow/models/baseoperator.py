@@ -34,7 +34,7 @@ from dateutil.relativedelta import relativedelta
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.lineage import DataSet, apply_lineage, prepare_lineage
 from airflow.models.dag import DAG
 from airflow.models.pool import Pool
@@ -530,6 +530,9 @@ class BaseOperator(LoggingMixin):
                 "The DAG assigned to {} can not be changed.".format(self))
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
+        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] != self:
+            raise DuplicateTaskIdFound(
+                "Task id '{}' has already been added to the DAG".format(self.task_id))
 
         self._dag = dag  # pylint: disable=attribute-defined-outside-init
 

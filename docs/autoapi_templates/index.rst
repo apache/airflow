@@ -78,12 +78,11 @@ All operators are in the following packages:
 
   airflow/providers/google/cloud/operators/index
 
-  airflow/providers/google/marketing_platform/operators/index
-
   airflow/providers/google/cloud/sensors/index
 
-  airflow/providers/google/marketing_platform/sensors/index
+  airflow/providers/google/marketing_platform/operators/index
 
+  airflow/providers/google/marketing_platform/sensors/index
 
 Hooks
 -----

@@ -64,7 +64,7 @@ class TestS3KeySensor(unittest.TestCase):
         self.assertEqual(s.bucket_key, parsed_key)
         self.assertEqual(s.bucket_name, parsed_bucket)
 
-    @mock.patch('airflow.hooks.S3_hook.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook')
     def test_poke(self, mock_hook):
         s = S3KeySensor(
             task_id='s3_key_sensor',
@@ -78,7 +78,7 @@ class TestS3KeySensor(unittest.TestCase):
         mock_hook.return_value.check_for_key.return_value = True
         self.assertTrue(s.poke(None))
 
-    @mock.patch('airflow.hooks.S3_hook.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook')
     def test_poke_wildcard(self, mock_hook):
         s = S3KeySensor(
             task_id='s3_key_sensor',

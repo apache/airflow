@@ -47,6 +47,7 @@ class MySqlHook(DbApiHook):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+        self.connection = kwargs.pop("connection", None)
 
     def set_autocommit(self, conn, autocommit):
         """
@@ -69,7 +70,7 @@ class MySqlHook(DbApiHook):
         """
         Returns a mysql connection object
         """
-        conn = self.get_connection(self.mysql_conn_id)
+        conn = self.connection or self.get_connection(self.mysql_conn_id)
 
         conn_config = {
             "user": conn.login,

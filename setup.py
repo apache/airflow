@@ -197,6 +197,7 @@ gcp = [
     'google-cloud-bigtable==1.0.0',
     'google-cloud-bigquery-datatransfer>=0.4.0',
     'google-cloud-container>=0.1.1',
+    'google-cloud-dataproc==0.5.0',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
     'google-cloud-language>=1.1.1',
@@ -236,7 +237,7 @@ kerberos = ['pykerberos>=1.1.13',
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=2.5.1']
-mssql = ['pymssql>=2.1.1']
+mssql = ['pymssql~=2.1.1']
 mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
 papermill = ['papermill[all]>=1.0.0',
@@ -246,7 +247,7 @@ password = [
     'flask-bcrypt>=0.7.1',
 ]
 pinot = ['pinotdb==0.1.1']
-postgres = ['psycopg2>=2.7.4,<2.8']
+postgres = ['psycopg2-binary>=2.7.4']
 qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis~=3.2']
@@ -256,6 +257,7 @@ segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0,<6']
 sentry = ['sentry-sdk>=0.8.0', "blinker>=1.1"]
 slack = ['slackclient>=1.0.0,<2.0.0']
+pagerduty = ['pypd>=1.1.0']
 mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
@@ -320,7 +322,8 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + oracle +
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + sentry +
-             atlas + azure + aws + salesforce + cgroups + papermill + virtualenv)
+             atlas + azure + aws + salesforce + cgroups + papermill + virtualenv +
+             pagerduty)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -367,7 +370,7 @@ def do_setup():
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14.2, <0.15',
-            'funcsigs==1.0.0',
+            'funcsigs>=1.0.0, <2.0.0',
             'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
@@ -390,7 +393,7 @@ def do_setup():
             'tenacity==4.12.0',
             'termcolor==1.1.0',
             'text-unidecode==1.2',
-            'typing;python_version<"3.5"',
+            'typing;python_version<"3.6"',
             'thrift>=0.9.2',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
@@ -456,6 +459,7 @@ def do_setup():
             'sentry': sentry,
             'segment': segment,
             'slack': slack,
+            'pagerduty': pagerduty,
             'snowflake': snowflake,
             'ssh': ssh,
             'statsd': statsd,
@@ -470,7 +474,6 @@ def do_setup():
             'Intended Audience :: Developers',
             'Intended Audience :: System Administrators',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
             'Topic :: System :: Monitoring',
@@ -485,7 +488,7 @@ def do_setup():
             'compile_assets': CompileAssets
         },
         test_suite='setup.airflow_test_suite',
-        python_requires='~=3.5',
+        python_requires='~=3.6',
     )
 
 

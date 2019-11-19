@@ -37,7 +37,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook",
     ),
     (
-        "airflow.gcp.hooks.dataproc.DataprocHook",
+        "airflow.providers.google.cloud.hooks.dataproc.DataprocHook",
         "airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook",
     ),
     (
@@ -133,6 +133,10 @@ HOOK = [
         "airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook",
     ),
     (
+        "airflow.providers.amazon.aws.hooks.datasync.AWSDataSyncHook",
+        "airflow.contrib.hooks.aws_datasync_hook.AWSDataSyncHook",
+    ),
+    (
         "airflow.providers.amazon.aws.hooks.s3.S3Hook",
         "airflow.hooks.S3_hook.S3Hook",
     ),
@@ -143,6 +147,10 @@ HOOK = [
     (
         "airflow.providers.amazon.aws.hooks.lambda_function.AwsLambdaHook",
         "airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook",
+    ),
+    (
+        "airflow.providers.amazon.aws.hooks.sns.AwsSnsHook",
+        "airflow.contrib.hooks.aws_sns_hook.AwsSnsHook",
     ),
 ]
 OPERATOR = [
@@ -621,56 +629,64 @@ OPERATOR = [
         "airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataprocClusterCreateOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataprocClusterCreateOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataprocClusterDeleteOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataprocClusterDeleteOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataprocClusterScaleOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataprocClusterScaleOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataProcHadoopOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataProcHadoopOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataProcHiveOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataProcHiveOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHiveOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataProcJobBaseOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataProcJobBaseOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataprocOperationBaseOperator",
-        "airflow.contrib.operators.dataproc_operator.DataprocOperationBaseOperator",
-    ),
-    (
-        "airflow.gcp.operators.dataproc.DataProcPigOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataProcPigOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPigOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataProcPySparkOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataProcPySparkOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataProcSparkOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataProcSparkOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataProcSparkSqlOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataProcSparkSqlOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator",
         "airflow.contrib.operators.dataproc_operator."
         "DataprocWorkflowTemplateInstantiateInlineOperator",
     ),
     (
-        "airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateOperator",
+        "airflow.providers.google.cloud."
+        "operators.dataproc.DataprocWorkflowTemplateInstantiateOperator",
         "airflow.contrib.operators.dataproc_operator."
         "DataprocWorkflowTemplateInstantiateOperator",
     ),
@@ -757,6 +773,10 @@ OPERATOR = [
     (
         "airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator",
         "airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.sns.SnsPublishOperator",
+        "airflow.contrib.operators.sns_publish_operator.SnsPublishOperator",
     )
 ]
 SENSOR = [

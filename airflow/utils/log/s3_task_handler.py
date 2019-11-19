@@ -43,7 +43,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     def hook(self):
         remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.hooks.S3_hook import S3Hook
+            from airflow.providers.amazon.aws.hooks.s3 import S3Hook
             return S3Hook(remote_conn_id)
         except Exception:
             self.log.error(
