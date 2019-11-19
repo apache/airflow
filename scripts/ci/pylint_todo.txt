@@ -76,7 +76,6 @@
 ./airflow/contrib/operators/vertica_to_mysql.py
 ./airflow/contrib/operators/wasb_delete_blob_operator.py
 ./airflow/contrib/operators/winrm_operator.py
-./airflow/contrib/sensors/aws_glue_catalog_partition_sensor.py
 ./airflow/contrib/sensors/azure_cosmos_sensor.py
 ./airflow/contrib/sensors/bash_sensor.py
 ./airflow/contrib/sensors/celery_queue_sensor.py
@@ -169,6 +168,7 @@
 ./airflow/providers/amazon/aws/hooks/redshift.py
 ./airflow/providers/amazon/aws/operators/athena.py
 ./airflow/providers/amazon/aws/sensors/athena.py
+./airflow/providers/amazon/aws/sensors/glue.py
 ./airflow/providers/amazon/aws/sensors/redshift.py
 ./airflow/sensors/base_sensor_operator.py
 ./airflow/sensors/external_task_sensor.py
