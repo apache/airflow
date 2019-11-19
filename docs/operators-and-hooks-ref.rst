@@ -322,7 +322,7 @@ These integrations allow you to perform various operations within the Amazon Web
    * - `AWS DataSync <https://aws.amazon.com/datasync/>`__
      - :mod:`airflow.providers.amazon.aws.hooks.datasync`
      - :mod:`airflow.providers.amazon.aws.operators.datasync`
-     - 
+     -
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      - :mod:`airflow.contrib.hooks.aws_dynamodb_hook`
@@ -909,6 +909,12 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.contrib.hooks.jenkins_hook`
      - :mod:`airflow.contrib.operators.jenkins_job_trigger_operator`
+     -
+
+   * - `Neo4j <https://neo4j.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.neo4j_hook`
+     - :mod:`airflow.contrib.operators.neo4j_operator`
      -
 
    * - `Opsgenie <https://www.opsgenie.com/>`__
