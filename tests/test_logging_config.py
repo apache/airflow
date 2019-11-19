@@ -242,7 +242,6 @@ class TestLoggingSettings(unittest.TestCase):
         from airflow.utils.log.wasb_task_handler import WasbTaskHandler
 
         with conf_vars({
-            ('core', 'remote_logging'): 'True',
             ('core', 'remote_log_conn_id'): 'some_wasb',
             ('core', 'remote_base_log_folder'): 'wasb://some-folder',
         }):

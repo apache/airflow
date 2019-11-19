@@ -114,6 +114,9 @@ class AirflowConfigParser(ConfigParser):
     # new_name, the old_name will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old name will be used instead
     deprecated_options = {
+        'core': {
+            'remote_logging': None
+        },
         'celery': {
             # Remove these keys in Airflow 1.11
             'worker_concurrency': 'celeryd_concurrency',
@@ -437,16 +440,23 @@ class AirflowConfigParser(ConfigParser):
         self.read(TEST_CONFIG_FILE)
 
     def _warn_deprecate(self, section, key, deprecated_name):
-        warnings.warn(
-            'The {old} option in [{section}] has been renamed to {new} - the old '
-            'setting has been used, but please update your config.'.format(
-                old=deprecated_name,
-                new=key,
-                section=section,
-            ),
-            DeprecationWarning,
-            stacklevel=3,
-        )
+        if key:
+            msg = (
+                'The {old} option in [{section}] has been renamed to {new} - the old '
+                'setting has been used, but please update your config.'.format(
+                    old=deprecated_name,
+                    new=key,
+                    section=section,
+                ))
+        else:
+            msg = (
+                'The {old} option in [{section}] has been removed. '
+                'Please update your config.'.format(
+                    old=deprecated_name,
+                    section=section
+                ))
+        warnings.warn(msg, DeprecationWarning, stacklevel=3)
+
 
 
 def get_airflow_home():

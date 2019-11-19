@@ -194,8 +194,6 @@ REMOTE_HANDLERS = {
     },
 }
 
-REMOTE_LOGGING = conf.getboolean('core', 'remote_logging')
-
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
 # This is to avoid exceptions when initializing RotatingFileHandler multiple times
 # in multiple processes.
@@ -212,11 +210,11 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
     directory = os.path.dirname(processor_manager_handler_config['filename'])
     mkdirs(directory, 0o755)
 
-if REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
+if REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
     DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['s3'])
-elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
+elif REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
     DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['gcs'])
-elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
+elif REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
     DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['wasb'])
-elif REMOTE_LOGGING and ELASTICSEARCH_HOST:
+elif ELASTICSEARCH_HOST:
     DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['elasticsearch'])

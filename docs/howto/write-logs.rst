@@ -59,7 +59,6 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
     # Airflow can store logs remotely in AWS S3. Users must supply a remote
     # location URL (starting with either 's3://...') and an Airflow connection
     # id that provides access to the storage location.
-    remote_logging = True
     remote_base_log_folder = s3://my-bucket/path/to/logs
     remote_log_conn_id = MyS3Conn
     # Use server-side encryption for logs stored in S3
@@ -96,7 +95,6 @@ Follow the steps below to enable Azure Blob Storage logging:
 
     .. code-block:: bash
 
-        remote_logging = True
         logging_config_class = log_config.LOGGING_CONFIG
         remote_log_conn_id = <name of the Azure Blob Storage connection>
 
@@ -118,11 +116,10 @@ example:
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
-    # location. If remote_logging is set to true, see UPDATING.md for additional
-    # configuration requirements.
-    remote_logging = True
-    remote_base_log_folder = gs://my-bucket/path/to/logs
-    remote_log_conn_id = MyGCSConn
+    # location. To set up correctly, see https://airflow.readthedocs.io/en/stable/howto/write-logs.html
+    remote_log_conn_id =
+    remote_base_log_folder =
+    encrypt_s3_logs = False
 
 #. Install the ``gcp`` package first, like so: ``pip install 'apache-airflow[gcp]'``.
 #. Make sure a Google Cloud Platform connection hook has been defined in Airflow. The hook should have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
@@ -157,9 +154,10 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
-    # location. If remote_logging is set to true, see UPDATING.md for additional
-    # configuration requirements.
-    remote_logging = True
+    # location. To set up correctly, see https://airflow.readthedocs.io/en/stable/howto/write-logs.html
+    remote_log_conn_id =
+    remote_base_log_folder =
+    encrypt_s3_logs = False
 
     [elasticsearch]
     log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
@@ -174,9 +172,10 @@ To output task logs to stdout in JSON format, the following config could be used
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
-    # location. If remote_logging is set to true, see UPDATING.md for additional
-    # configuration requirements.
-    remote_logging = True
+    # location. To set up correctly, see https://airflow.readthedocs.io/en/stable/howto/write-logs.html
+    remote_log_conn_id =
+    remote_base_log_folder =
+    encrypt_s3_logs = False
 
     [elasticsearch]
     log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
@@ -197,9 +196,10 @@ To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, a
     [core]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
-    # location. If remote_logging is set to true, see UPDATING.md for additional
-    # configuration requirements.
-    remote_logging = True
+    # location. To set up correctly, see https://airflow.readthedocs.io/en/stable/howto/write-logs.html
+    remote_log_conn_id =
+    remote_base_log_folder =
+    encrypt_s3_logs = False
 
     [elasticsearch_configs]
     use_ssl=True
