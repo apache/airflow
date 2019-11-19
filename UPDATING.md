@@ -41,6 +41,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Remove setting `remote_logging`
+
+Airflow configuration (`[core]` section) doesn't use setting `remote_logging` any more.
+Remote logging is enabled by default, as long as the rest of the configuration is valid.
+For more details on setting it up, check [Writing logs](https://airflow.readthedocs.io/en/stable/howto/write-logs.html) 
+
 ### Changes to SQLSensor
 
 SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
