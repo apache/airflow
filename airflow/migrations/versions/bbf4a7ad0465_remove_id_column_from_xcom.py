@@ -37,9 +37,10 @@ depends_on = None
 def upgrade():
     """Apply Remove id column from xcom"""
     with op.batch_alter_table('xcom') as bop:
-        bop.drop_column('id')
-        bop.drop_index('idx_xcom_dag_task_date')
-        bop.create_primary_key('pk_xcom', ['dag_id', 'task_id', 'key', 'execution_date'])
+        # bop.drop_column('id')
+        # bop.drop_index('idx_xcom_dag_task_date')
+        # bop.create_primary_key('pk_xcom', ['dag_id', 'task_id', 'key', 'execution_date'])
+        pass
 
 
 def downgrade():
