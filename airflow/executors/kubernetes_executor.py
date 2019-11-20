@@ -23,6 +23,7 @@ import re
 from queue import Empty
 from typing import Union
 from uuid import uuid4
+from six import iteritems
 
 import kubernetes
 from dateutil import parser
@@ -274,7 +275,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         if resource_version:
             kwargs['resource_version'] = resource_version
         if kube_config.kube_client_request_args:
-            for key, value in kube_config.kube_client_request_args.iteritems():
+            for key, value in iteritems(kube_config.kube_client_request_args):
                 kwargs[key] = value
 
         last_resource_version = None
@@ -652,7 +653,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             # pylint: enable=protected-access
             kwargs = dict(label_selector=dict_string)
             if self.kube_config.kube_client_request_args:
-                for key, value in self.kube_config.kube_client_request_args.iteritems():
+                for key, value in iteritems(self.kube_config.kube_client_request_args):
                     kwargs[key] = value
             pod_list = self.kube_client.list_namespaced_pod(
                 self.kube_config.kube_namespace, **kwargs)
