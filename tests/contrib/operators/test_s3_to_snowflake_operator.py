@@ -67,3 +67,48 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
 
         assert mock_run.call_count == 1
         assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], copy_query)
+
+    @mock.patch("airflow.contrib.hooks.snowflake_hook.SnowflakeHook.run")
+    def test_execute_with_columns(self, mock_run):
+        s3_keys = ['1.csv', '2.csv']
+        table = 'table'
+        stage = 'stage'
+        file_format = 'file_format'
+        schema = 'schema'
+        columns_array = ['col1', 'col2']
+
+        S3ToSnowflakeTransfer(
+            s3_keys=s3_keys,
+            table=table,
+            stage=stage,
+            file_format=file_format,
+            schema=schema,
+            columns_array=columns_array,
+            task_id="task_id",
+            dag=None
+        ).execute(None)
+
+        files = str(s3_keys)
+        files = files.replace('[', '(')
+        files = files.replace(']', ')')
+        base_sql = """
+                FROM @{stage}/
+                files={files}
+                file_format={file_format}
+            """.format(
+            stage=stage,
+            files=files,
+            file_format=file_format
+        )
+
+        copy_query = """
+                COPY INTO {schema}.{table}({columns}) {base_sql}
+            """.format(
+            schema=schema,
+            table=table,
+            columns=",".join(columns_array),
+            base_sql=base_sql
+        )
+
+        assert mock_run.call_count == 1
+        assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], copy_query)
