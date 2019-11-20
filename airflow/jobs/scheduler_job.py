@@ -500,7 +500,7 @@ class SchedulerJob(BaseJob):
             """.format(task_list=task_list, blocking_task_list=blocking_task_list,
                        bug=asciiart.bug)
 
-            tasks_missed_sla = [dag.get_task(sla.task_id) for sla in slas]
+            tasks_missed_sla = [dag.get_task(sla.task_id) for sla in slas if dag.has_task(sla.task_id)]
             emails = set()
             for task in tasks_missed_sla:
                 if task.email:
