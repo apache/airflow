@@ -75,7 +75,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         stage = 'stage'
         file_format = 'file_format'
         schema = 'schema'
-        columns_array = ['col1', 'col2']
+        columns_array = ['col1', 'col2', 'col3']
 
         S3ToSnowflakeTransfer(
             s3_keys=s3_keys,
