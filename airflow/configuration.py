@@ -102,8 +102,6 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
         ('celery', 'result_backend'),
-        # Todo: remove this in Airflow 1.11
-        ('celery', 'celery_result_backend'),
         ('atlas', 'password'),
         ('smtp', 'smtp_password'),
         ('ldap', 'bind_password'),
@@ -114,14 +112,7 @@ class AirflowConfigParser(ConfigParser):
     # new_name, the old_name will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old name will be used instead
     deprecated_options = {
-        'celery': {
-            # Remove these keys in Airflow 1.11
-            'worker_concurrency': 'celeryd_concurrency',
-            'result_backend': 'celery_result_backend',
-            'broker_url': 'celery_broker_url',
-            'ssl_active': 'celery_ssl_active',
-            'ssl_cert': 'celery_ssl_cert',
-            'ssl_key': 'celery_ssl_key',
+        'elasticsearch': {
             'elasticsearch_host': 'host',
             'elasticsearch_log_id_template': 'log_id_template',
             'elasticsearch_end_of_log_mark': 'end_of_log_mark',
