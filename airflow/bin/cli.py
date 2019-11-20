@@ -20,55 +20,20 @@
 """Command-line interface"""
 
 import argparse
-import errno
-import functools
-import getpass
-import importlib
-import json
-import logging
 import os
-import random
-import re
-import reprlib
-import signal
-import string
-import subprocess
-import sys
 import textwrap
-import threading
-import time
-import traceback
 from argparse import RawTextHelpFormatter
-from importlib import import_module
-from typing import Any
-from urllib.parse import urlunparse
+from typing import Callable
 
-import daemon
-import psutil
-from daemon.pidfile import TimeoutPIDLockFile
-from sqlalchemy.orm import exc
-from tabulate import tabulate, tabulate_formats
+from tabulate import tabulate_formats
 
-import airflow
-from airflow import api, jobs, settings
+from airflow import api, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowWebServerTimeout
-from airflow.executors import get_default_executor
-from airflow.models import DAG, Connection, DagBag, DagModel, DagPickle, DagRun, TaskInstance, Variable
-from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
-from airflow.utils import cli as cli_utils, db
-from airflow.utils.dot_renderer import render_dag
-from airflow.utils.log.logging_mixin import LoggingMixin, redirect_stderr, redirect_stdout
-from airflow.utils.net import get_hostname
+from airflow.utils.cli import alternative_conn_specs
+from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
-from airflow.www.app import cached_app, cached_appbuilder, create_app
 
 api.load_auth()
-api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
-api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
-                               auth=api.API_AUTH.api_auth.CLIENT_AUTH)
-
-LOG = LoggingMixin().log
 
 DAGS_FOLDER = settings.DAGS_FOLDER
 
@@ -76,1647 +41,17 @@ if "BUILDING_AIRFLOW_DOCS" in os.environ:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
 
 
-def sigint_handler(sig, frame):  # pylint: disable=unused-argument
-    """
-    Returns without error on SIGINT or SIGTERM signals in interactive command mode
-    e.g. CTRL+C or kill <PID>
-    """
-    sys.exit(0)
+def lazy_load_command(import_path: str) -> Callable:
+    """Create a lazy loader for command"""
+    _, _, name = import_path.rpartition('.')
 
+    def command(*args, **kwargs):
+        func = import_string(import_path)
+        return func(*args, **kwargs)
 
-def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
-    """
-    Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
-    e.g. kill -s QUIT <PID> or CTRL+\
-    """
-    print("Dumping stack traces for all threads in PID {}".format(os.getpid()))
-    id_to_name = {th.ident: th.name for th in threading.enumerate()}
-    code = []
-    for thread_id, stack in sys._current_frames().items():  # pylint: disable=protected-access
-        code.append("\n# Thread: {}({})"
-                    .format(id_to_name.get(thread_id, ""), thread_id))
-        for filename, line_number, name, line in traceback.extract_stack(stack):
-            code.append('File: "{}", line {}, in {}'
-                        .format(filename, line_number, name))
-            if line:
-                code.append("  {}".format(line.strip()))
-    print("\n".join(code))
+    command.__name__ = name  # type: ignore
 
-
-def setup_logging(filename):
-    """Creates log file handler for daemon process"""
-    root = logging.getLogger()
-    handler = logging.FileHandler(filename)
-    formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
-    handler.setFormatter(formatter)
-    root.addHandler(handler)
-    root.setLevel(settings.LOGGING_LEVEL)
-
-    return handler.stream
-
-
-def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
-    """Creates logging paths"""
-    if not stderr:
-        stderr = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.err'.format(process))
-    if not stdout:
-        stdout = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.out'.format(process))
-    if not log:
-        log = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.log'.format(process))
-    if not pid:
-        pid = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.pid'.format(process))
-
-    return pid, stdout, stderr, log
-
-
-def process_subdir(subdir):
-    """Expands path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
-    if subdir:
-        subdir = subdir.replace('DAGS_FOLDER', DAGS_FOLDER)
-        subdir = os.path.abspath(os.path.expanduser(subdir))
-    return subdir
-
-
-def get_dag(args):
-    """Returns DAG of a given dag_id"""
-    dagbag = DagBag(process_subdir(args.subdir))
-    if args.dag_id not in dagbag.dags:
-        raise AirflowException(
-            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(args.dag_id))
-    return dagbag.dags[args.dag_id]
-
-
-def get_dags(args):
-    """Returns DAG(s) matching a given regex or dag_id"""
-    if not args.dag_regex:
-        return [get_dag(args)]
-    dagbag = DagBag(process_subdir(args.subdir))
-    matched_dags = [dag for dag in dagbag.dags.values() if re.search(
-        args.dag_id, dag.dag_id)]
-    if not matched_dags:
-        raise AirflowException(
-            'dag_id could not be found with regex: {}. Either the dag did not exist '
-            'or it failed to parse.'.format(args.dag_id))
-    return matched_dags
-
-
-@cli_utils.action_logging
-def backfill(args, dag=None):
-    """Creates backfill job or dry run for a DAG"""
-    logging.basicConfig(
-        level=settings.LOGGING_LEVEL,
-        format=settings.SIMPLE_LOG_FORMAT)
-
-    signal.signal(signal.SIGTERM, sigint_handler)
-
-    dag = dag or get_dag(args)
-
-    if not args.start_date and not args.end_date:
-        raise AirflowException("Provide a start_date and/or end_date")
-
-    # If only one date is passed, using same as start and end
-    args.end_date = args.end_date or args.start_date
-    args.start_date = args.start_date or args.end_date
-
-    if args.task_regex:
-        dag = dag.sub_dag(
-            task_regex=args.task_regex,
-            include_upstream=not args.ignore_dependencies)
-
-    run_conf = None
-    if args.conf:
-        run_conf = json.loads(args.conf)
-
-    if args.dry_run:
-        print("Dry run of DAG {0} on {1}".format(args.dag_id,
-                                                 args.start_date))
-        for task in dag.tasks:
-            print("Task {0}".format(task.task_id))
-            ti = TaskInstance(task, args.start_date)
-            ti.dry_run()
-    else:
-        if args.reset_dagruns:
-            DAG.clear_dags(
-                [dag],
-                start_date=args.start_date,
-                end_date=args.end_date,
-                confirm_prompt=not args.yes,
-                include_subdags=True,
-            )
-
-        dag.run(
-            start_date=args.start_date,
-            end_date=args.end_date,
-            mark_success=args.mark_success,
-            local=args.local,
-            donot_pickle=(args.donot_pickle or
-                          conf.getboolean('core', 'donot_pickle')),
-            ignore_first_depends_on_past=args.ignore_first_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            pool=args.pool,
-            delay_on_limit_secs=args.delay_on_limit,
-            verbose=args.verbose,
-            conf=run_conf,
-            rerun_failed_tasks=args.rerun_failed_tasks,
-            run_backwards=args.run_backwards
-        )
-
-
-@cli_utils.action_logging
-def trigger_dag(args):
-    """
-    Creates a dag run for the specified dag
-
-    :param args:
-    :return:
-    """
-    log = LoggingMixin().log
-    try:
-        message = api_client.trigger_dag(dag_id=args.dag_id,
-                                         run_id=args.run_id,
-                                         conf=args.conf,
-                                         execution_date=args.exec_date)
-    except OSError as err:
-        log.error(err)
-        raise AirflowException(err)
-    log.info(message)
-
-
-@cli_utils.action_logging
-def delete_dag(args):
-    """
-    Deletes all DB records related to the specified dag
-
-    :param args:
-    :return:
-    """
-    log = LoggingMixin().log
-    if args.yes or input(
-            "This will drop all existing records related to the specified DAG. "
-            "Proceed? (y/n)").upper() == "Y":
-        try:
-            message = api_client.delete_dag(dag_id=args.dag_id)
-        except OSError as err:
-            log.error(err)
-            raise AirflowException(err)
-        log.info(message)
-    else:
-        print("Bail.")
-
-
-def _tabulate_pools(pools, tablefmt="fancy_grid"):
-    return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
-                             tablefmt=tablefmt)
-
-
-def pool_list(args):
-    """Displays info of all the pools"""
-    log = LoggingMixin().log
-    pools = api_client.get_pools()
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-def pool_get(args):
-    """Displays pool info by a given name"""
-    log = LoggingMixin().log
-    pools = [api_client.get_pool(name=args.pool)]
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-@cli_utils.action_logging
-def pool_set(args):
-    """Creates new pool with a given name and slots"""
-    log = LoggingMixin().log
-    pools = [api_client.create_pool(name=args.pool,
-                                    slots=args.slots,
-                                    description=args.description)]
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-@cli_utils.action_logging
-def pool_delete(args):
-    """Deletes pool by a given name"""
-    log = LoggingMixin().log
-    pools = [api_client.delete_pool(name=args.pool)]
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-@cli_utils.action_logging
-def pool_import(args):
-    """Imports pools from the file"""
-    log = LoggingMixin().log
-    if os.path.exists(args.file):
-        pools = pool_import_helper(args.file)
-    else:
-        print("Missing pools file.")
-        pools = api_client.get_pools()
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-def pool_export(args):
-    """Exports all of the pools to the file"""
-    log = LoggingMixin().log
-    pools = pool_export_helper(args.file)
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
-
-
-def pool_import_helper(filepath):
-    """Helps import pools from the json file"""
-    with open(filepath, 'r') as poolfile:
-        data = poolfile.read()
-    try:  # pylint: disable=too-many-nested-blocks
-        pools_json = json.loads(data)
-    except Exception as e:  # pylint: disable=broad-except
-        print("Please check the validity of the json file: " + str(e))
-    else:
-        try:
-            pools = []
-            counter = 0
-            for k, v in pools_json.items():
-                if isinstance(v, dict) and len(v) == 2:
-                    pools.append(api_client.create_pool(name=k,
-                                                        slots=v["slots"],
-                                                        description=v["description"]))
-                    counter += 1
-                else:
-                    pass
-        except Exception:  # pylint: disable=broad-except
-            pass
-        finally:
-            print("{} of {} pool(s) successfully updated.".format(counter, len(pools_json)))
-            return pools  # pylint: disable=lost-exception
-
-
-def pool_export_helper(filepath):
-    """Helps export all of the pools to the json file"""
-    pool_dict = {}
-    pools = api_client.get_pools()
-    for pool in pools:
-        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
-    with open(filepath, 'w') as poolfile:
-        poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
-    print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
-    return pools
-
-
-def variables_list(args):
-    """Displays all of the variables"""
-    with db.create_session() as session:
-        variables = session.query(Variable)
-    print("\n".join(var.key for var in variables))
-
-
-def variables_get(args):
-    """Displays variable by a given name"""
-    try:
-        var = Variable.get(args.key,
-                           deserialize_json=args.json,
-                           default_var=args.default)
-        print(var)
-    except ValueError as e:
-        print(e)
-
-
-@cli_utils.action_logging
-def variables_set(args):
-    """Creates new variable with a given name and value"""
-    Variable.set(args.key, args.value, serialize_json=args.json)
-
-
-@cli_utils.action_logging
-def variables_delete(args):
-    """Deletes variable by a given name"""
-    Variable.delete(args.key)
-
-
-@cli_utils.action_logging
-def variables_import(args):
-    """Imports variables from a given file"""
-    if os.path.exists(args.file):
-        import_helper(args.file)
-    else:
-        print("Missing variables file.")
-
-
-def variables_export(args):
-    """Exports all of the variables to the file"""
-    variable_export_helper(args.file)
-
-
-def import_helper(filepath):
-    """Helps import variables from the file"""
-    with open(filepath, 'r') as varfile:
-        data = varfile.read()
-
-    try:
-        var_json = json.loads(data)
-    except Exception:  # pylint: disable=broad-except
-        print("Invalid variables file.")
-    else:
-        suc_count = fail_count = 0
-        for k, v in var_json.items():
-            try:
-                Variable.set(k, v, serialize_json=not isinstance(v, str))
-            except Exception as e:  # pylint: disable=broad-except
-                print('Variable import failed: {}'.format(repr(e)))
-                fail_count += 1
-            else:
-                suc_count += 1
-        print("{} of {} variables successfully updated.".format(suc_count, len(var_json)))
-        if fail_count:
-            print("{} variable(s) failed to be updated.".format(fail_count))
-
-
-def variable_export_helper(filepath):
-    """Helps export all of the variables to the file"""
-    var_dict = {}
-    with db.create_session() as session:
-        qry = session.query(Variable).all()
-
-        data = json.JSONDecoder()
-        for var in qry:
-            try:
-                val = data.decode(var.val)
-            except Exception:  # pylint: disable=broad-except
-                val = var.val
-            var_dict[var.key] = val
-
-    with open(filepath, 'w') as varfile:
-        varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
-    print("{} variables successfully exported to {}".format(len(var_dict), filepath))
-
-
-@cli_utils.action_logging
-def pause(args):
-    """Pauses a DAG"""
-    set_is_paused(True, args)
-
-
-@cli_utils.action_logging
-def unpause(args):
-    """Unpauses a DAG"""
-    set_is_paused(False, args)
-
-
-def set_is_paused(is_paused, args):
-    """Sets is_paused for DAG by a given dag_id"""
-    DagModel.get_dagmodel(args.dag_id).set_is_paused(
-        is_paused=is_paused,
-    )
-
-    print("Dag: {}, paused: {}".format(args.dag_id, str(is_paused)))
-
-
-def show_dag(args):
-    """Displays DAG or saves it's graphic representation to the file"""
-    dag = get_dag(args)
-    dot = render_dag(dag)
-    if args.save:
-        filename, _, fileformat = args.save.rpartition('.')
-        dot.render(filename=filename, format=fileformat, cleanup=True)
-        print("File {} saved".format(args.save))
-    elif args.imgcat:
-        data = dot.pipe(format='png')
-        try:
-            proc = subprocess.Popen("imgcat", stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                raise AirflowException(
-                    "Failed to execute. Make sure the imgcat executables are on your systems \'PATH\'"
-                )
-            else:
-                raise
-        out, err = proc.communicate(data)
-        if out:
-            print(out.decode('utf-8'))
-        if err:
-            print(err.decode('utf-8'))
-    else:
-        print(dot.source)
-
-
-def _run(args, dag, ti):
-    if args.local:
-        run_job = jobs.LocalTaskJob(
-            task_instance=ti,
-            mark_success=args.mark_success,
-            pickle_id=args.pickle,
-            ignore_all_deps=args.ignore_all_dependencies,
-            ignore_depends_on_past=args.ignore_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            ignore_ti_state=args.force,
-            pool=args.pool)
-        run_job.run()
-    elif args.raw:
-        ti._run_raw_task(  # pylint: disable=protected-access
-            mark_success=args.mark_success,
-            job_id=args.job_id,
-            pool=args.pool,
-        )
-    else:
-        pickle_id = None
-        if args.ship_dag:
-            try:
-                # Running remotely, so pickling the DAG
-                with db.create_session() as session:
-                    pickle = DagPickle(dag)
-                    session.add(pickle)
-                    pickle_id = pickle.id
-                    # TODO: This should be written to a log
-                    print('Pickled dag {dag} as pickle_id: {pickle_id}'.format(
-                        dag=dag, pickle_id=pickle_id))
-            except Exception as e:
-                print('Could not pickle the DAG')
-                print(e)
-                raise e
-
-        executor = get_default_executor()
-        executor.start()
-        print("Sending to executor.")
-        executor.queue_task_instance(
-            ti,
-            mark_success=args.mark_success,
-            pickle_id=pickle_id,
-            ignore_all_deps=args.ignore_all_dependencies,
-            ignore_depends_on_past=args.ignore_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            ignore_ti_state=args.force,
-            pool=args.pool)
-        executor.heartbeat()
-        executor.end()
-
-
-@cli_utils.action_logging
-def run(args, dag=None):
-    """Runs a single task instance"""
-    if dag:
-        args.dag_id = dag.dag_id
-
-    log = LoggingMixin().log
-
-    # Load custom airflow config
-    if args.cfg_path:
-        with open(args.cfg_path, 'r') as conf_file:
-            conf_dict = json.load(conf_file)
-
-        if os.path.exists(args.cfg_path):
-            os.remove(args.cfg_path)
-
-        conf.read_dict(conf_dict, source=args.cfg_path)
-        settings.configure_vars()
-
-    # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
-    # behind multiple open sleeping connections while heartbeating, which could
-    # easily exceed the database connection limit when
-    # processing hundreds of simultaneous tasks.
-    settings.configure_orm(disable_connection_pool=True)
-
-    if not args.pickle and not dag:
-        dag = get_dag(args)
-    elif not dag:
-        with db.create_session() as session:
-            log.info('Loading pickle id %s', args.pickle)
-            dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
-            if not dag_pickle:
-                raise AirflowException("Who hid the pickle!? [missing pickle]")
-            dag = dag_pickle.pickle
-
-    task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
-    ti.refresh_from_db()
-
-    ti.init_run_context(raw=args.raw)
-
-    hostname = get_hostname()
-    log.info("Running %s on host %s", ti, hostname)
-
-    if args.interactive:
-        _run(args, dag, ti)
-    else:
-        with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
-            _run(args, dag, ti)
-    logging.shutdown()
-
-
-@cli_utils.action_logging
-def task_failed_deps(args):
-    """
-    Returns the unmet dependencies for a task instance from the perspective of the
-    scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
-    scheduler, and then run by an executor).
-    >>> airflow tasks failed_deps tutorial sleep 2015-01-01
-    Task instance dependencies not met:
-    Dagrun Running: Task instance's dagrun did not exist: Unknown reason
-    Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
-    to have succeeded, but found 1 non-success(es).
-    """
-    dag = get_dag(args)
-    task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
-
-    dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
-    failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
-    # TODO, Do we want to print or log this
-    if failed_deps:
-        print("Task instance dependencies not met:")
-        for dep in failed_deps:
-            print("{}: {}".format(dep.dep_name, dep.reason))
-    else:
-        print("Task instance dependencies are all met.")
-
-
-@cli_utils.action_logging
-def task_state(args):
-    """
-    Returns the state of a TaskInstance at the command line.
-    >>> airflow tasks state tutorial sleep 2015-01-01
-    success
-    """
-    dag = get_dag(args)
-    task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
-    print(ti.current_state())
-
-
-@cli_utils.action_logging
-def dag_state(args):
-    """
-    Returns the state of a DagRun at the command line.
-    >>> airflow dags state tutorial 2015-01-01T00:00:00.000000
-    running
-    """
-    dag = get_dag(args)
-    dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
-    print(dr[0].state if len(dr) > 0 else None)  # pylint: disable=len-as-condition
-
-
-@cli_utils.action_logging
-def next_execution(args):
-    """
-    Returns the next execution datetime of a DAG at the command line.
-    >>> airflow dags next_execution tutorial
-    2018-08-31 10:38:00
-    """
-    dag = get_dag(args)
-
-    if dag.is_paused:
-        print("[INFO] Please be reminded this DAG is PAUSED now.")
-
-    if dag.latest_execution_date:
-        next_execution_dttm = dag.following_schedule(dag.latest_execution_date)
-
-        if next_execution_dttm is None:
-            print("[WARN] No following schedule can be found. " +
-                  "This DAG may have schedule interval '@once' or `None`.")
-
-        print(next_execution_dttm)
-    else:
-        print("[WARN] Only applicable when there is execution record found for the DAG.")
-        print(None)
-
-
-@cli_utils.action_logging
-def rotate_fernet_key(args):
-    """Rotates all encrypted connection credentials and variables"""
-    with db.create_session() as session:
-        for conn in session.query(Connection).filter(
-                Connection.is_encrypted | Connection.is_extra_encrypted):
-            conn.rotate_fernet_key()
-        for var in session.query(Variable).filter(Variable.is_encrypted):
-            var.rotate_fernet_key()
-
-
-@cli_utils.action_logging
-def list_dags(args):
-    """Displays dags with or without stats at the command line"""
-    dagbag = DagBag(process_subdir(args.subdir))
-    list_template = textwrap.dedent("""\n
-    -------------------------------------------------------------------
-    DAGS
-    -------------------------------------------------------------------
-    {dag_list}
-    """)
-    dag_list = "\n".join(sorted(dagbag.dags))
-    print(list_template.format(dag_list=dag_list))
-    if args.report:
-        print(dagbag.dagbag_report())
-
-
-@cli_utils.action_logging
-def list_tasks(args, dag=None):
-    """Lists the tasks within a DAG at the command line"""
-    dag = dag or get_dag(args)
-    if args.tree:
-        dag.tree_view()
-    else:
-        tasks = sorted([t.task_id for t in dag.tasks])
-        print("\n".join(sorted(tasks)))
-
-
-@cli_utils.action_logging
-def list_jobs(args, dag=None):
-    """Lists latest n jobs"""
-    queries = []
-    if dag:
-        args.dag_id = dag.dag_id
-    if args.dag_id:
-        dagbag = DagBag()
-
-        if args.dag_id not in dagbag.dags:
-            error_message = "Dag id {} not found".format(args.dag_id)
-            raise AirflowException(error_message)
-        queries.append(jobs.BaseJob.dag_id == args.dag_id)
-
-    if args.state:
-        queries.append(jobs.BaseJob.state == args.state)
-
-    with db.create_session() as session:
-        all_jobs = (session
-                    .query(jobs.BaseJob)
-                    .filter(*queries)
-                    .order_by(jobs.BaseJob.start_date.desc())
-                    .limit(args.limit)
-                    .all())
-        fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
-        all_jobs = [[job.__getattribute__(field) for field in fields] for job in all_jobs]
-        msg = tabulate(all_jobs,
-                       [field.capitalize().replace('_', ' ') for field in fields],
-                       tablefmt=args.output)
-        print(msg)
-
-
-@cli_utils.action_logging
-def test(args, dag=None):
-    """Tests task for a given dag_id"""
-    # We want log outout from operators etc to show up here. Normally
-    # airflow.task would redirect to a file, but here we want it to propagate
-    # up to the normal airflow handler.
-    logging.getLogger('airflow.task').propagate = True
-
-    dag = dag or get_dag(args)
-
-    task = dag.get_task(task_id=args.task_id)
-    # Add CLI provided task_params to task.params
-    if args.task_params:
-        passed_in_params = json.loads(args.task_params)
-        task.params.update(passed_in_params)
-    ti = TaskInstance(task, args.execution_date)
-
-    try:
-        if args.dry_run:
-            ti.dry_run()
-        else:
-            ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
-    except Exception:  # pylint: disable=broad-except
-        if args.post_mortem:
-            try:
-                debugger = importlib.import_module("ipdb")
-            except ImportError:
-                debugger = importlib.import_module("pdb")
-            debugger.post_mortem()
-        else:
-            raise
-
-
-@cli_utils.action_logging
-def render(args):
-    """Renders and displays templated fields for a given task"""
-    dag = get_dag(args)
-    task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
-    ti.render_templates()
-    for attr in task.__class__.template_fields:
-        print(textwrap.dedent("""\
-        # ----------------------------------------------------------
-        # property: {}
-        # ----------------------------------------------------------
-        {}
-        """.format(attr, getattr(task, attr))))
-
-
-@cli_utils.action_logging
-def clear(args):
-    """Clears all task instances or only those matched by regex for a DAG(s)"""
-    logging.basicConfig(
-        level=settings.LOGGING_LEVEL,
-        format=settings.SIMPLE_LOG_FORMAT)
-    dags = get_dags(args)
-
-    if args.task_regex:
-        for idx, dag in enumerate(dags):
-            dags[idx] = dag.sub_dag(
-                task_regex=args.task_regex,
-                include_downstream=args.downstream,
-                include_upstream=args.upstream)
-
-    DAG.clear_dags(
-        dags,
-        start_date=args.start_date,
-        end_date=args.end_date,
-        only_failed=args.only_failed,
-        only_running=args.only_running,
-        confirm_prompt=not args.yes,
-        include_subdags=not args.exclude_subdags,
-        include_parentdag=not args.exclude_parentdag,
-    )
-
-
-def get_num_ready_workers_running(gunicorn_master_proc):
-    """Returns number of ready Gunicorn workers by looking for READY_PREFIX in process name"""
-    workers = psutil.Process(gunicorn_master_proc.pid).children()
-
-    def ready_prefix_on_cmdline(proc):
-        try:
-            cmdline = proc.cmdline()
-            if len(cmdline) > 0:  # pylint: disable=len-as-condition
-                return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
-        except psutil.NoSuchProcess:
-            pass
-        return False
-
-    ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
-    return len(ready_workers)
-
-
-def get_num_workers_running(gunicorn_master_proc):
-    """Returns number of running Gunicorn workers processes"""
-    workers = psutil.Process(gunicorn_master_proc.pid).children()
-    return len(workers)
-
-
-def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
-    """
-    Runs forever, monitoring the child processes of @gunicorn_master_proc and
-    restarting workers occasionally.
-    Each iteration of the loop traverses one edge of this state transition
-    diagram, where each state (node) represents
-    [ num_ready_workers_running / num_workers_running ]. We expect most time to
-    be spent in [n / n]. `bs` is the setting webserver.worker_refresh_batch_size.
-    The horizontal transition at ? happens after the new worker parses all the
-    dags (so it could take a while!)
-       V ────────────────────────────────────────────────────────────────────────┐
-    [n / n] ──TTIN──> [ [n, n+bs) / n + bs ]  ────?───> [n + bs / n + bs] ──TTOU─┘
-       ^                          ^───────────────┘
-       │
-       │      ┌────────────────v
-       └──────┴────── [ [0, n) / n ] <─── start
-    We change the number of workers by sending TTIN and TTOU to the gunicorn
-    master process, which increases and decreases the number of child workers
-    respectively. Gunicorn guarantees that on TTOU workers are terminated
-    gracefully and that the oldest worker is terminated.
-    """
-
-    def wait_until_true(fn, timeout=0):
-        """
-        Sleeps until fn is true
-        """
-        start_time = time.time()
-        while not fn():
-            if 0 < timeout <= time.time() - start_time:
-                raise AirflowWebServerTimeout(
-                    "No response from gunicorn master within {0} seconds"
-                    .format(timeout))
-            time.sleep(0.1)
-
-    def start_refresh(gunicorn_master_proc):
-        batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
-        LOG.debug('%s doing a refresh of %s workers', state, batch_size)
-        sys.stdout.flush()
-        sys.stderr.flush()
-
-        excess = 0
-        for _ in range(batch_size):
-            gunicorn_master_proc.send_signal(signal.SIGTTIN)
-            excess += 1
-            wait_until_true(lambda: num_workers_expected + excess ==
-                            get_num_workers_running(gunicorn_master_proc),
-                            master_timeout)
-
-    try:  # pylint: disable=too-many-nested-blocks
-        wait_until_true(lambda: num_workers_expected ==
-                        get_num_workers_running(gunicorn_master_proc),
-                        master_timeout)
-        while True:
-            num_workers_running = get_num_workers_running(gunicorn_master_proc)
-            num_ready_workers_running = \
-                get_num_ready_workers_running(gunicorn_master_proc)
-
-            state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
-
-            # Whenever some workers are not ready, wait until all workers are ready
-            if num_ready_workers_running < num_workers_running:
-                LOG.debug('%s some workers are starting up, waiting...', state)
-                sys.stdout.flush()
-                time.sleep(1)
-
-            # Kill a worker gracefully by asking gunicorn to reduce number of workers
-            elif num_workers_running > num_workers_expected:
-                excess = num_workers_running - num_workers_expected
-                LOG.debug('%s killing %s workers', state, excess)
-
-                for _ in range(excess):
-                    gunicorn_master_proc.send_signal(signal.SIGTTOU)
-                    excess -= 1
-                    wait_until_true(lambda: num_workers_expected + excess ==
-                                    get_num_workers_running(gunicorn_master_proc),
-                                    master_timeout)
-
-            # Start a new worker by asking gunicorn to increase number of workers
-            elif num_workers_running == num_workers_expected:
-                refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
-                LOG.debug(
-                    '%s sleeping for %ss starting doing a refresh...',
-                    state, refresh_interval
-                )
-                time.sleep(refresh_interval)
-                start_refresh(gunicorn_master_proc)
-
-            else:
-                # num_ready_workers_running == num_workers_running < num_workers_expected
-                LOG.error((
-                    "%s some workers seem to have died and gunicorn"
-                    "did not restart them as expected"
-                ), state)
-                time.sleep(10)
-                if len(
-                    psutil.Process(gunicorn_master_proc.pid).children()
-                ) < num_workers_expected:
-                    start_refresh(gunicorn_master_proc)
-    except (AirflowWebServerTimeout, OSError) as err:
-        LOG.error(err)
-        LOG.error("Shutting down webserver")
-        try:
-            gunicorn_master_proc.terminate()
-            gunicorn_master_proc.wait()
-        finally:
-            sys.exit(1)
-
-
-@cli_utils.action_logging
-def webserver(args):
-    """Starts Airflow Webserver"""
-    print(settings.HEADER)
-
-    access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
-    error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
-    num_workers = args.workers or conf.get('webserver', 'workers')
-    worker_timeout = (args.worker_timeout or
-                      conf.get('webserver', 'web_server_worker_timeout'))
-    ssl_cert = args.ssl_cert or conf.get('webserver', 'web_server_ssl_cert')
-    ssl_key = args.ssl_key or conf.get('webserver', 'web_server_ssl_key')
-    if not ssl_cert and ssl_key:
-        raise AirflowException(
-            'An SSL certificate must also be provided for use with ' + ssl_key)
-    if ssl_cert and not ssl_key:
-        raise AirflowException(
-            'An SSL key must also be provided for use with ' + ssl_cert)
-
-    if args.debug:
-        print(
-            "Starting the web server on port {0} and host {1}.".format(
-                args.port, args.hostname))
-        app, _ = create_app(None, testing=conf.getboolean('core', 'unit_test_mode'))
-        app.run(debug=True, use_reloader=not app.config['TESTING'],
-                port=args.port, host=args.hostname,
-                ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
-    else:
-        os.environ['SKIP_DAGS_PARSING'] = 'True'
-        app = cached_app(None)
-        pid, stdout, stderr, log_file = setup_locations(
-            "webserver", args.pid, args.stdout, args.stderr, args.log_file)
-        os.environ.pop('SKIP_DAGS_PARSING')
-        if args.daemon:
-            handle = setup_logging(log_file)
-            stdout = open(stdout, 'w+')
-            stderr = open(stderr, 'w+')
-
-        print(
-            textwrap.dedent('''\
-                Running the Gunicorn Server with:
-                Workers: {num_workers} {workerclass}
-                Host: {hostname}:{port}
-                Timeout: {worker_timeout}
-                Logfiles: {access_logfile} {error_logfile}
-                =================================================================\
-            '''.format(num_workers=num_workers, workerclass=args.workerclass,
-                       hostname=args.hostname, port=args.port,
-                       worker_timeout=worker_timeout, access_logfile=access_logfile,
-                       error_logfile=error_logfile)))
-
-        run_args = [
-            'gunicorn',
-            '-w', str(num_workers),
-            '-k', str(args.workerclass),
-            '-t', str(worker_timeout),
-            '-b', args.hostname + ':' + str(args.port),
-            '-n', 'airflow-webserver',
-            '-p', str(pid),
-            '-c', 'python:airflow.www.gunicorn_config',
-        ]
-
-        if args.access_logfile:
-            run_args += ['--access-logfile', str(args.access_logfile)]
-
-        if args.error_logfile:
-            run_args += ['--error-logfile', str(args.error_logfile)]
-
-        if args.daemon:
-            run_args += ['-D']
-
-        if ssl_cert:
-            run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
-
-        webserver_module = 'www'
-        run_args += ["airflow." + webserver_module + ".app:cached_app()"]
-
-        gunicorn_master_proc = None
-
-        def kill_proc(dummy_signum, dummy_frame):  # pylint: disable=unused-argument
-            gunicorn_master_proc.terminate()
-            gunicorn_master_proc.wait()
-            sys.exit(0)
-
-        def monitor_gunicorn(gunicorn_master_proc):
-            # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
-            if conf.getint('webserver', 'worker_refresh_interval') > 0:
-                master_timeout = conf.getint('webserver', 'web_server_master_timeout')
-                restart_workers(gunicorn_master_proc, num_workers, master_timeout)
-            else:
-                while gunicorn_master_proc.poll() is None:
-                    time.sleep(1)
-
-                sys.exit(gunicorn_master_proc.returncode)
-
-        if args.daemon:
-            base, ext = os.path.splitext(pid)
-            ctx = daemon.DaemonContext(
-                pidfile=TimeoutPIDLockFile(base + "-monitor" + ext, -1),
-                files_preserve=[handle],
-                stdout=stdout,
-                stderr=stderr,
-                signal_map={
-                    signal.SIGINT: kill_proc,
-                    signal.SIGTERM: kill_proc
-                },
-            )
-            with ctx:
-                subprocess.Popen(run_args, close_fds=True)
-
-                # Reading pid file directly, since Popen#pid doesn't
-                # seem to return the right value with DaemonContext.
-                while True:
-                    try:
-                        with open(pid) as file:
-                            gunicorn_master_proc_pid = int(file.read())
-                            break
-                    except OSError:
-                        LOG.debug("Waiting for gunicorn's pid file to be created.")
-                        time.sleep(0.1)
-
-                gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
-                monitor_gunicorn(gunicorn_master_proc)
-
-            stdout.close()
-            stderr.close()
-        else:
-            gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
-
-            signal.signal(signal.SIGINT, kill_proc)
-            signal.signal(signal.SIGTERM, kill_proc)
-
-            monitor_gunicorn(gunicorn_master_proc)
-
-
-@cli_utils.action_logging
-def scheduler(args):
-    """Starts Airflow Scheduler"""
-    print(settings.HEADER)
-    job = jobs.SchedulerJob(
-        dag_id=args.dag_id,
-        subdir=process_subdir(args.subdir),
-        num_runs=args.num_runs,
-        do_pickle=args.do_pickle)
-
-    if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("scheduler",
-                                                        args.pid,
-                                                        args.stdout,
-                                                        args.stderr,
-                                                        args.log_file)
-        handle = setup_logging(log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            files_preserve=[handle],
-            stdout=stdout,
-            stderr=stderr,
-        )
-        with ctx:
-            job.run()
-
-        stdout.close()
-        stderr.close()
-    else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-        signal.signal(signal.SIGQUIT, sigquit_handler)
-        job.run()
-
-
-@cli_utils.action_logging
-def serve_logs(args):
-    """Serves logs generated by Worker"""
-    print("Starting flask")
-    import flask
-    flask_app = flask.Flask(__name__)
-
-    @flask_app.route('/log/<path:filename>')
-    def serve_logs(filename):  # pylint: disable=unused-variable, redefined-outer-name
-        log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
-        return flask.send_from_directory(
-            log,
-            filename,
-            mimetype="application/json",
-            as_attachment=False)
-
-    worker_log_server_port = int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
-    flask_app.run(host='0.0.0.0', port=worker_log_server_port)
-
-
-@cli_utils.action_logging
-def worker(args):
-    """Starts Airflow Celery worker"""
-    env = os.environ.copy()
-    env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
-
-    if not settings.validate_session():
-        log = LoggingMixin().log
-        log.error("Worker exiting... database connection precheck failed! ")
-        sys.exit(1)
-
-    # Celery worker
-    from airflow.executors.celery_executor import app as celery_app
-    from celery.bin import worker  # pylint: disable=redefined-outer-name
-
-    autoscale = args.autoscale
-    if autoscale is None and conf.has_option("celery", "worker_autoscale"):
-        autoscale = conf.get("celery", "worker_autoscale")
-    worker = worker.worker(app=celery_app)   # pylint: disable=redefined-outer-name
-    options = {
-        'optimization': 'fair',
-        'O': 'fair',
-        'queues': args.queues,
-        'concurrency': args.concurrency,
-        'autoscale': autoscale,
-        'hostname': args.celery_hostname,
-        'loglevel': conf.get('core', 'LOGGING_LEVEL'),
-    }
-
-    if conf.has_option("celery", "pool"):
-        options["pool"] = conf.get("celery", "pool")
-
-    if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("worker",
-                                                        args.pid,
-                                                        args.stdout,
-                                                        args.stderr,
-                                                        args.log_file)
-        handle = setup_logging(log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            files_preserve=[handle],
-            stdout=stdout,
-            stderr=stderr,
-        )
-        with ctx:
-            sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
-            worker.run(**options)
-            sub_proc.kill()
-
-        stdout.close()
-        stderr.close()
-    else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
-        sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
-
-        worker.run(**options)
-        sub_proc.kill()
-
-
-def initdb(args):
-    """Initializes the metadata database"""
-    print("DB: " + repr(settings.engine.url))
-    db.initdb()
-    print("Done.")
-
-
-def resetdb(args):
-    """Resets the metadata database"""
-    print("DB: " + repr(settings.engine.url))
-    if args.yes or input("This will drop existing tables "
-                         "if they exist. Proceed? "
-                         "(y/n)").upper() == "Y":
-        db.resetdb()
-    else:
-        print("Bail.")
-
-
-@cli_utils.action_logging
-def upgradedb(args):
-    """Upgrades the metadata database"""
-    print("DB: " + repr(settings.engine.url))
-    db.upgradedb()
-
-
-@cli_utils.action_logging
-def version(args):
-    """Displays Airflow version at the command line"""
-    print(settings.HEADER + "  v" + airflow.__version__)
-
-
-alternative_conn_specs = ['conn_type', 'conn_host',
-                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
-
-
-def connections_list(args):
-    """Lists all connections at the command line"""
-    with db.create_session() as session:
-        conns = session.query(Connection.conn_id, Connection.conn_type,
-                              Connection.host, Connection.port,
-                              Connection.is_encrypted,
-                              Connection.is_extra_encrypted,
-                              Connection.extra).all()
-        conns = [map(reprlib.repr, conn) for conn in conns]
-        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
-                               'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                       tablefmt=args.output)
-        print(msg)
-
-
-@cli_utils.action_logging
-def connections_add(args):
-    """Adds new connection"""
-    # Check that the conn_id and conn_uri args were passed to the command:
-    missing_args = list()
-    invalid_args = list()
-    if args.conn_uri:
-        for arg in alternative_conn_specs:
-            if getattr(args, arg) is not None:
-                invalid_args.append(arg)
-    elif not args.conn_type:
-        missing_args.append('conn_uri or conn_type')
-    if missing_args:
-        msg = ('The following args are required to add a connection:' +
-               ' {missing!r}'.format(missing=missing_args))
-        raise SystemExit(msg)
-    if invalid_args:
-        msg = ('The following args are not compatible with the ' +
-               '--add flag and --conn_uri flag: {invalid!r}')
-        msg = msg.format(invalid=invalid_args)
-        raise SystemExit(msg)
-
-    if args.conn_uri:
-        new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
-    else:
-        new_conn = Connection(conn_id=args.conn_id,
-                              conn_type=args.conn_type,
-                              host=args.conn_host,
-                              login=args.conn_login,
-                              password=args.conn_password,
-                              schema=args.conn_schema,
-                              port=args.conn_port)
-    if args.conn_extra is not None:
-        new_conn.set_extra(args.conn_extra)
-
-    with db.create_session() as session:
-        if not (session.query(Connection)
-                .filter(Connection.conn_id == new_conn.conn_id).first()):
-            session.add(new_conn)
-            msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = msg.format(conn_id=new_conn.conn_id,
-                             uri=args.conn_uri or
-                             urlunparse((args.conn_type,
-                                         '{login}:{password}@{host}:{port}'
-                                             .format(login=args.conn_login or '',
-                                                     password=args.conn_password or '',
-                                                     host=args.conn_host or '',
-                                                     port=args.conn_port or ''),
-                                         args.conn_schema or '', '', '', '')))
-            print(msg)
-        else:
-            msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-            msg = msg.format(conn_id=new_conn.conn_id)
-            print(msg)
-
-
-@cli_utils.action_logging
-def connections_delete(args):
-    """Deletes connection from DB"""
-    with db.create_session() as session:
-        try:
-            to_delete = (session
-                         .query(Connection)
-                         .filter(Connection.conn_id == args.conn_id)
-                         .one())
-        except exc.NoResultFound:
-            msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
-        except exc.MultipleResultsFound:
-            msg = ('\n\tFound more than one connection with ' +
-                   '`conn_id`={conn_id}\n')
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
-        else:
-            deleted_conn_id = to_delete.conn_id
-            session.delete(to_delete)
-            msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=deleted_conn_id)
-            print(msg)
-
-
-@cli_utils.action_logging
-def flower(args):
-    """Starts Flower, Celery monitoring tool"""
-    broka = conf.get('celery', 'BROKER_URL')
-    address = '--address={}'.format(args.hostname)
-    port = '--port={}'.format(args.port)
-    api = ''  # pylint: disable=redefined-outer-name
-    if args.broker_api:
-        api = '--broker_api=' + args.broker_api
-
-    url_prefix = ''
-    if args.url_prefix:
-        url_prefix = '--url-prefix=' + args.url_prefix
-
-    basic_auth = ''
-    if args.basic_auth:
-        basic_auth = '--basic_auth=' + args.basic_auth
-
-    flower_conf = ''
-    if args.flower_conf:
-        flower_conf = '--conf=' + args.flower_conf
-
-    if args.daemon:
-        pid, stdout, stderr, _ = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            stdout=stdout,
-            stderr=stderr,
-        )
-
-        with ctx:
-            os.execvp("flower", ['flower', '-b',
-                                 broka, address, port, api, flower_conf, url_prefix, basic_auth])
-
-        stdout.close()
-        stderr.close()
-    else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
-        os.execvp("flower", ['flower', '-b',
-                             broka, address, port, api, flower_conf, url_prefix, basic_auth])
-
-
-@cli_utils.action_logging
-def kerberos(args):
-    """Start a kerberos ticket renewer"""
-    print(settings.HEADER)
-    import airflow.security.kerberos  # pylint: disable=redefined-outer-name
-
-    if args.daemon:
-        pid, stdout, stderr, _ = setup_locations(
-            "kerberos", args.pid, args.stdout, args.stderr, args.log_file
-        )
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            stdout=stdout,
-            stderr=stderr,
-        )
-
-        with ctx:
-            airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
-
-        stdout.close()
-        stderr.close()
-    else:
-        airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
-
-
-def users_list(args):
-    """Lists users at the command line"""
-    appbuilder = cached_appbuilder()
-    users = appbuilder.sm.get_all_users()
-    fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
-    users = [[user.__getattribute__(field) for field in fields] for user in users]
-    msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
-                   tablefmt=args.output)
-    print(msg)
-
-
-@cli_utils.action_logging
-def users_create(args):
-    """Creates new user in the DB"""
-    appbuilder = cached_appbuilder()
-    role = appbuilder.sm.find_role(args.role)
-    if not role:
-        valid_roles = appbuilder.sm.get_all_roles()
-        raise SystemExit('{} is not a valid role. Valid roles are: {}'.format(args.role, valid_roles))
-
-    if args.use_random_password:
-        password = ''.join(random.choice(string.printable) for _ in range(16))
-    elif args.password:
-        password = args.password
-    else:
-        password = getpass.getpass('Password:')
-        password_confirmation = getpass.getpass('Repeat for confirmation:')
-        if password != password_confirmation:
-            raise SystemExit('Passwords did not match!')
-
-    if appbuilder.sm.find_user(args.username):
-        print('{} already exist in the db'.format(args.username))
-        return
-    user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
-                                  args.email, role, password)
-    if user:
-        print('{} user {} created.'.format(args.role, args.username))
-    else:
-        raise SystemExit('Failed to create user.')
-
-
-@cli_utils.action_logging
-def users_delete(args):
-    """Deletes user from DB"""
-    appbuilder = cached_appbuilder()
-
-    try:
-        user = next(u for u in appbuilder.sm.get_all_users()
-                    if u.username == args.username)
-    except StopIteration:
-        raise SystemExit('{} is not a valid user.'.format(args.username))
-
-    if appbuilder.sm.del_register_user(user):
-        print('User {} deleted.'.format(args.username))
-    else:
-        raise SystemExit('Failed to delete user.')
-
-
-@cli_utils.action_logging
-def users_manage_role(args, remove=False):
-    """Deletes or appends user roles"""
-    if not args.username and not args.email:
-        raise SystemExit('Missing args: must supply one of --username or --email')
-
-    if args.username and args.email:
-        raise SystemExit('Conflicting args: must supply either --username'
-                         ' or --email, but not both')
-
-    appbuilder = cached_appbuilder()
-    user = (appbuilder.sm.find_user(username=args.username) or
-            appbuilder.sm.find_user(email=args.email))
-    if not user:
-        raise SystemExit('User "{}" does not exist'.format(
-            args.username or args.email))
-
-    role = appbuilder.sm.find_role(args.role)
-    if not role:
-        valid_roles = appbuilder.sm.get_all_roles()
-        raise SystemExit('{} is not a valid role. Valid roles are: {}'.format(args.role, valid_roles))
-
-    if remove:
-        if role in user.roles:
-            user.roles = [r for r in user.roles if r != role]
-            appbuilder.sm.update_user(user)
-            print('User "{}" removed from role "{}".'.format(
-                user,
-                args.role))
-        else:
-            raise SystemExit('User "{}" is not a member of role "{}".'.format(
-                user,
-                args.role))
-    else:
-        if role in user.roles:
-            raise SystemExit('User "{}" is already a member of role "{}".'.format(
-                user,
-                args.role))
-        else:
-            user.roles.append(role)
-            appbuilder.sm.update_user(user)
-            print('User "{}" added to role "{}".'.format(
-                user,
-                args.role))
-
-
-def users_export(args):
-    """Exports all users to the json file"""
-    appbuilder = cached_appbuilder()
-    users = appbuilder.sm.get_all_users()
-    fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
-
-    # In the User model the first and last name fields have underscores,
-    # but the corresponding parameters in the CLI don't
-    def remove_underscores(s):
-        return re.sub("_", "", s)
-
-    users = [
-        {remove_underscores(field): user.__getattribute__(field)
-            if field != 'roles' else [r.name for r in user.roles]
-            for field in fields}
-        for user in users
-    ]
-
-    with open(args.export, 'w') as file:
-        file.write(json.dumps(users, sort_keys=True, indent=4))
-        print("{} users successfully exported to {}".format(len(users), file.name))
-
-
-@cli_utils.action_logging
-def users_import(args):
-    """Imports users from the json file"""
-    json_file = getattr(args, 'import')
-    if not os.path.exists(json_file):
-        print("File '{}' does not exist")
-        exit(1)
-
-    users_list = None  # pylint: disable=redefined-outer-name
-    try:
-        with open(json_file, 'r') as file:
-            users_list = json.loads(file.read())
-    except ValueError as e:
-        print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
-        exit(1)
-
-    users_created, users_updated = _import_users(users_list)
-    if users_created:
-        print("Created the following users:\n\t{}".format(
-            "\n\t".join(users_created)))
-
-    if users_updated:
-        print("Updated the following users:\n\t{}".format(
-            "\n\t".join(users_updated)))
-
-
-def _import_users(users_list):  # pylint: disable=redefined-outer-name
-    appbuilder = cached_appbuilder()
-    users_created = []
-    users_updated = []
-
-    for user in users_list:
-        roles = []
-        for rolename in user['roles']:
-            role = appbuilder.sm.find_role(rolename)
-            if not role:
-                valid_roles = appbuilder.sm.get_all_roles()
-                print("Error: '{}' is not a valid role. Valid roles are: {}".format(rolename, valid_roles))
-                exit(1)
-            else:
-                roles.append(role)
-
-        required_fields = ['username', 'firstname', 'lastname',
-                           'email', 'roles']
-        for field in required_fields:
-            if not user.get(field):
-                print("Error: '{}' is a required field, but was not "
-                      "specified".format(field))
-                exit(1)
-
-        existing_user = appbuilder.sm.find_user(email=user['email'])
-        if existing_user:
-            print("Found existing user with email '{}'".format(user['email']))
-            existing_user.roles = roles
-            existing_user.first_name = user['firstname']
-            existing_user.last_name = user['lastname']
-
-            if existing_user.username != user['username']:
-                print("Error: Changing the username is not allowed - "
-                      "please delete and recreate the user with "
-                      "email '{}'".format(user['email']))
-                exit(1)
-
-            appbuilder.sm.update_user(existing_user)
-            users_updated.append(user['email'])
-        else:
-            print("Creating new user with email '{}'".format(user['email']))
-            appbuilder.sm.add_user(
-                username=user['username'],
-                first_name=user['firstname'],
-                last_name=user['lastname'],
-                email=user['email'],
-                role=roles[0],  # add_user() requires exactly 1 role
-            )
-
-            if len(roles) > 1:
-                new_user = appbuilder.sm.find_user(email=user['email'])
-                new_user.roles = roles
-                appbuilder.sm.update_user(new_user)
-
-            users_created.append(user['email'])
-
-    return users_created, users_updated
-
-
-def roles_list(args):
-    """Lists all existing roles"""
-    appbuilder = cached_appbuilder()
-    roles = appbuilder.sm.get_all_roles()
-    print("Existing roles:\n")
-    role_names = sorted([[r.name] for r in roles])
-    msg = tabulate(role_names,
-                   headers=['Role'],
-                   tablefmt=args.output)
-    print(msg)
-
-
-@cli_utils.action_logging
-def roles_create(args):
-    """Creates new empty role in DB"""
-    appbuilder = cached_appbuilder()
-    for role_name in args.role:
-        appbuilder.sm.add_role(role_name)
-
-
-@cli_utils.action_logging
-def list_dag_runs(args, dag=None):
-    """Lists dag runs for a given DAG"""
-    if dag:
-        args.dag_id = dag.dag_id
-
-    dagbag = DagBag()
-
-    if args.dag_id not in dagbag.dags:
-        error_message = "Dag id {} not found".format(args.dag_id)
-        raise AirflowException(error_message)
-
-    dag_runs = list()
-    state = args.state.lower() if args.state else None
-    for dag_run in DagRun.find(dag_id=args.dag_id,
-                               state=state,
-                               no_backfills=args.no_backfill):
-        dag_runs.append({
-            'id': dag_run.id,
-            'run_id': dag_run.run_id,
-            'state': dag_run.state,
-            'dag_id': dag_run.dag_id,
-            'execution_date': dag_run.execution_date.isoformat(),
-            'start_date': ((dag_run.start_date or '') and
-                           dag_run.start_date.isoformat()),
-        })
-    if not dag_runs:
-        print('No dag runs for {dag_id}'.format(dag_id=args.dag_id))
-
-    header_template = textwrap.dedent("""\n
-    {line}
-    DAG RUNS
-    {line}
-    {dag_run_header}
-    """)
-
-    dag_runs.sort(key=lambda x: x['execution_date'], reverse=True)
-    dag_run_header = '%-3s | %-20s | %-10s | %-20s | %-20s |' % ('id',
-                                                                 'run_id',
-                                                                 'state',
-                                                                 'execution_date',
-                                                                 'start_date')
-    print(header_template.format(dag_run_header=dag_run_header,
-                                 line='-' * 120))
-    for dag_run in dag_runs:
-        record = '%-3s | %-20s | %-10s | %-20s | %-20s |' % (dag_run['id'],
-                                                             dag_run['run_id'],
-                                                             dag_run['state'],
-                                                             dag_run['execution_date'],
-                                                             dag_run['start_date'])
-        print(record)
-
-
-@cli_utils.action_logging
-def sync_perm(args):
-    """Updates permissions for existing roles and DAGs"""
-    appbuilder = cached_appbuilder()
-    print('Updating permission, view-menu for all existing roles')
-    appbuilder.sm.sync_roles()
-    print('Updating permission on all DAG views')
-    dags = DagBag().dags.values()
-    for dag in dags:
-        appbuilder.sm.sync_perm_for_dag(
-            dag.dag_id,
-            dag.access_control)
+    return command
 
 
 class Arg:
@@ -2249,13 +584,13 @@ class CLIFactory:
             'name': 'dags',
             'subcommands': (
                 {
-                    'func': list_dags,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
                     'name': 'list',
                     'help': "List all the DAGs",
                     'args': ('subdir', 'report'),
                 },
                 {
-                    'func': list_dag_runs,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
                     'name': 'list_runs',
                     'help': "List dag runs given a DAG id. If state option is given, it will only "
                             "search for all the dagruns with the given state. "
@@ -2264,55 +599,55 @@ class CLIFactory:
                     'args': ('dag_id', 'no_backfill', 'state'),
                 },
                 {
-                    'func': list_jobs,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
                     'name': 'list_jobs',
                     'help': "List the jobs",
                     'args': ('dag_id_opt', 'state', 'limit', 'output',),
                 },
                 {
-                    'func': dag_state,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_state'),
                     'name': 'state',
                     'help': "Get the status of a dag run",
                     'args': ('dag_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': next_execution,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
                     'name': 'next_execution',
                     'help': "Get the next execution datetime of a DAG.",
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': pause,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_pause'),
                     'name': 'pause',
                     'help': 'Pause a DAG',
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': unpause,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_unpause'),
                     'name': 'unpause',
                     'help': 'Resume a paused DAG',
                     'args': ('dag_id', 'subdir'),
                 },
                 {
-                    'func': trigger_dag,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_trigger'),
                     'name': 'trigger',
                     'help': 'Trigger a DAG run',
                     'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
                 },
                 {
-                    'func': delete_dag,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_delete'),
                     'name': 'delete',
                     'help': "Delete all DB records related to the specified DAG",
                     'args': ('dag_id', 'yes'),
                 },
                 {
-                    'func': show_dag,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_show'),
                     'name': 'show',
                     'help': "Displays DAG's tasks with their dependencies",
                     'args': ('dag_id', 'subdir', 'save', 'imgcat',),
                 },
                 {
-                    'func': backfill,
+                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_backfill'),
                     'name': 'backfill',
                     'help': "Run subsections of a DAG for a specified date range. "
                             "If reset_dag_run option is used,"
@@ -2336,13 +671,13 @@ class CLIFactory:
             'name': 'tasks',
             'subcommands': (
                 {
-                    'func': list_tasks,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_list'),
                     'name': 'list',
                     'help': "List the tasks within a DAG",
                     'args': ('dag_id', 'tree', 'subdir'),
                 },
                 {
-                    'func': clear,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_clear'),
                     'name': 'clear',
                     'help': "Clear a set of task instance, as if they never ran",
                     'args': (
@@ -2351,13 +686,13 @@ class CLIFactory:
                         'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
                 },
                 {
-                    'func': task_state,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_state'),
                     'name': 'state',
                     'help': "Get the status of a task instance",
                     'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': task_failed_deps,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_failed_deps'),
                     'name': 'failed_deps',
                     'help': (
                         "Returns the unmet dependencies for a task instance from the perspective "
@@ -2367,13 +702,13 @@ class CLIFactory:
                     'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': render,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_render'),
                     'name': 'render',
                     'help': "Render a task instance's template(s)",
                     'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
                 },
                 {
-                    'func': run,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_run'),
                     'name': 'run',
                     'help': "Run a single task instance",
                     'args': (
@@ -2383,7 +718,7 @@ class CLIFactory:
                         'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id', 'interactive',),
                 },
                 {
-                    'func': test,
+                    'func': lazy_load_command('airflow.cli.commands.task_command.task_test'),
                     'name': 'test',
                     'help': (
                         "Test a task instance. This will run a task without checking for "
@@ -2398,37 +733,37 @@ class CLIFactory:
             'name': 'pools',
             'subcommands': (
                 {
-                    'func': pool_list,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_list'),
                     'name': 'list',
                     'help': 'List pools',
                     'args': ('output',),
                 },
                 {
-                    'func': pool_get,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_get'),
                     'name': 'get',
                     'help': 'Get pool size',
                     'args': ('pool_name', 'output',),
                 },
                 {
-                    'func': pool_set,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_set'),
                     'name': 'set',
                     'help': 'Configure pool',
                     'args': ('pool_name', 'pool_slots', 'pool_description', 'output',),
                 },
                 {
-                    'func': pool_delete,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_delete'),
                     'name': 'delete',
                     'help': 'Delete pool',
                     'args': ('pool_name', 'output',),
                 },
                 {
-                    'func': pool_import,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
                     'name': 'import',
                     'help': 'Import pool',
                     'args': ('pool_import', 'output',),
                 },
                 {
-                    'func': pool_export,
+                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
                     'name': 'export',
                     'help': 'Export pool',
                     'args': ('pool_export', 'output',),
@@ -2439,37 +774,37 @@ class CLIFactory:
             'name': 'variables',
             'subcommands': (
                 {
-                    'func': variables_list,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_list'),
                     'name': 'list',
                     'help': 'List variables',
                     'args': (),
                 },
                 {
-                    'func': variables_get,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
                     'name': 'get',
                     'help': 'Get variable',
                     'args': ('var', 'json', 'default'),
                 },
                 {
-                    'func': variables_set,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_set'),
                     'name': 'set',
                     'help': 'Set variable',
                     'args': ('var', 'var_value', 'json'),
                 },
                 {
-                    'func': variables_delete,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_delete'),
                     'name': 'delete',
                     'help': 'Delete variable',
                     'args': ('var',),
                 },
                 {
-                    'func': variables_import,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_import'),
                     'name': 'import',
                     'help': 'Import variables',
                     'args': ('var_import',),
                 },
                 {
-                    'func': variables_export,
+                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_export'),
                     'name': 'export',
                     'help': 'Export variables',
                     'args': ('var_export',),
@@ -2482,57 +817,64 @@ class CLIFactory:
             'name': 'db',
             'subcommands': (
                 {
-                    'func': initdb,
+                    'func': lazy_load_command('airflow.cli.commands.db_command.initdb'),
                     'name': 'init',
                     'help': "Initialize the metadata database",
                     'args': (),
                 },
                 {
-                    'func': resetdb,
+                    'func': lazy_load_command('airflow.cli.commands.db_command.resetdb'),
                     'name': 'reset',
                     'help': "Burn down and rebuild the metadata database",
                     'args': ('yes',),
                 },
                 {
-                    'func': upgradedb,
+                    'func': lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
                     'name': 'upgrade',
                     'help': "Upgrade the metadata database to latest version",
                     'args': tuple(),
                 },
             ),
         }, {
-            'func': kerberos,
+            'name': 'kerberos',
+            'func': lazy_load_command('airflow.cli.commands.kerberos_command.kerberos'),
             'help': "Start a kerberos ticket renewer",
             'args': ('principal', 'keytab', 'pid',
                      'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
-            'func': serve_logs,
+            'name': 'serve_logs',
+            'func': lazy_load_command('airflow.cli.commands.serve_logs_command.serve_logs'),
             'help': "Serve logs generate by worker",
             'args': tuple(),
         }, {
-            'func': webserver,
+            'name': 'webserver',
+            'func': lazy_load_command('airflow.cli.commands.webserver_command.webserver'),
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
                      'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
         }, {
-            'func': scheduler,
+            'name': 'scheduler',
+            'func': lazy_load_command('airflow.cli.commands.scheduler_command.scheduler'),
             'help': "Start a scheduler instance",
             'args': ('dag_id_opt', 'subdir', 'num_runs',
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
         }, {
-            'func': worker,
+            'name': 'worker',
+            'func': lazy_load_command('airflow.cli.commands.worker_command.worker'),
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale'),
         }, {
-            'func': flower,
+            'name': 'flower',
+            'func': lazy_load_command('airflow.cli.commands.flower_command.flower'),
             'help': "Start a Celery Flower",
             'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
                      'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
-            'func': version,
+            'name': 'version',
+            'func': lazy_load_command('airflow.cli.commands.version_command.version'),
             'help': "Show the version",
             'args': tuple(),
         }, {
@@ -2540,19 +882,19 @@ class CLIFactory:
             'name': 'connections',
             'subcommands': (
                 {
-                    'func': connections_list,
+                    'func': lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
                     'name': 'list',
                     'help': 'List connections',
                     'args': ('output',),
                 },
                 {
-                    'func': connections_add,
+                    'func': lazy_load_command('airflow.cli.commands.connection_command.connections_add'),
                     'name': 'add',
                     'help': 'Add a connection',
                     'args': ('conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
                 },
                 {
-                    'func': connections_delete,
+                    'func': lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
                     'name': 'delete',
                     'help': 'Delete a connection',
                     'args': ('conn_id',),
@@ -2563,44 +905,44 @@ class CLIFactory:
             'name': 'users',
             'subcommands': (
                 {
-                    'func': users_list,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_list'),
                     'name': 'list',
                     'help': 'List users',
                     'args': ('output',),
                 },
                 {
-                    'func': users_create,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_create'),
                     'name': 'create',
                     'help': 'Create a user',
                     'args': ('role', 'username', 'email', 'firstname', 'lastname', 'password',
                              'use_random_password')
                 },
                 {
-                    'func': users_delete,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_delete'),
                     'name': 'delete',
                     'help': 'Delete a user',
                     'args': ('username',),
                 },
                 {
-                    'func': functools.partial(users_manage_role, remove=False),
+                    'func': lazy_load_command('airflow.cli.commands.user_command.add_role'),
                     'name': 'add_role',
                     'help': 'Add role to a user',
                     'args': ('username_optional', 'email_optional', 'role'),
                 },
                 {
-                    'func': functools.partial(users_manage_role, remove=True),
+                    'func': lazy_load_command('airflow.cli.commands.user_command.remove_role'),
                     'name': 'remove_role',
                     'help': 'Remove role from a user',
                     'args': ('username_optional', 'email_optional', 'role'),
                 },
                 {
-                    'func': users_import,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_import'),
                     'name': 'import',
                     'help': 'Import a user',
                     'args': ('user_import',),
                 },
                 {
-                    'func': users_export,
+                    'func': lazy_load_command('airflow.cli.commands.user_command.users_export'),
                     'name': 'export',
                     'help': 'Export a user',
                     'args': ('user_export',),
@@ -2611,32 +953,34 @@ class CLIFactory:
             'name': 'roles',
             'subcommands': (
                 {
-                    'func': roles_list,
+                    'func': lazy_load_command('airflow.cli.commands.role_command.roles_list'),
                     'name': 'list',
                     'help': 'List roles',
                     'args': ('output',),
                 },
                 {
-                    'func': roles_create,
+                    'func': lazy_load_command('airflow.cli.commands.role_command.roles_create'),
                     'name': 'create',
                     'help': 'Create role',
                     'args': ('roles',),
                 },
             ),
         }, {
-            'func': sync_perm,
+            'name': 'sync_perm',
+            'func': lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
             'help': "Update permissions for existing roles and DAGs.",
             'args': tuple(),
         },
         {
-            'func': rotate_fernet_key,
+            'name': 'rotate_fernet_key',
+            'func': lazy_load_command('airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key'),
             'help': 'Rotate all encrypted connection credentials and variables; see '
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
                     '#rotating-encryption-keys.',
             'args': (),
         },
     )
-    subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}
+    subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
     dag_subparsers = (
         'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
 
@@ -2657,7 +1001,9 @@ class CLIFactory:
     @classmethod
     def _add_subcommand(cls, subparsers, sub):
         dag_parser = False
-        sub_proc = subparsers.add_parser(sub.get('name') or sub['func'].__name__, help=sub['help'])
+        sub_proc = subparsers.add_parser(
+            sub.get('name') or sub['func'].__name__, help=sub['help']  # type: ignore
+        )
         sub_proc.formatter_class = RawTextHelpFormatter
 
         subcommands = sub.get('subcommands', [])

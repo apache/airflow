@@ -174,6 +174,8 @@ exclude_patterns = [
     '_api/airflow/_vendor',
     '_api/airflow/api',
     '_api/airflow/bin',
+    '_api/airflow/cli',
+    '_api/airflow/cli/command',
     '_api/airflow/config_templates',
     '_api/airflow/configuration',
     '_api/airflow/contrib/auth',

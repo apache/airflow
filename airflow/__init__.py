@@ -38,7 +38,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 
-
 __version__ = version.version
 
 settings.initialize()

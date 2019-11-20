@@ -20,7 +20,6 @@
 ./airflow/contrib/hooks/opsgenie_alert_hook.py
 ./airflow/contrib/hooks/pinot_hook.py
 ./airflow/contrib/hooks/qubole_check_hook.py
-./airflow/contrib/hooks/redshift_hook.py
 ./airflow/contrib/hooks/sagemaker_hook.py
 ./airflow/contrib/hooks/segment_hook.py
 ./airflow/contrib/hooks/sftp_hook.py
@@ -37,7 +36,6 @@
 ./airflow/contrib/operators/awsbatch_operator.py
 ./airflow/contrib/operators/azure_container_instances_operator.py
 ./airflow/contrib/operators/azure_cosmos_operator.py
-./airflow/operators/cassandra_to_gcs.py
 ./airflow/contrib/operators/dingding_operator.py
 ./airflow/contrib/operators/discord_webhook_operator.py
 ./airflow/contrib/operators/druid_operator.py
@@ -86,7 +84,6 @@
 ./airflow/contrib/operators/wasb_delete_blob_operator.py
 ./airflow/contrib/operators/winrm_operator.py
 ./airflow/contrib/sensors/aws_glue_catalog_partition_sensor.py
-./airflow/contrib/sensors/aws_redshift_cluster_sensor.py
 ./airflow/contrib/sensors/azure_cosmos_sensor.py
 ./airflow/contrib/sensors/bash_sensor.py
 ./airflow/contrib/sensors/cassandra_record_sensor.py
@@ -159,6 +156,7 @@
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
 ./airflow/operators/bash_operator.py
+./airflow/operators/cassandra_to_gcs.py
 ./airflow/operators/check_operator.py
 ./airflow/operators/dagrun_operator.py
 ./airflow/operators/druid_check_operator.py
@@ -190,8 +188,10 @@
 ./airflow/operators/slack_operator.py
 ./airflow/operators/sqlite_operator.py
 ./airflow/plugins_manager.py
+./airflow/providers/amazon/aws/hooks/redshift.py
 ./airflow/providers/amazon/aws/operators/athena.py
 ./airflow/providers/amazon/aws/sensors/athena.py
+./airflow/providers/amazon/aws/sensors/redshift.py
 ./airflow/sensors/base_sensor_operator.py
 ./airflow/sensors/external_task_sensor.py
 ./airflow/sensors/hdfs_sensor.py
@@ -275,7 +275,6 @@
 ./tests/contrib/hooks/test_mongo_hook.py
 ./tests/contrib/hooks/test_openfaas_hook.py
 ./tests/contrib/hooks/test_opsgenie_alert_hook.py
-./tests/contrib/hooks/test_redshift_hook.py
 ./tests/contrib/hooks/test_slack_webhook_hook.py
 ./tests/contrib/hooks/test_snowflake_hook.py
 ./tests/contrib/hooks/test_spark_sql_hook.py
@@ -284,7 +283,6 @@
 ./tests/contrib/hooks/test_zendesk_hook.py
 ./tests/contrib/operators/test_azure_container_instances_operator.py
 ./tests/contrib/operators/test_azure_cosmos_insertdocument_operator.py
-./tests/operators/test_cassandra_to_gcs.py
 ./tests/contrib/operators/test_druid_operator.py
 ./tests/contrib/operators/test_ecs_operator.py
 ./tests/contrib/operators/test_emr_add_steps_operator.py
@@ -299,7 +297,6 @@
 ./tests/contrib/operators/test_snowflake_operator.py
 ./tests/contrib/operators/test_spark_submit_operator.py
 ./tests/contrib/operators/test_ssh_operator.py
-./tests/contrib/sensors/test_aws_redshift_cluster_sensor.py
 ./tests/contrib/sensors/test_bash_sensor.py
 ./tests/contrib/sensors/test_emr_step_sensor.py
 ./tests/contrib/sensors/test_file_sensor.py
@@ -332,6 +329,7 @@
 ./tests/models/test_skipmixin.py
 ./tests/models/test_taskinstance.py
 ./tests/operators/test_bash_operator.py
+./tests/operators/test_cassandra_to_gcs.py
 ./tests/operators/test_gcs_to_s3.py
 ./tests/operators/test_hive_operator.py
 ./tests/operators/test_hive_to_druid.py
@@ -344,6 +342,8 @@
 ./tests/operators/test_s3_to_redshift_operator.py
 ./tests/operators/test_virtualenv_operator.py
 ./tests/plugins/test_plugin.py
+./tests/providers/amazon/aws/hooks/test_redshift.py
+./tests/providers/amazon/aws/sensors/test_redshift.py
 ./tests/security/test_kerberos.py
 ./tests/sensors/test_base_sensor.py
 ./tests/sensors/test_external_task_sensor.py

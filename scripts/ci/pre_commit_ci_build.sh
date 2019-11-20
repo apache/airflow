@@ -20,6 +20,6 @@ set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export REMEMBER_LAST_ANSWER="false"
-export PYTHON_VERSION=3.5
+export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
 "${MY_DIR}/local_ci_build.sh"

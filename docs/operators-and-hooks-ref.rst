@@ -350,14 +350,14 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.contrib.sensors.emr_step_sensor`
 
    * - `Amazon Kinesis Data Firehose <https://aws.amazon.com/kinesis/data-firehose/>`__
-     - :mod:`airflow.contrib.hooks.aws_firehose_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.kinesis`
      -
      -
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
-     - :mod:`airflow.contrib.hooks.redshift_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.redshift`
      -
-     - :mod:`airflow.contrib.sensors.aws_redshift_cluster_sensor`
+     - :mod:`airflow.providers.amazon.aws.sensors.redshift`
 
    * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
      - :mod:`airflow.contrib.hooks.sagemaker_hook`
