@@ -27,6 +27,7 @@ from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.strings import to_boolean
 from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
 from airflow import models
@@ -77,8 +78,12 @@ def trigger_dag(dag_id):
 
             return response
 
+    replace_microseconds = (execution_date is None)
+    if 'replace_microseconds' in data:
+        replace_microseconds = to_boolean(data['replace_microseconds'])
+
     try:
-        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date)
+        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
