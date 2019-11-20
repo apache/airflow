@@ -22,6 +22,8 @@ import unittest
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
+import psycopg2.extras
+
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import Connection
 
@@ -59,6 +61,38 @@ class TestPostgresHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(user='login', password='password', host='host',
                                              dbname='schema', port=None)
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_cursor(self, mock_connect):
+        self.connection.extra = '{"cursor": "dictcursor"}'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(cursor_factory=psycopg2.extras.DictCursor,
+                                             user='login', password='password', host='host',
+                                             dbname='schema', port=None)
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_with_invalid_cursor(self, mock_connect):
+        self.connection.extra = '{"cursor": "mycursor"}'
+        with self.assertRaises(ValueError):
+            self.db_hook.get_conn()
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_from_connection(self, mock_connect):
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
+        hook = PostgresHook(connection=conn)
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login-conn', password='password-conn', host='host', dbname='schema', port=None
+        )
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_from_connection_with_schema(self, mock_connect):
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
+        hook = PostgresHook(connection=conn, schema='schema-override')
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login-conn', password='password-conn', host='host', dbname='schema-override', port=None
+        )
 
     @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')

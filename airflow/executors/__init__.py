@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# pylint:disable=missing-docstring
+
 import sys
 from typing import Optional
 
@@ -35,12 +37,12 @@ def _integrate_plugins():
     from airflow.plugins_manager import executors_modules
     for executors_module in executors_modules:
         sys.modules[executors_module.__name__] = executors_module
-        globals()[executors_module._name] = executors_module
+        globals()[executors_module._name] = executors_module  # pylint:disable=protected-access
 
 
 def get_default_executor():
     """Creates a new instance of the configured executor if none exists and returns it"""
-    global DEFAULT_EXECUTOR
+    global DEFAULT_EXECUTOR  # pylint:disable=global-statement
 
     if DEFAULT_EXECUTOR is not None:
         return DEFAULT_EXECUTOR

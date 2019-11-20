@@ -52,7 +52,7 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
                 self.name = name
 
             def execute(self, context):
-                message = "Hello {}".format(name)
+                message = "Hello {}".format(self.name)
                 print(message)
                 return message
 

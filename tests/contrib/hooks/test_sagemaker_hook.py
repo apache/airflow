@@ -29,7 +29,7 @@ from airflow.contrib.hooks.sagemaker_hook import (
     LogState, SageMakerHook, secondary_training_status_changed, secondary_training_status_message,
 )
 from airflow.exceptions import AirflowException
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from tests.compat import mock
 
 role = 'arn:aws:iam:role/test-role'

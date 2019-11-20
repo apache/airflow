@@ -1391,11 +1391,12 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def get_num_running_task_instances(self, session):
         TI = TaskInstance
-        return session.query(TI).filter(
+        # .count() is inefficient
+        return session.query(func.count()).filter(
             TI.dag_id == self.dag_id,
             TI.task_id == self.task_id,
             TI.state == State.RUNNING
-        ).count()
+        ).scalar()
 
     def init_run_context(self, raw=False):
         """

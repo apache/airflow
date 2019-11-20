@@ -53,7 +53,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
 
         operator = DockerSwarmOperator(
             api_version='1.19', command='env', environment={'UNIT': 'TEST'}, image='ubuntu:latest',
-            mem_limit='128m', user='unittest', task_id='unittest', auto_remove=True
+            mem_limit='128m', user='unittest', task_id='unittest', auto_remove=True, tty=True,
         )
         operator.execute(None)
 
@@ -61,7 +61,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
             container_spec=mock_obj, restart_policy=mock_obj, resources=mock_obj
         )
         types_mock.ContainerSpec.assert_called_once_with(
-            image='ubuntu:latest', command='env', user='unittest',
+            image='ubuntu:latest', command='env', user='unittest', tty=True,
             env={'UNIT': 'TEST', 'AIRFLOW_TMP_DIR': '/tmp/airflow'}
         )
         types_mock.RestartPolicy.assert_called_once_with(condition='none')

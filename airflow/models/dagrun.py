@@ -132,7 +132,7 @@ class DagRun(Base, LoggingMixin):
 
         :param dag_id: the dag_id to find dag runs for
         :type dag_id: int, list
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
         :type execution_date: datetime.datetime
@@ -386,8 +386,7 @@ class DagRun(Base, LoggingMixin):
                         "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                     ti.state = State.REMOVED
 
-            is_task_in_dag = task is not None
-            should_restore_task = is_task_in_dag and ti.state == State.REMOVED
+            should_restore_task = (task is not None) and ti.state == State.REMOVED
             if should_restore_task:
                 self.log.info("Restoring task '{}' which was previously "
                               "removed from DAG '{}'".format(ti, dag))

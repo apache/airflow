@@ -175,8 +175,5 @@ class DruidDbApiHook(DbApiHook):
     def set_autocommit(self, conn, autocommit):
         raise NotImplementedError()
 
-    def get_pandas_df(self, sql, parameters=None):
-        raise NotImplementedError()
-
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
         raise NotImplementedError()

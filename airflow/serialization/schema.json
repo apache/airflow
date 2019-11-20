@@ -82,6 +82,7 @@
         "max_active_runs": { "type" : "number"},
         "default_args": { "$ref": "#/definitions/dict" },
         "start_date": { "$ref": "#/definitions/datetime" },
+        "end_date": { "$ref": "#/definitions/datetime" },
         "dagrun_timeout": { "$ref": "#/definitions/timedelta" },
         "doc_md": { "type" : "string"}
       },

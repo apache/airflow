@@ -89,7 +89,7 @@ with models.DAG(
 ) as dag:
 
     execute_query = BigQueryOperator(
-        task_id="execute-query",
+        task_id="execute_query",
         sql=MOST_VALUABLE_INCOMING_TRANSACTIONS,
         use_legacy_sql=False,
         query_params=[
@@ -102,7 +102,7 @@ with models.DAG(
     )
 
     bigquery_execute_multi_query = BigQueryOperator(
-        task_id="execute-multi-query",
+        task_id="execute_multi_query",
         sql=[MOST_VALUABLE_INCOMING_TRANSACTIONS, MOST_ACTIVE_PLAYERS],
         use_legacy_sql=False,
         query_params=[
@@ -115,7 +115,7 @@ with models.DAG(
     )
 
     execute_query_save = BigQueryOperator(
-        task_id="execute-query-save",
+        task_id="execute_query_save",
         sql=MOST_VALUABLE_INCOMING_TRANSACTIONS,
         use_legacy_sql=False,
         destination_dataset_table="{}.save_query_result".format(DATASET_NAME),
@@ -129,7 +129,7 @@ with models.DAG(
     )
 
     get_data = BigQueryGetDataOperator(
-        task_id="get-data",
+        task_id="get_data",
         dataset_id=DATASET_NAME,
         table_id="save_query_result",
         max_results="10",
@@ -137,11 +137,11 @@ with models.DAG(
     )
 
     get_data_result = BashOperator(
-        task_id="get-data-result", bash_command="echo \"{{ task_instance.xcom_pull('get-data') }}\""
+        task_id="get_data_result", bash_command="echo \"{{ task_instance.xcom_pull('get-data') }}\""
     )
 
     create_external_table = BigQueryCreateExternalTableOperator(
-        task_id="create-external-table",
+        task_id="create_external_table",
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
         source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
         destination_project_dataset_table="{}.external_table".format(DATASET_NAME),
@@ -150,20 +150,20 @@ with models.DAG(
     )
 
     execute_query_external_table = BigQueryOperator(
-        task_id="execute-query-external-table",
+        task_id="execute_query_external_table",
         destination_dataset_table="{}.selected_data_from_external_table".format(DATASET_NAME),
         sql='SELECT * FROM `{}.external_table` WHERE name LIKE "W%"'.format(DATASET_NAME),
         use_legacy_sql=False,
     )
 
     copy_from_selected_data = BigQueryToBigQueryOperator(
-        task_id="copy-from-selected-data",
+        task_id="copy_from_selected_data",
         source_project_dataset_tables="{}.selected_data_from_external_table".format(DATASET_NAME),
         destination_project_dataset_table="{}.copy_of_selected_data_from_external_table".format(DATASET_NAME),
     )
 
     bigquery_to_gcs = BigQueryToCloudStorageOperator(
-        task_id="bigquery-to-gcs",
+        task_id="bigquery_to_gcs",
         source_project_dataset_table="{}.selected_data_from_external_table".format(DATASET_NAME),
         destination_cloud_storage_uris=["gs://{}/export-bigquery.csv".format(DATA_EXPORT_BUCKET_NAME)],
     )
@@ -177,7 +177,7 @@ with models.DAG(
     )
 
     create_table = BigQueryCreateEmptyTableOperator(
-        task_id="create-table",
+        task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id="test_table",
         schema_fields=[
@@ -207,28 +207,28 @@ with models.DAG(
     )
 
     delete_table = BigQueryTableDeleteOperator(
-        task_id="delete-table", deletion_dataset_table="{}.test_table".format(DATASET_NAME)
+        task_id="delete_table", deletion_dataset_table="{}.test_table".format(DATASET_NAME)
     )
 
     get_dataset = BigQueryGetDatasetOperator(task_id="get-dataset", dataset_id=DATASET_NAME)
 
     get_dataset_result = BashOperator(
-        task_id="get-dataset-result",
+        task_id="get_dataset_result",
         bash_command="echo \"{{ task_instance.xcom_pull('get-dataset')['id'] }}\"",
     )
 
     patch_dataset = BigQueryPatchDatasetOperator(
-        task_id="patch-dataset",
+        task_id="patch_dataset",
         dataset_id=DATASET_NAME,
         dataset_resource={"friendlyName": "Patched Dataset", "description": "Patched dataset"},
     )
 
     update_dataset = BigQueryUpdateDatasetOperator(
-        task_id="update-dataset", dataset_id=DATASET_NAME, dataset_resource={"description": "Updated dataset"}
+        task_id="update_dataset", dataset_id=DATASET_NAME, dataset_resource={"description": "Updated dataset"}
     )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete-dataset", dataset_id=DATASET_NAME, delete_contents=True
+        task_id="delete_dataset", dataset_id=DATASET_NAME, delete_contents=True
     )
 
     delete_dataset_with_location = BigQueryDeleteDatasetOperator(

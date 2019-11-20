@@ -108,7 +108,7 @@ class TestQuboleOperator(unittest.TestCase):
         self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[2], "key2=value2")
 
         cmd = "s3distcp --src s3n://airflow/source_hadoopcmd --dest s3n://airflow/destination_hadoopcmd"
-        task = QuboleOperator(task_id=TASK_ID, command_type='hadoopcmd', dag=dag, sub_command=cmd)
+        task = QuboleOperator(task_id=TASK_ID + "_1", command_type='hadoopcmd', dag=dag, sub_command=cmd)
 
         self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[1],
                          "s3distcp")

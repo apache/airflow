@@ -239,6 +239,21 @@ class TestDruidDbApiHook(unittest.TestCase):
         assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
+    def test_get_pandas_df(self):
+        statement = 'SQL'
+        column = 'col'
+        result_sets = [('row1',), ('row2',)]
+        self.cur.description = [(column,)]
+        self.cur.fetchall.return_value = result_sets
+        df = self.db_hook().get_pandas_df(statement)
+
+        self.assertEqual(column, df.columns[0])
+        for i in range(len(result_sets)):  # pylint: disable=consider-using-enumerate
+            self.assertEqual(result_sets[i][0], df.values.tolist()[i][0])
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        self.cur.execute.assert_called_once_with(statement)
+
 
 if __name__ == '__main__':
     unittest.main()

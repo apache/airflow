@@ -34,7 +34,7 @@ class MySqlHook(DbApiHook):
     ``{"cursor": "SSCursor"}``. Refer to the MySQLdb.cursors for more details.
 
     Note: For AWS IAM authentication, use iam in the extra connection parameters
-    and set it to true. Leave the password field empty. This will use the the
+    and set it to true. Leave the password field empty. This will use the
     "aws_default" connection to get the temporary token unless you override
     in extras.
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
@@ -47,6 +47,7 @@ class MySqlHook(DbApiHook):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+        self.connection = kwargs.pop("connection", None)
 
     def set_autocommit(self, conn, autocommit):
         """
@@ -69,7 +70,7 @@ class MySqlHook(DbApiHook):
         """
         Returns a mysql connection object
         """
-        conn = self.get_connection(self.mysql_conn_id)
+        conn = self.connection or self.get_connection(self.mysql_conn_id)
 
         conn_config = {
             "user": conn.login,

@@ -35,14 +35,14 @@ class TestApiKerberos(unittest.TestCase):
     def setUp(self):
         try:
             conf.add_section("api")
-        except Exception:
+        except Exception:  # pylint:disable=broad-except
             pass
         conf.set("api",
                  "auth_backend",
                  "airflow.api.auth.backend.kerberos_auth")
         try:
             conf.add_section("kerberos")
-        except Exception:
+        except Exception:  # pylint:disable=broad-except
             pass
         conf.set("kerberos",
                  "keytab",
@@ -51,9 +51,9 @@ class TestApiKerberos(unittest.TestCase):
         self.app, _ = application.create_app(testing=True)
 
     def test_trigger_dag(self):
-        with self.app.test_client() as c:
+        with self.app.test_client() as client:
             url_template = '/api/experimental/dags/{}/dag_runs'
-            response = c.post(
+            response = client.post(
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
                 content_type="application/json"
@@ -80,7 +80,7 @@ class TestApiKerberos(unittest.TestCase):
             CLIENT_AUTH.handle_response(response)
             self.assertIn('Authorization', response.request.headers)
 
-            response2 = c.post(
+            response2 = client.post(
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
                 content_type="application/json",
@@ -89,9 +89,9 @@ class TestApiKerberos(unittest.TestCase):
             self.assertEqual(200, response2.status_code)
 
     def test_unauthorized(self):
-        with self.app.test_client() as c:
+        with self.app.test_client() as client:
             url_template = '/api/experimental/dags/{}/dag_runs'
-            response = c.post(
+            response = client.post(
                 url_template.format('example_bash_operator'),
                 data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
                 content_type="application/json"

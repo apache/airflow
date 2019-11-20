@@ -17,6 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
+# pylint:disable=missing-docstring
+
 from atlasclient.client import Atlas
 from atlasclient.exceptions import HttpError
 
@@ -34,9 +37,9 @@ _port = conf.get("atlas", "port")
 _host = conf.get("atlas", "host")
 
 
-class AtlasBackend(LineageBackend):
+class AtlasBackend(LineageBackend):  # pylint:disable=missing-docstring
     @staticmethod
-    def send_lineage(operator, inlets, outlets, context):
+    def send_lineage(operator, inlets, outlets, context):  # pylint:disable=signature-differs
         client = Atlas(_host, port=_port, username=_username, password=_password)
         try:
             client.typedefs.create(data=operator_typedef)
