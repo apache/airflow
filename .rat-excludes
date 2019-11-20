@@ -1,6 +1,7 @@
 # Note: these patterns are applied to single files or directories, not full paths
 # coverage/* will ignore any coverage dir, but airflow/www/static/coverage/* will match nothing
 
+.github/*
 .gitignore
 .gitattributes
 .airflowignore
@@ -60,6 +61,7 @@ coverage.xml
 rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
+PULL_REQUEST_TEMPLATE.md
 
 # vendored modules
 _vendor/*
