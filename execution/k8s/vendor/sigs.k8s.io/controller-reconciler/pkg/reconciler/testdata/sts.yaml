@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{range $k,$v := .Labels }}
+    {{$k}}: {{$v}}
+    {{end}}
+spec:
+  serviceName: {{.Name}}
+  # go template syntax replicas:  with $n := index .Spec.NodeGroups 0       $n.Replicas    end
+  replicas: {{.Replicas}}
+  selector:
+    matchLabels:
+      {{range $k,$v := .Selector }}
+      {{$k}}: {{$v}}
+      {{end}}
+  updateStrategy:
+    # https://www.elastic.co/guide/en/elasticsearch/reference/current/rolling-upgrades.html
+    type: OnDelete
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        {{range $k,$v := .Labels }}
+        {{$k}}: {{$v}}
+        {{end}}
+    spec:
+      containers:
+      - name: foobar
+        image: {{.Image}}:{{.Version}}
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+          - name: NODENAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: PROCESSORS
+            valueFrom:
+              resourceFieldRef:
+                resource: limits.cpu
+        readinessProbe:
+          httpGet:
+            path: /health?local=true
+            port: 8080
+          initialDelaySeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /etc/config/config.yml
+      volumes:
+      - name: config
+        configMap:
+          name: {{.Name}}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        {{range $k,$v := .Labels }}
+        {{$k}}: {{$v}}
+        {{end}}
+    spec:
+      accessModes:
+        - ReadWriteOnce

@@ -1,0 +1,373 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements. See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: airflowclusters.airflow.k8s.io
+spec:
+  group: airflow.k8s.io
+  names:
+    kind: AirflowCluster
+    plural: airflowclusters
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            affinity:
+              type: object
+            airflowbase:
+              type: object
+            annotations:
+              type: object
+            config:
+              properties:
+                airflow:
+                  type: object
+                airflowsecret:
+                  items:
+                    type: object
+                  type: array
+              type: object
+            dags:
+              properties:
+                gcs:
+                  properties:
+                    bucket:
+                      type: string
+                    once:
+                      type: boolean
+                  type: object
+                git:
+                  properties:
+                    branch:
+                      type: string
+                    cred:
+                      type: object
+                    once:
+                      type: boolean
+                    repo:
+                      type: string
+                    rev:
+                      type: string
+                    user:
+                      type: string
+                  required:
+                  - repo
+                  type: object
+                nfspv:
+                  type: object
+                storage:
+                  properties:
+                    config:
+                      type: object
+                    secretRef:
+                      type: object
+                    storageprovider:
+                      type: string
+                  required:
+                  - storageprovider
+                  type: object
+                subdir:
+                  type: string
+              type: object
+            executor:
+              type: string
+            flower:
+              properties:
+                image:
+                  type: string
+                replicas:
+                  format: int32
+                  type: integer
+                resources:
+                  type: object
+                version:
+                  type: string
+              type: object
+            labels:
+              type: object
+            memoryStore:
+              properties:
+                alternativeLocationId:
+                  type: string
+                authorizedNetwork:
+                  type: string
+                locationId:
+                  type: string
+                maxMemoryPolicy:
+                  type: string
+                memorySizeGb:
+                  format: int64
+                  type: integer
+                notifyKeyspaceEvents:
+                  type: string
+                project:
+                  type: string
+                redisConfigs:
+                  type: object
+                redisVersion:
+                  type: string
+                region:
+                  type: string
+                status:
+                  properties:
+                    components:
+                      items:
+                        properties:
+                          group:
+                            type: string
+                          kind:
+                            type: string
+                          link:
+                            type: string
+                          name:
+                            type: string
+                          pdb:
+                            properties:
+                              currenthealthy:
+                                format: int32
+                                type: integer
+                              desiredhealthy:
+                                format: int32
+                                type: integer
+                            required:
+                            - currenthealthy
+                            - desiredhealthy
+                            type: object
+                          status:
+                            type: string
+                          sts:
+                            properties:
+                              currentcount:
+                                format: int32
+                                type: integer
+                              progress:
+                                format: int32
+                                type: integer
+                              readycount:
+                                format: int32
+                                type: integer
+                              replicas:
+                                format: int32
+                                type: integer
+                            required:
+                            - replicas
+                            - readycount
+                            - currentcount
+                            - progress
+                            type: object
+                        type: object
+                      type: array
+                    conditions:
+                      items:
+                        properties:
+                          lastTransitionTime:
+                            format: date-time
+                            type: string
+                          lastUpdateTime:
+                            format: date-time
+                            type: string
+                          message:
+                            type: string
+                          reason:
+                            type: string
+                          status:
+                            type: string
+                          type:
+                            type: string
+                        required:
+                        - type
+                        - status
+                        type: object
+                      type: array
+                    createTime:
+                      type: string
+                    currentLocationId:
+                      type: string
+                    host:
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      type: integer
+                    port:
+                      format: int64
+                      type: integer
+                    state:
+                      type: string
+                    statusMessage:
+                      type: string
+                  type: object
+                tier:
+                  type: string
+              required:
+              - project
+              - region
+              type: object
+            nodeSelector:
+              type: object
+            redis:
+              properties:
+                additionalargs:
+                  type: string
+                image:
+                  type: string
+                operator:
+                  type: boolean
+                redisHost:
+                  type: string
+                redisPassword:
+                  type: boolean
+                redisPort:
+                  type: string
+                resources:
+                  type: object
+                version:
+                  type: string
+                volumeClaimTemplate:
+                  type: object
+              type: object
+            scheduler:
+              properties:
+                database:
+                  type: string
+                dbuser:
+                  type: string
+                image:
+                  type: string
+                resources:
+                  type: object
+                version:
+                  type: string
+              type: object
+            ui:
+              properties:
+                image:
+                  type: string
+                replicas:
+                  format: int32
+                  type: integer
+                resources:
+                  type: object
+                version:
+                  type: string
+              type: object
+            worker:
+              properties:
+                image:
+                  type: string
+                replicas:
+                  format: int32
+                  type: integer
+                resources:
+                  type: object
+                version:
+                  type: string
+              type: object
+          type: object
+        status:
+          properties:
+            components:
+              items:
+                properties:
+                  group:
+                    type: string
+                  kind:
+                    type: string
+                  link:
+                    type: string
+                  name:
+                    type: string
+                  pdb:
+                    properties:
+                      currenthealthy:
+                        format: int32
+                        type: integer
+                      desiredhealthy:
+                        format: int32
+                        type: integer
+                    required:
+                    - currenthealthy
+                    - desiredhealthy
+                    type: object
+                  status:
+                    type: string
+                  sts:
+                    properties:
+                      currentcount:
+                        format: int32
+                        type: integer
+                      progress:
+                        format: int32
+                        type: integer
+                      readycount:
+                        format: int32
+                        type: integer
+                      replicas:
+                        format: int32
+                        type: integer
+                    required:
+                    - replicas
+                    - readycount
+                    - currentcount
+                    - progress
+                    type: object
+                type: object
+              type: array
+            conditions:
+              items:
+                properties:
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  lastUpdateTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                type: object
+              type: array
+            observedGeneration:
+              format: int64
+              type: integer
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

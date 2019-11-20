@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Something
+metadata:
+  name: {{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{range $k,$v := .Labels }}
+    {{$k}}: {{$v}}
+    {{end}}
+spec:
+  ports:
+  - port: 8080
+    name: http
+  selector:
+    {{range $k,$v := .Selector }}
+    {{$k}}: {{$v}}
+    {{end}}
+  type: ClusterIP

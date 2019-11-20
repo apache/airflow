@@ -1,0 +1,142 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements. See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    api: default
+    kubebuilder.k8s.io: 0.1.10
+  name: applications.app.k8s.io
+spec:
+  group: app.k8s.io
+  names:
+    kind: Application
+    plural: applications
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          type: string
+        kind:
+          type: string
+        metadata:
+          type: object
+        spec:
+          type: object
+          properties:
+            selector:
+              type: object
+            assemblyPhase:
+              type: string
+            componentKinds:
+              items:
+                type: object
+              type: array
+            description:
+              type: string
+            info:
+              items:
+                properties:
+                  name:
+                    type: string
+                  type:
+                    type: string
+                  value:
+                    type: string
+                  valueFrom:
+                    properties:
+                      configMapKeyRef:
+                        properties:
+                          key:
+                            type: string
+                        type: object
+                      ingressRef:
+                        properties:
+                          host:
+                            type: string
+                          path:
+                            type: string
+                        type: object
+                      secretKeyRef:
+                        properties:
+                          key:
+                            type: string
+                        type: object
+                      serviceRef:
+                        properties:
+                          path:
+                            type: string
+                          port:
+                            type: int32
+                        type: object
+                      type:
+                        type: string
+                    type: object
+                type: object
+              type: array
+            descriptor:
+              type: object
+              properties:
+                keywords:
+                  items:
+                    type: string
+                  type: array
+                links:
+                  items:
+                    properties:
+                      description:
+                        type: string
+                      url:
+                        type: string
+                    type: object
+                  type: array
+                maintainers:
+                  items:
+                    properties:
+                      email:
+                        type: string
+                      name:
+                        type: string
+                      url:
+                        type: string
+                    type: object
+                  type: array
+                notes:
+                  type: string
+                owners:
+                  items:
+                    type: string
+                  type: array
+                type:
+                  type: string
+                version:
+                  type: string
+        status:
+          properties:
+            observedGeneration:
+              type: int64
+          type: object
+      type: object
+  version: v1beta1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

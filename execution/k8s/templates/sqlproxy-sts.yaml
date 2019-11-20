@@ -1,0 +1,78 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements. See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{range $k,$v := .Labels }}
+    {{$k}}: {{$v}}
+    {{end}}
+  annotations:
+    {{range $k,$v := .Base.Spec.Annotations }}
+    {{$k}}: {{$v}}
+    {{end}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{range $k,$v := .Selector }}
+      {{$k}}: {{$v}}
+      {{end}}
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  serviceName: {{.SvcName}}
+  template:
+    metadata:
+      labels:
+        {{range $k,$v := .Labels }}
+        {{$k}}: {{$v}}
+        {{end}}
+      annotations:
+        {{range $k,$v := .Base.Spec.Annotations }}
+        {{$k}}: {{$v}}
+        {{end}}
+    spec:
+      ## TODO affinity in code
+      terminationGracePeriodSeconds: 30 ## check this change to 180 ?
+      #priorityClassName: something
+      #securityContext:
+      #  fsGroup: 1000
+      nodeSelector:
+        {{range $k,$v := .Base.Spec.NodeSelector }}
+        {{$k}}: {{$v}}
+        {{end}}
+      #tolerations:
+      #initContainers:
+      containers:
+      - name: sqlproxy
+        command:
+        - /cloud_sql_proxy
+        - -instances
+        - $(SQL_INSTANCE)
+        env:
+        - name: SQL_INSTANCE
+          value: {{.Base.Spec.SQLProxy.Project}}:{{.Base.Spec.SQLProxy.Region}}:{{.Base.Spec.SQLProxy.Instance}}=tcp:0.0.0.0:{{index .Ports "sqlproxy"}}
+        image: {{.Base.Spec.SQLProxy.Image}}:{{.Base.Spec.SQLProxy.Version}}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{index .Ports "sqlproxy"}}
+          name: sqlproxy
+          protocol: TCP
+        resources: {}

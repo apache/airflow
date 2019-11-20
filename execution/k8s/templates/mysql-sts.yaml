@@ -1,0 +1,119 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements. See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{.Name}}
+  namespace: {{.Namespace}}
+  labels:
+    {{range $k,$v := .Labels }}
+    {{$k}}: {{$v}}
+    {{end}}
+  annotations:
+    {{range $k,$v := .Base.Spec.Annotations }}
+    {{$k}}: {{$v}}
+    {{end}}
+spec:
+  replicas: {{.Base.Spec.MySQL.Replicas}}
+  selector:
+    matchLabels:
+      {{range $k,$v := .Selector }}
+      {{$k}}: {{$v}}
+      {{end}}
+  updateStrategy:
+    type: OnDelete
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        {{range $k,$v := .Labels }}
+        {{$k}}: {{$v}}
+        {{end}}
+      annotations:
+        {{range $k,$v := .Base.Spec.Annotations }}
+        {{$k}}: {{$v}}
+        {{end}}
+    spec:
+      ## TODO affinity in code
+      terminationGracePeriodSeconds: 30 ## check this change to 180 ?
+      #priorityClassName: something
+      #securityContext:
+      #  fsGroup: 1000
+      nodeSelector:
+        {{range $k,$v := .Base.Spec.NodeSelector }}
+        {{$k}}: {{$v}}
+        {{end}}
+      #tolerations:
+      #initContainers:
+      containers:
+      - name: mysql
+        args:
+        - --explicit-defaults-for-timestamp=ON
+        env:
+        - name: MYSQL_DATABASE
+          value: testdb
+        - name: MYSQL_USER
+          value: airflow
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: {{.SecretName}}
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: rootpassword
+              name: {{.SecretName}}
+        image: {{.Base.Spec.MySQL.Image}}:{{.Base.Spec.MySQL.Version}}
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - bash
+            - -c
+            - mysqladmin -p$MYSQL_ROOT_PASSWORD ping
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 5
+        ports:
+        - containerPort: 3306
+          name: mysql
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - bash
+            - -c
+            - mysql -u$MYSQL_USER -p$MYSQL_PASSWORD -e "use testdb"
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 2
+        resources: {}
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+      restartPolicy: Always
+      {{if .Base.Spec.MySQL.VolumeClaimTemplate}}
+      {{else}}
+      volumes:
+      - emptyDir: {}
+        name: data
+      {{end}}
