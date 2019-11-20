@@ -42,6 +42,14 @@ assists users migrating to a new version.
 
 ## Airflow 1.10.7
 
+### Changes in experimental API execution_date microseconds replacement
+
+The default behavior was to strip the microseconds (and milliseconds, etc) off of all dag runs triggered by
+by the experimental REST API.  The default behavior will change when an explicit execution_date is
+passed in the request body.  It will also now be possible to have the execution_date generated, but
+keep the microseconds by sending `replace_microseconds=false` in the request body.  The default
+behavior can be overridden by sending `replace_microseconds=true` along with an explicit execution_date
+
 ### Infinite pool size and pool size query optimisation
 
 Pool size can now be set to -1 to indicate infinite size (it also includes
