@@ -20,7 +20,6 @@ import hashlib
 import json
 import multiprocessing
 import re
-import sys
 from queue import Empty
 from typing import Union
 from uuid import uuid4
@@ -45,13 +44,6 @@ from airflow.utils.state import State
 
 MAX_POD_ID_LEN = 253
 MAX_LABEL_LEN = 63
-
-
-def iteritems(d):
-    if sys.version_info[0] == 2:
-        return d.iteritems()
-    else:
-        return d.items()
 
 
 class KubeConfig:  # pylint: disable=too-many-instance-attributes
@@ -282,7 +274,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         if resource_version:
             kwargs['resource_version'] = resource_version
         if kube_config.kube_client_request_args:
-            for key, value in iteritems(kube_config.kube_client_request_args):
+            for key, value in kube_config.kube_client_request_args.items():
                 kwargs[key] = value
 
         last_resource_version = None
@@ -660,7 +652,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             # pylint: enable=protected-access
             kwargs = dict(label_selector=dict_string)
             if self.kube_config.kube_client_request_args:
-                for key, value in iteritems(self.kube_config.kube_client_request_args):
+                for key, value in self.kube_config.kube_client_request_args.items():
                     kwargs[key] = value
             pod_list = self.kube_client.list_namespaced_pod(
                 self.kube_config.kube_namespace, **kwargs)
