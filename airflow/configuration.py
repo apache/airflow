@@ -458,7 +458,6 @@ class AirflowConfigParser(ConfigParser):
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
 
 
-
 def get_airflow_home():
     return expand_env_var(os.environ.get('AIRFLOW_HOME', '~/airflow'))
 
