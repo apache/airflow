@@ -249,7 +249,7 @@ def reorder_columns(columns):
     :param columns: columns retrieved from DB related to constraint
     :return: ordered column
     """
-    ordered_columns = list()
+    ordered_columns = []
     for column in ['task_id', 'dag_id', 'execution_date']:
         if column in columns:
             ordered_columns.append(column)

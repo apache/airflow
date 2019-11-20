@@ -285,7 +285,7 @@ def dag_list_dag_runs(args, dag=None):
         error_message = "Dag id {} not found".format(args.dag_id)
         raise AirflowException(error_message)
 
-    dag_runs = list()
+    dag_runs = []
     state = args.state.lower() if args.state else None
     for dag_run in DagRun.find(dag_id=args.dag_id,
                                state=state,

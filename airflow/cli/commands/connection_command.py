@@ -45,8 +45,8 @@ def connections_list(args):
 def connections_add(args):
     """Adds new connection"""
     # Check that the conn_id and conn_uri args were passed to the command:
-    missing_args = list()
-    invalid_args = list()
+    missing_args = []
+    invalid_args = []
     if args.conn_uri:
         for arg in alternative_conn_specs:
             if getattr(args, arg) is not None:
