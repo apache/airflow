@@ -20,10 +20,10 @@ import hashlib
 import json
 import multiprocessing
 import re
+import sys
 from queue import Empty
 from typing import Union
 from uuid import uuid4
-from six import iteritems
 
 import kubernetes
 from dateutil import parser
@@ -45,6 +45,13 @@ from airflow.utils.state import State
 
 MAX_POD_ID_LEN = 253
 MAX_LABEL_LEN = 63
+
+
+def iteritems(d):
+    if sys.version_info[0] == 2:
+        return d.iteritems()
+    else:
+        return d.items()
 
 
 class KubeConfig:  # pylint: disable=too-many-instance-attributes
