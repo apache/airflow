@@ -150,7 +150,7 @@ function in_container_refresh_pylint_todo() {
 
     grep -v "\*\*" < "${MY_DIR}/../pylint_todo_main.txt" | \
        grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-       awk 'FS=":" {print "./"$1}' | sort | uniq > "${MY_DIR}/../pylint_todo_new.txt"
+       awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq > "${MY_DIR}/../pylint_todo_new.txt"
 
     print_in_container_info
     print_in_container_info "So far found $(wc -l <"${MY_DIR}/../pylint_todo_new.txt") files"
@@ -165,7 +165,7 @@ function in_container_refresh_pylint_todo() {
 
     grep -v "\*\*" < "${MY_DIR}/../pylint_todo_tests.txt" | \
         grep -v "^$" | grep -v "\-\-\-" | grep -v "^Your code has been" | \
-        awk 'FS=":" {print "./"$1}' | sort | uniq >> "${MY_DIR}/../pylint_todo_new.txt"
+        awk 'BEGIN{FS=":"}{print "./"$1}' | sort | uniq >> "${MY_DIR}/../pylint_todo_new.txt"
 
     rm -fv "${MY_DIR}/../pylint_todo_main.txt" "${MY_DIR}/../pylint_todo_tests.txt"
     mv -v "${MY_DIR}/../pylint_todo_new.txt" "${MY_DIR}/../pylint_todo.txt"
