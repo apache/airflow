@@ -41,7 +41,7 @@ class S3ToSnowflakeTransfer(BaseOperator):
     :param schema: reference to a specific schema in snowflake database
     :type schema: str
     :param columns_array: reference to a specific columns array in snowflake database
-    :type schema: list
+    :type columns_array: list
     :param snowflake_conn_id: reference to a specific snowflake database
     :type snowflake_conn_id: str
     """
@@ -98,7 +98,7 @@ class S3ToSnowflakeTransfer(BaseOperator):
             )
         else:
             copy_query = """
-                    COPY INTO {schema}.{table} {base_sql}
+                COPY INTO {schema}.{table} {base_sql}
             """.format(
                 schema=self.schema,
                 table=self.table,
