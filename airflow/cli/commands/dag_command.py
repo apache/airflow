@@ -99,9 +99,6 @@ def dag_backfill(args, dag=None):
 def dag_trigger(args):
     """
     Creates a dag run for the specified dag
-
-    :param args:
-    :return:
     """
     api_client = get_current_api_client()
     log = LoggingMixin().log
@@ -120,9 +117,6 @@ def dag_trigger(args):
 def dag_delete(args):
     """
     Deletes all DB records related to the specified dag
-
-    :param args:
-    :return:
     """
     api_client = get_current_api_client()
     log = LoggingMixin().log

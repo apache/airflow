@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Connection sbu-commands"""
+"""Connection sub-commands"""
 import reprlib
 from urllib.parse import urlunparse
 
