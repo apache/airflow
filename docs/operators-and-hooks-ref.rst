@@ -912,6 +912,12 @@ These integrations allow you to perform various operations within various servic
      - :mod:`airflow.contrib.operators.jenkins_job_trigger_operator`
      -
 
+   * - `Neo4j <https://neo4j.com/>`__
+     -
+     - :mod:`airflow.contrib.hooks.neo4j_hook`
+     - :mod:`airflow.contrib.operators.neo4j_operator`
+     -
+
    * - `Opsgenie <https://www.opsgenie.com/>`__
      -
      - :mod:`airflow.contrib.hooks.opsgenie_alert_hook`
