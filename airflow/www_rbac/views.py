@@ -999,6 +999,8 @@ class Airflow(AirflowBaseView):
 
     def _clear_dag_tis(self, dag, start_date, end_date, origin,
                        recursive=False, confirmed=False, only_failed=False):
+        from airflow.exceptions import AirflowException
+
         if confirmed:
             count = dag.clear(
                 start_date=start_date,
@@ -1011,14 +1013,19 @@ class Airflow(AirflowBaseView):
             flash("{0} task instances have been cleared".format(count))
             return redirect(origin)
 
-        tis = dag.clear(
-            start_date=start_date,
-            end_date=end_date,
-            include_subdags=recursive,
-            include_parentdag=recursive,
-            only_failed=only_failed,
-            dry_run=True,
-        )
+        try:
+            tis = dag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=recursive,
+                include_parentdag=recursive,
+                only_failed=only_failed,
+                dry_run=True,
+            )
+        except AirflowException as ex:
+            flash(str(ex), 'error')
+            return redirect(origin)
+
         if not tis:
             flash("No task instances to clear", 'error')
             response = redirect(origin)
