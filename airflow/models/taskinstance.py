@@ -18,7 +18,6 @@
 # under the License.
 
 import copy
-import functools
 import getpass
 import hashlib
 import logging
@@ -27,7 +26,7 @@ import os
 import signal
 import time
 from datetime import timedelta
-from typing import Optional
+from typing import Iterable, Optional, Union
 from urllib.parse import quote
 
 import dill
@@ -93,8 +92,8 @@ def clear_task_instances(tis,
                 # Ignore errors when updating max_tries if dag is None or
                 # task not found in dag since database records could be
                 # outdated. We make max_tries the maximum value of its
-                # original max_tries or the current task try number.
-                ti.max_tries = max(ti.max_tries, ti.try_number - 1)
+                # original max_tries or the last attempted try number.
+                ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
             ti.state = State.NONE
             session.merge(ti)
         # Clear all reschedules related to the ti to clear
@@ -215,7 +214,7 @@ class TaskInstance(Base, LoggingMixin):
         run.
 
         If the TI is currently running, this will match the column in the
-        databse, in all othercases this will be incremenetd
+        database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
         if self.state == State.RUNNING:
@@ -225,6 +224,20 @@ class TaskInstance(Base, LoggingMixin):
     @try_number.setter
     def try_number(self, value):
         self._try_number = value
+
+    @property
+    def prev_attempted_tries(self):
+        """
+        Based on this instance's try_number, this will calculate
+        the number of previously attempted tries, defaulting to 0.
+        """
+        # Expose this for the Task Tries and Gantt graph views.
+        # Using `try_number` throws off the counts for non-running tasks.
+        # Also useful in error logging contexts to get
+        # the try number for the last try that was attempted.
+        # https://issues.apache.org/jira/browse/AIRFLOW-2143
+
+        return self._try_number
 
     @property
     def next_try_number(self):
@@ -1265,11 +1278,11 @@ class TaskInstance(Base, LoggingMixin):
         exception_html = str(exception).replace('\n', '<br>')
         jinja_context = self.get_template_context()
         # This function is called after changing the state
-        # from State.RUNNING so need to subtract 1 from self.try_number.
+        # from State.RUNNING so use prev_attempted_tries.
         jinja_context.update(dict(
             exception=exception,
             exception_html=exception_html,
-            try_number=self.try_number - 1,
+            try_number=self.prev_attempted_tries,
             max_tries=self.max_tries))
 
         jinja_env = self.task.get_template_env()
@@ -1339,10 +1352,10 @@ class TaskInstance(Base, LoggingMixin):
 
     def xcom_pull(
             self,
-            task_ids=None,
-            dag_id=None,
-            key=XCOM_RETURN_KEY,
-            include_prior_dates=False):
+            task_ids: Optional[Union[str, Iterable[str]]] = None,
+            dag_id: Optional[str] = None,
+            key: str = XCOM_RETURN_KEY,
+            include_prior_dates: bool = False):
         """
         Pull XComs that optionally meet certain criteria.
 
@@ -1376,17 +1389,24 @@ class TaskInstance(Base, LoggingMixin):
         if dag_id is None:
             dag_id = self.dag_id
 
-        pull_fn = functools.partial(
-            XCom.get_one,
+        query = XCom.get_many(
             execution_date=self.execution_date,
             key=key,
-            dag_id=dag_id,
-            include_prior_dates=include_prior_dates)
+            dag_ids=dag_id,
+            task_ids=task_ids,
+            include_prior_dates=include_prior_dates
+        ).with_entities(XCom.value)
+
+        # Since we're only fetching the values field, and not the
+        # whole class, the @recreate annotation does not kick in.
+        # Therefore we need to deserialize the fields by ourselves.
 
         if is_container(task_ids):
-            return tuple(pull_fn(task_id=t) for t in task_ids)
+            return [XCom.deserialize_value(xcom) for xcom in query]
         else:
-            return pull_fn(task_id=task_ids)
+            xcom = query.first()
+            if xcom:
+                return XCom.deserialize_value(xcom)
 
     @provide_session
     def get_num_running_task_instances(self, session):

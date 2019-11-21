@@ -24,12 +24,18 @@ Utilities module for cli
 import functools
 import getpass
 import json
+import logging
+import os
+import re
 import socket
 import sys
+import threading
+import traceback
 from argparse import Namespace
 from datetime import datetime
 
-from airflow.models import Log
+from airflow import AirflowException, settings
+from airflow.models import DagBag, Log
 from airflow.utils import cli_action_loggers
 
 
@@ -115,3 +121,92 @@ def _build_metrics(func_name, namespace):
         execution_date=metrics.get('execution_date'))
     metrics['log'] = log
     return metrics
+
+
+def process_subdir(subdir):
+    """Expands path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
+    if subdir:
+        subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
+        subdir = os.path.abspath(os.path.expanduser(subdir))
+    return subdir
+
+
+def get_dag(args):
+    """Returns DAG of a given dag_id"""
+    dagbag = DagBag(process_subdir(args.subdir))
+    if args.dag_id not in dagbag.dags:
+        raise AirflowException(
+            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
+            'parse.'.format(args.dag_id))
+    return dagbag.dags[args.dag_id]
+
+
+def get_dags(args):
+    """Returns DAG(s) matching a given regex or dag_id"""
+    if not args.dag_regex:
+        return [get_dag(args)]
+    dagbag = DagBag(process_subdir(args.subdir))
+    matched_dags = [dag for dag in dagbag.dags.values() if re.search(
+        args.dag_id, dag.dag_id)]
+    if not matched_dags:
+        raise AirflowException(
+            'dag_id could not be found with regex: {}. Either the dag did not exist '
+            'or it failed to parse.'.format(args.dag_id))
+    return matched_dags
+
+
+alternative_conn_specs = ['conn_type', 'conn_host',
+                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
+
+
+def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
+    """Creates logging paths"""
+    if not stderr:
+        stderr = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.err'.format(process))
+    if not stdout:
+        stdout = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.out'.format(process))
+    if not log:
+        log = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.log'.format(process))
+    if not pid:
+        pid = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.pid'.format(process))
+
+    return pid, stdout, stderr, log
+
+
+def setup_logging(filename):
+    """Creates log file handler for daemon process"""
+    root = logging.getLogger()
+    handler = logging.FileHandler(filename)
+    formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
+    root.setLevel(settings.LOGGING_LEVEL)
+
+    return handler.stream
+
+
+def sigint_handler(sig, frame):  # pylint: disable=unused-argument
+    """
+    Returns without error on SIGINT or SIGTERM signals in interactive command mode
+    e.g. CTRL+C or kill <PID>
+    """
+    sys.exit(0)
+
+
+def sigquit_handler(sig, frame):  # pylint: disable=unused-argument
+    """
+    Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
+    e.g. kill -s QUIT <PID> or CTRL+\
+    """
+    print("Dumping stack traces for all threads in PID {}".format(os.getpid()))
+    id_to_name = {th.ident: th.name for th in threading.enumerate()}
+    code = []
+    for thread_id, stack in sys._current_frames().items():  # pylint: disable=protected-access
+        code.append("\n# Thread: {}({})"
+                    .format(id_to_name.get(thread_id, ""), thread_id))
+        for filename, line_number, name, line in traceback.extract_stack(stack):
+            code.append('File: "{}", line {}, in {}'
+                        .format(filename, line_number, name))
+            if line:
+                code.append("  {}".format(line.strip()))
+    print("\n".join(code))

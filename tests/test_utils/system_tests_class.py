@@ -27,7 +27,10 @@ from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow
 from airflow.utils import db
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-DEFAULT_DAG_FOLDER = "example_dags"
+AIRFLOW_MAIN_FOLDER = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
+)
+DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
 
 SKIP_SYSTEM_TEST_WARNING = """Skipping system test.
 To allow system test set ENABLE_SYSTEM_TESTS=true.
@@ -109,15 +112,6 @@ class SystemTest(TestCase, LoggingMixin):
             db.resetdb()
         super().setUp()
 
-    @staticmethod
-    def _create_path_to_dags(path: str) -> str:
-        """
-        Creates relative path to DAGs folder `{$AIRFLOWHOME}/path`.
-        Accepts both formats `my/dags/folder` and `my.dags.folder`.
-        """
-        path = path.replace(".", "/")
-        return os.path.join(AIRFLOW_HOME, path)
-
     def run_dag(self, dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:
         """
         Runs example dag by it's ID.
@@ -127,10 +121,8 @@ class SystemTest(TestCase, LoggingMixin):
         :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.
         :type dag_folder: str
         """
-        dag_folder_path = self._create_path_to_dags(dag_folder)
-
-        self.log.info("Looking for DAG: %s in %s", dag_id, dag_folder_path)
-        dag_bag = models.DagBag(dag_folder=dag_folder_path, include_examples=False)
+        self.log.info("Looking for DAG: %s in %s", dag_id, dag_folder)
+        dag_bag = models.DagBag(dag_folder=dag_folder, include_examples=False)
         dag = dag_bag.get_dag(dag_id)
         if dag is None:
             raise AirflowException(
@@ -138,8 +130,8 @@ class SystemTest(TestCase, LoggingMixin):
                 "wrong dag_id or DAG is not in provided dag_folder."
                 "The content of the {dag_folder} folder is {content}".format(
                     dag_id=dag_id,
-                    dag_folder=dag_folder_path,
-                    content=os.listdir(dag_folder_path),
+                    dag_folder=dag_folder,
+                    content=os.listdir(dag_folder),
                 )
             )
 

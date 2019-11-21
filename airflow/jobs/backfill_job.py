@@ -106,7 +106,7 @@ class BackfillJob(BaseJob):
             self.failed = failed or set()
             self.not_ready = not_ready or set()
             self.deadlocked = deadlocked or set()
-            self.active_runs = active_runs or list()
+            self.active_runs = active_runs or []
             self.executed_dag_run_dates = executed_dag_run_dates or set()
             self.finished_runs = finished_runs
             self.total_runs = total_runs

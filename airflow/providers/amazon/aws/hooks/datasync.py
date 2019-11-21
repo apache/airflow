@@ -50,8 +50,8 @@ class AWSDataSyncHook(AwsHook):
                  *args, **kwargs):
         super().__init__(aws_conn_id, *args, **kwargs)
         self.conn = None
-        self.locations = list()
-        self.tasks = list()
+        self.locations = []
+        self.tasks = []
         # wait_interval_seconds = 0 is used during unit tests
         if wait_interval_seconds < 0 or wait_interval_seconds > 15 * 60:
             raise ValueError(
@@ -104,7 +104,7 @@ class AWSDataSyncHook(AwsHook):
             raise AirflowBadRequest('location_uri not specified')
         if not self.locations:
             self._refresh_locations()
-        result = list()
+        result = []
 
         for location in self.locations:
             match = False
@@ -118,7 +118,7 @@ class AWSDataSyncHook(AwsHook):
 
     def _refresh_locations(self):
         """Refresh the local list of Locations."""
-        self.locations = list()
+        self.locations = []
         next_token = None
         while True:
             if next_token:
@@ -173,7 +173,7 @@ class AWSDataSyncHook(AwsHook):
 
     def _refresh_tasks(self):
         """Refreshes the local list of Tasks"""
-        self.tasks = list()
+        self.tasks = []
         next_token = None
         while True:
             if next_token:
@@ -203,7 +203,7 @@ class AWSDataSyncHook(AwsHook):
         if not self.tasks:
             self._refresh_tasks()
 
-        result = list()
+        result = []
         for task in self.tasks:
             task_arn = task['TaskArn']
             task_description = self.get_task_description(task_arn)

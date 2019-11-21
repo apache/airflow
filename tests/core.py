@@ -17,18 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import io
-import json
 import multiprocessing
 import os
 import pickle  # type: ignore
-import re
 import signal
-import subprocess
-import tempfile
 import unittest
 from datetime import timedelta
-from tempfile import NamedTemporaryFile
 from time import sleep
 from unittest import mock
 
@@ -54,7 +48,6 @@ from airflow.utils import timezone
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.version import version
 from tests.test_utils.config import conf_vars
 
 DEV_NULL = '/dev/null'
@@ -803,7 +796,7 @@ class TestCore(unittest.TestCase):
         key = "AIRFLOW__CORE__FERNET_KEY"
         value = "some value"
 
-        with unittest.mock.patch.dict('os.environ', {key: value}):
+        with mock.patch.dict('os.environ', {key: value}):
             FERNET_KEY = conf.get('core', 'FERNET_KEY')
 
         self.assertEqual(value, FERNET_KEY)
@@ -812,7 +805,7 @@ class TestCore(unittest.TestCase):
         key = "AIRFLOW__CORE__FERNET_KEY"
         value = ""
 
-        with unittest.mock.patch.dict('os.environ', {key: value}):
+        with mock.patch.dict('os.environ', {key: value}):
             FERNET_KEY = conf.get('core', 'FERNET_KEY')
 
         self.assertEqual(value, FERNET_KEY)
@@ -1032,623 +1025,12 @@ class TestCli(unittest.TestCase):
         session.commit()
         session.close()
 
-    def test_cli_create_user_random_password(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test1', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', 'jdoe@foo.com', '--role', 'Viewer', '--use_random_password'
-        ])
-        cli.users_create(args)
-
-    def test_cli_create_user_supplied_password(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test2', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', 'jdoe@apache.org', '--role', 'Viewer', '--password', 'test'
-        ])
-        cli.users_create(args)
-
-    def test_cli_delete_user(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test3', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', 'jdoe@example.com', '--role', 'Viewer', '--use_random_password'
-        ])
-        cli.users_create(args)
-        args = self.parser.parse_args([
-            'users', 'delete', '--username', 'test3',
-        ])
-        cli.users_delete(args)
-
-    def test_cli_list_users(self):
-        for i in range(0, 3):
-            args = self.parser.parse_args([
-                'users', 'create', '--username', 'user{}'.format(i), '--lastname',
-                'doe', '--firstname', 'jon',
-                '--email', 'jdoe+{}@gmail.com'.format(i), '--role', 'Viewer',
-                '--use_random_password'
-            ])
-            cli.users_create(args)
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.users_list(self.parser.parse_args(['users', 'list']))
-            stdout = mock_stdout.getvalue()
-        for i in range(0, 3):
-            self.assertIn('user{}'.format(i), stdout)
-
-    def test_cli_list_users_with_args(self):
-        cli.users_list(self.parser.parse_args(['users', 'list',
-                                               '--output', 'tsv']))
-
-    def test_cli_import_users(self):
-        def assertUserInRoles(email, roles):
-            for role in roles:
-                self.assertTrue(self._does_user_belong_to_role(email, role))
-
-        def assertUserNotInRoles(email, roles):
-            for role in roles:
-                self.assertFalse(self._does_user_belong_to_role(email, role))
-
-        assertUserNotInRoles(self.TEST_USER1_EMAIL, ['Admin', 'Op'])
-        assertUserNotInRoles(self.TEST_USER2_EMAIL, ['Public'])
-        users = [
-            {
-                "username": "imported_user1", "lastname": "doe1",
-                "firstname": "jon", "email": self.TEST_USER1_EMAIL,
-                "roles": ["Admin", "Op"]
-            },
-            {
-                "username": "imported_user2", "lastname": "doe2",
-                "firstname": "jon", "email": self.TEST_USER2_EMAIL,
-                "roles": ["Public"]
-            }
-        ]
-        self._import_users_from_file(users)
-
-        assertUserInRoles(self.TEST_USER1_EMAIL, ['Admin', 'Op'])
-        assertUserInRoles(self.TEST_USER2_EMAIL, ['Public'])
-
-        users = [
-            {
-                "username": "imported_user1", "lastname": "doe1",
-                "firstname": "jon", "email": self.TEST_USER1_EMAIL,
-                "roles": ["Public"]
-            },
-            {
-                "username": "imported_user2", "lastname": "doe2",
-                "firstname": "jon", "email": self.TEST_USER2_EMAIL,
-                "roles": ["Admin"]
-            }
-        ]
-        self._import_users_from_file(users)
-
-        assertUserNotInRoles(self.TEST_USER1_EMAIL, ['Admin', 'Op'])
-        assertUserInRoles(self.TEST_USER1_EMAIL, ['Public'])
-        assertUserNotInRoles(self.TEST_USER2_EMAIL, ['Public'])
-        assertUserInRoles(self.TEST_USER2_EMAIL, ['Admin'])
-
-    def test_cli_export_users(self):
-        user1 = {"username": "imported_user1", "lastname": "doe1",
-                 "firstname": "jon", "email": self.TEST_USER1_EMAIL,
-                 "roles": ["Public"]}
-        user2 = {"username": "imported_user2", "lastname": "doe2",
-                 "firstname": "jon", "email": self.TEST_USER2_EMAIL,
-                 "roles": ["Admin"]}
-        self._import_users_from_file([user1, user2])
-
-        users_filename = self._export_users_to_file()
-        with open(users_filename, mode='r') as file:
-            retrieved_users = json.loads(file.read())
-        os.remove(users_filename)
-
-        # ensure that an export can be imported
-        self._import_users_from_file(retrieved_users)
-
-        def find_by_username(username):
-            matches = [u for u in retrieved_users
-                       if u['username'] == username]
-            if not matches:
-                self.fail("Couldn't find user with username {}".format(username))
-            else:
-                matches[0].pop('id')  # this key not required for import
-                return matches[0]
-
-        self.assertEqual(find_by_username('imported_user1'), user1)
-        self.assertEqual(find_by_username('imported_user2'), user2)
-
-    def _import_users_from_file(self, user_list):
-        json_file_content = json.dumps(user_list)
-        f = NamedTemporaryFile(delete=False)
-        try:
-            f.write(json_file_content.encode())
-            f.flush()
-
-            args = self.parser.parse_args([
-                'users', 'import', f.name
-            ])
-            cli.users_import(args)
-        finally:
-            os.remove(f.name)
-
-    def _export_users_to_file(self):
-        f = NamedTemporaryFile(delete=False)
-        args = self.parser.parse_args([
-            'users', 'export', f.name
-        ])
-        cli.users_export(args)
-        return f.name
-
-    def _does_user_belong_to_role(self, email, rolename):
-        user = self.appbuilder.sm.find_user(email=email)
-        role = self.appbuilder.sm.find_role(rolename)
-        if user and role:
-            return role in user.roles
-
-        return False
-
-    def test_cli_add_user_role(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test4', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', self.TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
-        ])
-        cli.users_create(args)
-
-        self.assertFalse(
-            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
-                                           rolename='Op'),
-            "User should not yet be a member of role 'Op'"
-        )
-
-        args = self.parser.parse_args([
-            'users', 'add_role', '--username', 'test4', '--role', 'Op'
-        ])
-        cli.users_manage_role(args, remove=False)
-
-        self.assertTrue(
-            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
-                                           rolename='Op'),
-            "User should have been added to role 'Op'"
-        )
-
-    def test_cli_remove_user_role(self):
-        args = self.parser.parse_args([
-            'users', 'create', '--username', 'test4', '--lastname', 'doe',
-            '--firstname', 'jon',
-            '--email', self.TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
-        ])
-        cli.users_create(args)
-
-        self.assertTrue(
-            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
-                                           rolename='Viewer'),
-            "User should have been created with role 'Viewer'"
-        )
-
-        args = self.parser.parse_args([
-            'users', 'remove_role', '--username', 'test4', '--role', 'Viewer'
-        ])
-        cli.users_manage_role(args, remove=True)
-
-        self.assertFalse(
-            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
-                                           rolename='Viewer'),
-            "User should have been removed from role 'Viewer'"
-        )
-
-    @mock.patch("airflow.bin.cli.DagBag")
-    def test_cli_sync_perm(self, dagbag_mock):
-        self.expect_dagbag_contains([
-            DAG('has_access_control',
-                access_control={
-                    'Public': {'can_dag_read'}
-                }),
-            DAG('no_access_control')
-        ], dagbag_mock)
-        self.appbuilder.sm = mock.Mock()
-
-        args = self.parser.parse_args([
-            'sync_perm'
-        ])
-        cli.sync_perm(args)
-
-        assert self.appbuilder.sm.sync_roles.call_count == 1
-
-        self.assertEqual(2,
-                         len(self.appbuilder.sm.sync_perm_for_dag.mock_calls))
-        self.appbuilder.sm.sync_perm_for_dag.assert_any_call(
-            'has_access_control',
-            {'Public': {'can_dag_read'}}
-        )
-        self.appbuilder.sm.sync_perm_for_dag.assert_any_call(
-            'no_access_control',
-            None,
-        )
-
-    def expect_dagbag_contains(self, dags, dagbag_mock):
-        dagbag = mock.Mock()
-        dagbag.dags = {dag.dag_id: dag for dag in dags}
-        dagbag_mock.return_value = dagbag
-
-    def test_cli_create_roles(self):
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
-
-        args = self.parser.parse_args([
-            'roles', 'create', 'FakeTeamA', 'FakeTeamB'
-        ])
-        cli.roles_create(args)
-
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
-
-    def test_cli_create_roles_is_reentrant(self):
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
-
-        args = self.parser.parse_args([
-            'roles', 'create', 'FakeTeamA', 'FakeTeamB'
-        ])
-
-        cli.roles_create(args)
-
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
-        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
-
-    def test_cli_list_roles(self):
-        self.appbuilder.sm.add_role('FakeTeamA')
-        self.appbuilder.sm.add_role('FakeTeamB')
-
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.roles_list(self.parser.parse_args(['roles', 'list']))
-            stdout = mock_stdout.getvalue()
-
-        self.assertIn('FakeTeamA', stdout)
-        self.assertIn('FakeTeamB', stdout)
-
-    def test_cli_list_roles_with_args(self):
-        cli.roles_list(self.parser.parse_args(['roles', 'list',
-                                               '--output', 'tsv']))
-
-    @mock.patch("airflow.bin.cli.db.initdb")
-    def test_cli_initdb(self, initdb_mock):
-        cli.initdb(self.parser.parse_args(['db', 'init']))
-
-        initdb_mock.assert_called_once_with()
-
-    @mock.patch("airflow.bin.cli.db.resetdb")
-    def test_cli_resetdb(self, resetdb_mock):
-        cli.resetdb(self.parser.parse_args(['db', 'reset', '--yes']))
-
-        resetdb_mock.assert_called_once_with()
-
-    def test_cli_connections_list(self):
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.connections_list(self.parser.parse_args(['connections', 'list']))
-            stdout = mock_stdout.getvalue()
-        conns = [[x.strip("'") for x in re.findall(r"'\w+'", line)[:2]]
-                 for ii, line in enumerate(stdout.split('\n'))
-                 if ii % 2 == 1]
-        conns = [conn for conn in conns if len(conn) > 0]
-
-        # Assert that some of the connections are present in the output as
-        # expected:
-        self.assertIn(['aws_default', 'aws'], conns)
-        self.assertIn(['hive_cli_default', 'hive_cli'], conns)
-        self.assertIn(['emr_default', 'emr'], conns)
-        self.assertIn(['mssql_default', 'mssql'], conns)
-        self.assertIn(['mysql_default', 'mysql'], conns)
-        self.assertIn(['postgres_default', 'postgres'], conns)
-        self.assertIn(['wasb_default', 'wasb'], conns)
-        self.assertIn(['segment_default', 'segment'], conns)
-
-    def test_cli_connections_list_with_args(self):
-        args = self.parser.parse_args(['connections', 'list',
-                                       '--output', 'tsv'])
-        cli.connections_list(args)
-
-    def test_cli_connections_list_redirect(self):
-        cmd = ['airflow', 'connections', 'list']
-        with tempfile.TemporaryFile() as fp:
-            p = subprocess.Popen(cmd, stdout=fp)
-            p.wait()
-            self.assertEqual(0, p.returncode)
-
-    def test_cli_connections_add_delete(self):
-        # Add connections:
-        uri = 'postgresql://airflow:airflow@host:5432/airflow'
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.connections_add(self.parser.parse_args(
-                ['connections', 'add', 'new1',
-                 '--conn_uri=%s' % uri]))
-            cli.connections_add(self.parser.parse_args(
-                ['connections', 'add', 'new2',
-                 '--conn_uri=%s' % uri]))
-            cli.connections_add(self.parser.parse_args(
-                ['connections', 'add', 'new3',
-                 '--conn_uri=%s' % uri, '--conn_extra', "{'extra': 'yes'}"]))
-            cli.connections_add(self.parser.parse_args(
-                ['connections', 'add', 'new4',
-                 '--conn_uri=%s' % uri, '--conn_extra', "{'extra': 'yes'}"]))
-            cli.connections_add(self.parser.parse_args(
-                ['connections', 'add', 'new5',
-                 '--conn_type=hive_metastore', '--conn_login=airflow',
-                 '--conn_password=airflow', '--conn_host=host',
-                 '--conn_port=9083', '--conn_schema=airflow']))
-            cli.connections_add(self.parser.parse_args(
-                ['connections', 'add', 'new6',
-                 '--conn_uri', "", '--conn_type=google_cloud_platform', '--conn_extra', "{'extra': 'yes'}"]))
-            stdout = mock_stdout.getvalue()
-
-        # Check addition stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
-        self.assertListEqual(lines, [
-            ("\tSuccessfully added `conn_id`=new1 : " +
-             "postgresql://airflow:airflow@host:5432/airflow"),
-            ("\tSuccessfully added `conn_id`=new2 : " +
-             "postgresql://airflow:airflow@host:5432/airflow"),
-            ("\tSuccessfully added `conn_id`=new3 : " +
-             "postgresql://airflow:airflow@host:5432/airflow"),
-            ("\tSuccessfully added `conn_id`=new4 : " +
-             "postgresql://airflow:airflow@host:5432/airflow"),
-            ("\tSuccessfully added `conn_id`=new5 : " +
-             "hive_metastore://airflow:airflow@host:9083/airflow"),
-            ("\tSuccessfully added `conn_id`=new6 : " +
-             "google_cloud_platform://:@:")
-        ])
-
-        # Attempt to add duplicate
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.connections_add(self.parser.parse_args(
-                ['connections', 'add', 'new1',
-                 '--conn_uri=%s' % uri]))
-            stdout = mock_stdout.getvalue()
-
-        # Check stdout for addition attempt
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
-        self.assertListEqual(lines, [
-            "\tA connection with `conn_id`=new1 already exists",
-        ])
-
-        # Attempt to add without providing conn_uri
-        with self.assertRaises(SystemExit) as exc:
-            cli.connections_add(self.parser.parse_args(
-                ['connections', 'add', 'new']))
-
-        self.assertEqual(
-            exc.exception.code,
-            "The following args are required to add a connection: ['conn_uri or conn_type']"
-        )
-
-        # Prepare to add connections
-        session = settings.Session()
-        extra = {'new1': None,
-                 'new2': None,
-                 'new3': "{'extra': 'yes'}",
-                 'new4': "{'extra': 'yes'}"}
-
-        # Add connections
-        for index in range(1, 6):
-            conn_id = 'new%s' % index
-            result = (session
-                      .query(Connection)
-                      .filter(Connection.conn_id == conn_id)
-                      .first())
-            result = (result.conn_id, result.conn_type, result.host,
-                      result.port, result.get_extra())
-            if conn_id in ['new1', 'new2', 'new3', 'new4']:
-                self.assertEqual(result, (conn_id, 'postgres', 'host', 5432,
-                                          extra[conn_id]))
-            elif conn_id == 'new5':
-                self.assertEqual(result, (conn_id, 'hive_metastore', 'host',
-                                          9083, None))
-            elif conn_id == 'new6':
-                self.assertEqual(result, (conn_id, 'google_cloud_platform',
-                                          None, None, "{'extra': 'yes'}"))
-
-        # Delete connections
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.connections_delete(self.parser.parse_args(
-                ['connections', 'delete', 'new1']))
-            cli.connections_delete(self.parser.parse_args(
-                ['connections', 'delete', 'new2']))
-            cli.connections_delete(self.parser.parse_args(
-                ['connections', 'delete', 'new3']))
-            cli.connections_delete(self.parser.parse_args(
-                ['connections', 'delete', 'new4']))
-            cli.connections_delete(self.parser.parse_args(
-                ['connections', 'delete', 'new5']))
-            cli.connections_delete(self.parser.parse_args(
-                ['connections', 'delete', 'new6']))
-            stdout = mock_stdout.getvalue()
-
-        # Check deletion stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
-        self.assertListEqual(lines, [
-            "\tSuccessfully deleted `conn_id`=new1",
-            "\tSuccessfully deleted `conn_id`=new2",
-            "\tSuccessfully deleted `conn_id`=new3",
-            "\tSuccessfully deleted `conn_id`=new4",
-            "\tSuccessfully deleted `conn_id`=new5",
-            "\tSuccessfully deleted `conn_id`=new6"
-        ])
-
-        # Check deletions
-        for index in range(1, 7):
-            conn_id = 'new%s' % index
-            result = (session.query(Connection)
-                      .filter(Connection.conn_id == conn_id)
-                      .first())
-
-            self.assertTrue(result is None)
-
-        # Attempt to delete a non-existing connection
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.connections_delete(self.parser.parse_args(
-                ['connections', 'delete', 'fake']))
-            stdout = mock_stdout.getvalue()
-
-        # Check deletion attempt stdout
-        lines = [l for l in stdout.split('\n') if len(l) > 0]
-        self.assertListEqual(lines, [
-            "\tDid not find a connection with `conn_id`=fake",
-        ])
-
-        session.close()
-
-    def test_process_subdir_path_with_placeholder(self):
-        self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
-
-    def test_pool_list(self):
-        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.pool_list(self.parser.parse_args(['pools', 'list']))
-            stdout = mock_stdout.getvalue()
-        self.assertIn('foo', stdout)
-
-    def test_pool_list_with_args(self):
-        cli.pool_list(self.parser.parse_args(['pools', 'list',
-                                              '--output', 'tsv']))
-
-    def test_pool_create(self):
-        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        self.assertEqual(self.session.query(Pool).count(), 1)
-
-    def test_pool_get(self):
-        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        try:
-            cli.pool_get(self.parser.parse_args(['pools', 'get', 'foo']))
-        except Exception as e:
-            self.fail("The 'pool -g foo' command raised unexpectedly: %s" % e)
-
-    def test_pool_delete(self):
-        cli.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        cli.pool_delete(self.parser.parse_args(['pools', 'delete', 'foo']))
-        self.assertEqual(self.session.query(Pool).count(), 0)
-
-    def test_pool_import_export(self):
-        # Create two pools first
-        pool_config_input = {
-            "foo": {
-                "description": "foo_test",
-                "slots": 1
-            },
-            "baz": {
-                "description": "baz_test",
-                "slots": 2
-            }
-        }
-        with open('pools_import.json', mode='w') as file:
-            json.dump(pool_config_input, file)
-
-        # Import json
-        try:
-            cli.pool_import(self.parser.parse_args(['pools', 'import', 'pools_import.json']))
-        except Exception as e:
-            self.fail("The 'pool import pools_import.json' failed: %s" % e)
-
-        # Export json
-        try:
-            cli.pool_export(self.parser.parse_args(['pools', 'export', 'pools_export.json']))
-        except Exception as e:
-            self.fail("The 'pool export pools_export.json' failed: %s" % e)
-
-        with open('pools_export.json', mode='r') as file:
-            pool_config_output = json.load(file)
-            self.assertEqual(
-                pool_config_input,
-                pool_config_output,
-                "Input and output pool files are not same")
-        os.remove('pools_import.json')
-        os.remove('pools_export.json')
-
-    def test_cli_version(self):
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
-            cli.version(self.parser.parse_args(['version']))
-            stdout = mock_stdout.getvalue()
-        self.assertIn(version, stdout)
-
-    def _wait_pidfile(self, pidfile):
-        while True:
-            try:
-                with open(pidfile) as file:
-                    return int(file.read())
-            except Exception:
-                sleep(1)
-
-    def test_cli_webserver_foreground(self):
-        # Confirm that webserver hasn't been launched.
-        # pgrep returns exit status 1 if no process matched.
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
-
-        # Run webserver in foreground and terminate it.
-        p = subprocess.Popen(["airflow", "webserver"])
-        p.terminate()
-        p.wait()
-
-        # Assert that no process remains.
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
-
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
-                     "Skipping test due to lack of required file permission")
-    def test_cli_webserver_foreground_with_pid(self):
-        # Run webserver in foreground with --pid option
-        pidfile = tempfile.mkstemp()[1]
-        p = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
-
-        # Check the file specified by --pid option exists
-        self._wait_pidfile(pidfile)
-
-        # Terminate webserver
-        p.terminate()
-        p.wait()
-
-    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
-                     "Skipping test due to lack of required file permission")
-    def test_cli_webserver_background(self):
-        import psutil
-
-        # Confirm that webserver hasn't been launched.
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
-
-        # Run webserver in background.
-        subprocess.Popen(["airflow", "webserver", "-D"])
-        pidfile = cli.setup_locations("webserver")[0]
-        self._wait_pidfile(pidfile)
-
-        # Assert that gunicorn and its monitor are launched.
-        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
-
-        # Terminate monitor process.
-        pidfile = cli.setup_locations("webserver-monitor")[0]
-        pid = self._wait_pidfile(pidfile)
-        p = psutil.Process(pid)
-        p.terminate()
-        p.wait()
-
-        # Assert that no process remains.
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
-
-    # Patch for causing webserver timeout
-    @mock.patch("airflow.bin.cli.get_num_workers_running", return_value=0)
-    def test_cli_webserver_shutdown_when_gunicorn_master_is_killed(self, _):
-        # Shorten timeout so that this test doesn't take too long time
-        args = self.parser.parse_args(['webserver'])
-        with conf_vars({('webserver', 'web_server_master_timeout'): '10'}):
-            with self.assertRaises(SystemExit) as e:
-                cli.webserver(args)
-        self.assertEqual(e.exception.code, 1)
-
 
 class TestConnection(unittest.TestCase):
     def setUp(self):
         utils.db.initdb()
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
     })
     def test_using_env_var(self):
@@ -1659,7 +1041,7 @@ class TestConnection(unittest.TestCase):
         self.assertEqual('password', c.password)
         self.assertEqual(5432, c.port)
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
     })
     def test_using_unix_socket_env_var(self):
@@ -1684,7 +1066,7 @@ class TestConnection(unittest.TestCase):
         c = SqliteHook.get_connection(conn_id='airflow_db')
         self.assertNotEqual('ec2.compute.com', c.host)
 
-        with unittest.mock.patch.dict('os.environ', {
+        with mock.patch.dict('os.environ', {
             'AIRFLOW_CONN_AIRFLOW_DB': 'postgres://username:password@ec2.compute.com:5432/the_database',
         }):
             c = SqliteHook.get_connection(conn_id='airflow_db')
@@ -1694,7 +1076,7 @@ class TestConnection(unittest.TestCase):
             self.assertEqual('password', c.password)
             self.assertEqual(5432, c.port)
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
         'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
     })
@@ -1706,7 +1088,7 @@ class TestConnection(unittest.TestCase):
         hook2 = conn2.get_hook()
         self.assertEqual('postgres://ec2.compute.com/the_database', hook2.get_uri())
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
         'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
     })
@@ -1717,7 +1099,7 @@ class TestConnection(unittest.TestCase):
         self.assertIsInstance(engine, sqlalchemy.engine.Engine)
         self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', str(engine.url))
 
-    @unittest.mock.patch.dict('os.environ', {
+    @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
         'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
     })

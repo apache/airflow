@@ -25,7 +25,7 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.typing import Protocol
+from airflow.typing_compat import Protocol
 from airflow.utils.decorators import apply_defaults
 
 
