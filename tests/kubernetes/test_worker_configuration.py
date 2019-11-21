@@ -350,6 +350,24 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         self.assertEqual(0, pod.spec.security_context.run_as_user)
 
+    def test_make_pod_assert_labels(self):
+        # Tests the pod created has all the expected labels set
+        self.kube_config.dags_folder = 'dags'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        pod = worker_config.make_pod("default", "sample-uuid", "test_pod_id", "test_dag_id",
+                                     "test_task_id", "2019-11-21 11:08:22.920875", 1, "bash -c 'ls /'")
+        expected_labels = {
+            'airflow-worker': 'sample-uuid',
+            'airflow_version': airflow_version.replace('+', '-'),
+            'dag_id': 'test_dag_id',
+            'execution_date': '2019-11-21 11:08:22.920875',
+            'kubernetes_executor': 'True',
+            'task_id': 'test_task_id',
+            'try_number': '1'
+        }
+        self.assertEqual(pod.metadata.labels, expected_labels)
+
     def test_make_pod_git_sync_ssh_without_known_hosts(self):
         # Tests the pod created with git-sync SSH authentication option is correct without known hosts
         self.kube_config.airflow_configmap = 'airflow-configmap'
@@ -642,6 +660,4 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             'my_label': 'label_id',
             'dag_id': 'override_dag_id',
             'my_kube_executor_label': 'kubernetes',
-            'kubernetes_executor': 'True',
-            'airflow_version': airflow_version.replace('+', '-'),
         }, labels)
