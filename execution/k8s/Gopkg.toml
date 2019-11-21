@@ -1,0 +1,45 @@
+required = [
+    "github.com/emicklei/go-restful",
+    "github.com/onsi/ginkgo", # for test framework
+    "github.com/onsi/gomega", # for test matchers
+    "k8s.io/client-go/plugin/pkg/client/auth/gcp", # for development against gcp
+    "k8s.io/code-generator/cmd/client-gen", # for go generate
+    "k8s.io/code-generator/cmd/deepcopy-gen", # for go generate
+    "sigs.k8s.io/controller-tools/cmd/controller-gen", # for crd/rbac generation
+    "sigs.k8s.io/controller-runtime/pkg/client/config",
+    "sigs.k8s.io/controller-runtime/pkg/controller",
+    "sigs.k8s.io/controller-runtime/pkg/handler",
+    "sigs.k8s.io/controller-runtime/pkg/manager",
+    "sigs.k8s.io/controller-runtime/pkg/runtime/signals",
+    "sigs.k8s.io/controller-runtime/pkg/source",
+    "sigs.k8s.io/testing_frameworks/integration", # for integration testing
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
+    "google.golang.org/api/compute/v1",
+    "google.golang.org/api/redis/v1",
+    "google.golang.org/api/storage/v1",
+    ]
+
+ignored=["sigs.k8s.io/controller-reconciler*", "github.com/kubernetes-sigs/controller-reconciler*"]
+
+[prune]
+  go-tests = true
+
+#[[constraint]]
+#  branch = "master"
+#  name = "github.com/kubernetes-sigs/application"
+
+# STANZAS BELOW ARE GENERATED AND MAY BE WRITTEN - DO NOT MODIFY BELOW THIS LINE.
+
+[[constraint]]
+  name="sigs.k8s.io/controller-runtime"
+  version="v0.1.1"
+
+[[constraint]]
+  name="sigs.k8s.io/controller-tools"
+  version="v0.1.1"
+
+# For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
+[[override]]
+name = "gopkg.in/fsnotify.v1"
+source = "https://github.com/fsnotify/fsnotify.git"
+version="v1.4.7"
