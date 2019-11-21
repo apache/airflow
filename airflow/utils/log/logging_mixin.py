@@ -19,7 +19,6 @@
 import logging
 import re
 import sys
-from contextlib import contextmanager
 from logging import Handler, Logger, StreamHandler
 
 # 7-bit C1 ANSI escape sequences
@@ -142,26 +141,6 @@ class RedirectStdHandler(StreamHandler):
             return sys.stderr
 
         return sys.stdout
-
-
-@contextmanager
-def redirect_stdout(logger, level):
-    writer = StreamLogWriter(logger, level)
-    try:
-        sys.stdout = writer
-        yield
-    finally:
-        sys.stdout = sys.__stdout__
-
-
-@contextmanager
-def redirect_stderr(logger, level):
-    writer = StreamLogWriter(logger, level)
-    try:
-        sys.stderr = writer
-        yield
-    finally:
-        sys.stderr = sys.__stderr__
 
 
 def set_context(logger, value):

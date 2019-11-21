@@ -17,7 +17,7 @@
 
 import io
 import unittest
-from unittest import mock
+from contextlib import redirect_stdout
 
 import airflow.cli.commands.version_command
 from airflow.bin import cli
@@ -30,7 +30,6 @@ class TestCliVersion(unittest.TestCase):
         cls.parser = cli.CLIFactory.get_parser()
 
     def test_cli_version(self):
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with redirect_stdout(io.StringIO()) as stdout:
             airflow.cli.commands.version_command.version(self.parser.parse_args(['version']))
-            stdout = mock_stdout.getvalue()
-        self.assertIn(version, stdout)
+        self.assertIn(version, stdout.getvalue())

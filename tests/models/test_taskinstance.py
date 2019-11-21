@@ -869,7 +869,7 @@ class TestTaskInstance(unittest.TestCase):
         # Pull the values pushed by both tasks
         result = ti1.xcom_pull(
             task_ids=['test_xcom_1', 'test_xcom_2'], key='foo')
-        self.assertEqual(result, ('bar', 'baz'))
+        self.assertEqual(result, ['baz', 'bar'])
 
     def test_xcom_pull_after_success(self):
         """

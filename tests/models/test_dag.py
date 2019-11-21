@@ -23,8 +23,8 @@ import logging
 import os
 import re
 import unittest
+from contextlib import redirect_stdout
 from tempfile import NamedTemporaryFile
-from unittest import mock
 from unittest.mock import patch
 
 import pendulum
@@ -908,9 +908,9 @@ class TestDag(unittest.TestCase):
             t3 = DummyOperator(task_id="t3")
             t1 >> t2 >> t3
 
-            with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+            with redirect_stdout(io.StringIO()) as stdout:
                 dag.tree_view()
-                stdout = mock_stdout.getvalue()
+                stdout = stdout.getvalue()
 
             stdout_lines = stdout.split("\n")
             self.assertIn('t1', stdout_lines[0])
