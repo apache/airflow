@@ -77,12 +77,12 @@ Always use :ref:`Connections <concepts-connections>` to store data securely in A
 Variables
 ---------
 
-You should avoid usage of Variables outside an operator's execute() method or Jinja templates. Variables create a connection to metadata DB of Airflow to fetch the value.
+You should avoid usage of Variables outside an operator's ``execute()`` method or Jinja templates if possible, as Variables create a connection to metadata DB of Airflow to fetch the value which can slow down parsing and place extra load on the DB.
 Airflow parses all the DAGs in the background at a specific period.
 The default period is set using ``processor_poll_interval`` config, which is by default 1 second. During parsing, Airflow creates a new connection to the metadata DB for each Variable.
 It can result in a lot of open connections.
 
-If you really want to use Variables, we advice to use them from a Jinja template with the syntax :
+The best way of using variables is via a Jinja template which will delay reading the value until the task execution. The template synaxt to do this is:
 
 .. code::
 
@@ -133,8 +133,9 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
  import unittest
 
  class TestHelloWorldDAG(unittest.TestCase):
-    def setUp(self):
-        self.dagbag = DagBag()
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag()
 
     def test_dag_loaded(self):
         dag = self.dagbag.get_dag(dag_id='hello_world')
@@ -153,7 +154,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
     def setUp(self):
         self.dag = DAG(TEST_DAG_ID, schedule_interval='@daily', default_args={'start_date' : DEFAULT_DATE})
         self.op = MyCustomOperator(
-            dag = self.dag,
+            dag=self.dag,
             task_id='test',
             prefix='s3://bucket/some/prefix',
         )
@@ -168,8 +169,8 @@ Self-Checks
 ------------
 
 You can also implement checks in a DAG to make sure the tasks are producing the results as expected.
-As an example, if you have a task that pushed data to S3, you can implement a check in the next task. The check should 
-make sure that the partition is created in S3 and check if the data is correct or not.
+As an example, if you have a task that pushed data to S3, you can implement a check in the next task. For example the check could 
+make sure that the partition is created in S3 and perform some simple checks to see if the data is correct or not.
 
 Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.sensors.http_sensor.HttpSensor`.
 
@@ -177,7 +178,10 @@ Similarly, if you have a task that starts a microservice in Kubernetes or Mesos,
 
  task = PushToS3(...)
  check = S3KeySensor(
+     task_id='check_parquet_exists',
     bucket_key="s3://bucket/key/foo.parquet"
+    poke_interval=0,
+    timeout=0,
  )
  task.set_downstream(check)
 
@@ -211,9 +215,9 @@ Backend
 
 Airflow comes with an ``SQLite`` backend by default. It allows the user to run Airflow without any external database.
 However, such a setup is meant to be for testing purposes only. Running the default setup can lead to data loss in multiple scenarios. 
-If you want to run Airflow in production, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as ``MySQL`` or ``Postgres``. 
+If you want to run Airflow in production, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgresQL or MySQL. 
 
-You can change the backend using the following config-
+You can change the backend using the following config
 
 .. code::
 
@@ -243,7 +247,7 @@ one task at a time. It's also not suitable to work in a multi-node cluster. You 
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains the same configuration and dags.
-Airflow only sends simple instructions such as execute task X on node Y but does not send any dag files or configuration. You can use a simple CRON or
+Airflow only sends simple instructions such as "execute task X of dag Y" but does not send any dag files or configuration. You can use a simple cronjob or
 any other mechanism to sync DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 minutes on all nodes.
 
 
@@ -262,7 +266,7 @@ Configuration
 --------------
 
 Airflow comes bundles with a default airflow.cfg configuration file.
-You should environment variables for configurations that change across deployments
+You should use environment variables for configurations that change across deployments
 e.g. metadata DB, password. You can do it using the format ``$AIRFLOW__{SECTION}__{KEY}``
 
 .. code::
