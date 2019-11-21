@@ -23,7 +23,7 @@ import sys
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
-from airflow import LoggingMixin, conf, settings
+from airflow import conf, settings
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler
 
@@ -35,8 +35,7 @@ def worker(args):
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
 
     if not settings.validate_session():
-        log = LoggingMixin().log
-        log.error("Worker exiting... database connection precheck failed! ")
+        print("Worker exiting... database connection precheck failed! ")
         sys.exit(1)
 
     # Celery worker

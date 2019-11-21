@@ -24,7 +24,6 @@ import os
 
 from tabulate import tabulate
 
-from airflow import LoggingMixin
 from airflow.api.client import get_current_api_client
 from airflow.utils import cli as cli_utils
 
@@ -37,57 +36,51 @@ def _tabulate_pools(pools, tablefmt="fancy_grid"):
 def pool_list(args):
     """Displays info of all the pools"""
     api_client = get_current_api_client()
-    log = LoggingMixin().log
     pools = api_client.get_pools()
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
+    print(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 def pool_get(args):
     """Displays pool info by a given name"""
     api_client = get_current_api_client()
-    log = LoggingMixin().log
     pools = [api_client.get_pool(name=args.pool)]
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
+    print(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 @cli_utils.action_logging
 def pool_set(args):
     """Creates new pool with a given name and slots"""
     api_client = get_current_api_client()
-    log = LoggingMixin().log
     pools = [api_client.create_pool(name=args.pool,
                                     slots=args.slots,
                                     description=args.description)]
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
+    print(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 @cli_utils.action_logging
 def pool_delete(args):
     """Deletes pool by a given name"""
     api_client = get_current_api_client()
-    log = LoggingMixin().log
     pools = [api_client.delete_pool(name=args.pool)]
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
+    print(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 @cli_utils.action_logging
 def pool_import(args):
     """Imports pools from the file"""
     api_client = get_current_api_client()
-    log = LoggingMixin().log
     if os.path.exists(args.file):
         pools = pool_import_helper(args.file)
     else:
         print("Missing pools file.")
         pools = api_client.get_pools()
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
+    print(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 def pool_export(args):
     """Exports all of the pools to the file"""
-    log = LoggingMixin().log
     pools = pool_export_helper(args.file)
-    log.info(_tabulate_pools(pools=pools, tablefmt=args.output))
+    print(_tabulate_pools(pools=pools, tablefmt=args.output))
 
 
 def pool_import_helper(filepath):

@@ -23,7 +23,7 @@ import logging
 import os
 import textwrap
 
-from airflow import DAG, AirflowException, LoggingMixin, conf, jobs, settings
+from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors import get_default_executor
 from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
@@ -90,8 +90,6 @@ def task_run(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
 
-    log = LoggingMixin().log
-
     # Load custom airflow config
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
@@ -113,7 +111,7 @@ def task_run(args, dag=None):
         dag = get_dag(args)
     elif not dag:
         with db.create_session() as session:
-            log.info('Loading pickle id %s', args.pickle)
+            print(f'Loading pickle id {args.pickle}')
             dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
             if not dag_pickle:
                 raise AirflowException("Who hid the pickle!? [missing pickle]")
@@ -126,7 +124,7 @@ def task_run(args, dag=None):
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
-    log.info("Running %s on host %s", ti, hostname)
+    print(f"Running {ti} on host {hostname}")
 
     if args.interactive:
         _run(args, dag, ti)
