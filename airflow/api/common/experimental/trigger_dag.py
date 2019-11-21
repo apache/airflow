@@ -19,10 +19,10 @@
 """Triggering DAG runs APIs."""
 import json
 from datetime import datetime
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
-from airflow.exceptions import DagRunAlreadyExists, DagNotFound
-from airflow.models import DagRun, DagBag, DagModel
+from airflow.exceptions import DagNotFound, DagRunAlreadyExists
+from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -76,8 +76,8 @@ def _trigger_dag(
         else:
             run_conf = json.loads(conf)
 
-    triggers = list()
-    dags_to_trigger = list()
+    triggers = []
+    dags_to_trigger = []
     dags_to_trigger.append(dag)
     while dags_to_trigger:
         dag = dags_to_trigger.pop()

@@ -22,11 +22,7 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.hooks.bigquery import (  # noqa
-    BigQueryPandasConnector,
-    BigQueryCursor,
-    BigQueryConnection,
-    BigQueryHook,
-    BigQueryBaseCursor,
+    BigQueryBaseCursor, BigQueryConnection, BigQueryCursor, BigQueryHook, BigQueryPandasConnector,
     GbqConnector,
 )
 

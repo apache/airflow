@@ -18,7 +18,6 @@
 # under the License.
 
 import unittest
-
 from unittest.mock import patch
 
 from airflow.contrib.operators.imap_attachment_to_s3_operator import ImapAttachmentToS3Operator

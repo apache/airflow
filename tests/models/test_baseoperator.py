@@ -19,9 +19,9 @@
 
 import datetime
 import unittest
-from unittest import mock
 import uuid
 from collections import namedtuple
+from unittest import mock
 
 import jinja2
 from parameterized import parameterized
@@ -256,3 +256,12 @@ class TestBaseOperator(unittest.TestCase):
 
         result = task.render_template("{{ foo }}", {"foo": "bar"})
         self.assertEqual(result, "bar")
+
+    def test_default_resources(self):
+        task = DummyOperator(task_id="default-resources")
+        self.assertIsNone(task.resources)
+
+    def test_custom_resources(self):
+        task = DummyOperator(task_id="custom-resources", resources={"cpus": 1, "ram": 1024})
+        self.assertEqual(task.resources.cpus.qty, 1)
+        self.assertEqual(task.resources.ram.qty, 1024)

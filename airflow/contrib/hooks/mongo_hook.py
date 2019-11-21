@@ -18,6 +18,7 @@
 # under the License.
 """Hook for Mongo DB"""
 from ssl import CERT_NONE
+
 from pymongo import MongoClient, ReplaceOne
 
 from airflow.hooks.base_hook import BaseHook

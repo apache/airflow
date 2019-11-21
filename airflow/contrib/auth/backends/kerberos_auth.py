@@ -18,22 +18,20 @@
 # under the License.
 """Kerberos authentication module"""
 import logging
-import flask_login
-from airflow.exceptions import AirflowConfigException
-from flask_login import current_user
-from flask import flash
-from wtforms import Form, PasswordField, StringField
-from wtforms.validators import InputRequired
 
+import flask_login
 # pykerberos should be used as it verifies the KDC, the "kerberos" module does not do so
 # and make it possible to spoof the KDC
 import kerberos
-from airflow.security import utils
-
-from flask import url_for, redirect
+from flask import flash, redirect, url_for
+from flask_login import current_user
+from wtforms import Form, PasswordField, StringField
+from wtforms.validators import InputRequired
 
 from airflow import models
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
+from airflow.security import utils
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 

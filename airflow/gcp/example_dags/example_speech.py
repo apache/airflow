@@ -27,11 +27,11 @@ This DAG relies on the following OS environment variables
 
 import os
 
-from airflow.utils import dates
 from airflow import models
-from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator
 from airflow.gcp.operators.speech_to_text import GcpSpeechToTextRecognizeSpeechOperator
+from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator
 from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator
+from airflow.utils import dates
 
 # [START howto_operator_text_to_speech_env_variables]
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

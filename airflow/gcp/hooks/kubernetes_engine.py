@@ -23,19 +23,18 @@ This module contains a Google Kubernetes Engine Hook.
 
 import time
 import warnings
-from typing import Dict, Union, Optional
+from typing import Dict, Optional, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
-
 from google.cloud import container_v1, exceptions
 from google.cloud.container_v1.gapic.enums import Operation
 from google.cloud.container_v1.types import Cluster
 from google.protobuf.json_format import ParseDict
 
 from airflow import AirflowException, version
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
 
@@ -242,7 +241,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             return resource.target_link
         except AlreadyExists as error:
             self.log.info('Assuming Success: %s', error.message)
-            return self.get_cluster(name=cluster.name).self_link
+            return self.get_cluster(name=cluster.name)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def get_cluster(

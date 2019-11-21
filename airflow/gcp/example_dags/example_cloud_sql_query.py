@@ -37,8 +37,8 @@ This DAG relies on the following OS environment variables
 * GCSQL_MYSQL_PUBLIC_IP - Public IP of the mysql database
 * GCSQL_MYSQL_PUBLIC_PORT - Port of the mysql database
 """
-import subprocess
 import os
+import subprocess
 from os.path import expanduser
 from urllib.parse import quote_plus
 

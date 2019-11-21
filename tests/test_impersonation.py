@@ -18,10 +18,14 @@
 # under the License.
 
 import errno
+import functools
+import logging
 import os
 import subprocess
+import sys
 import unittest
-import logging
+import unittest.mock
+from copy import deepcopy
 
 from airflow import jobs, models
 from airflow.utils.db import add_default_pool_if_not_exists
@@ -31,6 +35,10 @@ from airflow.utils.timezone import datetime
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
+TEST_DAG_CORRUPTED_FOLDER = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'dags_corrupted')
+TEST_UTILS_FOLDER = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'test_utils')
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_USER = 'airflow_test_user'
 
@@ -38,28 +46,72 @@ TEST_USER = 'airflow_test_user'
 logger = logging.getLogger(__name__)
 
 
-class TestImpersonation(unittest.TestCase):
+def mock_custom_module_path(path: str):
+    """
+    This decorator adds a path to sys.path to simulate running the current script with the ``PYTHONPATH``
+    environment variable set and sets the environment variable ``PYTHONPATH`` to change the
+    module load directory for child scripts.
+    """
+    def wrapper(func):
+        @functools.wraps(func)
+        def decorator(*args, **kwargs):
+            copy_sys_path = deepcopy(sys.path)
+            sys.path.append(path)
+            try:
+                with unittest.mock.patch.dict('os.environ', {'PYTHONPATH': path}):
+                    return func(*args, **kwargs)
+            finally:
+                sys.path = copy_sys_path
+        return decorator
 
-    @staticmethod
-    def grant_permissions():
-        airflow_home = os.environ['AIRFLOW_HOME']
-        subprocess.check_call(
-            'find "%s" -exec sudo chmod og+w {} +; sudo chmod og+rx /root' % airflow_home, shell=True)
+    return wrapper
 
-    @staticmethod
-    def revoke_permissions():
-        airflow_home = os.environ['AIRFLOW_HOME']
-        subprocess.check_call(
-            'find "%s" -exec sudo chmod og-w {} +; sudo chmod og-rx /root' % airflow_home, shell=True)
 
-    def setUp(self):
-        if not os.path.isfile('/.dockerenv') or os.environ.get('APT_DEPS_IMAGE') is None:
-            raise unittest.SkipTest("""Adding/removing a user as part of a test is very bad for host os
+def grant_permissions():
+    airflow_home = os.environ['AIRFLOW_HOME']
+    subprocess.check_call(
+        'find "%s" -exec sudo chmod og+w {} +; sudo chmod og+rx /root' % airflow_home, shell=True)
+
+
+def revoke_permissions():
+    airflow_home = os.environ['AIRFLOW_HOME']
+    subprocess.check_call(
+        'find "%s" -exec sudo chmod og-w {} +; sudo chmod og-rx /root' % airflow_home, shell=True)
+
+
+def check_original_docker_image():
+    if not os.path.isfile('/.dockerenv') or os.environ.get('PYTHON_BASE_IMAGE') is None:
+        raise unittest.SkipTest("""Adding/removing a user as part of a test is very bad for host os
 (especially if the user already existed to begin with on the OS), therefore we check if we run inside a
 the official docker container and only allow to run the test there. This is done by checking /.dockerenv
-file (always present inside container) and checking for APT_DEPS_IMAGE variable.
+file (always present inside container) and checking for PYTHON_BASE_IMAGE variable.
 """)
-        self.grant_permissions()
+
+
+def create_user():
+    try:
+        subprocess.check_output(['sudo', 'useradd', '-m', TEST_USER, '-g',
+                                 str(os.getegid())])
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            raise unittest.SkipTest(
+                "The 'useradd' command did not exist so unable to test "
+                "impersonation; Skipping Test. These tests can only be run on a "
+                "linux host that supports 'useradd'."
+            )
+        else:
+            raise unittest.SkipTest(
+                "The 'useradd' command exited non-zero; Skipping tests. Does the "
+                "current user have permission to run 'useradd' without a password "
+                "prompt (check sudoers file)?"
+            )
+
+
+class TestImpersonation(unittest.TestCase):
+
+    def setUp(self):
+        check_original_docker_image()
+        grant_permissions()
         add_default_pool_if_not_exists()
         self.dagbag = models.DagBag(
             dag_folder=TEST_DAG_FOLDER,
@@ -68,26 +120,11 @@ file (always present inside container) and checking for APT_DEPS_IMAGE variable.
         logger.info('Loaded DAGS:')
         logger.info(self.dagbag.dagbag_report())
 
-        try:
-            subprocess.check_output(['sudo', 'useradd', '-m', TEST_USER, '-g',
-                                     str(os.getegid())])
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                raise unittest.SkipTest(
-                    "The 'useradd' command did not exist so unable to test "
-                    "impersonation; Skipping Test. These tests can only be run on a "
-                    "linux host that supports 'useradd'."
-                )
-            else:
-                raise unittest.SkipTest(
-                    "The 'useradd' command exited non-zero; Skipping tests. Does the "
-                    "current user have permission to run 'useradd' without a password "
-                    "prompt (check sudoers file)?"
-                )
+        create_user()
 
     def tearDown(self):
         subprocess.check_output(['sudo', 'userdel', '-r', TEST_USER])
-        self.revoke_permissions()
+        revoke_permissions()
 
     def run_backfill(self, dag_id, task_id):
         dag = self.dagbag.get_dag(dag_id)
@@ -124,21 +161,65 @@ file (always present inside container) and checking for APT_DEPS_IMAGE variable.
             'test_superuser',
         )
 
+    @unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__DEFAULT_IMPERSONATION=TEST_USER)
     def test_default_impersonation(self):
         """
         If default_impersonation=TEST_USER, tests that the job defaults
         to running as TEST_USER for a test without run_as_user set
         """
-        os.environ['AIRFLOW__CORE__DEFAULT_IMPERSONATION'] = TEST_USER
+        self.run_backfill(
+            'test_default_impersonation',
+            'test_deelevated_user'
+        )
 
-        try:
-            self.run_backfill(
-                'test_default_impersonation',
-                'test_deelevated_user'
-            )
-        finally:
-            del os.environ['AIRFLOW__CORE__DEFAULT_IMPERSONATION']
+    def test_impersonation_subdag(self):
+        """
+        Tests that impersonation using a subdag correctly passes the right configuration
+        :return:
+        """
+        self.run_backfill(
+            'impersonation_subdag',
+            'test_subdag_operation'
+        )
 
+
+class TestImpersonationWithCustomPythonPath(unittest.TestCase):
+
+    @mock_custom_module_path(TEST_UTILS_FOLDER)
+    def setUp(self):
+        check_original_docker_image()
+        grant_permissions()
+        add_default_pool_if_not_exists()
+        self.dagbag = models.DagBag(
+            dag_folder=TEST_DAG_CORRUPTED_FOLDER,
+            include_examples=False,
+        )
+        logger.info('Loaded DAGS:')
+        logger.info(self.dagbag.dagbag_report())
+
+        create_user()
+
+    def tearDown(self):
+        subprocess.check_output(['sudo', 'userdel', '-r', TEST_USER])
+        revoke_permissions()
+
+    def run_backfill(self, dag_id, task_id):
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+
+        jobs.BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE).run()
+
+        ti = models.TaskInstance(
+            task=dag.get_task(task_id),
+            execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+
+        self.assertEqual(ti.state, State.SUCCESS)
+
+    @mock_custom_module_path(TEST_UTILS_FOLDER)
     def test_impersonation_custom(self):
         """
         Tests that impersonation using a unix user works with custom packages in
@@ -150,14 +231,4 @@ file (always present inside container) and checking for APT_DEPS_IMAGE variable.
         self.run_backfill(
             'impersonation_with_custom_pkg',
             'exec_python_fn'
-        )
-
-    def test_impersonation_subdag(self):
-        """
-        Tests that impersonation using a subdag correctly passes the right configuration
-        :return:
-        """
-        self.run_backfill(
-            'impersonation_subdag',
-            'test_subdag_operation'
         )

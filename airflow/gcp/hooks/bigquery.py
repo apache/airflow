@@ -23,22 +23,21 @@ implementation for BigQuery.
 """
 
 import time
-from copy import deepcopy
-from typing import Any, NoReturn, Mapping, Union, Iterable, Dict, List, Optional, Tuple, Type
 import warnings
+from copy import deepcopy
+from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Tuple, Type, Union
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pandas import DataFrame
-from pandas_gbq.gbq import \
-    _check_google_client_version as gbq_check_google_client_version
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import \
-    _test_google_api_imports as gbq_test_google_api_imports
-from pandas_gbq.gbq import GbqConnector
+from pandas_gbq.gbq import (
+    GbqConnector, _check_google_client_version as gbq_check_google_client_version,
+    _test_google_api_imports as gbq_test_google_api_imports,
+)
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -330,22 +329,10 @@ class BigQueryBaseCursor(LoggingMixin):
 
         num_retries = num_retries if num_retries else self.num_retries
 
-        self.log.info('Creating Table %s:%s.%s',
-                      project_id, dataset_id, table_id)
-
-        try:
-            self.service.tables().insert(
-                projectId=project_id,
-                datasetId=dataset_id,
-                body=table_resource).execute(num_retries=num_retries)
-
-            self.log.info('Table created successfully: %s:%s.%s',
-                          project_id, dataset_id, table_id)
-
-        except HttpError as err:
-            raise AirflowException(
-                'BigQuery job failed. Error was: {}'.format(err.content)
-            )
+        self.service.tables().insert(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=table_resource).execute(num_retries=num_retries)
 
     def create_external_table(self,  # pylint: disable=too-many-locals,too-many-arguments
                               external_project_dataset_table: str,
@@ -361,6 +348,7 @@ class BigQueryBaseCursor(LoggingMixin):
                               quote_character: Optional[str] = None,
                               allow_quoted_newlines: bool = False,
                               allow_jagged_rows: bool = False,
+                              encoding: str = "UTF-8",
                               src_fmt_configs: Optional[Dict] = None,
                               labels: Optional[Dict] = None,
                               encryption_configuration: Optional[Dict] = None
@@ -422,6 +410,11 @@ class BigQueryBaseCursor(LoggingMixin):
             records, an invalid error is returned in the job result. Only applicable when
             soure_format is CSV.
         :type allow_jagged_rows: bool
+        :param encoding: The character encoding of the data. See:
+
+            .. seealso::
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
+        :type encoding: str
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
         :param labels: a dictionary containing labels for the table, passed to BigQuery
@@ -501,7 +494,8 @@ class BigQueryBaseCursor(LoggingMixin):
                                           'fieldDelimiter': field_delimiter,
                                           'quote': quote_character,
                                           'allowQuotedNewlines': allow_quoted_newlines,
-                                          'allowJaggedRows': allow_jagged_rows}
+                                          'allowJaggedRows': allow_jagged_rows,
+                                          'encoding': encoding}
 
         src_fmt_to_param_mapping = {
             'CSV': 'csvOptions',
@@ -512,7 +506,7 @@ class BigQueryBaseCursor(LoggingMixin):
             'csvOptions': [
                 'allowJaggedRows', 'allowQuotedNewlines',
                 'fieldDelimiter', 'skipLeadingRows',
-                'quote'
+                'quote', 'encoding'
             ],
             'googleSheetsOptions': ['skipLeadingRows']
         }
@@ -534,20 +528,14 @@ class BigQueryBaseCursor(LoggingMixin):
         if encryption_configuration:
             table_resource["encryptionConfiguration"] = encryption_configuration
 
-        try:
-            self.service.tables().insert(
-                projectId=project_id,
-                datasetId=dataset_id,
-                body=table_resource
-            ).execute(num_retries=self.num_retries)
+        self.service.tables().insert(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=table_resource
+        ).execute(num_retries=self.num_retries)
 
-            self.log.info('External table created successfully: %s',
-                          external_project_dataset_table)
-
-        except HttpError as err:
-            raise Exception(
-                'BigQuery job failed. Error was: {}'.format(err.content)
-            )
+        self.log.info('External table created successfully: %s',
+                      external_project_dataset_table)
 
     def patch_table(self,  # pylint: disable=too-many-arguments
                     dataset_id: str,
@@ -1072,6 +1060,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  ignore_unknown_values: bool = False,
                  allow_quoted_newlines: bool = False,
                  allow_jagged_rows: bool = False,
+                 encoding: str = "UTF-8",
                  schema_update_options: Optional[Iterable] = None,
                  src_fmt_configs: Optional[Dict] = None,
                  time_partitioning: Optional[Dict] = None,
@@ -1135,6 +1124,11 @@ class BigQueryBaseCursor(LoggingMixin):
             records, an invalid error is returned in the job result. Only applicable when
             soure_format is CSV.
         :type allow_jagged_rows: bool
+        :param encoding: The character encoding of the data.
+
+            .. seealso::
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
+        :type encoding: str
         :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the load job.
         :type schema_update_options: Union[list, tuple, set]
@@ -1269,7 +1263,7 @@ class BigQueryBaseCursor(LoggingMixin):
             'CSV': [
                 'allowJaggedRows', 'allowQuotedNewlines', 'autodetect',
                 'fieldDelimiter', 'skipLeadingRows', 'ignoreUnknownValues',
-                'nullMarker', 'quote'
+                'nullMarker', 'quote', 'encoding'
             ],
             'DATASTORE_BACKUP': ['projectionFields'],
             'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
@@ -1285,7 +1279,8 @@ class BigQueryBaseCursor(LoggingMixin):
                                           'fieldDelimiter': field_delimiter,
                                           'ignoreUnknownValues': ignore_unknown_values,
                                           'quote': quote_character,
-                                          'allowQuotedNewlines': allow_quoted_newlines}
+                                          'allowQuotedNewlines': allow_quoted_newlines,
+                                          'encoding': encoding}
 
         src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
                                                     backward_compatibility_configs)
@@ -1438,6 +1433,39 @@ class BigQueryBaseCursor(LoggingMixin):
                 self.log.info('Waiting for canceled job with id %s to finish.',
                               self.running_job_id)
                 time.sleep(5)
+
+    def get_dataset_tables(self, dataset_id: str, project_id: Optional[str] = None,
+                           max_results: Optional[int] = None,
+                           page_token: Optional[str] = None) -> Dict[str, Union[str, int, List]]:
+        """
+        Get the list of tables for a given dataset.
+        .. seealso:: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
+
+        :param dataset_id: the dataset ID of the requested dataset.
+        :type dataset_id: str
+        :param project_id: (Optional) the project of the requested dataset. If None,
+            self.project_id will be used.
+        :type project_id: str
+        :param max_results: (Optional) the maximum number of tables to return.
+        :type max_results: int
+        :param page_token: (Optional) page token, returned from a previous call,
+            identifying the result set.
+        :type page_token: str
+
+        :return: map containing the list of tables + metadata.
+        """
+        optional_params = {}  # type: Dict[str, Union[str, int]]
+        if max_results:
+            optional_params['maxResults'] = max_results
+        if page_token:
+            optional_params['pageToken'] = page_token
+
+        dataset_project_id = project_id or self.project_id
+
+        return (self.service.tables().list(
+            projectId=dataset_project_id,
+            datasetId=dataset_id,
+            **optional_params).execute(num_retries=self.num_retries))
 
     def get_schema(self, dataset_id: str, table_id: str) -> Dict:
         """
@@ -1702,20 +1730,9 @@ class BigQueryBaseCursor(LoggingMixin):
         dataset_id = dataset_reference.get("datasetReference").get("datasetId")  # type: ignore
         dataset_project_id = dataset_reference.get("datasetReference").get("projectId")  # type: ignore
 
-        self.log.info('Creating Dataset: %s in project: %s ', dataset_id,
-                      dataset_project_id)
-
-        try:
-            self.service.datasets().insert(
-                projectId=dataset_project_id,
-                body=dataset_reference).execute(num_retries=self.num_retries)
-            self.log.info('Dataset created successfully: In project %s '
-                          'Dataset %s', dataset_project_id, dataset_id)
-
-        except HttpError as err:
-            raise AirflowException(
-                'BigQuery job failed. Error was: {}'.format(err.content)
-            )
+        self.service.datasets().insert(
+            projectId=dataset_project_id,
+            body=dataset_reference).execute(num_retries=self.num_retries)
 
     def delete_dataset(self, project_id: str, dataset_id: str, delete_contents: bool = False) -> None:
         """

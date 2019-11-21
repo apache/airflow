@@ -59,6 +59,8 @@ In the next section they will be described.
 Operators
 ---------
 
+.. _howto/operator:GoogleCloudStorageToGoogleCloudStorageOperator:
+
 GoogleCloudStorageToGoogleCloudStorageOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -75,6 +77,9 @@ they are transferred to the sink. Source objects can be specified using single w
 well as based on the file modification date.
 
 The way this operator works can be compared to the ``cp`` command.
+
+
+.. _howto/operator:GoogleCloudStorageSynchronizeBuckets:
 
 GoogleCloudStorageSynchronizeBuckets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -17,25 +17,24 @@
 # specific language governing permissions and limitations
 # under the License.
 # pylint: disable=too-many-lines
+import copy
+import gzip as gz
 import io
 import os
 import tempfile
 import unittest
-import copy
 from datetime import datetime
-import gzip as gz
 
 import dateutil
-from google.cloud import storage
-from google.cloud import exceptions
+from google.cloud import exceptions, storage
 
-from airflow.gcp.hooks import gcs
 from airflow.exceptions import AirflowException
+from airflow.gcp.hooks import gcs
 from airflow.version import version
 from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
+BASE_STRING = 'airflow.gcp.hooks.base.{}'
 GCS_STRING = 'airflow.gcp.hooks.gcs.{}'
 
 EMPTY_CONTENT = b''
@@ -76,7 +75,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                 google_cloud_storage_conn_id='test')
 
     @mock.patch(
-        'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.client_info',
+        'airflow.gcp.hooks.base.GoogleCloudBaseHook.client_info',
         new_callable=mock.PropertyMock,
         return_value="CLIENT_INFO"
     )
@@ -84,9 +83,11 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         BASE_STRING.format("GoogleCloudBaseHook._get_credentials_and_project_id"),
         return_value=("CREDENTIALS", "PROJECT_ID")
     )
+    @mock.patch(GCS_STRING.format('GoogleCloudBaseHook.get_connection'))
     @mock.patch('google.cloud.storage.Client')
     def test_storage_client_creation(self,
                                      mock_client,
+                                     mock_get_connetion,
                                      mock_get_creds_and_project_id,
                                      mock_client_info):
         hook = gcs.GoogleCloudStorageHook()

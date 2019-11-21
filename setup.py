@@ -18,16 +18,16 @@
 # under the License.
 """Setup.py for the Airflow project."""
 
-from importlib import util
 import io
 import logging
 import os
 import subprocess
 import sys
 import unittest
+from importlib import util
 from typing import List
 
-from setuptools import setup, find_packages, Command
+from setuptools import Command, find_packages, setup
 
 logger = logging.getLogger(__name__)
 
@@ -152,12 +152,13 @@ aws = [
     'boto3>=1.7.0, <1.8.0',
 ]
 azure = [
-    'azure-storage>=0.34.0',
-    'azure-mgmt-resource>=2.2.0',
-    'azure-mgmt-datalake-store>=0.5.0',
-    'azure-datalake-store>=0.0.45',
     'azure-cosmos>=3.0.1',
+    'azure-datalake-store>=0.0.45',
     'azure-mgmt-containerinstance>=1.5.0',
+    'azure-mgmt-datalake-store>=0.5.0',
+    'azure-mgmt-resource>=2.2.0',
+    'azure-storage-blob<12.0',
+    'azure-storage>=0.34.0'
 ]
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
@@ -169,7 +170,6 @@ cgroups = [
     'cgroupspy>=0.1.4',
 ]
 cloudant = ['cloudant>=2.0']
-crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
 ]
@@ -197,9 +197,11 @@ gcp = [
     'google-cloud-bigtable==1.0.0',
     'google-cloud-bigquery-datatransfer>=0.4.0',
     'google-cloud-container>=0.1.1',
+    'google-cloud-dataproc==0.5.0',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
     'google-cloud-language>=1.1.1',
+    'google-cloud-pubsub==1.0.0',
     'google-cloud-redis>=0.3.0',
     'google-cloud-spanner>=1.10.0',
     'google-cloud-speech>=0.36.3',
@@ -210,7 +212,7 @@ gcp = [
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.9.2',
+    'httplib2~=0.9',
     'pandas-gbq',
     'PyOpenSSL',
 ]
@@ -235,7 +237,7 @@ kerberos = ['pykerberos>=1.1.13',
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=2.5.1']
-mssql = ['pymssql>=2.1.1']
+mssql = ['pymssql~=2.1.1']
 mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
 papermill = ['papermill[all]>=1.0.0',
@@ -245,7 +247,7 @@ password = [
     'flask-bcrypt>=0.7.1',
 ]
 pinot = ['pinotdb==0.1.1']
-postgres = ['psycopg2>=2.7.4,<2.8']
+postgres = ['psycopg2-binary>=2.7.4']
 qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis~=3.2']
@@ -253,12 +255,14 @@ salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0,<6']
+sentry = ['sentry-sdk>=0.8.0', "blinker>=1.1"]
 slack = ['slackclient>=1.0.0,<2.0.0']
+pagerduty = ['pypd>=1.1.0']
 mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
-statsd = ['statsd>=3.0.1, <4.0']
+statsd = ['statsd>=3.3.0, <4.0']
 vertica = ['vertica-python>=0.5.1']
 virtualenv = ['virtualenv']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
@@ -273,6 +277,7 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
 # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
 ############################################################################################################
 devel = [
+    'astroid~=2.2.5',  # to be removed after pylint solves this: https://github.com/PyCQA/pylint/issues/3123
     'beautifulsoup4~=4.7.1',
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
@@ -291,7 +296,8 @@ devel = [
     'parameterized',
     'paramiko',
     'pre-commit',
-    'pylint~=2.3.1',
+    'pylint~=2.3.1',  # to be upgraded after fixing https://github.com/PyCQA/pylint/issues/3123
+                      # We should also disable checking docstring at the module level
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',
@@ -306,17 +312,18 @@ devel = [
 ############################################################################################################
 
 if PY3:
-    devel += ['mypy']
+    devel += ['mypy==0.720']
 else:
     devel += ['unittest2']
 
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
+devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + oracle +
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + segment + snowflake + elasticsearch +
-             atlas + azure + aws + salesforce + cgroups + papermill + virtualenv)
+             druid + pinot + segment + snowflake + elasticsearch + sentry +
+             atlas + azure + aws + salesforce + cgroups + papermill + virtualenv +
+             pagerduty)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -337,7 +344,10 @@ def do_setup():
         license='Apache License 2.0',
         version=version,
         packages=find_packages(exclude=['tests*']),
-        package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
+        package_data={
+            '': ['airflow/alembic.ini', "airflow/git_version"],
+            'airflow.serialization': ["*.json"],
+        },
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
@@ -352,17 +362,19 @@ def do_setup():
             'cached_property~=1.5',
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
-            'dill>=0.2.2, <0.3',
+            'cryptography>=0.9.3',
+            'dill>=0.2.2, <0.4',
             'flask>=1.1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14.2, <0.15',
-            'funcsigs==1.0.0',
+            'funcsigs>=1.0.0, <2.0.0',
             'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
+            'jsonschema~=3.0',
             'json-merge-patch==0.2',
             'jinja2>=2.10.1, <2.11.0',
             'lazy_object_proxy~=1.3',
@@ -381,7 +393,7 @@ def do_setup():
             'tenacity==4.12.0',
             'termcolor==1.1.0',
             'text-unidecode==1.2',
-            'typing;python_version<"3.5"',
+            'typing;python_version<"3.6"',
             'thrift>=0.9.2',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
@@ -409,7 +421,6 @@ def do_setup():
             'celery': celery,
             'cgroups': cgroups,
             'cloudant': cloudant,
-            'crypto': crypto,
             'dask': dask,
             'databricks': databricks,
             'datadog': datadog,
@@ -445,8 +456,10 @@ def do_setup():
             'salesforce': salesforce,
             'samba': samba,
             'sendgrid': sendgrid,
+            'sentry': sentry,
             'segment': segment,
             'slack': slack,
+            'pagerduty': pagerduty,
             'snowflake': snowflake,
             'ssh': ssh,
             'statsd': statsd,
@@ -461,7 +474,6 @@ def do_setup():
             'Intended Audience :: Developers',
             'Intended Audience :: System Administrators',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
             'Topic :: System :: Monitoring',
@@ -476,7 +488,7 @@ def do_setup():
             'compile_assets': CompileAssets
         },
         test_suite='setup.airflow_test_suite',
-        python_requires='~=3.5',
+        python_requires='~=3.6',
     )
 
 

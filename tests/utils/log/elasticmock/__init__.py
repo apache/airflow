@@ -43,6 +43,7 @@ from functools import wraps
 from typing import Dict
 
 from elasticsearch.client import _normalize_hosts
+
 from tests.compat import patch
 
 from .fake_elasticsearch import FakeElasticsearch

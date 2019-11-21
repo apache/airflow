@@ -20,8 +20,8 @@
 import re
 from typing import Dict, Optional
 
-from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.configuration import conf
+from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars

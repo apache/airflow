@@ -25,8 +25,9 @@ Airflow connection of type `azure_data_lake` exists. Authorization can be done b
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
 (see connection `azure_data_lake_default` for an example).
 """
-from airflow.hooks.base_hook import BaseHook
 from azure.datalake.store import core, lib, multithread
+
+from airflow.hooks.base_hook import BaseHook
 
 
 class AzureDataLakeHook(BaseHook):

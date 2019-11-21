@@ -21,19 +21,18 @@ Example Airflow DAG for Google Cloud Storage operators.
 """
 
 import os
+
 import airflow
 from airflow import models
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator
-from airflow.operators.gcs_to_gcs import GoogleCloudStorageToGoogleCloudStorageOperator
 from airflow.gcp.operators.gcs import (
-    GoogleCloudStorageBucketCreateAclEntryOperator,
+    GcsFileTransformOperator, GoogleCloudStorageBucketCreateAclEntryOperator,
+    GoogleCloudStorageCreateBucketOperator, GoogleCloudStorageDeleteOperator,
+    GoogleCloudStorageDownloadOperator, GoogleCloudStorageListOperator,
     GoogleCloudStorageObjectCreateAclEntryOperator,
-    GoogleCloudStorageListOperator,
-    GoogleCloudStorageDeleteOperator,
-    GoogleCloudStorageDownloadOperator,
-    GoogleCloudStorageCreateBucketOperator
 )
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.gcs_to_gcs import GoogleCloudStorageToGoogleCloudStorageOperator
+from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 
@@ -47,6 +46,9 @@ GCS_ACL_OBJECT_ROLE = "OWNER"
 
 BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket-2")
 
+PATH_TO_TRANSFORM_SCRIPT = os.environ.get(
+    'GCP_GCS_PATH_TO_TRANSFORM_SCRIPT', 'test.py'
+)
 PATH_TO_UPLOAD_FILE = os.environ.get(
     "GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt"
 )
@@ -84,6 +86,12 @@ with models.DAG(
         bucket=BUCKET_1,
     )
 
+    transform_file = GcsFileTransformOperator(
+        task_id="transform_file",
+        source_bucket=BUCKET_1,
+        source_object=BUCKET_FILE_LOCATION,
+        transform_script=["python", PATH_TO_TRANSFORM_SCRIPT]
+    )
     # [START howto_operator_gcs_bucket_create_acl_entry_task]
     gcs_bucket_create_acl_entry_task = GoogleCloudStorageBucketCreateAclEntryOperator(
         bucket=BUCKET_1,

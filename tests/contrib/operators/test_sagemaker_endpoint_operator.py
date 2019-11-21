@@ -20,8 +20,7 @@
 import unittest
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.operators.sagemaker_endpoint_operator \
-    import SageMakerEndpointOperator
+from airflow.contrib.operators.sagemaker_endpoint_operator import SageMakerEndpointOperator
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 

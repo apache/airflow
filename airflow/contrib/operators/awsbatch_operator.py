@@ -17,19 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional
-from airflow.typing import Protocol
 import sys
-
 from math import pow
 from random import randint
 from time import sleep
-
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+from typing import Optional
 
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.typing_compat import Protocol
+from airflow.utils.decorators import apply_defaults
 
 
 class BatchProtocol(Protocol):
@@ -95,7 +93,7 @@ class AWSBatchOperator(BaseOperator):
         self.job_definition = job_definition
         self.job_queue = job_queue
         self.overrides = overrides
-        self.array_properties = array_properties
+        self.array_properties = array_properties or {}
         self.max_retries = max_retries
 
         self.jobId = None  # pylint: disable=invalid-name

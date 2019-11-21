@@ -29,8 +29,7 @@ from sphinx import addnodes
 from sphinx.directives.code import LiteralIncludeReader
 from sphinx.locale import _
 from sphinx.pycode import ModuleAnalyzer
-from sphinx.util import logging
-from sphinx.util import parselinenos
+from sphinx.util import logging, parselinenos
 from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import set_source_info
 

@@ -22,9 +22,7 @@ Example DAG using GoogleCloudStorageToBigQueryOperator.
 import airflow
 from airflow import models
 from airflow.operators import bash_operator
-
 from airflow.operators.gcs_to_bq import GoogleCloudStorageToBigQueryOperator
-
 
 args = {
     'owner': 'Airflow',

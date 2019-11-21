@@ -27,7 +27,6 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils import dot_renderer
 
-
 START_DATE = datetime.datetime.now()
 
 

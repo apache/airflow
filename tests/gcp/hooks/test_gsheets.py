@@ -23,11 +23,10 @@ Unit Tests for the GSheets Hook
 
 import unittest
 
+from airflow import AirflowException
+from airflow.gcp.hooks.gsheets import GSheetsHook
 from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
-
-from airflow.gcp.hooks.gsheets import GSheetsHook
-from airflow import AirflowException
 
 GCP_CONN_ID = 'test'
 SPREADHSEET_ID = '1234567890'
@@ -47,7 +46,7 @@ API_RESPONSE = {'test': 'repsonse'}
 
 class TestGSheetsHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
             self.hook = GSheetsHook(gcp_conn_id=GCP_CONN_ID, spreadsheet_id=SPREADHSEET_ID)
 

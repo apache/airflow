@@ -33,6 +33,7 @@ TI = models.TaskInstance
 LOG = models.log.Log
 TF = models.taskfail.TaskFail
 TR = models.taskreschedule.TaskReschedule
+IE = models.ImportError
 
 
 class TestDeleteDAGCatchError(unittest.TestCase):
@@ -54,6 +55,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
 
     def setUp(self):
         self.key = "test_dag_id"
+        self.dag_file_path = "/usr/local/airflow/dags/test_dag_8.py"
 
         task = DummyOperator(task_id='dummy',
                              dag=models.DAG(dag_id=self.key,
@@ -62,7 +64,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
 
         test_date = days_ago(1)
         with create_session() as session:
-            session.add(DM(dag_id=self.key))
+            session.add(DM(dag_id=self.key, fileloc=self.dag_file_path))
             session.add(DR(dag_id=self.key))
             session.add(TI(task=task,
                            execution_date=test_date,
@@ -77,6 +79,8 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
             session.add(TR(task=task, execution_date=test_date,
                            start_date=test_date, end_date=test_date,
                            try_number=1, reschedule_date=test_date))
+            session.add(IE(timestamp=test_date, filename=self.dag_file_path,
+                           stacktrace="NameError: name 'airflow' is not defined"))
 
     def tearDown(self):
         with create_session() as session:
@@ -86,6 +90,7 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
             session.query(DR).filter(DR.dag_id == self.key).delete()
             session.query(DM).filter(DM.dag_id == self.key).delete()
             session.query(LOG).filter(LOG.dag_id == self.key).delete()
+            session.query(IE).filter(IE.filename == self.dag_file_path).delete()
 
     def test_delete_dag_successful_delete(self):
         with create_session() as session:
@@ -95,6 +100,8 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
             self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
+            self.assertEqual(
+                session.query(IE).filter(IE.filename == self.dag_file_path).count(), 1)
 
         delete_dag(dag_id=self.key)
 
@@ -105,6 +112,8 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
             self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
+            self.assertEqual(
+                session.query(IE).filter(IE.filename == self.dag_file_path).count(), 0)
 
     def test_delete_dag_successful_delete_not_keeping_records_in_log(self):
 
@@ -115,6 +124,8 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
             self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 1)
             self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
+            self.assertEqual(
+                session.query(IE).filter(IE.filename == self.dag_file_path).count(), 1)
 
         delete_dag(dag_id=self.key, keep_records_in_log=False)
 
@@ -125,6 +136,8 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
             self.assertEqual(session.query(TF).filter(TF.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(TR).filter(TR.dag_id == self.key).count(), 0)
             self.assertEqual(session.query(LOG).filter(LOG.dag_id == self.key).count(), 0)
+            self.assertEqual(
+                session.query(IE).filter(IE.filename == self.dag_file_path).count(), 0)
 
 
 if __name__ == '__main__':

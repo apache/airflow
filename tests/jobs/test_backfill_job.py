@@ -28,10 +28,11 @@ import sqlalchemy
 from parameterized import parameterized
 
 from airflow import AirflowException, settings
-from airflow.configuration import conf
 from airflow.bin import cli
-from airflow.exceptions import AirflowTaskTimeout
-from airflow.exceptions import DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached
+from airflow.configuration import conf
+from airflow.exceptions import (
+    AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached,
+)
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
@@ -41,8 +42,7 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.compat import Mock, patch
 from tests.executors.test_executor import TestExecutor
-from tests.test_utils.db import clear_db_pools, \
-    clear_db_runs, set_default_pool_slots
+from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_slots
 
 logger = logging.getLogger(__name__)
 
@@ -810,60 +810,6 @@ class TestBackfillJob(unittest.TestCase):
         ti = TI(dag.tasks[0], run_date)
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
-
-    def test_run_ignores_all_dependencies(self):
-        """
-        Test that run respects ignore_all_dependencies
-        """
-        dag_id = 'test_run_ignores_all_dependencies'
-
-        dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
-        dag.clear()
-
-        task0_id = 'test_run_dependent_task'
-        args0 = ['tasks',
-                 'run',
-                 '-A',
-                 dag_id,
-                 task0_id,
-                 DEFAULT_DATE.isoformat()]
-        cli.run(self.parser.parse_args(args0))
-        ti_dependent0 = TI(
-            task=dag.get_task(task0_id),
-            execution_date=DEFAULT_DATE)
-
-        ti_dependent0.refresh_from_db()
-        self.assertEqual(ti_dependent0.state, State.FAILED)
-
-        task1_id = 'test_run_dependency_task'
-        args1 = ['tasks',
-                 'run',
-                 '-A',
-                 dag_id,
-                 task1_id,
-                 (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()]
-        cli.run(self.parser.parse_args(args1))
-
-        ti_dependency = TI(
-            task=dag.get_task(task1_id),
-            execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
-        ti_dependency.refresh_from_db()
-        self.assertEqual(ti_dependency.state, State.FAILED)
-
-        task2_id = 'test_run_dependent_task'
-        args2 = ['tasks',
-                 'run',
-                 '-A',
-                 dag_id,
-                 task2_id,
-                 (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()]
-        cli.run(self.parser.parse_args(args2))
-
-        ti_dependent = TI(
-            task=dag.get_task(task2_id),
-            execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
-        ti_dependent.refresh_from_db()
-        self.assertEqual(ti_dependent.state, State.SUCCESS)
 
     def test_backfill_depends_on_past_backwards(self):
         """

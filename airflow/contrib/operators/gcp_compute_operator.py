@@ -22,14 +22,9 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.compute import (  # noqa
-    GceBaseOperator,
-    GceInstanceGroupManagerUpdateTemplateOperator,
-    GceInstanceStartOperator,
-    GceInstanceStopOperator,
-    GceInstanceTemplateCopyOperator,
-    GceSetMachineTypeOperator,
-    GcpBodyFieldSanitizer,
-    GcpBodyFieldValidator,
+    GceBaseOperator, GceInstanceGroupManagerUpdateTemplateOperator, GceInstanceStartOperator,
+    GceInstanceStopOperator, GceInstanceTemplateCopyOperator, GceSetMachineTypeOperator,
+    GcpBodyFieldSanitizer, GcpBodyFieldValidator,
 )
 
 warnings.warn(

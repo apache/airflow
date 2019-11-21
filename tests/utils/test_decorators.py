@@ -19,8 +19,8 @@
 
 import unittest
 
-from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
+from airflow.utils.decorators import apply_defaults
 
 
 # Essentially similar to airflow.models.BaseOperator

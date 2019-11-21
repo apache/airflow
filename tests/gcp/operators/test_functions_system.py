@@ -17,19 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_FUNCTION_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_FUNCTION_KEY), SKIP_TEST_WARNING)
-class GcpFunctionExampleDagsSystemTest(TestDagGcpSystem):
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name,
-            dag_id='example_gcp_function',
-            gcp_key=GCP_FUNCTION_KEY)
-
+@skip_gcp_system(GCP_FUNCTION_KEY, require_local_executor=True)
+class GcpFunctionExampleDagsSystemTest(SystemTest):
+    @provide_gcp_context(GCP_FUNCTION_KEY)
     def test_run_example_dag_function(self):
-        self._run_dag()
+        self.run_dag('example_gcp_function', GCP_DAG_FOLDER)

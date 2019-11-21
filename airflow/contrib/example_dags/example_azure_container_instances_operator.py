@@ -35,23 +35,22 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-dag = DAG(
-    'aci_example',
+with DAG(
+    dag_id='aci_example',
     default_args=default_args,
     schedule_interval=timedelta(1)
-)
+) as dag:
 
-t1 = AzureContainerInstancesOperator(
-    ci_conn_id='azure_container_instances_default',
-    registry_conn_id=None,
-    resource_group='resource-group',
-    name='aci-test-{{ ds }}',
-    image='hello-world',
-    region='WestUS2',
-    environment_variables={},
-    volumes=[],
-    memory_in_gb=4.0,
-    cpu=1.0,
-    task_id='start_container',
-    dag=dag
-)
+    t1 = AzureContainerInstancesOperator(
+        ci_conn_id='azure_container_instances_default',
+        registry_conn_id=None,
+        resource_group='resource-group',
+        name='aci-test-{{ ds }}',
+        image='hello-world',
+        region='WestUS2',
+        environment_variables={},
+        volumes=[],
+        memory_in_gb=4.0,
+        cpu=1.0,
+        task_id='start_container'
+    )

@@ -17,22 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
 import atexit
 import logging
 import os
-import pendulum
 import sys
+from typing import Optional
 
+import pendulum
 from sqlalchemy import create_engine, exc
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.pool import NullPool
 from sqlalchemy.orm.session import Session as SASession
+from sqlalchemy.pool import NullPool
 
 import airflow
-from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
+from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
+from airflow.utils.module_loading import import_string
 from airflow.utils.sqlalchemy import setup_event_handlers
 
 log = logging.getLogger(__name__)
@@ -185,7 +186,14 @@ def configure_orm(disable_connection_pool=False):
     # For Python2 we get back a newstr and need a str
     engine_args['encoding'] = engine_args['encoding'].__str__()
 
-    engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
+    if conf.has_option('core', 'sql_alchemy_connect_args'):
+        connect_args = import_string(
+            conf.get('core', 'sql_alchemy_connect_args')
+        )
+    else:
+        connect_args = {}
+
+    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
     setup_event_handlers(engine)
 
     Session = scoped_session(
@@ -312,3 +320,12 @@ WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
 
 # Used by DAG context_managers
 CONTEXT_MANAGER_DAG = None  # type: Optional[airflow.models.dag.DAG]
+
+# If store_serialized_dags is True, scheduler writes serialized DAGs to DB, and webserver
+# reads DAGs from DB instead of importing from files.
+STORE_SERIALIZED_DAGS = conf.getboolean('core', 'store_serialized_dags', fallback=False)
+
+# Updating serialized DAG can not be faster than a minimum interval to reduce database
+# write rate.
+MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
+    'core', 'min_serialized_dag_update_interval', fallback=30)

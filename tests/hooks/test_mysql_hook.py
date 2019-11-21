@@ -19,8 +19,8 @@
 #
 
 import json
-from unittest import mock
 import unittest
+from unittest import mock
 
 import MySQLdb.cursors
 
@@ -60,6 +60,24 @@ class TestMySqlHookConn(unittest.TestCase):
         self.assertEqual(kwargs['passwd'], 'password')
         self.assertEqual(kwargs['host'], 'host')
         self.assertEqual(kwargs['db'], 'schema')
+
+    @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
+    def test_get_conn_from_connection(self, mock_connect):
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
+        hook = MySqlHook(connection=conn)
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login-conn', passwd='password-conn', host='host', db='schema', port=3306
+        )
+
+    @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
+    def test_get_conn_from_connection_with_schema(self, mock_connect):
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
+        hook = MySqlHook(connection=conn, schema='schema-override')
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login-conn', passwd='password-conn', host='host', db='schema-override', port=3306
+        )
 
     @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
     def test_get_conn_port(self, mock_connect):
@@ -218,3 +236,21 @@ class TestMySqlHook(unittest.TestCase):
 
     def test_serialize_cell(self):
         self.assertEqual('foo', self.db_hook._serialize_cell('foo', None))
+
+    def test_bulk_load_custom(self):
+        self.db_hook.bulk_load_custom(
+            'table',
+            '/tmp/file',
+            'IGNORE',
+            """FIELDS TERMINATED BY ';'
+            OPTIONALLY ENCLOSED BY '"'
+            IGNORE 1 LINES"""
+        )
+        self.cur.execute.assert_called_once_with("""
+            LOAD DATA LOCAL INFILE '/tmp/file'
+            IGNORE
+            INTO TABLE table
+            FIELDS TERMINATED BY ';'
+            OPTIONALLY ENCLOSED BY '"'
+            IGNORE 1 LINES
+            """)

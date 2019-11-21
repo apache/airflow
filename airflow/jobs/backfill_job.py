@@ -18,26 +18,23 @@
 # under the License.
 #
 
-from datetime import datetime
 import time
 from collections import OrderedDict
+from datetime import datetime
 
-from sqlalchemy.orm.session import make_transient, Session
+from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import executors, models
 from airflow.exceptions import (
-    AirflowException,
-    DagConcurrencyLimitReached,
-    NoAvailablePoolSlot,
-    PoolNotFound,
+    AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
+from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle, DagRun
-from airflow.ti_deps.dep_context import DepContext, BACKFILL_QUEUED_DEPS
+from airflow.ti_deps.dep_context import BACKFILL_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.db import provide_session
-from airflow.jobs.base_job import BaseJob
 from airflow.utils.state import State
 
 
@@ -64,6 +61,29 @@ class BackfillJob(BaseJob):
         .e.g finished runs, etc. Any other status related information related to the
         execution of dag runs / tasks can be included in this structure since it makes
         it easier to pass it around.
+
+        :param to_run: Tasks to run in the backfill
+        :type to_run: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
+        :param running: Maps running task instance key to task instance object
+        :type running: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
+        :param skipped: Tasks that have been skipped
+        :type skipped: set[tuple[string, string, datetime.datetime]]
+        :param succeeded: Tasks that have succeeded so far
+        :type succeeded: set[tuple[string, string, datetime.datetime]]
+        :param failed: Tasks that have failed
+        :type failed: set[tuple[string, string, datetime.datetime]]
+        :param not_ready: Tasks not ready for execution
+        :type not_ready: set[tuple[string, string, datetime.datetime]]
+        :param deadlocked: Deadlocked tasks
+        :type deadlocked: set[tuple[string, string, datetime.datetime]]
+        :param active_runs: Active dag runs at a certain point in time
+        :type active_runs: list[DagRun]
+        :param executed_dag_run_dates: Datetime objects for the executed dag runs
+        :type executed_dag_run_dates: set[datetime.datetime]
+        :param finished_runs: Number of finished runs so far
+        :type finished_runs: int
+        :param total_runs: Number of total dag runs able to run
+        :type total_runs: int
         """
         # TODO(edgarRd): AIRFLOW-1444: Add consistency check on counts
         def __init__(self,
@@ -79,30 +99,6 @@ class BackfillJob(BaseJob):
                      finished_runs=0,
                      total_runs=0,
                      ):
-            """
-            :param to_run: Tasks to run in the backfill
-            :type to_run: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
-            :param running: Maps running task instance key to task instance object
-            :type running: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
-            :param skipped: Tasks that have been skipped
-            :type skipped: set[tuple[string, string, datetime.datetime]]
-            :param succeeded: Tasks that have succeeded so far
-            :type succeeded: set[tuple[string, string, datetime.datetime]]
-            :param failed: Tasks that have failed
-            :type failed: set[tuple[string, string, datetime.datetime]]
-            :param not_ready: Tasks not ready for execution
-            :type not_ready: set[tuple[string, string, datetime.datetime]]
-            :param deadlocked: Deadlocked tasks
-            :type deadlocked: set[tuple[string, string, datetime.datetime]]
-            :param active_runs: Active dag runs at a certain point in time
-            :type active_runs: list[DagRun]
-            :param executed_dag_run_dates: Datetime objects for the executed dag runs
-            :type executed_dag_run_dates: set[datetime.datetime]
-            :param finished_runs: Number of finished runs so far
-            :type finished_runs: int
-            :param total_runs: Number of total dag runs able to run
-            :type total_runs: int
-            """
             self.to_run = to_run or OrderedDict()
             self.running = running or dict()
             self.skipped = skipped or set()
@@ -110,7 +106,7 @@ class BackfillJob(BaseJob):
             self.failed = failed or set()
             self.not_ready = not_ready or set()
             self.deadlocked = deadlocked or set()
-            self.active_runs = active_runs or list()
+            self.active_runs = active_runs or []
             self.executed_dag_run_dates = executed_dag_run_dates or set()
             self.finished_runs = finished_runs
             self.total_runs = total_runs

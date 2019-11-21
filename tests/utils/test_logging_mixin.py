@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
 import unittest
 import warnings
+from unittest import mock
 
-from airflow.utils.log.logging_mixin import set_context, StreamLogWriter
+from airflow.utils.log.logging_mixin import StreamLogWriter, set_context
 
 
 class TestLoggingMixin(unittest.TestCase):

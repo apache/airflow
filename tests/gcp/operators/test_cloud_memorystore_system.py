@@ -17,46 +17,32 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Memorystore operators"""
-import unittest
 
 from tests.gcp.operators.test_cloud_memorystore_system_helper import GCPCloudMemorystoreTestHelper
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_MEMORYSTORE  # TODO: Update it
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_MEMORYSTORE), SKIP_TEST_WARNING)
-class CloudBuildExampleDagsSystemTest(TestDagGcpSystem):
+@skip_gcp_system(GCP_MEMORYSTORE, require_local_executor=True)
+class CloudBuildExampleDagsSystemTest(SystemTest):
     """
     System tests for Google Cloud Memorystore operators
 
     It use a real service.
     """
+    helper = GCPCloudMemorystoreTestHelper()
 
-    def __init__(self, method_name="runTest"):
-        super().__init__(
-            method_name,
-            dag_id="gcp_cloud_memorystore",
-            dag_name="example_cloud_memorystore.py",
-            require_local_executor=False,
-            gcp_key=GCP_MEMORYSTORE,
-        )
-        self.helper = GCPCloudMemorystoreTestHelper()
-
+    @provide_gcp_context(GCP_MEMORYSTORE)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.create_bucket()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.create_bucket()
 
+    @provide_gcp_context(GCP_MEMORYSTORE)
     def test_run_example_dag(self):
-        self._run_dag()
+        self.run_dag('gcp_cloud_memorystore', GCP_DAG_FOLDER)
 
+    @provide_gcp_context(GCP_MEMORYSTORE)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.delete_bucket()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.delete_bucket()
         super().tearDown()

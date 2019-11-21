@@ -17,49 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.aws_sns_hook import AwsSnsHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sns`."""
 
+import warnings
 
-class SnsPublishOperator(BaseOperator):
-    """
-    Publish a message to Amazon SNS.
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator  # noqa
 
-    :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
-    :param target_arn: either a TopicArn or an EndpointArn
-    :type target_arn: str
-    :param message: the default message you want to send (templated)
-    :type message: str
-    """
-    template_fields = ['message']
-    template_ext = ()
-
-    @apply_defaults
-    def __init__(
-            self,
-            target_arn,
-            message,
-            aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.target_arn = target_arn
-        self.message = message
-        self.aws_conn_id = aws_conn_id
-
-    def execute(self, context):
-        sns = AwsSnsHook(aws_conn_id=self.aws_conn_id)
-
-        self.log.info(
-            'Sending SNS notification to {} using {}:\n{}'.format(
-                self.target_arn,
-                self.aws_conn_id,
-                self.message
-            )
-        )
-
-        return sns.publish_to_target(
-            target_arn=self.target_arn,
-            message=self.message
-        )
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sns`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

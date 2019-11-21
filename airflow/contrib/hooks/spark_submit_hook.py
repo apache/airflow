@@ -18,14 +18,14 @@
 # under the License.
 #
 import os
-import subprocess
 import re
+import subprocess
 import time
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.hooks.base_hook import BaseHook
 from airflow.kubernetes import kube_client
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -220,6 +220,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _build_spark_submit_command(self, application):
         """
         Construct the spark-submit command to execute.
+
         :param application: command to append to the spark-submit command
         :type application: str
         :return: full command to be executed
@@ -348,7 +349,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                            universal_newlines=True,
                                            **kwargs)
 
-        self._process_spark_submit_log(iter(self._submit_sp.stdout.readline, ''))
+        self._process_spark_submit_log(iter(self._submit_sp.stdout))
         returncode = self._submit_sp.wait()
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
@@ -502,7 +503,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                               bufsize=-1,
                                               universal_newlines=True)
 
-            self._process_spark_status_log(iter(status_process.stdout.readline, ''))
+            self._process_spark_status_log(iter(status_process.stdout))
             returncode = status_process.wait()
 
             if returncode:

@@ -19,7 +19,7 @@
 """Taskfail tracks the failed run durations of each task instance"""
 from sqlalchemy import Column, Index, Integer, String
 
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 

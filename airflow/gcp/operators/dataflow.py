@@ -20,19 +20,19 @@
 This module contains Google Dataflow operators.
 """
 
+import copy
 import os
 import re
-import uuid
-import copy
 import tempfile
+import uuid
 from enum import Enum
 from typing import List, Optional
 
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.hooks.dataflow import DataFlowHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
-from airflow.version import version
 from airflow.utils.decorators import apply_defaults
+from airflow.version import version
 
 
 class CheckJobRunning(Enum):
@@ -206,16 +206,25 @@ class DataFlowJavaOperator(BaseOperator):
         dataflow_options.update(self.options)
         is_running = False
         if self.check_if_running != CheckJobRunning.IgnoreJob:
-            is_running = hook.is_job_dataflow_running(self.job_name, dataflow_options)
+            is_running = hook.is_job_dataflow_running(
+                name=self.job_name,
+                variables=dataflow_options
+            )
             while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-                is_running = hook.is_job_dataflow_running(self.job_name, dataflow_options)
+                is_running = hook.is_job_dataflow_running(name=self.job_name, variables=dataflow_options)
 
         if not is_running:
             bucket_helper = GoogleCloudBucketHelper(
                 self.gcp_conn_id, self.delegate_to)
             self.jar = bucket_helper.google_cloud_to_local(self.jar)
-            hook.start_java_dataflow(self.job_name, dataflow_options,
-                                     self.jar, self.job_class, True, self.multiple_jobs)
+            hook.start_java_dataflow(
+                job_name=self.job_name,
+                variables=dataflow_options,
+                jar=self.jar,
+                job_class=self.job_class,
+                append_job_name=True,
+                multiple_jobs=self.multiple_jobs
+            )
 
 
 class DataflowTemplateOperator(BaseOperator):
@@ -324,8 +333,12 @@ class DataflowTemplateOperator(BaseOperator):
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
 
-        hook.start_template_dataflow(self.job_name, self.dataflow_default_options,
-                                     self.parameters, self.template)
+        hook.start_template_dataflow(
+            job_name=self.job_name,
+            variables=self.dataflow_default_options,
+            parameters=self.parameters,
+            dataflow_template=self.template
+        )
 
 
 class DataFlowPythonOperator(BaseOperator):
@@ -417,8 +430,12 @@ class DataFlowPythonOperator(BaseOperator):
         formatted_options = {camel_to_snake(key): dataflow_options[key]
                              for key in dataflow_options}
         hook.start_python_dataflow(
-            self.job_name, formatted_options,
-            self.py_file, self.py_options, py_interpreter=self.py_interpreter)
+            job_name=self.job_name,
+            variables=formatted_options,
+            dataflow=self.py_file,
+            py_options=self.py_options,
+            py_interpreter=self.py_interpreter
+        )
 
 
 class GoogleCloudBucketHelper:

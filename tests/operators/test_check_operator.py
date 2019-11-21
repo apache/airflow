@@ -22,7 +22,7 @@ from datetime import datetime
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.operators.check_operator import ValueCheckOperator, CheckOperator, IntervalCheckOperator
+from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 from tests.compat import mock
 
 

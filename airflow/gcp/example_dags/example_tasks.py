@@ -32,9 +32,7 @@ from google.protobuf import timestamp_pb2
 
 import airflow
 from airflow.gcp.operators.tasks import (
-    CloudTasksQueueCreateOperator,
-    CloudTasksTaskCreateOperator,
-    CloudTasksTaskRunOperator,
+    CloudTasksQueueCreateOperator, CloudTasksTaskCreateOperator, CloudTasksTaskRunOperator,
 )
 from airflow.models import DAG
 

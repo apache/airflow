@@ -22,14 +22,14 @@
 This module contains Google AutoML operators.
 """
 import ast
-from typing import Sequence, Tuple, Union, List, Dict, Optional
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
 
+from airflow.gcp.hooks.automl import CloudAutoMLHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.gcp.hooks.automl import CloudAutoMLHook
 
 MetaData = Sequence[Tuple[str, str]]
 

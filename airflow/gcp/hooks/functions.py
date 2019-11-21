@@ -20,20 +20,20 @@
 This module contains a Google Cloud Functions Hook.
 """
 import time
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 import requests
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 # noinspection PyAbstractClass
-class GcfHook(GoogleCloudBaseHook):
+class CloudFunctionsHook(GoogleCloudBaseHook):
     """
     Hook for the Google Cloud Functions APIs.
 

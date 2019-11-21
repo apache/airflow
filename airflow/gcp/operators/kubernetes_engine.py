@@ -24,14 +24,14 @@ This module contains Google Kubernetes Engine operators.
 import os
 import subprocess
 import tempfile
-from typing import Union, Dict, Optional
+from typing import Dict, Optional, Union
 
 from google.cloud.container_v1.types import Cluster
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-from airflow.gcp.hooks.kubernetes_engine import GKEClusterHook
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.kubernetes_engine import GKEClusterHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -230,7 +230,7 @@ class GKEPodOperator(KubernetesPodOperator):
                  project_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.location = location

@@ -16,9 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Airflow logging settings"""
 
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
 from airflow.configuration import conf
 from airflow.utils.file import mkdirs

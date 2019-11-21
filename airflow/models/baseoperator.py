@@ -19,25 +19,23 @@
 """
 Base operator for all operators.
 """
-from abc import ABCMeta, abstractmethod
 import copy
 import functools
 import logging
 import sys
 import warnings
-from datetime import timedelta, datetime
-from typing import Callable, Dict, Iterable, List, Optional, Set, Any, Union
-
-from dateutil.relativedelta import relativedelta
-
-from cached_property import cached_property
+from abc import ABCMeta, abstractmethod
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
 
 import jinja2
+from cached_property import cached_property
+from dateutil.relativedelta import relativedelta
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.lineage import prepare_lineage, apply_lineage, DataSet
+from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+from airflow.lineage import DataSet, apply_lineage, prepare_lineage
 from airflow.models.dag import DAG
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -83,6 +81,16 @@ class BaseOperator(LoggingMixin):
     :type task_id: str
     :param owner: the owner of the task, using the unix username is recommended
     :type owner: str
+    :param email: the 'to' email address(es) used in email alerts. This can be a
+        single email or multiple ones. Multiple addresses can be specified as a
+        comma or semi-colon separated string or by passing a list of strings.
+    :type email: str or list[str]
+    :param email_on_retry: Indicates whether email alerts should be sent when a
+        task is retried
+    :type email_on_retry: bool
+    :param email_on_failure: Indicates whether email alerts should be sent when
+        a task failed
+    :type email_on_failure: bool
     :param retries: the number of retries that should be performed before
         failing the task
     :type retries: int
@@ -158,6 +166,8 @@ class BaseOperator(LoggingMixin):
         DAGS. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
     :type weight_rule: str
+    :param queue: specifies which task queue to use
+    :type queue: str
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
     :type pool: str
@@ -229,8 +239,10 @@ class BaseOperator(LoggingMixin):
     # Defines which files extensions to look for in the templated fields
     template_ext = []  # type: Iterable[str]
     # Defines the color in the UI
-    ui_color = '#fff'  # type str
-    ui_fgcolor = '#000'  # type str
+    ui_color = '#fff'  # type: str
+    ui_fgcolor = '#000'  # type: str
+
+    pool = ""  # type: str
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs = ('user_defined_macros',
@@ -243,6 +255,9 @@ class BaseOperator(LoggingMixin):
 
     # Defines the operator level extra links
     operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
+
+    # Set at end of file
+    _serialized_fields = frozenset()  # type: FrozenSet[str]
 
     _comps = {
         'task_id',
@@ -272,10 +287,10 @@ class BaseOperator(LoggingMixin):
         self,
         task_id: str,
         owner: str = conf.get('operators', 'DEFAULT_OWNER'),
-        email: Optional[str] = None,
+        email: Optional[Union[str, Iterable[str]]] = None,
         email_on_retry: bool = True,
         email_on_failure: bool = True,
-        retries: Optional[int] = None,
+        retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
         max_retry_delay: Optional[datetime] = None,
@@ -308,11 +323,16 @@ class BaseOperator(LoggingMixin):
     ):
 
         if args or kwargs:
-            # TODO remove *args and **kwargs in Airflow 2.0
+            if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
+                raise AirflowException(
+                    "Invalid arguments were passed to {c} (task_id: {t}). Invalid "
+                    "arguments were:\n*args: {a}\n**kwargs: {k}".format(
+                        c=self.__class__.__name__, a=args, k=kwargs, t=task_id),
+                )
             warnings.warn(
                 'Invalid arguments were passed to {c} (task_id: {t}). '
                 'Support for passing such arguments will be dropped in '
-                'Airflow 2.0. Invalid arguments were:'
+                'future. Invalid arguments were:'
                 '\n*args: {a}\n**kwargs: {k}'.format(
                     c=self.__class__.__name__, a=args, k=kwargs, t=task_id),
                 category=PendingDeprecationWarning,
@@ -348,8 +368,7 @@ class BaseOperator(LoggingMixin):
         if wait_for_downstream:
             self.depends_on_past = True
 
-        self.retries = retries if retries is not None else \
-            conf.getint('core', 'default_task_retries', fallback=0)
+        self.retries = retries
         self.queue = queue
         self.pool = pool
         self.sla = sla
@@ -375,7 +394,7 @@ class BaseOperator(LoggingMixin):
                         d=dag.dag_id if dag else "", t=task_id, tr=weight_rule))
         self.weight_rule = weight_rule
 
-        self.resources = Resources(*resources) if resources is not None else None
+        self.resources = Resources(**resources) if resources is not None else None
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
@@ -511,6 +530,9 @@ class BaseOperator(LoggingMixin):
                 "The DAG assigned to {} can not be changed.".format(self))
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
+        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] != self:
+            raise DuplicateTaskIdFound(
+                "Task id '{}' has already been added to the DAG".format(self.task_id))
 
         self._dag = dag  # pylint: disable=attribute-defined-outside-init
 
@@ -569,7 +591,20 @@ class BaseOperator(LoggingMixin):
     @cached_property
     def operator_extra_link_dict(self):
         """Returns dictionary of all extra links for the operator"""
-        return {link.name: link for link in self.operator_extra_links}
+        from airflow.plugins_manager import operator_extra_links
+
+        op_extra_links_from_plugin = {}
+        for ope in operator_extra_links:
+            if ope.operators and self.__class__ in ope.operators:
+                op_extra_links_from_plugin.update({ope.name: ope})
+
+        operator_extra_links_all = {
+            link.name: link for link in self.operator_extra_links
+        }
+        # Extra links defined in Plugins overrides operator links defined in operator
+        operator_extra_links_all.update(op_extra_links_from_plugin)
+
+        return operator_extra_links_all
 
     @cached_property
     def global_operator_extra_link_dict(self):
@@ -1031,11 +1066,12 @@ class BaseOperator(LoggingMixin):
         """
         For an operator, gets the URL that the external links specified in
         `extra_links` should point to.
+
         :raise ValueError: The error message of a ValueError will be passed on through to
-        the fronted to show up as a tooltip on the disabled link
+            the fronted to show up as a tooltip on the disabled link
         :param dttm: The datetime parsed execution date for the URL being searched for
         :param link_name: The name of the link we're looking for the URL for. Should be
-        one of the options specified in `extra_links`
+            one of the options specified in `extra_links`
         :return: A URL
         """
         if link_name in self.operator_extra_link_dict:
@@ -1046,9 +1082,25 @@ class BaseOperator(LoggingMixin):
             return None
 
 
+# pylint: disable=protected-access
+BaseOperator._serialized_fields = frozenset(
+    vars(BaseOperator(task_id='test')).keys() - {
+        'inlets', 'outlets', '_upstream_task_ids', 'default_args'
+    } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
+)
+
+
 class BaseOperatorLink(metaclass=ABCMeta):
     """
     Abstract base class that defines how we get an operator link.
+    """
+
+    operators = []   # type: List[Type[BaseOperator]]
+    """
+    This property will be used by Airflow Plugins to find the Operators to which you want
+    to assign this Operator Link
+
+    :return: List of Operator classes used by task for which you want to create extra link
     """
 
     @property

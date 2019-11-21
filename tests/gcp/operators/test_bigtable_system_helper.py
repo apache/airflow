@@ -17,12 +17,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import argparse
 import os
 
-import argparse
-
-from tests.gcp.utils.gcp_authenticator import GcpAuthenticator, GCP_SPANNER_KEY
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
+from tests.gcp.utils.gcp_authenticator import GCP_SPANNER_KEY, GcpAuthenticator
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 CBT_INSTANCE = os.environ.get('CBT_INSTANCE_ID', 'testinstance')

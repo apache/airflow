@@ -48,17 +48,14 @@ This DAG relies on the following environment variables:
 """
 
 import json
-
 from os import getenv
 
 import airflow
 from airflow import models
-from airflow.gcp.operators.bigtable import \
-    BigtableInstanceCreateOperator, \
-    BigtableInstanceDeleteOperator, \
-    BigtableClusterUpdateOperator, \
-    BigtableTableCreateOperator, \
-    BigtableTableDeleteOperator
+from airflow.gcp.operators.bigtable import (
+    BigtableClusterUpdateOperator, BigtableInstanceCreateOperator, BigtableInstanceDeleteOperator,
+    BigtableTableCreateOperator, BigtableTableDeleteOperator,
+)
 from airflow.gcp.sensors.bigtable import BigtableTableWaitForReplicationSensor
 
 # [START howto_operator_gcp_bigtable_args]

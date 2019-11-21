@@ -19,13 +19,12 @@
 
 import io
 import unittest
+from unittest.mock import call, patch
 
 from airflow import AirflowException
+from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
 from airflow.models import Connection
 from airflow.utils import db
-from unittest.mock import patch, call
-
-from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
 
 
 class TestSparkSubmitHook(unittest.TestCase):

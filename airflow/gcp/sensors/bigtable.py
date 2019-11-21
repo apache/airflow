@@ -19,14 +19,15 @@
 """
 This module contains Google Cloud Bigtable sensor.
 """
+from typing import Optional
 
 import google.api_core.exceptions
-from google.cloud.bigtable_admin_v2 import enums
 from google.cloud.bigtable.table import ClusterState
+from google.cloud.bigtable_admin_v2 import enums
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.gcp.hooks.bigtable import BigtableHook
 from airflow.gcp.operators.bigtable import BigtableValidationMixin
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -53,12 +54,15 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
     template_fields = ['project_id', 'instance_id', 'table_id']
 
     @apply_defaults
-    def __init__(self,
-                 instance_id,
-                 table_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+    def __init__(
+        self,
+        instance_id: str,
+        table_id: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        *args,
+        **kwargs
+    ) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id

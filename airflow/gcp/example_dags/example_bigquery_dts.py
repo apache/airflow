@@ -23,20 +23,16 @@ Example Airflow DAG that creates and deletes Bigquery data transfer configuratio
 import os
 import time
 
-from google.protobuf.json_format import ParseDict
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
+from google.protobuf.json_format import ParseDict
 
 import airflow
 from airflow import models
 from airflow.gcp.operators.bigquery_dts import (
-    BigQueryCreateDataTransferOperator,
+    BigQueryCreateDataTransferOperator, BigQueryDataTransferServiceStartTransferRunsOperator,
     BigQueryDeleteDataTransferConfigOperator,
-    BigQueryDataTransferServiceStartTransferRunsOperator,
 )
-from airflow.gcp.sensors.bigquery_dts import (
-    BigQueryDataTransferServiceTransferRunSensor,
-)
-
+from airflow.gcp.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET_URI = os.environ.get(

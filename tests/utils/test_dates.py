@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime, timedelta
-import pendulum
 import unittest
+from datetime import datetime, timedelta
 
-from airflow.utils import dates
-from airflow.utils import timezone
+import pendulum
+
+from airflow.utils import dates, timezone
 
 
 class TestDates(unittest.TestCase):

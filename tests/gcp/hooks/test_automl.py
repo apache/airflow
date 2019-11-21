@@ -22,9 +22,8 @@ import unittest
 from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
 
 from airflow.gcp.hooks.automl import CloudAutoMLHook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 from tests.compat import mock
-
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"
 CLIENT_INFO = "client-info"

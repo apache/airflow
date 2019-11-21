@@ -18,12 +18,12 @@
 # under the License.
 
 import json
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
+from airflow.exceptions import AirflowException
+from airflow.hooks.slack_hook import SlackHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.hooks.slack_hook import SlackHook
-from airflow.exceptions import AirflowException
 
 
 class SlackAPIOperator(BaseOperator):
@@ -102,9 +102,12 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :param attachments: extra formatting details. (templated)
         - see https://api.slack.com/docs/attachments.
     :type attachments: list of hashes
+    :param blocks: extra block layouts. (templated)
+        - see https://api.slack.com/reference/block-kit/blocks.
+    :type blocks: list of hashes
     """
 
-    template_fields = ('username', 'text', 'attachments', 'channel')
+    template_fields = ('username', 'text', 'attachments', 'blocks', 'channel')
     ui_color = '#FFBA40'
 
     @apply_defaults
@@ -115,8 +118,9 @@ class SlackAPIPostOperator(SlackAPIOperator):
                              'Here is a cat video instead\n'
                              'https://www.youtube.com/watch?v=J---aiyznGQ',
                  icon_url: str = 'https://raw.githubusercontent.com/apache/'
-                                 'airflow/master/airflow/www/static/pin_100.jpg',
+                                 'airflow/master/airflow/www/static/pin_100.png',
                  attachments: Optional[List] = None,
+                 blocks: Optional[List] = None,
                  *args, **kwargs):
         self.method = 'chat.postMessage'
         self.channel = channel
@@ -124,6 +128,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
         self.text = text
         self.icon_url = icon_url
         self.attachments = attachments
+        self.blocks = blocks
         super().__init__(method=self.method,
                          *args, **kwargs)
 
@@ -134,4 +139,5 @@ class SlackAPIPostOperator(SlackAPIOperator):
             'text': self.text,
             'icon_url': self.icon_url,
             'attachments': json.dumps(self.attachments),
+            'blocks': json.dumps(self.blocks),
         }

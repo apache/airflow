@@ -18,19 +18,18 @@
 # under the License.
 
 import unittest
-from typing import List, Dict
+from typing import Dict, List
+
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import MaxVersionsGCRule
 from google.cloud.bigtable.instance import Instance
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.operators.bigtable import \
-    BigtableInstanceDeleteOperator, \
-    BigtableTableDeleteOperator, \
-    BigtableTableCreateOperator, \
-    BigtableClusterUpdateOperator, \
-    BigtableInstanceCreateOperator
+from airflow.gcp.operators.bigtable import (
+    BigtableClusterUpdateOperator, BigtableInstanceCreateOperator, BigtableInstanceDeleteOperator,
+    BigtableTableCreateOperator, BigtableTableDeleteOperator,
+)
 from tests.compat import mock
 
 PROJECT_ID = 'test_project_id'

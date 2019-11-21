@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+
 import google.api_core.exceptions
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState

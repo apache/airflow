@@ -25,12 +25,12 @@ import time
 import warnings
 from copy import deepcopy
 from datetime import timedelta
-from typing import Dict, List, Union, Set, Optional
+from typing import Dict, List, Optional, Set, Union
 
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 10
@@ -342,7 +342,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         return operations
 
     @GoogleCloudBaseHook.catch_http_exception
-    def pause_transfer_operation(self, operation_name: str):
+    def pause_transfer_operation(self, operation_name: str) -> None:
         """
         Pauses an transfer operation in Google Storage Transfer Service.
 
@@ -354,7 +354,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
             name=operation_name).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.catch_http_exception
-    def resume_transfer_operation(self, operation_name: str):
+    def resume_transfer_operation(self, operation_name: str) -> None:
         """
         Resumes an transfer operation in Google Storage Transfer Service.
 

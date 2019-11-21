@@ -19,12 +19,12 @@
 """
 This module contains Google Cloud Vision operators.
 """
-from typing import Dict, Union, Optional
+from typing import Dict, Optional, Union
 
 from google.api_core.retry import Retry
-from google.protobuf.json_format import MessageToDict
 from google.cloud.videointelligence_v1 import enums
 from google.cloud.videointelligence_v1.types import VideoContext
+from google.protobuf.json_format import MessageToDict
 
 from airflow.gcp.hooks.video_intelligence import CloudVideoIntelligenceHook
 from airflow.models import BaseOperator

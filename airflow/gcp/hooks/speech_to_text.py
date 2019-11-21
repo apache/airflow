@@ -19,16 +19,16 @@
 """
 This module contains a Google Cloud Speech Hook.
 """
-from typing import Union, Dict, Optional
+from typing import Dict, Optional, Union
 
 from google.api_core.retry import Retry
 from google.cloud.speech_v1 import SpeechClient
-from google.cloud.speech_v1.types import RecognitionConfig, RecognitionAudio
+from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
-class GCPSpeechToTextHook(GoogleCloudBaseHook):
+class CloudSpeechToTextHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Speech API.
 
@@ -55,11 +55,12 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
             self._client = SpeechClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
+    @GoogleCloudBaseHook.quota_retry()
     def recognize_speech(
         self,
         config: Union[Dict, RecognitionConfig],
         audio: Union[Dict, RecognitionAudio],
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None
     ):
         """

@@ -22,10 +22,8 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.sensors.gcs import (  # noqa
-    GoogleCloudStorageObjectSensor,
-    GoogleCloudStorageObjectUpdatedSensor,
-    GoogleCloudStoragePrefixSensor,
-    GoogleCloudStorageUploadSessionCompleteSensor
+    GoogleCloudStorageObjectSensor, GoogleCloudStorageObjectUpdatedSensor, GoogleCloudStoragePrefixSensor,
+    GoogleCloudStorageUploadSessionCompleteSensor,
 )
 
 warnings.warn(

@@ -19,15 +19,12 @@
 #
 
 import unittest
-
-from airflow import DAG
-from airflow.models import TaskInstance
-
-from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
-from airflow.utils import timezone
-
 from datetime import timedelta
 
+from airflow import DAG
+from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
+from airflow.models import TaskInstance
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

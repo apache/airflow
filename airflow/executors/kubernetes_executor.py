@@ -17,30 +17,30 @@
 """Kubernetes executor"""
 import base64
 import hashlib
-from queue import Empty
-
-import re
 import json
 import multiprocessing
+import re
+from queue import Empty
+from typing import Union
 from uuid import uuid4
 
-from dateutil import parser
-
 import kubernetes
-from kubernetes import watch, client
+from dateutil import parser
+from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
-from airflow.kubernetes.pod_launcher import PodLauncher
-from airflow.kubernetes.kube_client import get_kube_client
-from airflow.kubernetes.worker_configuration import WorkerConfiguration
-from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.executors.base_executor import BaseExecutor
-from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
-from airflow.utils.state import State
-from airflow.utils.db import provide_session, create_session
+
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.executors.base_executor import BaseExecutor
+from airflow.kubernetes.kube_client import get_kube_client
+from airflow.kubernetes.pod_generator import PodGenerator
+from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.kubernetes.worker_configuration import WorkerConfiguration
+from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
 
 MAX_POD_ID_LEN = 253
 MAX_LABEL_LEN = 63
@@ -207,10 +207,10 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
 
     # pod security context items should return integers
     # and only return a blank string if contexts are not set.
-    def _get_security_context_val(self, scontext):
+    def _get_security_context_val(self, scontext: str) -> Union[str, int]:
         val = conf.get(self.kubernetes_section, scontext)
         if not val:
-            return 0
+            return ""
         else:
             return int(val)
 
@@ -460,11 +460,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
-        "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+        ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
 
         :param safe_dag_id: a dag_id with only alphanumeric characters
         :param safe_task_id: a task_id with only alphanumeric characters
-        :param random_uuid: a uuid
+        :param safe_uuid: a uuid
         :return: ``str`` valid Pod name of appropriate length
         """
         safe_key = safe_dag_id + safe_task_id
@@ -521,6 +521,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but
         not "_" let's
         replace ":" with "_"
+
         :param datetime_obj: datetime.datetime object
         :return: ISO-like string representing the datetime
         """
@@ -573,9 +574,28 @@ class AirflowKubernetesScheduler(LoggingMixin):
         )
         return None
 
+    def _flush_watcher_queue(self):
+        self.log.debug('Executor shutting down, watcher_queue approx. size=%d', self.watcher_queue.qsize())
+        while True:
+            try:
+                task = self.watcher_queue.get_nowait()
+                # Ignoring it since it can only have either FAILED or SUCCEEDED pods
+                self.log.warning('Executor shutting down, IGNORING watcher task=%s', task)
+                self.watcher_queue.task_done()
+            except Empty:
+                break
+
     def terminate(self):
         """Termninates the watcher."""
+        self.log.debug("Terminating kube_watcher...")
+        self.kube_watcher.terminate()
+        self.kube_watcher.join()
+        self.log.debug("kube_watcher=%s", self.kube_watcher)
+        self.log.debug("Flushing watcher_queue...")
+        self._flush_watcher_queue()
+        # Queue should be empty...
         self.watcher_queue.join()
+        self.log.debug("Shutting down manager...")
         self._manager.shutdown()
 
 
@@ -769,9 +789,45 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.log.debug('Could not find key: %s', str(key))
         self.event_buffer[key] = state
 
+    def _flush_task_queue(self):
+        self.log.debug('Executor shutting down, task_queue approximate size=%d', self.task_queue.qsize())
+        while True:
+            try:
+                task = self.task_queue.get_nowait()
+                # This is a new task to run thus ok to ignore.
+                self.log.warning('Executor shutting down, will NOT run task=%s', task)
+                self.task_queue.task_done()
+            except Empty:
+                break
+
+    def _flush_result_queue(self):
+        self.log.debug('Executor shutting down, result_queue approximate size=%d', self.result_queue.qsize())
+        while True:  # pylint: disable=too-many-nested-blocks
+            try:
+                results = self.result_queue.get_nowait()
+                self.log.warning('Executor shutting down, flushing results=%s', results)
+                try:
+                    key, state, pod_id, resource_version = results
+                    self.log.info('Changing state of %s to %s : resource_version=%d', results, state,
+                                  resource_version)
+                    try:
+                        self._change_state(key, state, pod_id)
+                    except Exception as e:  # pylint: disable=broad-except
+                        self.log.exception('Ignoring exception: %s when attempting to change state of %s '
+                                           'to %s.', e, results, state)
+                finally:
+                    self.result_queue.task_done()
+            except Empty:
+                break
+
     def end(self):
         """Called when the executor shuts down"""
         self.log.info('Shutting down Kubernetes executor')
+        self.log.debug('Flushing task_queue...')
+        self._flush_task_queue()
+        self.log.debug('Flushing result_queue...')
+        self._flush_result_queue()
+        # Both queues should be empty...
         self.task_queue.join()
         self.result_queue.join()
         if self.kube_scheduler:

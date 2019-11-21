@@ -18,6 +18,7 @@
 # under the License.
 
 from typing import Any
+
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 

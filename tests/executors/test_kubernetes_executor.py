@@ -16,15 +16,17 @@
 # under the License.
 #
 
-from datetime import datetime
-import unittest
+import random
 import re
 import string
-import random
+import unittest
+from datetime import datetime
+
 from urllib3 import HTTPResponse
 
 from tests.compat import mock
 from tests.test_utils.config import conf_vars
+
 try:
     from kubernetes.client.rest import ApiException
     from airflow.executors.kubernetes_executor import AirflowKubernetesScheduler
@@ -134,6 +136,32 @@ class TestKubeConfig(unittest.TestCase):
     def test_kube_config_no_worker_annotations(self):
         annotations = KubeConfig().kube_annotations
         self.assertIsNone(annotations)
+
+    @conf_vars({
+        ('kubernetes', 'git_repo'): 'foo',
+        ('kubernetes', 'git_branch'): 'foo',
+        ('kubernetes', 'git_dags_folder_mount_point'): 'foo',
+        ('kubernetes', 'git_sync_run_as_user'): '0',
+    })
+    def test_kube_config_git_sync_run_as_user_root(self):
+        self.assertEqual(KubeConfig().git_sync_run_as_user, 0)
+
+    @conf_vars({
+        ('kubernetes', 'git_repo'): 'foo',
+        ('kubernetes', 'git_branch'): 'foo',
+        ('kubernetes', 'git_dags_folder_mount_point'): 'foo',
+    })
+    def test_kube_config_git_sync_run_as_user_not_present(self):
+        self.assertEqual(KubeConfig().git_sync_run_as_user, 65533)
+
+    @conf_vars({
+        ('kubernetes', 'git_repo'): 'foo',
+        ('kubernetes', 'git_branch'): 'foo',
+        ('kubernetes', 'git_dags_folder_mount_point'): 'foo',
+        ('kubernetes', 'git_sync_run_as_user'): '',
+    })
+    def test_kube_config_git_sync_run_as_user_empty_string(self):
+        self.assertEqual(KubeConfig().git_sync_run_as_user, '')
 
 
 class TestKubernetesExecutor(unittest.TestCase):

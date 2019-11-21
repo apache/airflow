@@ -19,14 +19,14 @@
 from typing import Optional, cast
 
 from sqlalchemy import (
-    Column, Integer, String, Boolean, PickleType, Index, UniqueConstraint, func, DateTime, or_,
-    and_
+    Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
+
 from airflow.exceptions import AirflowException
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
@@ -106,6 +106,7 @@ class DagRun(Base, LoggingMixin):
     def refresh_from_db(self, session=None):
         """
         Reloads the current dagrun from the database
+
         :param session: database session
         """
         DR = DagRun
@@ -131,7 +132,7 @@ class DagRun(Base, LoggingMixin):
 
         :param dag_id: the dag_id to find dag runs for
         :type dag_id: int, list
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
         :type execution_date: datetime.datetime
@@ -385,8 +386,7 @@ class DagRun(Base, LoggingMixin):
                         "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                     ti.state = State.REMOVED
 
-            is_task_in_dag = task is not None
-            should_restore_task = is_task_in_dag and ti.state == State.REMOVED
+            should_restore_task = (task is not None) and ti.state == State.REMOVED
             if should_restore_task:
                 self.log.info("Restoring task '{}' which was previously "
                               "removed from DAG '{}'".format(ti, dag))

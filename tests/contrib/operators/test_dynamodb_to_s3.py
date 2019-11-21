@@ -18,9 +18,9 @@
 # under the License.
 #
 
-from multiprocessing import SimpleQueue
 import unittest
-from unittest.mock import patch, MagicMock
+from multiprocessing import SimpleQueue
+from unittest.mock import MagicMock, patch
 
 from boto.compat import json  # type: ignore
 

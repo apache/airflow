@@ -17,18 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import logging
+import unittest
 
 from airflow.exceptions import AirflowException
+from tests.compat import mock
+
 try:
     from airflow.operators.docker_operator import DockerOperator
     from airflow.hooks.docker_hook import DockerHook
     from docker import APIClient
 except ImportError:
     pass
-
-from tests.compat import mock
 
 
 class TestDockerOperator(unittest.TestCase):
@@ -53,7 +53,8 @@ class TestDockerOperator(unittest.TestCase):
                                   image='ubuntu:latest', network_mode='bridge', owner='unittest',
                                   task_id='unittest', volumes=['/host/path:/container/path'],
                                   working_dir='/container/path', shm_size=1000,
-                                  host_tmp_dir='/host/airflow', container_name='test_container')
+                                  host_tmp_dir='/host/airflow', container_name='test_container',
+                                  tty=True)
         operator.execute(None)
 
         client_class_mock.assert_called_once_with(base_url='unix://var/run/docker.sock', tls=None,
@@ -68,7 +69,8 @@ class TestDockerOperator(unittest.TestCase):
                                                              host_config=host_config,
                                                              image='ubuntu:latest',
                                                              user=None,
-                                                             working_dir='/container/path'
+                                                             working_dir='/container/path',
+                                                             tty=True
                                                              )
         client_mock.create_host_config.assert_called_once_with(binds=['/host/path:/container/path',
                                                                       '/mkdtemp:/tmp/airflow'],

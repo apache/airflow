@@ -18,11 +18,11 @@
 # under the License.
 #
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from airflow import configuration, models
-from airflow.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer
 from airflow.models.xcom import MAX_XCOM_SIZE
+from airflow.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer
 from airflow.utils import db
 
 

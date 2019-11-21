@@ -18,30 +18,23 @@
 # under the License.
 
 import unittest
-from unittest.mock import MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock
 
 from airflow import models
-from airflow.gcp.operators.bigquery import (
-    BigQueryCreateExternalTableOperator,
-    BigQueryCreateEmptyTableOperator,
-    BigQueryDeleteDatasetOperator,
-    BigQueryCreateEmptyDatasetOperator,
-    BigQueryOperator,
-    BigQueryConsoleLink,
-    BigQueryGetDatasetOperator,
-    BigQueryPatchDatasetOperator,
-    BigQueryUpdateDatasetOperator,
-    BigQueryTableDeleteOperator,
-    BigQueryGetDataOperator
-)
 from airflow.exceptions import AirflowException
+from airflow.gcp.operators.bigquery import (
+    BigQueryConsoleLink, BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator,
+    BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator, BigQueryGetDataOperator,
+    BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator, BigQueryOperator,
+    BigQueryPatchDatasetOperator, BigQueryTableDeleteOperator, BigQueryUpdateDatasetOperator,
+)
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
 from airflow.settings import Session
 from airflow.utils.db import provide_session
 from tests.compat import mock
 
-TASK_ID = 'test-bq-create-table-operator'
+TASK_ID = 'test-bq-generic-operator'
 TEST_DATASET = 'test-dataset'
 TEST_DATASET_LOCATION = 'EU'
 TEST_GCP_PROJECT_ID = 'test-project'
@@ -565,4 +558,27 @@ class TestBigQueryTableDeleteOperator(unittest.TestCase):
             .assert_called_once_with(
                 deletion_dataset_table=deletion_dataset_table,
                 ignore_if_missing=ignore_if_missing
+            )
+
+
+class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
+    def test_execute(self, mock_hook):
+        operator = BigQueryGetDatasetTablesOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_GCP_PROJECT_ID,
+            max_results=2
+        )
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .get_conn.return_value \
+            .cursor.return_value \
+            .get_dataset_tables \
+            .assert_called_once_with(
+                dataset_id=TEST_DATASET,
+                project_id=TEST_GCP_PROJECT_ID,
+                max_results=2,
+                page_token=None
             )

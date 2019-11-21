@@ -17,32 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.vision`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.vision`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.vision import (  # noqa
-    CloudVisionAddProductToProductSetOperator,
-    CloudVisionAnnotateImageOperator,
-    CloudVisionDetectDocumentTextOperator,
-    CloudVisionDetectImageLabelsOperator,
-    CloudVisionDetectImageSafeSearchOperator,
-    CloudVisionDetectTextOperator,
-    CloudVisionProductCreateOperator,
-    CloudVisionProductDeleteOperator,
-    CloudVisionProductGetOperator,
-    CloudVisionProductSetCreateOperator,
-    CloudVisionProductSetDeleteOperator,
-    CloudVisionProductSetGetOperator,
-    CloudVisionProductSetUpdateOperator,
-    CloudVisionProductUpdateOperator,
-    CloudVisionReferenceImageCreateOperator,
-    CloudVisionRemoveProductFromProductSetOperator,
+from airflow.providers.google.cloud.operators.vision import (  # noqa
+    CloudVisionAddProductToProductSetOperator, CloudVisionAnnotateImageOperator,
+    CloudVisionDetectDocumentTextOperator, CloudVisionDetectImageLabelsOperator,
+    CloudVisionDetectImageSafeSearchOperator, CloudVisionDetectTextOperator, CloudVisionProductCreateOperator,
+    CloudVisionProductDeleteOperator, CloudVisionProductGetOperator, CloudVisionProductSetCreateOperator,
+    CloudVisionProductSetDeleteOperator, CloudVisionProductSetGetOperator,
+    CloudVisionProductSetUpdateOperator, CloudVisionProductUpdateOperator,
+    CloudVisionReferenceImageCreateOperator, CloudVisionRemoveProductFromProductSetOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.vision`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.vision`.",
     DeprecationWarning, stacklevel=2
 )

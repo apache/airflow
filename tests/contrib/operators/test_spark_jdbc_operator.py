@@ -21,7 +21,6 @@
 import unittest
 
 from airflow import DAG
-
 from airflow.contrib.operators.spark_jdbc_operator import SparkJDBCOperator
 from airflow.utils import timezone
 

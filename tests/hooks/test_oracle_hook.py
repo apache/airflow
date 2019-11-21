@@ -21,15 +21,16 @@ import json
 import unittest
 from datetime import datetime
 
-try:
-    import cx_Oracle
-except ImportError:
-    cx_Oracle = None
 import numpy
 
 from airflow.hooks.oracle_hook import OracleHook
 from airflow.models import Connection
 from tests.compat import mock
+
+try:
+    import cx_Oracle
+except ImportError:
+    cx_Oracle = None
 
 
 @unittest.skipIf(cx_Oracle is None, 'cx_Oracle package not present')

@@ -19,11 +19,10 @@
 import warnings
 from tempfile import NamedTemporaryFile
 
-from airflow.gcp.hooks.gcs import (GoogleCloudStorageHook,
-                                   _parse_gcs_url)
 from airflow.contrib.operators.s3_list_operator import S3ListOperator
 from airflow.exceptions import AirflowException
-from airflow.hooks.S3_hook import S3Hook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 

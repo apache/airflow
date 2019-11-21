@@ -19,17 +19,17 @@
 
 import unittest
 
-from airflow.configuration import conf
+import boto3
+from moto import mock_s3
+
 from airflow import models
+from airflow.configuration import conf
 from airflow.contrib.operators.s3_to_sftp_operator import S3ToSFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-import boto3
-from moto import mock_s3
-
 
 TASK_ID = 'test_s3_to_sftp'
 BUCKET = 'test-s3-bucket'
@@ -61,7 +61,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
     @mock_s3
     def setUp(self):
         from airflow.contrib.hooks.ssh_hook import SSHHook
-        from airflow.hooks.S3_hook import S3Hook
+        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
         hook = SSHHook(ssh_conn_id='ssh_default')
         s3_hook = S3Hook('aws_default')

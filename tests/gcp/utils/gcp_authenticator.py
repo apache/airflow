@@ -16,14 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional  # noqa: W0611
 import json
 import os
 import subprocess
+from typing import Optional  # noqa: W0611
 
-from airflow import settings, AirflowException
+from airflow import AirflowException, settings
 from airflow.models import Connection
-
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 # Please keep these variables in alphabetical order.
@@ -37,6 +36,7 @@ GCP_COMPUTE_KEY = 'gcp_compute.json'
 GCP_DATAFLOW_KEY = 'gcp_dataflow.json'
 GCP_DATAPROC_KEY = 'gcp_dataproc.json'
 GCP_DATASTORE_KEY = 'gcp_datastore.json'
+GCP_DISPLAY_VIDEO_KEY = 'google_display_video.json'
 GCP_DLP_KEY = 'gcp_dlp.json'
 GCP_FUNCTION_KEY = 'gcp_function.json'
 GCP_GCS_KEY = 'gcp_gcs.json'
@@ -44,9 +44,10 @@ GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
 GCP_GKE_KEY = "gcp_gke.json"
 GCP_MEMORYSTORE = 'gcp_memorystore.json'
 GCP_PUBSUB_KEY = "gcp_pubsub.json"
+GCP_SEARCHADS_KEY = "google_search_ads.json"
 GCP_SPANNER_KEY = 'gcp_spanner.json'
 GCP_TASKS_KEY = 'gcp_tasks.json'
-
+GOOGLE_CAMPAIGN_MANAGER_KEY = 'google_campaign_manager.json'
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'

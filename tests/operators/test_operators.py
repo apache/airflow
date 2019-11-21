@@ -17,14 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
+import unittest
+from collections import OrderedDict
+from unittest import mock
+
 from airflow import DAG, configuration, operators
 from airflow.utils import timezone
-
-from collections import OrderedDict
-
-import os
-from unittest import mock
-import unittest
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

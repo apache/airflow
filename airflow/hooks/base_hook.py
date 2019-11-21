@@ -21,8 +21,8 @@ import os
 import random
 from typing import Iterable
 
-from airflow.models import Connection
 from airflow.exceptions import AirflowException
+from airflow.models import Connection
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -65,8 +65,8 @@ class BaseHook(LoggingMixin):
         """
         Get all connections as an iterable.
 
-        :param conn_id connection id
-        :return array of connections
+        :param conn_id: connection id
+        :return: array of connections
         """
         conn = cls._get_connection_from_env(conn_id)
         if conn:
@@ -80,8 +80,8 @@ class BaseHook(LoggingMixin):
         """
         Get random connection selected from all connections configured with this connection id.
 
-        :param conn_id connection id
-        :return connection
+        :param conn_id: connection id
+        :return: connection
         """
         conn = random.choice(list(cls.get_connections(conn_id)))
         if conn.host:
@@ -93,6 +93,7 @@ class BaseHook(LoggingMixin):
     def get_hook(cls, conn_id: str) -> "BaseHook":
         """
         Returns default hook for this connection id.
+
         :param conn_id: connection id
         :return: default hook for this connection
         """

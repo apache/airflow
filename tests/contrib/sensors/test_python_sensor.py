@@ -25,7 +25,6 @@ from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.utils.timezone import datetime
 
-
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'python_sensor_dag'
 

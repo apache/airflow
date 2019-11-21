@@ -18,8 +18,7 @@
 # under the License.
 
 import unittest
-
-from unittest.mock import patch, PropertyMock
+from unittest.mock import PropertyMock, patch
 
 from airflow.operators.hive_to_mysql import HiveToMySqlTransfer
 from airflow.utils.operator_helpers import context_to_airflow_vars

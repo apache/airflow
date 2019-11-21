@@ -28,8 +28,8 @@ from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 
 from airflow.hooks.mysql_hook import MySqlHook
-from airflow.utils.decorators import apply_defaults
 from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class MySqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
@@ -119,6 +119,6 @@ class MySqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
             return value.total_seconds()
         if isinstance(value, Decimal):
             return float(value)
-        if schema_type == "BYTES":
+        if isinstance(value, bytes) or schema_type == "BYTES":
             return base64.standard_b64encode(value).decode('ascii')
         return value

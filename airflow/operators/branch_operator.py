@@ -18,7 +18,7 @@
 # under the License.
 """Branching operators"""
 
-from typing import Union, Iterable, Dict
+from typing import Dict, Iterable, Union
 
 from airflow.models import BaseOperator, SkipMixin
 

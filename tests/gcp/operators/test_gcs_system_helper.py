@@ -26,6 +26,7 @@ BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket-2")
 
 PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
 PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
+PATH_TO_TRANSFORM_SCRIPT = os.environ.get('GCP_GCS_PATH_TO_TRANSFORM_SCRIPT', 'test.py')
 
 
 class GcsSystemTestHelper(LoggingCommandExecutor):
@@ -35,10 +36,24 @@ class GcsSystemTestHelper(LoggingCommandExecutor):
         with open(PATH_TO_UPLOAD_FILE, "w+") as file:
             file.writelines(["This is a test file"])
 
+        # Create script for transform operator
+        with open(PATH_TO_TRANSFORM_SCRIPT, "w+") as file:
+            file.write("""import sys
+source = sys.argv[1]
+destination = sys.argv[2]
+
+print('running script')
+with open(source, "r") as src, open(destination, "w+") as dest:
+    lines = [l.upper() for l in src.readlines()]
+    print(lines)
+    dest.writelines(lines)
+    """)
+
     @staticmethod
     def remove_test_files():
         os.remove(PATH_TO_UPLOAD_FILE)
         os.remove(PATH_TO_SAVED_FILE)
+        os.remove(PATH_TO_TRANSFORM_SCRIPT)
 
     def remove_bucket(self):
         self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET_1)])

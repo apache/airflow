@@ -112,7 +112,7 @@ function _comp_run_tests {
 
         if [[ -f ${ALL_TESTS_FILE} ]]; then
             while IFS='' read -r LINE; do COMPREPLY+=("$LINE"); done \
-                < <(compgen -W "$(cat "${ALL_TESTS_FILE}")" -- "${LAST_COMMAND_PREFIX}")
+                < <(compgen -W "$(grep -ve '^#' <"${ALL_TESTS_FILE}")" -- "${LAST_COMMAND_PREFIX}")
         fi
     fi
 }

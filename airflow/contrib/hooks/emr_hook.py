@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.exceptions import AirflowException
 
 
 class EmrHook(AwsHook):

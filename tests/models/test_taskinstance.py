@@ -20,13 +20,15 @@
 import datetime
 import time
 import unittest
-from unittest.mock import patch, mock_open
 import urllib
-from typing import Union, List
+from typing import List, Union
+from unittest.mock import mock_open, patch
+
 import pendulum
 from freezegun import freeze_time
-from parameterized import parameterized, param
+from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
+
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
@@ -40,11 +42,10 @@ from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNI
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
-from airflow.utils.db import provide_session
 
 
 class TestTaskInstance(unittest.TestCase):
@@ -665,6 +666,71 @@ class TestTaskInstance(unittest.TestCase):
         done, fail = True, False
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
+    @patch.object(TI, 'pool_full')
+    def test_reschedule_handling_clear_reschedules(self, mock_pool_full):
+        """
+        Test that task reschedules clearing are handled properly
+        """
+        # Return values of the python sensor callable, modified during tests
+        done = False
+        fail = False
+
+        def callable():
+            if fail:
+                raise AirflowException()
+            return done
+
+        dag = models.DAG(dag_id='test_reschedule_handling')
+        task = PythonSensor(
+            task_id='test_reschedule_handling_sensor',
+            poke_interval=0,
+            mode='reschedule',
+            python_callable=callable,
+            retries=1,
+            retry_delay=datetime.timedelta(seconds=0),
+            dag=dag,
+            owner='airflow',
+            pool='test_pool',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        self.assertEqual(ti._try_number, 0)
+        self.assertEqual(ti.try_number, 1)
+
+        def run_ti_and_assert(run_date, expected_start_date, expected_end_date,
+                              expected_duration,
+                              expected_state, expected_try_number,
+                              expected_task_reschedule_count):
+            with freeze_time(run_date):
+                try:
+                    ti.run()
+                except AirflowException:
+                    if not fail:
+                        raise
+            ti.refresh_from_db()
+            self.assertEqual(ti.state, expected_state)
+            self.assertEqual(ti._try_number, expected_try_number)
+            self.assertEqual(ti.try_number, expected_try_number + 1)
+            self.assertEqual(ti.start_date, expected_start_date)
+            self.assertEqual(ti.end_date, expected_end_date)
+            self.assertEqual(ti.duration, expected_duration)
+            trs = TaskReschedule.find_for_task_instance(ti)
+            self.assertEqual(len(trs), expected_task_reschedule_count)
+
+        date1 = timezone.utcnow()
+
+        done, fail = False, False
+        run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 0, 1)
+
+        # Clear the task instance.
+        dag.clear()
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.NONE)
+        self.assertEqual(ti._try_number, 0)
+        # Check that reschedules for ti have also been cleared.
+        trs = TaskReschedule.find_for_task_instance(ti)
+        self.assertFalse(trs)
+
     def test_depends_on_past(self):
         dag = DAG(
             dag_id='test_depends_on_past',
@@ -803,7 +869,7 @@ class TestTaskInstance(unittest.TestCase):
         # Pull the values pushed by both tasks
         result = ti1.xcom_pull(
             task_ids=['test_xcom_1', 'test_xcom_2'], key='foo')
-        self.assertEqual(result, ('bar', 'baz'))
+        self.assertEqual(result, ['baz', 'bar'])
 
     def test_xcom_pull_after_success(self):
         """

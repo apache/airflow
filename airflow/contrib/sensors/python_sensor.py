@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.operators.python_operator import PythonOperator
+from typing import Callable, Dict, List, Optional
 
+from airflow.operators.python_operator import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from typing import Optional, Dict, Callable, List
 
 
 class PythonSensor(BaseSensorOperator):
@@ -30,7 +30,7 @@ class PythonSensor(BaseSensorOperator):
     User could put input argument in templates_dict
     e.g ``templates_dict = {'start_ds': 1970}``
     and access the argument by calling ``kwargs['templates_dict']['start_ds']``
-    in the the callable
+    in the callable
 
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable

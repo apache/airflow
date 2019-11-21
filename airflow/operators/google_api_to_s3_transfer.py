@@ -23,12 +23,11 @@ This module allows you to transfer data from any Google API endpoint into a S3 B
 import json
 import sys
 
+from airflow.gcp.hooks.discovery_api import GoogleDiscoveryApiHook
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
-
-from airflow.gcp.hooks.discovery_api import GoogleDiscoveryApiHook
-from airflow.hooks.S3_hook import S3Hook
 
 
 class GoogleApiToS3Transfer(BaseOperator):
@@ -69,11 +68,11 @@ class GoogleApiToS3Transfer(BaseOperator):
     :param s3_overwrite: Specifies whether the s3 file will be overwritten if exists.
     :type s3_overwrite: bool
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param aws_conn_id: The connection id specifying the authentication information for the S3 Bucket.
     :type aws_conn_id: str
     """

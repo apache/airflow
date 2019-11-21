@@ -20,15 +20,16 @@ import json
 import os
 import unittest
 
-from parameterized import parameterized
 from google.auth.environment_vars import CREDENTIALS
+from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.operators.kubernetes_engine import GKEClusterCreateOperator, \
-    GKEClusterDeleteOperator, GKEPodOperator
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+from airflow.gcp.operators.kubernetes_engine import (
+    GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
+)
 from airflow.models import Connection
-from tests.compat import mock, PropertyMock
+from tests.compat import PropertyMock, mock
 
 TEST_GCP_PROJECT_ID = 'test-id'
 PROJECT_LOCATION = 'test-location'
@@ -144,8 +145,6 @@ class TestGKEPodOperator(unittest.TestCase):
                                      name=TASK_NAME,
                                      namespace=NAMESPACE,
                                      image=IMAGE)
-        if CREDENTIALS in os.environ:
-            del os.environ[CREDENTIALS]
 
     def test_template_fields(self):
         self.assertTrue(set(KubernetesPodOperator.template_fields).issubset(

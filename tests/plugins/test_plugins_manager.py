@@ -19,7 +19,6 @@
 
 import unittest
 
-
 from airflow.www import app as application
 
 

@@ -18,8 +18,9 @@
 # under the License.
 
 import unittest
-from unittest.mock import MagicMock, patch
 from datetime import datetime
+from unittest.mock import MagicMock, patch
+
 from dateutil.tz import tzlocal
 
 from airflow import AirflowException
@@ -180,7 +181,7 @@ class TestEmrStepSensor(unittest.TestCase):
         self.emr_client_mock = MagicMock()
         self.sensor = EmrStepSensor(
             task_id='test_task',
-            poke_interval=1,
+            poke_interval=0,
             job_flow_id='j-8989898989',
             step_id='s-VK57YR1Z9Z5N',
             aws_conn_id='aws_default',

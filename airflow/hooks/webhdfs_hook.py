@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Web HDFS"""
-from hdfs import InsecureClient, HdfsError
+from hdfs import HdfsError, InsecureClient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException

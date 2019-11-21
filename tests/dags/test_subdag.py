@@ -22,7 +22,7 @@
 A DAG with subdag for testing purpose.
 """
 
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator

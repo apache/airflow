@@ -20,9 +20,9 @@
 import contextlib
 import os
 import re
+import socket
 import subprocess
 import time
-import socket
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
@@ -447,9 +447,9 @@ class HiveCliHook(BaseHook):
                 tprops = ", ".join(
                     ["'{0}'='{1}'".format(k, v) for k, v in tblproperties.items()])
                 hql += "TBLPROPERTIES({tprops})\n".format(tprops=tprops)
-        hql += ";"
-        self.log.info(hql)
-        self.run_cli(hql)
+            hql += ";"
+            self.log.info(hql)
+            self.run_cli(hql)
         hql = "LOAD DATA LOCAL INPATH '{filepath}' ".format(filepath=filepath)
         if overwrite:
             hql += "OVERWRITE "

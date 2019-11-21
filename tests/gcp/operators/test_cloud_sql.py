@@ -19,18 +19,18 @@
 
 # pylint: disable=too-many-lines
 
-import json
 import os
 import unittest
 
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.operators.cloud_sql import CloudSqlInstanceCreateOperator, \
-    CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator, \
-    CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
-    CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator, \
-    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlQueryOperator
+from airflow.gcp.operators.cloud_sql import (
+    CloudSqlInstanceCreateOperator, CloudSqlInstanceDatabaseCreateOperator,
+    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceDatabasePatchOperator,
+    CloudSqlInstanceDeleteOperator, CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator,
+    CloudSqlInstancePatchOperator, CloudSqlQueryOperator,
+)
 from airflow.models import Connection
 from tests.compat import mock
 
@@ -770,211 +770,6 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         self.assertIn(message, str(err))
 
     @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_correct_parameters_postgres(self, get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
-              "project_id=example-project&location=europe-west1&instance=testdb&" \
-              "use_proxy=False&use_ssl=False"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('postgres', conn.conn_type)
-        self.assertEqual('127.0.0.1', conn.host)
-        self.assertEqual(3200, conn.port)
-        self.assertEqual('testdb', conn.schema)
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_correct_parameters_postgres_ssl(self, get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
-              "project_id=example-project&location=europe-west1&instance=testdb&" \
-              "use_proxy=False&use_ssl=True&sslcert=/bin/bash&" \
-              "sslkey=/bin/bash&sslrootcert=/bin/bash"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('postgres', conn.conn_type)
-        self.assertEqual('127.0.0.1', conn.host)
-        self.assertEqual(3200, conn.port)
-        self.assertEqual('testdb', conn.schema)
-        self.assertEqual('/bin/bash', conn.extra_dejson['sslkey'])
-        self.assertEqual('/bin/bash', conn.extra_dejson['sslcert'])
-        self.assertEqual('/bin/bash', conn.extra_dejson['sslrootcert'])
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_correct_parameters_postgres_proxy_socket(
-            self, get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
-              "project_id=example-project&location=europe-west1&instance=testdb&" \
-              "use_proxy=True&sql_proxy_use_tcp=False"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('postgres', conn.conn_type)
-        self.assertIn('/tmp', conn.host)
-        self.assertIn('example-project:europe-west1:testdb', conn.host)
-        self.assertIsNone(conn.port)
-        self.assertEqual('testdb', conn.schema)
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_correct_parameters_project_id_missing(self,
-                                                                        get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
-              "location=europe-west1&instance=testdb&" \
-              "use_proxy=False&use_ssl=False"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('mysql', conn.conn_type)
-        self.assertEqual('127.0.0.1', conn.host)
-        self.assertEqual(3200, conn.port)
-        self.assertEqual('testdb', conn.schema)
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_correct_parameters_postgres_proxy_tcp(self,
-                                                                        get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
-              "project_id=example-project&location=europe-west1&instance=testdb&" \
-              "use_proxy=True&sql_proxy_use_tcp=True"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('postgres', conn.conn_type)
-        self.assertEqual('127.0.0.1', conn.host)
-        self.assertNotEqual(3200, conn.port)
-        self.assertEqual('testdb', conn.schema)
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_correct_parameters_mysql(self, get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
-            "project_id=example-project&location=europe-west1&instance=testdb&" \
-            "use_proxy=False&use_ssl=False"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('mysql', conn.conn_type)
-        self.assertEqual('127.0.0.1', conn.host)
-        self.assertEqual(3200, conn.port)
-        self.assertEqual('testdb', conn.schema)
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_correct_parameters_mysql_ssl(self, get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
-              "project_id=example-project&location=europe-west1&instance=testdb&" \
-              "use_proxy=False&use_ssl=True&sslcert=/bin/bash&" \
-              "sslkey=/bin/bash&sslrootcert=/bin/bash"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('mysql', conn.conn_type)
-        self.assertEqual('127.0.0.1', conn.host)
-        self.assertEqual(3200, conn.port)
-        self.assertEqual('testdb', conn.schema)
-        self.assertEqual('/bin/bash', json.loads(conn.extra_dejson['ssl'])['cert'])
-        self.assertEqual('/bin/bash', json.loads(conn.extra_dejson['ssl'])['key'])
-        self.assertEqual('/bin/bash', json.loads(conn.extra_dejson['ssl'])['ca'])
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_correct_parameters_mysql_proxy_socket(self,
-                                                                        get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
-              "project_id=example-project&location=europe-west1&instance=testdb&" \
-              "use_proxy=True&sql_proxy_use_tcp=False"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('mysql', conn.conn_type)
-        self.assertEqual('localhost', conn.host)
-        self.assertIn('/tmp', conn.extra_dejson['unix_socket'])
-        self.assertIn('example-project:europe-west1:testdb',
-                      conn.extra_dejson['unix_socket'])
-        self.assertIsNone(conn.port)
-        self.assertEqual('testdb', conn.schema)
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_correct_parameters_mysql_tcp(self, get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&" \
-              "project_id=example-project&location=europe-west1&instance=testdb&" \
-              "use_proxy=True&sql_proxy_use_tcp=True"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('mysql', conn.conn_type)
-        self.assertEqual('127.0.0.1', conn.host)
-        self.assertNotEqual(3200, conn.port)
-        self.assertEqual('testdb', conn.schema)
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
     def test_create_operator_with_too_long_unix_socket_path(self, get_connections):
         uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
               "project_id=example-project&location=europe-west1&" \
@@ -991,57 +786,3 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
             operator.execute(None)
         err = cm.exception
         self.assertIn("The UNIX socket path length cannot exceed", str(err))
-
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_create_operator_with_not_too_long_unix_socket_path(self, get_connections):
-        uri = "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&" \
-              "project_id=example-project&location=europe-west1&" \
-              "instance=" \
-              "test_db_with_longname_but_with_limit_of_UNIX_socket&" \
-              "use_proxy=True&sql_proxy_use_tcp=False"
-        self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        operator.cloudsql_db_hook.create_connection()
-        try:
-            db_hook = operator.cloudsql_db_hook.get_database_hook()
-            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]  # pylint: disable=no-member
-        finally:
-            operator.cloudsql_db_hook.delete_connection()
-        self.assertEqual('postgres', conn.conn_type)
-        self.assertEqual('testdb', conn.schema)
-
-    @mock.patch("airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook."
-                "delete_connection")
-    @mock.patch("airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook."
-                "get_connection")
-    @mock.patch("airflow.hooks.mysql_hook.MySqlHook.run")
-    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
-    def test_cloudsql_hook_delete_connection_on_exception(
-            self, get_connections, run, get_connection, delete_connection):
-        connection = Connection()
-        connection.parse_from_uri(
-            "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&"
-            "project_id=example-project&location=europe-west1&instance=testdb&"
-            "use_proxy=False")
-        get_connection.return_value = connection
-
-        db_connection = Connection()
-        db_connection.host = "127.0.0.1"
-        db_connection.set_extra(json.dumps({"project_id": "example-project",
-                                            "location": "europe-west1",
-                                            "instance": "testdb",
-                                            "database_type": "mysql"}))
-        get_connections.return_value = [db_connection]
-        run.side_effect = Exception("Exception when running a query")
-        operator = CloudSqlQueryOperator(
-            sql=['SELECT * FROM TABLE'],
-            task_id='task_id'
-        )
-        with self.assertRaises(Exception) as cm:
-            operator.execute(None)
-        err = cm.exception
-        self.assertEqual("Exception when running a query", str(err))
-        delete_connection.assert_called_once_with()

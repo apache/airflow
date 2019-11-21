@@ -18,13 +18,13 @@
 # under the License.
 
 import datetime
-import os
 import json
-import pendulum
+import os
 
+import pendulum
 from dateutil import relativedelta
 from sqlalchemy import event, exc
-from sqlalchemy.types import Text, DateTime, TypeDecorator
+from sqlalchemy.types import DateTime, Text, TypeDecorator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 

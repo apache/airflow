@@ -18,22 +18,20 @@
 import json
 import time
 from datetime import datetime as dt
-from typing import Tuple, Optional
-
-from requests.exceptions import BaseHTTPError
+from typing import Optional, Tuple
 
 import tenacity
-
-from kubernetes import watch, client
+from kubernetes import client, watch
+from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
-from kubernetes.client.models.v1_pod import V1Pod
+from requests.exceptions import BaseHTTPError
 
+from airflow import AirflowException
+from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from airflow import AirflowException
-from airflow.kubernetes.pod_generator import PodDefaults
 
 from .kube_client import get_kube_client
 

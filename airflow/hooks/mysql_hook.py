@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
+
 import MySQLdb
 import MySQLdb.cursors
-import json
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -33,7 +34,7 @@ class MySqlHook(DbApiHook):
     ``{"cursor": "SSCursor"}``. Refer to the MySQLdb.cursors for more details.
 
     Note: For AWS IAM authentication, use iam in the extra connection parameters
-    and set it to true. Leave the password field empty. This will use the the
+    and set it to true. Leave the password field empty. This will use the
     "aws_default" connection to get the temporary token unless you override
     in extras.
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
@@ -46,6 +47,7 @@ class MySqlHook(DbApiHook):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+        self.connection = kwargs.pop("connection", None)
 
     def set_autocommit(self, conn, autocommit):
         """
@@ -68,7 +70,7 @@ class MySqlHook(DbApiHook):
         """
         Returns a mysql connection object
         """
-        conn = self.get_connection(self.mysql_conn_id)
+        conn = self.connection or self.get_connection(self.mysql_conn_id)
 
         conn_config = {
             "user": conn.login,
@@ -171,3 +173,45 @@ class MySqlHook(DbApiHook):
         client = aws_hook.get_client_type('rds')
         token = client.generate_db_auth_token(conn.host, port, conn.login)
         return token, port
+
+    def bulk_load_custom(self, table, tmp_file, duplicate_key_handling='IGNORE', extra_options=''):
+        """
+        A more configurable way to load local data from a file into the database.
+
+        .. warning:: According to the mysql docs using this function is a
+            `security risk <https://dev.mysql.com/doc/refman/8.0/en/load-data-local.html>`_.
+            If you want to use it anyway you can do so by setting a client-side + server-side option.
+            This depends on the mysql client library used.
+
+        :param table: The table were the file will be loaded into.
+        :type table: str
+        :param tmp_file: The file (name) that contains the data.
+        :type tmp_file: str
+        :param duplicate_key_handling: Specify what should happen to duplicate data.
+            You can choose either `IGNORE` or `REPLACE`.
+
+            .. seealso::
+                https://dev.mysql.com/doc/refman/8.0/en/load-data.html#load-data-duplicate-key-handling
+        :type duplicate_key_handling: str
+        :param extra_options: More sql options to specify exactly how to load the data.
+
+            .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
+        :type extra_options: str
+        """
+        conn = self.get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            LOAD DATA LOCAL INFILE '{tmp_file}'
+            {duplicate_key_handling}
+            INTO TABLE {table}
+            {extra_options}
+            """.format(
+            tmp_file=tmp_file,
+            table=table,
+            duplicate_key_handling=duplicate_key_handling,
+            extra_options=extra_options
+        ))
+
+        cursor.close()
+        conn.commit()

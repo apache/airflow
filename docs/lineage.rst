@@ -98,7 +98,7 @@ Apache Atlas
 Airflow can send its lineage metadata to Apache Atlas. You need to enable the ``atlas`` backend and configure it
 properly, e.g. in your ``airflow.cfg``:
 
-.. code:: python
+.. code:: ini
 
     [lineage]
     backend = airflow.lineage.backend.atlas.AtlasBackend

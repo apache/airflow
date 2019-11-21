@@ -28,7 +28,7 @@ from typing import Optional, Sequence, Tuple
 from google.api_core.retry import Retry
 from google.cloud.kms_v1 import KeyManagementServiceClient
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import GoogleCloudBaseHook
 
 
 def _b64encode(s: bytes) -> str:
@@ -97,7 +97,6 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
         :param authenticated_data: Optional additional authenticated data that
                                    must also be provided to decrypt the message.
         :type authenticated_data: bytes
-        :return: The base 64 encoded ciphertext of the original message.
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
         :type retry: google.api_core.retry.Retry
@@ -106,6 +105,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
         :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: sequence[tuple[str, str]]]
+        :return: The base 64 encoded ciphertext of the original message.
         :rtype: str
         """
         response = self.get_conn().encrypt(

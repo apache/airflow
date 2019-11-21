@@ -17,10 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from datetime import timedelta
 
-from airflow import models, DAG
+from airflow import DAG, models
 from airflow.sensors.time_delta_sensor import TimeDeltaSensor
 from airflow.utils.timezone import datetime
 

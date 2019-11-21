@@ -19,15 +19,15 @@
 
 '''Plugins metabrowser'''
 
+import json
 from datetime import datetime
 from typing import List
-import json
 
+import pandas as pd
 from flask import Blueprint, request
 from flask_appbuilder import BaseView, expose
-import pandas as pd
 
-from airflow.hooks.hive_hooks import HiveMetastoreHook, HiveCliHook
+from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.plugins_manager import AirflowPlugin

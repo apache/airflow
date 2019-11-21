@@ -22,19 +22,11 @@ import unittest
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.gcp.operators.tasks import (
-    CloudTasksQueueCreateOperator,
-    CloudTasksTaskCreateOperator,
-    CloudTasksQueueDeleteOperator,
-    CloudTasksTaskDeleteOperator,
-    CloudTasksQueueGetOperator,
-    CloudTasksTaskGetOperator,
-    CloudTasksQueuesListOperator,
+    CloudTasksQueueCreateOperator, CloudTasksQueueDeleteOperator, CloudTasksQueueGetOperator,
+    CloudTasksQueuePauseOperator, CloudTasksQueuePurgeOperator, CloudTasksQueueResumeOperator,
+    CloudTasksQueuesListOperator, CloudTasksQueueUpdateOperator, CloudTasksTaskCreateOperator,
+    CloudTasksTaskDeleteOperator, CloudTasksTaskGetOperator, CloudTasksTaskRunOperator,
     CloudTasksTasksListOperator,
-    CloudTasksQueuePauseOperator,
-    CloudTasksQueuePurgeOperator,
-    CloudTasksQueueResumeOperator,
-    CloudTasksTaskRunOperator,
-    CloudTasksQueueUpdateOperator,
 )
 from tests.compat import mock
 

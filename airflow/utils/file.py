@@ -20,9 +20,8 @@
 import errno
 import os
 import shutil
-from tempfile import mkdtemp
-
 from contextlib import contextmanager
+from tempfile import mkdtemp
 
 
 @contextmanager

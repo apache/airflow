@@ -20,14 +20,14 @@
 This module contains Google Cloud Bigtable operators.
 """
 from enum import IntEnum
-from typing import Iterable, List, Optional, Dict
+from typing import Dict, Iterable, List, Optional
 
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import GarbageCollectionRule
 
 from airflow import AirflowException
-from airflow.models import BaseOperator
 from airflow.gcp.hooks.bigtable import BigtableHook
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -255,7 +255,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id
-        self.initial_split_keys = initial_split_keys or list()
+        self.initial_split_keys = initial_split_keys or []
         self.column_families = column_families or dict()
         self._validate_inputs()
         self.gcp_conn_id = gcp_conn_id
@@ -326,7 +326,7 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
     :param project_id: Optional, the ID of the GCP project. If set to None or missing,
             the default project_id from the GCP connection is used.
     :type app_profile_id: str
-    :parm app_profile_id: Application profile.
+    :param app_profile_id: Application profile.
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """

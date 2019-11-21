@@ -29,9 +29,10 @@
 # This tool is based on the Spark merge_spark_pr script:
 # https://github.com/apache/spark/blob/master/dev/merge_spark_pr.py
 
-import jira
 import re
 import sys
+
+import jira
 
 TMP_CREDENTIALS = {}
 PROJECT = "AIRFLOW"

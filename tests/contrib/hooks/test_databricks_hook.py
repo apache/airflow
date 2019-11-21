@@ -25,11 +25,7 @@ import unittest
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__
-from airflow.contrib.hooks.databricks_hook import (
-    DatabricksHook,
-    RunState,
-    SUBMIT_RUN_ENDPOINT
-)
+from airflow.contrib.hooks.databricks_hook import SUBMIT_RUN_ENDPOINT, DatabricksHook, RunState
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db

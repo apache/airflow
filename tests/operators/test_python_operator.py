@@ -21,14 +21,14 @@ import copy
 import logging
 import os
 import unittest
+import unittest.mock
 from collections import namedtuple
-from datetime import timedelta, date
+from datetime import date, timedelta
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance as TI, DAG, DagRun
+from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
-from airflow.operators.python_operator import ShortCircuitOperator
+from airflow.operators.python_operator import BranchPythonOperator, PythonOperator, ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
@@ -62,6 +62,12 @@ def build_recording_function(calls_collection):
     return recording_function
 
 
+@unittest.mock.patch('os.environ', {
+    'AIRFLOW_CTX_DAG_ID': None,
+    'AIRFLOW_CTX_TASK_ID': None,
+    'AIRFLOW_CTX_EXECUTION_DATE': None,
+    'AIRFLOW_CTX_DAG_RUN_ID': None
+})
 class TestPythonOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -89,10 +95,6 @@ class TestPythonOperator(unittest.TestCase):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
-
-        for var in TI_CONTEXT_ENV_VARS:
-            if var in os.environ:
-                del os.environ[var]
 
     def do_run(self):
         self.run = True

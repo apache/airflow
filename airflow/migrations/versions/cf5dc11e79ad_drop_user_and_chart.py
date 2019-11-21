@@ -22,11 +22,10 @@ Revises: 41f5f12752f8
 Create Date: 2019-01-24 15:30:35.834740
 
 """
+import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mysql
 from sqlalchemy.engine.reflection import Inspector
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision = 'cf5dc11e79ad'

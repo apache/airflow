@@ -23,7 +23,6 @@ import os
 
 import airflow
 from airflow import models
-
 from airflow.contrib.operators.gcs_to_gdrive_operator import GcsToGDriveOperator
 
 GCS_TO_GDRIVE_BUCKET = os.environ.get("GCS_TO_DRIVE_BUCKET", "example-object")
