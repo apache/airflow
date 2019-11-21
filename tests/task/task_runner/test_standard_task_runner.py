@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import getpass
 import os
 import time
 import unittest
@@ -31,6 +32,7 @@ from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_core import TEST_DAG_FOLDER
+from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -39,8 +41,7 @@ LOGGING_CONFIG = {
     'disable_existing_loggers': False,
     'formatters': {
         'airflow.task': {
-            'format': '[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - '
-                      '%%(message)s'
+            'format': '[%(asctime)s] {{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'
         },
     },
     'handlers': {
@@ -61,25 +62,63 @@ LOGGING_CONFIG = {
 
 
 class TestStandardTaskRunner(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         dictConfig(LOGGING_CONFIG)
+
+    @classmethod
+    def tearDownClass(cls):
+        clear_db_runs()
 
     def test_start_and_terminate(self):
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.command_as_list.return_value = ['sleep', '1000']
+        local_task_job.task_instance.command_as_list.return_value = [
+            'airflow', 'tasks', 'test', 'test_mark_success', 'task1', '2016-01-01'
+        ]
 
         runner = StandardTaskRunner(local_task_job)
         runner.start()
+        time.sleep(0.5)
 
         pgid = os.getpgid(runner.process.pid)
-        self.assertTrue(pgid)
+        self.assertGreater(pgid, 0)
+
+        procs = []
+        for p in psutil.process_iter():
+            try:
+                if os.getpgid(p.pid) == pgid and p.pid != 0:
+                    procs.append(p)
+            except OSError:
+                pass
+
+        runner.terminate()
+
+        for p in procs:
+            self.assertFalse(psutil.pid_exists(p.pid), "{} is still alive".format(p))
+
+        self.assertIsNotNone(runner.return_code())
+
+    def test_start_and_terminate_run_as_user(self):
+        local_task_job = mock.Mock()
+        local_task_job.task_instance = mock.MagicMock()
+        local_task_job.task_instance.run_as_user = getpass.getuser()
+        local_task_job.task_instance.command_as_list.return_value = [
+            'airflow', 'tasks', 'test', 'test_mark_success', 'task1', '2016-01-01'
+        ]
+
+        runner = StandardTaskRunner(local_task_job)
+        runner.start()
+        time.sleep(0.5)
+
+        pgid = os.getpgid(runner.process.pid)
+        self.assertGreater(pgid, 0)
 
         processes = []
         for process in psutil.process_iter():
             try:
-                if os.getpgid(process.pid) == pgid:
+                if os.getpgid(process.pid) == pgid and process.pid != 0:
                     processes.append(process)
             except OSError:
                 pass
@@ -87,7 +126,9 @@ class TestStandardTaskRunner(unittest.TestCase):
         runner.terminate()
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid))
+            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+
+        self.assertIsNotNone(runner.return_code())
 
     def test_on_kill(self):
         """
