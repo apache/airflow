@@ -64,20 +64,25 @@ It is advised to create a new DAG in case the tasks need to be deleted.
 Communication
 --------------
 
-Airflow executes tasks of a DAG in different directories, which can even be present 
-on different servers in case you are using :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`. 
-Therefore, you should not store any file or config in the local filesystem — for example, a task that downloads the JAR file that the next task executes.
+Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`. 
+Therefore, you should not store any file or config in the local filesystem — for example, a task that downloads the JAR file that the next task executes. 
+In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`, 
+storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in DAG.
 
-Always use XCom to communicate small messages between tasks or S3/HDFS to communicate large messages/files.
+If possible, use ``XCom`` to communicate small messages between tasks or S3/HDFS to communicate large messages/files. 
+For example, a task that stores processed data in S3. The task can push the S3 path for the latest data in ``Xcom``,
+and the downstream tasks can pull the path from XCom and use it to read the data.
 
 The tasks should also not store any authentication parameters such as passwords or token inside them. 
-Always use :ref:`Connections <concepts-connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
+Where at all possible, use :ref:`Connections <concepts-connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
 
 Variables
 ---------
 
-You should avoid usage of Variables outside an operator's ``execute()`` method or Jinja templates if possible, as Variables create a connection to metadata DB of Airflow to fetch the value which can slow down parsing and place extra load on the DB.
+You should avoid usage of Variables outside an operator's ``execute()`` method or Jinja templates if possible, 
+as Variables create a connection to metadata DB of Airflow to fetch the value, which can slow down parsing and place extra load on the DB.
+
 Airflow parses all the DAGs in the background at a specific period.
 The default period is set using ``processor_poll_interval`` config, which is by default 1 second. During parsing, Airflow creates a new connection to the metadata DB for each Variable.
 It can result in a lot of open connections.
@@ -97,7 +102,7 @@ or if you need to deserialize a json object from the variable :
 
 .. note::
 
-    In general, you should not write any complex code outside the tasks. The code outside the tasks runs every time Airflow parses the DAG, which happens every second by default.
+    In general, you should not write any code outside the tasks. The code outside the tasks runs every time Airflow parses the DAG, which happens every second by default.
 
 
 Testing a DAG
@@ -150,6 +155,9 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
  import unittest
  from airflow.utils.state import State
 
+ DEFAULT_DATE = '2019-10-03'
+ TEST_DAG_ID = 'test_my_custom_operator'
+ 
  class MyCustomOperatorTest(unittest.TestCase):
     def setUp(self):
         self.dag = DAG(TEST_DAG_ID, schedule_interval='@daily', default_args={'start_date' : DEFAULT_DATE})
@@ -172,34 +180,37 @@ You can also implement checks in a DAG to make sure the tasks are producing the 
 As an example, if you have a task that pushed data to S3, you can implement a check in the next task. For example the check could 
 make sure that the partition is created in S3 and perform some simple checks to see if the data is correct or not.
 
+
 Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.sensors.http_sensor.HttpSensor`.
 
 .. code::
 
  task = PushToS3(...)
  check = S3KeySensor(
-     task_id='check_parquet_exists',
-    bucket_key="s3://bucket/key/foo.parquet"
+    task_id='check_parquet_exists',
+    bucket_key="s3://bucket/key/foo.parquet",
     poke_interval=0,
-    timeout=0,
+    timeout=0
  )
- task.set_downstream(check)
+ task >> check
 
 
 
 Staging environment
 --------------------
 
-Always keep a staging environment to test the complete DAG run before deploying in the production.
+If possible, keep a staging environment to test the complete DAG run before deploying in the production.
 Make sure your DAG is parameterized to change the variables, e.g., the output path of S3 operation or the database used to read the configuration.
 Do not hard code values inside the DAG and then change them manually according to the environment.
 
-You can use Airflow Variables to parameterize the DAG.
+You can use environment variables  to parameterize the DAG.
 
 .. code::
 
- dest = Variable(
-    "my_dag_dest",
+ import os
+ 
+ dest = os.environ.get(
+    "MY_DAG_DEST_PATH",
     "s3://default-target/path/"
  )
 
@@ -210,8 +221,8 @@ To do this, first, you need to make sure that the Airflow is itself production-r
 Let's see what precautions you need to take.
 
 
-Backend
---------
+Database backend
+----------------
 
 Airflow comes with an ``SQLite`` backend by default. It allows the user to run Airflow without any external database.
 However, such a setup is meant to be for testing purposes only. Running the default setup can lead to data loss in multiple scenarios. 
@@ -242,8 +253,10 @@ Once that is done, you can run -
 Multi-Node Cluster
 -------------------
 
-Airflow uses :class:`airflow.executors.sequential_executor.SequentialExecutor` by default. It works fine in most cases. However, by its nature, the user is limited to executing at most
-one task at a time. It's also not suitable to work in a multi-node cluster. You should use :doc:`../executor/celery` or :doc:`../executor/kubernetes` in such cases.
+Airflow uses :class:`airflow.executors.sequential_executor.SequentialExecutor` by default. However, by its nature, the user is limited to executing at most
+one task at a time. ``Sequential Executor`` also pauses the scheduler when it runs a task, hence not recommended in a production setup. 
+You should use :class:`Local executor <airflow.executors.local_executor.LocalExecutor>` for a single machine. 
+For multi-node setup, you should use :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains the same configuration and dags.
@@ -254,8 +267,9 @@ any other mechanism to sync DAGs and configs across your nodes, e.g., checkout D
 Logging
 --------
 
-If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system such as ``S3`` or ``GCS``.
-A DFS makes these logs are available even after the node goes down or gets replaced. See :doc:`howto/write-logs` for configurations.
+If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system such as ``S3`` and ``GCS``, or external services such as 
+Stackdriver Logging, Elasticsearch or Amazon CloudWatch.
+This way, the logs are available even after the node goes down or gets replaced. See :doc:`howto/write-logs` for configurations.
 
 .. note::
 
@@ -273,3 +287,10 @@ e.g. metadata DB, password. You can do it using the format ``$AIRFLOW__{SECTION}
 
  AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
+
+ Some configurations such as Airflow Backend connection url can be derived from bash commands as well.
+
+ .. code::
+
+    sql_alchemy_conn_cmd = bash_command_to_run
+    
