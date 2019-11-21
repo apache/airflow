@@ -41,6 +41,14 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### API access disabled by default
+
+In previous versions, the default configuration contains a dangerous configuration that allows access
+to the API without authorization.
+
+This behavior must now be intentionally configured, but the default behavior allows unauthorized access to
+the API.
+
 ### Remove serve_logs command from CLI
 
 The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms

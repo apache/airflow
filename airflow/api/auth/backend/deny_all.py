@@ -22,9 +22,9 @@ from typing import Optional
 
 from flask import Response
 
-from airflow.api.auth.backend.default import ClientAuthProtocol
+from airflow.api.auth.backend import ClientAuthProtocol
 
-CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
+CLIENT_AUTH: Optional[ClientAuthProtocol] = None
 
 
 def init_app(_):

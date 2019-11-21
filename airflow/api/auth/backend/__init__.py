@@ -16,3 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing_extensions import Protocol
+
+
+class ClientAuthProtocol(Protocol):
+    """
+    Protocol type for CLIENT_AUTH
+    """
+    def handle_response(self, _):
+        """
+        CLIENT_AUTH.handle_response method
+        """
+        ...

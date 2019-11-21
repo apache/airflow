@@ -113,27 +113,33 @@ alter the content and make it part of the ``PYTHONPATH`` and configure it as a b
 API Authentication
 ------------------
 
-Authentication for the API is handled separately to the Web Authentication. The default is to not
-require any authentication on the API i.e. wide open by default. This is not recommended if your
-Airflow webserver is publicly accessible, and you should probably use the ``deny all`` backend:
+Authentication for the API is handled separately to the Web Authentication. By default, access to it is
+blocked, because the authorization configuration is configured as follows.
 
 .. code-block:: ini
 
     [api]
     auth_backend = airflow.api.auth.backend.deny_all
 
-Two "real" methods for authentication are currently supported for the API.
+Three "real" backend for authentication are currently supported for the API.
 
-To enabled Password authentication, set the following in the configuration:
+To allow access to the API **without authentication**, set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.allow_all
+
+To enable **password authentication**, set the following in the configuration:
 
 .. code-block:: ini
 
     [api]
     auth_backend = airflow.contrib.auth.backends.password_auth
 
-It's usage is similar to the Password Authentication used for the Web interface.
+It's usage is similar to the password authentication used for the Web interface.
 
-To enable Kerberos authentication, set the following in the configuration:
+To enable **Kerberos authentication**, set the following in the configuration:
 
 .. code-block:: ini
 

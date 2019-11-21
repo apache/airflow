@@ -16,25 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Default authentication backend - everything is allowed"""
+"""Everything is allowed"""
 from functools import wraps
 from typing import Optional
 
-from airflow.typing_compat import Protocol
+from airflow.api.auth.backend import ClientAuthProtocol
 
-
-class ClientAuthProtocol(Protocol):
-    """
-    Protocol type for CLIENT_AUTH
-    """
-    def handle_response(self, _):
-        """
-        CLIENT_AUTH.handle_response method
-        """
-        ...
-
-
-CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
+CLIENT_AUTH: Optional[ClientAuthProtocol] = None
 
 
 def init_app(_):
