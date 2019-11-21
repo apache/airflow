@@ -288,9 +288,9 @@ e.g. metadata DB, password. You can do it using the format ``$AIRFLOW__{SECTION}
  AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
 
- Some configurations such as Airflow Backend connection url can be derived from bash commands as well.
+Some configurations such as Airflow Backend connection URI can be derived from bash commands as well:
 
- .. code::
+.. code::
 
-    sql_alchemy_conn_cmd = bash_command_to_run
+ sql_alchemy_conn_cmd = bash_command_to_run
     
