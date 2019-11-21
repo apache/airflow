@@ -815,6 +815,9 @@ class DagFileProcessorManager(LoggingMixin):
         user code.
         """
 
+        # Start a new process group
+        os.setpgid(0, 0)
+
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
         self.log.info(

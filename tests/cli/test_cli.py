@@ -216,14 +216,13 @@ class TestCLI(unittest.TestCase):
 
         reset(args.dag_id)
 
-        with patch('argparse.Namespace', args) as mock_args:
-            run(mock_args)
-            dag = get_dag(mock_args)
-            task = dag.get_task(task_id=args.task_id)
-            ti = TaskInstance(task, args.execution_date)
-            ti.refresh_from_db()
-            state = ti.current_state()
-            self.assertEqual(state, State.SUCCESS)
+        run(args)
+        dag = get_dag(args)
+        task = dag.get_task(task_id=args.task_id)
+        ti = TaskInstance(task, args.execution_date)
+        ti.refresh_from_db()
+        state = ti.current_state()
+        self.assertEqual(state, State.SUCCESS)
 
     def test_test(self):
         """Test the `airflow test` command"""

@@ -664,7 +664,6 @@ def test(args, dag=None):
     # We want log outout from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
-    logging.getLogger('airflow.task').propagate = True
 
     dag = dag or get_dag(args)
 
@@ -676,6 +675,7 @@ def test(args, dag=None):
     ti = TaskInstance(task, args.execution_date)
 
     try:
+        logging.getLogger('airflow.task').propagate = True
         if args.dry_run:
             ti.dry_run()
         else:
@@ -689,6 +689,10 @@ def test(args, dag=None):
             debugger.post_mortem()
         else:
             raise
+    finally:
+        # Make sure to reset back to normal. When run for CLI this doesn't
+        # matter, but it does for test suite
+        logging.getLogger('airflow.task').propagate = False
 
 
 @cli_utils.action_logging
