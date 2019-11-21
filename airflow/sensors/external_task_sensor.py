@@ -17,12 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import os
+from typing import Optional, Union
 
 from sqlalchemy import func
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.session import provide_session
@@ -161,3 +164,47 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         session.commit()
         return count == len(dttm_filter)
+
+
+class ExternalTaskMarker(DummyOperator):
+    """
+    Use this operator to indicate that a task on a different DAG depends on this task.
+    When this task is cleared with "Recursive" selected, Airflow will clear the task on
+    the other DAG and its downstream tasks recursively. Transitive dependencies are followed
+    until the recursion_depth is reached.
+
+    :param external_dag_id: The dag_id that contains the dependent task that needs to be cleared.
+    :type external_dag_id: str
+    :param external_task_id: The task_id of the dependent task that needs to be cleared.
+    :type external_task_id: str
+    :param execution_date: The execution_date of the dependent task that needs to be cleared.
+    :type execution_date: str or datetime.datetime
+    :param recursion_depth: The maximum level of transitive dependencies allowed. Default is 10.
+        This is mostly used for preventing cyclic dependencies. It is fine to increase
+        this number if necessary. However, too many levels of transitive dependencies will make
+        it slower to clear tasks in the web UI.
+    """
+    template_fields = ['external_dag_id', 'external_task_id', 'execution_date']
+    ui_color = '#19647e'
+
+    @apply_defaults
+    def __init__(self,
+                 external_dag_id,
+                 external_task_id,
+                 execution_date: Optional[Union[str, datetime.datetime]] = "{{ execution_date.isoformat() }}",
+                 recursion_depth: int = 10,
+                 *args,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.external_dag_id = external_dag_id
+        self.external_task_id = external_task_id
+        if isinstance(execution_date, datetime.datetime):
+            self.execution_date = execution_date.isoformat()
+        elif isinstance(execution_date, str):
+            self.execution_date = execution_date
+        else:
+            raise TypeError('Expected str or datetime.datetime type for execution_date. Got {}'
+                            .format(type(execution_date)))
+        if recursion_depth <= 0:
+            raise ValueError("recursion_depth should be a positive integer")
+        self.recursion_depth = recursion_depth
