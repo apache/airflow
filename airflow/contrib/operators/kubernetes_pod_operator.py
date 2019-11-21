@@ -25,6 +25,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
+from airflow.version import version as airflow_version
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
@@ -126,6 +127,15 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             client = kube_client.get_kube_client(in_cluster=self.in_cluster,
                                                  cluster_context=self.cluster_context,
                                                  config_file=self.config_file)
+
+            # Add Airflow Version to the label
+            # And a label to identify that pod is launched by KubernetesPodOperator
+            self.labels.update(
+                {
+                    'airflow_version': airflow_version.replace('+', '-'),
+                    'kubernetes_pod_operator': 'True',
+                }
+            )
 
             pod = pod_generator.PodGenerator(
                 image=self.image,

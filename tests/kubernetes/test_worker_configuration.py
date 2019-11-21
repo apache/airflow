@@ -30,6 +30,7 @@ try:
     from airflow.kubernetes.pod_generator import PodGenerator
     from airflow.exceptions import AirflowConfigException
     from airflow.kubernetes.secret import Secret
+    from airflow.version import version as airflow_version
     import kubernetes.client.models as k8s
     from kubernetes.client.api_client import ApiClient
 except ImportError:
@@ -640,5 +641,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual({
             'my_label': 'label_id',
             'dag_id': 'override_dag_id',
-            'my_kube_executor_label': 'kubernetes'
+            'my_kube_executor_label': 'kubernetes',
+            'kubernetes_executor': 'True',
+            'airflow_version': airflow_version.replace('+', '-'),
         }, labels)

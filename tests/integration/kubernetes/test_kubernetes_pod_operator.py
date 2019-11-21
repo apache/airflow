@@ -35,6 +35,7 @@ from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
+from airflow.version import version as airflow_version
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
@@ -61,7 +62,10 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 'namespace': 'default',
                 'name': ANY,
                 'annotations': {},
-                'labels': {'foo': 'bar'}
+                'labels': {
+                    'foo': 'bar', 'kubernetes_pod_operator': 'True',
+                    'airflow_version': airflow_version.replace('+', '-')
+                }
             },
             'spec': {
                 'affinity': {},
