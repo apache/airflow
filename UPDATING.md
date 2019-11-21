@@ -41,6 +41,36 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Removal of redirect_stdout, redirect_stderr
+
+Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has 
+been deleted because it can be easily replaced by the standard library.
+The functions of the standard library are more flexible and can be used in larger cases.
+  
+The code below
+```python
+import logging
+
+from airflow.utils.log.logging_mixin import redirect_stderr, redirect_stdout
+
+logger = logging.getLogger("custom-logger")
+with redirect_stdout(logger, logging.INFO), redirect_stderr(logger, logging.WARN):
+    print("I love Airflow")
+```
+can be replaced by the following code:
+```python
+from contextlib import redirect_stdout, redirect_stderr
+import logging
+
+from airflow.utils.log.logging_mixin import StreamLogWriter
+
+logger = logging.getLogger("custom-logger")
+
+with redirect_stdout(StreamLogWriter(logger, logging.INFO)), \
+        redirect_stderr(StreamLogWriter(logger, logging.WARN)):
+    print("I Love Airflow")
+```
+
 ### Removal of XCom.get_one()
 
 This one is supersede by `XCom.get_many().first()` which will return the same result.

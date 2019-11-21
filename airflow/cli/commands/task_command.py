@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import textwrap
+from contextlib import redirect_stderr, redirect_stdout
 
 from airflow import DAG, AirflowException, LoggingMixin, conf, jobs, settings
 from airflow.executors import get_default_executor
@@ -29,7 +30,7 @@ from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.cli import get_dag, get_dags
-from airflow.utils.log.logging_mixin import redirect_stderr, redirect_stdout
+from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 
 
@@ -131,7 +132,8 @@ def task_run(args, dag=None):
     if args.interactive:
         _run(args, dag, ti)
     else:
-        with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+        with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
+                redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
             _run(args, dag, ti)
     logging.shutdown()
 

@@ -19,7 +19,7 @@
 #
 import io
 import unittest
-from unittest import mock
+from contextlib import redirect_stdout
 
 from airflow import models
 from airflow.bin import cli
@@ -82,9 +82,9 @@ class TestCliRoles(unittest.TestCase):
         self.appbuilder.sm.add_role('FakeTeamA')
         self.appbuilder.sm.add_role('FakeTeamB')
 
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with redirect_stdout(io.StringIO()) as stdout:
             role_command.roles_list(self.parser.parse_args(['roles', 'list']))
-            stdout = mock_stdout.getvalue()
+            stdout = stdout.getvalue()
 
         self.assertIn('FakeTeamA', stdout)
         self.assertIn('FakeTeamB', stdout)
