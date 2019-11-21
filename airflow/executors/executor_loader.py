@@ -30,6 +30,7 @@ class ExecutorLoader:
     CELERY_EXECUTOR = "CeleryExecutor"
     DASK_EXECUTOR = "DaskExecutor"
     KUBERNETES_EXECUTOR = "KubernetesExecutor"
+    INPROCESS_EXECUTOR = "InProcessExecutor"
 
     _default_executor: Optional[BaseExecutor] = None
 
@@ -51,7 +52,7 @@ class ExecutorLoader:
         return cls._default_executor
 
     @staticmethod
-    def _get_executor(executor_name: str) -> BaseExecutor:
+    def _get_executor(executor_name: str) -> BaseExecutor:  # pylint: disable=too-many-return-statements
         """
         Creates a new instance of the named executor.
         In case the executor name is unknown in airflow,
@@ -72,6 +73,9 @@ class ExecutorLoader:
         elif executor_name == ExecutorLoader.KUBERNETES_EXECUTOR:
             from airflow.executors.kubernetes_executor import KubernetesExecutor
             return KubernetesExecutor()
+        elif executor_name == ExecutorLoader.INPROCESS_EXECUTOR:
+            from airflow.executors.inprocess_executor import InProcessExecutor
+            return InProcessExecutor()
         else:
             # Load plugins here for executors as at that time the plugins might not have been initialized yet
             # TODO: verify the above and remove two lines below in case plugins are always initialized first
