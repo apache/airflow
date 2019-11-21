@@ -111,7 +111,6 @@ def dag_trigger(args):
                                          execution_date=args.exec_date)
         print(message)
     except OSError as err:
-        print(str(err))
         raise AirflowException(err)
 
 
@@ -131,7 +130,6 @@ def dag_delete(args):
             message = api_client.delete_dag(dag_id=args.dag_id)
             print(message)
         except OSError as err:
-            print(str(err))
             raise AirflowException(err)
     else:
         print("Bail.")
