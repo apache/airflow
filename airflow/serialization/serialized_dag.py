@@ -36,7 +36,7 @@ class SerializedDAG(DAG, Serialization):
 
     Compared with SimpleDAG: SerializedDAG contains all information for webserver.
     Compared with DagPickle: DagPickle contains all information for worker, but some DAGs are
-    not pickable. SerializedDAG works for all DAGs.
+    not pickle-able. SerializedDAG works for all DAGs.
     """
 
     _decorated_fields = {'schedule_interval', 'default_args'}
