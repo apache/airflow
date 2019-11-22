@@ -265,12 +265,12 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
     def _run(self, kube_client, resource_version, worker_uuid, kube_config):
         self.log.info(
-            'Event: and now my watch begins starting at resource_version: %s',
-            resource_version
-        )
+            'Event: and now my watch begins starting at resource_version: %s, '
+            'worker_uuid: %s', resource_version, worker_uuid)
         watcher = watch.Watch()
 
-        kwargs = {'label_selector': 'airflow-worker={}'.format(worker_uuid)}
+        kwargs = {'label_selector': 'airflow-worker={}'.format(worker_uuid),
+            'timeout_seconds': 50 }
         if resource_version:
             kwargs['resource_version'] = resource_version
         if kube_config.kube_client_request_args:
