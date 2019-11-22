@@ -37,8 +37,7 @@ from os import getenv
 import airflow
 from airflow import models
 from airflow.providers.amazon.aws.operators.datasync import (
-    AWSDataSyncGetTasksOperator,
-    AWSDataSyncTaskOperator,
+    AWSDataSyncGetTasksOperator, AWSDataSyncTaskOperator,
 )
 
 # [START howto_operator_datasync_simple_args]

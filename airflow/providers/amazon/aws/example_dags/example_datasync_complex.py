@@ -49,9 +49,7 @@ from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
 from airflow.providers.amazon.aws.operators.datasync import (
-    AWSDataSyncCreateTaskOperator,
-    AWSDataSyncGetTasksOperator,
-    AWSDataSyncTaskOperator,
+    AWSDataSyncCreateTaskOperator, AWSDataSyncGetTasksOperator, AWSDataSyncTaskOperator,
     AWSDataSyncUpdateTaskOperator,
 )
 
@@ -88,7 +86,6 @@ UPDATE_TASK_KWARGS = json.loads(
 
 default_args = {"start_date": airflow.utils.dates.days_ago(1)}
 # [END howto_operator_datasync_complex_args]
-
 
 # [START howto_operator_datasync_complex_decide_function]
 def decide(**kwargs):
