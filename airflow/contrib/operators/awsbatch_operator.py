@@ -44,13 +44,17 @@ class AWSBatchOperator(BaseOperator):
     :param job_queue: the queue name on AWS Batch
     :type job_queue: str
     :param overrides: the same parameter that boto3 will receive on
-        containerOverrides (templated):
-        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
+        containerOverrides (templated)
+        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#Batch.Client.submit_job
     :type overrides: dict
     :param array_properties: the same parameter that boto3 will receive on
-        arrayProperties:
-        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
+        arrayProperties
+        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#Batch.Client.submit_job
     :type array_properties: dict
+    :param parameters: the same parameter that boto3 will receive on
+        parameters (templated)
+        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#Batch.Client.submit_job
+    :type parameters: dict
     :param max_retries: exponential backoff retries while waiter is not
         merged, 4200 = 48 hours
     :type max_retries: int
@@ -66,11 +70,11 @@ class AWSBatchOperator(BaseOperator):
     ui_color = '#c3dae0'
     client = None
     arn = None
-    template_fields = ('job_name', 'overrides',)
+    template_fields = ('job_name', 'overrides', 'parameters',)
 
     @apply_defaults
     def __init__(self, job_name, job_definition, job_queue, overrides, array_properties=None,
-                 max_retries=4200, aws_conn_id=None, region_name=None, **kwargs):
+                 parameters=None, max_retries=4200, aws_conn_id=None, region_name=None, **kwargs):
         super(AWSBatchOperator, self).__init__(**kwargs)
 
         self.job_name = job_name
@@ -80,6 +84,7 @@ class AWSBatchOperator(BaseOperator):
         self.job_queue = job_queue
         self.overrides = overrides
         self.array_properties = array_properties or {}
+        self.parameters = parameters
         self.max_retries = max_retries
 
         self.jobId = None  # pylint: disable=invalid-name
@@ -105,6 +110,7 @@ class AWSBatchOperator(BaseOperator):
                 jobQueue=self.job_queue,
                 jobDefinition=self.job_definition,
                 arrayProperties=self.array_properties,
+                parameters=self.parameters,
                 containerOverrides=self.overrides)
 
             self.log.info('AWS Batch Job started: %s', response)

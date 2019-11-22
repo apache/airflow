@@ -42,6 +42,7 @@ class TestAWSBatchOperator(unittest.TestCase):
             job_queue='queue',
             job_definition='hello-world',
             max_retries=5,
+            parameters=None,
             overrides={},
             array_properties=None,
             aws_conn_id=None,
@@ -52,6 +53,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.assertEqual(self.batch.job_queue, 'queue')
         self.assertEqual(self.batch.job_definition, 'hello-world')
         self.assertEqual(self.batch.max_retries, 5)
+        self.assertEqual(self.batch.parameters, None)
         self.assertEqual(self.batch.overrides, {})
         self.assertEqual(self.batch.array_properties, {})
         self.assertEqual(self.batch.region_name, 'eu-west-1')
@@ -61,7 +63,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.aws_hook_mock.assert_called_once_with(aws_conn_id=None)
 
     def test_template_fields_overrides(self):
-        self.assertEqual(self.batch.template_fields, ('job_name', 'overrides',))
+        self.assertEqual(self.batch.template_fields, ('job_name', 'overrides', 'parameters',))
 
     @mock.patch.object(AWSBatchOperator, '_wait_for_task_ended')
     @mock.patch.object(AWSBatchOperator, '_check_success_task')
@@ -78,7 +80,8 @@ class TestAWSBatchOperator(unittest.TestCase):
             jobName='51455483-c62c-48ac-9b88-53a6a725baa3',
             containerOverrides={},
             jobDefinition='hello-world',
-            arrayProperties={}
+            arrayProperties={},
+            parameters=None
         )
 
         wait_mock.assert_called_once_with()
@@ -99,7 +102,8 @@ class TestAWSBatchOperator(unittest.TestCase):
             jobName='51455483-c62c-48ac-9b88-53a6a725baa3',
             containerOverrides={},
             jobDefinition='hello-world',
-            arrayProperties={}
+            arrayProperties={},
+            parameters=None
         )
 
     def test_wait_end_tasks(self):
