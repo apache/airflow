@@ -266,9 +266,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
-    def _set_resources(self, resources):
+    @staticmethod
+    def _set_resources(resources):
         return [Resources(**resources) if resources else Resources()]
 
-    def _set_name(self, name):
+    @staticmethod
+    def _set_name(name):
         validate_key(name, max_length=63)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
