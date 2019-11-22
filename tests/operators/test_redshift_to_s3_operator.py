@@ -32,8 +32,11 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
     @mock.patch("boto3.session.Session")
     @mock.patch("airflow.hooks.postgres_hook.PostgresHook.run")
-    @parameterized.expand([(True, ), (False, )])
-    def test_execute(self, mock_run, mock_session, boolean_value):
+    @parameterized.expand([
+        [True, "key/table_"],
+        [False, "key"],
+    ])
+    def test_execute(self, table_as_file_name, expected_s3_key, mock_run, mock_session,):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
@@ -42,7 +45,6 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         s3_bucket = "bucket"
         s3_key = "key"
         unload_options = ['HEADER', ]
-        table_as_file_name = boolean_value
 
         RedshiftToS3Transfer(
             schema=schema,
@@ -62,14 +64,14 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         select_query = "SELECT * FROM {schema}.{table}".format(schema=schema, table=table)
         unload_query = """
                     UNLOAD ('{select_query}')
-                    TO 's3://{s3_bucket}/{s3_key}/{table}_'
+                    TO 's3://{s3_bucket}/{s3_key}'
                     with credentials
                     'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
                     {unload_options};
                     """.format(select_query=select_query,
                                table=table,
                                s3_bucket=s3_bucket,
-                               s3_key=s3_key,
+                               s3_key=expected_s3_key,
                                access_key=access_key,
                                secret_key=secret_key,
                                unload_options=unload_options)
