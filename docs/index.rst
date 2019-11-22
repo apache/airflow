@@ -98,7 +98,6 @@ Content
     changelog
     faq
     macros
-    _api/index
     privacy_notice
 
 .. toctree::
