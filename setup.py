@@ -481,6 +481,8 @@ def do_setup():
             'requests>=2.20.0, <3',
             'setproctitle>=1.1.8, <2',
             'sqlalchemy~=1.3',
+            'sqlalchemy_jsonfield==0.8.0;python_version<"3.5"',
+            'sqlalchemy_jsonfield~=0.9;python_version>="3.5"',
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
             'termcolor==1.1.0',

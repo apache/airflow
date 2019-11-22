@@ -23,6 +23,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import atexit
+import json
 import logging
 import os
 import pendulum
@@ -149,6 +150,9 @@ LOGGING_CLASS_PATH = None
 
 engine = None
 Session = None
+
+# The JSON library to use for DAG Serialization and De-Serialization
+json = json
 
 
 def policy(task_instance):
