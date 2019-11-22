@@ -38,6 +38,10 @@ class AWSDataSyncCreateTaskOperator(BaseOperator):
     If ``do_xcom_push`` is True, the TaskArn which is created
     will be pushed to an XCom.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AWSDataSyncCreateTaskOperator`
+
     :param str aws_conn_id: AWS connection to use.
     :param str source_location_uri: Source location URI.
         Example: ``smb://server/subdir``
@@ -184,7 +188,11 @@ class AWSDataSyncGetTasksOperator(BaseOperator):
     If ``do_xcom_push`` is True, the TaskArns which are found
     will be pushed to an XCom.
 
-    note:: There may be 0, 1, or many matching Tasks. The calling
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AWSDataSyncGetTasksOperator`
+
+    .. note:: There may be 0, 1, or many matching Tasks. The calling
         application will need to deal with these scenarios.
 
     :param str aws_conn_id: AWS connection to use.
@@ -268,11 +276,11 @@ class AWSDataSyncGetTasksOperator(BaseOperator):
             self.log.info('Insufficient Locations to search for Task')
             return []
 
-        self.log.info('Searching for TaskArns')
+        self.log.info('Finding TaskArns that have these LocationArns')
         self.task_arns = hook.get_task_arns_for_location_arns(
             self.source_location_arns,
             self.destination_location_arns)
-        self.log.info('Found %s matching TaskArns', len(self.task_arns))
+        self.log.info('Found TaskArns %s', self.task_arns)
         return self.task_arns
 
 
@@ -282,6 +290,10 @@ class AWSDataSyncUpdateTaskOperator(BaseOperator):
 
     If ``do_xcom_push`` is True, the TaskArns which were updated
     will be pushed to an XCom.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AWSDataSyncUpdateTaskOperator`
 
     :param str aws_conn_id: AWS connection to use.
     :param str task_arn: The TaskArn to update. If ``None``, the operator will
@@ -350,6 +362,10 @@ class AWSDataSyncTaskOperator(BaseOperator):
     If ``do_xcom_push`` is True, the TaskExecutionArn used
     will be pushed to an XCom when it successfuly completes.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AWSDataSyncTaskOperator`
+
     :param str aws_conn_id: AWS connection to use.
     :param int wait_interval_seconds: Time to wait between two consecutive calls
         to check TaskExecution status.
@@ -359,7 +375,6 @@ class AWSDataSyncTaskOperator(BaseOperator):
 
     :raises AirflowException: If neither ``task_arn`` nor
         (``source_location_uri`` and ``destination_location_uri``) is specified.
-    :raises AirflowException: If ``task_arn`` is None.
     :raises AirflowException: If ``task_arn`` is None and TaskArn was not found in xcom_pull.
     :raises AirflowException: If TaskExecution fails.
     """
@@ -447,7 +462,6 @@ class AWSDataSyncDeleteTaskOperator(BaseOperator):
         look in xcom_pull for a TaskArn.
         Example: ``arn:aws:datasync:eu-west-1:111122233444:task/task-0dfafff11dc43f1ab``
 
-    :raises AirflowException: If ``task_arn`` is None.
     :raises AirflowException: If ``task_arn`` is None and TaskArn was not found in xcom_pull.
     :raises AirflowException: If Task deletion fails.
     """
