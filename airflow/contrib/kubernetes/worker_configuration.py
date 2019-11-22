@@ -22,6 +22,7 @@ from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version as airflow_version
 
 
 class WorkerConfiguration(LoggingMixin):
@@ -373,6 +374,8 @@ class WorkerConfiguration(LoggingMixin):
                 'task_id': task_id,
                 'execution_date': execution_date,
                 'try_number': str(try_number),
+                'airflow_version': airflow_version.replace('+', '-'),
+                'kubernetes_executor': 'True',
             }),
             envs=self._get_environment(),
             secrets=self._get_secrets(),
