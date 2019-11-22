@@ -19,7 +19,6 @@
 
 """jsonschema for validating serialized DAG and operator."""
 
-import json
 import pkgutil
 from typing import Iterable
 
@@ -27,6 +26,7 @@ import jsonschema
 from typing_extensions import Protocol
 
 from airflow.exceptions import AirflowException
+from airflow.settings import json
 
 
 class Validator(Protocol):
