@@ -19,7 +19,7 @@
 import unittest
 import uuid
 
-from airflow.contrib.hooks.aws_firehose_hook import AwsFirehoseHook
+from airflow.providers.amazon.aws.hooks.kinesis import AwsFirehoseHook
 
 try:
     from moto import mock_kinesis

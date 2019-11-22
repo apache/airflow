@@ -237,7 +237,7 @@ kerberos = ['pykerberos>=1.1.13',
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=2.5.1']
-mssql = ['pymssql>=2.1.1']
+mssql = ['pymssql~=2.1.1']
 mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
 papermill = ['papermill[all]>=1.0.0',
@@ -393,7 +393,7 @@ def do_setup():
             'tenacity==4.12.0',
             'termcolor==1.1.0',
             'text-unidecode==1.2',
-            'typing;python_version<"3.5"',
+            'typing;python_version<"3.6"',
             'thrift>=0.9.2',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
@@ -474,7 +474,6 @@ def do_setup():
             'Intended Audience :: Developers',
             'Intended Audience :: System Administrators',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
             'Topic :: System :: Monitoring',
@@ -489,7 +488,7 @@ def do_setup():
             'compile_assets': CompileAssets
         },
         test_suite='setup.airflow_test_suite',
-        python_requires='~=3.5',
+        python_requires='~=3.6',
     )
 
 

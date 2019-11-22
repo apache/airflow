@@ -21,6 +21,8 @@ import unittest
 import unittest.mock
 from base64 import b64encode
 
+from parameterized import parameterized
+
 from airflow import AirflowException, models
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
@@ -33,6 +35,8 @@ TEST_DAG_ID = 'unit_tests'
 TEST_CONN_ID = "conn_id_for_testing"
 TIMEOUT = 5
 DEFAULT_DATE = datetime(2017, 1, 1)
+COMMAND = "echo -n airflow"
+COMMAND_WITH_SUDO = "sudo " + COMMAND
 
 
 def reset(dag_id=TEST_DAG_ID):
@@ -65,7 +69,7 @@ class TestSSHOperator(unittest.TestCase):
         SSH_ID = "ssh_default"
         task = SSHOperator(
             task_id="test",
-            command="echo -n airflow",
+            command=COMMAND,
             dag=self.dag,
             timeout=TIMEOUT,
             ssh_conn_id="ssh_default"
@@ -82,7 +86,7 @@ class TestSSHOperator(unittest.TestCase):
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
-            command="echo -n airflow",
+            command=COMMAND,
             do_xcom_push=True,
             dag=self.dag,
         )
@@ -101,7 +105,7 @@ class TestSSHOperator(unittest.TestCase):
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
-            command="echo -n airflow",
+            command=COMMAND,
             do_xcom_push=True,
             dag=self.dag,
         )
@@ -118,7 +122,7 @@ class TestSSHOperator(unittest.TestCase):
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
-            command="echo -n airflow",
+            command=COMMAND,
             do_xcom_push=True,
             dag=self.dag,
             environment={'TEST': 'value'}
@@ -158,7 +162,7 @@ class TestSSHOperator(unittest.TestCase):
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
         with self.assertRaisesRegex(AirflowException,
                                     "Cannot operate without ssh_hook or ssh_conn_id."):
-            task_0 = SSHOperator(task_id="test", command="echo -n airflow",
+            task_0 = SSHOperator(task_id="test", command=COMMAND,
                                  timeout=TIMEOUT, dag=self.dag)
             task_0.execute(None)
 
@@ -167,7 +171,7 @@ class TestSSHOperator(unittest.TestCase):
             task_id="test_1",
             ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
             ssh_conn_id=TEST_CONN_ID,
-            command="echo -n airflow",
+            command=COMMAND,
             timeout=TIMEOUT,
             dag=self.dag
         )
@@ -180,7 +184,7 @@ class TestSSHOperator(unittest.TestCase):
         task_2 = SSHOperator(
             task_id="test_2",
             ssh_conn_id=TEST_CONN_ID,  # no ssh_hook provided
-            command="echo -n airflow",
+            command=COMMAND,
             timeout=TIMEOUT,
             dag=self.dag
         )
@@ -195,7 +199,7 @@ class TestSSHOperator(unittest.TestCase):
             task_id="test_3",
             ssh_hook=self.hook,
             ssh_conn_id=TEST_CONN_ID,
-            command="echo -n airflow",
+            command=COMMAND,
             timeout=TIMEOUT,
             dag=self.dag
         )
@@ -204,6 +208,27 @@ class TestSSHOperator(unittest.TestCase):
         except Exception:
             pass
         self.assertEqual(task_3.ssh_hook.ssh_conn_id, self.hook.ssh_conn_id)
+
+    @parameterized.expand([
+        (COMMAND, False, False),
+        (COMMAND, True, True),
+        (COMMAND_WITH_SUDO, False, True),
+        (COMMAND_WITH_SUDO, True, True),
+    ])
+    def test_get_pyt_set_correctly(self, command, get_pty_in, get_pty_out):
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command=command,
+            timeout=TIMEOUT,
+            get_pty=get_pty_in,
+            dag=self.dag
+        )
+        try:
+            task.execute(None)
+        except Exception:
+            pass
+        self.assertEqual(task.get_pty, get_pty_out)
 
 
 if __name__ == '__main__':

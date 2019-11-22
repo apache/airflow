@@ -76,8 +76,8 @@ def _trigger_dag(
         else:
             run_conf = json.loads(conf)
 
-    triggers = list()
-    dags_to_trigger = list()
+    triggers = []
+    dags_to_trigger = []
     dags_to_trigger.append(dag)
     while dags_to_trigger:
         dag = dags_to_trigger.pop()

@@ -20,7 +20,7 @@ import os
 
 from tests.gcp.utils.gcp_authenticator import GCP_DATAPROC_KEY
 from tests.providers.google.cloud.operators.test_dataproc_operator_system_helper import DataprocTestHelper
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
@@ -45,4 +45,4 @@ class DataprocExampleDagsTest(SystemTest):
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def test_run_example_dag(self):
-        self.run_dag(dag_id="example_gcp_dataproc", dag_folder=GCP_DAG_FOLDER)
+        self.run_dag(dag_id="example_gcp_dataproc", dag_folder=CLOUD_DAG_FOLDER)

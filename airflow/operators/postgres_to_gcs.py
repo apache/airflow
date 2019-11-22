@@ -21,6 +21,7 @@ PostgreSQL to GCS operator.
 """
 
 import datetime
+import json
 import time
 from decimal import Decimal
 
@@ -95,6 +96,8 @@ class PostgresToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
                 hours=formated_time.tm_hour,
                 minutes=formated_time.tm_min,
                 seconds=formated_time.tm_sec).seconds
+        if isinstance(value, dict):
+            return json.dumps(value)
         if isinstance(value, Decimal):
             return float(value)
         return value

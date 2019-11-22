@@ -122,7 +122,7 @@ class TestHiveCliHook(unittest.TestCase):
             self.assertIn('test_dag_run_id', output)
 
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
-    def test_load_file(self, mock_run_cli):
+    def test_load_file_without_create_table(self, mock_run_cli):
         filepath = "/path/to/input/file"
         table = "output_table"
 
@@ -135,8 +135,36 @@ class TestHiveCliHook(unittest.TestCase):
             .format(filepath=filepath, table=table)
         )
         calls = [
-            mock.call(';'),
             mock.call(query)
+        ]
+        mock_run_cli.assert_has_calls(calls, any_order=True)
+
+    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    def test_load_file_create_table(self, mock_run_cli):
+        filepath = "/path/to/input/file"
+        table = "output_table"
+        field_dict = OrderedDict([("name", "string"), ("gender", "string")])
+        fields = ",\n    ".join([k + ' ' + v for k, v in field_dict.items()])
+
+        hook = HiveCliHook()
+        hook.load_file(filepath=filepath, table=table, field_dict=field_dict, create=True, recreate=True)
+
+        create_table = (
+            "DROP TABLE IF EXISTS {table};\n"
+            "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
+            "ROW FORMAT DELIMITED\n"
+            "FIELDS TERMINATED BY ','\n"
+            "STORED AS textfile\n;".format(table=table, fields=fields)
+        )
+
+        load_data = (
+            "LOAD DATA LOCAL INPATH '{filepath}' "
+            "OVERWRITE INTO TABLE {table} ;\n"
+            .format(filepath=filepath, table=table)
+        )
+        calls = [
+            mock.call(create_table),
+            mock.call(load_data)
         ]
         mock_run_cli.assert_has_calls(calls, any_order=True)
 

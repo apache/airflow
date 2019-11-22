@@ -41,6 +41,49 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Removal of redirect_stdout, redirect_stderr
+
+Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has 
+been deleted because it can be easily replaced by the standard library.
+The functions of the standard library are more flexible and can be used in larger cases.
+  
+The code below
+```python
+import logging
+
+from airflow.utils.log.logging_mixin import redirect_stderr, redirect_stdout
+
+logger = logging.getLogger("custom-logger")
+with redirect_stdout(logger, logging.INFO), redirect_stderr(logger, logging.WARN):
+    print("I love Airflow")
+```
+can be replaced by the following code:
+```python
+from contextlib import redirect_stdout, redirect_stderr
+import logging
+
+from airflow.utils.log.logging_mixin import StreamLogWriter
+
+logger = logging.getLogger("custom-logger")
+
+with redirect_stdout(StreamLogWriter(logger, logging.INFO)), \
+        redirect_stderr(StreamLogWriter(logger, logging.WARN)):
+    print("I Love Airflow")
+```
+
+### Removal of XCom.get_one()
+
+This one is supersede by `XCom.get_many().first()` which will return the same result.
+
+### Changes to SQLSensor
+
+SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
+
+It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That 
+changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success 
+criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
+behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
+
 ### BaseOperator::render_template function signature changed
 
 Previous versions of the `BaseOperator::render_template` function required an `attr` argument as the first
@@ -92,6 +135,14 @@ delete this option.
 
 The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
 As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
+
+### Changes in experimental API execution_date microseconds replacement
+
+The default behavior was to strip the microseconds (and milliseconds, etc) off of all dag runs triggered by
+by the experimental REST API.  The default behavior will change when an explicit execution_date is
+passed in the request body.  It will also now be possible to have the execution_date generated, but
+keep the microseconds by sending `replace_microseconds=false` in the request body.  The default
+behavior can be overridden by sending `replace_microseconds=true` along with an explicit execution_date
 
 ### Changes in Google Cloud Platform related hooks
 

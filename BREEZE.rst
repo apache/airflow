@@ -561,7 +561,7 @@ Running Static Code Checks
 --------------------------
 
 We have a number of static code checks that are run in Travis CI but you can also run them locally
-in the Docker environment. All these tests run in Python 3.5 environment.
+in the Docker environment. All these tests run in Python 3.6 environment.
 
 The first time you run the checks, it may take some time to rebuild the Docker images. But all the
 subsequent runs will be much faster since the build phase will just check whether your code has changed
@@ -726,11 +726,11 @@ To run all tests with default settings (Python 3.6, Sqlite backend, "docker" env
   ./scripts/ci/local_ci_run_airflow_testing.sh
 
 
-To select Python 3.5 version, Postgres backend, and a "docker" environment, specify:
+To select Python 3.6 version, Postgres backend, and a "docker" environment, specify:
 
 .. code-block::
 
-  PYTHON_VERSION=3.5 BACKEND=postgres ENV=docker ./scripts/ci/local_ci_run_airflow_testing.sh
+  PYTHON_VERSION=3.6 BACKEND=postgres ENV=docker ./scripts/ci/local_ci_run_airflow_testing.sh
 
 To run Kubernetes tests, enter:
 
@@ -739,7 +739,7 @@ To run Kubernetes tests, enter:
   KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV=kubernetes \
     ./scripts/ci/local_ci_run_airflow_testing.sh
 
-* PYTHON_VERSION is one of 3.5/3.6/3.7
+* PYTHON_VERSION is one of 3.6/3.7
 * BACKEND is one of postgres/sqlite/mysql
 * ENV is one of docker/kubernetes/bare
 * KUBERNETES_VERSION is required for Kubernetes tests. Currently, it is KUBERNETES_VERSION=v1.13.0.
@@ -752,7 +752,7 @@ Configuring local virtualenv
 ----------------------------
 
 To use your host IDE (for example, IntelliJ's PyCharm/Idea), you need to set up virtual environments.
-Ideally, you should have virtualenvs for all Python versions supported by Airflow (3.5, 3.6, 3.7).
+Ideally, you should have virtualenvs for all Python versions supported by Airflow (3.6, 3.7).
 You can create a virtualenv using ``virtualenvwrapper``. This allows you to easily switch between
 virtualenvs using the ``workon`` command and manage your virtual environments more easily.
 
@@ -940,7 +940,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -P, --python <PYTHON_VERSION>
           Python version used for the image. This is always major/minor version.
-          One of [ 3.5 3.6 3.7 ]. Default is the python3 or python on the path.
+          One of [ 3.6 3.7 ]. Default is the python3 or python on the path.
 
   -E, --env <ENVIRONMENT>
           Environment to use for tests. It determines which types of tests can be run.

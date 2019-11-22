@@ -835,13 +835,10 @@ class CloudSqlQueryOperator(BaseOperator):
                 'extra__google_cloud_platform__project')
         )
         hook.validate_ssl_certs()
-        hook.create_connection()
+        connection = hook.create_connection()
+        hook.validate_socket_path_length()
+        database_hook = hook.get_database_hook(connection=connection)
         try:
-            hook.validate_socket_path_length()
-            database_hook = hook.get_database_hook()
-            try:
-                self._execute_query(hook, database_hook)
-            finally:
-                hook.cleanup_database_hook()
+            self._execute_query(hook, database_hook)
         finally:
-            hook.delete_connection()
+            hook.cleanup_database_hook()

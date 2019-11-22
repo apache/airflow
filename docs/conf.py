@@ -174,6 +174,8 @@ exclude_patterns = [
     '_api/airflow/_vendor',
     '_api/airflow/api',
     '_api/airflow/bin',
+    '_api/airflow/cli',
+    '_api/airflow/cli/command',
     '_api/airflow/config_templates',
     '_api/airflow/configuration',
     '_api/airflow/contrib/auth',
@@ -223,6 +225,8 @@ exclude_patterns = [
     '_api/airflow/providers/amazon/index.rst',
     '_api/airflow/providers/amazon/aws/index.rst',
     '_api/airflow/providers/amazon/aws/example_dags',
+    '_api/airflow/providers/apache/index.rst',
+    '_api/airflow/providers/apache/cassandra/index.rst',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]

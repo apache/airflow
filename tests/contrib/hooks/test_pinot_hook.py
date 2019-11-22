@@ -180,6 +180,7 @@ class TestPinotDbApiHook(unittest.TestCase):
         self.conn.conn_type = 'http'
         self.conn.extra_dejson = {'endpoint': 'pql'}
         self.cur = mock.MagicMock()
+        self.conn.cursor.return_value = self.cur
         self.conn.__enter__.return_value = self.cur
         self.conn.__exit__.return_value = None
 
@@ -220,3 +221,14 @@ class TestPinotDbApiHook(unittest.TestCase):
         result_sets = [('row1',), ('row2',)]
         self.cur.fetchone.return_value = result_sets[0]
         self.assertEqual(result_sets[0], self.db_hook().get_first(statement))
+
+    def test_get_pandas_df(self):
+        statement = 'SQL'
+        column = 'col'
+        result_sets = [('row1',), ('row2',)]
+        self.cur.description = [(column,)]
+        self.cur.fetchall.return_value = result_sets
+        df = self.db_hook().get_pandas_df(statement)
+        self.assertEqual(column, df.columns[0])
+        for i in range(len(result_sets)):  # pylint: disable=consider-using-enumerate
+            self.assertEqual(result_sets[i][0], df.values.tolist()[i][0])

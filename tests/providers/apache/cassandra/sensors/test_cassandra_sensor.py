@@ -22,8 +22,8 @@ import unittest
 from unittest.mock import patch
 
 from airflow import DAG
-from airflow.contrib.sensors.cassandra_record_sensor import CassandraRecordSensor
-from airflow.contrib.sensors.cassandra_table_sensor import CassandraTableSensor
+from airflow.providers.apache.cassandra.sensors.record import CassandraRecordSensor
+from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)

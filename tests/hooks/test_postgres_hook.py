@@ -77,6 +77,24 @@ class TestPostgresHookConn(unittest.TestCase):
             self.db_hook.get_conn()
 
     @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_from_connection(self, mock_connect):
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
+        hook = PostgresHook(connection=conn)
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login-conn', password='password-conn', host='host', dbname='schema', port=None
+        )
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_from_connection_with_schema(self, mock_connect):
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
+        hook = PostgresHook(connection=conn, schema='schema-override')
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login-conn', password='password-conn', host='host', dbname='schema-override', port=None
+        )
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
     def test_get_conn_rds_iam_postgres(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true}'

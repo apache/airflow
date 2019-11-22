@@ -26,6 +26,7 @@ import sys
 import threading
 import time
 from collections import defaultdict
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
 from time import sleep
 from typing import List, Set
@@ -122,45 +123,40 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         # This helper runs in the newly created process
         log = logging.getLogger("airflow.processor")
 
-        stdout = StreamLogWriter(log, logging.INFO)
-        stderr = StreamLogWriter(log, logging.WARN)
-
         set_context(log, file_path)
         setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
 
         try:
             # redirect stdout/stderr to log
-            sys.stdout = stdout
-            sys.stderr = stderr
+            with redirect_stdout(StreamLogWriter(log, logging.INFO)),\
+                    redirect_stderr(StreamLogWriter(log, logging.WARN)):
 
-            # Re-configure the ORM engine as there are issues with multiple processes
-            settings.configure_orm()
+                # Re-configure the ORM engine as there are issues with multiple processes
+                settings.configure_orm()
 
-            # Change the thread name to differentiate log lines. This is
-            # really a separate process, but changing the name of the
-            # process doesn't work, so changing the thread name instead.
-            threading.current_thread().name = thread_name
-            start_time = time.time()
+                # Change the thread name to differentiate log lines. This is
+                # really a separate process, but changing the name of the
+                # process doesn't work, so changing the thread name instead.
+                threading.current_thread().name = thread_name
+                start_time = time.time()
 
-            log.info("Started process (PID=%s) to work on %s",
-                     os.getpid(), file_path)
-            scheduler_job = SchedulerJob(dag_ids=dag_id_white_list, log=log)
-            result = scheduler_job.process_file(file_path,
-                                                zombies,
-                                                pickle_dags)
-            result_channel.send(result)
-            end_time = time.time()
-            log.info(
-                "Processing %s took %.3f seconds", file_path, end_time - start_time
-            )
+                log.info("Started process (PID=%s) to work on %s",
+                         os.getpid(), file_path)
+                scheduler_job = SchedulerJob(dag_ids=dag_id_white_list, log=log)
+                result = scheduler_job.process_file(file_path,
+                                                    zombies,
+                                                    pickle_dags)
+                result_channel.send(result)
+                end_time = time.time()
+                log.info(
+                    "Processing %s took %.3f seconds", file_path, end_time - start_time
+                )
         except Exception:
             # Log exceptions through the logging framework.
             log.exception("Got an exception! Propagating...")
             raise
         finally:
             result_channel.close()
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
             # We re-initialized the ORM within this Process above so we need to
             # tear it down manually here
             settings.dispose_orm()

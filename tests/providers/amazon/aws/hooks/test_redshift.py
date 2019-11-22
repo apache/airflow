@@ -23,7 +23,7 @@ import unittest
 import boto3
 
 from airflow.contrib.hooks.aws_hook import AwsHook
-from airflow.contrib.hooks.redshift_hook import RedshiftHook
+from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook
 
 try:
     from moto import mock_redshift
@@ -47,7 +47,7 @@ class TestRedshiftHook(unittest.TestCase):
             MasterUsername='admin',
             MasterUserPassword='mock_password'
         )
-        if len(client.describe_clusters()['Clusters']) == 0:
+        if not client.describe_clusters()['Clusters']:
             raise ValueError('AWS not properly mocked')
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')

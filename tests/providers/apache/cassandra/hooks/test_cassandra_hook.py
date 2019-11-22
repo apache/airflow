@@ -24,8 +24,8 @@ from cassandra.policies import (
     DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy,
 )
 
-from airflow.contrib.hooks.cassandra_hook import CassandraHook
 from airflow.models import Connection
+from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.utils import db
 from tests.compat import mock, patch
 
