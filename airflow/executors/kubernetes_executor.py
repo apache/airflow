@@ -411,7 +411,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def sync(self):
         """
         The sync function checks the status of all currently running kubernetes jobs.
-        If a job is completed, it's status is placed in the result queue to
+        If a job is completed, its status is placed in the result queue to
         be sent back to the scheduler.
 
         :return:
@@ -586,7 +586,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 break
 
     def terminate(self):
-        """Termninates the watcher."""
+        """Terminates the watcher."""
         self.log.debug("Terminating kube_watcher...")
         self.kube_watcher.terminate()
         self.kube_watcher.join()
@@ -616,7 +616,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         """
         If the airflow scheduler restarts with pending "Queued" tasks, the tasks may or
         may not
-        have been launched Thus, on starting up the scheduler let's check every
+        have been launched. Thus on starting up the scheduler let's check every
         "Queued" task to
         see if it has been launched (ie: if there is a corresponding pod on kubernetes)
 
