@@ -92,7 +92,8 @@ class CompileAssets(Command):
 
     # noinspection PyMethodMayBeStatic
     def run(self):
-        subprocess.call('./airflow/www_rbac/compile_assets.sh')
+        """Run a command to compile and build assets."""
+        subprocess.check_call('./airflow/www_rbac/compile_assets.sh')
 
 
 def git_version(version_):
