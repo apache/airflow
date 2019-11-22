@@ -75,7 +75,7 @@ class TestStandardTaskRunner(unittest.TestCase):
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
         local_task_job.task_instance.command_as_list.return_value = [
-            'airflow', 'tasks', 'test', 'test_mark_success', 'task1', '2016-01-01'
+            'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
         ]
 
         runner = StandardTaskRunner(local_task_job)
@@ -84,19 +84,14 @@ class TestStandardTaskRunner(unittest.TestCase):
 
         pgid = os.getpgid(runner.process.pid)
         self.assertGreater(pgid, 0)
+        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
 
-        procs = []
-        for p in psutil.process_iter():
-            try:
-                if os.getpgid(p.pid) == pgid and p.pid != 0:
-                    procs.append(p)
-            except OSError:
-                pass
+        processes = list(self._procs_in_pgroup(pgid))
 
         runner.terminate()
 
-        for p in procs:
-            self.assertFalse(psutil.pid_exists(p.pid), "{} is still alive".format(p))
+        for process in processes:
+            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
 
         self.assertIsNotNone(runner.return_code())
 
@@ -105,23 +100,19 @@ class TestStandardTaskRunner(unittest.TestCase):
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = getpass.getuser()
         local_task_job.task_instance.command_as_list.return_value = [
-            'airflow', 'tasks', 'test', 'test_mark_success', 'task1', '2016-01-01'
+            'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
         ]
 
         runner = StandardTaskRunner(local_task_job)
+
         runner.start()
         time.sleep(0.5)
 
         pgid = os.getpgid(runner.process.pid)
         self.assertGreater(pgid, 0)
+        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
 
-        processes = []
-        for process in psutil.process_iter():
-            try:
-                if os.getpgid(process.pid) == pgid and process.pid != 0:
-                    processes.append(process)
-            except OSError:
-                pass
+        processes = list(self._procs_in_pgroup(pgid))
 
         runner.terminate()
 
@@ -162,8 +153,15 @@ class TestStandardTaskRunner(unittest.TestCase):
         runner = StandardTaskRunner(job1)
         runner.start()
 
-        # Give the task some time to startup
-        time.sleep(10)
+        # give the task some time to startup
+        time.sleep(3)
+
+        pgid = os.getpgid(runner.process.pid)
+        self.assertGreater(pgid, 0)
+        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+
+        processes = list(self._procs_in_pgroup(pgid))
+
         runner.terminate()
 
         # Wait some time for the result
@@ -174,6 +172,18 @@ class TestStandardTaskRunner(unittest.TestCase):
 
         with open(path, "r") as f:
             self.assertEqual("ON_KILL_TEST", f.readline())
+
+        for process in processes:
+            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+
+    @staticmethod
+    def _procs_in_pgroup(pgid):
+        for p in psutil.process_iter(attrs=['pid', 'name']):
+            try:
+                if os.getpgid(p.pid) == pgid and p.pid != 0:
+                    yield p
+            except OSError:
+                pass
 
 
 if __name__ == '__main__':
