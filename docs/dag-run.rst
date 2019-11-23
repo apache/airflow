@@ -56,7 +56,7 @@ DAG Run entry in backend.
 
     If you run a DAG on a schedule_interval of one day, the run stamped 2020-01-01 
     will be triggered soon after 2020-01-01T23:59. In other words, the job instance is 
-    started once the period it covers has ended.  The execution_date passed in the dag 
+    started once the period it covers has ended.  The ``execution_date`` available in the context
     will also be 2020-01-01.
 
     The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG. 

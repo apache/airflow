@@ -30,7 +30,7 @@ Airflow production environment. To kick it off, all you need to do is
 execute ``airflow scheduler``. It will use the configuration specified in
 ``airflow.cfg``.
 
-The scheduler starts an instance of an :doc:`Executor </executor/index>`. 
+The scheduler uses the configured :doc:`Executor </executor/index>` to run tasks that are ready.
 
 To start a scheduler, simply run the command:
 
