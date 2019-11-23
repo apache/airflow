@@ -84,7 +84,7 @@ You should avoid usage of Variables outside an operator's ``execute()`` method o
 as Variables create a connection to metadata DB of Airflow to fetch the value, which can slow down parsing and place extra load on the DB.
 
 Airflow parses all the DAGs in the background at a specific period.
-The default period is set using ``processor_poll_interval`` config, which is by default 1 second. During parsing, Airflow creates a new connection to the metadata DB for each Variable.
+The default period is set using ``processor_poll_interval`` config, which is by default 1 second. During parsing, Airflow creates a new connection to the metadata DB for each DAG.
 It can result in a lot of open connections.
 
 The best way of using variables is via a Jinja template which will delay reading the value until the task execution. The template synaxt to do this is:
