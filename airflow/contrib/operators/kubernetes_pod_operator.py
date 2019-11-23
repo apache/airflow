@@ -16,25 +16,23 @@
 # under the License.
 """Executes task in a Kubernetes POD"""
 import re
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import Dict, List, Optional
+
+import kubernetes.client.models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import kube_client, pod_generator, pod_launcher
 from airflow.kubernetes.k8s_model import append_to_pod
-from airflow.kubernetes.pod import Resources
+from airflow.kubernetes.pod import Port, Resources
+from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
+from airflow.kubernetes.secret import Secret
+from airflow.kubernetes.volume import Volume
+from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.state import State
 from airflow.version import version as airflow_version
-
-if TYPE_CHECKING:
-    import kubernetes.client.models as k8s
-    from airflow.kubernetes.pod import Port
-    from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
-    from airflow.kubernetes.secret import Secret
-    from airflow.kubernetes.volume import Volume
-    from airflow.kubernetes.volume_mount import VolumeMount
 
 
 class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
