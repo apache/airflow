@@ -228,16 +228,14 @@ def trigger_dag(args):
     :param args:
     :return:
     """
-    log = LoggingMixin().log
     try:
         message = api_client.trigger_dag(dag_id=args.dag_id,
                                          run_id=args.run_id,
                                          conf=args.conf,
                                          execution_date=args.exec_date)
+        print(message)
     except IOError as err:
-        log.error(err)
         raise AirflowException(err)
-    log.info(message)
 
 
 @cli_utils.action_logging
@@ -247,24 +245,20 @@ def delete_dag(args):
     :param args:
     :return:
     """
-    log = LoggingMixin().log
     if args.yes or input(
             "This will drop all existing records related to the specified DAG. "
             "Proceed? (y/n)").upper() == "Y":
         try:
             message = api_client.delete_dag(dag_id=args.dag_id)
+            print(message)
         except IOError as err:
-            log.error(err)
             raise AirflowException(err)
-        log.info(message)
     else:
         print("Bail.")
 
 
 @cli_utils.action_logging
 def pool(args):
-    log = LoggingMixin().log
-
     def _tabulate(pools):
         return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
                                  tablefmt="fancy_grid")
@@ -290,9 +284,9 @@ def pool(args):
         else:
             pools = api_client.get_pools()
     except (AirflowException, IOError) as err:
-        log.error(err)
+        print(err)
     else:
-        log.info(_tabulate(pools=pools))
+        print(_tabulate(pools=pools))
 
 
 def pool_import_helper(filepath):
@@ -506,8 +500,6 @@ def run(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
 
-    log = LoggingMixin().log
-
     # Load custom airflow config
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
@@ -529,7 +521,7 @@ def run(args, dag=None):
         dag = get_dag(args)
     elif not dag:
         with db.create_session() as session:
-            log.info('Loading pickle id %s', args.pickle)
+            print('Loading pickle id %s', args.pickle)
             dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
             if not dag_pickle:
                 raise AirflowException("Who hid the pickle!? [missing pickle]")
@@ -542,7 +534,7 @@ def run(args, dag=None):
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
-    log.info("Running %s on host %s", ti, hostname)
+    print("Running %s on host %s", ti, hostname)
 
     if args.interactive:
         _run(args, dag, ti)
@@ -1067,7 +1059,6 @@ def worker(args):
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
 
     if not settings.validate_session():
-        log = LoggingMixin().log
         log.error("Worker exiting... database connection precheck failed! ")
         sys.exit(1)
 
