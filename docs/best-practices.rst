@@ -65,12 +65,12 @@ Communication
 --------------
 
 Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`. 
-Therefore, you should not store any file or config in the local filesystem — for example, a task that downloads the JAR file that the next task executes. 
+Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
 In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`, 
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in DAG.
 
-If possible, use ``XCom`` to communicate small messages between tasks or S3/HDFS to communicate large messages/files. 
-For example, a task that stores processed data in S3. The task can push the S3 path for the latest data in ``Xcom``,
+If possible, use ``XCom`` to communicate small messages between tasks and a good way of passing larger data between tasks is to use a remote storage such as S3/HDFS. 
+For example, if we have a task that stores processed data in S3 that task can push the S3 path for the output data in ``Xcom``,
 and the downstream tasks can pull the path from XCom and use it to read the data.
 
 The tasks should also not store any authentication parameters such as passwords or token inside them. 
@@ -241,13 +241,13 @@ Once that is done, you can run -
 
 .. code::
 
- airflow upgradedb
+ airflow db upgrade
 
 ``upgradedb`` keeps track of migrations already applies, so it's safe to run as often as you need.
 
 .. note::
  
- Do not use ``airflow initdb`` as it can create a lot of default connection, charts, etc. which are not required in production DB.
+ Do not use ``airflow db init`` as it can create a lot of default connection, charts, etc. which are not required in production DB.
 
 
 Multi-Node Cluster
