@@ -38,7 +38,7 @@ To start a scheduler, simply run the command:
 
     airflow scheduler
 
-You can start executing a DAG once your scheduler has started running successfully.
+Your DAGs will start executing once the scheduler is running successfully.
 
 .. note::
 
