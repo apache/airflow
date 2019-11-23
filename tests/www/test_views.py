@@ -692,6 +692,7 @@ class TestConfigurationView(TestBase):
 
 class TestLogView(TestBase):
     DAG_ID = 'dag_for_testing_log_view'
+    DAG_ID_REMOVED = 'removed_dag_for_testing_log_view'
     TASK_ID = 'task_for_testing_log_view'
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
     ENDPOINT = 'log?dag_id={dag_id}&task_id={task_id}&' \
@@ -731,12 +732,23 @@ class TestLogView(TestBase):
         from airflow.www.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dag.sync_to_db()
-        task = DummyOperator(task_id=self.TASK_ID, dag=dag)
+        dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
+        dag_removed.sync_to_db()
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
         with create_session() as session:
-            self.ti = TaskInstance(task=task, execution_date=self.DEFAULT_DATE)
+            self.ti = TaskInstance(
+                task=DummyOperator(task_id=self.TASK_ID, dag=dag),
+                execution_date=self.DEFAULT_DATE
+            )
             self.ti.try_number = 1
+            self.ti_removed_dag = TaskInstance(
+                task=DummyOperator(task_id=self.TASK_ID, dag=dag_removed),
+                execution_date=self.DEFAULT_DATE
+            )
+            self.ti_removed_dag.try_number = 1
+
             session.merge(self.ti)
+            session.merge(self.ti_removed_dag)
 
     def tearDown(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -860,6 +872,27 @@ class TestLogView(TestBase):
         self.assertIn('"message":', response.data.decode('utf-8'))
         self.assertIn('"metadata":', response.data.decode('utf-8'))
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
+    @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
+    def test_get_logs_with_metadata_for_removed_dag(self, mock_read):
+        mock_read.return_value = (['airflow log line'], [{'end_of_log': True}])
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}"
+        url = url_template.format(self.DAG_ID_REMOVED, self.TASK_ID,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()), 1, json.dumps({}))
+        response = self.client.get(
+            url, data=dict(
+                username='test',
+                password='test'
+            ),
+            follow_redirects=True
+        )
+
+        self.assertIn('"message":', response.data.decode('utf-8'))
+        self.assertIn('"metadata":', response.data.decode('utf-8'))
+        self.assertIn('airflow log line', response.data.decode('utf-8'))
         self.assertEqual(200, response.status_code)
 
 
