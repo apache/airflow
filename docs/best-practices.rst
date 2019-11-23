@@ -35,7 +35,7 @@ Creating a task
 You should treat tasks in Airflow equivalent to transactions in a database. It implies that you should never produce
 incomplete results from your tasks. An example is not to produce incomplete data in ``HDFS`` or ``S3`` at the end of a task.
 
-Airflow retries a task if it fails. Thus, the tasks should produce the same outcome on every re-run.
+Airflow can retry a task if it fails. Thus, the tasks should produce the same outcome on every re-run.
 Some of the ways you can avoid producing a different result -
 
 * Do not use INSERT during a task re-run, an INSERT statement might lead to duplicate rows in your database.
@@ -243,7 +243,7 @@ Once that is done, you can run -
 
  airflow db upgrade
 
-``upgradedb`` keeps track of migrations already applies, so it's safe to run as often as you need.
+``upgrade`` keeps track of migrations already applies, so it's safe to run as often as you need.
 
 .. note::
  
