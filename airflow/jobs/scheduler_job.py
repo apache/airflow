@@ -751,7 +751,7 @@ class SchedulerJob(BaseJob):
         changed manually.
 
         :param old_states: examine TaskInstances in this state
-        :type old_state: list[airflow.utils.state.State]
+        :type old_states: list[airflow.utils.state.State]
         :param new_state: set TaskInstances to this state
         :type new_state: airflow.utils.state.State
         :param simple_dag_bag: TaskInstances associated with DAGs in the
