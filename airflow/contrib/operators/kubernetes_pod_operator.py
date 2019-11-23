@@ -106,7 +106,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type image_pull_secrets: str
     :param service_account_name: Name of the service account
     :type service_account_name: str
-
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted.
         If False (default): do nothing, If True: delete the pod
