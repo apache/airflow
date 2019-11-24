@@ -35,6 +35,16 @@ ADD_STEPS_SUCCESS_RETURN = {
     'StepIds': ['s-2LH3R5GW3A53T']
 }
 
+LIST_CLUSTERS_RETURN = {
+    'Clusters':
+        [
+            {
+                'Name': 'test_cluster',
+                'Id': 'j-1231231234'
+            }
+        ]
+}
+
 
 class TestEmrAddStepsOperator(unittest.TestCase):
     # When
@@ -52,19 +62,25 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     }]
 
     def setUp(self):
-        args = {
+        self.args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
         }
 
         # Mock out the emr_client (moto has incorrect response)
         self.emr_client_mock = MagicMock()
+
+        # Mock out the emr_client creator
+        emr_session_mock = MagicMock()
+        emr_session_mock.client.return_value = self.emr_client_mock
+        self.boto3_session_mock = MagicMock(return_value=emr_session_mock)
+
         self.operator = EmrAddStepsOperator(
             task_id='test_task',
             job_flow_id='j-8989898989',
             aws_conn_id='aws_default',
             steps=self._config,
-            dag=DAG('test_dag_id', default_args=args)
+            dag=DAG('test_dag_id', default_args=self.args)
         )
 
     def test_init(self):
@@ -93,13 +109,21 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     def test_execute_returns_step_id(self):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
-        # Mock out the emr_client creator
-        emr_session_mock = MagicMock()
-        emr_session_mock.client.return_value = self.emr_client_mock
-        self.boto3_session_mock = MagicMock(return_value=emr_session_mock)
-
         with patch('boto3.session.Session', self.boto3_session_mock):
             self.assertEqual(self.operator.execute(None), ['s-2LH3R5GW3A53T'])
+
+    def test_init_with_cluster_name(self):
+        self.emr_client_mock.list_clusters.return_value = LIST_CLUSTERS_RETURN
+
+        with patch('boto3.session.Session', self.boto3_session_mock):
+            operator = EmrAddStepsOperator(
+                task_id='test_task',
+                job_flow_name='test_cluster',
+                aws_conn_id='aws_default',
+                dag=DAG('test_dag_id', default_args=self.args)
+            )
+
+            self.assertEqual(operator.job_flow_id, 'j-1231231234')
 
 
 if __name__ == '__main__':

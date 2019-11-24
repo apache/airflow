@@ -36,6 +36,26 @@ class EmrHook(AwsHook):
         self.conn = self.get_client_type('emr', self.region_name)
         return self.conn
 
+    def get_cluster_id_by_name(self, emr_cluster_name):
+        conn = self.get_conn()
+
+        response = conn.list_clusters(
+            ClusterStates=[
+                'RUNNING', 'WAITING'
+            ]
+        )
+
+        matching_clusters = list(
+            filter(lambda cluster: cluster['Name'] == emr_cluster_name, response['Clusters'])
+        )
+
+        if len(matching_clusters) > 0:
+            cluster_id = matching_clusters[0]['Id']
+            self.log.info("Found cluster name = %s id = %s" % (emr_cluster_name, cluster_id))
+            return cluster_id
+        else:
+            return None
+
     def create_job_flow(self, job_flow_overrides):
         """
         Creates a job flow using the config from the EMR connection.

@@ -28,6 +28,9 @@ class EmrAddStepsOperator(BaseOperator):
 
     :param job_flow_id: id of the JobFlow to add steps to. (templated)
     :type job_flow_id: str
+    :param job_flow_name: name of the JobFlow to add steps to (alternative to passing job_flow_id. will
+        search for id of first running/waiting JobFlow with matching name). (templated)
+    :type job_flow_name: str
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     :param steps: boto3 style steps to be added to the jobflow. (templated)
@@ -39,19 +42,27 @@ class EmrAddStepsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            job_flow_id,
-            aws_conn_id='aws_default',
-            steps=None,
-            *args, **kwargs):
+        self,
+        job_flow_id=None,
+        job_flow_name=None,
+        aws_conn_id='s3_default',
+        steps=None,
+        *args, **kwargs):
         super().__init__(*args, **kwargs)
         steps = steps or []
-        self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
+        self.emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
+        self.job_flow_id = job_flow_id
+        if not self.job_flow_id:
+            if job_flow_name:
+                self.job_flow_id = self.emr_hook.get_cluster_id_by_name(job_flow_name)
+            else:
+                raise AirflowException('Either job_flow_id or job_flow_name must be specified.')
+        self.job_flow_name = job_flow_name
         self.steps = steps
 
     def execute(self, context):
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr = self.emr_hook.get_conn()
 
         self.log.info('Adding steps to %s', self.job_flow_id)
         response = emr.add_job_flow_steps(JobFlowId=self.job_flow_id, Steps=self.steps)
