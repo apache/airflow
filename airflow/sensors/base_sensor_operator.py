@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
+import hashlib
 from datetime import timedelta
 from time import sleep
 from typing import Dict, Iterable
-import hashlib
 
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSensorTimeout, AirflowSkipException,
