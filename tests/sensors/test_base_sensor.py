@@ -502,3 +502,30 @@ class TestBaseSensor(unittest.TestCase):
             return_value=None,
             poke_interval=10,
             timeout=positive_timeout)
+
+    def test_sensor_with_exponential_backoff_off(self):
+        sensor = self._make_sensor(
+            return_value=None,
+            poke_interval=5,
+            timeout=60,
+            exponential_backoff=False)
+
+        started_at = timezone.utcnow() - timedelta(seconds=10)
+        self.assertEqual(sensor._get_next_poke_interval(started_at, 1), sensor.poke_interval)
+        self.assertEqual(sensor._get_next_poke_interval(started_at, 2), sensor.poke_interval)
+
+
+    def test_sensor_with_exponential_backoff_on(self):
+        sensor = self._make_sensor(
+            return_value=None,
+            poke_interval=5,
+            timeout=60,
+            exponential_backoff=True)
+
+        started_at = timezone.utcnow() - timedelta(seconds=10)
+
+        interval1 = sensor._get_next_poke_interval(started_at, 1)
+        interval2 = sensor._get_next_poke_interval(started_at, 2)
+
+        self.assertTrue(interval2 >= sensor.poke_interval >= interval1)
+
