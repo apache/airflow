@@ -883,7 +883,8 @@ class TestLogView(TestBase):
         url = url_template.format(self.DAG_ID_REMOVED, self.TASK_ID,
                                   quote_plus(self.DEFAULT_DATE.isoformat()), 1, json.dumps({}))
         response = self.client.get(
-            url, data=dict(
+            url,
+            data=dict(
                 username='test',
                 password='test'
             ),
