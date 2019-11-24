@@ -514,7 +514,6 @@ class TestBaseSensor(unittest.TestCase):
         self.assertEqual(sensor._get_next_poke_interval(started_at, 1), sensor.poke_interval)
         self.assertEqual(sensor._get_next_poke_interval(started_at, 2), sensor.poke_interval)
 
-
     def test_sensor_with_exponential_backoff_on(self):
         sensor = self._make_sensor(
             return_value=None,
@@ -528,4 +527,3 @@ class TestBaseSensor(unittest.TestCase):
         interval2 = sensor._get_next_poke_interval(started_at, 2)
 
         self.assertTrue(interval2 >= sensor.poke_interval >= interval1)
-

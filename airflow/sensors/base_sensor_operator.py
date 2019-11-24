@@ -59,6 +59,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         quite long. The poke interval should be more than one minute to
         prevent too much load on the scheduler.
     :type mode: str
+    :param exponential_backoff: allow progressive longer waits between
+        pokes by using exponential backoff algorithm
+    :type exponential_backoff: bool
     """
     ui_color = '#e6f1f2'  # type: str
     valid_modes = ['poke', 'reschedule']  # type: Iterable[str]
@@ -137,6 +140,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
 
     def _get_next_poke_interval(self, started_at, try_number):
+        """
+        Using the similar logic which is used for exponential backoff retry delay for operators.
+        """
         if self.exponential_backoff:
             min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
             current_time = timezone.utcnow()
@@ -152,7 +158,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 modded_hash,
                 timedelta.max.total_seconds() - 1
             )
-            new_interval = min(self.timeout - int((current_time - started_at).total_seconds()), delay_backoff_in_seconds)
+            new_interval = min(self.timeout - int((current_time - started_at).total_seconds()),
+                               delay_backoff_in_seconds)
             self.log.info("new {} interval is {}".format(self.mode, new_interval))
             return new_interval
         else:
