@@ -138,7 +138,7 @@ Run the below command
 
     airflow backfill -s START_DATE -e END_DATE dag_id
 
-The above command will re-run all the instances of the dag_id for all the intervals within the start date and end date.
+The `backfill command <cli-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date. 
 
 Re-run Tasks
 ------------
@@ -166,7 +166,7 @@ You can also clear the task through CLI using the command:
     airflow tasks clear dag_id -t task_regex -s START_DATE -d END_DATE
 
 For the specified ``dag_id`` and time interval, the command clears all instances of the tasks matching the regex.
-For more options, you can run the command:
+For more options, you can check the help of the `clear command <cli-ref.html#clear>`_ :
 
 .. code:: bash
 
