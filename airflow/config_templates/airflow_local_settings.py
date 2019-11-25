@@ -21,6 +21,7 @@
 import os
 from typing import Any, Dict
 
+from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.utils.file import mkdirs
 
@@ -146,16 +147,16 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
 
 # Remote logging configuration
 
+REMOTE_LOGGING = conf.getboolean('core', 'remote_logging')
+
+ELASTICSEARCH_HOST = conf.get('elasticsearch', 'HOST')
+
 # Storage bucket URL for remote logging
 # S3 buckets should start with "s3://"
 # GCS buckets should start with "gs://"
 # WASB buckets should start with "wasb"
 # just to help Airflow select correct handler
 REMOTE_BASE_LOG_FOLDER = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
-
-ELASTICSEARCH_HOST = conf.get('elasticsearch', 'HOST')
-
-REMOTE_LOGGING = conf.getboolean('core', 'remote_logging')
 
 if REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
     S3_REMOTE_HANDLERS = {
@@ -218,3 +219,8 @@ elif REMOTE_LOGGING and ELASTICSEARCH_HOST:
     }
 
     DEFAULT_LOGGING_CONFIG['handlers'].update(ELASTIC_REMOTE_HANDLERS)
+elif REMOTE_LOGGING:
+    raise AirflowException(
+        "Incorrect remote log configuration. Please check the configuration of option 'host' in "
+        "section 'elasticsearch' if you are using Elasticsearch. In the other case, "
+        "'remote_base_log_folder' option in 'core' section.")
