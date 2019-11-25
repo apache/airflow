@@ -21,10 +21,11 @@
 Code that goes along with the Airflow located at:
 http://airflow.readthedocs.org/en/latest/tutorial.html
 """
-from airflow import DAG
-from airflow.operators.bash_operator import BashOperator
-from airflow.contrib.operators.neo4j_operator import Neo4JOperator
 from datetime import datetime, timedelta
+
+from airflow import DAG
+from airflow.contrib.operators.neo4j_operator import Neo4JOperator
+from airflow.operators.bash_operator import BashOperator
 
 default_args = {
     "owner": "airflow",

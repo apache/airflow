@@ -18,7 +18,7 @@
 # under the License.
 """This hook provides minimal thin wrapper around the neo4j python library to provide query execution"""
 from typing import Optional
-from neo4j import GraphDatabase, Driver, Session, BoltStatementResult
+from neo4j import BoltStatementResult, Driver, GraphDatabase, Session
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
@@ -44,7 +44,6 @@ class Neo4JHook(BaseHook):
         Store them in _config dictionary as:
         *credentials* -- a tuple of username/password eg. ("username", "password")
         *host* -- String for Neo4J URI eg. "bolt://1.1.1.1:7687"
-
         :param n4j_conn_id: Name of connection configured in Airflow
         :type n4j_conn_id: str
         :return: dictionary with configuration values

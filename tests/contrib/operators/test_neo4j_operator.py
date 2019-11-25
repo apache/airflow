@@ -18,7 +18,7 @@
 # under the License.
 """Test the functioning of the Neo4J Operator for Apache Airflow"""
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 from neo4j import BoltStatementResult
 from airflow.contrib.operators import neo4j_operator
 

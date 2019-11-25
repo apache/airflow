@@ -24,10 +24,10 @@ Python driver: https://neo4j.com/docs/api/python-driver/current/
 
 import csv
 from neo4j import BoltStatementResult
+from airflow.contrib.hooks.neo4j_hook import Neo4JHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.neo4j_hook import Neo4JHook
 
 
 class Neo4JOperator(BaseOperator):
