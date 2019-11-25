@@ -88,7 +88,7 @@ class PodGenerator:
     :param configmaps: Any configmap refs to envfrom.
         If more than one configmap is required, provide a comma separated list
         configmap_a,configmap_b
-    :type configmaps: str
+    :type configmaps: List[str]
     :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
     :param pod: The fully specified pod.

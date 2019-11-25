@@ -255,7 +255,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id
-        self.initial_split_keys = initial_split_keys or list()
+        self.initial_split_keys = initial_split_keys or []
         self.column_families = column_families or dict()
         self._validate_inputs()
         self.gcp_conn_id = gcp_conn_id

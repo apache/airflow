@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-API Client that allows interact with Airflow API
+API Client that allows interacting with Airflow API
 """
 from importlib import import_module
 from typing import Any
@@ -28,7 +28,7 @@ from airflow.api.client.api_client import Client
 
 def get_current_api_client() -> Client:
     """
-    Return current API Client depends on current Airflow configuration
+    Return current API Client based on current Airflow configuration
     """
     api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
     api_client = api_module.Client(

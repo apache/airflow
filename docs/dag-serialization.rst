@@ -78,3 +78,15 @@ which is why we said "almost" stateless.
     However, it does not need to Parse the Python file so it is still a small operation.
 *   :doc:`Extra Operator Links <howto/define_extra_link>` for the inbuilt Operators would not no longer work.
     However, you can define your own Operator Links via Airflow plugins.
+
+
+Using a different JSON Library
+------------------------------
+
+To use a different JSON library instead of the standard ``json`` library like ``ujson``, you need to
+define a ``json`` variable in local Airflow settings (``airflow_local_settings.py``) file as follows:
+
+.. code:: python
+
+    import ujson
+    json = ujson

@@ -1582,7 +1582,8 @@ class Airflow(AirflowBaseView):
             for ti in task.get_task_instances(start_date=min_date, end_date=base_date):
                 dttm = wwwutils.epoch(ti.execution_date)
                 x.append(dttm)
-                y.append(ti.try_number)
+                # y value should reflect completed tries to have a 0 baseline.
+                y.append(ti.prev_attempted_tries)
             if x:
                 chart.add_serie(name=task.task_id, x=x, y=y)
 
@@ -1759,9 +1760,10 @@ class Airflow(AirflowBaseView):
         gantt_bar_items = []
         for ti in tis:
             end_date = ti.end_date or timezone.utcnow()
-            try_count = ti.try_number
-            if ti.state != State.RUNNING:
-                try_count = ti.try_number - 1
+            # prev_attempted_tries will reflect the currently running try_number
+            # or the try_number of the last complete run
+            # https://issues.apache.org/jira/browse/AIRFLOW-2143
+            try_count = ti.prev_attempted_tries
             gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state, try_count))
 
         tf_count = 0

@@ -21,7 +21,6 @@
 
 import datetime
 import enum
-import json
 import logging
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
@@ -34,6 +33,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.settings import json
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.utils import get_python_source
 
