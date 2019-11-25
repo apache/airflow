@@ -16,19 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Neo4JOperator to interact and perform action on Neo4J graph database.
+This operator is designed to use Neo4J Hook and the
+Python driver: https://neo4j.com/docs/api/python-driver/current/
+"""
 
+import csv
+from neo4j import BoltStatementResult
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.neo4j_hook import Neo4JHook
-import csv
 
 
 class Neo4JOperator(BaseOperator):
     """
-    Neo4JOperator to interact and perform action on Neo4J graph database.
-    This operator is designed to use Neo4J Python driver: https://neo4j.com/docs/api/python-driver/current/
-
+    This operator takes a number of configuration parameters
     :param cypher_query: required cypher query to be executed on the Neo4J database
     :type cypher_query: str
     :param output_filename: required filename to produce with output from the query
@@ -43,11 +47,13 @@ class Neo4JOperator(BaseOperator):
     _n4j_conn_id = None
     _fail_on_no_results = None
 
+    template_fields = ['cypher_query', 'output_filename', 'n4j_conn_id']
+
     @apply_defaults
     def __init__(self,
                  cypher_query,
                  output_filename,
-                 n4j_conn_id='n4j_default',
+                 n4j_conn_id,
                  fail_on_no_results=False,
                  *args,
                  **kwargs):
@@ -59,11 +65,13 @@ class Neo4JOperator(BaseOperator):
         self._fail_on_no_results = fail_on_no_results
 
     def execute(self, context):
+        """
+        Executes the supplied query and saves the results as a CSV file on disk
+        :param context:
+        :return:
+        """
         hook = Neo4JHook(n4j_conn_id=self._n4j_conn_id)
-        if self._cypher_query is not None:
-            result = hook.run_query(cypher_query=self._cypher_query)
-        else:
-            raise AirflowException("cypher_query is missing.")
+        result: BoltStatementResult = hook.run_query(cypher_query=self._cypher_query)
 
         # In some cases, an empty result should fail (where results are expected)
         if result.peek() is None and self._fail_on_no_results:
@@ -72,15 +80,17 @@ class Neo4JOperator(BaseOperator):
         row_count = self._make_csv(result)
 
         # Provide some feedback to what was done...
-        self.log.info("Saved {0} with {1} rows".format(self._output_filename, row_count))
+        self.log.info("Saved %s with %s rows", self._output_filename, row_count)
 
-        # result = 'neo4j.BoltStatementResult' See https://neo4j.com/docs/api/python-driver/current/results.html
-        self.log.info("Processing output with keys: {}".format(result.keys()))
-
-    def _make_csv(self, result):
+    def _make_csv(self, result: BoltStatementResult):
+        """
+        Local utility method to write out the results of query execution
+        to a CSV. Better options could be added in the future
+        :param result: Result of query execution
+        :return: int: Count of rows written
+        """
         total_row_count = 0
 
-        # Consider available disk space on the Airflow server, maybe support S3 bucket and bring in the S3 Hook
         with open(self._output_filename, 'w', newline='') as output_file:
             output_writer = csv.DictWriter(output_file, fieldnames=result.keys())
             output_writer.writeheader()

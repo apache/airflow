@@ -44,13 +44,13 @@ The connection name is then used in the DAG to reference this definition.
 
 Basic Usage
 ^^^^^^^^^^^
-Use the :class:`~airflow/contrib/operators/neo4j_operator.Neo4JOperator` to execute cyhpher query:
+Use the :class:`~airflow/contrib/operators/neo4j_operator.Neo4JOperator` to execute cypher query:
 
 .. exampleinclude:: ../../../airflow/contrib/example_dags/example_neo4j_operator.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_dingding]
-    :end-before: [END howto_operator_dingding]
+    :start-after: [START howto_operator_neo4j]
+    :end-before: [END howto_operator_neo4j]
 
 Options
 ^^^^^^^^^^^^^^^^^^
@@ -67,6 +67,6 @@ cypher_query: Text string with the query to execute:
 More information
 ^^^^^^^^^^^^^^^^
 
-See Neo4j documentation on how to interact via Python `https://neo4j.com/docs/api/python-driver/current/`.
+See Neo4j documentation on how to interact via Python `Neo4j Python Drivers <https://neo4j.com/docs/api/python-driver/current/>`__.
 
-See Neo4j documentation on how to write cypher queries `https://neo4j.com/developer/cypher-query-language/`.
+See Neo4j documentation on how to write cypher queries `Cypher Query Language <https://neo4j.com/developer/cypher-query-language/`__.
