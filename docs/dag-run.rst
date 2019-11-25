@@ -50,7 +50,7 @@ Alternatively, you can also use one of these cron "presets":
 +--------------+----------------------------------------------------------------+---------------+
 
 Your DAG will be instantiated for each schedule along with a corresponding 
-DAG Run entry in backend.
+DAG Run entry in the database backend.
 
 .. note::
 
@@ -61,8 +61,8 @@ DAG Run entry in backend.
 
     The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG. 
     Subsequent DAG Runs are created by the scheduler process, based on your DAG’s ``schedule_interval``, 
-    sequentially. If your start_date is 2020-01-01 and schedule_interval is @daily the first run 
-    will be created on 2020-01-02 i.e. after your start date has passed.
+    sequentially. If your start_date is 2020-01-01 and schedule_interval is @daily, the first run 
+    will be created on 2020-01-02 i.e., after your start date has passed.
 
 Re-run DAG
 ''''''''''
@@ -75,13 +75,12 @@ Catchup
 -------
 
 An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``schedule_interval`` defines a 
-series of intervals which the scheduler turn into individual DAG Runs and execute. A key capability 
-of Airflow is that these DAG Runs are atomic and idempotent items. The scheduler, by default, will
+series of intervals which the scheduler turns into individual DAG Runs and executes. The scheduler, by default, will
 kick off a DAG Run for any interval that has not been run since the last execution date (or has been cleared). This concept is called Catchup.
 
-If your DAG is written to handle its own catchup (i.e. not limited to the interval, but instead to ``Now`` for instance.), 
+If your DAG is written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.), 
 then you will want to turn catchup off. This can be done by setting ``catchup = False`` in DAG  or ``catchup_by_default = False``
-in configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
+in the configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
 
 .. code:: python
 
@@ -120,18 +119,17 @@ If the ``dag.catchup`` value had been ``True`` instead, the scheduler would ha
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02, 
 as that interval hasn’t completed) and the scheduler will execute them sequentially. 
 
-Catchup is also triggered when you turn off a DAG for a specified period of time and then re-enable.
+Catchup is also triggered when you turn off a DAG for a specified period and then re-enable it.
 
-This behavior 
-is great for atomic datasets that can easily be split into periods. Turning catchup off is great 
+This behavior is great for atomic datasets that can easily be split into periods. Turning catchup off is great 
 if your DAG performs catchup internally.
 
 
 Backfill
 ---------
-There can be the case when you may want to run the dag for a specified historical period e.g. a data pipeline
-which dumps data in a DFS every day and another pipeline which requires last 1 month of data in DFS. 
-This is known as Backfill.
+There can be the case when you may want to run the dag for a specified historical period e.g., 
+A data filling DAG is created with ``start_date`` **2019-11-21**, but another user requires the output data from a month ago i.e., **2019-10-21**. 
+This process is known as Backfill.
 
 You may want to backfill the data even in the cases when catchup is disabled. This can be done through CLI. 
 Run the below command
@@ -144,23 +142,22 @@ The above command will re-run all the instances of the dag_id for all the interv
 
 Re-run Tasks
 ------------
-It can happen, that some of the tasks can fail during the scheduled run. Once you have fixed 
+Some of the tasks can fail during the scheduled run. Once you have fixed 
 the errors after going through the logs, you can re-run the tasks by clearing it for the 
 scheduled date. Clearing a task instance doesn't delete the task instance record. 
-Instead it updates ``max_tries`` to ``0`` and set the current task instance state to be ``None``, this forces the task to re-run.
+Instead, it updates ``max_tries`` to ``0`` and set the current task instance state to be ``None``, this forces the task to re-run.
 
 Click on the failed task in the Tree or Graph views and then click on **Clear**.
-``
-failed to ``None`` and the executor will re-run it.
+The executor will re-run it.
 
 There are multiple options you can select to re-run - 
 
-* Past - All the instances of the task in the  runs before the current DAG's execution date
-* Future -  All the instances of the task in the  runs after the current DAG's execution date
-* Upstream - The upstream tasks in the current DAG
-* Downstream - The downstream tasks in the current DAG
-* Recursive - All the tasks in the child DAGs and parent DAGs
-* Failed - Only the failed tasks in the current DAG
+* **Past** - All the instances of the task in the  runs before the current DAG's execution date
+* **Future** -  All the instances of the task in the  runs after the current DAG's execution date
+* **Upstream** - The upstream tasks in the current DAG
+* **Downstream** - The downstream tasks in the current DAG
+* **Recursive** - All the tasks in the child DAGs and parent DAGs
+* **Failed** - Only the failed tasks in the current DAG
 
 You can also clear the task through CLI using the command:
 
@@ -168,8 +165,8 @@ You can also clear the task through CLI using the command:
 
     airflow tasks clear dag_id -t task_regex -s START_DATE -d END_DATE
 
-This will clear all instances of the tasks matching the regex for the dag_id which have run during 
-the mentioned interval. For more options, you can run the command:
+For the specified ``dag_id`` and time interval, the command clears all instances of the tasks matching the regex.
+For more options, you can run the command:
 
 .. code:: bash
 
@@ -184,9 +181,9 @@ Note that DAG Runs can also be created manually through the CLI. Just run the
 
     airflow dags trigger -e execution_date run_id
 
-The DAG Runs created externally to the scheduler get associated to the trigger’s timestamp, and will be displayed 
-in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using ``-e`` argument 
-otherwise the current date in UTC timezone is used as default.
+The DAG Runs created externally to the scheduler get associated with the trigger’s timestamp and are displayed 
+in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using the ``-e`` argument.
+The default is the current date in the UTC timezone.
 
 In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
 
@@ -194,4 +191,4 @@ To Keep in Mind
 ''''''''''''''''
 * Marking task instances as failed can be done through the UI. This can be used to stop running task instances.
 * Marking task instances as successful can be done through the UI. This is mostly to fix false negatives, or 
-  for instance when the fix has been applied outside of Airflow.
+  for instance, when the fix has been applied outside of Airflow.
