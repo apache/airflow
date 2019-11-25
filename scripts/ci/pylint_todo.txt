@@ -44,7 +44,7 @@
 ./airflow/contrib/operators/file_to_wasb.py
 ./airflow/contrib/operators/grpc_operator.py
 ./airflow/contrib/operators/jenkins_job_trigger_operator.py
-./airflow/contrib/operators/jira_operator.py
+./airflow/providers/jira/operators/jira.py
 ./airflow/contrib/operators/mongo_to_s3.py
 ./airflow/contrib/operators/opsgenie_alert_operator.py
 ./airflow/contrib/operators/oracle_to_azure_data_lake_transfer.py
@@ -87,7 +87,7 @@
 ./airflow/contrib/sensors/file_sensor.py
 ./airflow/contrib/sensors/ftp_sensor.py
 ./airflow/contrib/sensors/hdfs_sensor.py
-./airflow/contrib/sensors/jira_sensor.py
+./airflow/providers/jira/sensors/jira.py
 ./airflow/contrib/sensors/mongo_sensor.py
 ./airflow/contrib/sensors/python_sensor.py
 ./airflow/contrib/sensors/qubole_sensor.py
@@ -248,7 +248,7 @@
 ./tests/contrib/hooks/test_azure_cosmos_hook.py
 ./tests/contrib/hooks/test_databricks_hook.py
 ./tests/contrib/hooks/test_imap_hook.py
-./tests/contrib/hooks/test_jira_hook.py
+./tests/providers/jira/hooks/test_jira.py
 ./tests/contrib/hooks/test_mongo_hook.py
 ./tests/contrib/hooks/test_openfaas_hook.py
 ./tests/contrib/hooks/test_snowflake_hook.py

@@ -275,7 +275,7 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.cloudant_hook import CloudantHook
             return CloudantHook(cloudant_conn_id=self.conn_id)
         elif self.conn_type == 'jira':
-            from airflow.contrib.hooks.jira_hook import JiraHook
+            from airflow.providers.jira.hooks.jira import JiraHook
             return JiraHook(jira_conn_id=self.conn_id)
         elif self.conn_type == 'redis':
             from airflow.contrib.hooks.redis_hook import RedisHook
