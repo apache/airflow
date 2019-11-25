@@ -20,6 +20,7 @@ from unittest import mock
 
 from sqlalchemy.engine.url import make_url
 
+from airflow import AirflowException
 from airflow.bin import cli
 from airflow.cli.commands import db_command
 
@@ -97,3 +98,11 @@ class TestCliDb(unittest.TestCase):
             'PGPORT': '',
             'PGUSER': 'postgres'
         }, postgres_env)
+
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("invalid+psycopg2://postgres:airflow@postgres/airflow")
+    )
+    def test_cli_shell_invalid(self):
+        with self.assertRaisesRegex(AirflowException, r"Unknown driver: invalid\+psycopg2"):
+            db_command.shell(self.parser.parse_args(['db', 'shell']))
