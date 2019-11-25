@@ -44,6 +44,7 @@ t1 = BashOperator(task_id="print_date", bash_command="date", dag=dag)
 
 t2 = BashOperator(task_id="sleep", bash_command="sleep 5", retries=3, dag=dag)
 
+# [START howto_operator_neo4j]
 t3 = Neo4JOperator(
     task_id="RunNeo4JQuery",
     cypher_query="MATCH (n) RETURN id(n)",
@@ -52,6 +53,7 @@ t3 = Neo4JOperator(
     n4j_conn_id="ExampleN4J",
     dag=dag
 )
+# [END howto_operator_neo4j]
 
 t2.set_upstream(t1)
 t3.set_upstream(t2)

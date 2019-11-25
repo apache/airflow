@@ -41,8 +41,9 @@ class Neo4JHook(BaseHook):
         """
         Obtain the Username + Password from the Airflow connection definition
         Store them in _config dictionary as:
-         credentials = a tuple of username/password eg. ("username", "password")
-         host = String for Neo4J URI eg. "bolt://1.1.1.1:7687"
+        *credentials* -- a tuple of username/password eg. ("username", "password")
+        *host* -- String for Neo4J URI eg. "bolt://1.1.1.1:7687"
+
         :param n4j_conn_id Name of connection configured in Airflow
         :return: dictionary with configuration values
         :rtype dict

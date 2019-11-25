@@ -160,6 +160,8 @@ Here's the list of the subpackages and what they enable:
 |                     |                                                     | example, ``mysqlclient`` 1.3.12 can only be                          |
 |                     |                                                     | used with MySQL server 5.6.4 through 5.7.                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| neo4j               | ``pip install 'apache-airflow[neo4j]'``             | Neo4j hooks and operators                                            |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | oracle              | ``pip install 'apache-airflow[oracle]'``            | Oracle hooks and operators                                           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | pinot               | ``pip install 'apache-airflow[pinot]'``             | Pinot DB hook                                                        |

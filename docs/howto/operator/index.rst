@@ -34,5 +34,6 @@ information.
     dingding
     gcp/index
     kubernetes
+    neo4j
     papermill
     python
