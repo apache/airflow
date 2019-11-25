@@ -29,87 +29,8 @@ https://www.sphinx-doc.org/en/master/templating.html
 {% block extrahead %}
   {{ super() }}
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      var el = document.getElementById('changelog');
-      if (el !== null ) {
-        // [AIRFLOW-...]
-        el.innerHTML = el.innerHTML.replace(
-            /\[(AIRFLOW-[\d]+)\]/g,
-            `<a href="https://issues.apache.org/jira/browse/$1">[$1]</a>`
-        );
-        // (#...)
-        el.innerHTML = el.innerHTML.replace(
-            /\(#([\d]+)\)/g,
-            `<a href="https://github.com/apache/airflow/pull/$1">(#$1)</a>`
-        );
-      };
-    })
-  </script>
-    <script type="text/javascript">
-    var _gaq = _gaq || [];
-    _gaq.push(['_setAccount', 'UA-140539454-1']);
-    _gaq.push(['_trackPageview']);
   </script>
   <style>
-    .example-header {
-      position: relative;
-      background: #9AAA7A;
-      padding: 8px 16px;
-      margin-bottom: 0;
-    }
-    .example-header--with-button {
-      padding-right: 166px;
-    }
-    .example-header:after{
-      content: '';
-      display: table;
-      clear: both;
-    }
-    .example-title {
-      display:block;
-      padding: 4px;
-      margin-right: 16px;
-      color: white;
-      overflow-x: auto;
-    }
-    .example-header-button {
-      top: 8px;
-      right: 16px;
-      position: absolute;
-    }
-    .example-header + .highlight-python {
-      margin-top: 0 !important;
-    }
-    .viewcode-button {
-      display: inline-block;
-      padding: 8px 16px;
-      border: 0;
-      margin: 0;
-      outline: 0;
-      border-radius: 2px;
-      -webkit-box-shadow: 0 3px 5px 0 rgba(0,0,0,.3);
-      box-shadow: 0 3px 6px 0 rgba(0,0,0,.3);
-      color: #404040;
-      background-color: #e7e7e7;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: 500;
-      line-height: 1;
-      text-decoration: none;
-      text-overflow: ellipsis;
-      overflow: hidden;
-      text-transform: uppercase;
-      -webkit-transition: background-color .2s;
-      transition: background-color .2s;
-      vertical-align: middle;
-      white-space: nowrap;
-    }
-    .viewcode-button:visited {
-      color: #404040;
-    }
-    .viewcode-button:hover, .viewcode-button:focus {
-      color: #404040;
-      background-color: #d6d6d6;
-    }
+
   </style>
 {% endblock %}
