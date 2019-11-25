@@ -170,3 +170,13 @@ for those tests.
 Note - soon we will separate the integration and system tests out
 so that you can clearly know which tests are unit tests and can be run in
 the local virtualenv and which should be run using Breeze.
+
+Connecting to database
+----------------------
+
+When analyzing the situation, it is helpful to be able to directly query the database. You can do it using
+the built-in Airflow command:
+
+.. code:: bash
+
+    airflow db shell

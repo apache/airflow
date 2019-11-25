@@ -34,6 +34,7 @@ import getpass
 import reprlib
 import argparse
 from builtins import input
+from tempfile import NamedTemporaryFile
 
 from airflow.utils.dot_renderer import render_dag
 from airflow.utils.timezone import parse as parsedate
@@ -1135,6 +1136,40 @@ def resetdb(args):
 
 
 @cli_utils.action_logging
+def shell(args):
+    """Run a shell that allows to access database access"""
+    url = settings.engine.url
+    print("DB: " + repr(url))
+
+    if url.get_backend_name() == 'mysql':
+        with NamedTemporaryFile(suffix="my.cnf") as f:
+            content = textwrap.dedent("""
+                [client]
+                host     = {}
+                user     = {}
+                password = {}
+                port     = {}
+                database = {}
+                """.format(url.host, url.username, url.password or "", url.port or "", url.database)).strip()
+            f.write(content.encode())
+            f.flush()
+            subprocess.Popen(["mysql", "--defaults-extra-file={}".format(f.name)]).wait()
+    elif url.get_backend_name() == 'sqlite':
+        subprocess.Popen(["sqlite3", url.database]).wait()
+    elif url.get_backend_name() == 'postgresql':
+        env = os.environ.copy()
+        env['PGHOST'] = url.host or ""
+        env['PGPORT'] = url.port or ""
+        env['PGUSER'] = url.username or ""
+        # PostgreSQL does not allow the use of PGPASSFILE if the current user is root.
+        env["PGPASSWORD"] = url.password or ""
+        env['PGDATABASE'] = url.database
+        subprocess.Popen(["psql"], env=env).wait()
+    else:
+        raise AirflowException("Unknown driver: {}".format(url.drivername))
+
+
+@cli_utils.action_logging
 def upgradedb(args):  # noqa
     py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
@@ -2112,6 +2147,10 @@ class CLIFactory(object):
         }, {
             'func': upgradedb,
             'help': "Upgrade the metadata database to latest version",
+            'args': tuple(),
+        }, {
+            'func': shell,
+            'help': "Runs a shell to access the database",
             'args': tuple(),
         }, {
             'func': scheduler,
