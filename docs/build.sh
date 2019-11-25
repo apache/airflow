@@ -89,7 +89,7 @@ mapfile -t DEPRECATED_MODULES < <(grep -R -i -l 'This module is deprecated.' ../
 
 IGNORED_MISSING_MODULES=('airflow.gcp.hooks.base')
 
-mapfile -t ALL_MODULES < <(find ../airflow/{,gcp/,contrib/,provider/*/*/}{operators,sensors,hooks} -name "*.py" | \
+mapfile -t ALL_MODULES < <(find ../airflow/{,gcp/,contrib/,providers/*/*/}{operators,sensors,hooks} -name "*.py" | \
     grep -v "__init__" | \
     grep -v "__pycache__" | \
     cut -d "/" -f 2- | \
