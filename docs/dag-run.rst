@@ -116,7 +116,7 @@ In the example above, if the DAG is picked up by the scheduler daemon on 2016-01
 (or from the command line), a single DAG Run will be created, with an `execution_date` of 2016-01-01, 
 and the next one will be created just after midnight on the morning of 2016-01-03 with an execution date of 2016-01-02.
 
-If the ``dag.catchup`` value had been True instead, the scheduler would have created a DAG Run 
+If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run 
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02, 
 as that interval hasn’t completed) and the scheduler will execute them sequentially. 
 
@@ -185,7 +185,7 @@ Note that DAG Runs can also be created manually through the CLI. Just run the
     airflow dags trigger -e execution_date run_id
 
 The DAG Runs created externally to the scheduler get associated to the trigger’s timestamp, and will be displayed 
-in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using -e argument 
+in the UI alongside scheduled DAG runs. The execution date passed inside the DAG can be specified using ``-e`` argument 
 otherwise the current date in UTC timezone is used as default.
 
 In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
