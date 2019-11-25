@@ -1691,19 +1691,18 @@ class Airflow(AirflowBaseView):
         y = {}
         x = {}
         for task in dag.tasks:
-            y[task.task_id] = []
-            x[task.task_id] = []
-            for ti in task.get_task_instances(start_date=min_date,
-                                              end_date=base_date,
-                                              session=session):
+            task_id = task.task_id
+            y[task_id] = []
+            x[task_id] = []
+            for ti in task.get_task_instances(start_date=min_date, end_date=base_date):
                 ts = ti.execution_date
                 if dag.schedule_interval and dag.following_schedule(ts):
                     ts = dag.following_schedule(ts)
                 if ti.end_date:
                     dttm = wwwutils.epoch(ti.execution_date)
                     secs = (ti.end_date - ts).total_seconds()
-                    x[ti.task_id].append(dttm)
-                    y[ti.task_id].append(secs)
+                    x[task_id].append(dttm)
+                    y[task_id].append(secs)
 
         # determine the most relevant time unit for the set of landing times
         # for the DAG
