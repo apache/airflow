@@ -545,7 +545,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
     @mock.patch("airflow.gcp.hooks.base.GoogleCloudBaseHook.get_connection")
     def test_num_retries_is_not_none_by_default(self, get_con_mock):
         """
-        Verify that if 'num_retires' in extras is not set, the default value
+        Verify that if 'num_retries' in extras is not set, the default value
         should not be None
         """
         get_con_mock.return_value.extra_dejson = {

@@ -113,13 +113,13 @@ class AirflowConfigParser(ConfigParser):
     # DeprecationWarning will be issued and the old name will be used instead
     deprecated_options = {
         'elasticsearch': {
-            'elasticsearch_host': 'host',
-            'elasticsearch_log_id_template': 'log_id_template',
-            'elasticsearch_end_of_log_mark': 'end_of_log_mark',
-            'elasticsearch_frontend': 'frontend',
-            'elasticsearch_write_stdout': 'write_stdout',
-            'elasticsearch_json_format': 'json_format',
-            'elasticsearch_json_fields': 'json_fields'
+            'host': 'elasticsearch_host',
+            'log_id_template': 'elasticsearch_log_id_template',
+            'end_of_log_mark': 'elasticsearch_end_of_log_mark',
+            'frontend': 'elasticsearch_frontend',
+            'write_stdout': 'elasticsearch_write_stdout',
+            'json_format': 'elasticsearch_json_format',
+            'json_fields': 'elasticsearch_json_fields'
         }
     }
 

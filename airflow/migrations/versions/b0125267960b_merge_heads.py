@@ -16,38 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""increase queue name size limit
+"""merge multiple heads
 
-Revision ID: 004c1210f153
-Revises: 939bb1e647c8
-Create Date: 2019-06-07 07:46:04.262275
+Revision ID: 08364691d074
+Revises: a56c9515abdc, 74effc47d867, b3b105409875, bbf4a7ad0465
+Create Date: 2019-11-19 22:05:11.752222
 
 """
 
-import sqlalchemy as sa
-from alembic import op
-
 # revision identifiers, used by Alembic.
-revision = '004c1210f153'
-down_revision = '939bb1e647c8'
+revision = '08364691d074'
+down_revision = ('a56c9515abdc', '74effc47d867', 'b3b105409875', 'bbf4a7ad0465')
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    """
-    Increase column size from 50 to 256 characters, closing AIRFLOW-4737 caused
-    by broker backends that might use unusually large queue names.
-    """
-    # use batch_alter_table to support SQLite workaround
-    with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.alter_column('queue', type_=sa.String(256))
+    pass
 
 
 def downgrade():
-    """
-    Revert column size from 256 to 50 characters, might result in data loss.
-    """
-    # use batch_alter_table to support SQLite workaround
-    with op.batch_alter_table('task_instance') as batch_op:
-        batch_op.alter_column('queue', type_=sa.String(50))
+    pass

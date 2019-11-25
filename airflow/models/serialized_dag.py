@@ -23,10 +23,12 @@ import hashlib
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from sqlalchemy import JSON, Column, Index, Integer, String, and_
+import sqlalchemy_jsonfield
+from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.sql import exists
 
 from airflow.models.base import ID_LEN, Base
+from airflow.settings import json
 from airflow.utils import db, timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -63,7 +65,7 @@ class SerializedDagModel(Base):
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     fileloc_hash = Column(Integer, nullable=False)
-    data = Column(JSON, nullable=False)
+    data = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     last_updated = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
