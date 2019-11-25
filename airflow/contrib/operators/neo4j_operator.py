@@ -91,12 +91,15 @@ class Neo4JOperator(BaseOperator):
         """
         total_row_count = 0
 
-        with open(self._output_filename, 'w', newline='') as output_file:
-            output_writer = csv.DictWriter(output_file, fieldnames=result.keys())
-            output_writer.writeheader()
+        if self._output_filename is not None:
+            with open(self._output_filename, 'w', newline='') as output_file:
+                output_writer = csv.DictWriter(output_file, fieldnames=result.keys())
+                output_writer.writeheader()
 
-            for total_row_count, row in enumerate(result, start=1):
-                # row = 'neo4j.Record'
-                output_writer.writerow(row.data())
+                for total_row_count, row in enumerate(result, start=1):
+                    # row = 'neo4j.Record'
+                    output_writer.writerow(row.data())
+        else:
+            raise AirflowException("Must supply an output_filename")
 
         return total_row_count

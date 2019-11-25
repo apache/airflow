@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This hook provides minimal thin wrapper around the neo4j python library to provide query execution"""
+from typing import Optional
 from neo4j import GraphDatabase, Driver, Session, BoltStatementResult
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -37,20 +38,21 @@ class Neo4JHook(BaseHook):
         self._n4j_conn_id = n4j_conn_id
 
     @staticmethod
-    def get_config(n4j_conn_id: str):
+    def get_config(n4j_conn_id: Optional[str]) -> dict:
         """
         Obtain the Username + Password from the Airflow connection definition
         Store them in _config dictionary as:
         *credentials* -- a tuple of username/password eg. ("username", "password")
         *host* -- String for Neo4J URI eg. "bolt://1.1.1.1:7687"
 
-        :param n4j_conn_id Name of connection configured in Airflow
+        :param n4j_conn_id: Name of connection configured in Airflow
+        :type n4j_conn_id: str
         :return: dictionary with configuration values
         :rtype dict
         """
         # Initialize with empty dictionary
         config: dict = {}
-        if n4j_conn_id:
+        if n4j_conn_id is not None:
             connection_object = Neo4JHook.get_connection(n4j_conn_id)
             if connection_object.login and connection_object.host:
                 config['credentials'] = connection_object.login, connection_object.password
