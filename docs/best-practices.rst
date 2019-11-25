@@ -177,7 +177,7 @@ Self-Checks
 ------------
 
 You can also implement checks in a DAG to make sure the tasks are producing the results as expected.
-As an example, if you have a task that pushed data to S3, you can implement a check in the next task. For example the check could 
+As an example, if you have a task that pushes data to S3, you can implement a check in the next task. For example, the check could 
 make sure that the partition is created in S3 and perform some simple checks to see if the data is correct or not.
 
 
@@ -226,11 +226,11 @@ Database backend
 
 Airflow comes with an ``SQLite`` backend by default. It allows the user to run Airflow without any external database.
 However, such a setup is meant to be for testing purposes only. Running the default setup can lead to data loss in multiple scenarios. 
-If you want to run Airflow in production, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgresQL or MySQL. 
+If you want to run Airflow in production, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgreSQL or MySQL. 
 
 You can change the backend using the following config
 
-.. code::
+.. code:: ini
 
  [core]
  sql_alchemy_conn = my_conn_string
@@ -267,7 +267,7 @@ any other mechanism to sync DAGs and configs across your nodes, e.g., checkout D
 Logging
 --------
 
-If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system such as ``S3`` and ``GCS``, or external services such as 
+If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system (DFS) such as ``S3`` and ``GCS``, or external services such as 
 Stackdriver Logging, Elasticsearch or Amazon CloudWatch.
 This way, the logs are available even after the node goes down or gets replaced. See :doc:`howto/write-logs` for configurations.
 
@@ -279,7 +279,7 @@ This way, the logs are available even after the node goes down or gets replaced.
 Configuration
 --------------
 
-Airflow comes bundles with a default airflow.cfg configuration file.
+Airflow comes bundles with a default ``airflow.cfg`` configuration file.
 You should use environment variables for configurations that change across deployments
 e.g. metadata DB, password. You can do it using the format ``$AIRFLOW__{SECTION}__{KEY}``
 
