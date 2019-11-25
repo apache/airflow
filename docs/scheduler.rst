@@ -18,8 +18,8 @@
 Scheduler
 ==========
 
-The Airflow scheduler monitors all tasks and all DAGs, and triggers the
-task instances whose dependencies have been met. Behind the scenes,
+The Airflow scheduler monitors all tasks and all DAGs and triggers the
+Task instances whose dependencies have been met. Behind the scenes,
 it spins up a subprocess, which monitors and stays in sync with a folder
 for all DAG objects it may contain, and periodically (every minute or so)
 collects DAG parsing results and inspects active tasks to see whether
@@ -27,7 +27,7 @@ they can be triggered.
 
 The Airflow scheduler is designed to run as a persistent service in an
 Airflow production environment. To kick it off, all you need to do is
-execute ``airflow scheduler``. It will use the configuration specified in
+execute the ``airflow scheduler`` command. It uses the configuration specified in
 ``airflow.cfg``.
 
 The scheduler uses the configured :doc:`Executor </executor/index>` to run tasks that are ready.
@@ -57,4 +57,4 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 
     **Let’s Repeat That**, the scheduler runs your job one ``schedule_interval`` AFTER the start date, at the END of the period.
     
-    You should refer :doc:`dag-run` for details on scheduling a DAG .
+    You should refer :doc:`dag-run` for details on scheduling a DAG.
