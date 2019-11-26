@@ -578,7 +578,8 @@ class Airflow(AirflowBaseView):
         try:
             if ti is not None:
                 dag = dagbag.get_dag(dag_id)
-                ti.task = dag.get_task(ti.task_id)
+                if dag:
+                    ti.task = dag.get_task(ti.task_id)
             if response_format == 'json':
                 logs, metadata = _get_logs_with_metadata(try_number, metadata)
                 message = logs[0] if try_number is not None else logs

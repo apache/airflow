@@ -31,7 +31,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
-import airflow
+# noinspection PyUnresolvedReferences
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
 from airflow.utils.module_loading import import_string
@@ -321,9 +321,6 @@ KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
               'LIGHTORANGE': '#FF9933'}
-
-# Used by DAG context_managers
-CONTEXT_MANAGER_DAG = None  # type: Optional[airflow.models.dag.DAG]
 
 # If store_serialized_dags is True, scheduler writes serialized DAGs to DB, and webserver
 # reads DAGs from DB instead of importing from files.

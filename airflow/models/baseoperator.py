@@ -26,18 +26,17 @@ import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
+from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Type, Union
 
 import jinja2
 from cached_property import cached_property
 from dateutil.relativedelta import relativedelta
 
-from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.lineage import DataSet, apply_lineage, prepare_lineage
-from airflow.models.dag import DAG
 from airflow.models.pool import Pool
+# noinspection PyPep8Naming
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -233,11 +232,10 @@ class BaseOperator(LoggingMixin):
         result
     :type do_xcom_push: bool
     """
-
     # For derived classes to define which fields will get jinjaified
-    template_fields = []  # type: Iterable[str]
+    template_fields: Iterable[str] = []
     # Defines which files extensions to look for in the templated fields
-    template_ext = []  # type: Iterable[str]
+    template_ext: Iterable[str] = []
     # Defines the color in the UI
     ui_color = '#fff'  # type: str
     ui_fgcolor = '#000'  # type: str
@@ -245,19 +243,17 @@ class BaseOperator(LoggingMixin):
     pool = ""  # type: str
 
     # base list which includes all the attrs that don't need deep copy.
-    _base_operator_shallow_copy_attrs = ('user_defined_macros',
-                                         'user_defined_filters',
-                                         'params',
-                                         '_log',)  # type: Iterable[str]
+    _base_operator_shallow_copy_attrs: Tuple[str, ...] = \
+        ('user_defined_macros', 'user_defined_filters', 'params', '_log',)
 
     # each operator should override this class attr for shallow copy attrs.
-    shallow_copy_attrs = ()  # type: Iterable[str]
+    shallow_copy_attrs: Tuple[str, ...] = ()
 
     # Defines the operator level extra links
-    operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
+    operator_extra_links: Iterable['BaseOperatorLink'] = ()
 
-    # Set at end of file
-    _serialized_fields = frozenset()  # type: FrozenSet[str]
+    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
+    _serialized_fields: Optional[FrozenSet[str]] = None
 
     _comps = {
         'task_id',
@@ -281,7 +277,7 @@ class BaseOperator(LoggingMixin):
     }
 
     # noinspection PyUnusedLocal
-    # pylint: disable=too-many-arguments,too-many-locals
+    # pylint: disable=too-many-arguments,too-many-locals, too-many-statements
     @apply_defaults
     def __init__(
         self,
@@ -298,7 +294,7 @@ class BaseOperator(LoggingMixin):
         end_date: Optional[datetime] = None,
         depends_on_past: bool = False,
         wait_for_downstream: bool = False,
-        dag: Optional[DAG] = None,
+        dag=None,
         params: Optional[Dict] = None,
         default_args: Optional[Dict] = None,  # pylint: disable=unused-argument
         priority_weight: int = 1,
@@ -321,7 +317,8 @@ class BaseOperator(LoggingMixin):
         *args,
         **kwargs
     ):
-
+        from airflow.models.dag import DagContext
+        super().__init__()
         if args or kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
@@ -381,6 +378,7 @@ class BaseOperator(LoggingMixin):
             self.retry_delay = retry_delay
         else:
             self.log.debug("Retry_delay isn't timedelta object, assuming secs")
+            # noinspection PyTypeChecker
             self.retry_delay = timedelta(seconds=retry_delay)
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
@@ -393,27 +391,24 @@ class BaseOperator(LoggingMixin):
                 .format(all_weight_rules=WeightRule.all_weight_rules,
                         d=dag.dag_id if dag else "", t=task_id, tr=weight_rule))
         self.weight_rule = weight_rule
-
-        self.resources = Resources(**resources) if resources is not None else None
+        self.resources: Optional[Resources] = Resources(**resources) if resources else None
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
         self.do_xcom_push = do_xcom_push
 
         # Private attributes
-        self._upstream_task_ids = set()  # type: Set[str]
-        self._downstream_task_ids = set()  # type: Set[str]
+        self._upstream_task_ids: Set[str] = set()
+        self._downstream_task_ids: Set[str] = set()
+        self._dag = None
 
-        if not dag and settings.CONTEXT_MANAGER_DAG:
-            dag = settings.CONTEXT_MANAGER_DAG
-        if dag:
-            self.dag = dag
+        self.dag = dag or DagContext.get_current_dag()
 
         self._log = logging.getLogger("airflow.task.operators")
 
         # lineage
-        self.inlets = []   # type: List[DataSet]
-        self.outlets = []  # type: List[DataSet]
+        self.inlets: List[DataSet] = []
+        self.outlets: List[DataSet] = []
         self.lineage_data = None
 
         self._inlets = {
@@ -422,9 +417,9 @@ class BaseOperator(LoggingMixin):
             "datasets": [],
         }
 
-        self._outlets = {
+        self._outlets: Dict[str, Iterable] = {
             "datasets": [],
-        }  # type: Dict
+        }
 
         if inlets:
             self._inlets.update(inlets)
@@ -433,8 +428,7 @@ class BaseOperator(LoggingMixin):
             self._outlets.update(outlets)
 
     def __eq__(self, other):
-        if (type(self) == type(other) and  # pylint: disable=unidiomatic-typecheck
-                self.task_id == other.task_id):
+        if type(self) is type(other) and self.task_id == other.task_id:
             return all(self.__dict__.get(c, None) == other.__dict__.get(c, None) for c in self._comps)
         return False
 
@@ -463,6 +457,7 @@ class BaseOperator(LoggingMixin):
 
         If "Other" is a DAG, the DAG is assigned to the Operator.
         """
+        from airflow.models.dag import DAG
         if isinstance(other, DAG):
             # if this dag is already assigned, do nothing
             # otherwise, do normal dag assignment
@@ -478,6 +473,7 @@ class BaseOperator(LoggingMixin):
 
         If "Other" is a DAG, the DAG is assigned to the Operator.
         """
+        from airflow.models.dag import DAG
         if isinstance(other, DAG):
             # if this dag is already assigned, do nothing
             # otherwise, do normal dag assignment
@@ -522,6 +518,10 @@ class BaseOperator(LoggingMixin):
         Operators can be assigned to one DAG, one time. Repeat assignments to
         that same DAG are ok.
         """
+        from airflow.models.dag import DAG
+        if dag is None:
+            self._dag = None
+            return
         if not isinstance(dag, DAG):
             raise TypeError(
                 'Expected DAG; received {}'.format(dag.__class__.__name__))
@@ -834,13 +834,12 @@ class BaseOperator(LoggingMixin):
         Clears the state of task instances associated with the task, following
         the parameters specified.
         """
-        TI = TaskInstance
-        qry = session.query(TI).filter(TI.dag_id == self.dag_id)
+        qry = session.query(TaskInstance).filter(TaskInstance.dag_id == self.dag_id)
 
         if start_date:
-            qry = qry.filter(TI.execution_date >= start_date)
+            qry = qry.filter(TaskInstance.execution_date >= start_date)
         if end_date:
-            qry = qry.filter(TI.execution_date <= end_date)
+            qry = qry.filter(TaskInstance.execution_date <= end_date)
 
         tasks = [self.task_id]
 
@@ -852,7 +851,7 @@ class BaseOperator(LoggingMixin):
             tasks += [
                 t.task_id for t in self.get_flat_relatives(upstream=False)]
 
-        qry = qry.filter(TI.task_id.in_(tasks))
+        qry = qry.filter(TaskInstance.task_id.in_(tasks))
 
         count = qry.count()
 
@@ -1026,8 +1025,8 @@ class BaseOperator(LoggingMixin):
         """
         self._set_relatives(task_or_task_list, upstream=True)
 
+    @staticmethod
     def xcom_push(
-            self,
             context,
             key,
             value,
@@ -1040,8 +1039,8 @@ class BaseOperator(LoggingMixin):
             value=value,
             execution_date=execution_date)
 
+    @staticmethod
     def xcom_pull(
-            self,
             context,
             task_ids=None,
             dag_id=None,
@@ -1081,13 +1080,16 @@ class BaseOperator(LoggingMixin):
         else:
             return None
 
-
-# pylint: disable=protected-access
-BaseOperator._serialized_fields = frozenset(
-    vars(BaseOperator(task_id='test')).keys() - {
-        'inlets', 'outlets', '_upstream_task_ids', 'default_args'
-    } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
-)
+    @classmethod
+    def get_serialized_fields(cls):
+        """Stringified DAGs and operators contain exactly these fields."""
+        if not cls._serialized_fields:
+            cls._serialized_fields = frozenset(
+                vars(BaseOperator(task_id='test')).keys() - {
+                    'inlets', 'outlets', '_upstream_task_ids', 'default_args', 'dag', '_dag'
+                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
+            )
+        return cls._serialized_fields
 
 
 class BaseOperatorLink(metaclass=ABCMeta):

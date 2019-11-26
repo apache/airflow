@@ -27,7 +27,7 @@ from googleapiclient import http
 
 from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.utils.decorators import apply_defaults
 
