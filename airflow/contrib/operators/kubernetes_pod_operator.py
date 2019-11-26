@@ -138,11 +138,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  name: str,
                  cmds: Optional[List[str]] = None,
                  arguments: Optional[List[str]] = None,
-                 ports: Optional[List[Port]] = None,
-                 volume_mounts: Optional[List[VolumeMount]] = None,
-                 volumes: Optional[List[Volume]] = None,
+                 ports: Optional[List[Dict]] = None,
+                 volume_mounts: Optional[List[Dict]] = None,
+                 volumes: Optional[List[Dict]] = None,
                  env_vars: Optional[Dict] = None,
-                 secrets: Optional[List[Secret]] = None,
+                 secrets: Optional[List[Dict]] = None,
                  in_cluster: bool = True,
                  cluster_context: Optional[str] = None,
                  labels: Optional[Dict] = None,
@@ -161,7 +161,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  tolerations: Optional[List] = None,
                  configmaps: Optional[List] = None,
                  security_context: Optional[Dict] = None,
-                 pod_runtime_info_envs: Optional[List[PodRuntimeInfoEnv]] = None,
+                 pod_runtime_info_envs: Optional[List[Dict]] = None,
                  dnspolicy: Optional[str] = None,
                  full_pod_spec: Optional[k8s.V1Pod] = None,
                  *args,
@@ -180,10 +180,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.startup_timeout_seconds = startup_timeout_seconds
         self.name = self._set_name(name)
         self.env_vars = env_vars or {}
-        self.ports = ports or []
-        self.volume_mounts = volume_mounts or []
-        self.volumes = volumes or []
-        self.secrets = secrets or []
+        self.ports = self._set_instances(Port, ports)
+        self.volume_mounts = self._set_instances(VolumeMount, volume_mounts)
+        self.volumes = self._set_instances(Volume, volumes)
+        self.secrets = self._set_instances(Secret, secrets)
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
         self.get_logs = get_logs
@@ -200,7 +200,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.tolerations = tolerations or []
         self.configmaps = configmaps or []
         self.security_context = security_context or {}
-        self.pod_runtime_info_envs = pod_runtime_info_envs or []
+        self.pod_runtime_info_envs = self._set_instances(PodRuntimeInfoEnv, pod_runtime_info_envs)
         self.dnspolicy = dnspolicy
         self.full_pod_spec = full_pod_spec
 
@@ -274,6 +274,20 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
+
+    @staticmethod
+    def _set_instance(_class, _args):
+        try:
+            return _class(**_args)
+        except:
+            return None
+
+    @staticmethod
+    def _set_instances(_class, _args_list):
+        if _args_list and isinstance(_args_list, list):
+            ret = [_set_instance(_class, _args) for _args in _args_list]
+            return [x for x in ret if x]
+        return []
 
     @staticmethod
     def _set_resources(resources):
