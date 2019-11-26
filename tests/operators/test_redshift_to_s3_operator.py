@@ -30,12 +30,12 @@ from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 class TestRedshiftToS3Transfer(unittest.TestCase):
 
-    @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.hooks.postgres_hook.PostgresHook.run")
     @parameterized.expand([
         [True, "key/table_"],
         [False, "key"],
     ])
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.hooks.postgres_hook.PostgresHook.run")
     def test_execute(self, table_as_file_name, expected_s3_key, mock_run, mock_session,):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
