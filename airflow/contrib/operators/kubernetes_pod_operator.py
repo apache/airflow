@@ -20,6 +20,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.kubernetes import kube_client, pod_generator, pod_launcher
 from airflow.contrib.kubernetes.pod import Resources
+from airflow.contrib.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.utils.state import State
 
 
@@ -170,6 +171,17 @@ class KubernetesPodOperator(BaseOperator):
                 setattr(inputResource, item, resources[item])
         return inputResource
 
+    def _set_pod_runtime_info_envs(self, pod_runtime_info_envs):
+        inputPodRuntimeInfoEnvs = []
+        if pod_runtime_info_envs:
+            for pod_runtime_info_env in pod_runtime_info_envs:                
+                podRuntimeInfoEnv = PodRuntimeInfoEnv()
+                for item in pod_runtime_info_env.keys():
+                    setattr(podRuntimeInfoEnv, item, pod_runtime_info_env[item])
+                inputPodRuntimeInfoEnvs.append(podRuntimeInfoEnv)
+
+        return inputPodRuntimeInfoEnvs
+
     @apply_defaults
     def __init__(self,
                  namespace,
@@ -235,5 +247,5 @@ class KubernetesPodOperator(BaseOperator):
         self.tolerations = tolerations or []
         self.configmaps = configmaps or []
         self.security_context = security_context or {}
-        self.pod_runtime_info_envs = pod_runtime_info_envs or []
+        self.pod_runtime_info_envs = self._set_pod_runtime_info_envs(pod_runtime_info_envs)
         self.dnspolicy = dnspolicy
