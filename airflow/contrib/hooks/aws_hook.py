@@ -25,6 +25,7 @@ import configparser
 import logging
 
 import boto3
+from botocore.config import Config
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -88,9 +89,10 @@ class AwsHook(BaseHook):
     This class is a thin wrapper around the boto3 python library.
     """
 
-    def __init__(self, aws_conn_id='aws_default', verify=None):
+    def __init__(self, aws_conn_id='aws_default', verify=None, config=None):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+        self.config = config
 
     def _get_credentials(self, region_name):
         aws_access_key_id = None
@@ -102,6 +104,7 @@ class AwsHook(BaseHook):
             try:
                 connection_object = self.get_connection(self.aws_conn_id)
                 extra_config = connection_object.extra_dejson
+
                 if connection_object.login:
                     aws_access_key_id = connection_object.login
                     aws_secret_access_key = connection_object.password
@@ -119,6 +122,16 @@ class AwsHook(BaseHook):
                             extra_config.get('s3_config_format'),
                             extra_config.get('profile'))
 
+                # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
+                # Example value for extra_config on the Connections UI:
+                #    { .. ,
+                #    "config":{"proxies": {
+                #        "http": "http://myproxy:8080",
+                #        "https": "http://myproxy:8080"}},
+                #     ..}
+                if 'config' in extra_config:
+                    self.config = Config(**extra_config['config'])
+
                 if region_name is None:
                     region_name = extra_config.get('region_name')
 
@@ -126,7 +139,7 @@ class AwsHook(BaseHook):
                 external_id = extra_config.get('external_id')
                 aws_account_id = extra_config.get('aws_account_id')
                 aws_iam_role = extra_config.get('aws_iam_role')
-                if 'aws_session_token' in extra_config and aws_session_token is None:
+                if 'aws_session_token' in extra_config:
                     aws_session_token = extra_config['aws_session_token']
 
                 if role_arn is None and aws_account_id is not None and aws_iam_role is not None:
@@ -134,7 +147,6 @@ class AwsHook(BaseHook):
                         .format(aws_account_id, aws_iam_role)
 
                 if role_arn is not None:
-
                     sts_session = boto3.session.Session(
                         aws_access_key_id=aws_access_key_id,
                         aws_secret_access_key=aws_secret_access_key,
@@ -142,7 +154,7 @@ class AwsHook(BaseHook):
                         aws_session_token=aws_session_token
                     )
 
-                    sts_client = sts_session.client('sts')
+                    sts_client = sts_session.client('sts', config=self.config)
 
                     if external_id is None:
                         sts_response = sts_client.assume_role(
@@ -153,7 +165,6 @@ class AwsHook(BaseHook):
                             RoleArn=role_arn,
                             RoleSessionName='Airflow_' + self.aws_conn_id,
                             ExternalId=external_id)
-
                     credentials = sts_response['Credentials']
                     aws_access_key_id = credentials['AccessKeyId']
                     aws_secret_access_key = credentials['SecretAccessKey']
@@ -176,12 +187,22 @@ class AwsHook(BaseHook):
         """ Get the underlying boto3 client using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
 
+        # No AWS Operators use the config argument to this method.
+        # Keep backward compatibility with users who might specify it
+        if config is None:
+            config = self.config
+
         return session.client(client_type, endpoint_url=endpoint_url,
                               config=config, verify=self.verify)
 
     def get_resource_type(self, resource_type, region_name=None, config=None):
         """ Get the underlying boto3 resource using boto3 session"""
         session, endpoint_url = self._get_credentials(region_name)
+
+        # No AWS Operators use the config argument to this method.
+        # Keep backward compatibility with users who might specify it
+        if config is None:
+            config = self.config
 
         return session.resource(resource_type, endpoint_url=endpoint_url,
                                 config=config, verify=self.verify)
