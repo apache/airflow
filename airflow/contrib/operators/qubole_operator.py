@@ -17,13 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Qubole operator"""
-
+import re
 from typing import Iterable
 
 from airflow.contrib.hooks.qubole_hook import (
     COMMAND_ARGS, HYPHEN_ARGS, POSITIONAL_ARGS, QuboleHook, flatten_list,
 )
+from airflow.hooks.base_hook import BaseHook
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.decorators import apply_defaults
 
 
@@ -32,7 +34,22 @@ class QDSLink(BaseOperatorLink):
     name = 'Go to QDS'
 
     def get_link(self, operator, dttm):
-        return operator.get_hook().get_extra_links(operator, dttm)
+        """
+        Get link to qubole command result page.
+
+        :param operator: operator
+        :param dttm: datetime
+        :return: url link
+        """
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        conn = BaseHook.get_connection(operator.kwargs['qubole_conn_id'])
+        if conn and conn.host:
+            host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
+        else:
+            host = 'https://api.qubole.com/v2/analyze?command_id='
+        qds_command_id = ti.xcom_pull(task_ids=operator.task_id, key='qbol_cmd_id')
+        url = host + str(qds_command_id) if qds_command_id else ''
+        return url
 
 
 class QuboleOperator(BaseOperator):
