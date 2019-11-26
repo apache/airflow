@@ -19,6 +19,7 @@ Handler that integrates with Stackdriver
 """
 import logging
 from typing import Dict, List, Optional, Tuple, Type
+import urllib.parse
 
 from cached_property import cached_property
 from google.api_core.gapic_v1.client_info import ClientInfo
@@ -72,6 +73,8 @@ class StackdriverTaskHandler(logging.Handler):
     LABEL_EXECUTION_DATE = "execution_date"
     LABEL_TRY_NUMBER = "try_number"
 
+    LOG_VIEWER_BASE_URL = "https://console.cloud.google.com/logs/viewer"
+
     def __init__(
         self,
         gcp_conn_id: Optional[str] = None,
@@ -109,6 +112,16 @@ class StackdriverTaskHandler(logging.Handler):
     def _transport(self) -> Transport:
         """Object responsible for sending data to Stackdriver"""
         return self.transport_type(self._client, self.name)
+
+    @property
+    def _resource_path(self):
+        segments = [self.resource.type]
+
+        for key, value in self.resource.labels:
+            segments += [key]
+            segments += [value]
+
+        return "/".join(segments)
 
     def emit(self, record: logging.LogRecord) -> None:
         """Actually log the specified logging record.
@@ -284,3 +297,31 @@ class StackdriverTaskHandler(logging.Handler):
             cls.LABEL_EXECUTION_DATE: str(ti.execution_date.isoformat()),
             cls.LABEL_TRY_NUMBER: str(ti.try_number),
         }
+
+    def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
+        """
+        Creates an address for an external log collecting service.
+
+        :param task_instance: task instance object
+        :type: task_instance: TaskInstance
+        :param try_number: task instance try_number to read logs from.
+        :type try_number: Optional[int]
+        :return: URL to the external log collection service
+        :rtype: str
+        """
+        project_id = self._client.project
+
+        ti_labels = self._task_instance_to_labels(task_instance)
+        ti_labels[self.LABEL_TRY_NUMBER] = str(try_number)
+
+        log_filter = self._prepare_log_filter(ti_labels)
+
+        url_query_string = {
+            'project': project_id,
+            'interval': 'NO_LIMIT',
+            'resource': self._resource_path,
+            'advancedFilter': log_filter,
+        }
+
+        url = f"{self.LOG_VIEWER_BASE_URL}?{urllib.parse.urlencode(url_query_string)}"
+        return url

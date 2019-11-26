@@ -21,11 +21,14 @@ import logging
 import sys
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
+from urllib.parse import quote
+
 import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
 
 from airflow.configuration import conf
+from airflow.models import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -217,6 +220,15 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                 self.handler.setFormatter(self.formatter)
         else:
             super().set_context(ti)
+
+    def get_external_log_url(self, ti: TaskInstance, try_number) -> str:
+        elasticsearch_frontend = conf.get('elasticsearch', 'frontend')
+        log_id_template = conf.get('elasticsearch', 'log_id_template')
+        log_id = log_id_template.format(
+            dag_id=ti.dag_id, task_id=ti.task_id,
+            execution_date=ti.execution_date, try_number=try_number)
+        url = 'https://' + elasticsearch_frontend.format(log_id=quote(log_id))
+        return url
 
     def emit(self, record):
         if self.write_stdout:

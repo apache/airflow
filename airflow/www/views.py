@@ -28,7 +28,6 @@ import socket
 import traceback
 from collections import defaultdict
 from datetime import timedelta
-from urllib.parse import quote
 
 import lazy_object_proxy
 import markdown
@@ -50,6 +49,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed, set_dag_run_state_to_success,
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.logging_config import get_task_log_reader
 from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
@@ -647,23 +647,36 @@ class Airflow(AirflowBaseView):
             execution_date=execution_date, form=form,
             root=root, wrapped=conf.getboolean('webserver', 'default_wrap'))
 
-    @expose('/elasticsearch')
+    @expose('/external_log')
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
     @provide_session
-    def elasticsearch(self, session=None):
+    def external_log(self, session=None):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         try_number = request.args.get('try_number', 1)
-        elasticsearch_frontend = conf.get('elasticsearch', 'frontend')
-        log_id_template = conf.get('elasticsearch', 'log_id_template')
-        log_id = log_id_template.format(
-            dag_id=dag_id, task_id=task_id,
-            execution_date=execution_date, try_number=try_number)
-        url = 'https://' + elasticsearch_frontend.format(log_id=quote(log_id))
-        return redirect(url)
+        dttm = pendulum.parse(execution_date)
+        ti = session.query(models.TaskInstance).filter(
+            models.TaskInstance.dag_id == dag_id,
+            models.TaskInstance.task_id == task_id,
+            models.TaskInstance.execution_date == dttm).first()
+
+        logger = logging.getLogger('airflow.task')
+        task_log_reader = conf.get('core', 'task_log_reader')
+        handler = next((handler for handler in logger.handlers
+                        if handler.name == task_log_reader), None)
+
+        try:
+            url = handler.get_external_log_url(ti, try_number)
+            return redirect(url)
+        except AttributeError:
+            flash(
+                "Log in external service for [{}.{}] doesn't seem to exist"
+                " at the moment".format(dag_id, task_id),
+                "error")
+            return redirect(url_for('Airflow.index'))
 
     @expose('/task')
     @has_dag_access(can_dag_read=True)
@@ -1321,14 +1334,17 @@ class Airflow(AirflowBaseView):
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
-        external_logs = conf.get('elasticsearch', 'frontend')
+        handler = get_task_log_reader()
+        have_external_log_url = hasattr(handler, 'get_external_log_url')
+        print(f"have_external_log_url={have_external_log_url}" )
+
         return self.render_template(
             'airflow/tree.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
             root=root,
             form=form,
             dag=dag, data=data, blur=blur, num_runs=num_runs,
-            show_external_logs=bool(external_logs))
+            show_external_logs=have_external_log_url)
 
     @expose('/graph')
     @has_dag_access(can_dag_read=True)
@@ -1411,7 +1427,10 @@ class Airflow(AirflowBaseView):
         doc_md = markdown.markdown(dag.doc_md) \
             if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
-        external_logs = conf.get('elasticsearch', 'frontend')
+        handler = get_task_log_reader()
+        have_external_log_url = hasattr(handler, 'get_external_log_url')
+        print(f"have_external_log_url={have_external_log_url}" )
+
         return self.render_template(
             'airflow/graph.html',
             dag=dag,
@@ -1429,7 +1448,7 @@ class Airflow(AirflowBaseView):
             tasks=tasks,
             nodes=nodes,
             edges=edges,
-            show_external_logs=bool(external_logs))
+            show_external_logs=have_external_log_url)
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)

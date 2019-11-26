@@ -21,6 +21,8 @@ import logging
 import warnings
 from logging.config import dictConfig
 
+from pre_commit.logging_handler import LoggingHandler
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.module_loading import import_string
@@ -100,3 +102,11 @@ def validate_logging_config(logging_config):
                 "Configured task_log_reader {!r} was not a handler of the 'airflow.task' "
                 "logger.".format(task_log_reader)
             )
+
+
+def get_task_log_reader() -> LoggingHandler:
+    logger = logging.getLogger('airflow.task')
+    task_log_reader = conf.get('core', 'task_log_reader')
+    handler = next((handler for handler in logger.handlers if handler.name == task_log_reader), None)
+
+    return handler
