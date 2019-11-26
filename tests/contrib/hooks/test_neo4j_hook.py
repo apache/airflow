@@ -20,6 +20,7 @@
 and makes the right calls to the underlying driver"""
 import unittest
 from unittest.mock import Mock, patch
+
 from airflow.contrib.hooks import neo4j_hook
 from airflow.models import Connection
 from airflow.utils import db

@@ -18,8 +18,9 @@
 # under the License.
 """This hook provides minimal thin wrapper around the neo4j python library to provide query execution"""
 from typing import Optional
+
 from neo4j import BoltStatementResult, Driver, GraphDatabase, Session
-from airflow.exceptions import AirflowException
+
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -29,7 +30,7 @@ class Neo4JHook(BaseHook):
     :param n4j_conn_id:
     :type str:
     """
-    _n4j_conn_id = None
+    _n4j_conn_id: str
 
     template_fields = ['n4j_conn_id']
 
@@ -38,7 +39,7 @@ class Neo4JHook(BaseHook):
         self._n4j_conn_id = n4j_conn_id
 
     @staticmethod
-    def get_config(n4j_conn_id: Optional[str]) -> dict:
+    def get_config(n4j_conn_id: str) -> dict:
         """
         Obtain the Username + Password from the Airflow connection definition
         Store them in _config dictionary as:
@@ -51,18 +52,15 @@ class Neo4JHook(BaseHook):
         """
         # Initialize with empty dictionary
         config: dict = {}
-        if n4j_conn_id is not None:
-            connection_object = Neo4JHook.get_connection(n4j_conn_id)
-            if connection_object.login and connection_object.host:
-                config['credentials'] = connection_object.login, connection_object.password
-                config['host'] = "bolt://{0}:{1}".format(connection_object.host, connection_object.port)
-        else:
-            raise AirflowException("No Neo4J connection: {}".format(n4j_conn_id))
+        connection_object = Neo4JHook.get_connection(n4j_conn_id)
+        if connection_object.login and connection_object.host:
+            config['credentials'] = connection_object.login, connection_object.password
+            config['host'] = "bolt://{0}:{1}".format(connection_object.host, connection_object.port)
 
         return config
 
     @staticmethod
-    def get_driver(config: dict):
+    def get_driver(config: dict) -> Driver:
         """
         Establish a TCP connection to the server
         :param config: Dictionary containing the host and credentials needed to connect
@@ -76,7 +74,7 @@ class Neo4JHook(BaseHook):
         )
 
     @staticmethod
-    def get_session(driver: Driver):
+    def get_session(driver: Driver) -> Session:
         """
         Get a neo4j.session from the driver.
         :param driver Neo4J Driver (established connection to a server)
@@ -86,7 +84,7 @@ class Neo4JHook(BaseHook):
         # Check if we already have a session we can re-use before creating a new one
         return driver.session()
 
-    def run_query(self, cypher_query: str, parameters=None):
+    def run_query(self, cypher_query: str, parameters=None) -> BoltStatementResult:
         """
         Uses a session to execute submit a query for execution
         :param cypher_query: Cypher query eg. MATCH (a) RETURN (a)

@@ -19,7 +19,9 @@
 """Test the functioning of the Neo4J Operator for Apache Airflow"""
 import unittest
 from unittest.mock import MagicMock, patch
+
 from neo4j import BoltStatementResult
+
 from airflow.contrib.operators import neo4j_operator
 
 
@@ -75,7 +77,3 @@ class TestNeo4JOperator(unittest.TestCase):
         result_mock.keys.assert_called_once()
         result_mock.__iter__.assert_called_once()
         data_mock.data.assert_called_once()
-
-
-if __name__ == '__main__':
-    unittest.main()
