@@ -20,7 +20,7 @@
 import unittest
 from datetime import timedelta
 from time import sleep
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from freezegun import freeze_time
 
@@ -515,15 +515,23 @@ class TestBaseSensor(unittest.TestCase):
         self.assertEqual(sensor._get_next_poke_interval(started_at, 2), sensor.poke_interval)
 
     def test_sensor_with_exponential_backoff_on(self):
+
         sensor = self._make_sensor(
             return_value=None,
             poke_interval=5,
             timeout=60,
             exponential_backoff=True)
 
-        started_at = timezone.utcnow() - timedelta(seconds=10)
+        with patch('airflow.utils.timezone.utcnow') as mock_utctime:
+            mock_utctime.return_value = DEFAULT_DATE
 
-        interval1 = sensor._get_next_poke_interval(started_at, 1)
-        interval2 = sensor._get_next_poke_interval(started_at, 2)
+            started_at = timezone.utcnow() - timedelta(seconds=10)
+            print(started_at)
 
-        self.assertTrue(interval2 >= sensor.poke_interval >= interval1)
+            interval1 = sensor._get_next_poke_interval(started_at, 1)
+            interval2 = sensor._get_next_poke_interval(started_at, 2)
+
+            self.assertTrue(interval1 >= 0)
+            self.assertTrue(interval1 <= sensor.poke_interval)
+            self.assertTrue(interval2 >= sensor.poke_interval)
+            self.assertTrue(interval2 > interval1)
