@@ -321,7 +321,7 @@ devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + oracle +
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
-             datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
+             datadog + zendesk + jdbc + ldap + neo4j + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + sentry +
              atlas + azure + aws + salesforce + cgroups + papermill + virtualenv +
              pagerduty)
