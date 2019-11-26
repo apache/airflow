@@ -143,6 +143,7 @@ repos:
     rev: v2.4.0
     hooks:
       - id: check-merge-conflict
+      - id: debug-statements
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: mixed-line-ending
@@ -227,6 +228,12 @@ repos:
         files: \.py$
         pass_filenames: true
         require_serial: true
+      - id: pydevd
+        language: pygrep
+        name: Check for pydevd debug statements accidentally left
+        entry: "pydevd.*settrace\\("
+        pass_filenames: true
+        files: \.py$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh

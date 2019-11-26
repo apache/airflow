@@ -32,7 +32,7 @@ _licenses = {'MIT': ['Permission is hereby granted free of charge', 'The above c
 
 def get_notices():
     license_file = open("../LICENSE", "r")
-    regex = ur"\((.+?)\) (.+?) \((http.+?)\)"
+    regex = r"\((.+?)\) (.+?) \((http.+?)\)"
 
     return list(filter(None, [re.findall(regex, line) for line in license_file]))
 

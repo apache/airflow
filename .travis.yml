@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-dist: xenial
+dist: bionic
 language: python
 env:
   global:
@@ -33,12 +33,10 @@ stages:
 jobs:
   include:
     - name: "Static checks"
-      python: "3.5"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_tests.sh
       env: AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
     - name: "Build documentation"
-      python: "3.5"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
     - name: "Tests postgres python 3.6"
@@ -46,21 +44,18 @@ jobs:
         BACKEND=postgres
         ENV=docker
         PYTHON_VERSION=3.6
-      python: "3.6"
       stage: test
     - name: "Tests sqlite python 3.5"
       env: >-
         BACKEND=sqlite
         ENV=docker
         PYTHON_VERSION=3.5
-      python: "3.5"
       stage: test
     - name: "Tests mysql python 2.7"
       env: >-
         BACKEND=mysql
         ENV=docker
         PYTHON_VERSION=2.7
-      python: "2.7"
       stage: test
     - name: "Tests postgres kubernetes python 3.6 (persistent)"
       env: >-
@@ -69,7 +64,6 @@ jobs:
         KUBERNETES_VERSION=v1.15.3
         KUBERNETES_MODE=persistent_mode
         PYTHON_VERSION=3.6
-      python: "3.6"
       stage: test
       script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
     - name: "Tests postgres kubernetes python 3.6 (git)"
@@ -79,7 +73,6 @@ jobs:
         KUBERNETES_VERSION=v1.15.3
         KUBERNETES_MODE=git_mode
         PYTHON_VERSION=3.6
-      python: "3.6"
       stage: test
       script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
     - name: "Tests postgres kubernetes python 2.7 (persistent)"
@@ -89,7 +82,6 @@ jobs:
         KUBERNETES_VERSION=v1.15.3
         KUBERNETES_MODE=persistent_mode
         PYTHON_VERSION=2.7
-      python: "2.7"
       stage: test
       script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
     - name: "Tests postgres kubernetes python 2.7 (git)"
@@ -99,7 +91,6 @@ jobs:
         KUBERNETES_VERSION=v1.15.3
         KUBERNETES_MODE=git_mode
         PYTHON_VERSION=2.7
-      python: "2.7"
       stage: test
       script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
   services:
