@@ -49,15 +49,13 @@ class TestCliDb(unittest.TestCase):
         mock_upgradedb.assert_called_once_with()
 
     @mock.patch("airflow.cli.commands.db_command.subprocess")
-    @mock.patch(  # type: ignore
-        "airflow.cli.commands.db_command.NamedTemporaryFile",
-        **{'return_value.__enter__.return_value.name': "/tmp/name"}
-    )
+    @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",
         make_url("mysql://root@mysql/airflow")
     )
     def test_cli_shell_mysql(self, mock_tmp_file, mock_subprocess):
+        mock_tmp_file.return_value.__enter__.return_value.name = "/tmp/name"
         db_command.shell(self.parser.parse_args(['db', 'shell']))
         mock_subprocess.Popen.assert_called_once_with(
             ['mysql', '--defaults-extra-file=/tmp/name']

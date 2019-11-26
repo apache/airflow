@@ -72,11 +72,9 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.kms_hook._conn, result)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn",
-        **{"return_value.encrypt.return_value": RESPONSE}
-    )
+    @mock.patch("airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn")
     def test_encrypt(self, mock_get_conn):
+        mock_get_conn.return_value.encrypt.return_value = RESPONSE
         result = self.kms_hook.encrypt(TEST_KEY_ID, PLAINTEXT)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.encrypt.assert_called_once_with(
@@ -89,11 +87,9 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         )
         self.assertEqual(PLAINTEXT_b64, result)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn",
-        **{"return_value.encrypt.return_value": RESPONSE}
-    )
+    @mock.patch("airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn")
     def test_encrypt_with_auth_data(self, mock_get_conn):
+        mock_get_conn.return_value.encrypt.return_value = RESPONSE
         result = self.kms_hook.encrypt(TEST_KEY_ID, PLAINTEXT, AUTH_DATA)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.encrypt.assert_called_once_with(
@@ -106,11 +102,9 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         )
         self.assertEqual(PLAINTEXT_b64, result)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn",
-        **{"return_value.decrypt.return_value": RESPONSE}
-    )
+    @mock.patch("airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn")
     def test_decrypt(self, mock_get_conn):
+        mock_get_conn.return_value.decrypt.return_value = RESPONSE
         result = self.kms_hook.decrypt(TEST_KEY_ID, CIPHERTEXT_b64)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.decrypt.assert_called_once_with(
@@ -123,11 +117,9 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         )
         self.assertEqual(PLAINTEXT, result)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn",
-        **{"return_value.decrypt.return_value": RESPONSE}
-    )
+    @mock.patch("airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn")
     def test_decrypt_with_auth_data(self, mock_get_conn):
+        mock_get_conn.return_value.decrypt.return_value = RESPONSE
         result = self.kms_hook.decrypt(TEST_KEY_ID, CIPHERTEXT_b64, AUTH_DATA)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.decrypt.assert_called_once_with(

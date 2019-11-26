@@ -25,8 +25,8 @@ import math
 import os
 import signal
 import time
-from datetime import timedelta
-from typing import Iterable, Optional, Union
+from datetime import datetime, timedelta
+from typing import Any, Dict, Iterable, Optional, Union
 from urllib.parse import quote
 
 import dill
@@ -721,16 +721,16 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def _check_and_change_state_before_execution(
             self,
-            verbose=True,
-            ignore_all_deps=False,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            mark_success=False,
-            test_mode=False,
-            job_id=None,
-            pool=None,
-            session=None):
+            verbose: bool = True,
+            ignore_all_deps: bool = False,
+            ignore_depends_on_past: bool = False,
+            ignore_task_deps: bool = False,
+            ignore_ti_state: bool = False,
+            mark_success: bool = False,
+            test_mode: bool = False,
+            job_id: Optional[str] = None,
+            pool: Optional[str] = None,
+            session=None) -> bool:
         """
         Checks dependencies and then sets state to RUNNING if they are met. Returns
         True if and only if state is set to RUNNING, which implies that task should be
@@ -838,7 +838,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # Closing all pooled connections to prevent
         # "max number of connections reached"
-        settings.engine.dispose()
+        settings.engine.dispose()  # type: ignore
         if verbose:
             if mark_success:
                 self.log.info("Marking success for %s on %s", self.task, self.execution_date)
@@ -850,11 +850,11 @@ class TaskInstance(Base, LoggingMixin):
     @Sentry.enrich_errors
     def _run_raw_task(
             self,
-            mark_success=False,
-            test_mode=False,
-            job_id=None,
-            pool=None,
-            session=None):
+            mark_success: bool = False,
+            test_mode: bool = False,
+            job_id: Optional[str] = None,
+            pool: Optional[str] = None,
+            session=None) -> None:
         """
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
@@ -876,7 +876,7 @@ class TaskInstance(Base, LoggingMixin):
         self.hostname = get_hostname()
         self.operator = task.__class__.__name__
 
-        context = {}
+        context = {}  # type: Dict
         actual_start_date = timezone.utcnow()
         try:
             if not mark_success:
@@ -974,16 +974,16 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def run(
             self,
-            verbose=True,
-            ignore_all_deps=False,
-            ignore_depends_on_past=False,
-            ignore_task_deps=False,
-            ignore_ti_state=False,
-            mark_success=False,
-            test_mode=False,
-            job_id=None,
-            pool=None,
-            session=None):
+            verbose: bool = True,
+            ignore_all_deps: bool = False,
+            ignore_depends_on_past: bool = False,
+            ignore_task_deps: bool = False,
+            ignore_ti_state: bool = False,
+            mark_success: bool = False,
+            test_mode: bool = False,
+            job_id: Optional[str] = None,
+            pool: Optional[str] = None,
+            session=None) -> None:
         res = self._check_and_change_state_before_execution(
             verbose=verbose,
             ignore_all_deps=ignore_all_deps,
@@ -1096,11 +1096,11 @@ class TaskInstance(Base, LoggingMixin):
         return self.task.retries and self.try_number <= self.max_tries
 
     @provide_session
-    def get_template_context(self, session=None):
+    def get_template_context(self, session=None) -> Dict[str, Any]:
         task = self.task
         from airflow import macros
 
-        params = {}
+        params = {}  # type: Dict[str, Any]
         run_id = ''
         dag_run = None
         if hasattr(task, 'dag'):
@@ -1236,7 +1236,7 @@ class TaskInstance(Base, LoggingMixin):
         if dag_run and dag_run.conf:
             params.update(dag_run.conf)
 
-    def render_templates(self, context=None) -> None:
+    def render_templates(self, context: Optional[Dict] = None) -> None:
         """Render templates in the operator fields."""
         if not context:
             context = self.get_template_context()
@@ -1281,7 +1281,7 @@ class TaskInstance(Base, LoggingMixin):
         html_content = render('html_content_template', default_html_content)
         send_email(self.task.email, subject, html_content)
 
-    def set_duration(self):
+    def set_duration(self) -> None:
         if self.end_date and self.start_date:
             self.duration = (self.end_date - self.start_date).total_seconds()
         else:
@@ -1289,9 +1289,9 @@ class TaskInstance(Base, LoggingMixin):
 
     def xcom_push(
             self,
-            key,
-            value,
-            execution_date=None):
+            key: str,
+            value: Any,
+            execution_date: Optional[datetime] = None) -> None:
         """
         Make an XCom available for tasks to pull.
 
@@ -1324,7 +1324,7 @@ class TaskInstance(Base, LoggingMixin):
             task_ids: Optional[Union[str, Iterable[str]]] = None,
             dag_id: Optional[str] = None,
             key: str = XCOM_RETURN_KEY,
-            include_prior_dates: bool = False):
+            include_prior_dates: bool = False) -> Any:
         """
         Pull XComs that optionally meet certain criteria.
 

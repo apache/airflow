@@ -366,11 +366,11 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         mock_auth_default.assert_called_once_with(scopes=self.instance.scopes)
         self.assertEqual(('CREDENTIALS', 'PROJECT_ID'), result)
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_file',
-        **{'return_value.project_id': "PROJECT_ID"}
     )
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_from_service_account_file):
+        mock_from_service_account_file.return_value.project_id = "PROJECT_ID"
         self.instance.extras = {
             'extra__google_cloud_platform__key_path': "KEY_PATH.json"
         }
@@ -400,11 +400,11 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         with self.assertRaises(AirflowException):
             self.instance._get_credentials_and_project_id()
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         MODULE_NAME + '.google.oauth2.service_account.Credentials.from_service_account_info',
-        **{'return_value.project_id': "PROJECT_ID"}
     )
     def test_get_credentials_and_project_id_with_service_account_info(self, mock_from_service_account_file):
+        mock_from_service_account_file.return_value.project_id = "PROJECT_ID"
         service_account = {
             'private_key': "PRIVATE_KEY"
         }
