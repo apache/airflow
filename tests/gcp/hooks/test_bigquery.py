@@ -409,7 +409,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
 
 class TestTableDataOperations(unittest.TestCase):
-    def test_insert_all_succeed(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_insert_all_succeed(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -423,12 +424,13 @@ class TestTableDataOperations(unittest.TestCase):
             "skipInvalidRows": False,
         }
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tabledata.return_value.insertAll
         method.return_value.execute.return_value = {
             "kind": "bigquery#tableDataInsertAllResponse"
         }
-        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.insert_all(project_id, dataset_id, table_id, rows)
         method.assert_called_once_with(
             projectId=project_id,
@@ -437,7 +439,8 @@ class TestTableDataOperations(unittest.TestCase):
             body=body
         )
 
-    def test_insert_all_fail(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_insert_all_fail(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -445,7 +448,7 @@ class TestTableDataOperations(unittest.TestCase):
             {"json": {"a_key": "a_value_0"}}
         ]
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tabledata.return_value.insertAll
         method.return_value.execute.return_value = {
             "kind": "bigquery#tableDataInsertAllResponse",
@@ -456,14 +459,16 @@ class TestTableDataOperations(unittest.TestCase):
                 }
             ]
         }
-        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         with self.assertRaises(Exception):
             cursor.insert_all(project_id, dataset_id, table_id,
                               rows, fail_on_error=True)
 
 
 class TestTableOperations(unittest.TestCase):
-    def test_create_view_fails_on_exception(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_view_fails_on_exception(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table_view'
@@ -472,16 +477,18 @@ class TestTableOperations(unittest.TestCase):
             "useLegacySql": False
         }
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
         method.return_value.execute.side_effect = HttpError(
             resp={'status': '400'}, content=b'Query is required for views')
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         with self.assertRaises(Exception):
             cursor.create_empty_table(project_id, dataset_id, table_id,
                                       view=view)
 
-    def test_create_view(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_view(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table_view'
@@ -490,9 +497,10 @@ class TestTableOperations(unittest.TestCase):
             "useLegacySql": False
         }
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.create_empty_table(project_id, dataset_id, table_id,
                                   view=view)
         body = {
@@ -503,7 +511,8 @@ class TestTableOperations(unittest.TestCase):
         }
         method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
 
-    def test_patch_table(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_patch_table(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -523,9 +532,10 @@ class TestTableOperations(unittest.TestCase):
         }
         require_partition_filter_patched = True
 
-        mock_service = mock.Mock()
-        method = (mock_service.tables.return_value.patch)
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        mock_service = mock_get_service.return_value
+        method = mock_service.tables.return_value.patch
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.patch_table(
             dataset_id, table_id, project_id,
             description=description_patched,
@@ -554,7 +564,8 @@ class TestTableOperations(unittest.TestCase):
             body=body
         )
 
-    def test_patch_view(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_patch_view(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         view_id = 'bq_view'
@@ -563,9 +574,10 @@ class TestTableOperations(unittest.TestCase):
             'useLegacySql': False
         }
 
-        mock_service = mock.Mock()
-        method = (mock_service.tables.return_value.patch)
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        mock_service = mock_get_service.return_value
+        method = mock_service.tables.return_value.patch
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.patch_table(dataset_id, view_id, project_id, view=view_patched)
 
         body = {
@@ -578,14 +590,16 @@ class TestTableOperations(unittest.TestCase):
             body=body
         )
 
-    def test_create_empty_table_succeed(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_empty_table_succeed(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.create_empty_table(
             project_id=project_id,
             dataset_id=dataset_id,
@@ -602,7 +616,8 @@ class TestTableOperations(unittest.TestCase):
             body=body
         )
 
-    def test_create_empty_table_with_extras_succeed(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_empty_table_with_extras_succeed(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -614,9 +629,10 @@ class TestTableOperations(unittest.TestCase):
         time_partitioning = {"field": "created", "type": "DAY"}
         cluster_fields = ['name']
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
 
         cursor.create_empty_table(
             project_id=project_id,
@@ -645,16 +661,18 @@ class TestTableOperations(unittest.TestCase):
             body=body
         )
 
-    def test_create_empty_table_on_exception(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_empty_table_on_exception(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
         method.return_value.execute.side_effect = HttpError(
             resp={'status': '400'}, content=b'Bad request')
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         with self.assertRaises(Exception):
             cursor.create_empty_table(project_id, dataset_id, table_id)
 
@@ -692,15 +710,15 @@ class TestTableOperations(unittest.TestCase):
         project_id = 'your-project'
         dataset_id = 'your_dataset'
 
-        mock_service = mock.Mock()
-        with mock.patch.object(hook.BigQueryBaseCursor(mock_service, dataset_id).service,
-                               'tables') as MockService:
-            MockService.return_value.list(
-                dataset_id=dataset_id).execute.return_value = expected_result
-            result = hook.BigQueryBaseCursor(
-                mock_service, project_id).get_dataset_tables(
-                dataset_id=dataset_id)
-            self.assertEqual(result, expected_result)
+        mock_service = mock.MagicMock()
+        mock_service.tables.return_value.list.return_value.execute.return_value = expected_result
+
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        result = cursor.get_dataset_tables(dataset_id=dataset_id)
+        mock_service.tables.return_value.list.assert_called_once_with(
+            datasetId=dataset_id, projectId=project_id
+        )
+        self.assertEqual(result, expected_result)
 
 
 class TestBigQueryCursor(unittest.TestCase):
@@ -857,15 +875,13 @@ class TestDatasetsOperations(unittest.TestCase):
         ]}
         project_id = "project_test"''
 
-        mocked = mock.Mock()
-        with mock.patch.object(hook.BigQueryBaseCursor(mocked, project_id).service,
-                               'datasets') as MockService:
-            MockService.return_value.list(
-                projectId=project_id).execute.return_value = expected_result
-            result = hook.BigQueryBaseCursor(
-                mocked, "test_create_empty_dataset").get_datasets_list(
-                project_id=project_id)
-            self.assertEqual(result, expected_result['datasets'])
+        mock_service = mock.MagicMock()
+        mock_service.datasets.return_value.list.return_value.execute.return_value = expected_result
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        result = cursor.get_datasets_list(project_id=project_id)
+
+        mock_service.datasets.return_value.list.assert_called_once_with(projectId=project_id)
+        self.assertEqual(result, expected_result['datasets'])
 
     def test_delete_dataset(self):
         project_id = 'bq-project'
@@ -1198,7 +1214,8 @@ class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
 
 
 class TestBigQueryWithKMS(unittest.TestCase):
-    def test_create_empty_table_with_kms(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_empty_table_with_kms(self, mock_get_service):
         project_id = "bq-project"
         dataset_id = "bq_dataset"
         table_id = "bq_table"
@@ -1209,9 +1226,10 @@ class TestBigQueryWithKMS(unittest.TestCase):
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
 
         cursor.create_empty_table(
             project_id=project_id,
@@ -1231,7 +1249,8 @@ class TestBigQueryWithKMS(unittest.TestCase):
         )
 
     # pylint: disable=too-many-locals
-    def test_create_external_table_with_kms(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_external_table_with_kms(self, mock_get_service):
         project_id = "bq-project"
         dataset_id = "bq_dataset"
         table_id = "bq_table"
@@ -1258,9 +1277,10 @@ class TestBigQueryWithKMS(unittest.TestCase):
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
 
         cursor.create_external_table(
             external_project_dataset_table=external_project_dataset_table,
@@ -1311,7 +1331,8 @@ class TestBigQueryWithKMS(unittest.TestCase):
             projectId=project_id, datasetId=dataset_id, body=body
         )
 
-    def test_patch_table_with_kms(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_patch_table_with_kms(self, mock_get_service):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -1319,9 +1340,11 @@ class TestBigQueryWithKMS(unittest.TestCase):
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
 
-        mock_service = mock.Mock()
-        method = (mock_service.tables.return_value.patch)
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        mock_service = mock_get_service.return_value
+        method = mock_service.tables.return_value.patch
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+
         cursor.patch_table(
             dataset_id=dataset_id,
             table_id=table_id,
@@ -1345,7 +1368,8 @@ class TestBigQueryWithKMS(unittest.TestCase):
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.run_query(
             sql='query',
             encryption_configuration=encryption_configuration
@@ -1361,7 +1385,8 @@ class TestBigQueryWithKMS(unittest.TestCase):
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.run_copy(
             source_project_dataset_tables='p.d.st',
             destination_project_dataset_table='p.d.dt',
@@ -1378,7 +1403,8 @@ class TestBigQueryWithKMS(unittest.TestCase):
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.run_load(
             destination_project_dataset_table='p.d.dt',
             source_uris=['abc.csv'],
