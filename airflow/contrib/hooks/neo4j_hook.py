@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """This hook provides minimal thin wrapper around the neo4j python library to provide query execution"""
-from typing import Optional
-
 from neo4j import BoltStatementResult, Driver, GraphDatabase, Session
 
 from airflow.hooks.base_hook import BaseHook
