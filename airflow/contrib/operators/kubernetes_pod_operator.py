@@ -276,14 +276,13 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
     @staticmethod
-    def _set_instance(_class, _args):
-        try:
-            return _class(**_args)
-        except:
-            return None
-
-    @staticmethod
     def _set_instances(_class, _args_list):
+        def _set_instance(_class, _args):
+            try:
+                return _class(**_args)
+            except Exception: 
+                return None
+
         if _args_list and isinstance(_args_list, list):
             ret = [_set_instance(_class, _args) for _args in _args_list]
             return [x for x in ret if x]
