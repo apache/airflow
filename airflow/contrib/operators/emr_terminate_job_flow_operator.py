@@ -39,7 +39,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     def __init__(
             self,
             job_flow_id,
-            aws_conn_id='s3_default',
+            aws_conn_id='aws_default',
             *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id

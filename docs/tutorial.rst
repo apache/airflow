@@ -364,6 +364,8 @@ something like this:
     t2.set_upstream(t1)
     t3.set_upstream(t1)
 
+.. _testing:
+
 Testing
 --------
 

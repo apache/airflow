@@ -20,7 +20,7 @@ import json
 import os
 import tempfile
 import unittest
-from unittest import mock
+from contextlib import redirect_stdout
 
 from airflow import models
 from airflow.bin import cli
@@ -100,9 +100,9 @@ class TestCliUsers(unittest.TestCase):
                 '--use_random_password'
             ])
             user_command.users_create(args)
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with redirect_stdout(io.StringIO()) as stdout:
             user_command.users_list(self.parser.parse_args(['users', 'list']))
-            stdout = mock_stdout.getvalue()
+            stdout = stdout.getvalue()
         for i in range(0, 3):
             self.assertIn('user{}'.format(i), stdout)
 

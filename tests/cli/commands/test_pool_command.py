@@ -17,9 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import io
 import json
 import os
 import unittest
+from contextlib import redirect_stdout
 
 from airflow import models, settings
 from airflow.bin import cli
@@ -55,12 +57,11 @@ class TestCliPools(unittest.TestCase):
 
     def test_pool_list(self):
         pool_command.pool_set(self.parser.parse_args(['pools', 'set', 'foo', '1', 'test']))
-        with self.assertLogs(level='INFO') as cm:
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
             pool_command.pool_list(self.parser.parse_args(['pools', 'list']))
 
-        stdout = cm.output
-
-        self.assertIn('foo', stdout[0])
+        self.assertIn('foo', stdout.getvalue())
 
     def test_pool_list_with_args(self):
         pool_command.pool_list(self.parser.parse_args(['pools', 'list', '--output', 'tsv']))

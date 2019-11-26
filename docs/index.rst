@@ -95,6 +95,7 @@ Content
     lineage
     dag-serialization
     changelog
+    best-practices
     faq
     privacy_notice
 

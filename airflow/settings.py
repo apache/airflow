@@ -18,6 +18,7 @@
 # under the License.
 
 import atexit
+import json
 import logging
 import os
 import sys
@@ -74,6 +75,9 @@ LOGGING_CLASS_PATH = None  # type: Optional[str]
 
 engine = None  # type: Optional[Engine]
 Session = None  # type: Optional[SASession]
+
+# The JSON library to use for DAG Serialization and De-Serialization
+json = json
 
 
 def policy(task_instance):

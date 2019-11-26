@@ -20,7 +20,7 @@ import re
 import subprocess
 import tempfile
 import unittest
-from unittest import mock
+from contextlib import redirect_stdout
 
 from airflow import settings
 from airflow.bin import cli
@@ -35,9 +35,9 @@ class TestCliConnections(unittest.TestCase):
         cls.parser = cli.CLIFactory.get_parser()
 
     def test_cli_connections_list(self):
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_list(self.parser.parse_args(['connections', 'list']))
-            stdout = mock_stdout.getvalue()
+            stdout = stdout.getvalue()
         conns = [[x.strip("'") for x in re.findall(r"'\w+'", line)[:2]]
                  for ii, line in enumerate(stdout.split('\n'))
                  if ii % 2 == 1]
@@ -71,7 +71,7 @@ class TestCliConnections(unittest.TestCase):
         db.resetdb()
         # Add connections:
         uri = 'postgresql://airflow:airflow@host:5432/airflow'
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_add(self.parser.parse_args(
                 ['connections', 'add', 'new1',
                  '--conn_uri=%s' % uri]))
@@ -92,7 +92,7 @@ class TestCliConnections(unittest.TestCase):
             connection_command.connections_add(self.parser.parse_args(
                 ['connections', 'add', 'new6',
                  '--conn_uri', "", '--conn_type=google_cloud_platform', '--conn_extra', "{'extra': 'yes'}"]))
-            stdout = mock_stdout.getvalue()
+            stdout = stdout.getvalue()
 
         # Check addition stdout
         lines = [l for l in stdout.split('\n') if len(l) > 0]
@@ -112,11 +112,11 @@ class TestCliConnections(unittest.TestCase):
         ])
 
         # Attempt to add duplicate
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_add(self.parser.parse_args(
                 ['connections', 'add', 'new1',
                  '--conn_uri=%s' % uri]))
-            stdout = mock_stdout.getvalue()
+            stdout = stdout.getvalue()
 
         # Check stdout for addition attempt
         lines = [l for l in stdout.split('\n') if len(l) > 0]
@@ -161,7 +161,7 @@ class TestCliConnections(unittest.TestCase):
                                           None, None, "{'extra': 'yes'}"))
 
         # Delete connections
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_delete(self.parser.parse_args(
                 ['connections', 'delete', 'new1']))
             connection_command.connections_delete(self.parser.parse_args(
@@ -174,7 +174,7 @@ class TestCliConnections(unittest.TestCase):
                 ['connections', 'delete', 'new5']))
             connection_command.connections_delete(self.parser.parse_args(
                 ['connections', 'delete', 'new6']))
-            stdout = mock_stdout.getvalue()
+            stdout = stdout.getvalue()
 
         # Check deletion stdout
         lines = [l for l in stdout.split('\n') if len(l) > 0]
@@ -197,10 +197,10 @@ class TestCliConnections(unittest.TestCase):
             self.assertTrue(result is None)
 
         # Attempt to delete a non-existing connection
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_delete(self.parser.parse_args(
                 ['connections', 'delete', 'fake']))
-            stdout = mock_stdout.getvalue()
+            stdout = stdout.getvalue()
 
         # Check deletion attempt stdout
         lines = [l for l in stdout.split('\n') if len(l) > 0]

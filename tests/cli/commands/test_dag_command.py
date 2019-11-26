@@ -138,14 +138,12 @@ class TestCliDags(unittest.TestCase):
         mock_run.reset_mock()
         dag = self.dagbag.get_dag('example_bash_operator')
 
-        with mock.patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
             dag_command.dag_backfill(self.parser.parse_args([
                 'dags', 'backfill', 'example_bash_operator', '-t', 'runme_0', '--dry_run',
                 '-s', DEFAULT_DATE.isoformat()]), dag=dag)
 
-        mock_stdout.seek(0, 0)
-
-        output = mock_stdout.read()
+        output = stdout.getvalue()
         self.assertIn("Dry run of DAG example_bash_operator on {}\n".format(DEFAULT_DATE.isoformat()), output)
         self.assertIn("Task runme_0\n".format(DEFAULT_DATE.isoformat()), output)
 
@@ -179,8 +177,7 @@ class TestCliDags(unittest.TestCase):
         mock_run.reset_mock()
 
     def test_show_dag_print(self):
-        temp_stdout = io.StringIO()
-        with contextlib.redirect_stdout(temp_stdout):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(self.parser.parse_args([
                 'dags', 'show', 'example_bash_operator']))
         out = temp_stdout.getvalue()
@@ -190,8 +187,7 @@ class TestCliDags(unittest.TestCase):
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_dave(self, mock_render_dag):
-        temp_stdout = io.StringIO()
-        with contextlib.redirect_stdout(temp_stdout):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(self.parser.parse_args([
                 'dags', 'show', 'example_bash_operator', '--save', 'awesome.png']
             ))
@@ -206,8 +202,7 @@ class TestCliDags(unittest.TestCase):
     def test_show_dag_imgcat(self, mock_render_dag, mock_popen):
         mock_render_dag.return_value.pipe.return_value = b"DOT_DATA"
         mock_popen.return_value.communicate.return_value = (b"OUT", b"ERR")
-        temp_stdout = io.StringIO()
-        with contextlib.redirect_stdout(temp_stdout):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_show(self.parser.parse_args([
                 'dags', 'show', 'example_bash_operator', '--imgcat']
             ))

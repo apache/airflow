@@ -25,7 +25,7 @@ import textwrap
 
 from tabulate import tabulate
 
-from airflow import DAG, AirflowException, LoggingMixin, conf, jobs, settings
+from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import cli as cli_utils, db
@@ -101,16 +101,14 @@ def dag_trigger(args):
     Creates a dag run for the specified dag
     """
     api_client = get_current_api_client()
-    log = LoggingMixin().log
     try:
         message = api_client.trigger_dag(dag_id=args.dag_id,
                                          run_id=args.run_id,
                                          conf=args.conf,
                                          execution_date=args.exec_date)
+        print(message)
     except OSError as err:
-        log.error(err)
         raise AirflowException(err)
-    log.info(message)
 
 
 @cli_utils.action_logging
@@ -119,16 +117,14 @@ def dag_delete(args):
     Deletes all DB records related to the specified dag
     """
     api_client = get_current_api_client()
-    log = LoggingMixin().log
     if args.yes or input(
             "This will drop all existing records related to the specified DAG. "
             "Proceed? (y/n)").upper() == "Y":
         try:
             message = api_client.delete_dag(dag_id=args.dag_id)
+            print(message)
         except OSError as err:
-            log.error(err)
             raise AirflowException(err)
-        log.info(message)
     else:
         print("Bail.")
 

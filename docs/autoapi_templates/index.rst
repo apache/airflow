@@ -84,6 +84,8 @@ All operators are in the following packages:
 
   airflow/providers/google/marketing_platform/sensors/index
 
+  airflow/providers/apache/cassandra/sensors/index
+
 Hooks
 -----
 Hooks are interfaces to external platforms and databases, implementing a common
@@ -113,6 +115,7 @@ All hooks are in the following packages:
 
   airflow/providers/google/cloud/hooks/index
 
+  airflow/providers/apache/cassandra/hooks/index
 
 Executors
 ---------

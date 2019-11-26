@@ -22,14 +22,15 @@ import json
 import logging
 import os
 import textwrap
+from contextlib import redirect_stderr, redirect_stdout
 
-from airflow import DAG, AirflowException, LoggingMixin, conf, jobs, settings
+from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors import get_default_executor
 from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.cli import get_dag, get_dags
-from airflow.utils.log.logging_mixin import redirect_stderr, redirect_stdout
+from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 
 
@@ -90,8 +91,6 @@ def task_run(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
 
-    log = LoggingMixin().log
-
     # Load custom airflow config
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
@@ -113,7 +112,7 @@ def task_run(args, dag=None):
         dag = get_dag(args)
     elif not dag:
         with db.create_session() as session:
-            log.info('Loading pickle id %s', args.pickle)
+            print(f'Loading pickle id {args.pickle}')
             dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
             if not dag_pickle:
                 raise AirflowException("Who hid the pickle!? [missing pickle]")
@@ -126,12 +125,13 @@ def task_run(args, dag=None):
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
-    log.info("Running %s on host %s", ti, hostname)
+    print(f"Running {ti} on host {hostname}")
 
     if args.interactive:
         _run(args, dag, ti)
     else:
-        with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+        with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
+                redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
             _run(args, dag, ti)
     logging.shutdown()
 
@@ -193,7 +193,14 @@ def task_test(args, dag=None):
     # We want log outout from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
-    logging.getLogger('airflow.task').propagate = True
+    handlers = logging.getLogger('airflow.task').handlers
+    already_has_stream_handler = False
+    for handler in handlers:
+        already_has_stream_handler = isinstance(handler, logging.StreamHandler)
+        if already_has_stream_handler:
+            break
+    if not already_has_stream_handler:
+        logging.getLogger('airflow.task').propagate = True
 
     dag = dag or get_dag(args)
 

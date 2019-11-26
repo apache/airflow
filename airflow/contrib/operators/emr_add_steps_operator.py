@@ -41,7 +41,7 @@ class EmrAddStepsOperator(BaseOperator):
     def __init__(
             self,
             job_flow_id,
-            aws_conn_id='s3_default',
+            aws_conn_id='aws_default',
             steps=None,
             *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -95,7 +95,7 @@ class CompileAssets(Command):
     # noinspection PyMethodMayBeStatic
     def run(self):
         """Run a command to compile and build assets."""
-        subprocess.call('./airflow/www/compile_assets.sh')
+        subprocess.check_call('./airflow/www/compile_assets.sh')
 
 
 def git_version(version_: str) -> str:
@@ -391,6 +391,7 @@ def do_setup():
             'requests>=2.20.0, <3',
             'setproctitle>=1.1.8, <2',
             'sqlalchemy~=1.3',
+            'sqlalchemy_jsonfield~=0.9',
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
             'termcolor==1.1.0',
