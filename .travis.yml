@@ -39,6 +39,8 @@ jobs:
     - name: "Build documentation"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
+      env: >-
+        PYTHON_VERSION=3.6
     - name: "Tests postgres python 3.6"
       env: >-
         BACKEND=postgres
