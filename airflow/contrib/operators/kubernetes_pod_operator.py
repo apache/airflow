@@ -280,7 +280,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         def _set_instance(_class, _args):
             try:
                 return _class(**_args)
-            except Exception:
+            except TypeError:
                 return None
 
         if _args_list and isinstance(_args_list, list):
