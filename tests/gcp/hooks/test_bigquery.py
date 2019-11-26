@@ -315,14 +315,14 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
         mock_jobs.cancel.assert_called_once_with(projectId=project_id, jobId=running_job_id)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_sql_dialect_default(self, run_with_config):
         cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
         cursor.run_query('query')
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useLegacySql'], True)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_sql_dialect_override(self, run_with_config):
         for bool_val in [True, False]:
             cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
@@ -330,7 +330,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             args, kwargs = run_with_config.call_args
             self.assertIs(args[0]['query']['useLegacySql'], bool_val)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_sql_dialect_legacy_with_query_params(self, run_with_config):
         cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
         params = [{
@@ -342,7 +342,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useLegacySql'], False)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_sql_dialect_legacy_with_query_params_fails(self, mock_run_with_configuration):
         cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
         params = [{
@@ -353,7 +353,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         with self.assertRaises(ValueError):
             cursor.run_query('query', use_legacy_sql=True, query_params=params)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_api_resource_configs(self, run_with_config):
         for bool_val in [True, False]:
             cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
@@ -704,7 +704,7 @@ class TestTableOperations(unittest.TestCase):
 
 
 class TestBigQueryCursor(unittest.TestCase):
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_execute_with_parameters(self, mocked_rwc):
         hook.BigQueryCursor("test", "test").execute(
             "SELECT %(foo)s", {"foo": "bar"})
@@ -712,7 +712,7 @@ class TestBigQueryCursor(unittest.TestCase):
 
 
 class TestLabelsInRunJob(unittest.TestCase):
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_with_arg(self, mocked_rwc):
         project_id = 12345
 
@@ -804,7 +804,7 @@ class TestDatasetsOperations(unittest.TestCase):
         method.assert_called_once_with(projectId=project_id, body=expected_body)
 
     def test_get_dataset_without_dataset_id(self):
-        with mock.patch.object(hook.BigQueryHook, 'get_service'):
+        with mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service"):
             with self.assertRaises(ValueError):
                 hook.BigQueryBaseCursor(
                     mock.Mock(), "test_create_empty_dataset").get_dataset(
@@ -822,15 +822,17 @@ class TestDatasetsOperations(unittest.TestCase):
         }
         dataset_id = "test_dataset"
         project_id = "project_test"
+        service = mock.Mock()
+        service.datasets.return_value.get(
+            datasetId=dataset_id,
+            projectId=project_id
+        ).execute.return_value = expected_result
+        bq_hook = hook.BigQueryBaseCursor(service, project_id)
 
-        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
-        with mock.patch.object(bq_hook.service, 'datasets') as MockService:
-            MockService.return_value.get(datasetId=dataset_id,
-                                         projectId=project_id).execute.\
-                return_value = expected_result
-            result = bq_hook.get_dataset(dataset_id=dataset_id,
-                                         project_id=project_id)
-            self.assertEqual(result, expected_result)
+        result = bq_hook.get_dataset(dataset_id=dataset_id,
+                                     project_id=project_id)
+
+        self.assertEqual(result, expected_result)
 
     def test_get_datasets_list(self):
         expected_result = {'datasets': [
@@ -937,7 +939,7 @@ class TestDatasetsOperations(unittest.TestCase):
 
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_load_default(self, mocked_rwc):
         project_id = 12345
 
@@ -954,7 +956,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         assert mocked_rwc.call_count == 1
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_with_auto_detect(self, run_with_config):
         destination_project_dataset_table = "autodetect.table"
         cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
@@ -962,7 +964,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['load']['autodetect'], True)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_load_with_arg(self, mocked_rwc):
         project_id = 12345
 
@@ -987,7 +989,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         assert mocked_rwc.call_count == 1
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_default(self, mocked_rwc):
         project_id = 12345
 
@@ -1000,7 +1002,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         assert mocked_rwc.call_count == 1
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_with_arg(self, mocked_rwc):
         project_id = 12345
 
@@ -1048,7 +1050,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
 class TestClusteringInRunJob(unittest.TestCase):
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_load_default(self, mocked_rwc):
         project_id = 12345
 
@@ -1065,7 +1067,7 @@ class TestClusteringInRunJob(unittest.TestCase):
 
         assert mocked_rwc.call_count == 1
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_load_with_arg(self, mocked_rwc):
         project_id = 12345
 
@@ -1089,7 +1091,7 @@ class TestClusteringInRunJob(unittest.TestCase):
 
         assert mocked_rwc.call_count == 1
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_default(self, mocked_rwc):
         project_id = 12345
 
@@ -1102,7 +1104,7 @@ class TestClusteringInRunJob(unittest.TestCase):
 
         assert mocked_rwc.call_count == 1
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_with_arg(self, mocked_rwc):
         project_id = 12345
 
@@ -1129,17 +1131,17 @@ class TestClusteringInRunJob(unittest.TestCase):
 class TestBigQueryHookLegacySql(unittest.TestCase):
     """Ensure `use_legacy_sql` param in `BigQueryHook` propagates properly."""
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_hook_uses_legacy_sql_by_default(self, run_with_config):
-        with mock.patch.object(hook.BigQueryHook, 'get_service'):
+        with mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service"):
             bq_hook = hook.BigQueryHook()
             bq_hook.get_first('query')
             args, kwargs = run_with_config.call_args
             self.assertIs(args[0]['query']['useLegacySql'], True)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_legacy_sql_override_propagates_properly(self, run_with_config):
-        with mock.patch.object(hook.BigQueryHook, 'get_service'):
+        with mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service"):
             bq_hook = hook.BigQueryHook(use_legacy_sql=False)
             bq_hook.get_first('query')
             args, kwargs = run_with_config.call_args
@@ -1147,9 +1149,9 @@ class TestBigQueryHookLegacySql(unittest.TestCase):
 
 
 class TestBigQueryHookLocation(unittest.TestCase):
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_location_propagates_properly(self, run_with_config):
-        with mock.patch.object(hook.BigQueryHook, 'get_service'):
+        with mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service"):
             bq_hook = hook.BigQueryHook(location=None)
             self.assertIsNone(bq_hook.location)
 
@@ -1338,7 +1340,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
             body=body
         )
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_query_with_kms(self, run_with_config):
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
@@ -1354,7 +1356,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
             encryption_configuration
         )
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_copy_with_kms(self, run_with_config):
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
@@ -1371,7 +1373,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
             encryption_configuration
         )
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_run_load_with_kms(self, run_with_config):
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
