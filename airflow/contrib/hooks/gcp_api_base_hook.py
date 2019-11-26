@@ -33,8 +33,9 @@ from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryE
     ResourceExhausted
 from googleapiclient.errors import HttpError
 import tenacity
+from googleapiclient.http import set_user_agent
 
-from airflow import LoggingMixin
+from airflow import LoggingMixin, version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
@@ -191,6 +192,7 @@ class GoogleCloudBaseHook(BaseHook):
         """
         credentials = self._get_credentials()
         http = httplib2.Http()
+        http = set_user_agent(http, "airflow/" + version.version)
         authed_http = google_auth_httplib2.AuthorizedHttp(
             credentials, http=http)
         return authed_http

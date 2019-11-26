@@ -28,7 +28,7 @@ from google.auth.environment_vars import CREDENTIALS
 from google.cloud.exceptions import MovedPermanently, Forbidden
 from googleapiclient.errors import HttpError
 
-from airflow import AirflowException, LoggingMixin
+from airflow import AirflowException, LoggingMixin, version
 from airflow.contrib.hooks import gcp_api_base_hook as hook
 
 import google.auth
@@ -349,3 +349,28 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
             "extra__google_cloud_platform__num_retries": None
         }
         self.assertEqual(self.instance.num_retries, 5)
+
+    @mock.patch("airflow.contrib.hooks.gcp_api_base_hook.httplib2.Http")
+    @mock.patch("airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook._get_credentials")
+    def test_authorize_assert_user_agent_is_sent(self, mock_get_credentials, mock_http):
+        """
+        Verify that if 'num_retires' in extras is not set, the default value
+        should not be None
+        """
+        request = mock_http.return_value.request
+        response = mock.MagicMock(status_code=200)
+        content = "CONTENT"
+        mock_http.return_value.request.return_value = response, content
+
+        new_response, new_content = self.instance._authorize().request("/test-action")
+
+        request.assert_called_once_with(
+            '/test-action',
+            body=None,
+            connection_type=None,
+            headers={'user-agent': 'airflow/' + version.version},
+            method='GET',
+            redirections=5
+        )
+        self.assertEqual(response, new_response)
+        self.assertEqual(content, new_content)
