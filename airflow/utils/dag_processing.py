@@ -971,7 +971,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             processor_pid = self.get_pid(file_path)
             processor_start_time = self.get_start_time(file_path)
-            runtime = ((now - processor_start_time).total_seconds() if processor_start_time else None)
+            runtime = ((now - processor_start_time) if processor_start_time else None)
             last_run = self.get_last_finish_time(file_path)
             if last_run:
                 seconds_ago = (now - last_run).total_seconds()
@@ -996,7 +996,7 @@ class DagFileProcessorManager(LoggingMixin):
         for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:
             formatted_rows.append((file_path,
                                    pid,
-                                   "{:.2f}s".format(runtime) if runtime else None,
+                                   "{:.2f}s".format(runtime.total_seconds()) if runtime else None,
                                    num_dags,
                                    num_errors,
                                    "{:.2f}s".format(last_runtime) if last_runtime else None,
