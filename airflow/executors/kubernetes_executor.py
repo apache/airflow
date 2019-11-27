@@ -282,17 +282,10 @@ class KubeConfig:
             return int(val)
 
     def _validate(self):
-        # TODO: use XOR for dags_volume_claim and git_dags_folder_mount_point
-        if not self.dags_volume_claim \
-           and not self.dags_volume_host \
-           and not self.dags_in_image \
-           and (not self.git_repo or not self.git_branch or not self.git_dags_folder_mount_point):
+        if not self.dags_in_image:
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
-                'config section: `dags_volume_claim` '
-                'or `dags_volume_host` '
-                'or `dags_in_image` '
-                'or `git_repo and git_branch and git_dags_folder_mount_point`')
+                'config section: `dags_in_image`')
         if self.git_repo \
            and (self.git_user or self.git_password) \
            and self.git_ssh_key_secret_name:
@@ -511,16 +504,16 @@ class AirflowKubernetesScheduler(LoggingMixin):
     @staticmethod
     def _make_safe_pod_id(safe_dag_id, safe_task_id, safe_uuid):
         """
-        Kubernetes pod names must be <= 253 chars and must pass the following regex for
-        validation
-        "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+        Kubernetes pod names must be <= 63 chars (due to the use of hostnames)
+        and must pass the following regex for validation
+        "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 
         :param safe_dag_id: a dag_id with only alphanumeric characters
         :param safe_task_id: a task_id with only alphanumeric characters
         :param random_uuid: a uuid
         :return: ``str`` valid Pod name of appropriate length
         """
-        MAX_POD_ID_LEN = 253
+        MAX_POD_ID_LEN = 63
 
         safe_key = safe_dag_id + safe_task_id
 
@@ -734,6 +727,37 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 for account_spec in self.kube_config.gcp_service_account_keys.split(',')]
             for service_account in name_path_pair_list:
                 _create_or_update_secret(service_account['name'], service_account['path'])
+    
+    def _create_worker_service(self):
+        service = kubernetes.client.V1Service(
+                metadata=kubernetes.client.V1ObjectMeta(
+                    name='airflow-worker'
+                ),
+                spec=kubernetes.client.V1ServiceSpec(
+                    cluster_ip='None',
+                    selector={
+                        'app.kubernetes.io/name': 'airflow-worker',
+                    },
+                    ports=[
+                        kubernetes.client.V1ServicePort(
+                            name='logs',
+                            protocol='TCP',
+                            port=8793
+                        )
+                    ]
+                )
+            )
+
+        try:
+            return self.kube_client.create_namespaced_service(
+                self.kube_config.executor_namespace, service
+            )
+        except ApiException as e:
+            if e.status == 409:
+                return self.kube_client.patch_namespaced_service(
+                    service.metadata.name,
+                    self.kube_config.executor_namespace, service
+                )
 
     def start(self):
         self.log.info('Start Kubernetes executor')
@@ -752,6 +776,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             self.kube_client, self.worker_uuid
         )
         self._inject_secrets()
+        self._create_worker_service()
         self.clear_not_launched_queued_tasks()
 
     def execute_async(self, key, command, queue=None, executor_config=None):
