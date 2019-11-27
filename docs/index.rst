@@ -85,6 +85,7 @@ Content
     profiling
     scheduler
     executor/index
+    dag-run
     plugins
     security
     timezone
