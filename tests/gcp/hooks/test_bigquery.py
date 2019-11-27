@@ -24,6 +24,7 @@ from unittest import mock
 
 from google.auth.exceptions import GoogleAuthError
 from googleapiclient.errors import HttpError
+from parameterized import parameterized
 
 from airflow.gcp.hooks import bigquery as hook
 from airflow.gcp.hooks.bigquery import (
@@ -139,98 +140,50 @@ class TestBigQueryDataframeResults(unittest.TestCase):
         self.assertIn('Reason: ', str(context.exception), "")
 
 
+# pylint: disable=deprecated-method
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('dataset.table', None)
+        with self.assertRaisesRegexp(Exception, "INTERNAL: No default project is specified"):
+            hook._split_tablename("dataset.table", None)
 
-        self.assertIn('INTERNAL: No default project is specified',
-                      str(context.exception), "")
+    @parameterized.expand([
+        ("project", "dataset", "table", "dataset.table", "project"),
+        ("alternative", "dataset", "table", "alternative:dataset.table", "project"),
+        ("alternative", "dataset", "table", "alternative.dataset.table", "project"),
+        ("alt1:alt", "dataset", "table", "alt1:alt.dataset.table", "project"),
+        ("alt1:alt", "dataset", "table", "alt1:alt:dataset.table", "project"),
+    ])
+    def test_split_tablename(
+        self, project_expected, dataset_expected, table_expected, table_input, default_project_id
+    ):
+        project, dataset, table = hook._split_tablename(table_input, default_project_id)
+        self.assertEqual(project_expected, project)
+        self.assertEqual(dataset_expected, dataset)
+        self.assertEqual(table_expected, table)
 
-    def test_split_dataset_table(self):
-        project, dataset, table = hook._split_tablename('dataset.table',
-                                                        'project')
-        self.assertEqual("project", project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_split_project_dataset_table(self):
-        project, dataset, table = hook._split_tablename('alternative:dataset.table',
-                                                        'project')
-        self.assertEqual("alternative", project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_sql_split_project_dataset_table(self):
-        project, dataset, table = hook._split_tablename('alternative.dataset.table',
-                                                        'project')
-        self.assertEqual("alternative", project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_colon_in_project(self):
-        project, dataset, table = hook._split_tablename('alt1:alt.dataset.table',
-                                                        'project')
-
-        self.assertEqual('alt1:alt', project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_valid_double_column(self):
-        project, dataset, table = hook._split_tablename('alt1:alt:dataset.table',
-                                                        'project')
-
-        self.assertEqual('alt1:alt', project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_invalid_syntax_triple_colon(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt2:alt3:dataset.table',
-                                  'project')
-
-        self.assertIn('Use either : or . to specify project',
-                      str(context.exception), "")
-        self.assertFalse('Format exception for' in str(context.exception))
-
-    def test_invalid_syntax_triple_dot(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1.alt.dataset.table',
-                                  'project')
-
-        self.assertIn('Expect format of (<project.|<project:)<dataset>.<table>',
-                      str(context.exception), "")
-        self.assertFalse('Format exception for' in str(context.exception))
-
-    def test_invalid_syntax_column_double_project_var(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt2:alt.dataset.table',
-                                  'project', 'var_x')
-
-        self.assertIn('Use either : or . to specify project',
-                      str(context.exception), "")
-        self.assertIn('Format exception for var_x:',
-                      str(context.exception), "")
-
-    def test_invalid_syntax_triple_colon_project_var(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt2:alt:dataset.table',
-                                  'project', 'var_x')
-
-        self.assertIn('Use either : or . to specify project',
-                      str(context.exception), "")
-        self.assertIn('Format exception for var_x:',
-                      str(context.exception), "")
-
-    def test_invalid_syntax_triple_dot_var(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1.alt.dataset.table',
-                                  'project', 'var_x')
-
-        self.assertIn('Expect format of (<project.|<project:)<dataset>.<table>',
-                      str(context.exception), "")
-        self.assertIn('Format exception for var_x:',
-                      str(context.exception), "")
+    @parameterized.expand([
+        ("alt1:alt2:alt3:dataset.table", "project", None, "Use either : or . to specify project got {}"),
+        (
+            "alt1.alt.dataset.table", "project", None,
+            r"Expect format of \(<project\.\|<project\:\)<dataset>\.<table>, got {}",
+        ),
+        (
+            "alt1:alt2:alt.dataset.table", "project", "var_x",
+            "Format exception for var_x: Use either : or . to specify project got {}",
+        ),
+        (
+            "alt1:alt2:alt:dataset.table", "project", "var_x",
+            "Format exception for var_x: Use either : or . to specify project got {}",
+        ),
+        (
+            "alt1.alt.dataset.table", "project", "var_x",
+            r"Format exception for var_x: Expect format of "
+            r"\(<project\.\|<project:\)<dataset>.<table>, got {}",
+        ),
+    ])
+    def test_invalid_syntax(self, table_input, project_id, var_name, exception_message):
+        with self.assertRaisesRegexp(Exception, exception_message.format(table_input)):
+            hook._split_tablename(table_input, project_id, var_name)
 
 
 class TestBigQueryHookSourceFormat(unittest.TestCase):
