@@ -23,6 +23,7 @@ Python driver: https://neo4j.com/docs/api/python-driver/current/
 """
 
 import csv
+from os.path import isfile
 
 from neo4j import BoltStatementResult
 
@@ -34,29 +35,30 @@ from airflow.utils.decorators import apply_defaults
 
 class Neo4JOperator(BaseOperator):
     """
-    This operator takes a number of configuration parameters
+    This operator provides Airflow DAGs the ability to execute a cypher query
+    and save the results of the query to a CSV file.
     :param cypher_query: required cypher query to be executed on the Neo4J database
     :type cypher_query: str
     :param output_filename: required filename to produce with output from the query
     :type output_filename: str
     :param n4j_conn_id: reference to a pre-defined Neo4J Connection
     :type n4j_conn_id: str
-    :param fail_on_no_results: True/False flag to indicate if it should fail the task if no results
-    :type fail_on_no_results: bool
+    :param soft_fail: True/False flag to indicate if it should fail the task if no results
+    :type soft_fail: bool
     """
     _cypher_query = None
     _output_filename = None
     _n4j_conn_id = None
-    _fail_on_no_results = None
+    _soft_fail = None
 
-    template_fields = ['cypher_query', 'output_filename', 'n4j_conn_id']
+    template_fields = ['cypher_query', 'output_filename', 'n4j_conn_id', 'soft_fail']
 
     @apply_defaults
     def __init__(self,
                  cypher_query,
                  output_filename,
                  n4j_conn_id,
-                 fail_on_no_results=False,
+                 soft_fail=False,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -64,7 +66,7 @@ class Neo4JOperator(BaseOperator):
         self._output_filename = output_filename
         self._cypher_query = cypher_query
         self._n4j_conn_id = n4j_conn_id
-        self._fail_on_no_results = fail_on_no_results
+        self._soft_fail = soft_fail
 
     def execute(self, context):
         """
@@ -72,17 +74,23 @@ class Neo4JOperator(BaseOperator):
         :param context:
         :return:
         """
+        if isfile(self._cypher_query):
+            with open(self._cypher_query, 'r') as input_file:
+                self._cypher_query = input_file.read()
+
         hook = Neo4JHook(n4j_conn_id=self._n4j_conn_id)
         result: BoltStatementResult = hook.run_query(cypher_query=self._cypher_query)
 
         # In some cases, an empty result should fail (where results are expected)
-        if result.peek() is None and self._fail_on_no_results:
+        if result.peek() is None and self._soft_fail:
             raise AirflowException("Query returned no rows")
 
         row_count = self._make_csv(result)
 
         # Provide some feedback to what was done...
         self.log.info("Saved %s with %s rows", self._output_filename, row_count)
+
+        return row_count
 
     def _make_csv(self, result: BoltStatementResult):
         """

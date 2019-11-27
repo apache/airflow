@@ -56,5 +56,5 @@ t3 = Neo4JOperator(
 )
 # [END howto_operator_neo4j]
 
-t2.set_upstream(t1)
-t3.set_upstream(t2)
+t2 << t1
+t3 << t2
