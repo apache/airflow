@@ -515,6 +515,10 @@ def run(args, dag=None):
         env = os.environ.copy()
         sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
 
+    if args.serve_logs:
+        env = os.environ.copy()
+        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+
     if args.interactive:
         _run(args, dag, ti)
     else:

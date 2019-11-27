@@ -192,6 +192,9 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
             if pod.resources.limit_cpu:
                 req['spec']['containers'][0]['resources']['limits'][
                     'cpu'] = pod.resources.limit_cpu
+            if pod.resources.limit_gpu:
+                req['spec']['containers'][0]['resources']['limits'][
+                    'nvidia.com/gpu'] = pod.resources.limit_gpu
             if pod.resources.limit_ephemeral_storage:
                 req['spec']['containers'][0]['resources']['limits'][
                     'ephemeral-storage'] = pod.resources.limit_ephemeral_storage
