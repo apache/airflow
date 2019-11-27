@@ -81,7 +81,7 @@ def merge_conn(conn, session=None):
 @provide_session
 def add_default_pool_if_not_exists(session=None):
     from airflow.models.pool import Pool
-    if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
+    if not Pool.get_pool(DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
             slots=conf.getint(section='core', key='non_pooled_task_slot_count',

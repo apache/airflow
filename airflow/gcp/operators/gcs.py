@@ -28,8 +28,8 @@ from typing import Dict, Iterable, List, Optional, Union
 from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
-from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.xcom import MAX_XCOM_SIZE
 
 
 class GoogleCloudStorageCreateBucketOperator(BaseOperator):

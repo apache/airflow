@@ -28,6 +28,7 @@ from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
 
+import airflow.utils.xcom
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
@@ -960,7 +961,7 @@ class TestTaskInstance(unittest.TestCase):
         ti.run()
         self.assertEqual(
             ti.xcom_pull(
-                task_ids=task_id, key=models.XCOM_RETURN_KEY
+                task_ids=task_id, key=airflow.utils.xcom.XCOM_RETURN_KEY
             ),
             None
         )

@@ -24,6 +24,7 @@ from airflow.api.common.experimental import pool as pool_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
 from airflow.utils.db import create_session
+from airflow.utils.pool import DEFAULT_POOL_NAME
 from tests.test_utils.db import clear_db_pools
 
 
@@ -128,7 +129,7 @@ class TestPool(unittest.TestCase):
     def test_delete_default_pool_not_allowed(self):
         with self.assertRaisesRegex(AirflowBadRequest,
                                     "^default_pool cannot be deleted$"):
-            pool_api.delete_pool(Pool.DEFAULT_POOL_NAME)
+            pool_api.delete_pool(DEFAULT_POOL_NAME)
 
 
 if __name__ == '__main__':

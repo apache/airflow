@@ -20,6 +20,7 @@
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models import Pool
 from airflow.utils.db import provide_session
+from airflow.utils.pool import DEFAULT_POOL_NAME
 
 
 @provide_session
@@ -72,7 +73,7 @@ def delete_pool(name, session=None):
     if not (name and name.strip()):
         raise AirflowBadRequest("Pool name shouldn't be empty")
 
-    if name == Pool.DEFAULT_POOL_NAME:
+    if name == DEFAULT_POOL_NAME:
         raise AirflowBadRequest("default_pool cannot be deleted")
 
     pool = session.query(Pool).filter_by(pool=name).first()

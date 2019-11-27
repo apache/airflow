@@ -37,7 +37,7 @@ class DagrunIdDep(BaseTIDep):
         Determines if the DagRun ID is valid for scheduling from scheduler.
 
         :param ti: the task instance to get the dependency status for
-        :type ti: airflow.models.TaskInstance
+        :type ti: airflow.models.taskinstance.TaskInstance
         :param session: database session
         :type session: sqlalchemy.orm.session.Session
         :param dep_context: the context for which this dependency should be evaluated for

@@ -43,7 +43,7 @@ from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+from airflow.models.xcom import XCom
 from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_constants import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -57,6 +57,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 # Key used to identify task instance
 # Tuple of: task_id, , execution_date, ?

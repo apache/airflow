@@ -63,6 +63,7 @@ from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
+from airflow.utils.pool import DEFAULT_POOL_NAME
 from airflow.utils.state import State
 from airflow.www import utils as wwwutils
 from airflow.www.app import app, appbuilder
@@ -2140,7 +2141,7 @@ class PoolModelView(AirflowModelView):
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?',
             single=False)
     def action_muldelete(self, items):
-        if any(item.pool == models.Pool.DEFAULT_POOL_NAME for item in items):
+        if any(item.pool == DEFAULT_POOL_NAME for item in items):
             flash("default_pool cannot be deleted", 'error')
             self.update_redirect()
             return redirect(self.get_redirect())

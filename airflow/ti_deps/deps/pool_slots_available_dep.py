@@ -44,10 +44,9 @@ class PoolSlotsAvailableDep(BaseTIDep):
         :return: True if there are available slots in the pool.
         """
         from airflow.models import Pool  # To avoid a circular dependency
-        P = Pool
         pool_name = ti.pool
 
-        pools = session.query(P).filter(P.pool == pool_name).all()
+        pools = session.query(Pool).filter(Pool.pool == pool_name).all()
         if not pools:
             yield self._failing_status(
                 reason=("Tasks using non-existent pool '%s' will not be scheduled",

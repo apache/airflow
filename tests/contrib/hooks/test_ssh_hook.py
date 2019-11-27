@@ -199,7 +199,7 @@ class TestSSHHook(unittest.TestCase):
     def test_ssh_connection(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
         with hook.get_conn() as client:
-            (_, stdout, _) = client.exec_command('ls')
+            (_, stdout, _) = client.exec_command('ls')  # pylint: disable=no-member
             self.assertIsNotNone(stdout.read())
 
     def test_ssh_connection_old_cm(self):

@@ -39,8 +39,8 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.worker_configuration import WorkerConfiguration
-from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State

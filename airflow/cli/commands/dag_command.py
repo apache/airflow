@@ -27,7 +27,8 @@ from tabulate import tabulate
 
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.api.client import get_current_api_client
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagBag, DagModel, DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.cli import get_dag, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag

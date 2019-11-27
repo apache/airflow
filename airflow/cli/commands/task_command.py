@@ -26,7 +26,8 @@ from contextlib import redirect_stderr, redirect_stdout
 
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors.all_executors import AllExecutors
-from airflow.models import DagPickle, TaskInstance
+from airflow.models import DagPickle
+from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.dep_constants import SCHEDULER_QUEUED_DEPS
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import cli as cli_utils, db

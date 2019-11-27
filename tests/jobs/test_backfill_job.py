@@ -38,6 +38,7 @@ from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session
+from airflow.utils.pool import DEFAULT_POOL_NAME
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.compat import Mock, patch
@@ -51,7 +52,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 class TestBackfillJob(unittest.TestCase):
 
-    def _get_dummy_dag(self, dag_id, pool=Pool.DEFAULT_POOL_NAME, task_concurrency=None):
+    def _get_dummy_dag(self, dag_id, pool=DEFAULT_POOL_NAME, task_concurrency=None):
         dag = DAG(
             dag_id=dag_id,
             start_date=DEFAULT_DATE,

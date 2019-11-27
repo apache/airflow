@@ -66,9 +66,9 @@ class BackfillJob(BaseJob):
         it easier to pass it around.
 
         :param to_run: Tasks to run in the backfill
-        :type to_run: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
+        :type to_run: dict[tuple[string, string, datetime.datetime], airflow.models.taskinstance.TaskInstance]
         :param running: Maps running task instance key to task instance object
-        :type running: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
+        :type running: dict[tuple[string, string, datetime.datetime], airflow.models.taskinstance.TaskInstance]
         :param skipped: Tasks that have been skipped
         :type skipped: set[tuple[string, string, datetime.datetime]]
         :param succeeded: Tasks that have succeeded so far

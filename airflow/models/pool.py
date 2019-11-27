@@ -33,8 +33,6 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
 
-    DEFAULT_POOL_NAME = 'default_pool'
-
     def __repr__(self):
         return self.pool
 
@@ -46,7 +44,7 @@ class Pool(Base):
     @staticmethod
     @provide_session
     def get_default_pool(session=None):
-        return Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session)
+        return Pool.get_pool(DEFAULT_POOL_NAME, session=session)
 
     def to_json(self):
         return {

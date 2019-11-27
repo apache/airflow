@@ -29,10 +29,9 @@ from airflow.models.pool import Pool  # noqa: F401
 from airflow.models.skipmixin import SkipMixin  # noqa: F401
 from airflow.models.slamiss import SlaMiss  # noqa: F401
 from airflow.models.taskfail import TaskFail  # noqa: F401
-from airflow.models.taskinstance import TaskInstance  # noqa: F401
-from airflow.models.taskreschedule import TaskReschedule  # noqa: F401
 from airflow.models.variable import Variable  # noqa: F401
-from airflow.models.xcom import XCOM_RETURN_KEY, XCom  # noqa: F401
+from airflow.models.xcom import XCom  # noqa: F401
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 # Load SQLAlchemy models during package initialization
 # Must be loaded after loading DAG model.

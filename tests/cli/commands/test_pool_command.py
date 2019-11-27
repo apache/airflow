@@ -29,6 +29,7 @@ from airflow.cli.commands import pool_command
 from airflow.models import Pool
 from airflow.settings import Session
 from airflow.utils.db import add_default_pool_if_not_exists
+from airflow.utils.pool import DEFAULT_POOL_NAME
 
 
 class TestCliPools(unittest.TestCase):
@@ -50,7 +51,7 @@ class TestCliPools(unittest.TestCase):
     def _cleanup(session=None):
         if session is None:
             session = Session()
-        session.query(Pool).filter(Pool.pool != Pool.DEFAULT_POOL_NAME).delete()
+        session.query(Pool).filter(Pool.pool != DEFAULT_POOL_NAME).delete()
         session.commit()
         add_default_pool_if_not_exists()
         session.close()

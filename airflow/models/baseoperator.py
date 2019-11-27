@@ -35,17 +35,17 @@ from dateutil.relativedelta import relativedelta
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.lineage import DataSet, apply_lineage, prepare_lineage
-from airflow.models.pool import Pool
 # noinspection PyPep8Naming
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
+from airflow.utils.pool import DEFAULT_POOL_NAME
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -296,7 +296,7 @@ class BaseOperator(LoggingMixin):
         priority_weight: int = 1,
         weight_rule: str = WeightRule.DOWNSTREAM,
         queue: str = conf.get('celery', 'default_queue'),
-        pool: str = Pool.DEFAULT_POOL_NAME,
+        pool: str = DEFAULT_POOL_NAME,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
         on_failure_callback: Optional[Callable] = None,
@@ -835,7 +835,7 @@ class BaseOperator(LoggingMixin):
         Clears the state of task instances associated with the task, following
         the parameters specified.
         """
-        from airflow.models import TaskInstance  # avoid circular imports
+        from airflow.models.taskinstance import TaskInstance  # avoid circular imports
         qry = session.query(TaskInstance).filter(TaskInstance.dag_id == self.dag_id)
 
         if start_date:
@@ -871,7 +871,7 @@ class BaseOperator(LoggingMixin):
         range.
         """
         end_date = end_date or timezone.utcnow()
-        from airflow.models import TaskInstance   # Avoid circular imports
+        from airflow.models.taskinstance import TaskInstance   # Avoid circular imports
         return session.query(TaskInstance)\
             .filter(TaskInstance.dag_id == self.dag_id)\
             .filter(TaskInstance.task_id == self.task_id)\
@@ -917,7 +917,7 @@ class BaseOperator(LoggingMixin):
         """
         start_date = start_date or self.start_date
         end_date = end_date or self.end_date or timezone.utcnow()
-        from airflow.models import TaskInstance
+        from airflow.models.taskinstance import TaskInstance
 
         for execution_date in self.dag.date_range(start_date, end_date=end_date):
             TaskInstance(self, execution_date).run(
