@@ -30,7 +30,7 @@ class DagTISlotsAvailableDep(BaseTIDep):
     IGNOREABLE = True
 
     @provide_session
-    def _get_dep_statuses(self, ti: Any,
+    def _get_dep_statuses(self, ti: Any,  # TaskInstance # to avoid cyclic dependency
                           session: Session,
                           dep_context: Optional[DepContext] = None) -> \
             Generator[TIDepStatus, None, None]:

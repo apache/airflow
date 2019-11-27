@@ -110,11 +110,14 @@ class TaskInstance(  # pylint: disable=too-many-instance-attributes,too-many-pub
         Index('ti_job_id', job_id),
     )
 
-    def __init__(self, task: Any, execution_date: datetime, state: Optional[str] = None):
+    def __init__(self, task: Any,  # BaseOperator # to avoid cyclic import
+                 execution_date: datetime,
+                 state: Optional[str] = None):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
-        self.task: Any = task  # Do not use BaseOperator here as it causes circular dependencies
+        from airflow.models.baseoperator import BaseOperator
+        self.task: BaseOperator = task
         self._log: logging.Logger = logging.getLogger("airflow.task")
 
         # make sure we have a localized execution_date stored in UTC
@@ -1392,7 +1395,7 @@ class SimpleTaskInstance:
         return self._state
 
     @property
-    def pool(self) -> Any:
+    def pool(self) -> Optional[str]:
         return self._pool
 
     @property

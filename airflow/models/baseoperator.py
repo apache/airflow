@@ -825,53 +825,14 @@ class BaseOperator(LoggingMixin):
         return self._downstream_task_ids
 
     @provide_session
-    def clear(self,
-              start_date=None,
-              end_date=None,
-              upstream=False,
-              downstream=False,
-              session=None):
-        """
-        Clears the state of task instances associated with the task, following
-        the parameters specified.
-        """
-        from airflow.models.taskinstance import TaskInstance  # avoid circular imports
-        qry = session.query(TaskInstance).filter(TaskInstance.dag_id == self.dag_id)
-
-        if start_date:
-            qry = qry.filter(TaskInstance.execution_date >= start_date)
-        if end_date:
-            qry = qry.filter(TaskInstance.execution_date <= end_date)
-
-        tasks = [self.task_id]
-
-        if upstream:
-            tasks += [
-                t.task_id for t in self.get_flat_relatives(upstream=True)]
-
-        if downstream:
-            tasks += [
-                t.task_id for t in self.get_flat_relatives(upstream=False)]
-
-        qry = qry.filter(TaskInstance.task_id.in_(tasks))
-
-        count = qry.count()
-
-        from airflow.models.clear_task_instances import clear_task_instances
-        clear_task_instances(qry.all(), session, dag=self.dag)
-
-        session.commit()
-
-        return count
-
-    @provide_session
-    def get_task_instances(self, start_date=None, end_date=None, session=None) -> List[Any]:
+    def get_task_instances(self, start_date=None, end_date=None, session=None) \
+            -> List[Any]:  # TaskInstance # to avoid cyclic import
         """
         Get a set of task instance related to this task for a specific date
         range.
         """
         end_date = end_date or timezone.utcnow()
-        from airflow.models.taskinstance import TaskInstance   # Avoid circular imports
+        from airflow.models.taskinstance import TaskInstance   # to avoid cyclic import
         return session.query(TaskInstance)\
             .filter(TaskInstance.dag_id == self.dag_id)\
             .filter(TaskInstance.task_id == self.task_id)\

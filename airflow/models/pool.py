@@ -59,7 +59,7 @@ class Pool(Base):
         """
         Returns the number of slots used by running/queued tasks at the moment.
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+        from airflow.models.taskinstance import TaskInstance  # to avoid cyclic import
         return (
             session
             .query(func.count())
@@ -73,7 +73,7 @@ class Pool(Base):
         """
         Returns the number of slots used by running tasks at the moment.
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+        from airflow.models.taskinstance import TaskInstance  # to avoid cyclic import
 
         running = (
             session
@@ -89,7 +89,7 @@ class Pool(Base):
         """
         Returns the number of slots used by queued tasks at the moment.
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+        from airflow.models.taskinstance import TaskInstance  # to avoid cyclic import
 
         return (
             session

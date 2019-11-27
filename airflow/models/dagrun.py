@@ -57,7 +57,7 @@ class DagRun(Base, LoggingMixin):
     external_trigger: Optional[bool] = Column(Boolean, default=True)
     conf: Optional[Any] = Column(PickleType)
 
-    dag: Optional[Any] = None  # DAG here causes circular deps
+    dag: Optional[Any] = None  # DAG # to avoid cyclic import
 
     __table_args__ = (
         Index('dag_id_state', dag_id, _state),
@@ -162,8 +162,7 @@ class DagRun(Base, LoggingMixin):
         if external_trigger is not None:
             qry = qry.filter(DagRun.external_trigger == external_trigger)
         if no_backfills:
-            # in order to prevent a circular dependency
-            from airflow.jobs import BackfillJob
+            from airflow.jobs import BackfillJob  # to avoid cyclic import
             qry = qry.filter(DagRun.run_id.notlike(BackfillJob.ID_PREFIX + '%'))  # type: ignore
 
         dr = qry.order_by(DagRun.execution_date).all()
@@ -175,7 +174,7 @@ class DagRun(Base, LoggingMixin):
         """
         Returns the task instances for this dag run
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+        from airflow.models.taskinstance import TaskInstance  # to avoid cyclic import
         tis = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date == self.execution_date,
@@ -215,7 +214,7 @@ class DagRun(Base, LoggingMixin):
 
         return ti
 
-    def get_dag(self) -> Any:  # DAG here causes circular deps
+    def get_dag(self) -> Any:  # DAG # to avoid cyclic import
         """
         Returns the Dag associated with this DagRun.
 
@@ -358,7 +357,7 @@ class DagRun(Base, LoggingMixin):
         Verifies the DagRun by checking for removed tasks or tasks that are not in the
         database yet. It will set state to removed or add the task if required.
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+        from airflow.models.taskinstance import TaskInstance  # to avoid cyclic import
 
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)

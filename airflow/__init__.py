@@ -38,7 +38,6 @@ from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance, TaskReschedule
 from airflow.models.pool import Pool
 from airflow.models import DAG
 

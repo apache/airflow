@@ -823,7 +823,7 @@ class DAG(BaseDag, LoggingMixin):
         :param include_subdag_tasks: whether to include tasks in subdags, default to False
         :return: list of tasks in topological order
         """
-        from airflow.operators.subdag_operator import SubDagOperator  # Avoid circular import
+        from airflow.operators.subdag_operator import SubDagOperator  # to avoid cyclic import
 
         # convert into an OrderedDict to speedup lookup while keeping order the same
         graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)
@@ -1469,7 +1469,7 @@ class DAG(BaseDag, LoggingMixin):
         Check to see if there are any cycles in the DAG. Returns False if no cycle found,
         otherwise raises exception.
         """
-        from airflow.models.dagbag import DagBag  # Avoid circular imports
+        from airflow.models.dagbag import DagBag  # to avoid cyclic import
 
         # default of int is 0 which corresponds to CYCLE_NEW
         visit_map = defaultdict(int)
@@ -1483,7 +1483,7 @@ class DAG(BaseDag, LoggingMixin):
         """
         Checks if a cycle exists from the input task using DFS traversal
         """
-        from airflow.models.dagbag import DagBag  # Avoid circular imports
+        from airflow.models.dagbag import DagBag  # to avoid cyclic import
 
         # print('Inspecting %s' % task_id)
         if visit_map[task_id] == DagBag.CYCLE_DONE:

@@ -30,8 +30,7 @@ class DagrunRunningDep(BaseTIDep):
         dag = ti.task.dag
         dagrun = ti.get_dagrun(session)
         if not dagrun:
-            # The import is needed here to avoid a circular dependency
-            from airflow.models import DagRun
+            from airflow.models import DagRun  # to avoid cyclic import
             running_dagruns = DagRun.find(
                 dag_id=dag.dag_id,
                 state=State.RUNNING,

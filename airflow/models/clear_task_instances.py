@@ -16,7 +16,7 @@
 # under the License.
 
 """Clears task instances"""
-
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
@@ -26,6 +26,42 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.utils import timezone
 from airflow.utils.state import State
+
+
+def clear_selected_task_instances(
+          dag: DAG,
+          task_id: str,
+          start_date: Optional[datetime] = None,
+          end_date: Optional[datetime] = None,
+          upstream: bool = False,
+          downstream: bool = False,
+          session: Session = None) -> int:
+    """
+    Clears the state of task instances associated with the task, following
+    the parameters specified.
+    """
+    qry = session.query(TaskInstance).filter(TaskInstance.dag_id == dag.dag_id)
+
+    if start_date:
+        qry = qry.filter(TaskInstance.execution_date >= start_date)
+    if end_date:
+        qry = qry.filter(TaskInstance.execution_date <= end_date)
+
+    tasks = [task_id]
+
+    if upstream:
+        tasks += [
+            t.task_id for t in self.get_flat_relatives(upstream=True)]
+
+    if downstream:
+        tasks += [
+            t.task_id for t in self.get_flat_relatives(upstream=False)]
+
+    qry = qry.filter(TaskInstance.task_id.in_(tasks))  # type: ignore
+    count = qry.count()
+    clear_task_instances(qry.all(), session, dag=dag)
+    session.commit()
+    return count
 
 
 def clear_task_instances(tis: List[TaskInstance],
@@ -69,7 +105,7 @@ def clear_task_instances(tis: List[TaskInstance],
             TaskReschedule.execution_date == ti.execution_date,
             TaskReschedule.try_number == ti.try_number
         ).delete()
-    from airflow.jobs import BaseJob  # Avoid circular imports
+    from airflow.jobs import BaseJob  # to avoid cyclic import
 
     if job_ids:
         for job in session.query(BaseJob).filter(BaseJob.id.in_(job_ids)).all():  # type: ignore

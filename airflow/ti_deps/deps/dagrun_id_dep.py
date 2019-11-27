@@ -44,7 +44,7 @@ class DagrunIdDep(BaseTIDep):
         :type dep_context: DepContext
         :return: True if DagRun ID is valid for scheduling from scheduler.
         """
-        from airflow.jobs import BackfillJob  # To avoid a circular dependency
+        from airflow.jobs import BackfillJob  # to avoid cyclic import
         dagrun = ti.get_dagrun(session)
 
         if not dagrun.run_id or not match(BackfillJob.ID_PREFIX + '.*', dagrun.run_id):

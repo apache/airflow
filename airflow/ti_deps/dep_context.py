@@ -65,7 +65,7 @@ class BaseTIDep:
         return getattr(self, 'NAME', self.__class__.__name__)
 
     def _get_dep_statuses(self,
-                          ti: Any,  # TaskInstance cannot be used here due to circular deps
+                          ti: Any,  # TaskInstance # to avoid cyclic import
                           session: Session,
                           dep_context: Optional['DepContext'] = None) -> \
             Generator[TIDepStatus, None, None]:
@@ -84,7 +84,7 @@ class BaseTIDep:
 
     @provide_session
     def get_dep_statuses(self,
-                         ti: Any,  # TaskInstance cannot be used here due to circular dep
+                         ti: Any,  # TaskInstance # to avoid cyclic import
                          session: Session,
                          dep_context: Optional['DepContext'] = None) -> \
             Generator[TIDepStatus, None, None]:
@@ -113,7 +113,7 @@ class BaseTIDep:
 
     @provide_session
     def is_met(self,
-               ti: Any,  # TaskInstance cannot be used here due to circular dep
+               ti: Any,  # TaskInstance # to avoid cyclic import
                session: Session,
                dep_context: Optional['DepContext'] = None) -> bool:
         """
@@ -131,7 +131,7 @@ class BaseTIDep:
 
     @provide_session
     def get_failure_reasons(self,
-                            ti: Any,  # Task Instance cannot be used here due to circular dep
+                            ti: Any,  # TaskInstance # to avoid cyclic import
                             session: Session,
                             dep_context: Optional['DepContext'] = None) -> \
             Generator[str, None, None]:

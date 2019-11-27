@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import TaskReschedule
+from airflow.models.taskinstance import TaskReschedule
 from airflow.ti_deps.dep_context import BaseTIDep
 from airflow.utils import timezone
 from airflow.utils.db import provide_session

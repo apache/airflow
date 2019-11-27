@@ -123,8 +123,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         :param from_file_only: returns a DAG loaded from file.
         :type from_file_only: bool
         """
-        # Avoid circular import
-        from airflow.models.dag import DagModel
+        from airflow.models.dag import DagModel  # to avoid cyclic import
 
         # Only read DAGs from DB if this dagbag is store_serialized_dags.
         # from_file_only is an exception, currently it is for renderring templates
@@ -187,7 +186,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         Given a path to a python module or zip file, this method imports
         the module and look for dag objects within it.
         """
-        from airflow.models.dag import DAG  # Avoid circular import
+        from airflow.models.dag import DAG  # to avoid cyclic import
 
         found_dags = []
 
@@ -319,7 +318,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         :param zombies: zombie task instances to kill.
         :param session: DB session.
         """
-        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+        from airflow.models.taskinstance import TaskInstance  # to avoid cyclic import
 
         for zombie in zombies:
             if zombie.dag_id in self.dags:

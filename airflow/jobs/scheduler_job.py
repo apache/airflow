@@ -840,7 +840,7 @@ class SchedulerJob(BaseJob):
         :type states: tuple[airflow.utils.state.State]
         :return: list[airflow.models.TaskInstance]
         """
-        from airflow.jobs.backfill_job import BackfillJob  # Avoid circular import
+        from airflow.jobs.backfill_job import BackfillJob  # to avoid cyclic import
         executable_tis = []
 
         # Get all task instances associated with scheduled
