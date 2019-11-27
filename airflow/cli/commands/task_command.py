@@ -193,7 +193,14 @@ def task_test(args, dag=None):
     # We want log outout from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
-    logging.getLogger('airflow.task').propagate = True
+    handlers = logging.getLogger('airflow.task').handlers
+    already_has_stream_handler = False
+    for handler in handlers:
+        already_has_stream_handler = isinstance(handler, logging.StreamHandler)
+        if already_has_stream_handler:
+            break
+    if not already_has_stream_handler:
+        logging.getLogger('airflow.task').propagate = True
 
     dag = dag or get_dag(args)
 

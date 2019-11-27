@@ -19,14 +19,13 @@
 
 """DAG serialization with JSON."""
 from inspect import signature
-from typing import cast
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
+from airflow.serialization.base_serialization import BaseSerialization
 from airflow.serialization.json_schema import load_dag_schema
-from airflow.serialization.serialization import Serialization  # pylint: disable=cyclic-import
 
 
-class SerializedDAG(DAG, Serialization):
+class SerializedDAG(DAG, BaseSerialization):
     """
     A JSON serializable representation of DAG.
 
@@ -62,23 +61,7 @@ class SerializedDAG(DAG, Serialization):
     def serialize_dag(cls, dag: DAG) -> dict:
         """Serializes a DAG into a JSON object.
         """
-        serialize_dag = {}
-
-        # pylint: disable=protected-access
-        for k in dag._serialized_fields:
-            # None is ignored in serialized form and is added back in deserialization.
-            v = getattr(dag, k, None)
-            if cls._is_excluded(v, k, dag):
-                continue
-
-            if k in cls._decorated_fields:
-                serialize_dag[k] = cls._serialize(v)
-            else:
-                v = cls._serialize(v)
-                # TODO: Why?
-                if isinstance(v, dict) and "__type" in v:
-                    v = v["__var"]
-                serialize_dag[k] = v
+        serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
         serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
         return serialize_dag
@@ -87,7 +70,7 @@ class SerializedDAG(DAG, Serialization):
     def deserialize_dag(cls, encoded_dag: dict) -> "SerializedDAG":
         """Deserializes a DAG from a JSON object.
         """
-        from airflow.serialization import SerializedBaseOperator
+        from airflow.serialization.serialized_baseoperator import SerializedBaseOperator
 
         dag = SerializedDAG(dag_id=encoded_dag['_dag_id'])
 
@@ -111,26 +94,26 @@ class SerializedDAG(DAG, Serialization):
 
             setattr(dag, k, v)
 
-        # pylint: disable=protected-access
-        keys_to_set_none = dag._serialized_fields - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
+        keys_to_set_none = dag.get_serialized_fields() - encoded_dag.keys() - cls._CONSTRUCTOR_PARAMS.keys()
         for k in keys_to_set_none:
             setattr(dag, k, None)
 
         setattr(dag, 'full_filepath', dag.fileloc)
         for task in dag.task_dict.values():
             task.dag = dag
-            task = cast(SerializedBaseOperator, task)
+            serializable_task: SerializedBaseOperator = task
 
             for date_attr in ["start_date", "end_date"]:
-                if getattr(task, date_attr) is None:
-                    setattr(task, date_attr, getattr(dag, date_attr))
+                if getattr(serializable_task, date_attr) is None:
+                    setattr(serializable_task, date_attr, getattr(dag, date_attr))
 
-            if task.subdag is not None:
-                setattr(task.subdag, 'parent_dag', dag)
-                task.subdag.is_subdag = True
+            if serializable_task.subdag is not None:
+                setattr(serializable_task.subdag, 'parent_dag', dag)
+                serializable_task.subdag.is_subdag = True
 
-            for task_id in task.downstream_task_ids:
+            for task_id in serializable_task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want
+                # noinspection PyProtectedMember
                 dag.task_dict[task_id]._upstream_task_ids.add(task_id)  # pylint: disable=protected-access
 
         return dag

@@ -17,20 +17,18 @@
  * under the License.
  */
 
-.panel-heading #alerts-accordion-toggle:after {
-    /* symbol for "opening" panels */
-    font-family: FontAwesome;
-    content: "\f078";
-    float: right;
-    color: grey;
-}
-.panel-heading #alerts-accordion-toggle.collapsed:after {
-    /* symbol for "closing" panels */
-    font-family: FontAwesome;
-    content: "\f054";
-    float: right;
-    color: grey;
-}
-#errorHeading {
-    background-color: #D6D8D9; /* same color as Bootstrap's Dark Alert*/
-}
+document.addEventListener('DOMContentLoaded', function() {
+  var el = document.getElementById('changelog');
+  if (el !== null ) {
+    // [AIRFLOW-...]
+    el.innerHTML = el.innerHTML.replace(
+      /\[(AIRFLOW-[\d]+)\]/g,
+      `<a href="https://issues.apache.org/jira/browse/$1">[$1]</a>`
+    );
+    // (#...)
+    el.innerHTML = el.innerHTML.replace(
+      /\(#([\d]+)\)/g,
+      `<a href="https://github.com/apache/airflow/pull/$1">(#$1)</a>`
+    );
+  };
+})

@@ -40,6 +40,7 @@ from google.api_core.exceptions import (
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
+from googleapiclient.http import set_user_agent
 
 from airflow import LoggingMixin, version
 from airflow.exceptions import AirflowException
@@ -209,8 +210,8 @@ class GoogleCloudBaseHook(BaseHook):
         """
         credentials = self._get_credentials()
         http = httplib2.Http()
-        authed_http = google_auth_httplib2.AuthorizedHttp(
-            credentials, http=http)
+        http = set_user_agent(http, "airflow/" + version.version)
+        authed_http = google_auth_httplib2.AuthorizedHttp(credentials, http=http)
         return authed_http
 
     def _get_field(self, f: str, default: Any = None) -> Any:

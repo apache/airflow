@@ -445,7 +445,7 @@ class TaskInstance(Base, LoggingMixin):
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             # Get the raw value of try_number column, don't read through the
-            # accessor here otherwise it will be incremeneted by one already.
+            # accessor here otherwise it will be incremented by one already.
             self.try_number = ti._try_number
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname

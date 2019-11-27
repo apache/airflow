@@ -252,8 +252,18 @@ system tests. You can technically use local
 virtualenv to run those tests, but it requires to set up a number of
 external components (databases/queues/kubernetes and the like). So, it is
 much easier to use the `Breeze development environment <BREEZE.rst>`_
-for integration and system tests. 
+for integration and system tests.
 
 Note: Soon we will separate the integration and system tests out
 so that you can clearly know which tests are unit tests and can be run in
 the local virtualenv and which should be run using Breeze.
+
+Connecting to database
+----------------------
+
+When analyzing the situation, it is helpful to be able to directly query the database. You can do it using
+the built-in Airflow command:
+
+.. code:: bash
+
+    airflow db shell

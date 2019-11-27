@@ -31,6 +31,8 @@ isort:skip_file
 # pylint:disable=wrong-import-position
 from typing import Callable, Optional
 
+# noinspection PyUnresolvedReferences
+from airflow import utils
 from airflow import settings
 from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin

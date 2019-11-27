@@ -23,7 +23,7 @@ from typing import Optional
 
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.hooks.mysql_hook import MySqlHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

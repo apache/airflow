@@ -834,6 +834,12 @@ class CLIFactory:
                     'help': "Upgrade the metadata database to latest version",
                     'args': tuple(),
                 },
+                {
+                    'func': lazy_load_command('airflow.cli.commands.db_command.shell'),
+                    'name': 'shell',
+                    'help': "Runs a shell to access the database",
+                    'args': tuple(),
+                },
             ),
         }, {
             'name': 'kerberos',
