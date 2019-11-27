@@ -610,6 +610,25 @@ class TestBigQueryCursor(unittest.TestCase):
             "SELECT %(foo)s", {"foo": "bar"})
         assert mocked_rwc.call_count == 1
 
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch.object(hook.BigQueryCursor, 'flush_results')
+    def test_flush_cursor_in_execute(self, _, mocked_fr):
+        hook.BigQueryCursor("test", "test").execute(
+            "SELECT %(foo)s", {"foo": "bar"})
+        assert mocked_fr.call_count == 1
+
+    def test_flush_cursor(self):
+        bq_cursor = hook.BigQueryCursor("test", "test")
+        bq_cursor.page_token = '456dcea9-fcbf-4f02-b570-83f5297c685e'
+        bq_cursor.job_id = 'c0a79ae4-0e72-4593-a0d0-7dbbf726f193'
+        bq_cursor.all_pages_loaded = True
+        bq_cursor.buffer = [('a', 100, 200), ('b', 200, 300)]
+        bq_cursor.flush_results()
+        self.assertIsNone(bq_cursor.page_token)
+        self.assertIsNone(bq_cursor.job_id)
+        self.assertFalse(bq_cursor.all_pages_loaded)
+        self.assertListEqual(bq_cursor.buffer, [])
+
 
 class TestLabelsInRunJob(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')

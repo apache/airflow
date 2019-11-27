@@ -2119,6 +2119,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         """
         sql = _bind_parameters(operation,
                                parameters) if parameters else operation
+        self.flush_results()
         self.job_id = self.run_query(sql)
 
     def executemany(self, operation: str, seq_of_parameters: List) -> None:
@@ -2133,6 +2134,13 @@ class BigQueryCursor(BigQueryBaseCursor):
         """
         for parameters in seq_of_parameters:
             self.execute(operation, parameters)
+
+    def flush_results(self) -> None:
+        """ Flush results related cursor attributes. """
+        self.page_token = None
+        self.job_id = None
+        self.all_pages_loaded = False
+        self.buffer = []
 
     def fetchone(self) -> Union[List, None]:
         """ Fetch the next row of a query result set. """
@@ -2174,9 +2182,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
             else:
                 # Reset all state since we've exhausted the results.
-                self.page_token = None
-                self.job_id = None
-                self.page_token = None
+                self.flush_results()
                 return None
 
         return self.buffer.pop(0)
