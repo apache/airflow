@@ -50,7 +50,7 @@ t3 = Neo4JOperator(
     task_id="RunNeo4JQuery",
     cypher_query="MATCH (n) RETURN id(n)",
     output_filename="myfile.csv",
-    fail_on_no_results=True,
+    soft_fail=True,
     n4j_conn_id="ExampleN4J",
     dag=dag
 )

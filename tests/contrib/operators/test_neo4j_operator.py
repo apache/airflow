@@ -34,7 +34,7 @@ class TestNeo4JOperator(unittest.TestCase):
                                                 cypher_query="QUERY",
                                                 output_filename="filename.txt",
                                                 n4j_conn_id="mock_connection",
-                                                fail_on_no_results=True)
+                                                soft_fail=True)
         assert operator is not None
 
     @patch('airflow.contrib.hooks.neo4j_hook.Neo4JHook.run_query')
@@ -45,7 +45,7 @@ class TestNeo4JOperator(unittest.TestCase):
                                                 cypher_query="QUERY",
                                                 output_filename="filename.txt",
                                                 n4j_conn_id="mock_connection",
-                                                fail_on_no_results=True)
+                                                soft_fail=True)
         operator.execute(context=None)
 
         mock_hook_init.assert_called_once_with(n4j_conn_id='mock_connection')
@@ -58,7 +58,7 @@ class TestNeo4JOperator(unittest.TestCase):
                                                 cypher_query="QUERY",
                                                 output_filename="filename.txt",
                                                 n4j_conn_id="mock_connection",
-                                                fail_on_no_results=True)
+                                                soft_fail=True)
 
         # Given a result object ...
         data_mock = MagicMock()

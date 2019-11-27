@@ -46,10 +46,10 @@ class Neo4JOperator(BaseOperator):
     :param soft_fail: True/False flag to indicate if it should fail the task if no results
     :type soft_fail: bool
     """
-    _cypher_query = None
-    _output_filename = None
-    _n4j_conn_id = None
-    _soft_fail = None
+    cypher_query = None
+    output_filename = None
+    n4j_conn_id = None
+    soft_fail = None
 
     template_fields = ['cypher_query', 'output_filename', 'n4j_conn_id', 'soft_fail']
 
@@ -63,10 +63,10 @@ class Neo4JOperator(BaseOperator):
                  **kwargs):
         super().__init__(*args, **kwargs)
 
-        self._output_filename = output_filename
-        self._cypher_query = cypher_query
-        self._n4j_conn_id = n4j_conn_id
-        self._soft_fail = soft_fail
+        self.output_filename = output_filename
+        self.cypher_query = cypher_query
+        self.n4j_conn_id = n4j_conn_id
+        self.soft_fail = soft_fail
 
     def execute(self, context):
         """
@@ -74,21 +74,21 @@ class Neo4JOperator(BaseOperator):
         :param context:
         :return:
         """
-        if isfile(self._cypher_query):
-            with open(self._cypher_query, 'r') as input_file:
-                self._cypher_query = input_file.read()
+        if isfile(self.cypher_query):
+            with open(self.cypher_query, 'r') as input_file:
+                self.cypher_query = input_file.read()
 
-        hook = Neo4JHook(n4j_conn_id=self._n4j_conn_id)
-        result: BoltStatementResult = hook.run_query(cypher_query=self._cypher_query)
+        hook = Neo4JHook(n4j_conn_id=self.n4j_conn_id)
+        result: BoltStatementResult = hook.run_query(cypher_query=self.cypher_query)
 
         # In some cases, an empty result should fail (where results are expected)
-        if result.peek() is None and self._soft_fail:
+        if result.peek() is None and self.soft_fail:
             raise AirflowException("Query returned no rows")
 
         row_count = self._make_csv(result)
 
         # Provide some feedback to what was done...
-        self.log.info("Saved %s with %s rows", self._output_filename, row_count)
+        self.log.info("Saved %s with %s rows", self.output_filename, row_count)
 
         return row_count
 
@@ -101,8 +101,8 @@ class Neo4JOperator(BaseOperator):
         """
         total_row_count = 0
 
-        if self._output_filename is not None:
-            with open(self._output_filename, 'w', newline='') as output_file:
+        if self.output_filename is not None:
+            with open(self.output_filename, 'w', newline='') as output_file:
                 output_writer = csv.DictWriter(output_file, fieldnames=result.keys())
                 output_writer.writeheader()
 
