@@ -37,6 +37,9 @@ class AwsLambdaHook(AwsHook):
     :type qualifier: str
     :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
     :type invocation_type: str
+    :param config: Configuration for botocore client.
+        (https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html)
+    :type config: botocore.client.Config
     """
 
     def __init__(self, function_name, region_name=None,
