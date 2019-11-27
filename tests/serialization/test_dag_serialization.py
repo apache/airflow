@@ -64,10 +64,8 @@ serialized_simple_dag_ground_truth = {
                 "retries": 1,
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
-                "_inlets": {
-                    "auto": False, "task_ids": [], "datasets": []
-                },
-                "_outlets": {"datasets": []},
+                "_inlets": [],
+                "_outlets": [],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": [],
@@ -79,10 +77,8 @@ serialized_simple_dag_ground_truth = {
                 "retries": 1,
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
-                "_inlets": {
-                    "auto": False, "task_ids": [], "datasets": []
-                },
-                "_outlets": {"datasets": []},
+                "_inlets": [],
+                "_outlets": [],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": [],
