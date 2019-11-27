@@ -34,7 +34,8 @@ from dateutil.relativedelta import relativedelta
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
-from airflow.lineage import DataSet, apply_lineage, prepare_lineage
+from airflow.lineage import apply_lineage, prepare_lineage
+from airflow.models.base import Operator
 from airflow.models.pool import Pool
 # noinspection PyPep8Naming
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -56,7 +57,7 @@ ScheduleInterval = Union[str, timedelta, relativedelta]
 
 # pylint: disable=too-many-instance-attributes,too-many-public-methods
 @functools.total_ordering
-class BaseOperator(LoggingMixin):
+class BaseOperator(Operator, LoggingMixin):
     """
     Abstract base class for all operators. Since operators create objects that
     become nodes in the dag, BaseOperator contains many recursive methods for
@@ -312,8 +313,8 @@ class BaseOperator(LoggingMixin):
         task_concurrency: Optional[int] = None,
         executor_config: Optional[Dict] = None,
         do_xcom_push: bool = True,
-        inlets: Optional[Dict] = None,
-        outlets: Optional[Dict] = None,
+        inlets: Optional[Any] = None,
+        outlets: Optional[Any] = None,
         *args,
         **kwargs
     ):
@@ -406,26 +407,18 @@ class BaseOperator(LoggingMixin):
 
         self._log = logging.getLogger("airflow.task.operators")
 
-        # lineage
-        self.inlets: List[DataSet] = []
-        self.outlets: List[DataSet] = []
-        self.lineage_data = None
+        # Lineage
+        self.inlets: List = []
+        self.outlets: List = []
 
-        self._inlets = {
-            "auto": False,
-            "task_ids": [],
-            "datasets": [],
-        }
-
-        self._outlets: Dict[str, Iterable] = {
-            "datasets": [],
-        }
+        self._inlets: List = []
+        self._outlets: List = []
 
         if inlets:
-            self._inlets.update(inlets)
+            self._inlets = inlets if isinstance(inlets, list) else [inlets, ]
 
         if outlets:
-            self._outlets.update(outlets)
+            self._outlets = outlets if isinstance(outlets, list) else [outlets, ]
 
     def __eq__(self, other):
         if type(self) is type(other) and self.task_id == other.task_id:
