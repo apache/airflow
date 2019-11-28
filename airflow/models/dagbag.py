@@ -419,8 +419,6 @@ class DagBag(BaseDagBag, LoggingMixin):
                 dag_id_names = str(dag_ids)
 
                 td = timezone.utcnow() - ts
-                td = td.total_seconds() + (
-                    float(td.microseconds) / 1000000)
                 stats.append(FileLoadStat(
                     filepath.replace(settings.DAGS_FOLDER, ''),
                     td,
