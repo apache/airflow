@@ -22,6 +22,8 @@ import os
 from typing import Any, Dict
 from urllib.parse import urlparse
 
+from google.cloud.logging.resource import Resource
+
 from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.utils.file import mkdirs
@@ -151,7 +153,8 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
 ##################
 
 REMOTE_LOGGING = conf.getboolean('core', 'remote_logging')
-
+print("REMOTE_LOGGING=", REMOTE_LOGGING)
+import ipdb; ipdb.set_trace()
 if REMOTE_LOGGING:
 
     ELASTICSEARCH_HOST = conf.get('elasticsearch', 'HOST')
@@ -205,12 +208,20 @@ if REMOTE_LOGGING:
         gcp_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID', fallback=None)
         # stackdriver:///airflow-tasks => airflow-tasks
         log_name = urlparse(REMOTE_BASE_LOG_FOLDER).path[1:]
+
+        resource = Resource(type="cloud_composer_environment", labels={
+            "environment_name": "polidea-composer-demo-28-11-2019",
+            "location": "europe-west3",
+            "project_id": "polidea-airflow"
+        })
+
         STACKDRIVER_REMOTE_HANDLERS = {
             'task': {
                 'class': 'airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler',
                 'formatter': 'airflow',
                 'name': log_name,
-                'gcp_conn_id': gcp_conn_id
+                'gcp_conn_id': gcp_conn_id,
+                'resource': resource
             }
         }
 

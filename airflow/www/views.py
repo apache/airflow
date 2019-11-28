@@ -37,6 +37,7 @@ from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
+from pendulum import pendulum
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, or_, union_all
@@ -657,7 +658,7 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         try_number = request.args.get('try_number', 1)
-        dttm = pendulum.parse(execution_date)
+        dttm = timezone.parse(execution_date)
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
             models.TaskInstance.task_id == task_id,

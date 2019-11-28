@@ -226,6 +226,34 @@ class StackdriverTaskHandler(logging.Handler):
             log_filters.append(f'labels.{escape_label_key(key)}={escale_label_value(value)}')
         return "\n".join(log_filters)
 
+    def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
+        """
+        Creates an address for an external log collecting service.
+
+        :param task_instance: task instance object
+        :type: task_instance: TaskInstance
+        :param try_number: task instance try_number to read logs from.
+        :type try_number: Optional[int]
+        :return: URL to the external log collection service
+        :rtype: str
+        """
+        project_id = self._client.project
+
+        ti_labels = self._task_instance_to_labels(task_instance)
+        ti_labels[self.LABEL_TRY_NUMBER] = str(try_number)
+
+        log_filter = self._prepare_log_filter(ti_labels)
+
+        url_query_string = {
+            'project': project_id,
+            'interval': 'NO_LIMIT',
+            'resource': self._resource_path,
+            'advancedFilter': log_filter,
+        }
+
+        url = f"{self.LOG_VIEWER_BASE_URL}?{urllib.parse.urlencode(url_query_string)}"
+        return url
+
     def _read_logs(
         self,
         log_filter: str,
@@ -247,6 +275,7 @@ class StackdriverTaskHandler(logging.Handler):
             * token of the next page
         :rtype: Tuple[str, bool, str]
         """
+        print("FILTER=", log_filter)
         messages = []
         new_messages, next_page_token = self._read_single_logs_page(
             log_filter=log_filter,
@@ -297,31 +326,3 @@ class StackdriverTaskHandler(logging.Handler):
             cls.LABEL_EXECUTION_DATE: str(ti.execution_date.isoformat()),
             cls.LABEL_TRY_NUMBER: str(ti.try_number),
         }
-
-    def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
-        """
-        Creates an address for an external log collecting service.
-
-        :param task_instance: task instance object
-        :type: task_instance: TaskInstance
-        :param try_number: task instance try_number to read logs from.
-        :type try_number: Optional[int]
-        :return: URL to the external log collection service
-        :rtype: str
-        """
-        project_id = self._client.project
-
-        ti_labels = self._task_instance_to_labels(task_instance)
-        ti_labels[self.LABEL_TRY_NUMBER] = str(try_number)
-
-        log_filter = self._prepare_log_filter(ti_labels)
-
-        url_query_string = {
-            'project': project_id,
-            'interval': 'NO_LIMIT',
-            'resource': self._resource_path,
-            'advancedFilter': log_filter,
-        }
-
-        url = f"{self.LOG_VIEWER_BASE_URL}?{urllib.parse.urlencode(url_query_string)}"
-        return url
