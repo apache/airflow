@@ -43,7 +43,7 @@ class Neo4JOperator(BaseOperator):
     :type output_filename: str
     :param n4j_conn_id: reference to a pre-defined Neo4J Connection
     :type n4j_conn_id: str
-    :param soft_fail: True/False flag to indicate if it should fail the task if no results
+    :param soft_fail: set True to fail when query return no result
     :type soft_fail: bool
     """
     cypher_query = None

@@ -28,13 +28,12 @@ class Neo4JHook(BaseHook):
     :param n4j_conn_id:
     :type str:
     """
-    _n4j_conn_id: str
+    n4j_conn_id: str
 
     template_fields = ['n4j_conn_id']
 
     def __init__(self, n4j_conn_id: str = 'n4j_default', *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._n4j_conn_id = n4j_conn_id
+        self.n4j_conn_id = n4j_conn_id
 
     @staticmethod
     def get_config(n4j_conn_id: str) -> dict:
@@ -89,7 +88,7 @@ class Neo4JHook(BaseHook):
         :param parameters: Optional list of parameters to use with the query
         :return: neo4j.BoltStatementResult see https://neo4j.com/docs/api/python-driver/current/results.html
         """
-        neo4j_config: dict = Neo4JHook.get_config(self._n4j_conn_id)
+        neo4j_config: dict = Neo4JHook.get_config(self.n4j_conn_id)
         neo4j_driver: Driver = Neo4JHook.get_driver(neo4j_config)
         neo4j_session: Session = Neo4JHook.get_session(neo4j_driver)
 
