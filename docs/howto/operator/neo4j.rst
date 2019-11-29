@@ -50,7 +50,7 @@ Use the :class:`airflow.contrib.operators.neo4j_operator.Neo4JOperator` to execu
     :start-after: [START howto_operator_neo4j]
     :end-before: [END howto_operator_neo4j]
 
-Queries can be managed in text files on disk and read in by placing the file name in the `cypher_query` parameter
+Queries can be managed in text files on disk and read in by placing the file name in the ``cypher_query`` parameter
 
 .. exampleinclude:: ../../../airflow/contrib/example_dags/example_neo4j_operator.py
     :language: python
