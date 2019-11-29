@@ -24,10 +24,9 @@ import os
 import subprocess
 import threading
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-
 from airflow.configuration import conf
 from airflow.utils.configuration import tmp_configuration_copy
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 
 PYTHONPATH_VAR = 'PYTHONPATH'
