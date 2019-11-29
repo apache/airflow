@@ -38,7 +38,7 @@ from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
-from airflow import models, settings
+from airflow import models, settings, version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
@@ -371,6 +371,15 @@ class TestAirflowBaseViews(TestBase):
     def test_index(self):
         resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
+
+    def test_doc_site_url(self):
+        resp = self.client.get('/', follow_redirects=True)
+        if "dev" in version.version:
+            airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+        else:
+            airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
+
+        self.check_content_in_response(airflow_doc_site, resp)
 
     def test_health(self):
 
