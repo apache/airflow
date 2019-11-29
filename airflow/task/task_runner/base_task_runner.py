@@ -28,7 +28,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 from airflow.configuration import conf
 from airflow.utils.configuration import tmp_configuration_copy
-
+from airflow.utils.net import get_hostname
 
 PYTHONPATH_VAR = 'PYTHONPATH'
 
@@ -130,6 +130,7 @@ class BaseTaskRunner(LoggingMixin):
         cmd = [" ".join(self._command)] if join_args else self._command
         full_cmd = run_with + cmd
 
+        self.log.info("Running on host: %s", get_hostname())
         self.log.info('Running: %s', full_cmd)
         proc = subprocess.Popen(
             full_cmd,
