@@ -28,6 +28,7 @@ from airflow.models import TaskInstance
 from airflow.utils.file import mkdirs
 from airflow.utils.helpers import parse_template_string
 
+from airflow.utils.db import provide_session
 
 class FileTaskHandler(logging.Handler):
     """
@@ -81,6 +82,23 @@ class FileTaskHandler(logging.Handler):
                                              execution_date=ti.execution_date.isoformat(),
                                              try_number=try_number)
 
+    @provide_session
+    def query_task_hostname(self, ti, try_number, session=None):
+
+        res_log = session.query(models.Log).filter(
+            models.Log.dag_id == ti.dag_id,
+            models.Log.task_id == ti.task_id,
+            models.Log.execution_date == ti.execution_date,
+            models.Log.owner != 'anonymous',
+            models.Log.event == 'cli_run',
+            models.Log.extra.like('%--raw%')
+        ).order_by(models.Log.id).limit(1).offset(try_number - 1).first()
+        
+        import json
+        hostname = json.loads(res_log.extra)["host_name"]
+
+        return hostname
+    
     def _read(self, ti, try_number, metadata=None):  # pylint: disable=unused-argument
         """
         Template method that contains custom logic of reading
@@ -110,9 +128,9 @@ class FileTaskHandler(logging.Handler):
                 log += "*** {}\n".format(str(e))
         else:
             url = os.path.join(
-                "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
+                "http://{hostname}:{worker_log_server_port}/log", log_relative_path
             ).format(
-                ti=ti,
+                hostname=self.query_task_hostname(ti,try_number),
                 worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
             )
             log += "*** Log file does not exist: {}\n".format(location)
