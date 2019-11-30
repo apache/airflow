@@ -31,12 +31,12 @@ from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
 from airflow.gcp import example_dags as gcp_example_dags
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import DAG, Connection, DagBag
+from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.utils.tests import CustomBaseOperator, GoogleLink
+from airflow.utils.tests import CustomBaseOperator, CustomBaseOpLink, GoogleLink
 
 serialized_simple_dag_ground_truth = {
     "__version": 1,
@@ -78,6 +78,7 @@ serialized_simple_dag_ground_truth = {
                 "_downstream_task_ids": [],
                 "_inlets": [],
                 "_outlets": [],
+                "_operator_extra_links": [{"airflow.utils.tests.CustomBaseOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": [],
@@ -256,10 +257,6 @@ class TestStringifiedDAGs(unittest.TestCase):
             SubDagOperator.ui_fgcolor
         )
 
-        simple_dag = stringified_dags['simple_dag']
-        custom_task = simple_dag.task_dict['custom_task']
-        self.validate_operator_extra_links(custom_task)
-
     def validate_deserialized_task(self, task, task_type, ui_color, ui_fgcolor):
         """Verify non-airflow operators are casted to BaseOperator."""
         self.assertTrue(isinstance(task, SerializedBaseOperator))
@@ -275,21 +272,6 @@ class TestStringifiedDAGs(unittest.TestCase):
             self.assertTrue(isinstance(task.subdag, DAG))
         else:
             self.assertIsNone(task.subdag)
-
-    def validate_operator_extra_links(self, task):
-        """
-        This tests also depends on GoogleLink() registered as a plugin
-        in tests/plugins/test_plugin.py
-
-        The function tests that if extra operator links are registered in plugin
-        in ``operator_extra_links`` and the same is also defined in
-        the Operator in ``BaseOperator.operator_extra_links``, it has the correct
-        extra link.
-        """
-        self.assertEqual(
-            task.get_extra_links(datetime(2019, 8, 1), GoogleLink.name),
-            "https://www.google.com"
-        )
 
     @parameterized.expand([
         (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
@@ -380,8 +362,20 @@ class TestStringifiedDAGs(unittest.TestCase):
         round_tripped = SerializedDAG._deserialize(serialized)
         self.assertEqual(val, round_tripped)
 
-    def test_extra_serialized_field(self):
-        dag = DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1))
+    def test_extra_serialized_field_and_operator_links(self):
+        """
+        Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
+
+        This tests also depends on GoogleLink() registered as a plugin
+        in tests/plugins/test_plugin.py
+
+        The function tests that if extra operator links are registered in plugin
+        in ``operator_extra_links`` and the same is also defined in
+        the Operator in ``BaseOperator.operator_extra_links``, it has the correct
+        extra link.
+        """
+        test_date = datetime(2019, 8, 1)
+        dag = DAG(dag_id='simple_dag', start_date=test_date)
         CustomBaseOperator(task_id='simple_task', dag=dag, bash_command="true")
 
         serialized_dag = SerializedDAG.to_dict(dag)
@@ -390,6 +384,154 @@ class TestStringifiedDAGs(unittest.TestCase):
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
         self.assertEqual(getattr(simple_task, "bash_command"), "true")
+
+        #########################################################
+        # Verify Operator Links work with Serialized Operator
+        #########################################################
+        # Check Serialized version of operator link only contains the inbuilt Op Link
+        self.assertEqual(
+            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
+            [{'airflow.utils.tests.CustomBaseOpLink': {}}]
+        )
+
+        # Test all the extra_links are set
+        self.assertCountEqual(simple_task.extra_links, ['Google Custom', 'airflow', 'github', 'google'])
+
+        ti = TaskInstance(task=simple_task, execution_date=test_date)
+        ti.xcom_push('search_query', "dummy_value_1")
+
+        # Test Deserialized inbuilt link
+        custom_inbuilt_link = simple_task.get_extra_links(test_date, CustomBaseOpLink.name)
+        self.assertEqual('http://google.com/custom_base_link?search=dummy_value_1', custom_inbuilt_link)
+
+        # Test Deserialized link registered via Airflow Plugin
+        google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
+        self.assertEqual("https://www.google.com", google_link_from_plugin)
+
+    def test_extra_serialized_field_and_multiple_operator_links(self):
+        """
+        Assert extra field exists & OperatorLinks defined in Plugins and inbuilt Operator Links.
+
+        This tests also depends on GoogleLink() registered as a plugin
+        in tests/plugins/test_plugin.py
+
+        The function tests that if extra operator links are registered in plugin
+        in ``operator_extra_links`` and the same is also defined in
+        the Operator in ``BaseOperator.operator_extra_links``, it has the correct
+        extra link.
+        """
+        test_date = datetime(2019, 8, 1)
+        dag = DAG(dag_id='simple_dag', start_date=test_date)
+        CustomBaseOperator(task_id='simple_task', dag=dag,
+                           bash_command=["echo", "true"])
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        self.assertIn("bash_command", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict["simple_task"]
+        self.assertEqual(getattr(simple_task, "bash_command"), ["echo", "true"])
+
+        #########################################################
+        # Verify Operator Links work with Serialized Operator
+        #########################################################
+        # Check Serialized version of operator link only contains the inbuilt Op Link
+        self.assertEqual(
+            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
+            [
+                {'airflow.utils.tests.CustomBaseIndexOpLink': {'index': 0}},
+                {'airflow.utils.tests.CustomBaseIndexOpLink': {'index': 1}},
+            ]
+        )
+
+        # Test all the extra_links are set
+        self.assertCountEqual(simple_task.extra_links, [
+            'BigQuery Console #1', 'BigQuery Console #2', 'airflow', 'github', 'google'])
+
+        ti = TaskInstance(task=simple_task, execution_date=test_date)
+        ti.xcom_push('search_query', ["dummy_value_1", "dummy_value_2"])
+
+        # Test Deserialized inbuilt link #1
+        custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #1")
+        self.assertEqual('https://console.cloud.google.com/bigquery?j=dummy_value_1', custom_inbuilt_link)
+
+        # Test Deserialized inbuilt link #2
+        custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #2")
+        self.assertEqual('https://console.cloud.google.com/bigquery?j=dummy_value_2', custom_inbuilt_link)
+
+        # Test Deserialized link registered via Airflow Plugin
+        google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
+        self.assertEqual("https://www.google.com", google_link_from_plugin)
+
+    def test_complex_operator_links_defined_in_plugins(self):
+        """
+        Assert complex OperatorLinks defined via Plugins work.
+
+        This tests also depends on GoogleLink() & CustomBaseIndexOpLink() registered as a plugin
+        in tests/plugins/test_plugin.py
+
+        The function tests that if extra operator links are registered in plugin
+        in ``operator_extra_links`` and the same is also defined in
+        the Operator in ``BaseOperator.operator_extra_links``, it has the correct
+        extra link.
+        """
+
+        serialized_dag = {
+            "__version": 1,
+            "dag": {
+                "default_args": {"__type": "dict", "__var": {}},
+                "params": {},
+                "_dag_id": "simple_dag",
+                "fileloc": __file__,
+                "start_date": 1564617600.0,
+                "tasks": [
+                    {
+                        "task_id": "simple_task",
+                        "_downstream_task_ids": [],
+                        "_inlets": [],
+                        "_outlets": [],
+                        "_operator_extra_links": [
+                            # Intentionally wrong module name is added
+                            # to mimic the case where the webserver wont have access
+                            # to the OperatorLink code
+                            {'non_existent_module.CustomBaseIndexOpLink': {'index': 0}},
+                            {'non_existent_module.CustomBaseIndexOpLink': {'index': 1}},
+                        ],
+                        "ui_color": "#fff",
+                        "ui_fgcolor": "#000",
+                        "template_fields": [],
+                        "bash_command": ["echo", "true"],
+                        "_task_type": "CustomBaseOperator",
+                        "_task_module": "airflow.utils.tests",
+                    }],
+                "timezone": "UTC",
+            },
+        }
+
+        test_date = datetime(2019, 8, 1)
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict["simple_task"]
+        self.assertEqual(getattr(simple_task, "bash_command"), ["echo", "true"])
+
+        # Test all the extra_links are set
+        self.assertCountEqual(simple_task.extra_links, [
+            'BigQuery Console #1', 'BigQuery Console #2', 'airflow', 'github', 'google'])
+
+        ti = TaskInstance(task=simple_task, execution_date=test_date)
+        ti.xcom_push('search_query', ["dummy_value_1", "dummy_value_2"])
+
+        # Test Deserialized Complex link #1 registered via Airflow Plugin
+        custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #1")
+        self.assertEqual('https://console.cloud.google.com/bigquery?j=dummy_value_1', custom_inbuilt_link)
+
+        # Test Deserialized Complex link #2 registered via Airflow Plugin
+        custom_inbuilt_link = simple_task.get_extra_links(test_date, "BigQuery Console #2")
+        self.assertEqual('https://console.cloud.google.com/bigquery?j=dummy_value_2', custom_inbuilt_link)
+
+        # Test Deserialized Simple link registered via Airflow Plugin
+        google_link_from_plugin = simple_task.get_extra_links(test_date, "google")
+        self.assertEqual("https://www.google.com", google_link_from_plugin)
 
 
 if __name__ == '__main__':

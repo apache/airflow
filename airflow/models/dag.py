@@ -193,7 +193,7 @@ class DAG(BaseDag, LoggingMixin):
         'last_loaded',
     }
 
-    _serialized_fields: Optional[FrozenSet[str]] = None
+    __serialized_fields: Optional[FrozenSet[str]] = None
 
     def __init__(
         self,
@@ -1508,14 +1508,14 @@ class DAG(BaseDag, LoggingMixin):
     @classmethod
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
-        if not cls._serialized_fields:
-            cls._serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
+        if not cls.__serialized_fields:
+            cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
                 'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
                 '_full_filepath', 'user_defined_filters', 'user_defined_macros',
                 '_schedule_interval', 'partial', '_old_context_manager_dags',
                 '_pickle_id', '_log', 'is_subdag', 'task_dict'
             }
-        return cls._serialized_fields
+        return cls.__serialized_fields
 
 
 class DagModel(Base):

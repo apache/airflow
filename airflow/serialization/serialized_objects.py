@@ -20,17 +20,19 @@ import datetime
 import enum
 import logging
 from inspect import Parameter, signature
-from typing import Any, Dict, Optional, Set, Union
+from typing import Any, Dict, Iterable, Optional, Set, Union
 
+import cattr
 import pendulum
 from dateutil import relativedelta
 
 from airflow import DAG, AirflowException, LoggingMixin
 from airflow.models import Connection
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
+from airflow.utils.module_loading import import_string
 from airflow.www.utils import get_python_source
 
 
@@ -45,7 +47,6 @@ class BaseSerialization:
     _datetime_types = (datetime.datetime,)
 
     # Object types that are always excluded in serialization.
-    # FIXME: not needed if _included_fields of DAG and operator are customized.
     _excluded_types = (logging.Logger, Connection, type)
 
     _json_schema: Optional[Validator] = None
@@ -299,6 +300,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op['_task_type'] = op.__class__.__name__
         serialize_op['_task_module'] = op.__class__.__module__
+        if op.operator_extra_links:
+            serialize_op['_operator_extra_links'] = \
+                cls._serialize_operator_extra_links(op.operator_extra_links)
         return serialize_op
 
     @classmethod
@@ -309,7 +313,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
 
-        # Extra Operator Links
+        # Extra Operator Links defined in Plugins
         op_extra_links_from_plugin = {}
 
         for ope in operator_extra_links:
@@ -318,7 +322,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                         operator.__module__ == encoded_op["_task_module"]:
                     op_extra_links_from_plugin.update({ope.name: ope})
 
-        setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
+        # If OperatorLinks are defined in Plugins but not in the Operator that is being Serialized
+        # set the Operator links attribute
+        # The case for "If OperatorLinks are defined in the operator that is being Serialized"
+        # is handled in the deserialization loop where it matches k == "_operator_extra_links"
+        if op_extra_links_from_plugin and "_operator_extra_links" not in encoded_op:
+            setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
 
@@ -330,6 +339,14 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
+            elif k == "_operator_extra_links":
+                op_predefined_extra_links = cls._deserialize_operator_extra_links(v)
+
+                # If OperatorLinks with the same name exists, Links via Plugin have higher precedence
+                op_predefined_extra_links.update(op_extra_links_from_plugin)
+
+                v = list(op_predefined_extra_links.values())
+                k = "operator_extra_links"
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is
@@ -353,6 +370,88 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             # Don't store empty executor config or params dicts.
             return True
         return super()._is_excluded(var, attrname, op)
+
+    @classmethod
+    def _deserialize_operator_extra_links(
+        cls,
+        encoded_op_links: list
+    ) -> Dict[str, BaseOperatorLink]:
+        """
+        Deserialize Operator Links by importing all the modules containing operator links
+        defined in the serialized dict and initialize them by passing arguments using cattr.
+        If the module containing OperatorLink cannot be imported or accessed, this function
+        tries to find the OperatorLink in all the OperatorLinks registered via Airflow Plugins.
+        Error is raised if the OperatorLink is not found in Plugins too.
+
+        :param encoded_op_links: Serialized Operator Link
+        :return: De-Serialized Operator Link
+        """
+        from airflow.plugins_manager import operator_extra_links
+
+        # Extra Operator Links
+        op_predefined_extra_links = {}
+
+        for _operator_links_source in encoded_op_links:
+            _operator_link_class, data = list(_operator_links_source.items())[0]
+
+            single_op_link_class_name = None
+
+            try:
+                single_op_link_class_name = import_string(_operator_link_class)
+            except ImportError:
+                logging.debug("Module not found or not accessible: %s", _operator_link_class)
+
+                found_link = False
+                op_link_class_name = _operator_link_class.rsplit(".", 1)[-1]
+
+                logging.debug("Finding Operator Link class (%s) in Airflow Plugins", op_link_class_name)
+
+                for ope in operator_extra_links:
+                    if not ope.operators and ope.__class__.__name__ == op_link_class_name:
+                        # Only match if ope.operators=[] and the Class Names match
+                        single_op_link_class_name = ope.__class__
+                        found_link = True
+
+                if not found_link:
+                    logging.debug(
+                        "Operator Link class (%s) not found in Airflow Plugins", op_link_class_name)
+                    raise ImportError("Error Importing Operator Link: {}".format(op_link_class_name))
+
+            if single_op_link_class_name:
+                op_predefined_extra_link: BaseOperatorLink = cattr.structure(
+                    data, single_op_link_class_name)
+
+                op_predefined_extra_links.update(
+                    {op_predefined_extra_link.name: op_predefined_extra_link}
+                )
+
+        return op_predefined_extra_links
+
+    @classmethod
+    def _serialize_operator_extra_links(
+        cls,
+        operator_extra_links: Iterable[BaseOperatorLink]
+    ):
+        """
+        Serialize Operator Links. Store the import path of the OperatorLink and the arguments
+        passed to it. Example ``[{'airflow.gcp.operators.bigquery.BigQueryConsoleLink': {}}]``
+
+        :param operator_extra_links: Operator Link
+        :return: Serialized Operator Link
+        """
+        serialize_operator_extra_links = []
+        for operator_extra_link in operator_extra_links:
+            op_link_arguments = cattr.unstructure(operator_extra_link)
+            if not isinstance(op_link_arguments, dict):
+                op_link_arguments = {}
+            serialize_operator_extra_links.append(
+                {
+                    "{}.{}".format(operator_extra_link.__class__.__module__,
+                                   operator_extra_link.__class__.__name__): op_link_arguments
+                }
+            )
+
+        return serialize_operator_extra_links
 
 
 class SerializedDAG(DAG, BaseSerialization):
