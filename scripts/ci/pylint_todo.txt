@@ -44,7 +44,6 @@
 ./airflow/contrib/operators/emr_terminate_job_flow_operator.py
 ./airflow/contrib/operators/file_to_wasb.py
 ./airflow/contrib/operators/grpc_operator.py
-./airflow/contrib/operators/hive_to_dynamodb.py
 ./airflow/contrib/operators/jenkins_job_trigger_operator.py
 ./airflow/contrib/operators/jira_operator.py
 ./airflow/contrib/operators/mongo_to_s3.py
@@ -76,7 +75,6 @@
 ./airflow/contrib/operators/sqoop_operator.py
 ./airflow/contrib/operators/ssh_operator.py
 ./airflow/contrib/operators/vertica_operator.py
-./airflow/contrib/operators/vertica_to_hive.py
 ./airflow/contrib/operators/vertica_to_mysql.py
 ./airflow/contrib/operators/wasb_delete_blob_operator.py
 ./airflow/contrib/operators/winrm_operator.py
@@ -160,16 +158,11 @@
 ./airflow/operators/generic_transfer.py
 ./airflow/operators/hive_operator.py
 ./airflow/operators/hive_stats_operator.py
-./airflow/operators/hive_to_druid.py
-./airflow/operators/hive_to_mysql.py
-./airflow/operators/hive_to_samba_operator.py
 ./airflow/operators/http_operator.py
 ./airflow/operators/jdbc_operator.py
 ./airflow/operators/latest_only_operator.py
 ./airflow/operators/mssql_operator.py
-./airflow/operators/mssql_to_hive.py
 ./airflow/operators/mysql_operator.py
-./airflow/operators/mysql_to_hive.py
 ./airflow/operators/oracle_operator.py
 ./airflow/operators/papermill_operator.py
 ./airflow/operators/pig_operator.py
@@ -178,7 +171,6 @@
 ./airflow/operators/presto_to_mysql.py
 ./airflow/operators/python_operator.py
 ./airflow/operators/s3_file_transform_operator.py
-./airflow/operators/s3_to_hive_operator.py
 ./airflow/operators/s3_to_redshift_operator.py
 ./airflow/operators/slack_operator.py
 ./airflow/operators/sqlite_operator.py
@@ -317,12 +309,10 @@
 ./tests/operators/test_cassandra_to_gcs.py
 ./tests/operators/test_gcs_to_s3.py
 ./tests/operators/test_hive_operator.py
-./tests/operators/test_mssql_to_hive.py
 ./tests/operators/test_operators.py
 ./tests/operators/test_papermill_operator.py
 ./tests/operators/test_python_operator.py
 ./tests/operators/test_s3_file_transform_operator.py
-./tests/operators/test_s3_to_hive_operator.py
 ./tests/operators/test_s3_to_redshift_operator.py
 ./tests/operators/test_virtualenv_operator.py
 ./tests/plugins/test_plugin.py

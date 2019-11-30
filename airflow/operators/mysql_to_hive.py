@@ -17,6 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains operator to move data from MySQL to Druid.
+"""
+
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional
@@ -81,7 +85,7 @@ class MySqlToHiveTransfer(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint:disable=too-many-arguments
             self,
             sql: str,
             hive_table: str,
@@ -112,25 +116,28 @@ class MySqlToHiveTransfer(BaseOperator):
         self.tblproperties = tblproperties
 
     @classmethod
-    def type_map(cls, mysql_type):
-        t = MySQLdb.constants.FIELD_TYPE
-        d = {
-            t.BIT: 'INT',
-            t.DECIMAL: 'DOUBLE',
-            t.NEWDECIMAL: 'DOUBLE',
-            t.DOUBLE: 'DOUBLE',
-            t.FLOAT: 'DOUBLE',
-            t.INT24: 'INT',
-            t.LONG: 'BIGINT',
-            t.LONGLONG: 'DECIMAL(38,0)',
-            t.SHORT: 'INT',
-            t.TINY: 'SMALLINT',
-            t.YEAR: 'INT',
-            t.TIMESTAMP: 'TIMESTAMP',
+    def type_map(cls, mysql_type: int) -> str:
+        """
+        Maps MySQL type to Hive type.
+        """
+        types = MySQLdb.constants.FIELD_TYPE
+        type_map = {
+            types.BIT: 'INT',
+            types.DECIMAL: 'DOUBLE',
+            types.NEWDECIMAL: 'DOUBLE',
+            types.DOUBLE: 'DOUBLE',
+            types.FLOAT: 'DOUBLE',
+            types.INT24: 'INT',
+            types.LONG: 'BIGINT',
+            types.LONGLONG: 'DECIMAL(38,0)',
+            types.SHORT: 'INT',
+            types.TINY: 'SMALLINT',
+            types.YEAR: 'INT',
+            types.TIMESTAMP: 'TIMESTAMP',
         }
-        return d[mysql_type] if mysql_type in d else 'STRING'
+        return type_map.get(mysql_type, 'STRING')
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, str]):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
@@ -144,7 +151,7 @@ class MySqlToHiveTransfer(BaseOperator):
                                     quotechar=self.quotechar,
                                     escapechar=self.escapechar,
                                     encoding="utf-8")
-            field_dict = OrderedDict()
+            field_dict = OrderedDict()  # type:ignore
             for field in cursor.description:
                 field_dict[field[0]] = self.type_map(field[1])
             csv_writer.writerows(cursor)
