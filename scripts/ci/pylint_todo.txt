@@ -187,9 +187,6 @@
 ./airflow/providers/amazon/aws/operators/athena.py
 ./airflow/providers/amazon/aws/sensors/athena.py
 ./airflow/providers/amazon/aws/sensors/redshift.py
-./airflow/providers/apache/cassandra/hooks/cassandra.py
-./airflow/providers/apache/cassandra/sensors/record.py
-./airflow/providers/apache/cassandra/sensors/table.py
 ./airflow/sensors/base_sensor_operator.py
 ./airflow/sensors/external_task_sensor.py
 ./airflow/sensors/hdfs_sensor.py
@@ -326,7 +323,6 @@
 ./tests/operators/test_s3_to_redshift_operator.py
 ./tests/operators/test_virtualenv_operator.py
 ./tests/plugins/test_plugin.py
-./tests/providers/apache/cassandra/hooks/test_cassandra_hook.py
 ./tests/security/test_kerberos.py
 ./tests/sensors/test_base_sensor.py
 ./tests/sensors/test_external_task_sensor.py
