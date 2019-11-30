@@ -33,7 +33,8 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached,
 )
-from airflow.jobs import BackfillJob, SchedulerJob
+from airflow.jobs.backfill_job import BackfillJob
+from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -136,10 +137,12 @@ class TestBackfillJob(unittest.TestCase):
         target_dag = self.dagbag.get_dag('example_trigger_target_dag')
         target_dag.sync_to_db()
 
-        scheduler = SchedulerJob()
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=Mock())
         task_instances_list = Mock()
-        scheduler._process_task_instances(target_dag,
-                                          task_instances_list=task_instances_list)
+        dag_file_processor._process_task_instances(
+            target_dag,
+            task_instances_list=task_instances_list
+        )
         self.assertFalse(task_instances_list.append.called)
 
         job = BackfillJob(
@@ -150,8 +153,10 @@ class TestBackfillJob(unittest.TestCase):
         )
         job.run()
 
-        scheduler._process_task_instances(target_dag,
-                                          task_instances_list=task_instances_list)
+        dag_file_processor._process_task_instances(
+            target_dag,
+            task_instances_list=task_instances_list
+        )
 
         self.assertTrue(task_instances_list.append.called)
 
