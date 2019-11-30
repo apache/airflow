@@ -872,7 +872,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -S, --static-check <STATIC_CHECK>
           Run selected static checks for currently changed files. You should specify static check that
           you would like to run or 'all' to run all checks. One of
-          [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml debug-statements detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
+          [ all all-but-pylint check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint setup-order shellcheck].
           You can pass extra arguments including options to to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 
@@ -886,7 +886,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -F, --static-check-all-files <STATIC_CHECK>
           Run selected static checks for all applicable files. You should specify static check that
           you would like to run or 'all' to run all checks. One of
-          [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml debug-statements detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
+          [ all all-but-pylint check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint setup-order shellcheck].
           You can pass extra arguments including options to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 

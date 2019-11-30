@@ -458,6 +458,8 @@ image built locally):
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``rst-backticks``                     Checks if RST files use double backticks for code.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``setup-order``                       Checks for an order of dependencies in setup.py
+----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-breeze-file``                Update output of breeze command in BREEZE.rst.

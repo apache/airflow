@@ -142,12 +142,17 @@ def write_version(filename: str = os.path.join(*["airflow", "git_version"])):
         file.write(text)
 
 
+# 'Start dependencies group' and 'Start dependencies group' are mark for ./test/test_order_setup.py
+# If you change this mark you should also change ./test/test_order_setup.py function test_main_dependent_group
+# Start dependencies group
 async_packages = [
-    'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
-    'gevent>=0.13'
+    'gevent>=0.13',
+    'greenlet>=0.4.9',
 ]
-atlas = ['atlasclient>=0.1.2']
+atlas = [
+    'atlasclient>=0.1.2',
+]
 aws = [
     'boto3>=1.7.0, <1.8.0',
 ]
@@ -157,10 +162,12 @@ azure = [
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
+    'azure-storage>=0.34.0',
     'azure-storage-blob<12.0',
-    'azure-storage>=0.34.0'
 ]
-cassandra = ['cassandra-driver>=3.13.0']
+cassandra = [
+    'cassandra-driver>=3.13.0',
+]
 celery = [
     'celery~=4.3',
     'flower>=0.7.3, <1.0',
@@ -169,33 +176,48 @@ celery = [
 cgroups = [
     'cgroupspy>=0.1.4',
 ]
-cloudant = ['cloudant>=2.0']
-dask = [
-    'distributed>=1.17.1, <2'
+cloudant = [
+    'cloudant>=2.0',
 ]
-databricks = ['requests>=2.20.0, <3']
-datadog = ['datadog>=0.14.0']
+dask = [
+    'distributed>=1.17.1, <2',
+]
+databricks = [
+    'requests>=2.20.0, <3',
+]
+datadog = [
+    'datadog>=0.14.0',
+]
 doc = [
+    'sphinx>=2.1.2',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
     'sphinx-rtd-theme>=0.1.6',
-    'sphinx>=2.1.2',
     'sphinxcontrib-httpdomain>=1.7.0',
 ]
-docker = ['docker~=3.0']
-druid = ['pydruid>=0.4.1']
+docker = [
+    'docker~=3.0',
+]
+druid = [
+    'pydruid>=0.4.1',
+]
 elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
-    'elasticsearch-dsl>=5.0.0,<6.0.0'
+    'elasticsearch-dsl>=5.0.0,<6.0.0',
+]
+flask_oauth = [
+    'Flask-OAuthlib>=0.9.1',
+    'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
+    'requests-oauthlib==1.1.0',
 ]
 gcp = [
-    # Please keep the list in alphabetical order
+    'PyOpenSSL',
     'google-api-python-client>=1.6.0, <2.0.0dev',
-    'google-auth-httplib2>=0.0.1',
     'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth-httplib2>=0.0.1',
     'google-cloud-automl>=0.4.0',
-    'google-cloud-bigtable==1.0.0',
     'google-cloud-bigquery-datatransfer>=0.4.0',
+    'google-cloud-bigtable==1.0.0',
     'google-cloud-container>=0.1.1',
     'google-cloud-dataproc==0.5.0',
     'google-cloud-dlp>=0.11.0',
@@ -214,62 +236,127 @@ gcp = [
     'grpcio-gcp>=0.2.2',
     'httplib2~=0.9',
     'pandas-gbq',
-    'PyOpenSSL',
 ]
-grpc = ['grpcio>=1.15.0']
-flask_oauth = [
-    'Flask-OAuthlib>=0.9.1',
-    'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
-    'requests-oauthlib==1.1.0'
+grpc = [
+    'grpcio>=1.15.0',
 ]
-hdfs = ['snakebite>=2.7.8']
+hdfs = [
+    'snakebite>=2.7.8',
+]
 hive = [
     'hmsclient>=0.1.0',
     'pyhive>=0.6.0',
 ]
-jdbc = ['jaydebeapi>=1.1.1']
-jenkins = ['python-jenkins>=1.0.0']
-jira = ['JIRA>1.0.7']
-kerberos = ['pykerberos>=1.1.13',
-            'requests_kerberos>=0.10.0',
-            'thrift_sasl>=0.2.0',
-            'snakebite[kerberos]>=2.7.8']
-kubernetes = ['kubernetes>=3.0.0',
-              'cryptography>=2.0.0']
-ldap = ['ldap3>=2.5.1']
-mssql = ['pymssql~=2.1.1']
-mysql = ['mysqlclient>=1.3.6,<1.4']
-oracle = ['cx_Oracle>=5.1.2']
-papermill = ['papermill[all]>=1.0.0',
-             'nteract-scrapbook[all]>=0.2.1']
+jdbc = [
+    'jaydebeapi>=1.1.1',
+]
+jenkins = [
+    'python-jenkins>=1.0.0',
+]
+jira = [
+    'JIRA>1.0.7',
+]
+kerberos = [
+    'pykerberos>=1.1.13',
+    'requests_kerberos>=0.10.0',
+    'snakebite[kerberos]>=2.7.8',
+    'thrift_sasl>=0.2.0',
+]
+kubernetes = [
+    'cryptography>=2.0.0',
+    'kubernetes>=3.0.0',
+]
+ldap = [
+    'ldap3>=2.5.1',
+]
+mongo = [
+    'dnspython>=1.13.0,<2.0.0',
+    'pymongo>=3.6.0',
+]
+mssql = [
+    'pymssql~=2.1.1',
+]
+mysql = [
+    'mysqlclient>=1.3.6,<1.4',
+]
+oracle = [
+    'cx_Oracle>=5.1.2',
+]
+pagerduty = [
+    'pypd>=1.1.0',
+]
+papermill = [
+    'papermill[all]>=1.0.0',
+    'nteract-scrapbook[all]>=0.2.1',
+]
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
 ]
-pinot = ['pinotdb==0.1.1']
-postgres = ['psycopg2-binary>=2.7.4']
-qds = ['qds-sdk>=1.10.4']
-rabbitmq = ['librabbitmq>=1.6.1']
-redis = ['redis~=3.2']
-salesforce = ['simple-salesforce>=0.72']
-samba = ['pysmbclient>=0.1.3']
-segment = ['analytics-python>=1.2.9']
-sendgrid = ['sendgrid>=5.2.0,<6']
-sentry = ['sentry-sdk>=0.8.0', "blinker>=1.1"]
-slack = ['slackclient>=1.0.0,<2.0.0']
-pagerduty = ['pypd>=1.1.0']
-mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
-snowflake = ['snowflake-connector-python>=1.5.2',
-             'snowflake-sqlalchemy>=1.1.0']
-ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
-statsd = ['statsd>=3.3.0, <4.0']
-vertica = ['vertica-python>=0.5.1']
-virtualenv = ['virtualenv']
-webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
-winrm = ['pywinrm==0.2.2']
-zendesk = ['zdesk']
+pinot = [
+    'pinotdb==0.1.1',
+]
+postgres = [
+    'psycopg2-binary>=2.7.4',
+]
+qds = [
+    'qds-sdk>=1.10.4',
+]
+rabbitmq = [
+    'librabbitmq>=1.6.1',
+]
+redis = [
+    'redis~=3.2',
+]
+salesforce = [
+    'simple-salesforce>=0.72',
+]
+samba = [
+    'pysmbclient>=0.1.3',
+]
+segment = [
+    'analytics-python>=1.2.9',
+]
+sendgrid = [
+    'sendgrid>=5.2.0,<6',
+]
+sentry = [
+    'blinker>=1.1',
+    'sentry-sdk>=0.8.0',
+]
+slack = [
+    'slackclient>=1.0.0,<2.0.0',
+]
+snowflake = [
+    'snowflake-connector-python>=1.5.2',
+    'snowflake-sqlalchemy>=1.1.0',
+]
+ssh = [
+    'paramiko>=2.1.1',
+    'pysftp>=0.2.9',
+    'sshtunnel>=0.1.4,<0.2',
+]
+statsd = [
+    'statsd>=3.3.0, <4.0',
+]
+vertica = [
+    'vertica-python>=0.5.1',
+]
+virtualenv = [
+    'virtualenv',
+]
+webhdfs = [
+    'hdfs[avro,dataframe,kerberos]>=2.0.4',
+]
+winrm = [
+    'pywinrm==0.2.2',
+]
+zendesk = [
+    'zdesk',
+]
+# End dependencies group
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot + cassandra + mongo
+all_dbs = cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql + pinot + postgres + vertica
 
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -302,7 +389,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
-    'yamllint'
+    'yamllint',
 ]
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -315,14 +402,13 @@ if PY3:
 else:
     devel += ['unittest2']
 
-devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
-devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + oracle +
-             docker + ssh + kubernetes + celery + redis + gcp + grpc +
-             datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + segment + snowflake + elasticsearch + sentry +
-             atlas + azure + aws + salesforce + cgroups + papermill + virtualenv +
-             pagerduty)
+devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
+devel_hadoop = devel_minreq + hdfs + hive + kerberos + webhdfs
+devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel +
+             doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
+             kerberos + kubernetes + ldap + oracle + pagerduty + papermill +
+             password + pinot + redis + salesforce + samba + segment + sendgrid +
+             sentry + slack + snowflake + ssh + virtualenv + webhdfs + zendesk)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -375,9 +461,9 @@ def do_setup():
             'graphviz>=0.12',
             'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
-            'jsonschema~=3.0',
-            'json-merge-patch==0.2',
             'jinja2>=2.10.1, <2.11.0',
+            'json-merge-patch==0.2',
+            'jsonschema~=3.0',
             'lazy_object_proxy~=1.3',
             'markdown>=2.5.2, <3.0',
             'marshmallow-sqlalchemy>=0.16.1, <0.19.0',
@@ -395,12 +481,12 @@ def do_setup():
             'tenacity==4.12.0',
             'termcolor==1.1.0',
             'text-unidecode==1.2',
-            'typing;python_version<"3.6"',
             'thrift>=0.9.2',
+            'typing;python_version<"3.6"',
+            'typing-extensions>=3.7.4;python_version<"3.8"',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
             'zope.deprecation>=4.0, <5.0',
-            'typing-extensions>=3.7.4;python_version<"3.8"',
         ],
         #####################################################################################################
         # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -413,10 +499,9 @@ def do_setup():
         ],
         extras_require={
             'all': devel_all,
-            'devel_ci': devel_ci,
             'all_dbs': all_dbs,
-            'atlas': atlas,
             'async': async_packages,
+            'atlas': atlas,
             'aws': aws,
             'azure': azure,
             'cassandra': cassandra,
@@ -427,6 +512,7 @@ def do_setup():
             'databricks': databricks,
             'datadog': datadog,
             'devel': devel_minreq,
+            'devel_ci': devel_ci,
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,
@@ -448,6 +534,7 @@ def do_setup():
             'mssql': mssql,
             'mysql': mysql,
             'oracle': oracle,
+            'pagerduty': pagerduty,
             'papermill': papermill,
             'password': password,
             'pinot': pinot,
@@ -457,11 +544,10 @@ def do_setup():
             'redis': redis,
             'salesforce': salesforce,
             'samba': samba,
+            'segment': segment,
             'sendgrid': sendgrid,
             'sentry': sentry,
-            'segment': segment,
             'slack': slack,
-            'pagerduty': pagerduty,
             'snowflake': snowflake,
             'ssh': ssh,
             'statsd': statsd,
