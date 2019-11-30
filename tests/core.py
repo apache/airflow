@@ -32,13 +32,12 @@ from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
 from airflow import DAG, configuration, exceptions, jobs, settings, utils
-from airflow.bin import cli
 from airflow.configuration import AirflowConfigException, conf, run_command
 from airflow.exceptions import AirflowException
 from airflow.executors import SequentialExecutor
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.models import Connection, DagBag, DagRun, Pool, TaskFail, TaskInstance, Variable
+from airflow.models import Connection, DagBag, DagRun, TaskFail, TaskInstance, Variable
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
@@ -981,50 +980,6 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(context['prev_ds'], EXECUTION_DS)
         self.assertEqual(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
-
-
-class TestCli(unittest.TestCase):
-
-    TEST_USER1_EMAIL = 'test-user1@example.com'
-    TEST_USER2_EMAIL = 'test-user2@example.com'
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls._cleanup()
-
-    def setUp(self):
-        super().setUp()
-        from airflow.www import app as application
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
-        self.app.config['TESTING'] = True
-
-        self.parser = cli.CLIFactory.get_parser()
-        self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
-        settings.configure_orm()
-        self.session = Session
-
-    def tearDown(self):
-        self._cleanup(session=self.session)
-        for email in [self.TEST_USER1_EMAIL, self.TEST_USER2_EMAIL]:
-            test_user = self.appbuilder.sm.find_user(email=email)
-            if test_user:
-                self.appbuilder.sm.del_register_user(test_user)
-        for role_name in ['FakeTeamA', 'FakeTeamB']:
-            if self.appbuilder.sm.find_role(role_name):
-                self.appbuilder.sm.delete_role(role_name)
-
-        super().tearDown()
-
-    @staticmethod
-    def _cleanup(session=None):
-        if session is None:
-            session = Session()
-
-        session.query(Pool).delete()
-        session.query(Variable).delete()
-        session.commit()
-        session.close()
 
 
 class TestConnection(unittest.TestCase):
