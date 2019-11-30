@@ -111,7 +111,7 @@ class TestACIOperator(unittest.TestCase):
     def test_execute_with_tags(self, aci_mock):
         expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
         expected_cg = make_mock_cg(expected_c_state)
-        tags = {"testKey":"testValue"}
+        tags = {"testKey": "testValue"}
 
         aci_mock.return_value.get_state.return_value = expected_cg
         aci_mock.return_value.exists.return_value = False
