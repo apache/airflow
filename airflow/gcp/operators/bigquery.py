@@ -594,6 +594,12 @@ class BigQueryOperator(BaseOperator):
             self.log.info('Cancelling running query')
             self.bq_cursor.cancel_query()
 
+    @classmethod
+    def get_serialized_fields(cls):
+        """Serialized BigQueryOperator contain exactly these fields."""
+        cls._serialized_fields = frozenset(super().get_serialized_fields() | {"sql"})
+        return cls._serialized_fields
+
 
 class BigQueryCreateEmptyTableOperator(BaseOperator):
     """

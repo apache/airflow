@@ -288,8 +288,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         extra link.
         """
         self.assertEqual(
-            task.operator_extra_link_dict[GoogleLink.name].get_link(
-                task, datetime(2019, 8, 1)),
+            task.get_extra_links(datetime(2019, 8, 1), GoogleLink.name),
             "https://www.google.com"
         )
 
@@ -381,6 +380,17 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         round_tripped = SerializedDAG._deserialize(serialized)
         self.assertEqual(val, round_tripped)
+
+    def test_extra_serialized_field(self):
+        dag = DAG(dag_id='simple_dag', start_date=datetime(2019, 8, 1))
+        CustomBaseOperator(task_id='simple_task', dag=dag, bash_command="true")
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        self.assertIn("bash_command", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict["simple_task"]
+        self.assertEqual(getattr(simple_task, "bash_command"), "true")
 
 
 if __name__ == '__main__':

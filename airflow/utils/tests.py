@@ -75,11 +75,18 @@ class CustomBaseOperator(BaseOperator):
     operator_extra_links = ()
 
     @apply_defaults
-    def __init__(self, *args, **kwargs):
+    def __init__(self, bash_command=None, *args, **kwargs):
         super(CustomBaseOperator, self).__init__(*args, **kwargs)
+        self.bash_command = bash_command
 
     def execute(self, context):
         self.log.info("Hello World!")
+
+    @classmethod
+    def get_serialized_fields(cls):
+        """Stringified CustomBaseOperator contain exactly these fields."""
+        cls._serialized_fields = frozenset(super().get_serialized_fields() | {"bash_command"})
+        return cls._serialized_fields
 
 
 class GoogleLink(BaseOperatorLink):
