@@ -145,7 +145,7 @@ with models.DAG(
 
     prediction = MLEngineBatchPredictionOperator(
         task_id="prediction",
-        project_id="polidea-airflow",
+        project_id=PROJECT_ID,
         job_id="prediciton-{{ ts_nodash }}-{{ params.model_name }}",
         region="us-central1",
         model_name=MODEL_NAME,
