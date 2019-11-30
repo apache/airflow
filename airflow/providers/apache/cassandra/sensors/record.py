@@ -53,13 +53,13 @@ class CassandraRecordSensor(BaseSensorOperator):
     template_fields = ('table', 'keys')
 
     @apply_defaults
-    def __init__(self, table: str, keys: Dict, cassandra_conn_id: str, *args, **kwargs) -> None:
+    def __init__(self, table: str, keys: Dict[str, str], cassandra_conn_id: str, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table
         self.keys = keys
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: Dict[str, str]) -> bool:
         self.log.info('Sensor check existence of record: %s', self.keys)
         hook = CassandraHook(self.cassandra_conn_id)
         return hook.record_exists(self.table, self.keys)

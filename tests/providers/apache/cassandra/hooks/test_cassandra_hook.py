@@ -84,7 +84,8 @@ class TestCassandraHook(unittest.TestCase):
                                    DCAwareRoundRobinPolicy)
 
         # test WhiteListRoundRobinPolicy with args
-        fake_addr_info = [['family', 'sockettype', 'proto', 'canonname', ('2606:2800:220:1:248:1893:25c8:1946', 80, 0, 0)]] # noqa
+        fake_addr_info = [['family', 'sockettype', 'proto',
+                           'canonname', ('2606:2800:220:1:248:1893:25c8:1946', 80, 0, 0)]]
         with patch('socket.getaddrinfo', return_value=fake_addr_info):
             self._assert_get_lb_policy('WhiteListRoundRobinPolicy',
                                        {'hosts': ['host1', 'host2']},
@@ -92,11 +93,11 @@ class TestCassandraHook(unittest.TestCase):
 
         # test TokenAwarePolicy with args
         with patch('socket.getaddrinfo', return_value=fake_addr_info):
-            self._assert_get_lb_policy('TokenAwarePolicy',
-                                       {'child_load_balancing_policy': 'WhiteListRoundRobinPolicy',  # noqa
-                                        'child_load_balancing_policy_args': {'hosts': ['host-1', 'host-2']}},  # noqa
-                                       TokenAwarePolicy,
-                                       expected_child_policy_type=WhiteListRoundRobinPolicy)  # noqa
+            self._assert_get_lb_policy(
+                'TokenAwarePolicy',
+                {'child_load_balancing_policy': 'WhiteListRoundRobinPolicy',
+                 'child_load_balancing_policy_args': {'hosts': ['host-1', 'host-2']}
+                 }, TokenAwarePolicy, expected_child_policy_type=WhiteListRoundRobinPolicy)
 
         # test invalid policy name should default to RoundRobinPolicy
         self._assert_get_lb_policy('DoesNotExistPolicy', {}, RoundRobinPolicy)
@@ -115,7 +116,7 @@ class TestCassandraHook(unittest.TestCase):
                                    WhiteListRoundRobinPolicy,
                                    should_throw=True)
         self._assert_get_lb_policy('TokenAwarePolicy',
-                                   {'child_load_balancing_policy': 'WhiteListRoundRobinPolicy'},  # noqa
+                                   {'child_load_balancing_policy': 'WhiteListRoundRobinPolicy'},
                                    TokenAwarePolicy,
                                    expected_child_policy_type=RoundRobinPolicy,
                                    should_throw=True)
@@ -130,7 +131,7 @@ class TestCassandraHook(unittest.TestCase):
             if expected_child_policy_type:
                 self.assertTrue(isinstance(policy._child_policy,
                                            expected_child_policy_type))
-        except Exception:
+        except Exception:  # pylint:disable=broad-except
             thrown = True
         self.assertEqual(should_throw, thrown)
 

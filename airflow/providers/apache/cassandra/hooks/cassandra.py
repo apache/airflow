@@ -21,7 +21,7 @@
 This module contains hook to integrate with Apache Cassandra.
 """
 
-from typing import Dict, Union
+from typing import Any, Dict, Union
 
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import Cluster, Session
@@ -137,7 +137,7 @@ class CassandraHook(BaseHook, LoggingMixin):
             self.cluster.shutdown()
 
     @staticmethod
-    def get_lb_policy(policy_name: str, policy_args: Dict) -> Policy:
+    def get_lb_policy(policy_name: str, policy_args: Dict[str, Any]) -> Policy:
         """
         Creates load balancing policy.
 
@@ -189,7 +189,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         return (keyspace in cluster_metadata.keyspaces and
                 table in cluster_metadata.keyspaces[keyspace].tables)
 
-    def record_exists(self, table: str, keys: Dict) -> bool:
+    def record_exists(self, table: str, keys: Dict[str, str]) -> bool:
         """
         Checks if a record exists in Cassandra
 
