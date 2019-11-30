@@ -30,6 +30,7 @@ from airflow.gcp.operators.bigquery import (
     BigQueryPatchDatasetOperator, BigQueryTableDeleteOperator, BigQueryUpdateDatasetOperator,
 )
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
+from airflow.serialization.serialized_dag import SerializedDAG
 from airflow.settings import Session
 from airflow.utils.db import provide_session
 from tests.compat import mock
@@ -431,6 +432,20 @@ class TestBigQueryOperator(unittest.TestCase):
         ti = TaskInstance(task=operator, execution_date=DEFAULT_DATE)
         ti.render_templates()
         self.assertTrue(isinstance(ti.task.sql, str))
+
+    def test_bigquery_operator_extra_serialized_field(self):
+        with self.dag:
+            BigQueryOperator(
+                task_id=TASK_ID,
+                sql='SELECT * FROM test_table',
+            )
+
+        serialized_dag = SerializedDAG.to_dict(self.dag)
+        self.assertIn("sql", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict[TASK_ID]
+        self.assertEqual(getattr(simple_task, "sql"), 'SELECT * FROM test_table')
 
     @provide_session
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')

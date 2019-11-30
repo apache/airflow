@@ -1105,8 +1105,8 @@ class BaseOperator(Operator, LoggingMixin):
             cls._serialized_fields = frozenset(
                 vars(BaseOperator(task_id='test')).keys() - {
                     'inlets', 'outlets', '_upstream_task_ids', 'default_args', 'dag', '_dag'
-                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
-            )
+                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'})
+
         return cls._serialized_fields
 
 

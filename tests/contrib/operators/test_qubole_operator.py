@@ -25,6 +25,7 @@ from airflow.contrib.hooks.qubole_hook import QuboleHook
 from airflow.contrib.operators.qubole_operator import QuboleOperator
 from airflow.models import DAG, Connection
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.serialized_dag import SerializedDAG
 from airflow.utils import db
 from airflow.utils.timezone import datetime
 
@@ -141,3 +142,19 @@ class TestQuboleOperator(unittest.TestCase):
         # check for negative case
         url2 = task.get_extra_links(datetime(2017, 1, 2), 'Go to QDS')
         self.assertEqual(url2, '')
+
+    def test_extra_serialized_field(self):
+        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+        with dag:
+            QuboleOperator(
+                task_id=TASK_ID,
+                command_type='shellcmd',
+                qubole_conn_id=TEST_CONN,
+            )
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        self.assertIn("qubole_conn_id", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict[TASK_ID]
+        self.assertEqual(getattr(simple_task, "qubole_conn_id"), TEST_CONN)

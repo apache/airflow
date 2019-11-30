@@ -42,7 +42,8 @@ class QDSLink(BaseOperatorLink):
         :return: url link
         """
         ti = TaskInstance(task=operator, execution_date=dttm)
-        conn = BaseHook.get_connection(operator.kwargs['qubole_conn_id'])
+        conn = BaseHook.get_connection(
+            getattr(operator, "qubole_conn_id", None) or operator.kwargs['qubole_conn_id'])
         if conn and conn.host:
             host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
         else:
@@ -240,3 +241,9 @@ class QuboleOperator(BaseOperator):
             self.kwargs[name] = value
         else:
             object.__setattr__(self, name, value)
+
+    @classmethod
+    def get_serialized_fields(cls):
+        """Serialized QuboleOperator contain exactly these fields."""
+        cls._serialized_fields = frozenset(super().get_serialized_fields() | {"qubole_conn_id"})
+        return cls._serialized_fields
