@@ -83,7 +83,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
+    def __init__(self,  # pylint: disable=too-many-arguments
                  cql: str,
                  bucket: str,
                  filename: str,
@@ -140,7 +140,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         'VarcharType': 'STRING',
     }
 
-    def execute(self, context: Dict):
+    def execute(self, context: Dict[str, str]):
         hook = CassandraHook(cassandra_conn_id=self.cassandra_conn_id)
         cursor = hook.get_conn().execute(self.cql)
 
@@ -208,7 +208,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         tmp_schema_file_handle.write(json_serialized_schema)
         return {self.schema_filename: tmp_schema_file_handle}
 
-    def _upload_to_gcs(self, files_to_upload: Dict):
+    def _upload_to_gcs(self, files_to_upload: Dict[str, Any]):
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
@@ -222,14 +222,17 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
             )
 
     @classmethod
-    def generate_data_dict(cls, names: Iterable[str], values: Any) -> Dict:
+    def generate_data_dict(cls, names: Iterable[str], values: Any) -> Dict[str, Any]:
         """
         Generates data structure that will be stored as file in GCS.
         """
         return {n: cls.convert_value(v) for n, v in zip(names, values)}
 
     @classmethod
-    def convert_value(cls, value):  # pylint:disable=too-many-return-statements
+    def convert_value(  # pylint: disable=too-many-return-statements
+        cls,
+        value: Optional[Any]
+    ) -> Optional[Any]:
         """
         Convert value to BQ type.
         """
@@ -259,14 +262,14 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
             raise AirflowException('Unexpected value: ' + str(value))
 
     @classmethod
-    def convert_array_types(cls, value: Union[list, SortedSet]) -> List:
+    def convert_array_types(cls, value: Union[List[Any], SortedSet]) -> List[Any]:
         """
         Maps convert_value over array.
         """
         return [cls.convert_value(nested_value) for nested_value in value]
 
     @classmethod
-    def convert_user_type(cls, value):
+    def convert_user_type(cls, value: Any) -> Dict[str, Any]:
         """
         Converts a user type to RECORD that contains n fields, where n is the
         number of attributes. Each element in the user type class will be converted to its
@@ -277,7 +280,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         return cls.generate_data_dict(names, values)
 
     @classmethod
-    def convert_tuple_type(cls, values: Tuple):
+    def convert_tuple_type(cls, values: Tuple[Any]) -> Dict[str, Any]:
         """
         Converts a tuple to RECORD that contains n fields, each will be converted
         to its corresponding data type in bq and will be named 'field_<index>', where
@@ -287,7 +290,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         return cls.generate_data_dict(names, values)
 
     @classmethod
-    def convert_map_type(cls, value: OrderedMapSerializedKey) -> List[Dict]:
+    def convert_map_type(cls, value: OrderedMapSerializedKey) -> List[Dict[str, Any]]:
         """
         Converts a map to a repeated RECORD that contains two fields: 'key' and 'value',
         each will be converted to its corresponding data type in BQ.
@@ -301,7 +304,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         return converted_map
 
     @classmethod
-    def generate_schema_dict(cls, name: str, type_) -> Dict:
+    def generate_schema_dict(cls, name: str, type_: Any) -> Dict[str, Any]:
         """
         Generates BQ schema.
         """
@@ -315,7 +318,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         return field_schema
 
     @classmethod
-    def get_bq_fields(cls, type_) -> List[Dict]:
+    def get_bq_fields(cls, type_: Any) -> List[Dict[str, Any]]:
         """
         Converts non simple type value to BQ representation.
         """
@@ -340,28 +343,28 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         return [cls.generate_schema_dict(n, t) for n, t in zip(names, types)]
 
     @staticmethod
-    def is_simple_type(type_) -> bool:
+    def is_simple_type(type_: Any) -> bool:
         """
         Check if type is a simple type.
         """
         return type_.cassname in CassandraToGoogleCloudStorageOperator.CQL_TYPE_MAP
 
     @staticmethod
-    def is_array_type(type_) -> bool:
+    def is_array_type(type_: Any) -> bool:
         """
         Check if type is an array type.
         """
         return type_.cassname in ['ListType', 'SetType']
 
     @staticmethod
-    def is_record_type(type_) -> bool:
+    def is_record_type(type_: Any) -> bool:
         """
         Checks the record type.
         """
         return type_.cassname in ['UserType', 'TupleType', 'MapType']
 
     @classmethod
-    def get_bq_type(cls, type_) -> str:
+    def get_bq_type(cls, type_: Any) -> str:
         """
         Converts type to equivalent BQ type.
         """
@@ -375,7 +378,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
             raise AirflowException('Not a supported type_: ' + type_.cassname)
 
     @classmethod
-    def get_bq_mode(cls, type_) -> str:
+    def get_bq_mode(cls, type_: Any) -> str:
         """
         Converts type to equivalent BQ mode.
         """
