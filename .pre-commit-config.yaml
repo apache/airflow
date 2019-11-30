@@ -201,6 +201,13 @@ repos:
         entry: "./scripts/ci/pre_commit_lint_dockerfile.sh"
         files: ^Dockerfile.*$
         pass_filenames: true
+      - id: setup-order
+        name: Checks for an order of dependencies in setup.py
+        language: python
+        files: ^setup.py$
+        pass_filenames: false
+        require_serial: true
+        entry: tests/test_order_setup.py
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
