@@ -131,7 +131,7 @@ class TestCassandraHook(unittest.TestCase):
             if expected_child_policy_type:
                 self.assertTrue(isinstance(policy._child_policy,
                                            expected_child_policy_type))
-        except Exception:  # pylint:disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             thrown = True
         self.assertEqual(should_throw, thrown)
 

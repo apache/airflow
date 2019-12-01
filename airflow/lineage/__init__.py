@@ -123,7 +123,7 @@ def prepare_lineage(func):
     * "list of datasets" -> manually defined list of data
 
     """
-    # pylint:disable=protected-access
+    # pylint: disable=protected-access
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
         self.log.debug("Preparing lineage inlets and outlets")

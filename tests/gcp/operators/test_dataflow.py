@@ -306,7 +306,7 @@ class TestGoogleCloudBucketHelper(unittest.TestCase):
         gcs_bucket_helper = GoogleCloudBucketHelper()
         gcs_bucket_helper._gcs_hook = mock.Mock()
 
-        # pylint:disable=redefined-builtin,unused-argument
+        # pylint: disable=redefined-builtin,unused-argument
         def _mock_download(bucket, object, filename=None):
             text_file_contents = 'text file contents'
             with open(filename, 'w') as text_file:
@@ -328,7 +328,7 @@ class TestGoogleCloudBucketHelper(unittest.TestCase):
         gcs_bucket_helper = GoogleCloudBucketHelper()
         gcs_bucket_helper._gcs_hook = mock.Mock()
 
-        # pylint:disable=redefined-builtin,unused-argument
+        # pylint: disable=redefined-builtin,unused-argument
         def _mock_download(bucket, object, filename=None):
             text_file_contents = ''
             with open(filename, 'w') as text_file:

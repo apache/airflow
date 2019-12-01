@@ -28,7 +28,7 @@ isort:skip_file
 """
 
 # flake8: noqa: F401
-# pylint:disable=wrong-import-position
+# pylint: disable=wrong-import-position
 from typing import Callable, Optional
 
 # noinspection PyUnresolvedReferences
@@ -54,13 +54,13 @@ from airflow import sensors
 
 
 class AirflowMacroPlugin:
-    # pylint:disable=missing-docstring
+    # pylint: disable=missing-docstring
     def __init__(self, namespace):
         self.namespace = namespace
 
 
-operators._integrate_plugins()  # pylint:disable=protected-access
-sensors._integrate_plugins()  # pylint:disable=protected-access
-hooks._integrate_plugins()  # pylint:disable=protected-access
-executors._integrate_plugins()  # pylint:disable=protected-access
-macros._integrate_plugins()  # pylint:disable=protected-access
+operators._integrate_plugins()  # pylint: disable=protected-access
+sensors._integrate_plugins()  # pylint: disable=protected-access
+hooks._integrate_plugins()  # pylint: disable=protected-access
+executors._integrate_plugins()  # pylint: disable=protected-access
+macros._integrate_plugins()  # pylint: disable=protected-access

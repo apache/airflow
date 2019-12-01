@@ -929,7 +929,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.test = test
         self.endpoint = endpoint
 
-    def setUp(self):  # pylint:disable=invalid-name
+    def setUp(self):  # pylint: disable=invalid-name
         from airflow.www.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
@@ -943,7 +943,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             )
             self.runs.append(run)
 
-    def tearDown(self):  # pylint:disable=invalid-name
+    def tearDown(self):  # pylint: disable=invalid-name
         self.test.session.query(DagRun).filter(
             DagRun.dag_id == self.DAG_ID).delete()
         self.test.session.commit()

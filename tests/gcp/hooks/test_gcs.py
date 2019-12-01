@@ -175,7 +175,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         copy_method.return_value = destination_blob
 
         # When
-        response = self.gcs_hook.copy(  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.copy(  # pylint: disable=assignment-from-no-return
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -261,7 +261,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         rewrite_method.side_effect = [(None, mock.ANY, mock.ANY), (mock.ANY, mock.ANY, mock.ANY)]
 
         # When
-        response = self.gcs_hook.rewrite(  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.rewrite(  # pylint: disable=assignment-from-no-return
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -318,7 +318,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         delete_method = get_blob_method.return_value.delete
         delete_method.return_value = blob_to_be_deleted
 
-        response = self.gcs_hook.delete(  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.delete(  # pylint: disable=assignment-from-no-return
             bucket_name=test_bucket,
             object_name=test_object)
         self.assertIsNone(response)
@@ -477,7 +477,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             ])
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_with_empty_source_objects(self, mock_service):  # pylint:disable=unused-argument
+    def test_compose_with_empty_source_objects(self, mock_service):  # pylint: disable=unused-argument
         test_bucket = 'test_bucket'
         test_source_objects = []
         test_destination_object = 'test_object_composed'
@@ -495,7 +495,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_without_bucket(self, mock_service):  # pylint:disable=unused-argument
+    def test_compose_without_bucket(self, mock_service):  # pylint: disable=unused-argument
         test_bucket = None
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = 'test_object_composed'
@@ -513,7 +513,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_without_destination_object(self, mock_service):  # pylint:disable=unused-argument
+    def test_compose_without_destination_object(self, mock_service):  # pylint: disable=unused-argument
         test_bucket = 'test_bucket'
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = None

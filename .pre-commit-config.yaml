@@ -204,6 +204,12 @@ repos:
         entry: "pydevd.*settrace\\("
         pass_filenames: true
         files: \.py$
+      - id: consistent-pylint
+        language: pygrep
+        name: Check for inconsitent pylint disable/enable without space
+        entry: "pylint:disable|pylint:enable"
+        pass_filenames: true
+        files: \.py$
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator is imported from airflow.models.baseoperator in core

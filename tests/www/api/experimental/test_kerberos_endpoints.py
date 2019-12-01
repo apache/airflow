@@ -35,14 +35,14 @@ class TestApiKerberos(unittest.TestCase):
     def setUp(self):
         try:
             conf.add_section("api")
-        except Exception:  # pylint:disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             pass
         conf.set("api",
                  "auth_backend",
                  "airflow.api.auth.backend.kerberos_auth")
         try:
             conf.add_section("kerberos")
-        except Exception:  # pylint:disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             pass
         conf.set("kerberos",
                  "keytab",

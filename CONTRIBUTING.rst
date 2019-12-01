@@ -318,7 +318,7 @@ These are guidelines for fixing errors reported by pylint:
 
 
 -   For multiple lines/block of code, to disable an error, you can surround the
-    block with ``pylint:disable/pylint:enable`` comment lines. For example:
+    block with ``pylint: disable/pylint: enable`` comment lines. For example:
 
 .. code-block:: python
 
@@ -427,6 +427,8 @@ image built locally):
 ``check-merge-conflict``              Checks if a merge conflict is committed.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-xml``                         Checks XML files with xmllint.
+----------------------------------- ---------------------------------------------------------------- ------------
+``consistent-pylint``                 Consistent usage of pylint enable/disable with space.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``debug-statements``                  Detects accidenatally committed debug statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
