@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -94,10 +93,10 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"):
             from airflow import settings
-            settings.import_local_settings()  # pylint: ignore
+            settings.import_local_settings()
 
             with self.assertRaises(AttributeError):
-                settings.not_policy()
+                settings.not_policy()  # pylint: disable=no-member
 
     def test_import_with_dunder_all(self):
         """
@@ -106,7 +105,7 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"):
             from airflow import settings
-            settings.import_local_settings()  # pylint: ignore
+            settings.import_local_settings()
 
             task_instance = MagicMock()
             settings.policy(task_instance)
@@ -130,7 +129,7 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POLICY, "airflow_local_settings"):
             from airflow import settings
-            settings.import_local_settings()  # pylint: ignore
+            settings.import_local_settings()
 
             task_instance = MagicMock()
             settings.policy(task_instance)
@@ -144,7 +143,7 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK, "airflow_local_settings"):
             from airflow import settings
-            settings.import_local_settings()  # pylint: ignore
+            settings.import_local_settings()
 
             pod = MagicMock()
             settings.pod_mutation_hook(pod)
