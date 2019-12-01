@@ -207,7 +207,7 @@ repos:
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator is imported from airflow.models.baseoperator in core
-        entry: "from airflow.models import.* BaseOperator"
+        entry: "from airflow\\.models import.* BaseOperator"
         files: \.py$
         pass_filenames: true
         exclude: >
@@ -221,7 +221,7 @@ repos:
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator is imported from airflow.models outside of core
-        entry: "from airflow.models.baseoperator import.* BaseOperator"
+        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
         pass_filenames: true
         files: >
           (?x)
