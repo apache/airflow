@@ -85,7 +85,7 @@ class MySqlToHiveTransfer(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(  # pylint:disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             sql: str,
             hive_table: str,

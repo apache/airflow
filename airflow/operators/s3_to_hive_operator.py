@@ -37,7 +37,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
 
 
-class S3ToHiveTransfer(BaseOperator):  # pylint:disable=too-many-instance-attributes
+class S3ToHiveTransfer(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
     Moves data from S3 to Hive. The operator downloads a file from S3,
     stores the file locally before loading it into a Hive table.
@@ -108,7 +108,7 @@ class S3ToHiveTransfer(BaseOperator):  # pylint:disable=too-many-instance-attrib
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(  # pylint:disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             s3_key: str,
             field_dict: Dict,

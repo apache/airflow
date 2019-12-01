@@ -62,7 +62,7 @@ class HiveToDynamoDBTransferOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(  # pylint:disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             sql,
             table_name,
