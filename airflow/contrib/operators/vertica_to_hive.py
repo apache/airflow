@@ -98,7 +98,7 @@ class VerticaToHiveTransfer(BaseOperator):
     @classmethod
     def type_map(cls, vertica_type):
         """
-        Vertica-python datatype.py donot provied the full type mapping access.
+        Vertica-python datatype.py does not provide the full type mapping access.
         Manual hack. Reference:
         https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
         """

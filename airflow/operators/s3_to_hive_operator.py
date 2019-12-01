@@ -152,20 +152,18 @@ class S3ToHiveTransfer(BaseOperator):  # pylint:disable=too-many-instance-attrib
 
     def execute(self, context):
         # Downloading file from S3
-        hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         hive_hook = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Downloading S3 file")
 
         if self.wildcard_match:
-            if not hook.check_for_wildcard_key(self.s3_key):
-                raise AirflowException("No key matches {0}"
-                                       .format(self.s3_key))
-            s3_key_object = hook.get_wildcard_key(self.s3_key)
+            if not s3_hook.check_for_wildcard_key(self.s3_key):
+                raise AirflowException(f"No key matches {self.s3_key}")
+            s3_key_object = s3_hook.get_wildcard_key(self.s3_key)
         else:
-            if not hook.check_for_key(self.s3_key):
-                raise AirflowException(
-                    "The key {0} does not exists".format(self.s3_key))
-            s3_key_object = hook.get_key(self.s3_key)
+            if not s3_hook.check_for_key(self.s3_key):
+                raise AirflowException(f"The key {self.s3_key} does not exists")
+            s3_key_object = s3_hook.get_key(self.s3_key)
 
         _, file_ext = os.path.splitext(s3_key_object.key)
         if (self.select_expression and self.input_compressed and
@@ -191,7 +189,7 @@ class S3ToHiveTransfer(BaseOperator):  # pylint:disable=too-many-instance-attrib
                 if self.input_compressed:
                     input_serialization['CompressionType'] = 'GZIP'
 
-                content = hook.select_key(
+                content = s3_hook.select_key(
                     bucket_name=s3_key_object.bucket_name,
                     key=s3_key_object.key,
                     expression=self.select_expression,
