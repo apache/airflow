@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 
 from flask import Blueprint
 from flask_appbuilder import BaseView as AppBuilderBaseView, expose
@@ -61,9 +61,12 @@ def plugin_macro():
 class PluginTestAppBuilderBaseView(AppBuilderBaseView):
     default_view = "test"
 
+    dir = os.path.dirname(os.path.abspath(__file__))
+    template_folder = dir + '/plugins/test_plugin/templates'
+
     @expose("/")
     def test(self):
-        return self.render("test_plugin/test.html", content="Hello galaxy!")
+        return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
 
 v_appbuilder_view = PluginTestAppBuilderBaseView()

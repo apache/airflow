@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -150,7 +149,6 @@ def show_traceback(error):
 class AirflowBaseView(BaseView):
     from airflow import macros
     route_base = ''
-
     # Make our macros available to our UI templates too.
     extra_args = {
         'macros': macros,

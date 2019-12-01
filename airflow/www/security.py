@@ -27,7 +27,6 @@ from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www.app import appbuilder
 
 EXISTING_ROLES = {
     'Admin',
@@ -232,6 +231,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :param user: the ab_user in FAB model.
         :return: a list of roles associated with the user.
         """
+        from airflow.www.app import appbuilder
         if user is None:
             user = g.user
         if user.is_anonymous:
