@@ -1193,7 +1193,6 @@ def upgradedb(args):  # noqa
     db.upgradedb()
 
 
-@cli_utils.action_logging
 def version(args):  # noqa
     py2_deprecation_waring()
     print(settings.HEADER + "  v" + airflow.__version__)
