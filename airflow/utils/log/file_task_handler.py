@@ -112,7 +112,7 @@ class FileTaskHandler(logging.Handler):
             url = os.path.join(
                 "http://{hostname}:{worker_log_server_port}/log", log_relative_path
             ).format(
-                hostname=self.query_task_hostname(ti,try_number),
+                hostname=self.query_task_hostname(ti, try_number),
                 worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
             )
 
