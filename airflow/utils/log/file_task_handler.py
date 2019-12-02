@@ -238,7 +238,4 @@ class FileTaskHandler(logging.Handler):
         import json
         hostname = json.loads(res_log.extra)["host_name"]
 
-        logging.info('Task_instance Hostname : {}'.format(hostname))
-
         return hostname
-
