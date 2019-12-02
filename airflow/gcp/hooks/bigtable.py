@@ -26,6 +26,8 @@ from google.cloud.bigtable.cluster import Cluster
 from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionRule
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
+from google.cloud.bigtable.row import ConditionalRow, DirectRow
+from google.cloud.bigtable.row_filters import RowKeyRegexFilter
 from google.cloud.bigtable_admin_v2 import enums
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
@@ -276,3 +278,58 @@ class BigtableHook(GoogleCloudBaseHook):
 
         table = Table(table_id, instance)
         return table.get_cluster_states()
+
+    def create_rowkey_regex_filter(self, regex):
+        """
+        A helper method to create a RowKeyRegexFilter subclass of RowFilter, which
+        will only match rows with keys that exactly match the regex string.
+        Returns a RowFilter.
+
+        :type regex: str
+        :param regex: The exact match regex string for the value we wish to find
+        """
+        return RowKeyRegexFilter(regex)
+
+
+    def delete_row(self, instance, table_id, row_key):
+        """
+        Deletes a row in the given Bigtable Table
+                :type instance: Instance
+        :param instance: The Cloud Bigtable Instance that owns the Table
+        :type table_id: str
+        :param table_id: The Cloud Bigtable Table that owns the Row
+        :type row_key: str
+        :param row_key: The key of the row whose cells to check
+
+        Returns a boolean of whether or not the row was successfully deleted
+        """
+        table = Table(table_id, instance)
+        row = DirectRow(row_key, table)
+        row.delete()
+        row.commit()
+
+    def check_and_mutate_row(self, instance, table_id, row_key, column_family_id, column, filter, new_value, state=True):
+        """
+        Scans a table for cells that match the filter, column family id and column value
+        and sets matching cells to new_value. If no matching cells are found, no mutations occur.
+        Returns True if mutations were applied and False otherwise.
+
+        :type instance: Instance
+        :param instance: The Cloud Bigtable Instance that owns the Table
+        :type table_id: str
+        :param table_id: The Cloud Bigtable Table that owns the Row
+        :type row_key: str
+        :param row_key: The key of the row whose cells to check
+        :type column_family_id: str
+        :param column_family_id: The column family id of the column in which the cells are stored
+        :type column: str
+        :param column: The column matching the cells to be checked
+        :type filter: RowFilter
+        :param filter: The RowFilter object representation of a filter or filters on which to predicate the check
+        :type new_value: str
+        :param new_value: The value to which to set matching cells
+        """
+        table = Table(table_id, instance)
+        row = ConditionalRow(row_key, table, filter)
+        row.set_cell(column_family_id, column, new_value, timestamp=None, state=state)
+        return row.commit()

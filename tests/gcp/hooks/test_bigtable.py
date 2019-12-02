@@ -35,7 +35,9 @@ CBT_INSTANCE = 'instance'
 CBT_CLUSTER = 'cluster'
 CBT_ZONE = 'zone'
 CBT_TABLE = 'table'
-
+CBT_ROWKEY = 'rowkey'
+CBT_COLUMN_FAMILY = 'column_family'
+CBT_COLUMN = 'column'
 
 class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
 
@@ -441,3 +443,43 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
             instance=instance, table_id=CBT_TABLE)
         get_client.assert_not_called()
         get_cluster_states.assert_called_once_with()
+
+    @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook.create_rowkey_regex_filter')
+    def test_create_rowkey_regex_filter(self, create_rowkey_regex_filter):
+        self.bigtable_hook_default_project_id.create_rowkey_regex_filter(CBT_ROWKEY)
+        get_client.assert_not_called()
+        create_rowkey_regex_filter.assert_called_once_with()
+
+    @mock.patch('google.cloud.bigtable.table.Table.delete_row')
+    @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
+    def test_delete_row(self, get_client, delete_row):
+        instance_method = get_client.return_value.instance
+        instance_exists_method = instance_method.return_value.exists
+        instance_exists_method.return_value = True
+        client = mock.Mock(Client)
+        instance = google.cloud.bigtable.instance.Instance(
+            instance_id=CBT_INSTANCE,
+            client=client)
+        self.bigtable_hook_default_project_id.delete_row(
+            instance=instance, table_id=CBT_TABLE, row_key=CBT_ROWKEY)
+        get_client.assert_not_called()
+        delete_row.assert_called_once_with()
+
+    @mock.patch('google.cloud.bigtable.table.Table.check_and_mutate_row')
+    @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook.create_rowkey_regex_filter')
+    @mock.patch('google.cloud.bigtable.row.ConditionalRow.')
+    @mock.patch('airflow.gcp.hooks.bigtable.BigtableHook._get_client')
+    def test_check_and_mutate_row(self, get_client, check_and_mutate_row, create_rowkey_regex_filter):
+        instance_method = get_client.return_value.instance
+        instance_exists_method = instance_method.return_value.exists
+        instance_exists_method.return_value = True
+        client = mock.Mock(Client)
+        instance = google.cloud.bigtable.instance.Instance(
+            instance_id=CBT_INSTANCE,
+            client=client)
+        filter = bigtable_hook_default_project_id.create_rowkey_regex_filter.return_value
+        self.bigtable_hook_default_project_id.check_and_mutate_row(
+            instance=instance, table_id=CBT_TABLE, row_key=CBT_ROWKEY, column_family_id=CBT_COLUMN_FAMILY, column=CBT_COLUMN, filter=filter, 'test')
+        get_client.assert_not_called()
+        check_and_mutate_row.assert_called_once_with()
+
