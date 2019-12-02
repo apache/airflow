@@ -741,8 +741,10 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._parallelism = conf.getint('scheduler', 'max_threads')
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn') and self._parallelism > 1:
-            self.log.error("Cannot use more than 1 thread when using sqlite. "
-                           "Setting parallelism to 1")
+            self.log.warning(
+                f"Because we cannot use more than 1 thread (max_threads = {self._parallelism}) "
+                "when using sqlite. So we set parallelism to 1."
+            )
             self._parallelism = 1
 
         # Parse and schedule each file no faster than this interval.
