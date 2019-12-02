@@ -45,7 +45,7 @@ class MockExecutor(BaseExecutor):
             return
 
         with create_session() as session:
-            self.history.append(list(self.queued_tasks.values()))
+            self.history.append(list(self._queued_tasks.values()))
 
             # Create a stable/predictable sort order for events in self.history
             # for tests!
@@ -55,10 +55,10 @@ class MockExecutor(BaseExecutor):
                 (_, prio, _, _) = val
                 # Sort by priority (DESC), then date,task, try
                 return -prio, date, dag_id, task_id, try_number
-            sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
+            sorted_queue = sorted(self._queued_tasks.items(), key=sort_by)
 
             for (key, (_, _, _, simple_ti)) in sorted_queue:
-                self.queued_tasks.pop(key)
+                self._queued_tasks.pop(key)
                 state = self.mock_task_results[key]
                 ti = simple_ti.construct_task_instance(session=session, lock_for_update=True)
                 ti.set_state(state, session=session)
