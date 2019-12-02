@@ -87,7 +87,6 @@ class Neo4JOperator(BaseOperator):
 
         row_count = self._make_csv(result)
 
-        # Provide some feedback to what was done...
         self.log.info("Saved %s with %s rows", self.output_filename, row_count)
 
         return row_count
