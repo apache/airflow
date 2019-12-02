@@ -870,3 +870,14 @@ class DagTest(unittest.TestCase):
             self.assertIn('t1', stdout_lines[0])
             self.assertIn('t2', stdout_lines[1])
             self.assertIn('t3', stdout_lines[2])
+
+    def test_sub_dag_updates_all_references_while_deepcopy(self):
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            t1 = DummyOperator(task_id='t1')
+            t2 = DummyOperator(task_id='t2')
+            t3 = DummyOperator(task_id='t3')
+            t1 >> t2
+            t2 >> t3
+
+        sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
+        self.assertEqual(id(sub_dag.task_dict['t1'].downstream_list[0].dag), id(sub_dag))
