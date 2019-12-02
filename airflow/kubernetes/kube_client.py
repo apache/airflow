@@ -47,12 +47,12 @@ try:
             return cfg
 
     def _get_client_with_patched_configuration(cfg: Optional[Configuration]) -> client.CoreV1Api:
-        '''
+        """
         This is a workaround for supporting api token refresh in k8s client.
 
         The function can be replace with `return client.CoreV1Api()` once the
         upstream client supports token refresh.
-        '''
+        """
         if cfg:
             return client.CoreV1Api(api_client=ApiClient(configuration=cfg))
         else:
