@@ -251,10 +251,6 @@ class BaseJob(Base, LoggingMixin):
         """
         from airflow.jobs.backfill_job import BackfillJob
 
-        queued_tis = self.executor.queued_tasks
-        # also consider running as the state might not have changed in the db yet
-        running_tis = self.executor.running
-
         resettable_states = [State.SCHEDULED, State.QUEUED]
         TI = models.TaskInstance
         DR = models.DagRun
@@ -277,7 +273,7 @@ class BaseJob(Base, LoggingMixin):
         tis_to_reset = []
         # Can't use an update here since it doesn't support joins
         for ti in resettable_tis:
-            if ti.key not in queued_tis and ti.key not in running_tis:
+            if not self.executor.is_task_queued(ti.key) and not self.executor.is_task_running(ti.key):
                 tis_to_reset.append(ti)
 
         if len(tis_to_reset) == 0:

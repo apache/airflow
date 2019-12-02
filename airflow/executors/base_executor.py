@@ -17,8 +17,9 @@
 """
 Base executor - this is the base class for all the implemented executors.
 """
+from abc import ABCMeta
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from airflow import LoggingMixin, conf
 from airflow.models import TaskInstance
@@ -42,7 +43,123 @@ CommandType = Union[str, List[str]]
 QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], SimpleTaskInstance]
 
 
-class BaseExecutor(LoggingMixin):
+class BaseExecutorProtocol(LoggingMixin):
+    """
+    Base Protocol implemented by all executors including multiple executors.
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def start(self):  # pragma: no cover
+        """
+        Executors may need to get things started.
+        """
+        raise NotImplementedError()
+
+    def has_task(self, task_instance: TaskInstance) -> bool:
+        """
+        Checks if a task is either queued or running in this executor.
+
+        :param task_instance: TaskInstance
+        :return: True if the task is known to this executor
+        """
+        raise NotImplementedError()
+
+    def sync(self) -> None:
+        """
+        Sync will get called periodically by the heartbeat method.
+        Executors should override this to perform gather statuses.
+        """
+        raise NotImplementedError()
+
+    def queue_command(self,
+                      simple_task_instance: SimpleTaskInstance,
+                      command: CommandType,
+                      priority: int = 1,
+                      queue: Optional[str] = None) -> None:
+        """Queues command to task"""
+        raise NotImplementedError()
+
+    def queue_task_instance(self,
+                            task_instance: TaskInstance,
+                            mark_success: bool = False,
+                            pickle_id: Optional[str] = None,
+                            ignore_all_deps: bool = False,
+                            ignore_depends_on_past: bool = False,
+                            ignore_task_deps: bool = False,
+                            ignore_ti_state: bool = False,
+                            pool: Optional[str] = None,
+                            cfg_path: Optional[str] = None) -> None:
+        """Queues task instance."""
+        raise NotImplementedError()
+
+    def heartbeat(self) -> None:
+        """
+        Heartbeat sent to trigger new jobs.
+        """
+        raise NotImplementedError()
+
+    def execute_async(self,
+                      key: TaskInstanceKeyType,
+                      command: CommandType,
+                      queue: Optional[str] = None,
+                      executor_config: Optional[Any] = None) -> None:  # pragma: no cover
+        """
+        This method will execute the command asynchronously.
+
+        :param key: Unique key for the task instance
+        :param command: Command to run
+        :param queue: name of the queue
+        :param executor_config: Configuration passed to the executor.
+        """
+        raise NotImplementedError()
+
+    def end(self) -> None:  # pragma: no cover
+        """
+        This method is called when the caller is done submitting job and
+        wants to wait synchronously for the job submitted previously to be
+        all done.
+        """
+        raise NotImplementedError()
+
+    def terminate(self):
+        """
+        This method is called when the daemon receives a SIGTERM
+        """
+        raise NotImplementedError()
+
+    def is_task_queued(self, task_instance_key: TaskInstanceKeyType) -> bool:
+        """
+        Return True if task instance is queued
+        """
+        raise NotImplementedError()
+
+    def is_task_running(self, task_instance_key: TaskInstanceKeyType) -> bool:
+        """
+        Return True if task instance is running
+        """
+        raise NotImplementedError()
+
+    def get_queued_tasks_keys(self) -> Iterable[TaskInstanceKeyType]:
+        """
+        Returns task keys in iterable form.
+        """
+        raise NotImplementedError()
+
+    def get_event_buffer(self, dag_ids=None) -> Dict[TaskInstanceKeyType, Optional[str]]:
+        """
+        Returns and flush the event buffer. In case dag_ids is specified
+        it will only return and flush events for the given dag_ids. Otherwise
+        it returns and flushes all events.
+
+        :param dag_ids: to dag_ids to return events for, if None returns all
+        :return: a dict of events
+        """
+        raise NotImplementedError()
+
+
+class BaseExecutor(BaseExecutorProtocol, metaclass=ABCMeta):
     """
     Class to derive in order to interface with executor-type systems
     like Celery, Kubernetes, Local, Sequential and the likes.
@@ -58,10 +175,14 @@ class BaseExecutor(LoggingMixin):
         self.running: Set[TaskInstanceKeyType] = set()
         self.event_buffer: Dict[TaskInstanceKeyType, Optional[str]] = {}
 
-    def start(self):  # pragma: no cover
+    def has_task(self, task_instance: TaskInstance) -> bool:
         """
-        Executors may need to get things started.
+        Checks if a task is either queued or running in this executor.
+
+        :param task_instance: TaskInstance
+        :return: True if the task is known to this executor
         """
+        return task_instance.key in self.queued_tasks or task_instance.key in self.running
 
     def queue_command(self,
                       simple_task_instance: SimpleTaskInstance,
@@ -108,21 +229,6 @@ class BaseExecutor(LoggingMixin):
             command_list_to_run,
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
-
-    def has_task(self, task_instance: TaskInstance) -> bool:
-        """
-        Checks if a task is either queued or running in this executor.
-
-        :param task_instance: TaskInstance
-        :return: True if the task is known to this executor
-        """
-        return task_instance.key in self.queued_tasks or task_instance.key in self.running
-
-    def sync(self) -> None:
-        """
-        Sync will get called periodically by the heartbeat method.
-        Executors should override this to perform gather statuses.
-        """
 
     def heartbeat(self) -> None:
         """
@@ -220,31 +326,20 @@ class BaseExecutor(LoggingMixin):
 
         return cleared_events
 
-    def execute_async(self,
-                      key: TaskInstanceKeyType,
-                      command: CommandType,
-                      queue: Optional[str] = None,
-                      executor_config: Optional[Any] = None) -> None:  # pragma: no cover
+    def is_task_queued(self, task_instance_key: TaskInstanceKeyType) -> bool:
         """
-        This method will execute the command asynchronously.
+        Return True if task instance is queued
+        """
+        return task_instance_key in self.queued_tasks
 
-        :param key: Unique key for the task instance
-        :param command: Command to run
-        :param queue: name of the queue
-        :param executor_config: Configuration passed to the executor.
+    def is_task_running(self, task_instance_key: TaskInstanceKeyType) -> bool:
         """
-        raise NotImplementedError()
+        Return True if task instance is running
+        """
+        return task_instance_key in self.running
 
-    def end(self) -> None:  # pragma: no cover
+    def get_queued_tasks_keys(self) -> Iterable[TaskInstanceKeyType]:
         """
-        This method is called when the caller is done submitting job and
-        wants to wait synchronously for the job submitted previously to be
-        all done.
+        Returns task keys in iterable form.
         """
-        raise NotImplementedError()
-
-    def terminate(self):
-        """
-        This method is called when the daemon receives a SIGTERM
-        """
-        raise NotImplementedError()
+        return self.queued_tasks.keys()

@@ -835,8 +835,6 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: TaskInstances associated with DAGs in the
             simple_dag_bag will be fetched from the DB and executed
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
-        :param executor: the executor that runs task instances
-        :type executor: BaseExecutor
         :param states: Execute TaskInstances in these states
         :type states: tuple[airflow.utils.state.State]
         :return: list[airflow.models.TaskInstance]
@@ -1159,7 +1157,7 @@ class SchedulerJob(BaseJob):
 
         :param session: session for ORM operations
         """
-        if self.executor.queued_tasks:
+        if self.executor.get_queued_tasks_keys():
             TI = models.TaskInstance
             filter_for_ti_state_change = (
                 [and_(
@@ -1170,8 +1168,7 @@ class SchedulerJob(BaseJob):
                     # ti is not running. And we need to -1 to match the DB record.
                     TI._try_number == try_number - 1,
                     TI.state == State.QUEUED)
-                    for dag_id, task_id, execution_date, try_number
-                    in self.executor.queued_tasks.keys()])
+                    for dag_id, task_id, execution_date, try_number in self.executor.get_queued_tasks_keys()])
             ti_query = (session.query(TI)
                         .filter(or_(*filter_for_ti_state_change)))
             tis_to_set_to_scheduled = (ti_query

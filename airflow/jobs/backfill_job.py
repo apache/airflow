@@ -29,6 +29,7 @@ from airflow.exceptions import (
     AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
+from airflow.executors.base_executor import BaseExecutorProtocol
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
@@ -369,7 +370,7 @@ class BackfillJob(BaseJob):
     @provide_session
     def _process_backfill_task_instances(self,
                                          ti_status,
-                                         executor,
+                                         executor: BaseExecutorProtocol,
                                          pickle_id,
                                          start_date=None, session=None):
         """
@@ -380,7 +381,7 @@ class BackfillJob(BaseJob):
         :param ti_status: the internal status of the job
         :type ti_status: BackfillJob._DagRunTaskStatus
         :param executor: the executor to run the task instances
-        :type executor: BaseExecutor
+        :type executor: BaseExecutorProtocol
         :param pickle_id: the pickle_id if dag is pickled, None otherwise
         :type pickle_id: int
         :param start_date: the start date of the backfill job
@@ -658,7 +659,7 @@ class BackfillJob(BaseJob):
         return err
 
     @provide_session
-    def _execute_for_run_dates(self, run_dates, ti_status, executor, pickle_id,
+    def _execute_for_run_dates(self, run_dates, ti_status, executor: BaseExecutorProtocol, pickle_id,
                                start_date, session=None):
         """
         Computes the dag runs and their respective task instances for
@@ -670,7 +671,7 @@ class BackfillJob(BaseJob):
         :param ti_status: internal BackfillJob status structure to tis track progress
         :type ti_status: BackfillJob._DagRunTaskStatus
         :param executor: the executor to use, it must be previously started
-        :type executor: BaseExecutor
+        :type executor: BaseExecutorProtocol
         :param pickle_id: numeric id of the pickled dag, None if not pickled
         :type pickle_id: int
         :param start_date: backfill start date
