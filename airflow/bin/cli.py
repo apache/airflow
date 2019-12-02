@@ -577,6 +577,11 @@ class CLIFactory:
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
+        'skip_serve_logs': Arg(
+            ("-s", "--skip_serve_logs"),
+            default=False,
+            help="Don't start the serve logs process along with the workers.",
+            action="store_true"),
     }
     subparsers = (
         {
@@ -871,7 +876,7 @@ class CLIFactory:
             'func': lazy_load_command('airflow.cli.commands.worker_command.worker'),
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
         }, {
             'name': 'flower',
             'func': lazy_load_command('airflow.cli.commands.flower_command.flower'),
