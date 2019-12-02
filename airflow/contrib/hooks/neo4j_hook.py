@@ -26,7 +26,7 @@ class Neo4JHook(BaseHook):
     """This class enables the neo4j operator to execute queries against a configured neo4j server.
     It requires the configuration name as set in Airflow -> Connections ->
     :param n4j_conn_id:
-    :type str:
+    :type n4j_conn_id: str
     """
     n4j_conn_id: str
 
