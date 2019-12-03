@@ -92,6 +92,8 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param container_timeout: max time allowed for the execution of
         the container instance.
     :type container_timeout: datetime.timedelta
+    :param tags: azure tags as dict of str:str
+    :type tags: dict[str, str]
 
     **Example**::
 
@@ -140,6 +142,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                  command=None,
                  remove_on_error=True,
                  fail_if_exists=True,
+                 tags=None,
                  *args,
                  **kwargs):
         super(AzureContainerInstancesOperator, self).__init__(*args, **kwargs)
@@ -160,6 +163,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.remove_on_error = remove_on_error
         self.fail_if_exists = fail_if_exists
         self._ci_hook = None
+        self.tags = tags
 
     def execute(self, context):
         # Check name again in case it was templated.
@@ -227,7 +231,8 @@ class AzureContainerInstancesOperator(BaseOperator):
                 image_registry_credentials=image_registry_credentials,
                 volumes=volumes,
                 restart_policy='Never',
-                os_type='Linux')
+                os_type='Linux',
+                tags=self.tags)
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)
 
