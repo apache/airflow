@@ -269,6 +269,10 @@ kubernetes = [
 ldap = [
     'ldap3>=2.5.1',
 ]
+neo4j = [
+    'neo4j>=1.7.5',
+    'neobolt>=1.7.15'
+]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
@@ -406,7 +410,7 @@ devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + webhdfs
 devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel +
              doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
-             kerberos + kubernetes + ldap + oracle + pagerduty + papermill +
+             kerberos + kubernetes + ldap + neo4j + oracle + pagerduty + papermill +
              password + pinot + redis + salesforce + samba + segment + sendgrid +
              sentry + slack + snowflake + ssh + virtualenv + webhdfs + zendesk)
 
