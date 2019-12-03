@@ -622,7 +622,7 @@ class TestDataflow(unittest.TestCase):
         cmd = [
             'echo', 'additional unit test lines.\n' +
             'https://console.cloud.google.com/dataflow/jobsDetail/locations/us-central1/'
-            'jobs/test-job-id?project=XXX'.format(TEST_JOB_ID)
+            'jobs/{}?project=XXX'.format(TEST_JOB_ID)
         ]
         self.assertEqual(_DataflowRunner(cmd).wait_for_done(), TEST_JOB_ID)
 

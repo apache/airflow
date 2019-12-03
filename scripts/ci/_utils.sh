@@ -81,7 +81,7 @@ function print_info() {
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
-    print_info "Mount whole sourcce directory for static checks"
+    print_info "Mount whole airflow source directory for static checks (make sure all files are in container)"
     print_info
     AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
       "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \

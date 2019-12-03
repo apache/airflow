@@ -22,7 +22,7 @@ env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
     - MOUNT_LOCAL_SOURCES="false"
-    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="false"
+    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="true"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - AIRFLOW_CI_SILENT="true"
     - CI="true"
@@ -37,7 +37,6 @@ jobs:
       script: ./scripts/ci/ci_run_all_static_tests.sh
       env: >-
         PYTHON_VERSION=3.6
-        AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
     - name: "Build documentation"
       env: >-
         PYTHON_VERSION=3.6

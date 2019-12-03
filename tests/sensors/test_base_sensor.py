@@ -363,10 +363,15 @@ class TestBaseSensor(unittest.TestCase):
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
 
-    def test_should_include_ready_to_reschedule_dep(self):
+    def test_should_include_ready_to_reschedule_dep_in_reschedule_mode(self):
+        sensor = self._make_sensor(True, mode='reschedule')
+        deps = sensor.deps
+        self.assertIn(ReadyToRescheduleDep(), deps)
+
+    def test_should_not_include_ready_to_reschedule_dep_in_poke_mode(self):
         sensor = self._make_sensor(True)
         deps = sensor.deps
-        self.assertTrue(ReadyToRescheduleDep() in deps)
+        self.assertNotIn(ReadyToRescheduleDep(), deps)
 
     def test_invalid_mode(self):
         with self.assertRaises(AirflowException):

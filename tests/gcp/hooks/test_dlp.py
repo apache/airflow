@@ -84,9 +84,7 @@ class TestCloudDLPHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.hook._client, result)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_cancel_dlp_job(self, get_conn):
         self.hook.cancel_dlp_job(dlp_job_id=DLP_JOB_ID, project_id=PROJECT_ID)
 
@@ -94,9 +92,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=DLP_JOB_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_cancel_dlp_job_without_dlp_job_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.cancel_dlp_job(dlp_job_id=None, project_id=PROJECT_ID)
@@ -106,9 +102,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_cancel_dlp_job_without_parent(self, _, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.cancel_dlp_job(dlp_job_id=DLP_JOB_ID)
@@ -118,13 +112,9 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.create_deidentify_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_deidentify_template_with_org_id(self, get_conn, mock_project_id):
+        get_conn.return_value.create_deidentify_template.return_value = API_RESPONSE
         result = self.hook.create_deidentify_template(organization_id=ORGANIZATION_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -137,13 +127,9 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.create_deidentify_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_deidentify_template_with_project_id(self, get_conn):
+        get_conn.return_value.create_deidentify_template.return_value = API_RESPONSE
         result = self.hook.create_deidentify_template(project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -161,18 +147,14 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_deidentify_template_without_parent(self, _, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.create_deidentify_template()
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{"return_value.create_dlp_job.return_value": API_RESPONSE},  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_dlp_job(self, get_conn):
+        get_conn.return_value.create_dlp_job.return_value = API_RESPONSE
         result = self.hook.create_dlp_job(
             project_id=PROJECT_ID, wait_until_finished=False
         )
@@ -193,16 +175,12 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_dlp_job_without_project_id(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.create_dlp_job()
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_dlp_job_with_wait_until_finished(self, get_conn):
         job_for_create = DlpJob(name=DLP_JOB_PATH, state=DlpJob.JobState.PENDING)
         get_conn.return_value.create_dlp_job.return_value = job_for_create
@@ -220,13 +198,9 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.create_inspect_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_inspect_template_with_org_id(self, get_conn, mock_project_id):
+        get_conn.return_value.create_inspect_template.return_value = API_RESPONSE
         result = self.hook.create_inspect_template(organization_id=ORGANIZATION_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -239,13 +213,9 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.create_inspect_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_inspect_template_with_project_id(self, get_conn):
+        get_conn.return_value.create_inspect_template.return_value = API_RESPONSE
         result = self.hook.create_inspect_template(project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -263,20 +233,14 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_inspect_template_without_parent(self, _, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.create_inspect_template()
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.create_job_trigger.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_job_trigger(self, get_conn):
+        get_conn.return_value.create_job_trigger.return_value = API_RESPONSE
         result = self.hook.create_job_trigger(project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -306,13 +270,9 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.create_stored_info_type.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_stored_info_type_with_org_id(self, get_conn, mock_project_id):
+        get_conn.return_value.create_stored_info_type.return_value = API_RESPONSE
         result = self.hook.create_stored_info_type(organization_id=ORGANIZATION_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -325,13 +285,9 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.create_stored_info_type.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_create_stored_info_type_with_project_id(self, get_conn):
+        get_conn.return_value.create_stored_info_type.return_value = API_RESPONSE
         result = self.hook.create_stored_info_type(project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -356,13 +312,9 @@ class TestCloudDLPHook(unittest.TestCase):
         with self.assertRaises(AirflowException):
             self.hook.create_stored_info_type()
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.deidentify_content.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_deidentify_content(self, get_conn):
+        get_conn.return_value.deidentify_content.return_value = API_RESPONSE
         result = self.hook.deidentify_content(project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -410,9 +362,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_deidentify_template_with_project_id(self, get_conn):
         self.hook.delete_deidentify_template(
             template_id=TEMPLATE_ID, project_id=PROJECT_ID
@@ -425,9 +375,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_deidentify_template_without_template_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.delete_deidentify_template(template_id=None)
@@ -437,16 +385,12 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_deidentify_template_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.delete_deidentify_template(template_id=TEMPLATE_ID)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_dlp_job(self, get_conn):
         self.hook.delete_dlp_job(dlp_job_id=DLP_JOB_ID, project_id=PROJECT_ID)
 
@@ -454,9 +398,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=DLP_JOB_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_dlp_job_without_dlp_job_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.delete_dlp_job(dlp_job_id=None, project_id=PROJECT_ID)
@@ -466,9 +408,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_dlp_job_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.delete_dlp_job(dlp_job_id=DLP_JOB_ID)
@@ -478,9 +418,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_inspect_template_with_org_id(self, get_conn, mock_project_id):
         self.hook.delete_inspect_template(
             template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
@@ -493,9 +431,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_inspect_template_with_project_id(self, get_conn):
         self.hook.delete_inspect_template(
             template_id=TEMPLATE_ID, project_id=PROJECT_ID
@@ -508,9 +444,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_inspect_template_without_template_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.delete_inspect_template(template_id=None)
@@ -520,16 +454,12 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_inspect_template_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.delete_inspect_template(template_id=TEMPLATE_ID)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_job_trigger(self, get_conn):
         self.hook.delete_job_trigger(job_trigger_id=TRIGGER_ID, project_id=PROJECT_ID)
 
@@ -537,9 +467,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=JOB_TRIGGER_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_job_trigger_without_trigger_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.delete_job_trigger(job_trigger_id=None, project_id=PROJECT_ID)
@@ -549,9 +477,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_job_trigger_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.delete_job_trigger(job_trigger_id=TRIGGER_ID)
@@ -561,9 +487,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_stored_info_type_with_org_id(self, get_conn, mock_project_id):
         self.hook.delete_stored_info_type(
             stored_info_type_id=STORED_INFO_TYPE_ID, organization_id=ORGANIZATION_ID
@@ -576,9 +500,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_stored_info_type_with_project_id(self, get_conn):
         self.hook.delete_stored_info_type(
             stored_info_type_id=STORED_INFO_TYPE_ID, project_id=PROJECT_ID
@@ -591,9 +513,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_stored_info_type_without_stored_info_type_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.delete_stored_info_type(stored_info_type_id=None)
@@ -603,9 +523,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_delete_stored_info_type_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.delete_stored_info_type(stored_info_type_id=STORED_INFO_TYPE_ID)
@@ -615,13 +533,9 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.get_deidentify_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_deidentify_template_with_org_id(self, get_conn, mock_project_id):
+        get_conn.return_value.get_deidentify_template.return_value = API_RESPONSE
         result = self.hook.get_deidentify_template(
             template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
         )
@@ -634,13 +548,9 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.get_deidentify_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_deidentify_template_with_project_id(self, get_conn):
+        get_conn.return_value.get_deidentify_template.return_value = API_RESPONSE
         result = self.hook.get_deidentify_template(
             template_id=TEMPLATE_ID, project_id=PROJECT_ID
         )
@@ -653,9 +563,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_deidentify_template_without_template_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.get_deidentify_template(template_id=None)
@@ -665,18 +573,14 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_deidentify_template_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.get_deidentify_template(template_id=TEMPLATE_ID)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{"return_value.get_dlp_job.return_value": API_RESPONSE},  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_dlp_job(self, get_conn):
+        get_conn.return_value.get_dlp_job.return_value = API_RESPONSE
         result = self.hook.get_dlp_job(dlp_job_id=DLP_JOB_ID, project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -684,9 +588,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=DLP_JOB_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_dlp_job_without_dlp_job_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.get_dlp_job(dlp_job_id=None, project_id=PROJECT_ID)
@@ -696,9 +598,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_dlp_job_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.get_dlp_job(dlp_job_id=DLP_JOB_ID)
@@ -708,13 +608,9 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.get_inspect_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_inspect_template_with_org_id(self, get_conn, mock_project_id):
+        get_conn.return_value.get_inspect_template.return_value = API_RESPONSE
         result = self.hook.get_inspect_template(
             template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
         )
@@ -727,13 +623,9 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.get_inspect_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_inspect_template_with_project_id(self, get_conn):
+        get_conn.return_value.get_inspect_template.return_value = API_RESPONSE
         result = self.hook.get_inspect_template(
             template_id=TEMPLATE_ID, project_id=PROJECT_ID
         )
@@ -746,9 +638,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_inspect_template_without_template_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.get_inspect_template(template_id=None)
@@ -758,18 +648,14 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_inspect_template_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.get_inspect_template(template_id=TEMPLATE_ID)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{"return_value.get_job_trigger.return_value": API_RESPONSE},  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_job_trigger(self, get_conn):
+        get_conn.return_value.get_job_trigger.return_value = API_RESPONSE
         result = self.hook.get_job_trigger(
             job_trigger_id=TRIGGER_ID, project_id=PROJECT_ID
         )
@@ -779,9 +665,7 @@ class TestCloudDLPHook(unittest.TestCase):
             name=JOB_TRIGGER_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_job_trigger_without_trigger_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.get_job_trigger(job_trigger_id=None, project_id=PROJECT_ID)
@@ -791,9 +675,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_job_trigger_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.get_job_trigger(job_trigger_id=TRIGGER_ID)
@@ -803,13 +685,9 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.get_stored_info_type.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_stored_info_type_with_org_id(self, get_conn, mock_project_id):
+        get_conn.return_value.get_stored_info_type.return_value = API_RESPONSE
         result = self.hook.get_stored_info_type(
             stored_info_type_id=STORED_INFO_TYPE_ID, organization_id=ORGANIZATION_ID
         )
@@ -822,13 +700,9 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.get_stored_info_type.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_stored_info_type_with_project_id(self, get_conn):
+        get_conn.return_value.get_stored_info_type.return_value = API_RESPONSE
         result = self.hook.get_stored_info_type(
             stored_info_type_id=STORED_INFO_TYPE_ID, project_id=PROJECT_ID
         )
@@ -841,9 +715,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_stored_info_type_without_stored_info_type_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.get_stored_info_type(stored_info_type_id=None)
@@ -853,18 +725,14 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_get_stored_info_type_without_parent(self, mock_get_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.get_stored_info_type(stored_info_type_id=STORED_INFO_TYPE_ID)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{"return_value.inspect_content.return_value": API_RESPONSE},  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_inspect_content(self, get_conn):
+        get_conn.return_value.inspect_content.return_value = API_RESPONSE
         result = self.hook.inspect_content(project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -883,9 +751,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_inspect_content_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.inspect_content()
@@ -895,9 +761,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_deidentify_templates_with_org_id(self, get_conn, mock_project_id):
         result = self.hook.list_deidentify_templates(organization_id=ORGANIZATION_ID)
 
@@ -911,9 +775,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_deidentify_templates_with_project_id(self, get_conn):
         result = self.hook.list_deidentify_templates(project_id=PROJECT_ID)
 
@@ -932,16 +794,12 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_deidentify_templates_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.list_deidentify_templates()
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_dlp_jobs(self, get_conn):
         result = self.hook.list_dlp_jobs(project_id=PROJECT_ID)
 
@@ -962,18 +820,14 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_dlp_jobs_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.list_dlp_jobs()
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{"return_value.list_info_types.return_value": API_RESPONSE},  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_info_types(self, get_conn):
+        get_conn.return_value.list_info_types.return_value = API_RESPONSE
         result = self.hook.list_info_types()
 
         self.assertIs(result, API_RESPONSE)
@@ -986,9 +840,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_inspect_templates_with_org_id(self, get_conn, mock_project_id):
         result = self.hook.list_inspect_templates(organization_id=ORGANIZATION_ID)
 
@@ -1002,9 +854,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_inspect_templates_with_project_id(self, get_conn):
         result = self.hook.list_inspect_templates(project_id=PROJECT_ID)
 
@@ -1023,16 +873,12 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_inspect_templates_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.list_inspect_templates()
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_job_triggers(self, get_conn):
         result = self.hook.list_job_triggers(project_id=PROJECT_ID)
 
@@ -1052,9 +898,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_job_triggers_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.list_job_triggers()
@@ -1064,9 +908,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_stored_info_types_with_org_id(self, get_conn, mock_project_id):
         result = self.hook.list_stored_info_types(organization_id=ORGANIZATION_ID)
 
@@ -1080,9 +922,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_stored_info_types_with_project_id(self, get_conn):
         result = self.hook.list_stored_info_types(project_id=PROJECT_ID)
 
@@ -1101,18 +941,14 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_list_stored_info_types_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.list_stored_info_types()
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{"return_value.redact_image.return_value": API_RESPONSE},  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_redact_image(self, get_conn):
+        get_conn.return_value.redact_image.return_value = API_RESPONSE
         result = self.hook.redact_image(project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -1132,20 +968,14 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_redact_image_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.redact_image()
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.reidentify_content.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_reidentify_content(self, get_conn):
+        get_conn.return_value.reidentify_content.return_value = API_RESPONSE
         result = self.hook.reidentify_content(project_id=PROJECT_ID)
 
         self.assertIs(result, API_RESPONSE)
@@ -1178,13 +1008,9 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.update_deidentify_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_deidentify_template_with_org_id(self, get_conn, mock_project_id):
+        get_conn.return_value.update_deidentify_template.return_value = API_RESPONSE
         result = self.hook.update_deidentify_template(
             template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
         )
@@ -1199,13 +1025,9 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.update_deidentify_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_deidentify_template_with_project_id(self, get_conn):
+        get_conn.return_value.update_deidentify_template.return_value = API_RESPONSE
         result = self.hook.update_deidentify_template(
             template_id=TEMPLATE_ID, project_id=PROJECT_ID
         )
@@ -1220,9 +1042,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_deidentify_template_without_template_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.update_deidentify_template(
@@ -1234,9 +1054,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_deidentify_template_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.update_deidentify_template(template_id=TEMPLATE_ID)
@@ -1246,13 +1064,9 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.update_inspect_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_inspect_template_with_org_id(self, get_conn, mock_project_id):
+        get_conn.return_value.update_inspect_template.return_value = API_RESPONSE
         result = self.hook.update_inspect_template(
             template_id=TEMPLATE_ID, organization_id=ORGANIZATION_ID
         )
@@ -1267,13 +1081,9 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.update_inspect_template.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_inspect_template_with_project_id(self, get_conn):
+        get_conn.return_value.update_inspect_template.return_value = API_RESPONSE
         result = self.hook.update_inspect_template(
             template_id=TEMPLATE_ID, project_id=PROJECT_ID
         )
@@ -1288,9 +1098,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_inspect_template_without_template_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.update_inspect_template(
@@ -1302,20 +1110,14 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_inspect_template_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.update_inspect_template(template_id=TEMPLATE_ID)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.update_job_trigger.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_job_trigger(self, get_conn):
+        get_conn.return_value.update_job_trigger.return_value = API_RESPONSE
         result = self.hook.update_job_trigger(
             job_trigger_id=TRIGGER_ID, project_id=PROJECT_ID
         )
@@ -1330,9 +1132,7 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_job_trigger_without_job_trigger_id(self, _):
         with self.assertRaises(AirflowException):
             self.hook.update_job_trigger(job_trigger_id=None, project_id=PROJECT_ID)
@@ -1342,9 +1142,7 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn"
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_job_trigger_without_parent(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException):
             self.hook.update_job_trigger(job_trigger_id=TRIGGER_ID)
@@ -1354,13 +1152,9 @@ class TestCloudDLPHook(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.update_stored_info_type.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_stored_info_type_with_org_id(self, get_conn, mock_project_id):
+        get_conn.return_value.update_stored_info_type.return_value = API_RESPONSE
         result = self.hook.update_stored_info_type(
             stored_info_type_id=STORED_INFO_TYPE_ID, organization_id=ORGANIZATION_ID
         )
@@ -1375,13 +1169,9 @@ class TestCloudDLPHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.dlp.CloudDLPHook.get_conn",
-        **{
-            "return_value.update_stored_info_type.return_value": API_RESPONSE
-        },  # type: ignore
-    )
+    @mock.patch("airflow.gcp.hooks.dlp.CloudDLPHook.get_conn")
     def test_update_stored_info_type_with_project_id(self, get_conn):
+        get_conn.return_value.update_stored_info_type.return_value = API_RESPONSE
         result = self.hook.update_stored_info_type(
             stored_info_type_id=STORED_INFO_TYPE_ID, project_id=PROJECT_ID
         )

@@ -69,8 +69,6 @@ class PodGenerator:
     :type envs: Dict[str, str]
     :param cmds: The command to be run on the pod
     :type cmds: List[str]
-    :param secrets: Secrets to be launched to the pod
-    :type secrets: List[airflow.kubernetes.models.secret.Secret]
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
     :param image_pull_secrets: Any image pull secrets to be given to the pod.

@@ -73,3 +73,8 @@ _vendor/*
 
 # Temporary list of files to make compatible with Pylint
 pylint_todo.txt
+
+# Locally mounted files
+.*egg-info/*
+.bash_history
+.inputrc

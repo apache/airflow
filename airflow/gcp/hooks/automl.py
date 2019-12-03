@@ -335,7 +335,7 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
     @GoogleCloudBaseHook.catch_http_exception
     @GoogleCloudBaseHook.fallback_to_default_project_id
-    def list_column_specs(  # pylint:disable=too-many-arguments
+    def list_column_specs(  # pylint: disable=too-many-arguments
         self,
         dataset_id: str,
         table_spec_id: str,

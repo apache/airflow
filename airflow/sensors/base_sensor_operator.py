@@ -174,4 +174,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         Adds one additional dependency for all sensor operators that
         checks if a sensor task instance can be rescheduled.
         """
-        return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
+        if self.reschedule:
+            return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
+        return BaseOperator.deps.fget(self)

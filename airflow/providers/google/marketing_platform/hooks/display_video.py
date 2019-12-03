@@ -64,7 +64,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
         :type query: Dict[str, Any]
         """
         response = (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .createquery(body=query)
             .execute(num_retries=self.num_retries)
@@ -79,7 +79,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
         :type query_id: str
         """
         (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .deletequery(queryId=query_id)
             .execute(num_retries=self.num_retries)
@@ -93,7 +93,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
         :type query_id: str
         """
         response = (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .getquery(queryId=query_id)
             .execute(num_retries=self.num_retries)
@@ -106,7 +106,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
 
         """
         response = (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .listqueries()
             .execute(num_retries=self.num_retries)
@@ -123,7 +123,7 @@ class GoogleDisplayVideo360Hook(GoogleCloudBaseHook):
         :type params: Dict[str, Any]
         """
         (
-            self.get_conn()  # pylint:disable=no-member
+            self.get_conn()  # pylint: disable=no-member
             .queries()
             .runquery(queryId=query_id, body=params)
             .execute(num_retries=self.num_retries)

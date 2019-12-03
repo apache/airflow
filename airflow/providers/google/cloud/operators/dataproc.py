@@ -34,7 +34,7 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.retry import Retry
-from google.cloud.dataproc_v1beta2.types import (  # pylint:disable=no-name-in-module
+from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-module
     Cluster, Duration, FieldMask,
 )
 from google.protobuf.json_format import MessageToDict
@@ -1410,7 +1410,7 @@ class DataprocWorkflowTemplateInstantiateOperator(BaseOperator):
     template_fields = ['template_id']
 
     @apply_defaults
-    def __init__(  # pylint:disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         template_id: str,
         region: str,
@@ -1662,7 +1662,7 @@ class DataprocUpdateClusterOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(  # pylint:disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         location: str,
         cluster_name: str,

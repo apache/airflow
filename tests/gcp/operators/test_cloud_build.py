@@ -112,11 +112,9 @@ class TestBuildProcessor(TestCase):
 
 
 class TestGcpCloudBuildCreateBuildOperator(TestCase):
-    @mock.patch(  # type: ignore
-        "airflow.gcp.operators.cloud_build.CloudBuildHook",
-        **{"return_value.create_build.return_value": TEST_CREATE_BODY}
-    )
-    def test_minimal_green_path(self, _):
+    @mock.patch("airflow.gcp.operators.cloud_build.CloudBuildHook")
+    def test_minimal_green_path(self, mock_hook):
+        mock_hook.return_value.create_build.return_value = TEST_CREATE_BODY
         operator = CloudBuildCreateBuildOperator(
             body=TEST_CREATE_BODY, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
@@ -128,11 +126,9 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
         with self.assertRaisesRegex(AirflowException, "The required parameter 'body' is missing"):
             CloudBuildCreateBuildOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.operators.cloud_build.CloudBuildHook",
-        **{"return_value.create_build.return_value": TEST_CREATE_BODY}
-    )
+    @mock.patch("airflow.gcp.operators.cloud_build.CloudBuildHook")
     def test_storage_source_replace(self, hook_mock):
+        hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
         current_body = {
             # [START howto_operator_gcp_cloud_build_source_gcs_url]
             "source": {"storageSource": "gs://bucket-name/object-name.tar.gz"},
@@ -165,11 +161,11 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
         }
         hook_mock.create_build(body=expected_result, project_id=TEST_PROJECT_ID)
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.gcp.operators.cloud_build.CloudBuildHook",
-        **{"return_value.create_build.return_value": TEST_CREATE_BODY}
     )
     def test_repo_source_replace(self, hook_mock):
+        hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
         current_body = {
             # [START howto_operator_gcp_cloud_build_source_repo_url]
             "source": {"repoSource": "https://source.developers.google.com/p/airflow-project/r/airflow-repo"},

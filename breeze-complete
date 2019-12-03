@@ -22,7 +22,7 @@ _BREEZE_ALLOWED_ENVS=" docker kubernetes "
 _BREEZE_ALLOWED_BACKENDS=" sqlite mysql postgres "
 _BREEZE_ALLOWED_KUBERNETES_VERSIONS=" v1.13.0 "
 _BREEZE_ALLOWED_KUBERNETES_MODES=" persistent_mode git_mode "
-_BREEZE_ALLOWED_STATIC_CHECKS=" all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml debug-statements detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck"
+_BREEZE_ALLOWED_STATIC_CHECKS=" all all-but-pylint check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint setup-order shellcheck"
 _BREEZE_DEFAULT_DOCKERHUB_USER="apache"
 _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
 

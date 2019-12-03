@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,23 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -uo pipefail
+# https://cwiki.apache.org/confluence/display/INFRA/.asf.yaml+features+for+git+repositories
+---
+github:
+  description: "Apache Airflow - A platform to programmatically author, schedule, and monitor workflows"
+  homepage: https://airflow.apache.org/
+  labels:
+    - airflow
+    - apache
+    - apache-airflow
+    - python
+    - scheduler
+    - workflow
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
-
-rebuild_ci_image_if_needed
-
-run_check_license
-
-script_end
+  enabled_merge_buttons:
+    squash: true
+    merge: false
+    rebase: false

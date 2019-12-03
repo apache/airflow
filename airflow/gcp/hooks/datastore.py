@@ -88,7 +88,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint:disable=no-member
+        resp = (conn  # pylint: disable=no-member
                 .projects()
                 .allocateIds(projectId=project_id, body={'keys': partial_keys})
                 .execute(num_retries=self.num_retries))
@@ -110,7 +110,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint:disable=no-member
+        resp = (conn  # pylint: disable=no-member
                 .projects()
                 .beginTransaction(projectId=project_id, body={})
                 .execute(num_retries=self.num_retries))
@@ -134,7 +134,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint:disable=no-member
+        resp = (conn  # pylint: disable=no-member
                 .projects()
                 .commit(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))
@@ -172,7 +172,7 @@ class DatastoreHook(GoogleCloudBaseHook):
             body['readConsistency'] = read_consistency
         if transaction:
             body['transaction'] = transaction
-        resp = (conn  # pylint:disable=no-member
+        resp = (conn  # pylint: disable=no-member
                 .projects()
                 .lookup(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))
@@ -194,7 +194,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        conn.projects().rollback(  # pylint:disable=no-member
+        conn.projects().rollback(  # pylint: disable=no-member
             projectId=project_id, body={'transaction': transaction}
         ).execute(num_retries=self.num_retries)
 
@@ -215,7 +215,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint:disable=no-member
+        resp = (conn  # pylint: disable=no-member
                 .projects()
                 .runQuery(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))
@@ -236,7 +236,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint:disable=no-member
+        resp = (conn  # pylint: disable=no-member
                 .projects()
                 .operations()
                 .get(name=name)
@@ -258,7 +258,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()  # type: Any
 
-        resp = (conn  # pylint:disable=no-member
+        resp = (conn  # pylint: disable=no-member
                 .projects()
                 .operations()
                 .delete(name=name)
@@ -329,7 +329,7 @@ class DatastoreHook(GoogleCloudBaseHook):
             'entityFilter': entity_filter,
             'labels': labels,
         }  # type: Dict
-        resp = (admin_conn  # pylint:disable=no-member
+        resp = (admin_conn  # pylint: disable=no-member
                 .projects()
                 .export(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))
@@ -380,7 +380,7 @@ class DatastoreHook(GoogleCloudBaseHook):
             'entityFilter': entity_filter,
             'labels': labels,
         }  # type: Dict
-        resp = (admin_conn  # pylint:disable=no-member
+        resp = (admin_conn  # pylint: disable=no-member
                 .projects()
                 .import_(projectId=project_id, body=body)
                 .execute(num_retries=self.num_retries))

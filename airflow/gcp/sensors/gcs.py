@@ -53,7 +53,7 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  bucket: str,
-                 object: str,  # pylint:disable=redefined-builtin
+                 object: str,  # pylint: disable=redefined-builtin
                  google_cloud_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args, **kwargs) -> None:
@@ -108,7 +108,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  bucket: str,
-                 object: str,  # pylint:disable=redefined-builtin
+                 object: str,  # pylint: disable=redefined-builtin
                  ts_func: Callable = ts_function,
                  google_cloud_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
