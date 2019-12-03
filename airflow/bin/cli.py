@@ -1059,6 +1059,14 @@ def serve_logs(args):
     flask_app.run(host='0.0.0.0', port=worker_log_server_port)
 
 
+def _serve_logs(env, skip_serve_logs=False):
+    """Starts serve_logs sub-process"""
+    if skip_serve_logs is False:
+        sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+        return sub_proc
+    return None
+
+
 @cli_utils.action_logging
 def worker(args):
     env = os.environ.copy()
@@ -1073,8 +1081,11 @@ def worker(args):
     from celery.bin import worker
 
     autoscale = args.autoscale
+    skip_serve_logs = args.skip_serve_logs
+
     if autoscale is None and conf.has_option("celery", "worker_autoscale"):
         autoscale = conf.get("celery", "worker_autoscale")
+
     worker = worker.worker(app=celery_app)
     options = {
         'optimization': 'fair',
@@ -1106,9 +1117,8 @@ def worker(args):
             stderr=stderr,
         )
         with ctx:
-            sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+            sp = _serve_logs(env, skip_serve_logs)
             worker.run(**options)
-            sp.kill()
 
         stdout.close()
         stderr.close()
@@ -1116,9 +1126,11 @@ def worker(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+        sp = _serve_logs(env, skip_serve_logs)
 
         worker.run(**options)
+
+    if sp:
         sp.kill()
 
 
@@ -2024,6 +2036,11 @@ class CLIFactory(object):
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
+        'skip_serve_logs': Arg(
+            ("-s", "--skip_serve_logs"),
+            default=False,
+            help="Don't start the serve logs process along with the workers.",
+            action="store_true"),
     }
     subparsers = (
         {
@@ -2173,7 +2190,7 @@ class CLIFactory(object):
             'func': worker,
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
         }, {
             'func': flower,
             'help': "Start a Celery Flower",
