@@ -1224,6 +1224,7 @@ class SchedulerJob(BaseJob):
             # set TIs to queued state
             for task_instance in tis_to_set_to_scheduled:
                 task_instance.state = State.SCHEDULED
+                self.executor.queued_tasks.pop(task_instance.key)
 
             task_instance_str = "\n\t".join(
                 [repr(x) for x in tis_to_set_to_scheduled])
