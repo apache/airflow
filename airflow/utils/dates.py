@@ -59,6 +59,8 @@ def date_range(start_date, end_date=None, num=None, delta=None):
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
     :type num: int
+    :param delta: step length. It can be datetime.timedelta or cron expression as string
+    :type delta: datetime.timedelta or str
     """
     if not delta:
         return []
@@ -71,12 +73,17 @@ def date_range(start_date, end_date=None, num=None, delta=None):
 
     delta_iscron = False
     tz = start_date.tzinfo
+
     if isinstance(delta, str):
         delta_iscron = True
-        start_date = timezone.make_naive(start_date, tz)
+        if timezone.is_localized(start_date):
+            start_date = timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
+    else:
+        raise Exception("Wait. delta must be either datetime.timedelta or cron expression as str")
+
     dates = []
     if end_date:
         if timezone.is_naive(start_date) and not timezone.is_naive(end_date):
