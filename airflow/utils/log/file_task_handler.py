@@ -102,8 +102,11 @@ class FileTaskHandler(logging.Handler):
             models.Log.extra.like('%--raw%')
         ).order_by(models.Log.id).limit(1).offset(try_number - 1).first()
 
-        import json
-        hostname = json.loads(res_log.extra)["host_name"]
+        if res_log is not None:
+            import json
+            hostname = json.loads(res_log.extra)["host_name"]
+        else:
+            hostname = ti.hostname
 
         return hostname
 
