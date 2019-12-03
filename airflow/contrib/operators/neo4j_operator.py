@@ -37,6 +37,7 @@ class Neo4JOperator(BaseOperator):
     """
     This operator provides Airflow DAGs the ability to execute a cypher query
     and save the results of the query to a CSV file.
+
     :param cypher_query: required cypher query to be executed on the Neo4J database
     :type cypher_query: str
     :param output_filename: required filename to produce with output from the query
@@ -71,8 +72,10 @@ class Neo4JOperator(BaseOperator):
     def execute(self, context):
         """
         Executes the supplied query and saves the results as a CSV file on disk
+
         :param context:
-        :return:
+        :return: Row Count
+        :rtype: int
         """
         if isfile(self.cypher_query):
             with open(self.cypher_query, 'r') as input_file:
@@ -95,8 +98,11 @@ class Neo4JOperator(BaseOperator):
         """
         Local utility method to write out the results of query execution
         to a CSV. Better options could be added in the future
+
         :param result: Result of query execution
-        :return: int: Count of rows written
+        :type result: neo4j.BoltStatementResult
+        :return: Count of rows written
+        :rtype: int
         """
         total_row_count = 0
 

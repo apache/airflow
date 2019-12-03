@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Test the functioning of the Neo4J Operator for Apache Airflow"""
+"""
+Test the functioning of the Neo4J Operator for Apache Airflow
+"""
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -26,10 +28,14 @@ from airflow.contrib.operators import neo4j_operator
 
 
 class TestNeo4JOperator(unittest.TestCase):
-    """This class tests the minimum functionality of the Neo4J operator"""
+    """
+    This class tests the minimum functionality of the Neo4J operator
+    """
 
     def test_init(self):
-        """Simple test to validate we can instantiate the class"""
+        """
+        Simple test to validate we can instantiate the class
+        """
         operator = neo4j_operator.Neo4JOperator(task_id="test_task",
                                                 cypher_query="QUERY",
                                                 output_filename="filename.txt",
@@ -40,7 +46,9 @@ class TestNeo4JOperator(unittest.TestCase):
     @patch('airflow.contrib.hooks.neo4j_hook.Neo4JHook.run_query')
     @patch('airflow.contrib.hooks.neo4j_hook.Neo4JHook.__init__', return_value=None)
     def test_execute(self, mock_hook_init, mock_hook_run_query):
-        """Test that the execute() method will make the expected calls to the hook"""
+        """
+        Test that the execute() method will make the expected calls to the hook
+        """
         operator = neo4j_operator.Neo4JOperator(task_id="test_task",
                                                 cypher_query="QUERY",
                                                 output_filename="filename.txt",
@@ -52,8 +60,10 @@ class TestNeo4JOperator(unittest.TestCase):
         mock_hook_run_query.assert_called_once_with(cypher_query='QUERY')
 
     def test_make_csv(self):
-        """Test that make_csv will use the results from query execution to produce
-        the desired output file"""
+        """
+        Test that make_csv will use the results from query execution to produce
+        the desired output file
+        """
         operator = neo4j_operator.Neo4JOperator(task_id="test_task",
                                                 cypher_query="QUERY",
                                                 output_filename="filename.txt",

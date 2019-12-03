@@ -16,16 +16,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This hook provides minimal thin wrapper around the neo4j python library to provide query execution"""
+"""
+This hook provides minimal thin wrapper around the neo4j python library to provide query execution
+"""
 from neo4j import BoltStatementResult, Driver, GraphDatabase, Session
 
 from airflow.hooks.base_hook import BaseHook
 
 
 class Neo4JHook(BaseHook):
-    """This class enables the neo4j operator to execute queries against a configured neo4j server.
-    It requires the configuration name as set in Airflow -> Connections ->
-    :param n4j_conn_id:
+    """
+    This class enables the neo4j operator to execute queries against a configured neo4j server.
+    It requires the configuration name as set in Airflow -> Admin -> Connections
+
+    :param n4j_conn_id: Name of connection configured in Airflow
     :type n4j_conn_id: str
     """
     n4j_conn_id: str
@@ -45,9 +49,8 @@ class Neo4JHook(BaseHook):
         :param n4j_conn_id: Name of connection configured in Airflow
         :type n4j_conn_id: str
         :return: dictionary with configuration values
-        :rtype dict
+        :rtype: dict
         """
-        # Initialize with empty dictionary
         config: dict = {}
         connection_object = Neo4JHook.get_connection(n4j_conn_id)
         if connection_object.login and connection_object.host:
@@ -60,11 +63,12 @@ class Neo4JHook(BaseHook):
     def get_driver(config: dict) -> Driver:
         """
         Establish a TCP connection to the server
+
         :param config: Dictionary containing the host and credentials needed to connect
-        :return Driver connection
-        :rtype neo4j.Driver
+        :type config: dict containing 'host' and 'credentials' keys
+        :return: Driver connection
+        :rtype: neo4j.Driver
         """
-        # Check if we already have a driver we can re-use before creating a new one
         return GraphDatabase.driver(
             uri=config['host'],
             auth=config['credentials']
@@ -74,19 +78,24 @@ class Neo4JHook(BaseHook):
     def get_session(driver: Driver) -> Session:
         """
         Get a neo4j.session from the driver.
+
         :param driver Neo4J Driver (established connection to a server)
-        :return Session Neo4J session which may contain many transactions
-        :rtype neo4j.Session
+        :type driver: neo4j.Driver
+        :return: Neo4J session which may contain many transactions
+        :rtype: neo4j.Session
         """
-        # Check if we already have a session we can re-use before creating a new one
         return driver.session()
 
     def run_query(self, cypher_query: str, parameters=None) -> BoltStatementResult:
         """
         Uses a session to execute submit a query for execution
+
         :param cypher_query: Cypher query eg. MATCH (a) RETURN (a)
+        :type cypher_query: str
         :param parameters: Optional list of parameters to use with the query
-        :return: neo4j.BoltStatementResult see https://neo4j.com/docs/api/python-driver/current/results.html
+        :type parameters: list[str]
+        :return: Result of query execution (nodes & relationships)
+        :rtype: neo4j.BoltStatementResult see https://neo4j.com/docs/api/python-driver/current/results.html
         """
         neo4j_config: dict = Neo4JHook.get_config(self.n4j_conn_id)
         neo4j_driver: Driver = Neo4JHook.get_driver(neo4j_config)
