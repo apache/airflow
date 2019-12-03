@@ -159,7 +159,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         # Needs to load from file for a store_serialized_dags dagbag.
         enforce_from_file = False
         if self.store_serialized_dags and dag is not None:
-            from airflow.serialization.serialized_dag import SerializedDAG
+            from airflow.serialization.serialized_objects import SerializedDAG
             enforce_from_file = isinstance(dag, SerializedDAG)
 
         # If the dag corresponding to root_dag_id is absent or expired
