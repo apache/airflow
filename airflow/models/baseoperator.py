@@ -405,6 +405,11 @@ class BaseOperator(Operator, LoggingMixin):
 
         self.dag = dag or DagContext.get_current_dag()
 
+        # subdag parameter is only set for SubDagOperator.
+        # Setting it to None by default as other Operators do not have that field
+        from airflow.models.dag import DAG
+        self.subdag: Optional[DAG] = None
+
         self._log = logging.getLogger("airflow.task.operators")
 
         # Lineage
@@ -1090,7 +1095,7 @@ class BaseOperatorLink(metaclass=ABCMeta):
     Abstract base class that defines how we get an operator link.
     """
 
-    operators = []   # type: List[Type[BaseOperator]]
+    operators: List[Type[BaseOperator]] = []
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link

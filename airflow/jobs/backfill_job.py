@@ -24,11 +24,13 @@ from datetime import datetime
 
 from sqlalchemy.orm.session import Session, make_transient
 
-from airflow import executors, models
+from airflow import models
 from airflow.exceptions import (
     AirflowException, DagConcurrencyLimitReached, NoAvailablePoolSlot, PoolNotFound,
     TaskConcurrencyLimitReached,
 )
+from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle, DagRun
 from airflow.ti_deps.dep_context import BACKFILL_QUEUED_DEPS, DepContext
@@ -487,8 +489,7 @@ class BackfillJob(BaseJob):
                         session.merge(ti)
 
                         cfg_path = None
-                        if executor.__class__ in (executors.LocalExecutor,
-                                                  executors.SequentialExecutor):
+                        if executor.__class__ in (LocalExecutor, SequentialExecutor):
                             cfg_path = tmp_configuration_copy()
 
                         executor.queue_task_instance(
@@ -740,8 +741,7 @@ class BackfillJob(BaseJob):
 
         # picklin'
         pickle_id = None
-        if not self.donot_pickle and self.executor.__class__ not in (
-                executors.LocalExecutor, executors.SequentialExecutor):
+        if not self.donot_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
             pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()

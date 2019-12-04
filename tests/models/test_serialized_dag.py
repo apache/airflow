@@ -24,7 +24,7 @@ import unittest
 from airflow import example_dags as example_dags_module
 from airflow.models import DagBag
 from airflow.models.serialized_dag import SerializedDagModel as SDM
-from airflow.serialization.serialized_dag import SerializedDAG
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import db
 
 

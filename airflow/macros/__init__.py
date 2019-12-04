@@ -85,12 +85,3 @@ def datetime_diff_for_humans(dt, since=None):
     import pendulum
 
     return pendulum.instance(dt).diff_for_humans(since)
-
-
-def _integrate_plugins():
-    """Integrate plugins to the context"""
-    import sys
-    from airflow.plugins_manager import macros_modules
-    for macros_module in macros_modules:
-        sys.modules[macros_module.__name__] = macros_module
-        globals()[macros_module._name] = macros_module  # pylint: disable=protected-access

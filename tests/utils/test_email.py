@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,7 +24,8 @@ from email.mime.text import MIMEText
 
 import mock
 
-from airflow import conf, utils
+from airflow import utils
+from airflow.configuration import conf
 from airflow.utils.email import get_email_address_list
 from tests import conf_vars
 

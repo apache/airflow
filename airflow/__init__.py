@@ -44,23 +44,8 @@ __version__ = version.version
 
 settings.initialize()
 
-login = None  # type: Optional[Callable]
+from airflow.plugins_manager import integrate_plugins
 
-from airflow import executors
-from airflow import hooks
-from airflow import macros
-from airflow import operators
-from airflow import sensors
+login: Optional[Callable] = None
 
-
-class AirflowMacroPlugin:
-    # pylint: disable=missing-docstring
-    def __init__(self, namespace):
-        self.namespace = namespace
-
-
-operators._integrate_plugins()  # pylint: disable=protected-access
-sensors._integrate_plugins()  # pylint: disable=protected-access
-hooks._integrate_plugins()  # pylint: disable=protected-access
-executors._integrate_plugins()  # pylint: disable=protected-access
-macros._integrate_plugins()  # pylint: disable=protected-access
+integrate_plugins()

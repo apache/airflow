@@ -20,6 +20,7 @@
 import uuid
 
 from sqlalchemy import Boolean, Column, String, true as sqltrue
+from sqlalchemy.orm import Session
 
 from airflow.models.base import Base
 from airflow.utils.db import provide_session
@@ -32,13 +33,13 @@ class KubeResourceVersion(Base):
 
     @staticmethod
     @provide_session
-    def get_current_resource_version(session=None):
+    def get_current_resource_version(session: Session = None) -> str:
         (resource_version,) = session.query(KubeResourceVersion.resource_version).one()
         return resource_version
 
     @staticmethod
     @provide_session
-    def checkpoint_resource_version(resource_version, session=None):
+    def checkpoint_resource_version(resource_version, session: Session = None) -> None:
         if resource_version:
             session.query(KubeResourceVersion).update({
                 KubeResourceVersion.resource_version: resource_version
@@ -47,7 +48,7 @@ class KubeResourceVersion(Base):
 
     @staticmethod
     @provide_session
-    def reset_resource_version(session=None):
+    def reset_resource_version(session: Session = None) -> str:
         session.query(KubeResourceVersion).update({
             KubeResourceVersion.resource_version: '0'
         })
@@ -62,7 +63,7 @@ class KubeWorkerIdentifier(Base):
 
     @staticmethod
     @provide_session
-    def get_or_create_current_kube_worker_uuid(session=None):
+    def get_or_create_current_kube_worker_uuid(session: Session = None) -> str:
         (worker_uuid,) = session.query(KubeWorkerIdentifier.worker_uuid).one()
         if worker_uuid == '':
             worker_uuid = str(uuid.uuid4())
@@ -71,7 +72,7 @@ class KubeWorkerIdentifier(Base):
 
     @staticmethod
     @provide_session
-    def checkpoint_kube_worker_uuid(worker_uuid, session=None):
+    def checkpoint_kube_worker_uuid(worker_uuid: str, session: Session = None) -> None:
         if worker_uuid:
             session.query(KubeWorkerIdentifier).update({
                 KubeWorkerIdentifier.worker_uuid: worker_uuid

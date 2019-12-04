@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -68,13 +67,13 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 LOG_FORMAT = conf.get('core', 'log_format')
 SIMPLE_LOG_FORMAT = conf.get('core', 'simple_log_format')
 
-SQL_ALCHEMY_CONN = None  # type: Optional[str]
-DAGS_FOLDER = None  # type: Optional[str]
-PLUGINS_FOLDER = None  # type: Optional[str]
-LOGGING_CLASS_PATH = None  # type: Optional[str]
+SQL_ALCHEMY_CONN: Optional[str] = None
+DAGS_FOLDER: Optional[str] = None
+PLUGINS_FOLDER: Optional[str] = None
+LOGGING_CLASS_PATH: Optional[str] = None
 
-engine = None  # type: Optional[Engine]
-Session = None  # type: Optional[SASession]
+engine: Optional[Engine] = None
+Session: Optional[SASession] = None
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json

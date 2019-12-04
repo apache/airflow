@@ -35,21 +35,24 @@ from setproctitle import setproctitle
 from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.session import make_transient
 
-from airflow import executors, models, settings
+from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
+from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, SCHEDULED_DEPS, DepContext
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
-    AbstractDagFileProcessor, DagFileProcessorAgent, SimpleDag, SimpleDagBag, SimpleTaskInstance,
-    list_py_file_paths,
+    AbstractDagFileProcessor, DagFileProcessorAgent, SimpleDag, SimpleDagBag,
 )
 from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
+from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.state import State
 
@@ -64,7 +67,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     :param dag_id_white_list: If specified, only look at these DAG ID's
     :type dag_id_white_list: list[unicode]
     :param zombies: zombie task instances to kill
-    :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
+    :type zombies: list[airflow.models.taskinstance.SimpleTaskInstance]
     """
 
     # Counter that increments every time an instance of this class is created
@@ -116,7 +119,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :param thread_name: the name to use for the process that is launched
         :type thread_name: unicode
         :param zombies: zombie task instances to kill
-        :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
+        :type zombies: list[airflow.models.taskinstance.SimpleTaskInstance]
         :return: the process that was launched
         :rtype: multiprocessing.Process
         """
@@ -1013,7 +1016,7 @@ class SchedulerJob(BaseJob):
         :type task_instances: list[airflow.models.TaskInstance]
         :param acceptable_states: Filters the TaskInstances updated to be in these states
         :type acceptable_states: Iterable[State]
-        :rtype: list[airflow.utils.dag_processing.SimpleTaskInstance]
+        :rtype: list[airflow.models.taskinstance.SimpleTaskInstance]
         """
         if len(task_instances) == 0:
             session.commit()
@@ -1282,8 +1285,7 @@ class SchedulerJob(BaseJob):
 
         # DAGs can be pickled for easier remote execution by some executors
         pickle_dags = False
-        if self.do_pickle and self.executor.__class__ not in \
-                (executors.LocalExecutor, executors.SequentialExecutor):
+        if self.do_pickle and self.executor.__class__ not in (LocalExecutor, SequentialExecutor):
             pickle_dags = True
 
         self.log.info("Processing each file at most %s times", self.num_runs)
@@ -1494,7 +1496,7 @@ class SchedulerJob(BaseJob):
         :param file_path: the path to the Python file that should be executed
         :type file_path: unicode
         :param zombies: zombie task instances to kill.
-        :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
+        :type zombies: list[airflow.models.taskinstance.SimpleTaskInstance]
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
         :type pickle_dags: bool

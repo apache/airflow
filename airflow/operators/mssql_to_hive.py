@@ -106,9 +106,9 @@ class MsSqlToHiveTransfer(BaseOperator):
         Maps MsSQL type to Hive type.
         """
         map_dict = {
-            pymssql.BINARY.value: 'INT',
-            pymssql.DECIMAL.value: 'FLOAT',
-            pymssql.NUMBER.value: 'INT',
+            pymssql.BINARY.value: 'INT',  # pylint: disable=c-extension-no-member
+            pymssql.DECIMAL.value: 'FLOAT',  # pylint: disable=c-extension-no-member
+            pymssql.NUMBER.value: 'INT',  # pylint: disable=c-extension-no-member
         }
         return map_dict.get(mssql_type, 'STRING')
 
