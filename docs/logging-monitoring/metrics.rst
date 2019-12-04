@@ -112,6 +112,11 @@ Name                                                Description
 ``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
 ``pool.running_slots.<pool_name>``                  Number of running slots in the pool
 ``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
+``smart_sensor_operator.poked_tasks``               Number of tasks poked by the smart sensor in the previous poking loop
+``smart_sensor_operator.poked_success``             Number of newly succeeded tasks poked by the smart sensor in the previous poking loop
+``smart_sensor_operator.poked_exception``           Number of exceptions in the previous smart sensor poking loop
+``smart_sensor_operator.exception_failures``        Number of failures caused by exception in the previous smart sensor poking loop
+``smart_sensor_operator.infra_failures``            Number of infrastructure failures in the previous smart sensor poking loop
 =================================================== ========================================================================
 
 Timers

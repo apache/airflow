@@ -2337,3 +2337,36 @@
     to identify the task.
     Should be supplied in the format: ``key = value``
   options: []
+- name: smart_sensor
+  description: ~
+  options:
+    - name: use_smart_sensor
+      description: |
+        When `use_smart_sensor` is True, Airflow redirects multiple qualified sensor tasks to
+        smart sensor task.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
+    - name: shard_code_upper_limit
+      description: |
+        `shard_code_upper_limit` is the upper limit of `shard_code` value. The `shard_code` is generated
+        by `hashcode % shard_code_upper_limit`.
+      version_added: ~
+      type: int
+      example: ~
+      default: "10000"
+    - name: shards
+      description: |
+        The number of running smart sensor processes for each service.
+      version_added: ~
+      type: int
+      example: ~
+      default: "5"
+    - name: sensors_enabled
+      description: |
+        comma separated sensor classes support in smart_sensor.
+      version_added: ~
+      type: string
+      example: ~
+      default: "NamedHivePartitionSensor"
