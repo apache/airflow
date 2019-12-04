@@ -658,15 +658,15 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         for State.LAUNCHED
         """
         assert self.kube_client, NOT_STARTED_MESSAGE
-        queued_tasks = session\
+        all_queued_tasks = session\
             .query(TaskInstance)\
             .filter(TaskInstance.state == State.QUEUED).all()
         self.log.info(
             'When executor started up, found %s queued task instances',
-            len(queued_tasks)
+            len(all_queued_tasks)
         )
 
-        for task in queued_tasks:
+        for task in all_queued_tasks:
             # noinspection PyProtectedMember
             # pylint: disable=protected-access
             dict_string = (
@@ -769,10 +769,10 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def sync(self) -> None:
         """Synchronize task state."""
-        if self.running:
-            self.log.debug('self.running: %s', self.running)
-        if self.queued_tasks:
-            self.log.debug('self.queued: %s', self.queued_tasks)
+        if self._running:
+            self.log.debug('self._running: %s', self._running)
+        if self._queued_tasks:
+            self.log.debug('self.queued: %s', self._queued_tasks)
         assert self.kube_scheduler, NOT_STARTED_MESSAGE
         assert self.kube_config, NOT_STARTED_MESSAGE
         assert self.result_queue, NOT_STARTED_MESSAGE
@@ -823,10 +823,10 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.kube_scheduler.delete_pod(pod_id)
                 self.log.info('Deleted pod: %s', str(key))
             try:
-                self.running.remove(key)
+                self._running.remove(key)
             except KeyError:
                 self.log.debug('Could not find key: %s', str(key))
-        self.event_buffer[key] = state
+        self._event_buffer[key] = state
 
     def _flush_task_queue(self) -> None:
         assert self.task_queue, NOT_STARTED_MESSAGE

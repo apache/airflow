@@ -616,7 +616,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti1_3)
         session.commit()
 
-        executor.queued_tasks[ti1_1.key] = ti1_1
+        executor._queued_tasks[ti1_1.key] = ti1_1
 
         res = scheduler._find_executable_task_instances(
             dagbag,
@@ -947,7 +947,7 @@ class TestSchedulerJob(unittest.TestCase):
             dag=dag,
             owner='airflow')
 
-        # If there's no left over task in executor.queued_tasks, nothing happens
+        # If there's no left over task in executor._queued_tasks, nothing happens
         session = settings.Session()
         scheduler_job = SchedulerJob()
         mock_logger = mock.MagicMock()
@@ -961,7 +961,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.query(TI).delete()
         session.commit()
         key = 'dag_id', 'task_id', DEFAULT_DATE, 1
-        test_executor.queued_tasks[key] = 'value'
+        test_executor._queued_tasks[key] = 'value'
         ti = TI(task, DEFAULT_DATE)
         ti.state = State.QUEUED
         session.merge(ti)
@@ -1060,7 +1060,7 @@ class TestSchedulerJob(unittest.TestCase):
         # avoid sleep. Done flag is set to true to exist the loop immediately.
         scheduler = SchedulerJob(num_runs=0, processor_poll_interval=0)
         executor = TestExecutor(do_update=False)
-        executor.queued_tasks
+        executor._queued_tasks
         scheduler.executor = executor
         processor = mock.MagicMock()
         processor.harvest_simple_dags.return_value = [dag]
@@ -1733,12 +1733,12 @@ class TestSchedulerJob(unittest.TestCase):
             session.merge(ti)
         session.commit()
 
-        self.assertEqual(len(scheduler.executor.queued_tasks), 0, "Check test pre-condition")
+        self.assertEqual(len(scheduler.executor._queued_tasks), 0, "Check test pre-condition")
         scheduler._execute_task_instances(dagbag,
                                           (State.SCHEDULED, State.UP_FOR_RETRY),
                                           session=session)
 
-        self.assertEqual(len(scheduler.executor.queued_tasks), 1)
+        self.assertEqual(len(scheduler.executor._queued_tasks), 1)
 
     def test_scheduler_auto_align(self):
         """
@@ -1834,11 +1834,11 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler.run()
 
         do_schedule()
-        self.assertEqual(1, len(executor.queued_tasks))
-        executor.queued_tasks.clear()
+        self.assertEqual(1, len(executor._queued_tasks))
+        executor._queued_tasks.clear()
 
         do_schedule()
-        self.assertEqual(2, len(executor.queued_tasks))
+        self.assertEqual(2, len(executor._queued_tasks))
 
     def test_scheduler_sla_miss_callback(self):
         """
@@ -2118,7 +2118,7 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler.run()
 
         do_schedule()
-        self.assertEqual(1, len(executor.queued_tasks))
+        self.assertEqual(1, len(executor._queued_tasks))
 
         def run_with_error(task, ignore_ti_state=False):
             try:
@@ -2126,7 +2126,7 @@ class TestSchedulerJob(unittest.TestCase):
             except AirflowException:
                 pass
 
-        ti_tuple = next(iter(executor.queued_tasks.values()))
+        ti_tuple = next(iter(executor._queued_tasks.values()))
         (_, _, _, simple_ti) = ti_tuple
         ti = simple_ti.construct_task_instance()
         ti.task = dag_task1
@@ -2154,16 +2154,16 @@ class TestSchedulerJob(unittest.TestCase):
         # as scheduler will move state from SCHEDULED to QUEUED
 
         # now the executor has cleared and it should be allowed the re-queue,
-        # but tasks stay in the executor.queued_tasks after executor.heartbeat()
+        # but tasks stay in the executor._queued_tasks after executor.heartbeat()
         # will be set back to SCHEDULED state
-        executor.queued_tasks.clear()
+        executor._queued_tasks.clear()
         do_schedule()
         ti.refresh_from_db()
 
         self.assertEqual(ti.state, State.SCHEDULED)
 
         # To verify that task does get re-queued.
-        executor.queued_tasks.clear()
+        executor._queued_tasks.clear()
         executor.do_update = True
         do_schedule()
         ti.refresh_from_db()

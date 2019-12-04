@@ -34,13 +34,13 @@ class TestBaseExecutor(unittest.TestCase):
         key2 = ("my_dag2", "my_task1", date, try_number)
         key3 = ("my_dag2", "my_task2", date, try_number)
         state = State.SUCCESS
-        executor.event_buffer[key1] = state
-        executor.event_buffer[key2] = state
-        executor.event_buffer[key3] = state
+        executor._event_buffer[key1] = state
+        executor._event_buffer[key2] = state
+        executor._event_buffer[key3] = state
 
         self.assertEqual(len(executor.get_event_buffer(("my_dag1",))), 1)
         self.assertEqual(len(executor.get_event_buffer()), 2)
-        self.assertEqual(len(executor.event_buffer), 0)
+        self.assertEqual(len(executor._event_buffer), 0)
 
     @mock.patch('airflow.executors.base_executor.BaseExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
@@ -49,6 +49,6 @@ class TestBaseExecutor(unittest.TestCase):
         executor = BaseExecutor()
         executor.heartbeat()
         calls = [mock.call('executor.open_slots', mock.ANY),
-                 mock.call('executor.queued_tasks', mock.ANY),
-                 mock.call('executor.running_tasks', mock.ANY)]
+                 mock.call('executor._queued_tasks', mock.ANY),
+                 mock.call('executor._running', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)

@@ -106,8 +106,9 @@ class MultipleExecutors(BaseExecutorProtocol):
                 return True
         return False
 
-    def get_queued_tasks_keys(self) -> Iterable[TaskInstanceKeyType]:
-        return chain(*[executor.get_queued_tasks_keys() for executor in self.executor_set])
+    @property
+    def queued_tasks_keys(self) -> Iterable[TaskInstanceKeyType]:
+        return chain(*[executor.queued_tasks_keys for executor in self.executor_set])
 
     def get_event_buffer(self, dag_ids=None) -> Dict[TaskInstanceKeyType, Optional[str]]:
         cleared_events: Dict[TaskInstanceKeyType, Optional[str]] = {}

@@ -224,8 +224,8 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor = KubernetesExecutor()
         executor.heartbeat()
         calls = [mock.call('executor.open_slots', mock.ANY),
-                 mock.call('executor.queued_tasks', mock.ANY),
-                 mock.call('executor.running_tasks', mock.ANY)]
+                 mock.call('executor._queued_tasks', mock.ANY),
+                 mock.call('executor._running', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
 
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
@@ -236,7 +236,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.start()
         key = ('dag_id', 'task_id', 'ex_time', 'try_number1')
         executor._change_state(key, State.RUNNING, 'pod_id')
-        self.assertTrue(executor.event_buffer[key] == State.RUNNING)
+        self.assertTrue(executor._event_buffer[key] == State.RUNNING)
 
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
@@ -248,7 +248,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.start()
         key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
         executor._change_state(key, State.SUCCESS, 'pod_id')
-        self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
+        self.assertTrue(executor._event_buffer[key] == State.SUCCESS)
         mock_delete_pod.assert_called_once_with('pod_id')
 
     @mock.patch('airflow.executors.kubernetes_executor.KubeConfig')
@@ -261,7 +261,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.start()
         key = ('dag_id', 'task_id', 'ex_time', 'try_number3')
         executor._change_state(key, State.FAILED, 'pod_id')
-        self.assertTrue(executor.event_buffer[key] == State.FAILED)
+        self.assertTrue(executor._event_buffer[key] == State.FAILED)
         mock_delete_pod.assert_called_once_with('pod_id')
 # pylint: enable=unused-argument
 
@@ -276,7 +276,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor.start()
         key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
         executor._change_state(key, State.SUCCESS, 'pod_id')
-        self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
+        self.assertTrue(executor._event_buffer[key] == State.SUCCESS)
         mock_delete_pod.assert_not_called()
 
 

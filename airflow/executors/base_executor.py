@@ -141,7 +141,8 @@ class BaseExecutorProtocol(LoggingMixin):
         """
         raise NotImplementedError()
 
-    def get_queued_tasks_keys(self) -> Iterable[TaskInstanceKeyType]:
+    @property
+    def queued_tasks_keys(self) -> Iterable[TaskInstanceKeyType]:
         """
         Returns task keys in iterable form.
         """
@@ -169,11 +170,10 @@ class BaseExecutor(BaseExecutorProtocol, metaclass=ABCMeta):
     """
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
-        self.parallelism: int = parallelism
-        self.queued_tasks: OrderedDict[TaskInstanceKeyType, QueuedTaskInstanceType] \
-            = OrderedDict()
-        self.running: Set[TaskInstanceKeyType] = set()
-        self.event_buffer: Dict[TaskInstanceKeyType, Optional[str]] = {}
+        self._parallelism: int = parallelism
+        self._queued_tasks: OrderedDict[TaskInstanceKeyType, QueuedTaskInstanceType] = OrderedDict()
+        self._running: Set[TaskInstanceKeyType] = set()
+        self._event_buffer: Dict[TaskInstanceKeyType, Optional[str]] = {}
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
@@ -182,7 +182,7 @@ class BaseExecutor(BaseExecutorProtocol, metaclass=ABCMeta):
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
         """
-        return task_instance.key in self.queued_tasks or task_instance.key in self.running
+        return task_instance.key in self._queued_tasks or task_instance.key in self._running
 
     def queue_command(self,
                       simple_task_instance: SimpleTaskInstance,
@@ -190,9 +190,10 @@ class BaseExecutor(BaseExecutorProtocol, metaclass=ABCMeta):
                       priority: int = 1,
                       queue: Optional[str] = None):
         """Queues command to task"""
-        if simple_task_instance.key not in self.queued_tasks and simple_task_instance.key not in self.running:
+        if simple_task_instance.key not in self._queued_tasks \
+                and simple_task_instance.key not in self._running:
             self.log.info("Adding to queue: %s", command)
-            self.queued_tasks[simple_task_instance.key] = (command, priority, queue, simple_task_instance)
+            self._queued_tasks[simple_task_instance.key] = (command, priority, queue, simple_task_instance)
         else:
             self.log.info("could not queue task %s", simple_task_instance.key)
 
@@ -234,20 +235,20 @@ class BaseExecutor(BaseExecutorProtocol, metaclass=ABCMeta):
         """
         Heartbeat sent to trigger new jobs.
         """
-        if not self.parallelism:
-            open_slots = len(self.queued_tasks)
+        if not self._parallelism:
+            open_slots = len(self._queued_tasks)
         else:
-            open_slots = self.parallelism - len(self.running)
+            open_slots = self._parallelism - len(self._running)
 
-        num_running_tasks = len(self.running)
-        num_queued_tasks = len(self.queued_tasks)
+        num_running_tasks = len(self._running)
+        num_queued_tasks = len(self._queued_tasks)
 
         self.log.debug("%s running task instances", num_running_tasks)
         self.log.debug("%s in queue", num_queued_tasks)
         self.log.debug("%s open slots", open_slots)
 
         Stats.gauge('executor.open_slots', open_slots)
-        Stats.gauge('executor.queued_tasks', num_queued_tasks)
+        Stats.gauge('executor._queued_tasks', num_queued_tasks)
         Stats.gauge('executor.running_tasks', num_running_tasks)
 
         self.trigger_tasks(open_slots)
@@ -263,13 +264,13 @@ class BaseExecutor(BaseExecutorProtocol, metaclass=ABCMeta):
         :param open_slots: Number of open slots
         """
         sorted_queue = sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
+            [(k, v) for k, v in self._queued_tasks.items()],
             key=lambda x: x[1][1],
             reverse=True)
-        for _ in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min((open_slots, len(self._queued_tasks)))):
             key, (command, _, _, simple_ti) = sorted_queue.pop(0)
-            self.queued_tasks.pop(key)
-            self.running.add(key)
+            self._queued_tasks.pop(key)
+            self._running.add(key)
             self.execute_async(key=key,
                                command=command,
                                queue=None,
@@ -284,10 +285,10 @@ class BaseExecutor(BaseExecutorProtocol, metaclass=ABCMeta):
         """
         self.log.debug("Changing state: %s", key)
         try:
-            self.running.remove(key)
+            self._running.remove(key)
         except KeyError:
             self.log.debug('Could not find key: %s', str(key))
-        self.event_buffer[key] = state
+        self._event_buffer[key] = state
 
     def fail(self, key: TaskInstanceKeyType) -> None:
         """
@@ -316,13 +317,13 @@ class BaseExecutor(BaseExecutorProtocol, metaclass=ABCMeta):
         """
         cleared_events: Dict[TaskInstanceKeyType, Optional[str]] = dict()
         if dag_ids is None:
-            cleared_events = self.event_buffer
-            self.event_buffer = dict()
+            cleared_events = self._event_buffer
+            self._event_buffer = dict()
         else:
-            for key in list(self.event_buffer.keys()):
+            for key in list(self._event_buffer.keys()):
                 dag_id, _, _, _ = key
                 if dag_id in dag_ids:
-                    cleared_events[key] = self.event_buffer.pop(key)
+                    cleared_events[key] = self._event_buffer.pop(key)
 
         return cleared_events
 
@@ -330,16 +331,24 @@ class BaseExecutor(BaseExecutorProtocol, metaclass=ABCMeta):
         """
         Return True if task instance is queued
         """
-        return task_instance_key in self.queued_tasks
+        return task_instance_key in self._queued_tasks
 
     def is_task_running(self, task_instance_key: TaskInstanceKeyType) -> bool:
         """
         Return True if task instance is running
         """
-        return task_instance_key in self.running
+        return task_instance_key in self._running
 
-    def get_queued_tasks_keys(self) -> Iterable[TaskInstanceKeyType]:
+    @property
+    def queued_tasks_keys(self) -> Iterable[TaskInstanceKeyType]:
         """
         Returns task keys in iterable form.
         """
-        return self.queued_tasks.keys()
+        return self._queued_tasks.keys()
+
+    @property
+    def parallelism(self) -> int:
+        """
+        Parallelism level for the executor.
+        """
+        return self._parallelism

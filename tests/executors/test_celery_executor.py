@@ -146,10 +146,10 @@ class TestCeleryExecutor(unittest.TestCase):
             value_tuple = 'command', 1, None, \
                 SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.datetime.now()))
             key = ('fail', 'fake_simple_ti', datetime.datetime.now(), 0)
-            executor.queued_tasks[key] = value_tuple
+            executor._queued_tasks[key] = value_tuple
             executor.heartbeat()
-        self.assertEqual(1, len(executor.queued_tasks))
-        self.assertEqual(executor.queued_tasks[key], value_tuple)
+        self.assertEqual(1, len(executor._queued_tasks))
+        self.assertEqual(executor._queued_tasks[key], value_tuple)
 
     def test_exception_propagation(self):
         with self._prepare_app() as app:
@@ -179,7 +179,7 @@ class TestCeleryExecutor(unittest.TestCase):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
         calls = [mock.call('executor.open_slots', mock.ANY),
-                 mock.call('executor.queued_tasks', mock.ANY),
+                 mock.call('executor._queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
 

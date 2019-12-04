@@ -31,7 +31,7 @@ class TestSequentialExecutor(unittest.TestCase):
         executor = SequentialExecutor()
         executor.heartbeat()
         calls = [mock.call('executor.open_slots', mock.ANY),
-                 mock.call('executor.queued_tasks', mock.ANY),
+                 mock.call('executor._queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
 

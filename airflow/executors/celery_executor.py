@@ -192,7 +192,7 @@ class CeleryExecutor(BaseExecutor):
 
         task_tuples_to_send: List[TaskInstanceInCelery] = []
 
-        for _ in range(min((open_slots, len(self.queued_tasks)))):
+        for _ in range(min((open_slots, len(self._queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
 
@@ -228,9 +228,9 @@ class CeleryExecutor(BaseExecutor):
                 elif result is not None:
                     # Only pops when enqueued successfully, otherwise keep it
                     # and expect scheduler loop to deal with it.
-                    self.queued_tasks.pop(key)
+                    self._queued_tasks.pop(key)
                     result.backend = cached_celery_backend
-                    self.running.add(key)
+                    self._running.add(key)
                     self.tasks[key] = result
                     self.last_state[key] = celery_states.PENDING
 
@@ -238,10 +238,10 @@ class CeleryExecutor(BaseExecutor):
         """
         Orders the queued tasks by priority.
 
-        :return: List of tuples from the queued_tasks according to the priority.
+        :return: List of tuples from the _queued_tasks according to the priority.
         """
         return sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
+            [(k, v) for k, v in self._queued_tasks.items()],
             key=lambda x: x[1][1],
             reverse=True)
 

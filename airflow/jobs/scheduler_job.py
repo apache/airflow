@@ -1157,7 +1157,7 @@ class SchedulerJob(BaseJob):
 
         :param session: session for ORM operations
         """
-        if self.executor.get_queued_tasks_keys():
+        if self.executor.queued_tasks_keys():
             TI = models.TaskInstance
             filter_for_ti_state_change = (
                 [and_(
@@ -1168,7 +1168,7 @@ class SchedulerJob(BaseJob):
                     # ti is not running. And we need to -1 to match the DB record.
                     TI._try_number == try_number - 1,
                     TI.state == State.QUEUED)
-                    for dag_id, task_id, execution_date, try_number in self.executor.get_queued_tasks_keys()])
+                    for dag_id, task_id, execution_date, try_number in self.executor.queued_tasks_keys])
             ti_query = (session.query(TI)
                         .filter(or_(*filter_for_ti_state_change)))
             tis_to_set_to_scheduled = (ti_query
