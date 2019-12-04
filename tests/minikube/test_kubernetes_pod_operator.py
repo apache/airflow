@@ -19,6 +19,7 @@ import unittest
 import os
 import shutil
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+from airflow.kubernetes.hostalias import HostAlias
 from airflow.kubernetes.secret import Secret
 from airflow import AirflowException
 from kubernetes.client.rest import ApiException
@@ -315,6 +316,25 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             )
             k.execute(None)
             mock_logger.info.assert_any_call(b"retrieved from mount\n")
+
+    @staticmethod
+    def test_host_aliases():
+        with mock.patch.object(PodLauncher, 'log') as mock_logger:
+            host_alias = HostAlias(ip='1.2.3.4', hostnames=['test1', 'test2'])
+            host_alias2 = HostAlias(ip='5.6.7.8', hostnames=['test3', 'test4'])
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["cat /root/mount_file/test.txt"],
+            labels={"foo": "bar"},
+            host_aliases=[host_alias, host_alias2],
+            name="test",
+            task_id="task"
+        )
+        k.execute(None)
+        mock_logger.info.assert_any_call(b"retrieved from mount\n")
 
     @staticmethod
     def test_run_as_user_root():

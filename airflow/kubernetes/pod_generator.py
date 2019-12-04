@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from airflow.kubernetes.hostalias import HostAlias
 from airflow.kubernetes.pod import Pod, Port
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
@@ -30,6 +30,7 @@ class PodGenerator:
         self.volumes = []
         self.volume_mounts = []
         self.init_containers = []
+        self.host_aliases = []
 
     def add_init_container(self,
                            name,
@@ -101,6 +102,13 @@ class PodGenerator:
 
         self.volumes.append(volume_map)
 
+    def add_host_alias(self, host_alias: HostAlias):
+        self._add_host_alias(ip=host_alias.ip, hostnames=host_alias.hostnames)
+
+    def _add_host_alias(self, ip, hostnames):
+        host_map = {'ip': ip, 'hostnames': hostnames}
+        self.host_aliases.append(host_map)
+
     def add_volume_with_configmap(self, name, config_map):
         self.volumes.append(
             {
@@ -151,6 +159,9 @@ class PodGenerator:
     def _get_volumes_and_mounts(self):
         return self.volumes, self.volume_mounts
 
+    def _get_host_aliases(self):
+        return self.host_aliases
+
     def _get_image_pull_secrets(self):
         """Extracts any image pull secrets for fetching container(s)"""
         if not self.kube_config.image_pull_secrets:
@@ -160,6 +171,7 @@ class PodGenerator:
     def make_pod(self, namespace, image, pod_id, cmds, arguments, labels):
         volumes, volume_mounts = self._get_volumes_and_mounts()
         worker_init_container_spec = self._get_init_containers()
+        host_aliases = self._get_host_aliases()
 
         return Pod(
             namespace=namespace,
@@ -176,5 +188,6 @@ class PodGenerator:
             ports=self.ports,
             volumes=volumes,
             volume_mounts=volume_mounts,
-            resources=None
+            resources=None,
+            host_aliases=host_aliases
         )

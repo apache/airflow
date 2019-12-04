@@ -50,6 +50,7 @@ class KubernetesPodOperator(BaseOperator):
     :type volume_mounts: list[airflow.contrib.kubernetes.volume_mount.VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
     :type volumes: list[airflow.contrib.kubernetes.volume.Volume]
+    :type host_aliases: list[airflow.contrib.kubernetes.hostalias.HostAlias]
     :param labels: labels to apply to the Pod
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod
@@ -114,6 +115,8 @@ class KubernetesPodOperator(BaseOperator):
                 gen.add_mount(mount)
             for volume in self.volumes:
                 gen.add_volume(volume)
+            for host_aliases in self.host_aliases:
+                gen.add_host_alias(host_aliases)
 
             pod = gen.make_pod(
                 namespace=self.namespace,
@@ -139,6 +142,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.security_context = self.security_context
             pod.pod_runtime_info_envs = self.pod_runtime_info_envs
             pod.dnspolicy = self.dnspolicy
+            pod.host_aliases = self.host_aliases
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
@@ -203,6 +207,7 @@ class KubernetesPodOperator(BaseOperator):
                  security_context=None,
                  pod_runtime_info_envs=None,
                  dnspolicy=None,
+                 host_aliases=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -238,4 +243,5 @@ class KubernetesPodOperator(BaseOperator):
         self.configmaps = configmaps or []
         self.security_context = security_context or {}
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
-        self.dnspolicy = dnspolicy
+        self.dnspolicy = dnspolicy,
+        self.host_aliases = host_aliases or []
