@@ -35,16 +35,6 @@ ADD_STEPS_SUCCESS_RETURN = {
     'StepIds': ['s-2LH3R5GW3A53T']
 }
 
-LIST_CLUSTERS_RETURN = {
-    'Clusters':
-        [
-            {
-                'Name': 'test_cluster',
-                'Id': 'j-1231231234'
-            }
-        ]
-}
-
 
 class TestEmrAddStepsOperator(unittest.TestCase):
     # When
@@ -74,6 +64,8 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         emr_session_mock = MagicMock()
         emr_session_mock.client.return_value = self.emr_client_mock
         self.boto3_session_mock = MagicMock(return_value=emr_session_mock)
+
+        self.mock_context = MagicMock()
 
         self.operator = EmrAddStepsOperator(
             task_id='test_task',
@@ -110,20 +102,29 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):
-            self.assertEqual(self.operator.execute(None), ['s-2LH3R5GW3A53T'])
+            self.assertEqual(self.operator.execute(self.mock_context), ['s-2LH3R5GW3A53T'])
 
     def test_init_with_cluster_name(self):
-        self.emr_client_mock.list_clusters.return_value = LIST_CLUSTERS_RETURN
+        expected_job_flow_id = 'j-1231231234'
+
+        self.emr_client_mock.get_cluster_id_by_name.return_value = expected_job_flow_id
+        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):
             operator = EmrAddStepsOperator(
                 task_id='test_task',
                 job_flow_name='test_cluster',
+                cluster_states=['RUNNING', 'WAITING'],
                 aws_conn_id='aws_default',
                 dag=DAG('test_dag_id', default_args=self.args)
             )
 
-            self.assertEqual(operator.job_flow_id, 'j-1231231234')
+            operator.execute(self.mock_context)
+
+            ti = self.mock_context['ti']
+            job_flow_id = ti.xcom_push.mock_calls[0][2]['value']
+
+            self.assertEqual(job_flow_id, expected_job_flow_id)
 
 
 if __name__ == '__main__':
