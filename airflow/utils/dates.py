@@ -216,11 +216,11 @@ def scale_time_units(time_seconds_arr, unit):
     Convert an array of time durations in seconds to the specified time unit.
     """
     if unit == 'minutes':
-        return list(map(lambda x: x * 1.0 / 60, time_seconds_arr))
+        return list(map(lambda x: x / 60, time_seconds_arr))
     elif unit == 'hours':
-        return list(map(lambda x: x * 1.0 / (60 * 60), time_seconds_arr))
+        return list(map(lambda x: x / (60 * 60), time_seconds_arr))
     elif unit == 'days':
-        return list(map(lambda x: x * 1.0 / (24 * 60 * 60), time_seconds_arr))
+        return list(map(lambda x: x / (24 * 60 * 60), time_seconds_arr))
     return time_seconds_arr
 
 
