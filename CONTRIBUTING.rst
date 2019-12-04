@@ -318,7 +318,7 @@ These are guidelines for fixing errors reported by pylint:
 
 
 -   For multiple lines/block of code, to disable an error, you can surround the
-    block with ``pylint:disable/pylint:enable`` comment lines. For example:
+    block with ``pylint: disable/pylint: enable`` comment lines. For example:
 
 .. code-block:: python
 
@@ -428,6 +428,8 @@ image built locally):
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-xml``                         Checks XML files with xmllint.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``consistent-pylint``                 Consistent usage of pylint enable/disable with space.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``debug-statements``                  Detects accidenatally committed debug statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``detect-private-key``                Detects if private key is added to the repository.
@@ -452,11 +454,15 @@ image built locally):
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydevd``                            Check for accidentally commited pydevd statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``pylint``                            Runs pylint.                                                         *
+``pylint``                            Runs pylint for main code.                                           *
+----------------------------------- ---------------------------------------------------------------- ------------
+``pylint-tests``                      Runs pylint for tests.                                               *
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``python-no-log-warn``                Checks if there are no deprecate log warn.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``rst-backticks``                     Checks if RST files use double backticks for code.
+----------------------------------- ---------------------------------------------------------------- ------------
+``setup-order``                       Checks for an order of dependencies in setup.py
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
 ----------------------------------- ---------------------------------------------------------------- ------------

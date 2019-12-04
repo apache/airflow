@@ -35,8 +35,7 @@ from airflow.models import DAG, Connection, DagBag
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
-from airflow.serialization.serialized_baseoperator import SerializedBaseOperator
-from airflow.serialization.serialized_dag import SerializedDAG
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.tests import CustomBaseOperator, GoogleLink
 
 serialized_simple_dag_ground_truth = {
@@ -64,10 +63,8 @@ serialized_simple_dag_ground_truth = {
                 "retries": 1,
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
-                "_inlets": {
-                    "auto": False, "task_ids": [], "datasets": []
-                },
-                "_outlets": {"datasets": []},
+                "_inlets": [],
+                "_outlets": [],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": [],
@@ -79,10 +76,8 @@ serialized_simple_dag_ground_truth = {
                 "retries": 1,
                 "retry_delay": 300.0,
                 "_downstream_task_ids": [],
-                "_inlets": {
-                    "auto": False, "task_ids": [], "datasets": []
-                },
-                "_outlets": {"datasets": []},
+                "_inlets": [],
+                "_outlets": [],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": [],

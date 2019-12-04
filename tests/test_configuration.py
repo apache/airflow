@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,7 +23,9 @@ from collections import OrderedDict
 from unittest import mock
 
 from airflow import configuration
-from airflow.configuration import AirflowConfigParser, conf, parameterized_config
+from airflow.configuration import (
+    AirflowConfigParser, conf, expand_env_var, get_airflow_config, get_airflow_home, parameterized_config,
+)
 
 
 @unittest.mock.patch.dict('os.environ', {
@@ -42,13 +43,13 @@ class TestConf(unittest.TestCase):
             if 'AIRFLOW_HOME' in os.environ:
                 del os.environ['AIRFLOW_HOME']
             self.assertEqual(
-                configuration.get_airflow_home(),
-                configuration.expand_env_var('~/airflow'))
+                get_airflow_home(),
+                expand_env_var('~/airflow'))
 
     def test_airflow_home_override(self):
         with unittest.mock.patch.dict('os.environ', AIRFLOW_HOME='/path/to/airflow'):
             self.assertEqual(
-                configuration.get_airflow_home(),
+                get_airflow_home(),
                 '/path/to/airflow')
 
     def test_airflow_config_default(self):
@@ -56,13 +57,13 @@ class TestConf(unittest.TestCase):
             if 'AIRFLOW_CONFIG' in os.environ:
                 del os.environ['AIRFLOW_CONFIG']
             self.assertEqual(
-                configuration.get_airflow_config('/home/airflow'),
-                configuration.expand_env_var('/home/airflow/airflow.cfg'))
+                get_airflow_config('/home/airflow'),
+                expand_env_var('/home/airflow/airflow.cfg'))
 
     def test_airflow_config_override(self):
         with unittest.mock.patch.dict('os.environ', AIRFLOW_CONFIG='/path/to/airflow/airflow.cfg'):
             self.assertEqual(
-                configuration.get_airflow_config('/home//airflow'),
+                get_airflow_config('/home//airflow'),
                 '/path/to/airflow/airflow.cfg')
 
     def test_case_sensitivity(self):

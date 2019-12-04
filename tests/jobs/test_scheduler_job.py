@@ -31,15 +31,16 @@ from parameterized import parameterized
 import airflow.example_dags
 from airflow import AirflowException, models, settings
 from airflow.configuration import conf
-from airflow.executors import BaseExecutor
+from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, TaskInstance as TI, errors
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_paths
+from airflow.utils.dag_processing import SimpleDag, SimpleDagBag
 from airflow.utils.dates import days_ago
 from airflow.utils.db import create_session, provide_session
+from airflow.utils.file import list_py_file_paths
 from airflow.utils.state import State
 from tests.compat import MagicMock, Mock, PropertyMock, mock, patch
 from tests.core import TEST_DAG_FOLDER
@@ -134,7 +135,6 @@ class TestSchedulerJob(unittest.TestCase):
         scheduler.run()
         shutil.rmtree(empty_dir)
 
-        scheduler.executor.terminate()
         # Remove potential noise created by previous tests.
         current_children = set(current_process.children(recursive=True)) - set(
             old_children)

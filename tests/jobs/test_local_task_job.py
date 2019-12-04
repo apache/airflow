@@ -24,7 +24,7 @@ import unittest
 
 from airflow import AirflowException, models, settings
 from airflow.configuration import conf
-from airflow.executors import SequentialExecutor
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator

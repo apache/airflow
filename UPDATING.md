@@ -41,6 +41,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Removal of airflow.AirflowMacroPlugin class
+
+The class was there in airflow package but it has not been used (apparently since 2015).
+It has been removed.
+
 ### Changes to settings
 
 CONTEXT_MANAGER_DAG was removed from settings. It's role has been taken by `DagContext` in

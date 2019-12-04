@@ -163,7 +163,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     )
 
     @apply_defaults
-    def __init__(  # pylint:disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         profile_id: str,
         report_id: str,

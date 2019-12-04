@@ -17,10 +17,8 @@
 """Version command"""
 import airflow
 from airflow import settings
-from airflow.utils import cli as cli_utils
 
 
-@cli_utils.action_logging
 def version(args):
     """Displays Airflow version at the command line"""
     print(settings.HEADER + "  v" + airflow.__version__)

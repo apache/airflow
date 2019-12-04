@@ -20,8 +20,8 @@ Creating a custom Operator
 ==========================
 
 
-Airflow allows you to create new operators to suit the requirements of you or your team. 
-The extensibility is one of the many reasons which makes Apache Airflow powerful. 
+Airflow allows you to create new operators to suit the requirements of you or your team.
+The extensibility is one of the many reasons which makes Apache Airflow powerful.
 
 You can create any operator you want by extending the :class:`airflow.models.baseoperator.BaseOperator`
 
@@ -31,16 +31,16 @@ There are two methods that you need to override in a derived class:
   Use ``@apply_defaults`` decorator function to fill unspecified arguments with ``default_args``. You can specify the ``default_args``
   in the dag file. See :ref:`Default args <default-args>` for more details.
 
-* Execute - The code to execute when the runner calls the operator. The method contains the 
+* Execute - The code to execute when the runner calls the operator. The method contains the
   airflow context as a parameter that can be used to read config values.
 
 Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``:
 
 .. code::  python
-        
+
         from airflow.models.baseoperator import BaseOperator
         from airflow.utils.decorators import apply_defaults
-        
+
         class HelloOperator(BaseOperator):
 
             @apply_defaults
@@ -60,7 +60,7 @@ Let's implement an example ``HelloOperator`` in a new file ``hello_operator.py``
 
     For imports to work, you should place the file in a directory that
     is present in the ``PYTHONPATH`` env. Airflow adds ``dags/``, ``plugins/``, and ``config/`` directories
-    in the Airflow home to ``PYTHONPATH`` by default. e.g., In our example, 
+    in the Airflow home to ``PYTHONPATH`` by default. e.g., In our example,
     the file is placed in the ``custom_operator`` directory.
 
 You can now use the derived custom operator as follows:
@@ -77,7 +77,7 @@ Hooks
 Hooks act as an interface to communicate with the external shared resources in a DAG.
 For example, multiple tasks in a DAG can require access to a MySQL database. Instead of
 creating a connection per task, you can retrieve a connection from the hook and utilize it.
-Hook also helps to avoid storing connection auth parameters in a DAG. 
+Hook also helps to avoid storing connection auth parameters in a DAG.
 See :doc:`connection/index` for how to create and manage connections.
 
 Let's extend our previous example to fetch name from MySQL:
@@ -107,9 +107,9 @@ Let's extend our previous example to fetch name from MySQL:
                 print(message)
                 return message
 
-When the operator invokes the query on the hook object, a new connection gets created if it doesn't exist. 
+When the operator invokes the query on the hook object, a new connection gets created if it doesn't exist.
 The hook retrieves the auth parameters such as username and password from Airflow
-backend and passes the params to the :py:func:`airflow.hooks.base_hook.BaseHook.get_connection`. 
+backend and passes the params to the :py:func:`airflow.hooks.base_hook.BaseHook.get_connection`.
 You should create hook only in the ``execute`` method or any method which is called from ``execute``.
 The constructor gets called whenever Airflow parses a DAG which happens frequently.
 The ``execute`` gets called only during a DAG run.
@@ -117,7 +117,7 @@ The ``execute`` gets called only during a DAG run.
 User interface
 ^^^^^^^^^^^^^^^
 Airflow also allows the developer to control how the operator shows up in the DAG UI.
-Override ``ui_color`` to change the background color of the operator in UI. 
+Override ``ui_color`` to change the background color of the operator in UI.
 Override ``ui_fgcolor`` to change the color of the label.
 
 .. code::  python
@@ -134,11 +134,11 @@ Airflow considers the field names present in ``template_fields``  for templating
 the operator.
 
 .. code:: python
-    
+
         class HelloOperator(BaseOperator):
-            
+
             template_fields = ['name']
-            
+
             @apply_defaults
             def __init__(
                     self,
@@ -166,14 +166,14 @@ In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ tas
 The parameter can also contain a file name, for example, a bash script or a SQL file. You need to add
 the extension of your file in ``template_ext``. If a ``template_field`` contains a string ending with
 the extension mentioned in ``template_ext``, Jinja reads the content of the file and replace the templates
-with actual value. Note that Jinja substitutes the operator attributes and not the args. 
+with actual value. Note that Jinja substitutes the operator attributes and not the args.
 
 .. code:: python
 
         class HelloOperator(BaseOperator):
-            
+
             template_fields = ['guest_name']
-            
+
             @apply_defaults
             def __init__(
                     self,

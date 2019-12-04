@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""Sends lineage metadata to a backend"""
 
+# https://cwiki.apache.org/confluence/display/INFRA/.asf.yaml+features+for+git+repositories
+---
+github:
+  description: "Apache Airflow - A platform to programmatically author, schedule, and monitor workflows"
+  homepage: https://airflow.apache.org/
+  labels:
+    - airflow
+    - apache
+    - apache-airflow
+    - python
+    - scheduler
+    - workflow
 
-class LineageBackend:
-    """
-    Sends lineage metadata to a backend
-    """
-    def send_lineage(self,
-                     operator=None, inlets=None, outlets=None, context=None):
-        """
-        Sends lineage metadata to a backend
-
-        :param operator: the operator executing a transformation on the inlets and outlets
-        :param inlets: the inlets to this operator
-        :param outlets: the outlets from this operator
-        :param context: the current context of the task instance
-        """
-        raise NotImplementedError()
+  enabled_merge_buttons:
+    squash: true
+    merge: false
+    rebase: false

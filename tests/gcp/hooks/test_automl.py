@@ -78,7 +78,7 @@ class TestAuoMLHook(unittest.TestCase):
     )
     @mock.patch("airflow.gcp.hooks.automl.PredictionServiceClient")
     def test_prediction_client(self, mock_prediction_client, mock_client_info):
-        client = self.hook.prediction_client  # pylint:disable=unused-variable  # noqa
+        client = self.hook.prediction_client  # pylint: disable=unused-variable  # noqa
         mock_prediction_client.assert_called_once_with(
             credentials=CREDENTIALS, client_info=CLIENT_INFO
         )
