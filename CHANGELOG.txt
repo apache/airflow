@@ -220,8 +220,8 @@ Doc-only changes
 - [AIRFLOW-XXX] Remove duplicate lines from CONTRIBUTING.md (#5830)
 - [AIRFLOW-XXX] Fix incorrect docstring parameter in SchedulerJob (#5729)
 
-Airflow 1.10.4, 2019-08-04
-----------------------------
+Airflow 1.10.4, 2019-08-06
+--------------------------
 
 New Features
 """"""""""""
