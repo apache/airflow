@@ -149,6 +149,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
         self.assertEqual(len(dag.tasks), 1)
 
 **Unit test a DAG structure:**
+This is an example test want to verify the structure of a code-generated DAG against a dict object 
 
 .. code::
 
