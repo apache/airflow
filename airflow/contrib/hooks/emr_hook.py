@@ -45,7 +45,9 @@ class EmrHook(AwsHook):
             ClusterStates=cluster_states
         )
 
-        matching_clusters = list(filter(lambda cluster: cluster['Name'] == emr_cluster_name, response['Clusters']))
+        matching_clusters = list(
+            filter(lambda cluster: cluster['Name'] == emr_cluster_name, response['Clusters'])
+        )
 
         if len(matching_clusters) == 1:
             cluster_id = matching_clusters[0]['Id']

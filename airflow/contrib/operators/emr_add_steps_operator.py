@@ -32,7 +32,8 @@ class EmrAddStepsOperator(BaseOperator):
         job_flow_id. will search for id of JobFlow with matching name in one of the states in
         param cluster_states. Exactly one cluster like this should exist or will fail. (templated)
     :type job_flow_name: str
-    :param cluster_states: Acceptable cluster states when searching for JobFlow id by param job_flow_name. (templated)
+    :param cluster_states: Acceptable cluster states when searching for JobFlow id by job_flow_name.
+        (templated)
     :type cluster_states: list
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
@@ -47,18 +48,18 @@ class EmrAddStepsOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        job_flow_id=None,
-        job_flow_name=None,
-        cluster_states=None,
-        aws_conn_id='s3_default',
-        steps=None,
-        *args, **kwargs):
+            self,
+            job_flow_id=None,
+            job_flow_name=None,
+            cluster_states=None,
+            aws_conn_id='s3_default',
+            steps=None,
+            *args, **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
+        if (job_flow_id is None) + (job_flow_name is None) != 1:
+            raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
         super().__init__(*args, **kwargs)
-        if not job_flow_id and not job_flow_name:
-            raise AirflowException('Either job_flow_id or job_flow_name must be specified.')
         steps = steps or []
         self.aws_conn_id = aws_conn_id
         self.job_flow_id = job_flow_id
