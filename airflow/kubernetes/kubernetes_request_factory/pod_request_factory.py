@@ -76,6 +76,7 @@ spec:
         self.extract_tolerations(pod, req)
         self.extract_security_context(pod, req)
         self.extract_dnspolicy(pod, req)
+        self.extract_host_aliases(pod, req)
         return req
 
 
@@ -147,4 +148,5 @@ spec:
         self.extract_tolerations(pod, req)
         self.extract_security_context(pod, req)
         self.extract_dnspolicy(pod, req)
+        self.extract_host_aliases(pod, req)
         return req
