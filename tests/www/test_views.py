@@ -1075,5 +1075,45 @@ class TestDagModelView(unittest.TestCase):
         self.assertNotEqual(dm.fileloc, "/etc/passwd", "Disabled fields shouldn't be updated")
 
 
+class TestTaskStats(unittest.TestCase):
+
+    def setUp(self):
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+
+        models.DagBag().get_dag("example_bash_operator").sync_to_db()
+        models.DagBag().get_dag("example_subdag_operator").sync_to_db()
+        models.DagBag().get_dag('example_xcom').sync_to_db()
+
+    def test_all_dags(self):
+        resp = self.app.get('/admin/airflow/task_stats', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertIn('example_bash_operator', stats)
+        self.assertIn('example_xcom', stats)
+
+    def test_selected_dags(self):
+        resp = self.app.get(
+            '/admin/airflow/task_stats?dag_ids=example_xcom',
+            follow_redirects=True)
+
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertNotIn('example_bash_operator', stats)
+        self.assertIn('example_xcom', stats)
+
+        # Multiple
+        resp = self.app.get(
+            '/admin/airflow/task_stats?dag_ids=example_xcom,example_bash_operator',
+            follow_redirects=True)
+
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertIn('example_bash_operator', stats)
+        self.assertIn('example_xcom', stats)
+        self.assertNotIn('example_subdag_operator', stats)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -34,8 +34,6 @@ from datetime import timedelta
 from functools import wraps
 from textwrap import dedent
 
-from six.moves.urllib.parse import quote
-
 import markdown
 import pendulum
 import sqlalchemy as sqla
@@ -56,6 +54,8 @@ from past.builtins import basestring
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 import six
+from six.moves.urllib.parse import quote, unquote
+
 from sqlalchemy import or_, desc, and_, union_all
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField,
@@ -609,7 +609,10 @@ class Airflow(AirflowViewMixin, BaseView):
         DagRun = models.DagRun
         Dag = models.DagModel
 
-        dag_ids = session.query(Dag.dag_id)
+        # Filter by get parameters
+        selected_dag_ids = {
+            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+        }
 
         LastDagRun = (
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
@@ -618,16 +621,22 @@ class Airflow(AirflowViewMixin, BaseView):
                 .filter(Dag.is_active == True)  # noqa: E712
                 .filter(Dag.is_subdag == False)  # noqa: E712
                 .group_by(DagRun.dag_id)
-                .subquery('last_dag_run')
         )
+
         RunningDagRun = (
             session.query(DagRun.dag_id, DagRun.execution_date)
                 .join(Dag, Dag.dag_id == DagRun.dag_id)
                 .filter(DagRun.state == State.RUNNING)
                 .filter(Dag.is_active == True)  # noqa: E712
                 .filter(Dag.is_subdag == False)  # noqa: E712
-                .subquery('running_dag_run')
         )
+
+        if selected_dag_ids:
+            LastDagRun = LastDagRun.filter(DagRun.dag_id.in_(selected_dag_ids))
+            RunningDagRun = RunningDagRun.filter(DagRun.dag_id.in_(selected_dag_ids))
+
+        LastDagRun = LastDagRun.subquery('last_dag_run')
+        RunningDagRun = RunningDagRun.subquery('running_dag_run')
 
         # Select all task_instances from active dag_runs.
         # If no dag_run is active, return task instances from most recent dag_run.
@@ -644,6 +653,10 @@ class Airflow(AirflowViewMixin, BaseView):
                 RunningDagRun.c.execution_date == TI.execution_date))
         )
 
+        if selected_dag_ids:
+            LastTI = LastTI.filter(TI.dag_id.in_(selected_dag_ids))
+            RunningTI = RunningTI.filter(TI.dag_id.in_(selected_dag_ids))
+
         UnionTI = union_all(LastTI, RunningTI).alias('union_ti')
         qry = (
             session.query(UnionTI.c.dag_id, UnionTI.c.state, sqla.func.count())
@@ -655,10 +668,12 @@ class Airflow(AirflowViewMixin, BaseView):
             if dag_id not in data:
                 data[dag_id] = {}
             data[dag_id][state] = count
-        session.commit()
 
         payload = {}
-        for (dag_id, ) in dag_ids:
+
+        dag_ids = selected_dag_ids or {dag_id for (dag_id,) in session.query(Dag.dag_id)}
+
+        for dag_id in dag_ids:
             payload[dag_id] = []
             for state in State.task_states:
                 count = data.get(dag_id, {}).get(state, 0)
