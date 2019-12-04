@@ -161,6 +161,13 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
              task = dag.get_task(task_id)
              self.assertEqual(task.downstream_task_ids, set(downstream_list),
                               msg="unexpected downstream link in {}".format(task_id))
+     def test_dag(self):
+         self.assertDagDictEqual({   
+           "DummyInstruction_0": ["DummyInstruction_1"],   
+           "DummyInstruction_1": ["DummyInstruction_2"],   
+           "DummyInstruction_2": ["DummyInstruction_3"],   
+           "DummyInstruction_3": []   
+         },dag)   
 
 **Unit test for custom operator:**
 
