@@ -269,10 +269,6 @@ kubernetes = [
 ldap = [
     'ldap3>=2.5.1',
 ]
-neo4j = [
-    'neo4j>=1.7.5',
-    'neobolt>=1.7.15'
-]
 mongo = [
     'dnspython>=1.13.0,<2.0.0',
     'pymongo>=3.6.0',
@@ -282,6 +278,10 @@ mssql = [
 ]
 mysql = [
     'mysqlclient>=1.3.6,<1.4',
+]
+neo4j = [
+    'neo4j>=1.7.5',
+    'neobolt>=1.7.15'
 ]
 oracle = [
     'cx_Oracle>=5.1.2',
