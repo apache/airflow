@@ -188,6 +188,55 @@ class TestSchedulerJob(unittest.TestCase):
 
         mock_stats_incr.assert_called_once_with('scheduler.tasks.killed_externally')
 
+    def test_scheduler_executor_overflow(self):
+        """
+        Test that tasks that tasks that are set back to scheduled after
+        """
+        executor = TestExecutor(do_update=True, parallelism=3)
+        session = settings.Session()
+        dag = self.create_test_dag()
+        task = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+        from datetime import timedelta
+        tis = []
+        for i in range(1,10):
+            ti = TI(task, DEFAULT_DATE + timedelta(days=i))
+            ti.state = State.SCHEDULED
+            tis.append(ti)
+            session.merge(ti)
+        session.commit()
+
+        simple_dag_bag = self._make_simple_dag_bag([dag])
+        scheduler = SchedulerJob(num_runs=1,
+                                 executor=executor,
+                                 subdir=os.path.join(settings.DAGS_FOLDER,
+                                                     "no_dags.py"))
+        mock.patch.object(scheduler, '_change_state_for_tis_without_dagrun').start()
+        scheduler._process_dags(simple_dag_bag)
+        [ti.refresh_from_db() for ti in tis]
+        self.assertEqual(len(executor.queued_tasks), 0)
+        successful_tasks = [ti for ti in tis if ti.state == State.SUCCESS]
+        scheduled_tasks = [ti for ti in tis if ti.state == State.SCHEDULED]
+        self.assertEqual(3, len(successful_tasks))
+        self.assertEqual(6, len(scheduled_tasks))
+
+    def create_test_dag(self):
+        dag = DAG(
+            dag_id='test_scheduler_reschedule',
+            start_date=DEFAULT_DATE,
+            # Make sure it only creates a single DAG Run
+            end_date=DEFAULT_DATE)
+        dag.clear()
+        dag.is_subdag = False
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        orm_dag.is_paused = False
+        session.merge(orm_dag)
+        session.commit()
+        return dag
+
     def test_execute_task_instances_is_paused_wont_execute(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'
         task_id_1 = 'dummy_task'
