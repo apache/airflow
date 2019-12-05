@@ -22,7 +22,6 @@ This operator is designed to use Neo4J Hook and the
 Python driver: https://neo4j.com/docs/api/python-driver/current/
 """
 
-import csv
 from os.path import isfile
 
 from neo4j import BoltStatementResult
@@ -88,33 +87,4 @@ class Neo4JOperator(BaseOperator):
         if result.peek() is None and self.soft_fail:
             raise AirflowException("Query returned no rows")
 
-        row_count = self._make_csv(result)
-
-        self.log.info("Saved %s with %s rows", self.output_filename, row_count)
-
-        return row_count
-
-    def _make_csv(self, result: BoltStatementResult):
-        """
-        Local utility method to write out the results of query execution
-        to a CSV. Better options could be added in the future
-
-        :param result: Result of query execution
-        :type result: neo4j.BoltStatementResult
-        :return: Count of rows written
-        :rtype: int
-        """
-        total_row_count = 0
-
-        if self.output_filename is not None:
-            with open(self.output_filename, 'w', newline='') as output_file:
-                output_writer = csv.DictWriter(output_file, fieldnames=result.keys())
-                output_writer.writeheader()
-
-                for total_row_count, row in enumerate(result, start=1):
-                    # row = 'neo4j.Record'
-                    output_writer.writerow(row.data())
-        else:
-            raise AirflowException("Must supply an output_filename")
-
-        return total_row_count
+        return hook.to_csv(result, self.output_filename)

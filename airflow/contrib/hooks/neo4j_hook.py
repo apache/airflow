@@ -19,6 +19,8 @@
 """
 This hook provides minimal thin wrapper around the neo4j python library to provide query execution
 """
+import csv
+
 from neo4j import BoltStatementResult, Driver, GraphDatabase, Session
 
 from airflow.hooks.base_hook import BaseHook
@@ -108,3 +110,28 @@ class Neo4JHook(BaseHook):
                 parameters
             )
         return result
+
+    def to_csv(self, result: BoltStatementResult, output_filename: str):
+        """
+        Local utility method to write out the results of query execution
+        to a CSV. Better options could be added in the future
+
+        :param result: Result of query execution
+        :type result: neo4j.BoltStatementResult
+        :param output_filename: Name of file to write
+        :type output_filename: str
+        :return: Count of rows written
+        :rtype: int
+        """
+        total_row_count = 0
+
+        with open(output_filename, 'w', newline='') as output_file:
+            output_writer = csv.DictWriter(output_file, fieldnames=result.keys())
+            output_writer.writeheader()
+
+            for total_row_count, row in enumerate(result, start=1):
+                output_writer.writerow(row.data())
+
+        self.log.info("Saved %s with %s rows", output_filename, total_row_count)
+
+        return total_row_count

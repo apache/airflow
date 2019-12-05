@@ -20,9 +20,7 @@
 Test the functioning of the Neo4J Operator for Apache Airflow
 """
 import unittest
-from unittest.mock import MagicMock, patch
-
-from neo4j import BoltStatementResult
+from unittest.mock import patch
 
 from airflow.contrib.operators import neo4j_operator
 
@@ -58,32 +56,3 @@ class TestNeo4JOperator(unittest.TestCase):
 
         mock_hook_init.assert_called_once_with(n4j_conn_id='mock_connection')
         mock_hook_run_query.assert_called_once_with(cypher_query='QUERY')
-
-    def test_make_csv(self):
-        """
-        Test that make_csv will use the results from query execution to produce
-        the desired output file
-        """
-        operator = neo4j_operator.Neo4JOperator(task_id="test_task",
-                                                cypher_query="QUERY",
-                                                output_filename="filename.txt",
-                                                n4j_conn_id="mock_connection",
-                                                soft_fail=True)
-
-        # Given a result object ...
-        data_mock = MagicMock()
-        data_mock.data = MagicMock(return_value={'field1': 'value1', 'field2': 'value2'})
-
-        # Pack the data in result object
-        result_mock = MagicMock(BoltStatementResult)
-        result_mock.keys = MagicMock(return_value=['field1', 'field2'])
-        result_mock.__iter__ = MagicMock(return_value=iter([data_mock]))
-
-        # When it is passed into make a CSV file...
-        row_count = operator._make_csv(result=result_mock)
-
-        # Then it should....
-        assert row_count == 1
-        result_mock.keys.assert_called_once()
-        result_mock.__iter__.assert_called_once()
-        data_mock.data.assert_called_once()

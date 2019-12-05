@@ -19,7 +19,9 @@
 """Test the Neo4J Hook provides the expected interface to the operator
 and makes the right calls to the underlying driver"""
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
+
+from neo4j import BoltStatementResult
 
 from airflow.contrib.hooks import neo4j_hook
 from airflow.models import Connection
@@ -94,6 +96,29 @@ class TestNeo4JHook(unittest.TestCase):
         driver = Mock()
         self._hook.get_session(driver)
         assert driver.session.called
+
+    def test_make_csv(self):
+        """
+        Test that make_csv will use the results from query execution to produce
+        the desired output file
+        """
+        # Given a result object ...
+        data_mock = MagicMock()
+        data_mock.data = MagicMock(return_value={'field1': 'value1', 'field2': 'value2'})
+
+        # Pack the data in result object
+        result_mock = MagicMock(BoltStatementResult)
+        result_mock.keys = MagicMock(return_value=['field1', 'field2'])
+        result_mock.__iter__ = MagicMock(return_value=iter([data_mock]))
+
+        # When it is passed into make a CSV file...
+        row_count = self._hook.to_csv(result=result_mock, output_filename='filename.csv')
+
+        # Then it should....
+        assert row_count == 1
+        result_mock.keys.assert_called_once()
+        result_mock.__iter__.assert_called_once()
+        data_mock.data.assert_called_once()
 
 
 if __name__ == '__main__':
