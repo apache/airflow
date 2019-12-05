@@ -206,7 +206,7 @@ class TestSchedulerJob(unittest.TestCase):
 
     def test_scheduler_executor_overflow(self):
         """
-        Test that tasks that tasks that are set back to scheduled and removed from the executor
+        Test that tasks that are set back to scheduled and removed from the executor
         queue in the case of an overflow.
         """
         executor = MockExecutor(do_update=True, parallelism=3)
