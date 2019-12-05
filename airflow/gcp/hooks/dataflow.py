@@ -32,7 +32,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 # This is the default location
@@ -339,7 +339,7 @@ class _DataflowRunner(LoggingMixin):
         return job_id
 
 
-class DataFlowHook(GoogleCloudBaseHook):
+class DataFlowHook(CloudBaseHook):
     """
     Hook for Google Dataflow.
 
@@ -364,7 +364,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return build(
             'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
-    @GoogleCloudBaseHook.provide_gcp_credential_file
+    @CloudBaseHook.provide_gcp_credential_file
     def _start_dataflow(
         self,
         variables: Dict,
@@ -397,7 +397,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return variables
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_java_dataflow(
         self,
         job_name: str,
@@ -440,7 +440,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         self._start_dataflow(variables, name, command_prefix, label_formatter, project_id, multiple_jobs)
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_template_dataflow(
         self,
         job_name: str,
@@ -474,7 +474,7 @@ class DataFlowHook(GoogleCloudBaseHook):
             name, variables, parameters, dataflow_template, project_id)
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_python_dataflow(
         self,
         job_name: str,
@@ -591,7 +591,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return response
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def is_job_dataflow_running(self, name: str, variables: Dict, project_id: Optional[str] = None) -> bool:
         """
         Helper method to check if jos is still running in dataflow

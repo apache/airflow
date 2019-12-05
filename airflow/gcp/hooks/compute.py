@@ -26,7 +26,7 @@ from typing import Any, Dict, Optional
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -42,7 +42,7 @@ class GceOperationStatus:
 
 
 # noinspection PyAbstractClass
-class ComputeEngineHook(GoogleCloudBaseHook):
+class ComputeEngineHook(CloudBaseHook):
     """
     Hook for Google Compute Engine APIs.
 
@@ -73,7 +73,7 @@ class ComputeEngineHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_instance(self, zone: str, resource_id: str, project_id: Optional[str] = None) -> None:
         """
         Starts an existing instance defined by project_id, zone and resource_id.
@@ -105,7 +105,7 @@ class ComputeEngineHook(GoogleCloudBaseHook):
                                              operation_name=operation_name,
                                              zone=zone)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def stop_instance(self, zone: str, resource_id: str, project_id: Optional[str] = None) -> None:
         """
         Stops an instance defined by project_id, zone and resource_id
@@ -137,7 +137,7 @@ class ComputeEngineHook(GoogleCloudBaseHook):
                                              operation_name=operation_name,
                                              zone=zone)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def set_machine_type(
         self,
         zone: str,
@@ -186,7 +186,7 @@ class ComputeEngineHook(GoogleCloudBaseHook):
             project=project_id, zone=zone, instance=resource_id, body=body)\
             .execute(num_retries=self.num_retries)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def get_instance_template(self, resource_id: str, project_id: Optional[str] = None) -> Dict:
         """
         Retrieves instance template by project_id and resource_id.
@@ -209,7 +209,7 @@ class ComputeEngineHook(GoogleCloudBaseHook):
         ).execute(num_retries=self.num_retries)
         return response
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def insert_instance_template(
         self,
         body: Dict,
@@ -249,7 +249,7 @@ class ComputeEngineHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def get_instance_group_manager(
         self,
         zone: str,
@@ -280,7 +280,7 @@ class ComputeEngineHook(GoogleCloudBaseHook):
         ).execute(num_retries=self.num_retries)
         return response
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def patch_instance_group_manager(
         self,
         zone: str,

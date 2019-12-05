@@ -32,11 +32,11 @@ from urllib.parse import urlparse
 from google.cloud import storage
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.version import version
 
 
-class GoogleCloudStorageHook(GoogleCloudBaseHook):
+class GoogleCloudStorageHook(CloudBaseHook):
     """
     Interact with Google Cloud Storage. This hook uses the Google Cloud Platform
     connection.
@@ -429,8 +429,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         self.log.info('The md5Hash of %s is %s', object_name, blob_md5hash)
         return blob_md5hash
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_bucket(self,
                       bucket_name,
                       resource=None,
