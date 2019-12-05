@@ -216,7 +216,6 @@ class TestSchedulerJob(unittest.TestCase):
                 task_id='dummy',
                 dag=dag,
                 owner='airflow')
-            from datetime import timedelta
             tis = []
             for i in range(1, 10):
                 ti = TI(task, DEFAULT_DATE + timedelta(days=i))
