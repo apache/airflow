@@ -1376,7 +1376,7 @@ class SchedulerJob(BaseJob):
             # Send tasks for execution if available
             simple_dag_bag = SimpleDagBag(simple_dags)
 
-            if not self._process_dags(simple_dag_bag=simple_dag_bag):
+            if not self._validate_and_run_task_instances(simple_dag_bag=simple_dag_bag):
                 continue
 
             # Heartbeat the scheduler periodically
@@ -1427,7 +1427,7 @@ class SchedulerJob(BaseJob):
 
         settings.Session.remove()
 
-    def _process_dags(self, simple_dag_bag):
+    def _validate_and_run_task_instances(self, simple_dag_bag):
         if len(simple_dag_bag.simple_dags) > 0:
             try:
                 self._process_and_execute_tasks(simple_dag_bag)
