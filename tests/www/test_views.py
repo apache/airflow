@@ -28,7 +28,7 @@ import sys
 import tempfile
 import unittest
 import urllib
-from datetime import timedelta
+from datetime import datetime as dt, timedelta
 from unittest import mock
 from urllib.parse import quote_plus
 
@@ -1172,7 +1172,8 @@ class TestDagACLView(TestBase):
     """
     Test Airflow DAG acl
     """
-    default_date = timezone.datetime(2018, 6, 1)
+    next_year = dt.now().year + 1
+    default_date = timezone.datetime(next_year, 6, 1)
     run_id = "test_{}".format(models.DagRun.id_for_date(default_date))
 
     @classmethod
@@ -1413,6 +1414,26 @@ class TestDagACLView(TestBase):
         resp = self.client.get('task_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_in_response('example_subdag_operator', resp)
+
+    def test_task_stats_success_when_selecting_dags(self):
+        self.logout()
+        self.login(username='all_dag_user',
+                   password='all_dag_user')
+
+        resp = self.client.get('task_stats?dag_ids=example_subdag_operator', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertNotIn('example_bash_operator', stats)
+        self.assertIn('example_subdag_operator', stats)
+
+        # Multiple
+        resp = self.client.get('task_stats?dag_ids=example_subdag_operator,example_bash_operator',
+                               follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertIn('example_bash_operator', stats)
+        self.assertIn('example_subdag_operator', stats)
+        self.check_content_not_in_response('example_xcom', resp)
 
     def test_code_success(self):
         self.logout()

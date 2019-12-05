@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,3 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from collections import namedtuple
+
+from airflow.models.baseoperator import BaseOperator
+from airflow.utils.decorators import apply_defaults
+
+# Namedtuple for testing purposes
+MockNamedTuple = namedtuple("MockNamedTuple", ["var1", "var2"])
+
+
+class MockOperator(BaseOperator):
+    """Operator for testing purposes."""
+
+    template_fields = ("arg1", "arg2")
+
+    @apply_defaults
+    def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
+        super().__init__(**kwargs)
+        self.arg1 = arg1
+        self.arg2 = arg2
+
+    def execute(self, context):
+        pass

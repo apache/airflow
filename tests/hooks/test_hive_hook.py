@@ -485,15 +485,12 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
         csv_filepath = 'query_results.csv'
-        with self.assertLogs() as cm:
-            hook.to_csv(query, csv_filepath, schema=self.database,
-                        delimiter=',', lineterminator='\n', output_header=True, fetch_size=2)
-            df = pd.read_csv(csv_filepath, sep=',')
-            self.assertListEqual(df.columns.tolist(), self.columns)
-            self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
-            self.assertEqual(len(df), 2)
-            self.assertIn('INFO:airflow.hooks.hive_hooks.HiveServer2Hook:'
-                          'Written 2 rows so far.', cm.output)
+        hook.to_csv(query, csv_filepath, schema=self.database,
+                    delimiter=',', lineterminator='\n', output_header=True, fetch_size=2)
+        df = pd.read_csv(csv_filepath, sep=',')
+        self.assertListEqual(df.columns.tolist(), self.columns)
+        self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
+        self.assertEqual(len(df), 2)
 
     def test_multi_statements(self):
         sqls = [
@@ -522,10 +519,6 @@ class TestHiveServer2Hook(unittest.TestCase):
         dag_run_id_ctx_var_name = \
             AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
                 'env_var_format']
-        os.environ[dag_id_ctx_var_name] = 'test_dag_id'
-        os.environ[task_id_ctx_var_name] = 'test_task_id'
-        os.environ[execution_date_ctx_var_name] = 'test_execution_date'
-        os.environ[dag_run_id_ctx_var_name] = 'test_dag_run_id'
 
         with mock.patch.dict('os.environ', {
             dag_id_ctx_var_name: 'test_dag_id',

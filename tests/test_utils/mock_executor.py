@@ -23,7 +23,7 @@ from airflow.utils.db import create_session
 from airflow.utils.state import State
 
 
-class TestExecutor(BaseExecutor):
+class MockExecutor(BaseExecutor):
     """
     TestExecutor is used for unit testing purposes.
     """

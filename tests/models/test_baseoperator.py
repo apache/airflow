@@ -20,36 +20,15 @@
 import datetime
 import unittest
 import uuid
-from collections import namedtuple
 from unittest import mock
 
 import jinja2
 from parameterized import parameterized
 
 from airflow.models import DAG
-from airflow.models.baseoperator import BaseOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.decorators import apply_defaults
 from tests.models import DEFAULT_DATE
-
-
-class TestOperator(BaseOperator):
-    """Operator for testing purposes."""
-
-    template_fields = ("arg1", "arg2")
-
-    @apply_defaults
-    def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
-        super().__init__(**kwargs)
-        self.arg1 = arg1
-        self.arg2 = arg2
-
-    def execute(self, context):
-        pass
-
-
-# Namedtuple for testing purposes
-TestNamedTuple = namedtuple("TestNamedTuple", ["var1", "var2"])
+from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
 
 
 class ClassWithCustomAttributes:
@@ -104,7 +83,7 @@ class TestBaseOperator(unittest.TestCase):
             ),
             (datetime.date(2018, 12, 6), {"foo": "bar"}, datetime.date(2018, 12, 6)),
             (datetime.datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime.datetime(2018, 12, 6, 10, 55)),
-            (TestNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, TestNamedTuple("bar_1", "bar_2")),
+            (MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, MockNamedTuple("bar_1", "bar_2")),
             ({"{{ foo }}_1", "{{ foo }}_2"}, {"foo": "bar"}, {"bar_1", "bar_2"}),
             (None, {}, None),
             ([], {}, []),
@@ -162,7 +141,7 @@ class TestBaseOperator(unittest.TestCase):
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
-            task = TestOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
+            task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
 
         # Assert nothing is templated yet
         self.assertEqual(task.arg1, "{{ foo }}")
@@ -233,7 +212,7 @@ class TestBaseOperator(unittest.TestCase):
     def test_jinja_env_creation(self, mock_jinja_env):
         """Verify if a Jinja environment is created only once when templating."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
-            task = TestOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
+            task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
         self.assertEqual(mock_jinja_env.call_count, 1)

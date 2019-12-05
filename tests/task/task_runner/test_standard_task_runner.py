@@ -30,7 +30,7 @@ from airflow.models import TaskInstance as TI
 from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
-from tests.core import TEST_DAG_FOLDER
+from tests.test_core import TEST_DAG_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -121,10 +121,15 @@ class TestStandardTaskRunner(unittest.TestCase):
         runner = StandardTaskRunner(job1)
         runner.start()
 
-        # give the task some time to startup
-        time.sleep(3)
-
+        # Give the task some time to startup
+        time.sleep(10)
         runner.terminate()
+
+        # Wait some time for the result
+        for _ in range(20):
+            if os.path.exists(path):
+                break
+            time.sleep(2)
 
         with open(path, "r") as f:
             self.assertEqual("ON_KILL_TEST", f.readline())

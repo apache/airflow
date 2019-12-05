@@ -31,14 +31,13 @@ isort:skip_file
 # pylint: disable=wrong-import-position
 from typing import Callable, Optional
 
-# noinspection PyUnresolvedReferences
 from airflow import utils
 from airflow import settings
 from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
+from airflow.models.dag import DAG
 
 __version__ = version.version
 

@@ -27,7 +27,7 @@ Report Bugs
 -----------
 
 Report bugs through `Apache
-Jira <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
 
 Please report relevant information and preferably code that exhibits the
 problem.
@@ -108,7 +108,7 @@ these guidelines:
     The airflow repo uses `Travis CI <https://travis-ci.org/apache/airflow>`__ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
     coverage. You can set up both for free on your fork (see
-    `Travis CI Testing Framework <#travis-ci-testing-framework>`__ section below).
+    `Travis CI Testing Framework <TESTING.rst#travis-ci-testing-framework>`__ usage guidelines).
     It will help you make sure you do not break the build with your PR and
     that you help increase coverage.
 
@@ -130,21 +130,20 @@ these guidelines:
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header
     to all new files.
 
-    If you have `pre-commit hooks <#pre-commit-hooks>`_ enabled, they automatically add
+    If you have `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ enabled, they automatically add
     license headers during commit.
 
 -   If your pull request adds functionality, make sure to update the docs as part
     of the same PR. Doc string is often sufficient. Make sure to follow the
     Sphinx compatible standards.
 
--   Make sure the pull request works for Python 3.5, 3.6 and 3.7.
+-   Make sure your code fulfils all the
+    `static code checks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ we have in our code. The easiest way
+    to make sure of that is to use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__
 
 -   Run tests locally before opening PR.
 
-    As Airflow grows as a project, we try to enforce a more consistent style and
-    follow the Python community guidelines. We currently enforce most of
-    `PEP8 <https://www.python.org/dev/peps/pep-0008/>`__ and a few other linting
-    rules described in `Running static code checks <BREEZE.rst#running-static-code-checks>`__ section.
+-   Make sure the pull request works for Python 3.6 and 3.7.
 
 -   Adhere to guidelines for commit messages described in this `article <http://chris.beams.io/posts/git-commit/>`__.
     This makes the lives of those who come after you a lot easier.
@@ -222,8 +221,6 @@ Limitations:
     Breeze container-based solution provides a reproducible environment that is
     consistent with other developers.
 
-Possible extensions:
-
 -   You are **STRONGLY** encouraged to also install and use `pre-commit hooks <#pre-commit-hooks>`_
     for your local virtualenv development environment.
     Pre-commit hooks can speed up your development cycle a lot.
@@ -267,350 +264,34 @@ Limitations:
 They are optimized for repeatability of tests, maintainability and speed of building rather
 than production performance. The production images are not yet officially published.
 
-Pylint Checks
-=============
+Static code checks
+==================
 
-We are in the process of fixing code flagged with pylint checks for the whole Airflow project.
-This is a huge task so we implemented an incremental approach for the process.
-Currently most of the code is excluded from pylint checks via scripts/ci/pylint_todo.txt.
-We have an open JIRA issue AIRFLOW-4364 which has a number of sub-tasks for each of
-the modules that should be made compatible. Fixing problems identified with pylint is one of
-straightforward and easy tasks to do (but time-consuming), so if you are a first-time
-contributor to Airflow, you can choose one of the sub-tasks as your first issue to fix.
+We check our code quality via static code checks. See
+`STATIC_CODE_CHECKS.rst`_ for details.
 
-To fix a pylint issue, do the following:
+Your code must pass all the static code checks in Travis CI in order to be eligible for Code Review.
+The easiest way to make sure your code is good before pushing is to use pre-commit checks locally
+as described in the static code checks documentation.
 
-1.  Remove module/modules from the
-    `scripts/ci/pylint_todo.txt <scripts/ci/pylint_todo.txt>`__.
+Test Infrastructure
+===================
 
-2.  Run `scripts/ci/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
-`scripts/ci/ci_pylint_tests.sh <scripts/ci/ci_pylint_tests.sh>`__.
+We support the following types of tests:
 
-3.  Fix all the issues reported by pylint.
+* **Unit tests** are Python ``nose`` tests launched with ``run-tests``.
+  Unit tests are available both in the `Breeze environment <BREEZE.rst>`_
+  and `local virtualenv <LOCAL_VIRTUALENV.rst>`_.
 
-4.  Re-run `scripts/ci/ci_pylint_main.sh <scripts/ci/ci_pylint_main.sh>`__ and
-`scripts/ci/ci_pylint_tests.sh <scripts/ci/ci_pylint_tests.sh>`__.
+* **Integration tests** are available in the Breeze development environment
+  that is also used for Airflow Travis CI tests. Integration test are special tests that require
+  additional services running, such as Postgres,Mysql, Kerberos, etc. These tests are not yet
+  clearly marked as integration tests but soon they will be clearly separated by the ``pytest`` annotations.
 
-5.  If you see "success", submit a PR following
-    `Pull Request guidelines <#pull-request-guidelines>`__.
- 
+* **System tests** are automatic tests that use external systems like
+  Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
 
-These are guidelines for fixing errors reported by pylint:
-
--   Fix the errors rather than disable pylint checks. Often you can easily
-    refactor the code (IntelliJ/PyCharm might be helpful when extracting methods
-    in complex code or moving methods around).
-
--   If disabling a particular problem, make sure to disable only that error by
-    using the symbolic name of the error as reported by pylint.
-
-.. code-block:: python
-
-    import airflow.*  # pylint: disable=wildcard-import
-
-
--   If there is a single line where you need to disable a particular error,
-    consider adding a comment to the line that causes the problem. For example:
-
-.. code-block:: python
-
-    def  MakeSummary(pcoll, metric_fn, metric_keys): # pylint: disable=invalid-name
-
-
--   For multiple lines/block of code, to disable an error, you can surround the
-    block with ``pylint: disable/pylint: enable`` comment lines. For example:
-
-.. code-block:: python
-
-    # pylint: disable=too-few-public-methods
-    class  LoginForm(Form):
-        """Form for the user"""
-        username = StringField('Username', [InputRequired()])
-        password = PasswordField('Password', [InputRequired()])
-    # pylint: enable=too-few-public-methods
-
-
-Pre-commit Hooks
-================
-
-Pre-commit hooks help speed up your local development cycle, either in the local virtualenv or Breeze,
-and place less burden on the CI infrastructure. Consider installing the pre-commit
-hooks as a necessary prerequisite.
-
-The pre-commit hooks only check the files you are currently working on and make
-them fast. Yet, these checks use exactly the same environment as the CI tests
-use. So, you can be sure your modifications will also work for CI if they pass
-pre-commit hooks.
-
-We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
-in our development workflow. To install and use it, you need Python 3.6 locally.
-
-It is the best to use pre-commit hooks when you have your local virtualenv for
-Airflow activated since then pre-commit hooks and other dependencies are
-automatically installed. You can also install the pre-commit hooks manually
-using ``pip install``.
-
-The pre-commit hooks require the Docker Engine to be configured as the static
-checks are executed in the Docker environment. You should build the images
-locally before installing pre-commit checks as described in `BREEZE.rst <BREEZE.rst>`__.
-In case you do not have your local images built, the
-pre-commit hooks fail and provide instructions on what needs to be done.
-
-Prerequisites for Pre-commit Hooks
-----------------------------------
-
-The pre-commit hooks use several external linters that need to be installed before pre-commit is run.
-
-Each of the checks installs its own environment, so you do not need to install those, but there are some
-checks that require locally installed binaries. On Linux, you typically install
-them with ``sudo apt install``, on macOS - with ``brew install``.
-
-The current list of prerequisites:
-
--   ``xmllint``:
-    on Linux, install via ``sudo apt install xmllint``;
-    on macOS, install via ``brew install xmllint``
-
-Enabling Pre-commit Hooks
--------------------------
-
-To turn on pre-commit checks for ``commit`` operations in git, enter:
-
-.. code-block:: bash
-
-    pre-commit install
-
-
-To install the checks also for ``pre-push`` operations, enter:
-
-.. code-block:: bash
-
-    pre-commit install -t pre-push
-
-
-For details on advanced usage of the install method, use:
-
-.. code-block:: bash
-
-   pre-commit install --help
-
-
-Using Docker Images for Pre-commit Hooks
-----------------------------------------
-
-Before running the pre-commit hooks, you must first build the Docker images as
-described in `BREEZE.rst <BREEZE.rst>`__.
-
-Sometimes your image is outdated and needs to be rebuilt because some
-dependencies have been changed. In such case the Docker-based pre-commit will
-inform you that you should rebuild the image.
-
-Supported Pre-commit Hooks
---------------------------
-
-In Airflow, we have the following checks (The checks with stare in Breeze require `BREEZE.rst <BREEZE.rst>`__
-image built locally):
-
-=================================== ================================================================ ============
-**Hooks**                             **Description**                                                 **Breeze**
-=================================== ================================================================ ============
-``base-operator``                     Checks that BaseOperator is imported properly
------------------------------------ ---------------------------------------------------------------- ------------
-``build``                             Builds image for check-apache-licence, mypy, pylint, flake8.         *
------------------------------------ ---------------------------------------------------------------- ------------
-``check-apache-license``              Checks compatibility with Apache License requirements.               *
------------------------------------ ---------------------------------------------------------------- ------------
-``check-executables-have-shebangs``   Checks that executables have shebang.
------------------------------------ ---------------------------------------------------------------- ------------
-``check-hooks-apply``                 Checks which hooks are applicable to the repository.
------------------------------------ ---------------------------------------------------------------- ------------
-``check-merge-conflict``              Checks if a merge conflict is committed.
------------------------------------ ---------------------------------------------------------------- ------------
-``check-xml``                         Checks XML files with xmllint.
------------------------------------ ---------------------------------------------------------------- ------------
-``consistent-pylint``                 Consistent usage of pylint enable/disable with space.
------------------------------------ ---------------------------------------------------------------- ------------
-``debug-statements``                  Detects accidenatally committed debug statements.
------------------------------------ ---------------------------------------------------------------- ------------
-``detect-private-key``                Detects if private key is added to the repository.
------------------------------------ ---------------------------------------------------------------- ------------
-``doctoc``                            Refreshes the table of contents for md files.
------------------------------------ ---------------------------------------------------------------- ------------
-``end-of-file-fixer``                 Makes sure that there is an empty line at the end.
------------------------------------ ---------------------------------------------------------------- ------------
-``flake8``                            Runs flake8.                                                         *
------------------------------------ ---------------------------------------------------------------- ------------
-``forbid-tabs``                       Fails if tabs are used in the project.
------------------------------------ ---------------------------------------------------------------- ------------
-``insert-license``                    Adds licenses for most file types.
------------------------------------ ---------------------------------------------------------------- ------------
-``isort``                             Sorts imports in python files.
------------------------------------ ---------------------------------------------------------------- ------------
-``lint-dockerfile``                   Lints a dockerfile.
------------------------------------ ---------------------------------------------------------------- ------------
-``mixed-line-ending``                 Detects if mixed line ending is used (\r vs. \r\n).
------------------------------------ ---------------------------------------------------------------- ------------
-``mypy``                              Runs mypy.                                                           *
------------------------------------ ---------------------------------------------------------------- ------------
-``pydevd``                            Check for accidentally commited pydevd statements.
------------------------------------ ---------------------------------------------------------------- ------------
-``pylint``                            Runs pylint for main code.                                           *
------------------------------------ ---------------------------------------------------------------- ------------
-``pylint-tests``                      Runs pylint for tests.                                               *
------------------------------------ ---------------------------------------------------------------- ------------
-``python-no-log-warn``                Checks if there are no deprecate log warn.
------------------------------------ ---------------------------------------------------------------- ------------
-``rst-backticks``                     Checks if RST files use double backticks for code.
------------------------------------ ---------------------------------------------------------------- ------------
-``setup-order``                       Checks for an order of dependencies in setup.py
------------------------------------ ---------------------------------------------------------------- ------------
-``shellcheck``                        Checks shell files with shellcheck.
------------------------------------ ---------------------------------------------------------------- ------------
-``update-breeze-file``                Update output of breeze command in BREEZE.rst.
------------------------------------ ---------------------------------------------------------------- ------------
-``yamllint``                          Checks yaml files with yamllint.
-=================================== ================================================================ ============
-
-
-Using Pre-commit Hooks
-----------------------
-
-After installation, pre-commit hooks are run automatically when you commit the
-code. But you can run pre-commit hooks manually as needed.
-
--   Run all checks on your staged files by using:
-
-.. code-block:: bash
-
-    pre-commit run
-
-
--   Run only mypy check on your staged files by using:
-
-.. code-block:: bash
-
-    pre-commit run mypy
-
-
--   Run only mypy checks on all files by using:
-
-.. code-block:: bash
-
-    pre-commit run mypy --all-files
-
-
--   Run all checks on all files by using:
-
-.. code-block:: bash
-
-    pre-commit run --all-files
-
-
--   Skip one or more of the checks by specifying a comma-separated list of
-    checks to skip in the SKIP variable:
-
-.. code-block:: bash
-
-    SKIP=pylint,mypy pre-commit run --all-files
-
-
-You can always skip running the tests by providing ``--no-verify`` flag to the
-``git commit`` command.
-
-To check other usage types of the pre-commit framework, see `Pre-commit website <https://pre-commit.com/>`__.
-
-Importing Airflow core objects
-==============================
-
-When you implement core features or DAGs you might need to import some of the core objects or modules.
-Since Apache Airflow can be used both as application (by internal classes) and as library (by DAGs), there are
-different ways those core objects and packages are imported.
-
-Airflow imports some of the core objects directly to 'airflow' package so that they can be used from there.
-
-Those criteria were assumed for choosing what import path to use:
-
-* If you work on a core feature inside Apache Airflow, you should import the objects directly from the
-  package where the object is defined - this minimises the risk of cyclic imports.
-* If you import the objects from any of 'providers' classes, you should import the objects from
-  'airflow' or 'airflow.models', It is very important for back-porting operators/hooks/sensors
-  to Airflow 1.10.* (AIP-21)
-* If you import objects from within a DAG you write, you should import them from 'airflow' or
-  'airflow.models' package where stable location of such import is important.
-
-Those checks enforced for the most important and repeated objects via pre-commit hooks as described below.
-
-BaseOperator
-------------
-
-The BaseOperator should be imported:
-* as ``from airflow.models import BaseOperator`` in external DAG/operator
-* as ``from airflow.models.baseoperator import BaseOperator`` in Airflow core to avoid cyclic imports
-
-
-Travis CI Testing Framework
-===========================
-
-Airflow test suite is based on Travis CI framework as running all of the tests
-locally requires significant setup. You can set up Travis CI in your fork of
-Airflow by following the `Travis
-CI Getting Started
-guide <https://docs.travis-ci.com/user/getting-started/>`__.
-
-
-There are two different options available for running Travis CI, and they are
-set up on GitHub as separate components:
-
--   **Travis CI GitHub App** (new version)
--   **Travis CI GitHub Services** (legacy version)
-
-Using Travis CI GitHub App (new version)
-----------------------------------------
-
--   Once `installed <https://github.com/apps/travis-ci/installations/new/permissions?target_id=47426163>`__,
-    configure the Travis CI GitHub App at
-    `Configure Travis CI <https://github.com/settings/installations>`__.
-
--   Set repository access to either "All repositories" for convenience, or "Only
-    select repositories" and choose ``USERNAME/airflow`` in the drop-down menu.
-
--   Access Travis CI for your fork at `<https://travis-ci.com/USERNAME/airflow>`__.
-
-Using Travis CI GitHub Services (legacy version)
-------------------------------------------------
-
-**NOTE:** The apache/airflow project is still using the legacy version.
-
-Travis CI GitHub Services version uses an Authorized OAuth App.
-
-1.  Once installed, configure the Travis CI Authorized OAuth App at
-    `Travis CI OAuth APP <https://github.com/settings/connections/applications/88c5b97de2dbfc50f3ac>`__.
-
-2.  If you are a GitHub admin, click the **Grant** button next to your
-    organization; otherwise, click the **Request** button. For the Travis CI
-    Authorized OAuth App, you may have to grant access to the forked
-    ``ORGANIZATION/airflow`` repo even though it is public.
-
-3.  Access Travis CI for your fork at
-    `<https://travis-ci.org/ORGANIZATION/airflow>`_.
-
-Creating New Projects in Travis CI
-----------------------------------
-
-If you need to create a new project in Travis CI, use travis-ci.com for both
-private repos and open source.
-
-The travis-ci.org site for open source projects is now legacy and you should not use it.
-
-..
-    There is a second Authorized OAuth App available called "Travis CI for Open Source" used
-    for the legacy travis-ci.org service Don't use it for new projects.
-
-More information:
-
--  `Open Source on travis-ci.com <https://docs.travis-ci.com/user/open-source-on-travis-ci-com/>`__.
--  `Legacy GitHub Services to GitHub Apps Migration Guide <https://docs.travis-ci.com/user/legacy-services-to-github-apps-migration-guide/>`__.
--  `Migrating Multiple Repositories to GitHub Apps Guide <https://docs.travis-ci.com/user/travis-migrate-to-apps-gem-guide/>`__.
+For details on running different types of Airflow tests, see `TESTING.rst <TESTING.rst>`_.
 
 Metadata Database Updates
 ==============================
@@ -664,16 +345,13 @@ To install it on macOS:
 
 3.  Set up your ``.bashrc`` file and then ``source ~/.bashrc`` to reflect the
     change.
-
+    You can also follow  `general npm installation
+    instructions <https://docs.npmjs.com/downloading-and-installing-node-js-and-npm>`__.
     For example:
 
 .. code-block:: bash
 
     export PATH="$HOME/.npm-packages/bin:$PATH"
-
-
-    You can also follow  _`general npm installation
-    instructions <https://docs.npmjs.com/downloading-and-installing-node-js-and-npm>`__.
 
 4.  Install third party libraries defined in ``package.json`` by running the
     following commands within the ``airflow/www/`` directory:
@@ -732,20 +410,145 @@ commands:
     # Check JS code in .js and .html files, report any errors/warnings and fix them if possible
     npm run lint:fix
 
-Resources & links
-=================
-- `Airflow’s official documentation <http://airflow.apache.org/>`__
+Contribution Workflow Example
+==============================
+
+Typically, you start your first contribution by reviewing open tickets
+at `Apache JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__.
+
+For example, you want to have the following sample ticket assigned to you:
+`AIRFLOW-5934: Add extra CC: to the emails sent by Aiflow <https://issues.apache.org/jira/browse/AIRFLOW-5934>`_.
+
+In general, your contribution includes the following stages:
+
+.. image:: images/workflow.png
+    :align: center
+    :alt: Contribution Workflow
+
+1. Make your own `fork <https://help.github.com/en/github/getting-started-with-github/fork-a-repo>`__ of
+   the Apache Airflow `main repository <https://github.com/apache/airflow>`__.
+
+2. Create a `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
+   initialize the `Breeze environment <BREEZE.rst>`__, and
+   install `pre-commit framework <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__.
+   If you want to add more changes in the future, set up your own `Travis CI
+   fork <https://github.com/PolideaInternal/airflow/blob/more-gsod-improvements/TESTING.rst#travis-ci-testing-framework>`__.
+
+3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
+   and set up a `Slack account <https://apache-airflow-slack.herokuapp.com>`__.
+
+4. Make the change and create a `Pull Request from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
+
+5. Ping @ #development slack, comment @people. Be annoying. Be considerate.
+
+Step 1: Fork the Apache Repo
+----------------------------
+From the `apache/airflow <https://github.com/apache/airflow>`_ repo,
+`create a fork <https://help.github.com/en/github/getting-started-with-github/fork-a-repo>`_:
+
+.. image:: images/fork.png
+    :align: center
+    :alt: Creating a fork
+
+
+Step 2: Configure Your Environment
+----------------------------------
+Configure the Docker-based Breeze development environment and run tests.
+
+You can use the default Breeze configuration as follows:
+
+1. Install the latest versions of the Docker Community Edition
+   and Docker Compose and add them to the PATH.
+
+2. Enter Breeze: ``./breeze``
+
+   Breeze starts with downloading the Airflow CI image from
+   the Docker Hub and installing all required dependencies.
+
+3. Enter the Docker environment and mount your local sources
+   to make them immediately visible in the environment.
+
+4. Create a local virtualenv, for example:
+
+.. code-block:: bash
+
+   mkvirtualenv myenv --python=python3.6
+
+5. Initialize the created environment:
+
+.. code-block:: bash
+
+   ./breeze --initialize-local-virtualenv
+
+6. Open your IDE (for example, PyCharm) and select the virtualenv you created
+   as the project's default virtualenv in your IDE.
+
+Step 3: Connect with People
+---------------------------
+
+For effective collaboration, make sure to join the following Airflow groups:
 
 - Mailing lists:
 
   - Developer’s mailing list `<dev-subscribe@airflow.apache.org>`_
+    (quite substantial traffic on this list)
 
   - All commits mailing list: `<commits-subscribe@airflow.apache.org>`_
+    (very high traffic on this list)
 
   - Airflow users mailing list: `<users-subscribe@airflow.apache.org>`_
+    (reasonably small traffic on this list)
 
-- `Issues on Apache’s Jira <https://issues.apache.org/jira/browse/AIRFLOW>`__
+- `Issues on Apache’s JIRA <https://issues.apache.org/jira/browse/AIRFLOW>`__
 
 - `Slack (chat) <https://apache-airflow-slack.herokuapp.com/>`__
+
+Step 4: Prepare PR
+------------------
+
+1. Update the local sources to address the JIRA ticket.
+
+   For example, to address this example JIRA ticket, do the following:
+
+   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/concepts.html#email-configuration>`__.
+
+   * Find the class you should modify. For the example ticket, this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
+
+   * Find the test class where you should add tests. For the example ticket, this is `test_email.py <https://github.com/apache/airflow/blob/master/tests/utils/test_email.py>`__.
+
+   * Modify the class and add necessary code and unit tests.
+
+   * Run the unit tests from the `IDE <TESTING.rst#running-unit-tests-from-ide>`__ or `local virtualenv <TESTING.rst#running-unit-tests-from-local-virtualenv>`__ as you see fit.
+
+   * Run the tests in `Breeze <TESTING.rst#running-unit-tests-inside-breeze>`__.
+
+   * Run and fix all the `static checks <STATIC_CODE_CHECKS>`__. If you have
+     `pre-commits installed <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__,
+     this step is automatically run while you are committing your code. If not, you can do it manually
+     via ``git add`` and then ``pre-commit run``.
+
+2. Rebase your fork, squash commits, and resolve all conflicts.
+
+3. Re-run static code checks again.
+
+4. Create a pull request with the following title for the sample ticket:
+   ``[AIRFLOW-5934] Added extra CC: field to the Airflow emails.``
+
+Make sure to follow other PR guidelines described in `this document <#pull-request-guidelines>`_.
+
+
+Step 5: Pass PR Review
+----------------------
+
+.. image:: images/review.png
+    :align: center
+    :alt: PR Review
+
+Note that committers will use **Squash and Merge** instead of **Rebase and Merge**
+when merging PRs and your commit will be squashed to single commit.
+
+Resources & Links
+=================
+- `Airflow’s official documentation <http://airflow.apache.org/>`__
 
 - `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__
