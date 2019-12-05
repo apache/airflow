@@ -117,4 +117,4 @@ def breeze_test_helper(request):
     # Initialize kerberos
     kerberos = os.environ.get("KRB5_KTNAME")
     if kerberos:
-        subprocess.call(["kinit", "-kt", kerberos, "airflow"])
+        subprocess.check_call(["kinit", "-kt", kerberos, "airflow"])
