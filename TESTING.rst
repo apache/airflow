@@ -47,7 +47,13 @@ Running Unit Tests from IDE
 ---------------------------
 
 To run unit tests from the IDE, create the `local virtualenv <LOCAL_VRTUALENV.rst>`_,
-select it as the default project's environment, and run unit tests as follows:
+select it as the default project's environment, then configure your test runner:
+
+.. image:: images/configure_test_runner.png
+    :align: center
+    :alt: Configuring test runner
+
+and run unit tests as follows:
 
 .. image:: images/running_unittests.png
     :align: center
