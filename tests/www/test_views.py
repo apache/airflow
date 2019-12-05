@@ -19,14 +19,15 @@
 
 import io
 import copy
+import json
 import logging.config
-import mock
+import sys
+
 import os
 import shutil
 import tempfile
 import unittest
-import sys
-import json
+from tests.compat import mock
 
 from six.moves.urllib.parse import quote_plus
 from werkzeug.test import Client

@@ -22,7 +22,7 @@ env:
   global:
     - BUILD_ID=${TRAVIS_BUILD_ID}
     - MOUNT_LOCAL_SOURCES="false"
-    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="false"
+    - AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS="true"
     - FORCE_ANSWER_TO_QUESTIONS="yes"
     - AIRFLOW_CI_SILENT="true"
     - CI="true"
@@ -63,6 +63,7 @@ jobs:
       env: >-
         BACKEND=postgres
         ENV=kubernetes
+        START_KUBERNETES_CLUSTER=true
         KUBERNETES_VERSION=v1.15.3
         KUBERNETES_MODE=persistent_mode
         PYTHON_VERSION=3.6

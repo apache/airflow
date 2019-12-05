@@ -24,11 +24,14 @@ from cassandra.cluster import Cluster
 from cassandra.policies import (
     TokenAwarePolicy, RoundRobinPolicy, DCAwareRoundRobinPolicy, WhiteListRoundRobinPolicy
 )
+from flaky import flaky
+
 from airflow.models import Connection
 from airflow.utils import db
 from tests.compat import mock, patch
 
 
+@flaky(max_runs=4, min_passes=1)
 class CassandraHookTest(unittest.TestCase):
     def setUp(self):
         db.merge_conn(

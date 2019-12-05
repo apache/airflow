@@ -1318,7 +1318,7 @@ class Airflow(AirflowViewMixin, BaseView):
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
             dag = dagbag.get_dag(dag_id)
-            max_active_runs = dagbag.dags[dag_id].max_active_runs
+
             if dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
                 max_active_runs = dag.max_active_runs

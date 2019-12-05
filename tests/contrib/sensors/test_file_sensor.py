@@ -22,25 +22,13 @@ import unittest
 import shutil
 import tempfile
 
-from airflow import models, DAG
-from airflow.exceptions import AirflowSensorTimeout
+from airflow import DAG
 from airflow.contrib.sensors.file_sensor import FileSensor
-from airflow.settings import Session
+from airflow.exceptions import AirflowSensorTimeout
 from airflow.utils.timezone import datetime
 
-TEST_DAG_ID = 'unit_tests'
+TEST_DAG_ID = 'unit_tests_file_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)
-
-
-def reset(dag_id=TEST_DAG_ID):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
-
-
-reset()
 
 
 class FileSensorTest(unittest.TestCase):

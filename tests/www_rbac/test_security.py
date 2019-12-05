@@ -28,8 +28,9 @@ from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.views import ModelView, BaseView
+from sqlalchemy import Column, Integer, String, Float, Date
 
-from sqlalchemy import Column, Integer, String, Date, Float
+from tests.test_utils.mock_security_manager import MockSecurityManager
 
 from airflow.www_rbac.security import AirflowSecurityManager, DAG_PERMS
 
@@ -202,3 +203,8 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.sync_roles()
         num_pv_after = self.db.session().query(ab_perm_view_role).count()
         self.assertEqual(num_pv_before, num_pv_after)
+
+    def test_override_role_vm(self):
+        test_security_manager = MockSecurityManager(appbuilder=self.appbuilder)
+        self.assertEqual(len(test_security_manager.VIEWER_VMS), 1)
+        self.assertEqual(test_security_manager.VIEWER_VMS, {'Airflow'})

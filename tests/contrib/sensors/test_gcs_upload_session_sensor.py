@@ -19,23 +19,11 @@
 import unittest
 from tests.compat import mock
 from datetime import datetime, timedelta
-from airflow import models, DAG
+from airflow import DAG
 from airflow.contrib.sensors import gcs_sensor
-from airflow.settings import Session
 
-TEST_DAG_ID = 'unit_tests'
+TEST_DAG_ID = 'unit_tests_gcs_upload_session_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)
-
-
-def reset(dag_id=TEST_DAG_ID):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
-
-
-reset()
 
 MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
                    for i in range(20)]
