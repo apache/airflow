@@ -28,7 +28,7 @@ block the execution of DAG.
 
 Additionally ``InProcessExecutor`` can be used in a fail-fast mode that will make
 DAG to fail after first failed task. To enable this option set ``AIRFLOW__DEBUG__FAIL_FAST=True``
-or adjust this setting in your ``airflow.cfg``.
+or adjust ``fail_fast`` option in your ``airflow.cfg``.
 
 **IDE setup steps:**
 
