@@ -28,6 +28,7 @@ import socket
 import traceback
 from collections import defaultdict
 from datetime import timedelta
+from urllib.parse import unquote
 
 from six.moves.urllib.parse import quote
 
@@ -341,12 +342,23 @@ class Airflow(AirflowBaseView):
         TI = models.TaskInstance
         DagRun = models.DagRun
         Dag = models.DagModel
+        allowed_dag_ids = set(appbuilder.sm.get_accessible_dag_ids())
 
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+        if not allowed_dag_ids:
+            return wwwutils.json_response({})
 
-        payload = {}
-        if not filter_dag_ids:
-            return
+        if 'all_dags' in allowed_dag_ids:
+            allowed_dag_ids = {dag_id for dag_id, in session.query(models.DagModel.dag_id)}
+
+        # Filter by get parameters
+        selected_dag_ids = {
+            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+        }
+
+        if selected_dag_ids:
+            filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
+        else:
+            filter_dag_ids = allowed_dag_ids
 
         LastDagRun = (
             session.query(
@@ -356,15 +368,21 @@ class Airflow(AirflowBaseView):
                    .filter(DagRun.state != State.RUNNING)
                    .filter(Dag.is_active == True)  # noqa
                    .group_by(DagRun.dag_id)
-                   .subquery('last_dag_run')
         )
+
         RunningDagRun = (
             session.query(DagRun.dag_id, DagRun.execution_date)
                    .join(Dag, Dag.dag_id == DagRun.dag_id)
                    .filter(DagRun.state == State.RUNNING)
                    .filter(Dag.is_active == True)  # noqa
-                   .subquery('running_dag_run')
         )
+
+        if selected_dag_ids:
+            LastDagRun = LastDagRun.filter(DagRun.dag_id.in_(filter_dag_ids))
+            RunningDagRun = RunningDagRun.filter(DagRun.dag_id.in_(filter_dag_ids))
+
+        LastDagRun = LastDagRun.subquery('last_dag_run')
+        RunningDagRun = RunningDagRun.subquery('running_dag_run')
 
         # Select all task_instances from active dag_runs.
         # If no dag_run is active, return task instances from most recent dag_run.
@@ -381,7 +399,12 @@ class Airflow(AirflowBaseView):
                               RunningDagRun.c.execution_date == TI.execution_date))
         )
 
+        if selected_dag_ids:
+            LastTI = LastTI.filter(TI.dag_id.in_(filter_dag_ids))
+            RunningTI = RunningTI.filter(TI.dag_id.in_(filter_dag_ids))
+
         UnionTI = union_all(LastTI, RunningTI).alias('union_ti')
+
         qry = (
             session.query(UnionTI.c.dag_id, UnionTI.c.state, sqla.func.count())
                    .group_by(UnionTI.c.dag_id, UnionTI.c.state)
@@ -389,25 +412,21 @@ class Airflow(AirflowBaseView):
 
         data = {}
         for dag_id, state, count in qry:
-            if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
-                if dag_id not in data:
-                    data[dag_id] = {}
-                data[dag_id][state] = count
-        session.commit()
+            if dag_id not in data:
+                data[dag_id] = {}
+            data[dag_id][state] = count
 
-        if 'all_dags' in filter_dag_ids:
-            filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
+        payload = {}
         for dag_id in filter_dag_ids:
-            if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
-                payload[dag_id] = []
-                for state in State.task_states:
-                    count = data.get(dag_id, {}).get(state, 0)
-                    payload[dag_id].append({
-                        'state': state,
-                        'count': count,
-                        'dag_id': dag_id,
-                        'color': State.color(state)
-                    })
+            payload[dag_id] = []
+            for state in State.task_states:
+                count = data.get(dag_id, {}).get(state, 0)
+                payload[dag_id].append({
+                    'state': state,
+                    'count': count,
+                    'dag_id': dag_id,
+                    'color': State.color(state)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/last_dagruns')
