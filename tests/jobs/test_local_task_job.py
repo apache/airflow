@@ -33,9 +33,9 @@ from airflow.utils.db import create_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from tests.compat import patch
-from tests.core import TEST_DAG_FOLDER
-from tests.executors.test_executor import TestExecutor
+from tests.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import clear_db_runs
+from tests.test_utils.mock_executor import MockExecutor
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -150,7 +150,7 @@ class LocalTaskJobTest(unittest.TestCase):
             ti.pid = 1
             session.commit()
 
-            job = LocalTaskJob(task_instance=ti, executor=TestExecutor(do_update=False))
+            job = LocalTaskJob(task_instance=ti, executor=MockExecutor(do_update=False))
             job.heartrate = 2
             job.heartbeat_callback = heartbeat_recorder
             job._execute()

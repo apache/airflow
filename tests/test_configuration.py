@@ -432,13 +432,12 @@ AIRFLOW_HOME = /root/airflow
 
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
 
-        with warnings.catch_warnings(record=True) as w:
-            with env_vars(AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
-                test_conf = make_config()
 
-                self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
-
-                self.assertListEqual([], w)
+            with warnings.catch_warnings(record=True) as w:
+                with env_vars(AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
+                    test_conf = make_config()
+                    self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
+                    self.assertListEqual([], w)
 
     def test_deprecated_funcs(self):
         for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',

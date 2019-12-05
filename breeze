@@ -20,6 +20,8 @@
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
 
+export BREEZE=true
+
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export AIRFLOW_SOURCES="${MY_DIR}"
@@ -332,9 +334,9 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 -t, --test-target <TARGET>
         Run the specified unit test target. There might be multiple
         targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
-        as additional options passed to nosetest. For example:
+        as additional options passed to pytest. For example:
 
-        '${0} --test-target tests.core -- --logging-level=DEBUG'
+        '${0} --test-target tests/test_core.py -- --logging-level=DEBUG'
 
 -x, --execute-command <COMMAND>
         Run chosen command instead of entering the environment. The command is run using
@@ -939,7 +941,7 @@ ${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYT
 printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
 
 if [[ "${TEST_TARGET}" == "." ]]; then
-    TEST_TARGET=""
+    TEST_TARGET="tests/"
 fi
 
 print_badge

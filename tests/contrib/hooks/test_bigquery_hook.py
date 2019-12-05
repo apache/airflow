@@ -19,11 +19,9 @@
 #
 
 import unittest
-import warnings
 from typing import List
 
-from google.auth.exceptions import GoogleAuthError
-import mock
+from tests.compat import mock
 from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks import bigquery_hook as hook
@@ -31,11 +29,6 @@ from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
     _validate_value, _api_resource_configs_duplication_check
 
 bq_available = True
-
-try:
-    hook.BigQueryHook().get_service()
-except GoogleAuthError:
-    bq_available = False
 
 
 class TestPandasGbqPrivateKey(unittest.TestCase):
@@ -71,30 +64,30 @@ class TestBigQueryDataframeResults(unittest.TestCase):
     def setUp(self):
         self.instance = hook.BigQueryHook()
 
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_output_is_dataframe_with_valid_query(self):
         import pandas as pd
         df = self.instance.get_pandas_df('select 1')
         self.assertIsInstance(df, pd.DataFrame)
 
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_throws_exception_with_invalid_query(self):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df('from `1`')
         self.assertIn('Reason: ', str(context.exception), "")
 
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_succeeds_with_explicit_legacy_query(self):
         df = self.instance.get_pandas_df('select 1', dialect='legacy')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_succeeds_with_explicit_std_query(self):
         df = self.instance.get_pandas_df(
             'select * except(b) from (select 1 a, 2 b)', dialect='standard')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
-    @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
+    @unittest.skip('SYSTEM TEST, BQ is not available to run tests')
     def test_throws_exception_with_incompatible_syntax(self):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df(
@@ -239,14 +232,13 @@ def mock_job_cancel(projectId, jobId):
 
 class TestBigQueryBaseCursor(unittest.TestCase):
     def test_bql_deprecation_warning(self):
-        with warnings.catch_warnings(record=True) as w:
+        with self.assertWarns(DeprecationWarning) as cm:
             hook.BigQueryBaseCursor("test", "test").run_query(
                 bql='select * from test_table'
             )
             yield
-        self.assertIn(
-            'Deprecated parameter `bql`',
-            w[0].message.args[0])
+        warning = cm.warning
+        assert 'Deprecated parameter `bql`' == warning.args[0]
 
     def test_invalid_schema_update_options(self):
         with self.assertRaises(Exception) as context:

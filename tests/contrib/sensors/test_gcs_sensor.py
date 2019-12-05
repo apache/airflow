@@ -16,18 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import datetime
 
+import datetime
 from tests.compat import mock
 from unittest import TestCase
 
 import pendulum
 
 from airflow import DAG
-from airflow.contrib.sensors.gcs_sensor import GoogleCloudStorageObjectSensor, \
-    GoogleCloudStorageObjectUpdatedSensor, ts_function, GoogleCloudStoragePrefixSensor
-
-TEST_DAG_ID = 'test-dag_id'
+from airflow.contrib.sensors.gcs_sensor import (
+    GoogleCloudStorageObjectSensor, GoogleCloudStorageObjectUpdatedSensor, GoogleCloudStoragePrefixSensor,
+    ts_function,
+)
 
 TEST_BUCKET = "TEST_BUCKET"
 
@@ -38,6 +38,13 @@ TEST_DELEGATE_TO = "TEST_DELEGATE_TO"
 TEST_GCP_CONN_ID = 'TEST_GCP_CONN_ID'
 
 TEST_PREFIX = "TEST_PREFIX"
+
+TEST_DAG_ID = 'unit_tests_gcs_sensor'
+
+DEFAULT_DATE = datetime.datetime(2015, 1, 1)
+
+MOCK_DATE_ARRAY = [datetime.datetime(2019, 2, 24, 12, 0, 0) - i * datetime.timedelta(seconds=10)
+                   for i in range(20)]
 
 
 class TestGoogleCloudStorageObjectSensor(TestCase):

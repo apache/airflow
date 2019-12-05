@@ -48,13 +48,12 @@ from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_p
 from airflow.utils.dates import days_ago
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.state import State
-from tests.compat import MagicMock, Mock, PropertyMock, patch
-from tests.compat import mock
-from tests.core import TEST_DAG_FOLDER
-from tests.executors.test_executor import TestExecutor
-from tests.test_utils.db import clear_db_dags, clear_db_errors, clear_db_pools, \
-    clear_db_runs, clear_db_sla_miss, set_default_pool_slots
-
+from tests.compat import MagicMock, Mock, PropertyMock, mock, patch
+from tests.test_core import TEST_DAG_FOLDER
+from tests.test_utils.db import (
+    clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
+)
+from tests.test_utils.mock_executor import MockExecutor
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TRY_NUMBER = 1
@@ -80,7 +79,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
-        self.null_exec = TestExecutor()
+        self.null_exec = MockExecutor()
 
     @classmethod
     def setUpClass(cls):
@@ -138,7 +137,7 @@ class SchedulerJobTest(unittest.TestCase):
         old_children = current_process.children(recursive=True)
         scheduler = SchedulerJob(subdir=empty_dir,
                                  num_runs=1,
-                                 executor=TestExecutor(do_update=False))
+                                 executor=MockExecutor(do_update=False))
         scheduler.run()
         shutil.rmtree(empty_dir)
 
@@ -169,7 +168,7 @@ class SchedulerJobTest(unittest.TestCase):
         session.merge(ti1)
         session.commit()
 
-        executor = TestExecutor(do_update=False)
+        executor = MockExecutor(do_update=False)
         executor.event_buffer[ti1.key] = State.FAILED
 
         scheduler.executor = executor
@@ -364,7 +363,7 @@ class SchedulerJobTest(unittest.TestCase):
         t2 = DummyOperator(dag=dag, task_id='dummy2')
         dagbag = self._make_simple_dag_bag([dag])
 
-        executor = TestExecutor(do_update=True)
+        executor = MockExecutor(do_update=True)
         scheduler = SchedulerJob(executor=executor)
         dr1 = scheduler.create_dag_run(dag)
         dr2 = scheduler.create_dag_run(dag)
@@ -529,7 +528,7 @@ class SchedulerJobTest(unittest.TestCase):
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
         dagbag = self._make_simple_dag_bag([dag])
 
-        executor = TestExecutor(do_update=True)
+        executor = MockExecutor(do_update=True)
         scheduler = SchedulerJob(executor=executor)
         session = settings.Session()
 
@@ -956,7 +955,7 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
         scheduler_job = SchedulerJob()
         mock_logger = mock.MagicMock()
-        test_executor = TestExecutor(do_update=False)
+        test_executor = MockExecutor(do_update=False)
         scheduler_job.executor = test_executor
         scheduler_job._logger = mock_logger
         scheduler_job._change_state_for_tasks_failed_to_execute()
@@ -1020,7 +1019,7 @@ class SchedulerJobTest(unittest.TestCase):
         processor = mock.MagicMock()
 
         scheduler = SchedulerJob(num_runs=0, run_duration=0)
-        executor = TestExecutor(do_update=False)
+        executor = MockExecutor(do_update=False)
         scheduler.executor = executor
         scheduler.processor_agent = processor
 
@@ -1064,7 +1063,7 @@ class SchedulerJobTest(unittest.TestCase):
         # to a high value to ensure loop is entered. Poll interval is 0 to
         # avoid sleep. Done flag is set to true to exist the loop immediately.
         scheduler = SchedulerJob(num_runs=0, processor_poll_interval=0)
-        executor = TestExecutor(do_update=False)
+        executor = MockExecutor(do_update=False)
         executor.queued_tasks
         scheduler.executor = executor
         processor = mock.MagicMock()
@@ -1268,7 +1267,7 @@ class SchedulerJobTest(unittest.TestCase):
             # because it would take the most recent run and start from there
             # That behavior still exists, but now it will only do so if after the
             # start date
-            bf_exec = TestExecutor()
+            bf_exec = MockExecutor()
             backfill = BackfillJob(
                 executor=bf_exec,
                 dag=dag,
@@ -1800,7 +1799,7 @@ class SchedulerJobTest(unittest.TestCase):
         Checks if tasks that are not taken up by the executor
         get rescheduled
         """
-        executor = TestExecutor(do_update=False)
+        executor = MockExecutor(do_update=False)
 
         dagbag = DagBag(executor=executor)
         dagbag.dags.clear()
@@ -2040,7 +2039,7 @@ class SchedulerJobTest(unittest.TestCase):
         Checks if the scheduler does not put a task in limbo, when a task is retried
         but is still present in the executor.
         """
-        executor = TestExecutor(do_update=False)
+        executor = MockExecutor(do_update=False)
         dagbag = DagBag(executor=executor, dag_folder=os.path.join(settings.DAGS_FOLDER,
                                                                    "no_dags.py"))
         dagbag.dags.clear()
@@ -2167,7 +2166,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         expected_run_duration = 5
         start_time = timezone.utcnow()
-        scheduler = SchedulerJob(dag_id, executor=TestExecutor(do_update=False),
+        scheduler = SchedulerJob(dag_id, executor=MockExecutor(do_update=False),
                                  run_duration=expected_run_duration)
         scheduler.run()
         end_time = timezone.utcnow()

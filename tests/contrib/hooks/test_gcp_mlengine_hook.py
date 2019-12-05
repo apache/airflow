@@ -28,13 +28,14 @@ from airflow.contrib.hooks import gcp_mlengine_hook as hook
 from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build_from_document
 from googleapiclient.http import HttpMockSequence
-from google.auth.exceptions import GoogleAuthError
 import requests
 
+
+# TODO: Fixme to do proper SKIPIF
 cml_available = True
 try:
     hook.MLEngineHook().get_conn()
-except GoogleAuthError:
+except Exception:
     cml_available = False
 
 

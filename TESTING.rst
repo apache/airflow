@@ -20,7 +20,7 @@
 Airflow Test Infrastructure
 ===========================
 
-* **Unit tests** are Python ``nose`` tests launched with ``run-tests``.
+* **Unit tests** are Python tests that do not require any additional integrations.
   Unit tests are available both in the `Breeze environment <BREEZE.rst>`__
   and local virtualenv.
 
@@ -41,11 +41,7 @@ before tests are executed.
 Airflow Unit Tests
 ==================
 
-All tests for Apache Airflow are run via the ``run-tests`` utility that
-provides a Python testing framework with more than 300
-tests including Unit, Integration and System tests.
-``run-tests`` can be launched as
-a command in the Breeze environment, as a script, or via IDE interface.
+All tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_ .
 
 Running Unit Tests from IDE
 ---------------------------
@@ -57,116 +53,62 @@ select it as the default project's environment, and run unit tests as follows:
     :align: center
     :alt: Running unit tests
 
-Some of the core tests use dags defined in ``tests/dags`` folder. Those tests should have
-``AIRFLOW__CORE__UNIT_TEST_MODE`` set to True. You can set it up in your test configuration:
-
-.. image:: images/airflow_unit_test_mode.png
-    :align: center
-    :alt: Airflow Unit test mode
-
 Note that you can run the unit tests in the standalone local virtualenv
 (with no Breeze installed) if they do not have dependencies such as
 Postgres/MySQL/Hadoop/etc.
 
-Running Unit Tests from Local virtualenv
-----------------------------------------
 
-You can use the ``run-tests`` script outside the Breeze Docker container,
-directly from your local virtualenv.
-
-In the Breeze environment, the ``run-test`` script is in the path.
-To run it from the local virtualenv, you need to prepend
-it with ``./`` as follows: ``./run-tests``.
-
-This script has several flags that can be useful for your testing.
-
-.. code:: text
-
-    Usage: run-tests [FLAGS] [TESTS_TO_RUN] -- <EXTRA_NOSETEST_ARGS>
-
-    Runs tests specified (or all tests if no tests are specified).
-
-    Flags:
-
-    -h, --help
-            Shows this help message.
-
-    -i, --with-db-init
-            Forces database initialization before tests.
-
-    -s, --nocapture
-            Doesn't capture stdout when running the tests. This is useful if you are
-            debugging with ipdb and want to drop into the console with it
-            by adding this line to source code:
-
-                import ipdb; ipdb.set_trace()
-
-    -v, --verbose
-            Provides verbose output showing coloured output of tests being run and summary
-            of the tests (in a manner similar to the tests run in the CI environment).
-
-You can pass extra parameters to ``nose``, by adding ``nose`` arguments after
-``--``. For example, to just execute the "core" unit tests and add ipdb
-``set\_trace`` method, you can run the following command:
-
-.. code:: bash
-
-    ./run-tests tests.core:TestCore --nocapture --verbose
-
-To add a single test method without colors or debug logs, specify:
-
-.. code:: bash
-
-    ./run-tests tests.core:TestCore.test_check_operators
-
-Note that the first time the ``./run_tests`` script runs, it
-performs a database initialization. If you run further tests without
-leaving the environment, the database will not be initialized. But you
-can always force the database initialization with the ``--with-db-init``
-(``-i``) switch. The script will inform you what you can do when it is
-run.
-
-**Note:** We do not provide a clear distinction between tests
-(Unit/Integration/System tests), but we are working on it.
-Currently, when you run tests not supported in the local virtualenv,
-the script may either fail or provide an error message.
-
-Running Unit Tests inside Breeze
+Running Unit Tests
 --------------------------------
-Tu run unit tests from the Breeze:
+To run unit, integration and system tests from the Breeze and your
+virtualenv you can use `pytest <http://doc.pytest.org/en/latest/>`_ framework.
 
-1. Enter Airflow Breeze environment.
+Custom pytest plugin run ``airflow db init`` and ``airflow db reset`` the first
+time you launch them, so you can count on the database being initialized. Currently,
+when you run tests not supported **in the local virtualenv, the tests may either fail
+or provide an error message**.
 
-2. Use ``run-tests``.
-   To pass extra parameters to ``nose``, precede them with '--'.
-
-The tests run ``airflow db reset`` and ``airflow db init`` the first time you
-launch them in a running container, so you can count on the database being initialized.
-All subsequent test executions within the same container will run without database
-initialization.
-You can also optionally add the ``--with-db-init`` flag if you want to re-initialize
-the database.
+There are many available options for selecting specific test in pytest. Details could be found
+in official documentation but here are few basic examples:
 
 .. code-block:: bash
 
-   run-tests --with-db-init tests.core:TestCore.test_check_operators -- -s --logging-level=DEBUG
+    pytest -k "TestCore and not check"
 
-**Examples**:
+This will run ``TestCore`` class but will skip tests of this class that includes 'check' in their names.
+For better performance (due to test collection) you should do:
 
-* Execute the "core" unit tests and pass extra parameters to ``nose``:
+.. code-block:: bash
 
-  ``run-tests tests.core:TestCore -- -s --logging-level=DEBUG``
+    pytest tests/tests_core.py -k "TestCore and not bash".
 
-* Execute a single test method:
+This flag is useful when used like this:
 
-  ``run-tests tests.core:TestCore.test_check_operators -- -s --logging-level=DEBUG``
+.. code-block:: bash
+
+    pytest tests/tests_core.py -k "test_check_operators"
+
+to run single test. This can also be done by specifying full path to the test:
+
+.. code-block:: bash
+
+    pytest tests/test_core.py::TestCore::test_check_operators
+
+To run whole test class:
+
+.. code-block:: bash
+
+    pytest tests/test_core.py::TestCore
+
+**Note:** We do not provide a clear distinction between tests
+(Unit/Integration/System tests), but we are working on it.
 
 
 Running Tests for a Specified Target using Breeze from the host
 ---------------------------------------------------------------
 
 If you wish to only run tests and not to drop into shell, you can do this by providing the
-``-t``, ``--test-target`` flag. You can add extra nosetest flags after ``--`` in the command line.
+``-t``, ``--test-target`` flag. You can add extra pytest flags after ``--`` in the command line.
 
 .. code-block:: bash
 
@@ -182,7 +124,7 @@ You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze --test-target tests.core:TestCore
+    ./breeze --test-target tests/test_core.py::TestCore
 
 Running Full test suite via scripts from the host
 -------------------------------------------------

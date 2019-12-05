@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-import warnings
 from tests.compat import MagicMock
 from datetime import datetime
 
@@ -40,6 +38,13 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskFail, TaskInstance
 from airflow.settings import Session
 from tests.compat import mock
+
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
+
 
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
@@ -230,14 +235,17 @@ class BigQueryUpdateDatasetOperatorTest(unittest.TestCase):
 
 class BigQueryOperatorTest(unittest.TestCase):
     def test_bql_deprecation_warning(self):
-        with warnings.catch_warnings(record=True) as w:
-            BigQueryOperator(
+        with self.assertWarns(DeprecationWarning) as cm:
+            task = BigQueryOperator(
                 task_id='test_deprecation_warning_for_bql',
                 bql='select * from test_table'
             )
-        self.assertIn(
-            'Deprecated parameter `bql`',
-            w[0].message.args[0])
+        warning = cm.warning
+        assert task, "Task should be created"
+        assert 'Deprecated parameter `bql` used in Task id: test_deprecation_warning_for_bql. ' \
+               'Use `sql` parameter instead to pass the sql to be executed.' \
+               ' `bql` parameter is deprecated and will be removed' \
+               ' in a future version of Airflow.' == warning.args[0]
 
     def setUp(self):
         self.dagbag = models.DagBag(

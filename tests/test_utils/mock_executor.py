@@ -24,9 +24,9 @@ from airflow.utils.state import State
 from airflow.utils.db import create_session
 
 
-class TestExecutor(BaseExecutor):
+class MockExecutor(BaseExecutor):
     """
-    TestExecutor is used for unit testing purposes.
+    MockExecutor is used for unit testing purposes.
     """
 
     def __init__(self, do_update=True, *args, **kwargs):
@@ -39,7 +39,7 @@ class TestExecutor(BaseExecutor):
         self.sorted_tasks = []
         self.mock_task_results = defaultdict(lambda: State.SUCCESS)
 
-        super(TestExecutor, self).__init__(*args, **kwargs)
+        super(MockExecutor, self).__init__(*args, **kwargs)
 
     def heartbeat(self):
         if not self.do_update:
@@ -72,7 +72,7 @@ class TestExecutor(BaseExecutor):
         self.sync()
 
     def change_state(self, key, state):
-        super(TestExecutor, self).change_state(key, state)
+        super(MockExecutor, self).change_state(key, state)
         # The normal event buffer is cleared after reading, we want to keep
         # a list of all events for testing
         self.sorted_tasks.append((key, state))

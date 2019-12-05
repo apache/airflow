@@ -20,7 +20,6 @@
 from __future__ import print_function
 
 import json
-import unittest
 
 import mock
 import multiprocessing
@@ -30,7 +29,6 @@ import signal
 import sqlalchemy
 import subprocess
 import tempfile
-import warnings
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from email.mime.application import MIMEApplication
@@ -73,6 +71,12 @@ from pendulum import utcnow
 import six
 
 from tests.test_utils.config import conf_vars
+
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
 
 NUM_EXAMPLE_DAGS = 19
 DEV_NULL = '/dev/null'
@@ -433,18 +437,19 @@ class CoreTest(unittest.TestCase):
         """
         Tests that Operators reject illegal arguments
         """
-        with warnings.catch_warnings(record=True) as w:
-            BashOperator(
+        with self.assertWarns(PendingDeprecationWarning) as cm:
+            task = BashOperator(
                 task_id='test_illegal_args',
                 bash_command='echo success',
                 dag=self.dag,
                 illegal_argument_1234='hello?')
-            self.assertTrue(
-                issubclass(w[0].category, PendingDeprecationWarning))
-            self.assertIn(
-                ('Invalid arguments were passed to BashOperator '
-                 '(task_id: test_illegal_args).'),
-                w[0].message.args[0])
+            assert task, "The task should be created."
+        warning = cm.warning
+        assert "Invalid arguments were passed to BashOperator " \
+            "(task_id: test_illegal_args). Support for passing such arguments will be dropped " \
+            "in Airflow 2.0. Invalid arguments were:\n" \
+            "*args: ()\n" \
+            "**kwargs: {'illegal_argument_1234': 'hello?'}" == warning.args[0]
 
     def test_bash_operator(self):
         t = BashOperator(
@@ -1662,20 +1667,44 @@ class CliTests(unittest.TestCase):
             except Exception:
                 sleep(1)
 
+    def _check_processes(self):
+        try:
+            # Confirm that webserver hasn't been launched.
+            # pgrep returns exit status 1 if no process matched.
+            self.assertEqual(1, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver"]).wait())
+            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+        except:  # noqa: E722
+            subprocess.Popen(["ps", "-ax"]).wait()
+            raise
+
+    def _clean_pidfiles(self):
+        pidfile_webserver = cli.setup_locations("webserver")[0]
+        pidfile_monitor = cli.setup_locations("webserver-monitor")[0]
+        if os.path.exists(pidfile_webserver):
+            os.remove(pidfile_webserver)
+        if os.path.exists(pidfile_monitor):
+            os.remove(pidfile_monitor)
+
     def test_cli_webserver_foreground(self):
-        # Confirm that webserver hasn't been launched.
-        # pgrep returns exit status 1 if no process matched.
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+        self._check_processes()
+        self._clean_pidfiles()
+        try:
 
-        # Run webserver in foreground and terminate it.
-        p = subprocess.Popen(["airflow", "webserver"])
-        p.terminate()
-        p.wait()
+            # Confirm that webserver hasn't been launched.
+            # pgrep returns exit status 1 if no process matched.
+            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
 
-        # Assert that no process remains.
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+            # Run webserver in foreground and terminate it.
+            p = subprocess.Popen(["airflow", "webserver"])
+            p.terminate()
+            p.wait()
+
+            # Assert that no process remains.
+            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+            self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+        finally:
+            self._check_processes()
 
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
@@ -1695,30 +1724,28 @@ class CliTests(unittest.TestCase):
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_background(self):
         import psutil
+        self._check_processes()
+        self._clean_pidfiles()
+        try:
+            pidfile_webserver = cli.setup_locations("webserver")[0]
+            pidfile_monitor = cli.setup_locations("webserver-monitor")[0]
 
-        # Confirm that webserver hasn't been launched.
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+            # Run webserver as daemon in background. Note that the wait method is not called.
+            subprocess.Popen(["airflow", "webserver", "-D"])
 
-        # Run webserver in background.
-        subprocess.Popen(["airflow", "webserver", "-D"])
-        pidfile = cli.setup_locations("webserver")[0]
-        self._wait_pidfile(pidfile)
+            pid_monitor = self._wait_pidfile(pidfile_monitor)
+            self._wait_pidfile(pidfile_webserver)
 
-        # Assert that gunicorn and its monitor are launched.
-        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+            # Assert that gunicorn and its monitor are launched.
+            self.assertEqual(0, subprocess.Popen(["pgrep", "-f", "-c", "airflow webserver"]).wait())
+            self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
 
-        # Terminate monitor process.
-        pidfile = cli.setup_locations("webserver-monitor")[0]
-        pid = self._wait_pidfile(pidfile)
-        p = psutil.Process(pid)
-        p.terminate()
-        p.wait()
-
-        # Assert that no process remains.
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
-        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+            # Terminate monitor process.
+            proc = psutil.Process(pid_monitor)
+            proc.terminate()
+            proc.wait()
+        finally:
+            self._check_processes()
 
     # Patch for causing webserver timeout
     @mock.patch("airflow.bin.cli.get_num_workers_running", return_value=0)
@@ -2561,7 +2588,7 @@ class FakeHDFSHook(object):
 
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
-        utils.db.initdb()
+        utils.db.initdb(rbac=True)
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
             'postgres://username:password@ec2.compute.com:5432/the_database')
         os.environ['AIRFLOW_CONN_TEST_URI_NO_CREDS'] = (

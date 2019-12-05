@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowSensorTimeout
 
 class HdfsSensorFolderTests(unittest.TestCase):
     def setUp(self):
-        from tests.core import FakeHDFSHook
+        from tests.test_core import FakeHDFSHook
         self.hook = FakeHDFSHook
         self.log = logging.getLogger()
         self.log.setLevel(logging.DEBUG)
@@ -124,7 +124,7 @@ class HdfsSensorFolderTests(unittest.TestCase):
 
 class HdfsSensorRegexTests(unittest.TestCase):
     def setUp(self):
-        from tests.core import FakeHDFSHook
+        from tests.test_core import FakeHDFSHook
         self.hook = FakeHDFSHook
         self.log = logging.getLogger()
         self.log.setLevel(logging.DEBUG)
