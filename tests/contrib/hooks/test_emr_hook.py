@@ -82,11 +82,11 @@ class TestEmrHook(unittest.TestCase):
 
         job_flow_id = job_flow['JobFlowId']
 
-        matching_cluster = hook.get_cluster_id_by_name('test_cluster')
+        matching_cluster = hook.get_cluster_id_by_name('test_cluster', ['RUNNING', 'WAITING'])
 
         self.assertEqual(matching_cluster, job_flow_id)
 
-        no_match = hook.get_cluster_id_by_name('foo')
+        no_match = hook.get_cluster_id_by_name('foo', ['RUNNING', 'WAITING', 'BOOTSTRAPPING'])
 
         self.assertIsNone(no_match)
 
