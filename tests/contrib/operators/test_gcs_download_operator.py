@@ -21,14 +21,7 @@ import unittest
 
 from airflow.contrib.operators.gcs_download_operator \
     import GoogleCloudStorageDownloadOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-gcs-download-operator'
 TEST_BUCKET = 'test-bucket'

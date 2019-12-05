@@ -43,10 +43,11 @@ class S3PrefixSensor(BaseSensorOperator):
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
-        - False: do not validate SSL certificates. SSL will still be used
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
                  (unless use_ssl is False), but SSL certificates will not be
                  verified.
-        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
@@ -72,8 +73,7 @@ class S3PrefixSensor(BaseSensorOperator):
         self.verify = verify
 
     def poke(self, context):
-        self.log.info('Poking for prefix : {self.prefix}\n'
-                      'in bucket s3://{self.bucket_name}'.format(**locals()))
+        self.log.info('Poking for prefix : %s in bucket s3://%s', self.prefix, self.bucket_name)
         from airflow.hooks.S3_hook import S3Hook
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return hook.check_for_prefix(

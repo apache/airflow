@@ -21,7 +21,7 @@ import distributed
 import subprocess
 import warnings
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 
 
@@ -31,15 +31,15 @@ class DaskExecutor(BaseExecutor):
     """
     def __init__(self, cluster_address=None):
         if cluster_address is None:
-            cluster_address = configuration.conf.get('dask', 'cluster_address')
+            cluster_address = conf.get('dask', 'cluster_address')
         if not cluster_address:
             raise ValueError(
                 'Please provide a Dask cluster address in airflow.cfg')
         self.cluster_address = cluster_address
         # ssl / tls parameters
-        self.tls_ca = configuration.get('dask', 'tls_ca')
-        self.tls_key = configuration.get('dask', 'tls_key')
-        self.tls_cert = configuration.get('dask', 'tls_cert')
+        self.tls_ca = conf.get('dask', 'tls_ca')
+        self.tls_key = conf.get('dask', 'tls_key')
+        self.tls_cert = conf.get('dask', 'tls_cert')
         super(DaskExecutor, self).__init__(parallelism=0)
 
     def start(self):
@@ -65,7 +65,7 @@ class DaskExecutor(BaseExecutor):
             )
 
         def airflow_run():
-            return subprocess.check_call(command, shell=True, close_fds=True)
+            return subprocess.check_call(command, close_fds=True)
 
         future = self.client.submit(airflow_run, pure=False)
         self.futures[future] = key

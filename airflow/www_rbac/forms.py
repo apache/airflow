@@ -22,7 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from airflow import models
+from airflow.models import Connection
 from airflow.utils import timezone
 
 from flask_appbuilder.forms import DynamicForm
@@ -75,6 +75,7 @@ class DagRunForm(DynamicForm):
         widget=DateTimePickerWidget())
     run_id = StringField(
         lazy_gettext('Run Id'),
+        validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
     state = SelectField(
         lazy_gettext('State'),
@@ -86,14 +87,21 @@ class DagRunForm(DynamicForm):
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
 
+    def populate_obj(self, item):
+        # TODO: This is probably better done as a custom field type so we can
+        # set TZ at parse time
+        super(DagRunForm, self).populate_obj(item)
+        item.execution_date = timezone.make_aware(item.execution_date)
+
 
 class ConnectionForm(DynamicForm):
     conn_id = StringField(
         lazy_gettext('Conn Id'),
+        validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
     conn_type = SelectField(
         lazy_gettext('Conn Type'),
-        choices=models.Connection._types,
+        choices=Connection._types,
         widget=Select2Widget())
     host = StringField(
         lazy_gettext('Host'),
@@ -136,5 +144,19 @@ class ConnectionForm(DynamicForm):
         lazy_gettext('Keyfile JSON'),
         widget=BS3PasswordFieldWidget())
     extra__google_cloud_platform__scope = StringField(
+        lazy_gettext('Scopes (comma separated)'),
+        widget=BS3TextFieldWidget())
+    extra__google_cloud_platform__num_retries = IntegerField(
+        lazy_gettext('Number of Retries'),
+        validators=[validators.NumberRange(min=0)],
+        widget=BS3TextFieldWidget(),
+        default=5)
+    extra__grpc__auth_type = StringField(
+        lazy_gettext('Grpc Auth Type'),
+        widget=BS3TextFieldWidget())
+    extra__grpc__credential_pem_file = StringField(
+        lazy_gettext('Credential Keyfile Path'),
+        widget=BS3TextFieldWidget())
+    extra__grpc__scopes = StringField(
         lazy_gettext('Scopes (comma separated)'),
         widget=BS3TextFieldWidget())

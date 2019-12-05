@@ -48,12 +48,13 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         When set to ``poke`` the sensor is taking up a worker slot for its
         whole execution time and sleeps between pokes. Use this mode if the
         expected runtime of the sensor is short or if a short poke interval
-        is requried.
+        is required. Note that the sensor will hold onto a worker slot and
+        a pool slot for the duration of the sensor's runtime in this mode.
         When set to ``reschedule`` the sensor task frees the worker slot when
         the criteria is not yet met and it's rescheduled at a later time. Use
-        this mode if the expected time until the criteria is met is. The poke
-        inteval should be more than one minute to prevent too much load on
-        the scheduler.
+        this mode if the time before the criteria is met is expected to be
+        quite long. The poke interval should be more than one minute to
+        prevent too much load on the scheduler.
     :type mode: str
     """
     ui_color = '#e6f1f2'
@@ -71,14 +72,23 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout
-        if mode not in self.valid_modes:
+        self.mode = mode
+        self._validate_input_values()
+
+    def _validate_input_values(self):
+        if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
+            raise AirflowException(
+                "The poke_interval must be a non-negative number")
+        if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
+            raise AirflowException(
+                "The timeout must be a non-negative number")
+        if self.mode not in self.valid_modes:
             raise AirflowException(
                 "The mode must be one of {valid_modes},"
                 "'{d}.{t}'; received '{m}'."
                 .format(valid_modes=self.valid_modes,
                         d=self.dag.dag_id if self.dag else "",
-                        t=self.task_id, m=mode))
-        self.mode = mode
+                        t=self.task_id, m=self.mode))
 
     def poke(self, context):
         """

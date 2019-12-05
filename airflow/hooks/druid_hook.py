@@ -35,7 +35,7 @@ class DruidHook(BaseHook):
 
     :param druid_ingest_conn_id: The connection id to the Druid overlord machine
                                  which accepts index jobs
-    :type druid_ingest_conn_id: string
+    :type druid_ingest_conn_id: str
     :param timeout: The interval between polling
                     the Druid job for the status of the ingestion job.
                     Must be greater than or equal to 1
@@ -63,13 +63,28 @@ class DruidHook(BaseHook):
         port = conn.port
         conn_type = 'http' if not conn.conn_type else conn.conn_type
         endpoint = conn.extra_dejson.get('endpoint', '')
-        return "{conn_type}://{host}:{port}/{endpoint}".format(**locals())
+        return "{conn_type}://{host}:{port}/{endpoint}".format(
+            conn_type=conn_type, host=host, port=port, endpoint=endpoint)
+
+    def get_auth(self):
+        """
+        Return username and password from connections tab as requests.auth.HTTPBasicAuth object.
+
+        If these details have not been set then returns None.
+        """
+        conn = self.get_connection(self.druid_ingest_conn_id)
+        user = conn.login
+        password = conn.password
+        if user is not None and password is not None:
+            return requests.auth.HTTPBasicAuth(user, password)
+        else:
+            return None
 
     def submit_indexing_job(self, json_index_spec):
         url = self.get_conn_url()
 
-        self.log.info("Druid ingestion spec: {}".format(json_index_spec))
-        req_index = requests.post(url, json=json_index_spec, headers=self.header)
+        self.log.info("Druid ingestion spec: %s", json_index_spec)
+        req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
         if req_index.status_code != 200:
             raise AirflowException('Did not get 200 when '
                                    'submitting the Druid job to {}'.format(url))
@@ -77,7 +92,7 @@ class DruidHook(BaseHook):
         req_json = req_index.json()
         # Wait until the job is completed
         druid_task_id = req_json['task']
-        self.log.info("Druid indexing task-id: {}".format(druid_task_id))
+        self.log.info("Druid indexing task-id: %s", druid_task_id)
 
         running = True
 
@@ -136,8 +151,7 @@ class DruidDbApiHook(DbApiHook):
             path=conn.extra_dejson.get('endpoint', '/druid/v2/sql'),
             scheme=conn.extra_dejson.get('schema', 'http')
         )
-        self.log.info('Get the connection to druid '
-                      'broker on {host}'.format(host=conn.host))
+        self.log.info('Get the connection to druid broker on %s', conn.host)
         return druid_broker_conn
 
     def get_uri(self):

@@ -21,16 +21,19 @@ import os
 
 # inspect.signature is only available in Python 3. funcsigs.signature is
 # a backport.
+PY2 = False
 try:
     import inspect
     signature = inspect.signature
 except AttributeError:
     import funcsigs
     signature = funcsigs.signature
+    PY2 = True
 
 from copy import copy
 from functools import wraps
 
+from airflow import settings
 from airflow.exceptions import AirflowException
 
 
@@ -45,7 +48,6 @@ def apply_defaults(func):
     specific information about the missing arguments.
     """
 
-    import airflow.models
     # Cache inspect.signature for the wrapper closure to avoid calling it
     # at every decorated invocation. This is separate sig_cache created
     # per decoration, i.e. each function decorated using apply_defaults will
@@ -65,7 +67,7 @@ def apply_defaults(func):
         dag_args = {}
         dag_params = {}
 
-        dag = kwargs.get('dag', None) or airflow.models._CONTEXT_MANAGER_DAG
+        dag = kwargs.get('dag', None) or settings.CONTEXT_MANAGER_DAG
         if dag:
             dag_args = copy(dag.default_args) or {}
             dag_params = copy(dag.params) or {}
@@ -97,6 +99,9 @@ def apply_defaults(func):
 
         result = func(*args, **kwargs)
         return result
+
+    if PY2:
+        wrapper.__wrapped__ = func
     return wrapper
 
 if 'BUILDING_AIRFLOW_DOCS' in os.environ:

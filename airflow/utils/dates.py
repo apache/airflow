@@ -24,7 +24,7 @@ from __future__ import unicode_literals
 
 from airflow.utils import timezone
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta  # flake8: noqa: F401 for doctest
+from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
 import six
 
 from croniter import croniter
@@ -41,8 +41,21 @@ cron_presets = {
 def date_range(start_date, end_date=None, num=None, delta=None):
     """
     Get a set of dates as a list based on a start, end and delta, delta
-    can be something that can be added to ``datetime.datetime``
-    or a cron expression as a ``str``
+    can be something that can be added to `datetime.datetime`
+    or a cron expression as a `str`
+
+    .. code-block:: python
+
+        date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
+            [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
+            datetime.datetime(2016, 1, 3, 0, 0)]
+        date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta='0 0 * * *')
+            [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
+            datetime.datetime(2016, 1, 3, 0, 0)]
+        date_range(datetime(2016, 1, 1), datetime(2016, 3, 3), delta="0 0 0 * *")
+            [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 2, 1, 0, 0),
+            datetime.datetime(2016, 3, 1, 0, 0)]
+
     :param start_date: anchor date to start the series from
     :type start_date: datetime.datetime
     :param end_date: right boundary for the date range
@@ -51,15 +64,6 @@ def date_range(start_date, end_date=None, num=None, delta=None):
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
     :type num: int
-    >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
-     datetime.datetime(2016, 1, 3, 0, 0)]
-    >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta='0 0 * * *')
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
-     datetime.datetime(2016, 1, 3, 0, 0)]
-    >>> date_range(datetime(2016, 1, 1), datetime(2016, 3, 3), delta="0 0 0 * *")
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 2, 1, 0, 0),
-     datetime.datetime(2016, 3, 1, 0, 0)]
     """
     if not delta:
         return []
@@ -175,9 +179,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
         if start_date + (lower + 1) * delta >= dt:
             # Check if start_date + (lower + 1)*delta or
             # start_date + lower*delta is closer to dt and return the solution
-            if (
-                (start_date + (lower + 1) * delta) - dt <=
-                dt - (start_date + lower * delta)):
+            if (start_date + (lower + 1) * delta) - dt <= dt - (start_date + lower * delta):
                 return start_date + (lower + 1) * delta
             else:
                 return start_date + lower * delta

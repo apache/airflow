@@ -16,31 +16,44 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Triggering DAG runs APIs."""
 import json
+from datetime import datetime
+from typing import Union, Optional, List
 
 from airflow.exceptions import DagRunAlreadyExists, DagNotFound
-from airflow.models import DagRun, DagBag
+from airflow.models import DagRun, DagBag, DagModel
 from airflow.utils import timezone
 from airflow.utils.state import State
 
 
 def _trigger_dag(
-        dag_id,
-        dag_bag,
-        dag_run,
-        run_id,
-        conf,
-        execution_date,
-        replace_microseconds,
-):
+        dag_id,  # type: str
+        dag_bag,  # type: DagBag
+        dag_run,  # type: DagModel
+        run_id,  # type: Optional[str]
+        conf,  # type: Optional[Union[dict, str]]
+        execution_date,  # type: Optional[datetime]
+        replace_microseconds,  # type: bool
+):  # pylint: disable=too-many-arguments
+    # type: (...) -> List[DagRun]
+    """Triggers DAG run.
+
+    :param dag_id: DAG ID
+    :param dag_bag: DAG Bag model
+    :param dag_run: DAG Run model
+    :param run_id: ID of the dag_run
+    :param conf: configuration
+    :param execution_date: date of execution
+    :param replace_microseconds: whether microseconds should be zeroed
+    :return: list of triggered dags
+    """
     if dag_id not in dag_bag.dags:
         raise DagNotFound("Dag id {} not found".format(dag_id))
 
     dag = dag_bag.get_dag(dag_id)
 
-    if not execution_date:
-        execution_date = timezone.utcnow()
+    execution_date = execution_date if execution_date else timezone.utcnow()
 
     assert timezone.is_localized(execution_date)
 
@@ -50,8 +63,8 @@ def _trigger_dag(
     if not run_id:
         run_id = "manual__{0}".format(execution_date.isoformat())
 
-    dr = dag_run.find(dag_id=dag_id, run_id=run_id)
-    if dr:
+    dag_run_id = dag_run.find(dag_id=dag_id, run_id=run_id)
+    if dag_run_id:
         raise DagRunAlreadyExists("Run id {} already exists for dag id {}".format(
             run_id,
             dag_id
@@ -59,7 +72,7 @@ def _trigger_dag(
 
     run_conf = None
     if conf:
-        if type(conf) is dict:
+        if isinstance(conf, dict):
             run_conf = conf
         else:
             run_conf = json.loads(conf)
@@ -83,13 +96,25 @@ def _trigger_dag(
 
 
 def trigger_dag(
-        dag_id,
-        run_id=None,
-        conf=None,
-        execution_date=None,
-        replace_microseconds=True,
+        dag_id,  # type: str
+        run_id=None,  # type: Optional[str]
+        conf=None,  # type: Optional[Union[dict, str]]
+        execution_date=None,  # type: Optional[datetime]
+        replace_microseconds=True,  # type: bool
 ):
-    dagbag = DagBag()
+    """Triggers execution of DAG specified by dag_id
+
+    :param dag_id: DAG ID
+    :param run_id: ID of the dag_run
+    :param conf: configuration
+    :param execution_date: date of execution
+    :param replace_microseconds: whether microseconds should be zeroed
+    :return: first dag run triggered - even if more than one Dag Runs were triggered or None
+    """
+    dag_model = DagModel.get_current(dag_id)
+    if dag_model is None:
+        raise DagNotFound("Dag id {} not found in DagModel".format(dag_id))
+    dagbag = DagBag(dag_folder=dag_model.fileloc)
     dag_run = DagRun()
     triggers = _trigger_dag(
         dag_id=dag_id,

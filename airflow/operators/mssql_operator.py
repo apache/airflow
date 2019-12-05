@@ -26,13 +26,18 @@ class MsSqlOperator(BaseOperator):
     """
     Executes sql code in a specific Microsoft SQL database
 
-    :param mssql_conn_id: reference to a specific mssql database
-    :type mssql_conn_id: string
     :param sql: the sql code to be executed
-    :type sql: string or string pointing to a template file with .sql
+    :type sql: str or string pointing to a template file with .sql
         extension. (templated)
+    :param mssql_conn_id: reference to a specific mssql database
+    :type mssql_conn_id: str
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :type parameters: mapping or iterable
+    :param autocommit: if True, each command is automatically committed.
+        (default value: False)
+    :type autocommit: bool
     :param database: name of database which overwrite defined one in connection
-    :type database: string
+    :type database: str
     """
 
     template_fields = ('sql',)

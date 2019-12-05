@@ -16,6 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Google Compute Engine Hook.
+"""
 
 import time
 from googleapiclient.discovery import build
@@ -23,15 +26,14 @@ from googleapiclient.discovery import build
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
-# Number of retries - used by googleapiclient method calls to perform retries
-# For requests that are "retriable"
-NUM_RETRIES = 5
-
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 class GceOperationStatus:
+    """
+    Class with GCE operations statuses.
+    """
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     DONE = "DONE"
@@ -44,7 +46,6 @@ class GceHook(GoogleCloudBaseHook):
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
-
     """
     _conn = None
 
@@ -84,11 +85,11 @@ class GceHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
-        response = self.get_conn().instances().start(
+        response = self.get_conn().instances().start(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
             instance=resource_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         try:
             operation_name = response["name"]
         except KeyError:
@@ -115,11 +116,11 @@ class GceHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
-        response = self.get_conn().instances().stop(
+        response = self.get_conn().instances().stop(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
             instance=resource_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         try:
             operation_name = response["name"]
         except KeyError:
@@ -162,9 +163,9 @@ class GceHook(GoogleCloudBaseHook):
                                              zone=zone)
 
     def _execute_set_machine_type(self, zone, resource_id, body, project_id):
-        return self.get_conn().instances().setMachineType(
+        return self.get_conn().instances().setMachineType(  # pylint: disable=no-member
             project=project_id, zone=zone, instance=resource_id, body=body)\
-            .execute(num_retries=NUM_RETRIES)
+            .execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def get_instance_template(self, resource_id, project_id=None):
@@ -182,10 +183,10 @@ class GceHook(GoogleCloudBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :rtype: dict
         """
-        response = self.get_conn().instanceTemplates().get(
+        response = self.get_conn().instanceTemplates().get(  # pylint: disable=no-member
             project=project_id,
             instanceTemplate=resource_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         return response
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
@@ -208,11 +209,11 @@ class GceHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
-        response = self.get_conn().instanceTemplates().insert(
+        response = self.get_conn().instanceTemplates().insert(  # pylint: disable=no-member
             project=project_id,
             body=body,
             requestId=request_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         try:
             operation_name = response["name"]
         except KeyError:
@@ -240,11 +241,11 @@ class GceHook(GoogleCloudBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
         :rtype: dict
         """
-        response = self.get_conn().instanceGroupManagers().get(
+        response = self.get_conn().instanceGroupManagers().get(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
             instanceGroupManager=resource_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         return response
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
@@ -271,15 +272,15 @@ class GceHook(GoogleCloudBaseHook):
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the GCP connection is used.
         :type project_id: str
-        :return None
+        :return: None
         """
-        response = self.get_conn().instanceGroupManagers().patch(
+        response = self.get_conn().instanceGroupManagers().patch(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
             instanceGroupManager=resource_id,
             body=body,
             requestId=request_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         try:
             operation_name = response["name"]
         except KeyError:
@@ -305,11 +306,15 @@ class GceHook(GoogleCloudBaseHook):
             if zone is None:
                 # noinspection PyTypeChecker
                 operation_response = self._check_global_operation_status(
-                    service, operation_name, project_id)
+                    service=service,
+                    operation_name=operation_name,
+                    project_id=project_id,
+                    num_retries=self.num_retries
+                )
             else:
                 # noinspection PyTypeChecker
                 operation_response = self._check_zone_operation_status(
-                    service, operation_name, project_id, zone)
+                    service, operation_name, project_id, zone, self.num_retries)
             if operation_response.get("status") == GceOperationStatus.DONE:
                 error = operation_response.get("error")
                 if error:
@@ -318,18 +323,17 @@ class GceHook(GoogleCloudBaseHook):
                     # Extracting the errors list as string and trimming square braces
                     error_msg = str(error.get("errors"))[1:-1]
                     raise AirflowException("{} {}: ".format(code, msg) + error_msg)
-                # No meaningful info to return from the response in case of success
-                return
+                break
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
 
     @staticmethod
-    def _check_zone_operation_status(service, operation_name, project_id, zone):
+    def _check_zone_operation_status(service, operation_name, project_id, zone, num_retries):
         return service.zoneOperations().get(
             project=project_id, zone=zone, operation=operation_name).execute(
-            num_retries=NUM_RETRIES)
+            num_retries=num_retries)
 
     @staticmethod
-    def _check_global_operation_status(service, operation_name, project_id):
+    def _check_global_operation_status(service, operation_name, project_id, num_retries):
         return service.globalOperations().get(
             project=project_id, operation=operation_name).execute(
-            num_retries=NUM_RETRIES)
+            num_retries=num_retries)

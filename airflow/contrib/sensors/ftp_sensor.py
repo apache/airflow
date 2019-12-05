@@ -34,7 +34,7 @@ class FTPSensor(BaseSensorOperator):
     """Errors that are transient in nature, and where action can be retried"""
     transient_errors = [421, 425, 426, 434, 450, 451, 452]
 
-    error_code_pattern = re.compile("([\d]+)")
+    error_code_pattern = re.compile(r"([\d]+)")
 
     @apply_defaults
     def __init__(

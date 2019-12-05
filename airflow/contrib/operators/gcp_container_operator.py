@@ -21,6 +21,8 @@ import os
 import subprocess
 import tempfile
 
+from google.auth.environment_vars import CREDENTIALS
+
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_container_hook import GKEClusterHook
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
@@ -86,8 +88,8 @@ class GKEClusterDeleteOperator(BaseOperator):
 
     def execute(self, context):
         self._check_input()
-        hook = GKEClusterHook(self.project_id, self.location)
-        delete_result = hook.delete_cluster(name=self.name)
+        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        delete_result = hook.delete_cluster(name=self.name, project_id=self.project_id)
         return delete_result
 
 
@@ -119,7 +121,7 @@ class GKEClusterCreateOperator(BaseOperator):
 
     .. seealso::
         For more detail on about creating clusters have a look at the reference:
-        https://google-cloud-python.readthedocs.io/en/latest/container/gapic/v1/types.html#google.cloud.container_v1.types.Cluster
+        :class:`google.cloud.container_v1.types.Cluster`
 
     :param project_id: The Google Developers Console [project ID or project number]
     :type project_id: str
@@ -173,13 +175,12 @@ class GKEClusterCreateOperator(BaseOperator):
 
     def execute(self, context):
         self._check_input()
-        hook = GKEClusterHook(self.project_id, self.location)
-        create_op = hook.create_cluster(cluster=self.body)
+        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
         return create_op
 
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
-G_APP_CRED = "GOOGLE_APPLICATION_CREDENTIALS"
 
 
 class GKEPodOperator(KubernetesPodOperator):
@@ -297,12 +298,13 @@ class GKEPodOperator(KubernetesPodOperator):
         if not key_path and not keyfile_json_str:
             self.log.info('Using gcloud with application default credentials.')
         elif key_path:
-            os.environ[G_APP_CRED] = key_path
+            os.environ[CREDENTIALS] = key_path
+            return None
         else:
             # Write service account JSON to secure file for gcloud to reference
             service_key = tempfile.NamedTemporaryFile(delete=False)
-            service_key.write(keyfile_json_str)
-            os.environ[G_APP_CRED] = service_key.name
+            service_key.write(keyfile_json_str.encode('utf-8'))
+            os.environ[CREDENTIALS] = service_key.name
             # Return file object to have a pointer to close after use,
             # thus deleting from file system.
             return service_key
@@ -318,5 +320,5 @@ class GKEPodOperator(KubernetesPodOperator):
         if long_f in extras:
             return extras[long_f]
         else:
-            self.log.info('Field {} not found in extras.'.format(field))
+            self.log.info('Field %s not found in extras.', field)
             return default

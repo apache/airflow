@@ -22,11 +22,8 @@ import unittest
 
 import requests_mock
 from airflow.operators.http_operator import SimpleHttpOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 
 class SimpleHttpOpTests(unittest.TestCase):
@@ -52,3 +49,27 @@ class SimpleHttpOpTests(unittest.TestCase):
         with mock.patch.object(operator.log, 'info') as mock_info:
             operator.execute(None)
             mock_info.assert_called_with('Example.com fake response')
+
+    @requests_mock.mock()
+    def test_response_in_logs_after_failed_check(self, m):
+        """
+        Test that when using SimpleHttpOperator with log_response=True,
+        the response is logged even if request_check fails
+        """
+
+        def response_check(response):
+            return response.text != 'invalid response'
+
+        m.get('http://www.example.com', text='invalid response')
+        operator = SimpleHttpOperator(
+            task_id='test_HTTP_op',
+            method='GET',
+            endpoint='/',
+            http_conn_id='HTTP_EXAMPLE',
+            log_response=True,
+            response_check=response_check
+        )
+
+        with mock.patch.object(operator.log, 'info') as mock_info:
+            self.assertRaises(AirflowException, operator.execute, None)
+            mock_info.assert_called_with('invalid response')

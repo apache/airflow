@@ -19,44 +19,49 @@
 import json
 import os
 import subprocess
+from typing import Optional
 
 from airflow import settings, AirflowException
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 from airflow.models import Connection
 
-GCP_COMPUTE_KEY = 'gcp_compute.json'
-GCP_FUNCTION_KEY = 'gcp_function.json'
-GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
+# Please keep these variables in alphabetical order.
+GCP_AI_KEY = 'gcp_ai.json'
 GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
-GCP_SPANNER_KEY = 'gcp_spanner.json'
+GCP_CLOUD_BUILD_KEY = 'gcp_cloud_build.json'
+GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
+GCP_COMPUTE_KEY = 'gcp_compute.json'
+GCP_DATAPROC_KEY = 'gcp_dataproc.json'
+GCP_DLP_KEY = 'gcp_dlp.json'
+GCP_FUNCTION_KEY = 'gcp_function.json'
 GCP_GCS_KEY = 'gcp_gcs.json'
+GCP_GCS_TRANSFER_KEY = 'gcp_gcs_transfer.json'
+GCP_SPANNER_KEY = 'gcp_spanner.json'
+
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'
 SCOPE_EXTRA = 'extra__google_cloud_platform__scope'
 PROJECT_EXTRA = 'extra__google_cloud_platform__project'
 
-AIRFLOW_MAIN_FOLDER = os.path.realpath(os.path.join(
-    os.path.dirname(os.path.realpath(__file__)),
-    os.pardir, os.pardir, os.pardir))
+AIRFLOW_MAIN_FOLDER = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir)
+)
 
 
 class GcpAuthenticator(LoggingCommandExecutor):
     """
-    Manages authentication to Google Cloud Platform. It helps to manage
-    connection - it can authenticate with the gcp key name specified
+    Initialises the authenticator.
+
+    :param gcp_key: name of the key to use for authentication (see GCP_*_KEY values)
+    :param project_extra: optional extra project parameter passed to google cloud
+           connection
     """
-    original_account = None
+
+    original_account = None  # type: Optional[str]
 
     def __init__(self, gcp_key, project_extra=None):
-        """
-        Initialises the authenticator.
-
-        :param gcp_key: name of the key to use for authentication (see GCP_*_KEY values)
-        :param project_extra: optional extra project parameter passed to google cloud
-               connection
-        """
         super(GcpAuthenticator, self).__init__()
         self.gcp_key = gcp_key
         self.project_extra = project_extra
@@ -76,15 +81,13 @@ class GcpAuthenticator(LoggingCommandExecutor):
         """
         session = settings.Session()
         try:
-            conn = session.query(Connection).filter(
-                Connection.conn_id == 'google_cloud_default')[0]
+            conn = session.query(Connection).filter(Connection.conn_id == 'google_cloud_default')[0]
             extras = conn.extra_dejson
             extras[KEYPATH_EXTRA] = self.full_key_path
             if extras.get(KEYFILE_DICT_EXTRA):
                 del extras[KEYFILE_DICT_EXTRA]
             extras[SCOPE_EXTRA] = 'https://www.googleapis.com/auth/cloud-platform'
-            extras[PROJECT_EXTRA] = self.project_extra if self.project_extra else \
-                self.project_id
+            extras[PROJECT_EXTRA] = self.project_extra if self.project_extra else self.project_id
             conn.extra = json.dumps(extras)
             session.commit()
         except BaseException as ex:
@@ -102,8 +105,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         """
         session = settings.Session()
         try:
-            conn = session.query(Connection).filter(
-                Connection.conn_id == 'google_cloud_default')[0]
+            conn = session.query(Connection).filter(Connection.conn_id == 'google_cloud_default')[0]
             extras = conn.extra_dejson
             with open(self.full_key_path, "r") as path_file:
                 content = json.load(path_file)
@@ -134,9 +136,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         if "GCP_CONFIG_DIR" in os.environ:
             gcp_config_dir = os.environ["GCP_CONFIG_DIR"]
         else:
-            gcp_config_dir = os.path.join(AIRFLOW_MAIN_FOLDER,
-                                          os.pardir,
-                                          "config")
+            gcp_config_dir = os.path.join(AIRFLOW_MAIN_FOLDER, os.pardir, "config")
         if not os.path.isdir(gcp_config_dir):
             self.log.info("The {} is not a directory".format(gcp_config_dir))
         key_dir = os.path.join(gcp_config_dir, "keys")
@@ -153,8 +153,10 @@ class GcpAuthenticator(LoggingCommandExecutor):
             raise AirflowException("The gcp_key is not set!")
         if not os.path.isfile(self.full_key_path):
             raise AirflowException(
-                "The key {} could not be found. Please copy it to the {} path.".
-                format(self.gcp_key, self.full_key_path))
+                "The key {} could not be found. Please copy it to the {} path.".format(
+                    self.gcp_key, self.full_key_path
+                )
+            )
 
     def gcp_authenticate(self):
         """
@@ -164,9 +166,14 @@ class GcpAuthenticator(LoggingCommandExecutor):
         self.log.info("Setting the GCP key to {}".format(self.full_key_path))
         # Checking if we can authenticate using service account credentials provided
         self.execute_cmd(
-            ['gcloud', 'auth', 'activate-service-account',
-             '--key-file={}'.format(self.full_key_path),
-             '--project={}'.format(self.project_id)])
+            [
+                'gcloud',
+                'auth',
+                'activate-service-account',
+                '--key-file={}'.format(self.full_key_path),
+                '--project={}'.format(self.project_id),
+            ]
+        )
         self.set_key_path_in_airflow_connection()
 
     def gcp_revoke_authentication(self):
@@ -175,11 +182,10 @@ class GcpAuthenticator(LoggingCommandExecutor):
         """
         self._validate_key_set()
         self.log.info("Revoking authentication - setting it to none")
+        self.execute_cmd(['gcloud', 'config', 'get-value', 'account', '--project={}'.format(self.project_id)])
         self.execute_cmd(
-            ['gcloud', 'config', 'get-value', 'account',
-             '--project={}'.format(self.project_id)])
-        self.execute_cmd(['gcloud', 'config', 'set', 'account', 'none',
-                          '--project={}'.format(self.project_id)])
+            ['gcloud', 'config', 'set', 'account', 'none', '--project={}'.format(self.project_id)]
+        )
 
     def gcp_store_authentication(self):
         """
@@ -189,10 +195,9 @@ class GcpAuthenticator(LoggingCommandExecutor):
         self._validate_key_set()
         if not GcpAuthenticator.original_account:
             GcpAuthenticator.original_account = self.check_output(
-                ['gcloud', 'config', 'get-value', 'account',
-                 '--project={}'.format(self.project_id)]).decode('utf-8')
-            self.log.info("Storing account: to restore it later {}".format(
-                GcpAuthenticator.original_account))
+                ['gcloud', 'config', 'get-value', 'account', '--project={}'.format(self.project_id)]
+            ).decode('utf-8')
+            self.log.info("Storing account: to restore it later {}".format(GcpAuthenticator.original_account))
 
     def gcp_restore_authentication(self):
         """
@@ -200,10 +205,16 @@ class GcpAuthenticator(LoggingCommandExecutor):
         """
         self._validate_key_set()
         if GcpAuthenticator.original_account:
-            self.log.info("Restoring original account stored: {}".
-                          format(GcpAuthenticator.original_account))
-            subprocess.call(['gcloud', 'config', 'set', 'account',
-                             GcpAuthenticator.original_account,
-                             '--project={}'.format(self.project_id)])
+            self.log.info("Restoring original account stored: {}".format(GcpAuthenticator.original_account))
+            subprocess.call(
+                [
+                    'gcloud',
+                    'config',
+                    'set',
+                    'account',
+                    GcpAuthenticator.original_account,
+                    '--project={}'.format(self.project_id),
+                ]
+            )
         else:
             self.log.info("Not restoring the original GCP account: it is not set")

@@ -18,6 +18,7 @@
 # under the License.
 import six
 
+from typing import List
 from jinja2 import Environment
 
 
@@ -28,7 +29,7 @@ def _inherited(cls):
 
 
 class DataSet(object):
-    attributes = []
+    attributes = []  # type: List[str]
     type_name = "dataSet"
 
     def __init__(self, qualified_name=None, data=None, **kwargs):
@@ -96,7 +97,7 @@ class DataSet(object):
             if cls.type_name == name:
                 return cls
 
-        raise NotImplemented("No known mapping for {}".format(name))
+        raise NotImplementedError("No known mapping for {}".format(name))
 
 
 class DataBase(DataSet):

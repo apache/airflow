@@ -25,6 +25,8 @@ in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
 """
 from builtins import object
+from typing import Any
+
 from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -33,16 +35,16 @@ __version__ = version.version
 import sys
 
 # flake8: noqa: F401
-from airflow import settings, configuration as conf
+from airflow import settings
+from airflow.configuration import conf
 from airflow.models import DAG
 from flask_admin import BaseView
 from importlib import import_module
 from airflow.exceptions import AirflowException
 
-if settings.DAGS_FOLDER not in sys.path:
-    sys.path.append(settings.DAGS_FOLDER)
+settings.initialize()
 
-login = None
+login = None  # type: Any
 
 
 def load_login():
@@ -62,6 +64,9 @@ def load_login():
     try:
         global login
         login = import_module(auth_backend)
+
+        if hasattr(login, 'login_manager') and not hasattr(login, 'LOGIN_MANAGER'):
+            login.LOGIN_MANAGER = login.login_manager
     except ImportError as err:
         log.critical(
             "Cannot import authentication module %s. "

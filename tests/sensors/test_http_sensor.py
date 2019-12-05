@@ -21,21 +21,12 @@ import unittest
 import requests
 from mock import patch
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor
 from airflow.utils.timezone import datetime
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
-configuration.load_test_config()
+from tests.compat import mock
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -44,7 +35,6 @@ TEST_DAG_ID = 'unit_test_dag'
 
 class HttpSensorTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -155,7 +145,6 @@ class FakeSession(object):
 
 class HttpOpSensorTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag

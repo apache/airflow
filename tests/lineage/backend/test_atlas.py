@@ -18,41 +18,32 @@
 # under the License.
 import unittest
 
-from airflow import configuration as conf
-from airflow.configuration import AirflowConfigException
+from airflow.configuration import conf, AirflowConfigException
 from airflow.lineage.backend.atlas import AtlasBackend
 from airflow.lineage.datasets import File
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
+from tests.compat import mock
 
 from backports.configparser import DuplicateSectionError
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
 
 class TestAtlas(unittest.TestCase):
     def setUp(self):
-        conf.load_test_config()
         try:
-            conf.conf.add_section("atlas")
+            conf.add_section("atlas")
         except AirflowConfigException:
             pass
         except DuplicateSectionError:
             pass
 
-        conf.conf.set("atlas", "username", "none")
-        conf.conf.set("atlas", "password", "none")
-        conf.conf.set("atlas", "host", "none")
-        conf.conf.set("atlas", "port", "0")
+        conf.set("atlas", "username", "none")
+        conf.set("atlas", "password", "none")
+        conf.set("atlas", "host", "none")
+        conf.set("atlas", "port", "0")
 
         self.atlas = AtlasBackend()
 

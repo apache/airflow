@@ -25,13 +25,7 @@ from airflow.hooks.base_hook import BaseHook
 from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
 from time import sleep
-
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-try:
-    from urllib import parse as urlparse
-except ImportError:
-    import urlparse
+from six.moves.urllib import parse as urlparse
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
@@ -44,7 +38,7 @@ CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
 
 
-class DatabricksHook(BaseHook, LoggingMixin):
+class DatabricksHook(BaseHook):
     """
     Interact with Databricks.
     """
@@ -56,7 +50,7 @@ class DatabricksHook(BaseHook, LoggingMixin):
             retry_delay=1.0):
         """
         :param databricks_conn_id: The name of the databricks connection to use.
-        :type databricks_conn_id: string
+        :type databricks_conn_id: str
         :param timeout_seconds: The amount of time in seconds the requests library
             will wait before timing-out.
         :type timeout_seconds: int
@@ -81,16 +75,18 @@ class DatabricksHook(BaseHook, LoggingMixin):
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.
 
-
         For example -- when users supply ``https://xx.cloud.databricks.com`` as the
-        host, we must strip out the protocol to get the host.
-        >>> h = DatabricksHook()
-        >>> assert h._parse_host('https://xx.cloud.databricks.com') == \
-            'xx.cloud.databricks.com'
+        host, we must strip out the protocol to get the host.::
+
+            h = DatabricksHook()
+            assert h._parse_host('https://xx.cloud.databricks.com') == \
+                'xx.cloud.databricks.com'
 
         In the case where users supply the correct ``xx.cloud.databricks.com`` as the
-        host, this function is a no-op.
-        >>> assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
+        host, this function is a no-op.::
+
+            assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
+
         """
         urlparse_host = urlparse.urlparse(host).hostname
         if urlparse_host:
@@ -103,8 +99,9 @@ class DatabricksHook(BaseHook, LoggingMixin):
     def _do_api_call(self, endpoint_info, json):
         """
         Utility function to perform an API call with retries
+
         :param endpoint_info: Tuple of method and endpoint
-        :type endpoint_info: (string, string)
+        :type endpoint_info: tuple[string, string]
         :param json: Parameters for this API call.
         :type json: dict
         :return: If the api call returns a OK status code,
@@ -113,15 +110,20 @@ class DatabricksHook(BaseHook, LoggingMixin):
         :rtype: dict
         """
         method, endpoint = endpoint_info
-        url = 'https://{host}/{endpoint}'.format(
-            host=self._parse_host(self.databricks_conn.host),
-            endpoint=endpoint)
+
         if 'token' in self.databricks_conn.extra_dejson:
-            self.log.info('Using token auth.')
+            self.log.info('Using token auth. ')
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
+            host = self._parse_host(self.databricks_conn.extra_dejson['host'])
         else:
-            self.log.info('Using basic auth.')
+            self.log.info('Using basic auth. ')
             auth = (self.databricks_conn.login, self.databricks_conn.password)
+            host = self.databricks_conn.host
+
+        url = 'https://{host}/{endpoint}'.format(
+            host=self._parse_host(host),
+            endpoint=endpoint)
+
         if method == 'GET':
             request_func = requests.get
         elif method == 'POST':
@@ -169,7 +171,7 @@ class DatabricksHook(BaseHook, LoggingMixin):
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :type json: dict
         :return: the run_id as a string
-        :rtype: string
+        :rtype: str
         """
         response = self._do_api_call(RUN_NOW_ENDPOINT, json)
         return response['run_id']
@@ -181,7 +183,7 @@ class DatabricksHook(BaseHook, LoggingMixin):
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :type json: dict
         :return: the run_id as a string
-        :rtype: string
+        :rtype: str
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response['run_id']

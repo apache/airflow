@@ -272,7 +272,7 @@ class S3Hook(AwsHook):
             InputSerialization=input_serialization,
             OutputSerialization=output_serialization)
 
-        return ''.join(event['Records']['Payload']
+        return ''.join(event['Records']['Payload'].decode('utf-8')
                        for event in response['Payload']
                        if 'Records' in event)
 
@@ -362,7 +362,7 @@ class S3Hook(AwsHook):
         This is provided as a convenience to drop a string in S3. It uses the
         boto infrastructure to ship a file to s3.
 
-        :param string_data: string to set as content for the key.
+        :param string_data: str to set as content for the key.
         :type string_data: str
         :param key: S3 key that will point to the file
         :type key: str

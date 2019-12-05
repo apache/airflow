@@ -22,6 +22,10 @@ import socket
 from airflow.configuration import (conf, AirflowConfigException)
 
 
+def get_host_ip_address():
+    return socket.gethostbyname(socket.getfqdn())
+
+
 def get_hostname():
     """
     Fetch the hostname using the callable from the config or using

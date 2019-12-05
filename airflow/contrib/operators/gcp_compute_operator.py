@@ -67,6 +67,10 @@ class GceInstanceStartOperator(GceBaseOperator):
     """
     Starts an instance in Google Compute Engine.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GceInstanceStartOperator`
+
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
@@ -109,6 +113,10 @@ class GceInstanceStartOperator(GceBaseOperator):
 class GceInstanceStopOperator(GceBaseOperator):
     """
     Stops an instance in Google Compute Engine.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GceInstanceStopOperator`
 
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
@@ -158,6 +166,10 @@ class GceSetMachineTypeOperator(GceBaseOperator):
     """
     Changes the machine type for a stopped instance to the machine type specified in
         the request.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GceSetMachineTypeOperator`
 
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
@@ -267,6 +279,10 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
     """
     Copies the instance template, applying specified changes.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GceInstanceTemplateCopyOperator`
+
     :param resource_id: Name of the Instance Template
     :type resource_id: str
     :param body_patch: Patch to the body of instanceTemplates object following rfc7386
@@ -343,8 +359,11 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
             # Group Manager. We assume success if the template is simply present
             existing_template = self._hook.get_instance_template(
                 resource_id=self.body_patch['name'], project_id=self.project_id)
-            self.log.info("The {} template already existed. It was likely "
-                          "created by previous run of the operator. Assuming success.")
+            self.log.info(
+                "The %s template already existed. It was likely created by previous run of the operator. "
+                "Assuming success.",
+                existing_template
+            )
             return existing_template
         except HttpError as e:
             # We actually expect to get 404 / Not Found here as the template should
@@ -356,8 +375,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
         new_body = deepcopy(old_body)
         self._field_sanitizer.sanitize(new_body)
         new_body = merge(new_body, self.body_patch)
-        self.log.info("Calling insert instance template with updated body: {}".
-                      format(new_body))
+        self.log.info("Calling insert instance template with updated body: %s", new_body)
         self._hook.insert_instance_template(body=new_body,
                                             request_id=self.request_id,
                                             project_id=self.project_id)
@@ -370,6 +388,10 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
     Patches the Instance Group Manager, replacing source template URL with the
     destination one. API V1 does not have update/patch operations for Instance
     Group Manager, so you must use beta or newer API version. Beta is the default.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GceInstanceGroupManagerUpdateTemplateOperator`
 
     :param resource_id: Name of the Instance Group Manager
     :type resource_id: str

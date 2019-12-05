@@ -1,95 +1,95 @@
 {#
-  Licensed to the Apache Software Foundation (ASF) under one or more
-  contributor license agreements.  See the NOTICE file distributed with
-  this work for additional information regarding copyright ownership.
-  The ASF licenses this file to You under the Apache License, Version 2.0
-  (the "License"); you may not use this file except in compliance with
-  the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 #}
+
 {% extends "airflow/dag.html" %}
 {% block title %}Airflow - DAGs{% endblock %}
 
 {% block head_css %}
 {{ super() }}
-<link rel="stylesheet" type="text/css"
-    href="{{ url_for('static', filename='tree.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='tree.css') }}">
 <link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet">
 {% endblock %}
 
 {% block body %}
 {{ super() }}
 <div style="float: left" class="form-inline">
-    <form method="get" style="float:left;">
-        Base date: {{ form.base_date(class_="form-control") }}
-        Number of runs: {{ form.num_runs(class_="form-control") }}
-        <input type="hidden" name="root" value="{{ root if root else '' }}">
-        <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
-        <input type="submit" value="Go" class="btn btn-default"
-        action="" method="get">
-        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-    </form>
+  <form method="get" style="float:left;">
+    Base date: {{ form.base_date(class_="form-control") }}
+    Number of runs: {{ form.num_runs(class_="form-control") }}
+    <input type="hidden" name="root" value="{{ root if root else '' }}">
+    <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
+    <input type="submit" value="Go" class="btn btn-default">
+    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+  </form>
 </div>
 <div style="clear: both;"></div>
 <hr/>
 <div>
-    <div class="legend_item" style="border: none;">no status</div>
-    <div class="square" style="background: white;"></div>
-    <div class="legend_item" style="border: none;">queued</div>
-    <div class="square" style="background: grey;"></div>
-    <div class="legend_item" style="border: none;">retry</div>
-    <div class="square" style="background: gold;"></div>
-    <div class="legend_item" style="border: none;">rescheduled</div>
-    <div class="square" style="background: turquoise;"></div>
-    <div class="legend_item" style="border: none;">skipped</div>
-    <div class="square" style="background: pink;"></div>
-    <div class="legend_item" style="border: none;">failed</div>
-    <div class="square" style="background: red;"></div>
-    <div class="legend_item" style="border: none;">running</div>
-    <div class="square" style="background: lime;"></div>
-    <div class="legend_item" style="border: none;">success</div>
-    <div class="square" style="background: green;"></div>
-    {% for op in operators %}
-        <div class="legend_circle" style="background:{{ op.ui_color }};">
-        </div>
-        <div class="legend_item" style="float:left;border-color:white;">{{ op.__name__ }}</div>
-    {% endfor %}
-    <div style="clear:both;"></div>
+  <div class="legend_item" style="border: none;">no_status</div>
+  <div class="square" style="background: white;"></div>
+  <div class="legend_item" style="border: none;">queued</div>
+  <div class="square" style="background: grey;"></div>
+  <div class="legend_item" style="border: none;">up_for_retry</div>
+  <div class="square" style="background: gold;"></div>
+  <div class="legend_item" style="border: none;">up_for_reschedule</div>
+  <div class="square" style="background: turquoise;"></div>
+  <div class="legend_item" style="border: none;">skipped</div>
+  <div class="square" style="background: pink;"></div>
+  <div class="legend_item" style="border: none;">failed</div>
+  <div class="square" style="background: red;"></div>
+  <div class="legend_item" style="border: none;">running</div>
+  <div class="square" style="background: lime;"></div>
+  <div class="legend_item" style="border: none;">success</div>
+  <div class="square" style="background: green;"></div>
+  {% for op in operators %}
+  <div class="legend_circle" style="background:{{ op.ui_color }};">
+  </div>
+  <div class="legend_item" style="float:left;border-color:white;">{{ op.task_type }}</div>
+  {% endfor %}
+  <div style="clear:both;"></div>
 </div>
 <hr/>
 <div id="svg_container">
-  <img id='loading' width="50"
-    src="{{ url_for('static', filename='loading.gif') }}">
-    <svg class='tree' width="100%">
-        <filter id="blur-effect-1">
-            <feGaussianBlur stdDeviation="3" />
-        </filter>
-    </svg>
+  <img id='loading' width="50" src="{{ url_for('static', filename='loading.gif') }}">
+  <svg class='tree' width="100%">
+    <filter id="blur-effect-1">
+      <feGaussianBlur stdDeviation="3"></feGaussianBlur>
+    </filter>
+  </svg>
 </div>
 {% endblock %}
 
 {% block tail %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-  <script>
+{{ super() }}
+<script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
+<script>
 $('span.status_square').tooltip({html: true});
 
-var data = {{ data|safe }};
+var devicePixelRatio = window.devicePixelRatio || 1;
+var data = {{ data|tojson|safe }};
 var barHeight = 20;
 var axisHeight = 40;
-var square_x = 500;
+var square_x = parseInt(500 * devicePixelRatio);
 var square_size = 10;
 var square_spacing = 2;
 var margin = {top: barHeight/2 + axisHeight, right: 0, bottom: 0, left: barHeight/2},
-    width = 960 - margin.left - margin.right,
+    width = parseInt(960 * devicePixelRatio) - margin.left - margin.right,
     barWidth = width * 0.9;
 
 var i = 0,
@@ -161,6 +161,7 @@ var svg = d3.select("svg")
   }
 
 update(root = data);
+
 function update(source) {
 
   // Compute the flattened node list. TODO use d3.layout.hierarchy.
@@ -200,13 +201,15 @@ function update(source) {
       .attr("title", function(d){
         var tt = "";
         if (d.operator != undefined) {
-          tt += "operator: " + d.operator + "<br/>";
-          tt += "depends_on_past: " + d.depends_on_past + "<br/>";
-          tt += "upstream: " + d.num_dep + "<br/>";
-          tt += "retries: " + d.retries + "<br/>";
-          tt += "owner: " + d.owner + "<br/>";
-          tt += "start_date: " + d.start_date + "<br/>";
-          tt += "end_date: " + d.end_date + "<br/>";
+          if (d.operator != undefined) {
+            tt += "operator: " + escapeHtml(d.operator) + "<br/>";
+          }
+          tt += "depends_on_past: " + escapeHtml(d.depends_on_past) + "<br/>";
+          tt += "upstream: " + escapeHtml(d.num_dep) + "<br/>";
+          tt += "retries: " + escapeHtml(d.retries) + "<br/>";
+          tt += "owner: " + escapeHtml(d.owner) + "<br/>";
+          tt += "start_date: " + escapeHtml(d.start_date) + "<br/>";
+          tt += "end_date: " + escapeHtml(d.end_date) + "<br/>";
         }
         return tt;
       })
@@ -235,9 +238,9 @@ function update(source) {
         if(d.task_id === undefined)
             call_modal_dag(d);
         else if(nodeobj[d.task_id].operator=='SubDagOperator')
-            call_modal(d.task_id, d.execution_date, true);
+            call_modal(d.task_id, d.execution_date, d.try_number, true);
         else
-            call_modal(d.task_id, d.execution_date);
+            call_modal(d.task_id, d.execution_date, d.try_number);
       })
       .attr("class", function(d) {return "state " + d.state})
       .attr("data-toggle", "tooltip")
@@ -247,17 +250,24 @@ function update(source) {
       .style("stroke-width", function(d) {return (d.run_id != undefined)? "2": "1"})
       .style("stroke-opacity", function(d) {return d.external_trigger ? "0": "1"})
       .attr("title", function(d){
-        s =  "Task_id: " + d.task_id + "<br>";
-        s += "Run: " + d.execution_date + "<br>";
-        if(d.run_id != undefined){
-          s += "run_id: <nobr>" + d.run_id + "</nobr><br>";
+        var s = "";
+        if (d.task_id != undefined ) {
+          s += "Task_id: " + escapeHtml(d.task_id) + "<br>";
         }
-        s += "Operator: " + d.operator + "<br>"
+        s += "Run: " + escapeHtml(d.execution_date) + "<br>";
+        if(d.run_id != undefined){
+          s += "run_id: <nobr>" + escapeHtml(d.run_id) + "</nobr><br>";
+        }
+        if (d.operator != undefined) {
+          s += "Operator: " + escapeHtml(d.operator) + "<br>"
+        }
         if(d.start_date != undefined){
-          s += "Started: " + d.start_date + "<br>";
-          s += "Ended: " + d.end_date + "<br>";
-          s += "Duration: " + d.duration + "<br>";
-          s += "State: " + d.state + "<br>";
+          s += "Started: " + escapeHtml(d.start_date) + "<br>";
+          s += "Ended: " + escapeHtml(d.end_date) + "<br>";
+          if (d.duration != undefined) {
+            s += "Duration: " + escapeHtml(convertSecsToHumanReadable(d.duration)) + "<br>";
+          }
+          s += "State: " + escapeHtml(d.state) + "<br>";
         }
         return s;
       })
@@ -379,5 +389,6 @@ function click(d) {
   }
 }
 set_tooltip();
-  </script>
+
+</script>
 {% endblock %}

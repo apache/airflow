@@ -32,7 +32,7 @@ class DatadogSensor(BaseSensorOperator):
     Airflow runs.
 
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
-    :param datadog_conn_id: string
+    :param datadog_conn_id: str
     """
     ui_color = '#66c3dd'
 

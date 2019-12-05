@@ -23,8 +23,9 @@ try:
 except ImportError:
     mongomock = None
 
-from airflow import configuration
 from airflow.contrib.hooks.mongo_hook import MongoHook
+from airflow.models import Connection
+from airflow.utils import db
 
 
 class MongoHookTest(MongoHook):
@@ -41,14 +42,22 @@ class MongoHookTest(MongoHook):
 
 class TestMongoHook(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         self.hook = MongoHookTest(conn_id='mongo_default', mongo_db='default')
         self.conn = self.hook.get_conn()
+        db.merge_conn(
+            Connection(
+                conn_id='mongo_default_with_srv', conn_type='mongo',
+                host='mongo', port='27017', extra='{"srv": true}'))
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_get_conn(self):
         self.assertEqual(self.hook.connection.port, 27017)
         self.assertIsInstance(self.conn, pymongo.MongoClient)
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_srv(self):
+        hook = MongoHook(conn_id='mongo_default_with_srv')
+        self.assertTrue(hook.uri.startswith('mongodb+srv://'))
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_insert_one(self):
@@ -73,6 +82,158 @@ class TestMongoHook(unittest.TestCase):
         result_objs = collection.find()
         result_objs = [result for result in result_objs]
         self.assertEqual(len(result_objs), 2)
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_update_one(self):
+        collection = mongomock.MongoClient().db.collection
+        obj = {'_id': '1', 'field': 0}
+        collection.insert_one(obj)
+
+        filter_doc = obj
+        update_doc = {'$inc': {'field': 123}}
+
+        self.hook.update_one(collection, filter_doc, update_doc)
+
+        result_obj = collection.find_one(filter='1')
+        self.assertEqual(123, result_obj['field'])
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_update_one_with_upsert(self):
+        collection = mongomock.MongoClient().db.collection
+
+        filter_doc = {'_id': '1', 'field': 0}
+        update_doc = {'$inc': {'field': 123}}
+
+        self.hook.update_one(collection, filter_doc, update_doc, upsert=True)
+
+        result_obj = collection.find_one(filter='1')
+        self.assertEqual(123, result_obj['field'])
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_update_many(self):
+        collection = mongomock.MongoClient().db.collection
+        obj1 = {'_id': '1', 'field': 0}
+        obj2 = {'_id': '2', 'field': 0}
+        collection.insert_many([obj1, obj2])
+
+        filter_doc = {'field': 0}
+        update_doc = {'$inc': {'field': 123}}
+
+        self.hook.update_many(collection, filter_doc, update_doc)
+
+        result_obj = collection.find_one(filter='1')
+        self.assertEqual(123, result_obj['field'])
+
+        result_obj = collection.find_one(filter='2')
+        self.assertEqual(123, result_obj['field'])
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_update_many_with_upsert(self):
+        collection = mongomock.MongoClient().db.collection
+
+        filter_doc = {'_id': '1', 'field': 0}
+        update_doc = {'$inc': {'field': 123}}
+
+        self.hook.update_many(collection, filter_doc, update_doc, upsert=True)
+
+        result_obj = collection.find_one(filter='1')
+        self.assertEqual(123, result_obj['field'])
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_replace_one(self):
+        collection = mongomock.MongoClient().db.collection
+        obj1 = {'_id': '1', 'field': 'test_value_1'}
+        obj2 = {'_id': '2', 'field': 'test_value_2'}
+        collection.insert_many([obj1, obj2])
+
+        obj1['field'] = 'test_value_1_updated'
+        self.hook.replace_one(collection, obj1)
+
+        result_obj = collection.find_one(filter='1')
+        self.assertEqual('test_value_1_updated', result_obj['field'])
+
+        # Other document should stay intact
+        result_obj = collection.find_one(filter='2')
+        self.assertEqual('test_value_2', result_obj['field'])
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_replace_one_with_filter(self):
+        collection = mongomock.MongoClient().db.collection
+        obj1 = {'_id': '1', 'field': 'test_value_1'}
+        obj2 = {'_id': '2', 'field': 'test_value_2'}
+        collection.insert_many([obj1, obj2])
+
+        obj1['field'] = 'test_value_1_updated'
+        self.hook.replace_one(collection, obj1, {'field': 'test_value_1'})
+
+        result_obj = collection.find_one(filter='1')
+        self.assertEqual('test_value_1_updated', result_obj['field'])
+
+        # Other document should stay intact
+        result_obj = collection.find_one(filter='2')
+        self.assertEqual('test_value_2', result_obj['field'])
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_replace_one_with_upsert(self):
+        collection = mongomock.MongoClient().db.collection
+
+        obj = {'_id': '1', 'field': 'test_value_1'}
+        self.hook.replace_one(collection, obj, upsert=True)
+
+        result_obj = collection.find_one(filter='1')
+        self.assertEqual('test_value_1', result_obj['field'])
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_replace_many(self):
+        collection = mongomock.MongoClient().db.collection
+        obj1 = {'_id': '1', 'field': 'test_value_1'}
+        obj2 = {'_id': '2', 'field': 'test_value_2'}
+        collection.insert_many([obj1, obj2])
+
+        obj1['field'] = 'test_value_1_updated'
+        obj2['field'] = 'test_value_2_updated'
+        self.hook.replace_many(collection, [obj1, obj2])
+
+        result_obj = collection.find_one(filter='1')
+        self.assertEqual('test_value_1_updated', result_obj['field'])
+
+        result_obj = collection.find_one(filter='2')
+        self.assertEqual('test_value_2_updated', result_obj['field'])
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_replace_many_with_upsert(self):
+        collection = mongomock.MongoClient().db.collection
+        obj1 = {'_id': '1', 'field': 'test_value_1'}
+        obj2 = {'_id': '2', 'field': 'test_value_2'}
+
+        self.hook.replace_many(collection, [obj1, obj2], upsert=True)
+
+        result_obj = collection.find_one(filter='1')
+        self.assertEqual('test_value_1', result_obj['field'])
+
+        result_obj = collection.find_one(filter='2')
+        self.assertEqual('test_value_2', result_obj['field'])
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_delete_one(self):
+        collection = mongomock.MongoClient().db.collection
+        obj = {'_id': '1'}
+        collection.insert_one(obj)
+
+        self.hook.delete_one(collection, {'_id': '1'})
+
+        self.assertEqual(0, collection.count())
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_delete_many(self):
+        collection = mongomock.MongoClient().db.collection
+        obj1 = {'_id': '1', 'field': 'value'}
+        obj2 = {'_id': '2', 'field': 'value'}
+        collection.insert_many([obj1, obj2])
+
+        self.hook.delete_many(collection, {'field': 'value'})
+
+        self.assertEqual(0, collection.count())
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_find_one(self):

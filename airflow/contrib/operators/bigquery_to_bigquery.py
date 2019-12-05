@@ -31,27 +31,34 @@ class BigQueryToBigQueryOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
 
     :param source_project_dataset_tables: One or more
-        dotted (project:|project.)<dataset>.<table> BigQuery tables to use as the
-        source data. If <project> is not included, project will be the
+        dotted ``(project:|project.)<dataset>.<table>`` BigQuery tables to use as the
+        source data. If ``<project>`` is not included, project will be the
         project defined in the connection json. Use a list if there are multiple
         source tables. (templated)
     :type source_project_dataset_tables: list|string
     :param destination_project_dataset_table: The destination BigQuery
-        table. Format is: (project:|project.)<dataset>.<table> (templated)
-    :type destination_project_dataset_table: string
+        table. Format is: ``(project:|project.)<dataset>.<table>`` (templated)
+    :type destination_project_dataset_table: str
     :param write_disposition: The write disposition if the table already exists.
-    :type write_disposition: string
+    :type write_disposition: str
     :param create_disposition: The create disposition if the table doesn't exist.
-    :type create_disposition: string
+    :type create_disposition: str
     :param bigquery_conn_id: reference to a specific BigQuery hook.
-    :type bigquery_conn_id: string
+    :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :type labels: dict
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+        **Example**: ::
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+            }
+    :type encryption_configuration: dict
     """
     template_fields = ('source_project_dataset_tables',
                        'destination_project_dataset_table', 'labels')
@@ -67,6 +74,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
                  labels=None,
+                 encryption_configuration=None,
                  *args,
                  **kwargs):
         super(BigQueryToBigQueryOperator, self).__init__(*args, **kwargs)
@@ -77,6 +85,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
         self.labels = labels
+        self.encryption_configuration = encryption_configuration
 
     def execute(self, context):
         self.log.info(
@@ -88,8 +97,9 @@ class BigQueryToBigQueryOperator(BaseOperator):
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_copy(
-            self.source_project_dataset_tables,
-            self.destination_project_dataset_table,
-            self.write_disposition,
-            self.create_disposition,
-            self.labels)
+            source_project_dataset_tables=self.source_project_dataset_tables,
+            destination_project_dataset_table=self.destination_project_dataset_table,
+            write_disposition=self.write_disposition,
+            create_disposition=self.create_disposition,
+            labels=self.labels,
+            encryption_configuration=self.encryption_configuration)

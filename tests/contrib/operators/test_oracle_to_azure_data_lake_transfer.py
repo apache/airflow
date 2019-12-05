@@ -24,15 +24,7 @@ from airflow.utils.file import TemporaryDirectory
 import unicodecsv as csv
 import os
 
-try:
-    from unittest import mock
-    from unittest.mock import MagicMock
-except ImportError:
-    try:
-        import mock
-        from mock import MagicMock
-    except ImportError:
-        mock = None
+from tests.compat import mock, MagicMock
 
 
 class OracleToAzureDataLakeTransferTest(unittest.TestCase):

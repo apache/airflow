@@ -24,12 +24,10 @@ import unittest
 
 from botocore.exceptions import NoCredentialsError
 
-from airflow import configuration
-
 try:
     from airflow.hooks.S3_hook import S3Hook
 except ImportError:
-    S3Hook = None
+    S3Hook = None  # type: ignore
 
 try:
     import boto3
@@ -45,7 +43,6 @@ except ImportError:
 class TestS3Hook(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.s3_test_url = "s3://test/this/is/not/a-real-key.txt"
 
     def test_parse_s3_url(self):
@@ -211,7 +208,7 @@ class TestS3Hook(unittest.TestCase):
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
     def test_select_key(self, mock_get_client_type):
         mock_get_client_type.return_value.select_object_content.return_value = \
-            {'Payload': [{'Records': {'Payload': u'Contént'}}]}
+            {'Payload': [{'Records': {'Payload': b'Cont\xC3\xA9nt'}}]}
         hook = S3Hook(aws_conn_id=None)
         self.assertEqual(hook.select_key('my_key', 'mybucket'), u'Contént')
 

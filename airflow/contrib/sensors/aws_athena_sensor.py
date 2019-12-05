@@ -56,7 +56,7 @@ class AthenaSensor(BaseSensorOperator):
                  aws_conn_id='aws_default',
                  sleep_time=10,
                  *args, **kwargs):
-        super(BaseSensorOperator, self).__init__(*args, **kwargs)
+        super(AthenaSensor, self).__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.query_execution_id = query_execution_id
         self.hook = None

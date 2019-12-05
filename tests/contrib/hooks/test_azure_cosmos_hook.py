@@ -26,20 +26,11 @@ import uuid
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
 
-from airflow import configuration
-from airflow import models
+from airflow.models import Connection
 from airflow.utils import db
+from tests.compat import mock
 
 import logging
-
-try:
-    from unittest import mock
-
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 
 class TestAzureCosmosDbHook(unittest.TestCase):
@@ -53,9 +44,8 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         self.test_collection_name = 'test_collection_name'
         self.test_database_default = 'test_database_default'
         self.test_collection_default = 'test_collection_default'
-        configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='azure_cosmos_test_key_id',
                 conn_type='azure_cosmos',
                 login=self.test_end_point,

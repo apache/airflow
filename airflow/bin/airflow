@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 # -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -18,15 +19,19 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from airflow import configuration
+
+import argcomplete
+
+from airflow.configuration import conf
 from airflow.bin.cli import CLIFactory
 
 if __name__ == '__main__':
 
-    if configuration.conf.get("core", "security") == 'kerberos':
-        os.environ['KRB5CCNAME'] = configuration.conf.get('kerberos', 'ccache')
-        os.environ['KRB5_KTNAME'] = configuration.conf.get('kerberos', 'keytab')
+    if conf.get("core", "security") == 'kerberos':
+        os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
+        os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
 
     parser = CLIFactory.get_parser()
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
     args.func(args)

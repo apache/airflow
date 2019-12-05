@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Security
 ========
@@ -116,6 +118,10 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     # Set search_scope to one of them:  BASE, LEVEL , SUBTREE
     # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit
     search_scope = LEVEL
+
+    # This option tells ldap3 to ignore schemas that are considered malformed. This sometimes comes up
+    # when using hosted ldap services.
+    ignore_malformed_schema = False
 
 The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
@@ -254,11 +260,11 @@ and in your DAG, when initializing the HiveOperator, specify:
 
     run_as_owner=True
 
-To use kerberos authentication, you must install Airflow with the `kerberos` extras group:
+To use kerberos authentication, you must install Airflow with the ``kerberos`` extras group:
 
-.. code-block:: base
+.. code-block:: bash
 
-   pip install airflow[kerberos]
+   pip install 'apache-airflow[kerberos]'
 
 OAuth Authentication
 --------------------
@@ -287,11 +293,11 @@ to only members of those teams.
 .. note:: If you do not specify a team whitelist, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
 
-To use GHE authentication, you must install Airflow with the `github_enterprise` extras group:
+To use GHE authentication, you must install Airflow with the ``github_enterprise`` extras group:
 
-.. code-block:: base
+.. code-block:: bash
 
-   pip install airflow[github_enterprise]
+   pip install 'apache-airflow[github_enterprise]'
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -323,7 +329,7 @@ The Google authentication backend can be used to authenticate users
 against Google using OAuth2. You must specify the domains to restrict
 login, separated with a comma, to only members of those domains.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     authenticate = True
@@ -335,11 +341,11 @@ login, separated with a comma, to only members of those domains.
     oauth_callback_route = /oauth2callback
     domain = "example1.com,example2.com"
 
-To use Google authentication, you must install Airflow with the `google_auth` extras group:
+To use Google authentication, you must install Airflow with the ``google_auth`` extras group:
 
-.. code-block:: base
+.. code-block:: bash
 
-   pip install airflow[google_auth]
+   pip install 'apache-airflow[google_auth]'
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -361,7 +367,7 @@ SSL
 SSL can be enabled by providing a certificate and key. Once enabled, be sure to use
 "https://" in your browser.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [webserver]
     web_server_ssl_cert = <path to cert>
@@ -371,7 +377,7 @@ Enabling SSL will not automatically change the web server port. If you want to u
 standard port 443, you'll need to configure that too. Be aware that super user privileges
 (or cap_net_bind_service on Linux) are required to listen on port 443.
 
-.. code-block:: bash
+.. code-block:: ini
 
     # Optionally, set the server to listen on the standard SSL port.
     web_server_port = 443
@@ -380,7 +386,7 @@ standard port 443, you'll need to configure that too. Be aware that super user p
 Enable CeleryExecutor with SSL. Ensure you properly generate client and server
 certs and keys.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [celery]
     ssl_active = True
@@ -394,10 +400,10 @@ Impersonation
 Airflow has the ability to impersonate a unix user while running task
 instances based on the task's ``run_as_user`` parameter, which takes a user's name.
 
-**NOTE:** For impersonations to work, Airflow must be run with `sudo` as subtasks are run
-with `sudo -u` and permissions of files are changed. Furthermore, the unix user needs to
+**NOTE:** For impersonations to work, Airflow must be run with ``sudo`` as subtasks are run
+with ``sudo -u`` and permissions of files are changed. Furthermore, the unix user needs to
 exist on the worker. Here is what a simple sudoers file entry could look like to achieve
-this, assuming as airflow is running as the `airflow` user. Note that this means that
+this, assuming as airflow is running as the ``airflow`` user. Note that this means that
 the airflow user must be trusted and treated the same way as the root user.
 
 .. code-block:: none
@@ -410,11 +416,11 @@ log to will have permissions changed such that only the unix user can write to i
 
 Default Impersonation
 '''''''''''''''''''''
-To prevent tasks that don't use impersonation to be run with `sudo` privileges, you can set the
-``core:default_impersonation`` config which sets a default user impersonate if `run_as_user` is
+To prevent tasks that don't use impersonation to be run with ``sudo`` privileges, you can set the
+``core:default_impersonation`` config which sets a default user impersonate if ``run_as_user`` is
 not set.
 
-.. code-block:: bash
+.. code-block:: ini
 
     [core]
     default_impersonation = airflow
@@ -433,7 +439,155 @@ command, or as a configuration item in your ``airflow.cfg``. For both cases, ple
 
     airflow flower --basic_auth=user1:password1,user2:password2
 
-.. code-block:: bash
+.. code-block:: ini
 
     [celery]
     flower_basic_auth = user1:password1,user2:password2
+
+
+RBAC UI Security
+----------------
+
+Security of Airflow Webserver UI when running with ``rbac=True`` in the config is handled by Flask AppBuilder (FAB).
+Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+regarding its security model.
+
+Default Roles
+'''''''''''''
+Airflow ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
+Only ``Admin`` users could configure/alter the permissions for other roles. But it is not recommended
+that ``Admin`` users alter these default roles in any way by removing
+or adding permissions to these roles.
+
+Admin
+^^^^^
+``Admin`` users have all possible permissions, including granting or revoking permissions from
+other users.
+
+Public
+^^^^^^
+``Public`` users (anonymous) don't have any permissions.
+
+Viewer
+^^^^^^
+``Viewer`` users have limited viewer permissions
+
+.. code:: python
+
+    VIEWER_PERMS = {
+        'menu_access',
+        'can_index',
+        'can_list',
+        'can_show',
+        'can_chart',
+        'can_dag_stats',
+        'can_dag_details',
+        'can_task_stats',
+        'can_code',
+        'can_log',
+        'can_get_logs_with_metadata',
+        'can_tries',
+        'can_graph',
+        'can_tree',
+        'can_task',
+        'can_task_instances',
+        'can_xcom',
+        'can_gantt',
+        'can_landing_times',
+        'can_duration',
+        'can_blocked',
+        'can_rendered',
+        'can_pickle_info',
+        'can_version',
+    }
+
+on limited web views
+
+.. code:: python
+
+    VIEWER_VMS = {
+        'Airflow',
+        'DagModelView',
+        'Browse',
+        'DAG Runs',
+        'DagRunModelView',
+        'Task Instances',
+        'TaskInstanceModelView',
+        'SLA Misses',
+        'SlaMissModelView',
+        'Jobs',
+        'JobModelView',
+        'Logs',
+        'LogModelView',
+        'Docs',
+        'Documentation',
+        'GitHub',
+        'About',
+        'Version',
+        'VersionView',
+    }
+
+User
+^^^^
+``User`` users have ``Viewer`` permissions plus additional user permissions
+
+.. code:: python
+
+    USER_PERMS = {
+        'can_dagrun_clear',
+        'can_run',
+        'can_trigger',
+        'can_add',
+        'can_edit',
+        'can_delete',
+        'can_paused',
+        'can_refresh',
+        'can_success',
+        'muldelete',
+        'set_failed',
+        'set_running',
+        'set_success',
+        'clear',
+        'can_clear',
+    }
+
+
+on User web views which is the same as Viewer web views.
+
+Op
+^^
+``Op`` users have ``User`` permissions plus additional op permissions
+
+.. code:: python
+
+    OP_PERMS = {
+        'can_conf',
+        'can_varimport',
+    }
+
+on ``User`` web views plus these additional op web views
+
+.. code:: python
+
+    OP_VMS = {
+        'Admin',
+        'Configurations',
+        'ConfigurationView',
+        'Connections',
+        'ConnectionModelView',
+        'Pools',
+        'PoolModelView',
+        'Variables',
+        'VariableModelView',
+        'XComs',
+        'XComModelView',
+    }
+
+Custom Roles
+'''''''''''''
+
+DAG Level Role
+^^^^^^^^^^^^^^
+``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
+is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
+allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.

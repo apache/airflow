@@ -23,7 +23,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
 
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2),
     'depends_on_past': True,
 }
@@ -42,9 +42,9 @@ def should_run(**kwargs):
     print('------------- exec dttm = {} and minute = {}'.
           format(kwargs['execution_date'], kwargs['execution_date'].minute))
     if kwargs['execution_date'].minute % 2 == 0:
-        return "oper_1"
+        return "dummy_task_1"
     else:
-        return "oper_2"
+        return "dummy_task_2"
 
 
 cond = BranchPythonOperator(

@@ -27,16 +27,16 @@ class SegmentTrackEventOperator(BaseOperator):
     Send Track Event to Segment for a specified user_id and event
 
     :param user_id: The ID for this user in your database. (templated)
-    :type user_id: string
+    :type user_id: str
     :param event: The name of the event you're tracking. (templated)
-    :type event: string
+    :type event: str
     :param properties: A dictionary of properties for the event. (templated)
     :type properties: dict
     :param segment_conn_id: The connection ID to use when connecting to Segment.
-    :type segment_conn_id: string
+    :type segment_conn_id: str
     :param segment_debug_mode: Determines whether Segment should run in debug mode.
         Defaults to False
-    :type segment_debug_mode: boolean
+    :type segment_debug_mode: bool
     """
     template_fields = ('user_id', 'event', 'properties')
     ui_color = '#ffd700'
@@ -63,7 +63,10 @@ class SegmentTrackEventOperator(BaseOperator):
                            segment_debug_mode=self.segment_debug_mode)
 
         self.log.info(
-            'Sending track event ({0}) for user id: {1} with properties: {2}'.
-            format(self.event, self.user_id, self.properties))
+            'Sending track event (%s) for user id: %s with properties: %s',
+            self.event, self.user_id, self.properties)
 
-        hook.track(self.user_id, self.event, self.properties)
+        hook.track(
+            user_id=self.user_id,
+            event=self.event,
+            properties=self.properties)

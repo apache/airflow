@@ -16,16 +16,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+Implements Docker operator
+"""
 import json
+
+import ast
+from docker import APIClient, tls
 
 from airflow.hooks.docker_hook import DockerHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-from docker import APIClient, tls
-import ast
 
 
 class DockerOperator(BaseOperator):
@@ -54,14 +57,16 @@ class DockerOperator(BaseOperator):
     :type auto_remove: bool
     :param command: Command to be run in the container. (templated)
     :type command: str or list
+    :param container_name: Name of the container. Optional (templated)
+    :type container_name: str or None
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpus: float
     :param dns: Docker custom DNS servers
-    :type dns: list of strings
+    :type dns: list[str]
     :param dns_search: Docker custom DNS search domain
-    :type dns_search: list of strings
+    :type dns_search: list[str]
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
     :type docker_url: str
@@ -73,6 +78,9 @@ class DockerOperator(BaseOperator):
         Either a float value, which represents the limit in bytes,
         or a string like ``128m`` or ``1g``.
     :type mem_limit: float or str
+    :param host_tmp_dir: Specify the location of the temporary directory on the host which will
+        be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
+    :type host_tmp_dir: str
     :param network_mode: Network mode for the container.
     :type network_mode: str
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
@@ -97,6 +105,7 @@ class DockerOperator(BaseOperator):
     :type user: int or str
     :param volumes: List of volumes to mount into the container, e.g.
         ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
+    :type volumes: list
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
@@ -111,8 +120,11 @@ class DockerOperator(BaseOperator):
     :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
         greater than 0. If omitted uses system default.
     :type shm_size: int
+    :param tty: Allocate pseudo-TTY to the container
+        This needs to be set see logs of the Docker container.
+    :type tty: bool
     """
-    template_fields = ('command', 'environment',)
+    template_fields = ('command', 'environment', 'container_name')
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
@@ -121,11 +133,13 @@ class DockerOperator(BaseOperator):
             image,
             api_version=None,
             command=None,
+            container_name=None,
             cpus=1.0,
             docker_url='unix://var/run/docker.sock',
             environment=None,
             force_pull=False,
             mem_limit=None,
+            host_tmp_dir=None,
             network_mode=None,
             tls_ca_cert=None,
             tls_client_cert=None,
@@ -143,6 +157,7 @@ class DockerOperator(BaseOperator):
             dns_search=None,
             auto_remove=False,
             shm_size=None,
+            tty=False,
             *args,
             **kwargs):
 
@@ -150,6 +165,7 @@ class DockerOperator(BaseOperator):
         self.api_version = api_version
         self.auto_remove = auto_remove
         self.command = command
+        self.container_name = container_name
         self.cpus = cpus
         self.dns = dns
         self.dns_search = dns_search
@@ -158,6 +174,7 @@ class DockerOperator(BaseOperator):
         self.force_pull = force_pull
         self.image = image
         self.mem_limit = mem_limit
+        self.host_tmp_dir = host_tmp_dir
         self.network_mode = network_mode
         self.tls_ca_cert = tls_ca_cert
         self.tls_client_cert = tls_client_cert
@@ -172,6 +189,7 @@ class DockerOperator(BaseOperator):
         self.xcom_all = xcom_all
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
+        self.tty = tty
 
         self.cli = None
         self.container = None
@@ -205,12 +223,13 @@ class DockerOperator(BaseOperator):
                 if 'status' in output:
                     self.log.info("%s", output['status'])
 
-        with TemporaryDirectory(prefix='airflowtmp') as host_tmp_dir:
+        with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
                 command=self.get_command(),
+                name=self.container_name,
                 environment=self.environment,
                 host_config=self.cli.create_host_config(
                     auto_remove=self.auto_remove,
@@ -223,12 +242,16 @@ class DockerOperator(BaseOperator):
                     mem_limit=self.mem_limit),
                 image=self.image,
                 user=self.user,
-                working_dir=self.working_dir
+                working_dir=self.working_dir,
+                tty=self.tty,
             )
             self.cli.start(self.container['Id'])
 
             line = ''
-            for line in self.cli.logs(container=self.container['Id'], stream=True):
+            for line in self.cli.attach(container=self.container['Id'],
+                                        stdout=True,
+                                        stderr=True,
+                                        stream=True):
                 line = line.strip()
                 if hasattr(line, 'decode'):
                     line = line.decode('utf-8')
@@ -243,7 +266,13 @@ class DockerOperator(BaseOperator):
                     if self.xcom_all else str(line)
 
     def get_command(self):
-        if self.command is not None and self.command.strip().find('[') == 0:
+        """
+        Retrieve command(s). if command string starts with [, it returns the command list)
+
+        :return: the command (or commands)
+        :rtype: str | List[str]
+        """
+        if isinstance(self.command, str) and self.command.strip().find('[') == 0:
             commands = ast.literal_eval(self.command)
         else:
             commands = self.command
@@ -257,11 +286,14 @@ class DockerOperator(BaseOperator):
     def __get_tls_config(self):
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
+            # Ignore type error on SSL version here - it is deprecated and type annotation is wrong
+            # it should be string
+            # noinspection PyTypeChecker
             tls_config = tls.TLSConfig(
                 ca_cert=self.tls_ca_cert,
                 client_cert=(self.tls_client_cert, self.tls_client_key),
                 verify=True,
-                ssl_version=self.tls_ssl_version,
+                ssl_version=self.tls_ssl_version,  # type: ignore
                 assert_hostname=self.tls_hostname
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')

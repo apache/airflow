@@ -18,12 +18,13 @@
 # under the License.
 #
 import json
+from requests.exceptions import MissingSchema
 import unittest
 
-from airflow import configuration, models
+from airflow.models import Connection
 from airflow.utils import db
-
 from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
+from tests.compat import mock
 
 
 class TestSlackWebhookHook(unittest.TestCase):
@@ -32,26 +33,42 @@ class TestSlackWebhookHook(unittest.TestCase):
         'http_conn_id': 'slack-webhook-default',
         'webhook_token': 'manual_token',
         'message': 'Awesome message to put on Slack',
+        'attachments': [{'fallback': 'Required plain-text summary'}],
         'channel': '#general',
         'username': 'SlackMcSlackFace',
         'icon_emoji': ':hankey:',
+        'icon_url': 'https://airflow.apache.org/_images/pin_large.png',
         'link_names': True,
         'proxy': 'https://my-horrible-proxy.proxyist.com:8080'
     }
-    expected_message_dict = {'channel': _config['channel'],
-                             'username': _config['username'],
-                             'icon_emoji': _config['icon_emoji'],
-                             'link_names': 1,
-                             'text': _config['message']
-                             }
+    expected_message_dict = {
+        'channel': _config['channel'],
+        'username': _config['username'],
+        'icon_emoji': _config['icon_emoji'],
+        'icon_url': _config['icon_url'],
+        'link_names': 1,
+        'attachments': _config['attachments'],
+        'text': _config['message']
+    }
     expected_message = json.dumps(expected_message_dict)
+    expected_url = 'https://hooks.slack.com/services/T000/B000/XXX'
+    expected_method = 'POST'
 
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='slack-webhook-default',
                 extra='{"webhook_token": "your_token_here"}')
+        )
+        db.merge_conn(
+            Connection(
+                conn_id='slack-webhook-url',
+                host='https://hooks.slack.com/services/T000/B000/XXX')
+        )
+        db.merge_conn(
+            Connection(
+                conn_id='slack-webhook-host',
+                host='https://hooks.slack.com/services/T000/')
         )
 
     def test_get_token_manual_token(self):
@@ -86,6 +103,58 @@ class TestSlackWebhookHook(unittest.TestCase):
 
         # Then
         self.assertEqual(self.expected_message, message)
+
+    @mock.patch('requests.Session')
+    @mock.patch('requests.Request')
+    def test_url_generated_by_http_conn_id(self, request_mock, session_mock):
+        hook = SlackWebhookHook(http_conn_id='slack-webhook-url')
+        try:
+            hook.execute()
+        except MissingSchema:
+            pass
+        request_mock.assert_called_once_with(
+            self.expected_method,
+            self.expected_url,
+            headers=mock.ANY,
+            data=mock.ANY
+        )
+        request_mock.reset_mock()
+        session_mock.reset_mock()
+
+    @mock.patch('requests.Session')
+    @mock.patch('requests.Request')
+    def test_url_generated_by_endpoint(self, request_mock, session_mock):
+        hook = SlackWebhookHook(webhook_token=self.expected_url)
+        try:
+            hook.execute()
+        except MissingSchema:
+            pass
+        request_mock.assert_called_once_with(
+            self.expected_method,
+            self.expected_url,
+            headers=mock.ANY,
+            data=mock.ANY
+        )
+        request_mock.reset_mock()
+        session_mock.reset_mock()
+
+    @mock.patch('requests.Session')
+    @mock.patch('requests.Request')
+    def test_url_generated_by_http_conn_id_and_endpoint(self, request_mock, session_mock):
+        hook = SlackWebhookHook(http_conn_id='slack-webhook-host',
+                                webhook_token='B000/XXX')
+        try:
+            hook.execute()
+        except MissingSchema:
+            pass
+        request_mock.assert_called_once_with(
+            self.expected_method,
+            self.expected_url,
+            headers=mock.ANY,
+            data=mock.ANY
+        )
+        request_mock.reset_mock()
+        session_mock.reset_mock()
 
 
 if __name__ == '__main__':

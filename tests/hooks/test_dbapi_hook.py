@@ -51,8 +51,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.assertEqual(rows, self.db_hook.get_records(statement))
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_records_parameters(self):
@@ -65,8 +65,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.assertEqual(rows, self.db_hook.get_records(statement, parameters))
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement, parameters)
 
     def test_get_records_exception(self):
@@ -76,8 +76,8 @@ class TestDbApiHook(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.db_hook.get_records(statement)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        self.conn.close.call_count == 1
+        self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
     def test_insert_rows(self):
@@ -87,8 +87,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.db_hook.insert_rows(table, rows)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
 
         commit_count = 2  # The first and last commit
         self.assertEqual(commit_count, self.conn.commit.call_count)
@@ -104,8 +104,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.db_hook.insert_rows(table, rows, replace=True)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
 
         commit_count = 2  # The first and last commit
         self.assertEqual(commit_count, self.conn.commit.call_count)
@@ -122,8 +122,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.db_hook.insert_rows(table, rows, target_fields)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
 
         commit_count = 2  # The first and last commit
         self.assertEqual(commit_count, self.conn.commit.call_count)
@@ -140,8 +140,8 @@ class TestDbApiHook(unittest.TestCase):
 
         self.db_hook.insert_rows(table, rows, commit_every=commit_every)
 
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
 
         commit_count = 2 + divmod(len(rows), commit_every)[0]
         self.assertEqual(commit_count, self.conn.commit.call_count)

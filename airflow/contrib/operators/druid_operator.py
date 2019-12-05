@@ -60,5 +60,5 @@ class DruidOperator(BaseOperator):
             druid_ingest_conn_id=self.conn_id,
             max_ingestion_time=self.max_ingestion_time
         )
-        self.log.info("Sumitting %s", self.index_spec_str)
+        self.log.info("Submitting %s", self.index_spec_str)
         hook.submit_indexing_job(self.index_spec_str)

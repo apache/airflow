@@ -24,13 +24,13 @@ from flask import flash
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE
+from ldap3 import Server, Connection, Tls, set_config_parameter, LEVEL, SUBTREE
 import ssl
 
 from flask import url_for, redirect
 
 from airflow import models
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.configuration import AirflowConfigException
 from airflow.utils.db import provide_session
 
@@ -39,9 +39,9 @@ import re
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() below
-login_manager.login_message = None
+LOGIN_MANAGER = flask_login.LoginManager()
+LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
+LOGIN_MANAGER.login_message = None
 
 log = LoggingMixin().log
 
@@ -56,14 +56,22 @@ class LdapException(Exception):
 
 def get_ldap_connection(dn=None, password=None):
     try:
-        cacert = configuration.conf.get("ldap", "cacert")
+        cacert = conf.get("ldap", "cacert")
     except AirflowConfigException:
         pass
+
+    try:
+        ignore_malformed_schema = conf.get("ldap", "ignore_malformed_schema")
+    except AirflowConfigException:
+        pass
+
+    if ignore_malformed_schema:
+        set_config_parameter('IGNORE_MALFORMED_SCHEMA', ignore_malformed_schema)
 
     tls_configuration = Tls(validate=ssl.CERT_REQUIRED,
                             ca_certs_file=cacert)
 
-    server = Server(configuration.conf.get("ldap", "uri"),
+    server = Server(conf.get("ldap", "uri"),
                     use_ssl=True,
                     tls=tls_configuration)
 
@@ -94,7 +102,7 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
 def groups_user(conn, search_base, user_filter, user_name_att, username):
     search_filter = "(&({0})({1}={2}))".format(user_filter, user_name_att, username)
     try:
-        memberof_attr = configuration.conf.get("ldap", "group_member_attr")
+        memberof_attr = conf.get("ldap", "group_member_attr")
     except Exception:
         memberof_attr = "memberOf"
     res = conn.search(native(search_base), native(search_filter),
@@ -130,13 +138,13 @@ class LdapUser(models.User):
         self.ldap_groups = []
 
         # Load and cache superuser and data_profiler settings.
-        conn = get_ldap_connection(configuration.conf.get("ldap", "bind_user"),
-                                   configuration.conf.get("ldap", "bind_password"))
+        conn = get_ldap_connection(conf.get("ldap", "bind_user"),
+                                   conf.get("ldap", "bind_password"))
 
         superuser_filter = None
         data_profiler_filter = None
         try:
-            superuser_filter = configuration.conf.get("ldap", "superuser_filter")
+            superuser_filter = conf.get("ldap", "superuser_filter")
         except AirflowConfigException:
             pass
 
@@ -145,14 +153,14 @@ class LdapUser(models.User):
             log.debug("Missing configuration for superuser settings or empty. Skipping.")
         else:
             self.superuser = group_contains_user(conn,
-                                                 configuration.conf.get("ldap", "basedn"),
+                                                 conf.get("ldap", "basedn"),
                                                  superuser_filter,
-                                                 configuration.conf.get("ldap",
-                                                                        "user_name_attr"),
+                                                 conf.get("ldap",
+                                                          "user_name_attr"),
                                                  user.username)
 
         try:
-            data_profiler_filter = configuration.conf.get("ldap", "data_profiler_filter")
+            data_profiler_filter = conf.get("ldap", "data_profiler_filter")
         except AirflowConfigException:
             pass
 
@@ -163,10 +171,10 @@ class LdapUser(models.User):
         else:
             self.data_profiler = group_contains_user(
                 conn,
-                configuration.conf.get("ldap", "basedn"),
+                conf.get("ldap", "basedn"),
                 data_profiler_filter,
-                configuration.conf.get("ldap",
-                                       "user_name_attr"),
+                conf.get("ldap",
+                         "user_name_attr"),
                 user.username
             )
 
@@ -174,9 +182,9 @@ class LdapUser(models.User):
         try:
             self.ldap_groups = groups_user(
                 conn,
-                configuration.conf.get("ldap", "basedn"),
-                configuration.conf.get("ldap", "user_filter"),
-                configuration.conf.get("ldap", "user_name_attr"),
+                conf.get("ldap", "basedn"),
+                conf.get("ldap", "user_filter"),
+                conf.get("ldap", "user_name_attr"),
                 user.username
             )
         except AirflowConfigException:
@@ -184,25 +192,25 @@ class LdapUser(models.User):
 
     @staticmethod
     def try_login(username, password):
-        conn = get_ldap_connection(configuration.conf.get("ldap", "bind_user"),
-                                   configuration.conf.get("ldap", "bind_password"))
+        conn = get_ldap_connection(conf.get("ldap", "bind_user"),
+                                   conf.get("ldap", "bind_password"))
 
         search_filter = "(&({0})({1}={2}))".format(
-            configuration.conf.get("ldap", "user_filter"),
-            configuration.conf.get("ldap", "user_name_attr"),
+            conf.get("ldap", "user_filter"),
+            conf.get("ldap", "user_name_attr"),
             username
         )
 
         search_scope = LEVEL
-        if configuration.conf.has_option("ldap", "search_scope"):
-            if configuration.conf.get("ldap", "search_scope") == "SUBTREE":
+        if conf.has_option("ldap", "search_scope"):
+            if conf.get("ldap", "search_scope") == "SUBTREE":
                 search_scope = SUBTREE
             else:
                 search_scope = LEVEL
 
         # todo: BASE or ONELEVEL?
 
-        res = conn.search(native(configuration.conf.get("ldap", "basedn")),
+        res = conn.search(native(conf.get("ldap", "basedn")),
                           native(search_filter),
                           search_scope=native(search_scope))
 
@@ -227,7 +235,7 @@ class LdapUser(models.User):
             Unable to parse LDAP structure. If you're using Active Directory
             and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
             %s
-            """ % traceback.format_exc())
+            """, traceback.format_exc())
             raise LdapException(
                 "Could not parse LDAP structure. "
                 "Try setting search_scope in airflow.cfg, or check logs"
@@ -265,7 +273,7 @@ class LdapUser(models.User):
         return self.superuser
 
 
-@login_manager.user_loader
+@LOGIN_MANAGER.user_loader
 @provide_session
 def load_user(userid, session=None):
     log.debug("Loading user %s", userid)

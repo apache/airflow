@@ -19,27 +19,17 @@
 
 import unittest
 
-from backports.configparser import DuplicateSectionError
 
 from airflow import models
-from airflow import configuration
 from airflow.www import app as application
 from airflow.settings import Session
 from airflow.contrib.auth.backends.password_auth import PasswordUser
+from tests.test_utils.config import conf_vars
 
 
+@conf_vars({('api', 'auth_backend'): 'airflow.contrib.auth.backends.password_auth'})
 class ApiPasswordTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
-        try:
-            configuration.conf.add_section("api")
-        except DuplicateSectionError:
-            pass
-
-        configuration.conf.set("api",
-                               "auth_backend",
-                               "airflow.contrib.auth.backends.password_auth")
-
         self.app = application.create_app(testing=True)
 
         session = Session()

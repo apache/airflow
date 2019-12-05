@@ -27,13 +27,16 @@ import imp
 import inspect
 import os
 import re
-import sys
 import pkg_resources
+from typing import List, Any
 
-from airflow import configuration
+from airflow import settings
+from airflow.models.baseoperator import BaseOperatorLink
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
+
+import_errors = {}
 
 
 class AirflowPluginException(Exception):
@@ -41,17 +44,31 @@ class AirflowPluginException(Exception):
 
 
 class AirflowPlugin(object):
-    name = None
-    operators = []
-    sensors = []
-    hooks = []
-    executors = []
-    macros = []
-    admin_views = []
-    flask_blueprints = []
-    menu_links = []
-    appbuilder_views = []
-    appbuilder_menu_items = []
+    name = None  # type: str
+    operators = []  # type: List[Any]
+    sensors = []  # type: List[Any]
+    hooks = []  # type: List[Any]
+    executors = []  # type: List[Any]
+    macros = []  # type: List[Any]
+    admin_views = []  # type: List[Any]
+    flask_blueprints = []  # type: List[Any]
+    menu_links = []  # type: List[Any]
+    appbuilder_views = []  # type: List[Any]
+    appbuilder_menu_items = []  # type: List[Any]
+
+    # A list of global operator extra links that can redirect users to
+    # external systems. These extra links will be available on the
+    # task page in the form of buttons.
+    #
+    # Note: the global operator extra link can be overridden at each
+    # operator level.
+    global_operator_extra_links = []  # type: List[BaseOperatorLink]
+
+    # A list of operator extra links to override or add operator links
+    # to existing Airflow Operators.
+    # These extra links will be available on the task page in form of
+    # buttons.
+    operator_extra_links = []  # type: List[BaseOperatorLink]
 
     @classmethod
     def validate(cls):
@@ -79,8 +96,8 @@ def load_entrypoint_plugins(entry_points, airflow_plugins):
     :type entry_points: Generator[setuptools.EntryPoint, None, None]
     :param airflow_plugins: A collection of existing airflow plugins to
         ensure we don't load duplicates
-    :type airflow_plugins: List[AirflowPlugin]
-    :return: List[Type[AirflowPlugin]]
+    :type airflow_plugins: list[type[airflow.plugins_manager.AirflowPlugin]]
+    :rtype: list[airflow.plugins_manager.AirflowPlugin]
     """
     for entry_point in entry_points:
         log.debug('Importing entry_point plugin %s', entry_point.name)
@@ -112,20 +129,15 @@ def is_valid_plugin(plugin_obj, existing_plugins):
     return False
 
 
-plugins_folder = configuration.conf.get('core', 'plugins_folder')
-if not plugins_folder:
-    plugins_folder = configuration.conf.get('core', 'airflow_home') + '/plugins'
-plugins_folder = os.path.expanduser(plugins_folder)
-
-if plugins_folder not in sys.path:
-    sys.path.append(plugins_folder)
-
-plugins = []
+plugins = []  # type: List[AirflowPlugin]
 
 norm_pattern = re.compile(r'[/|.]')
 
+if settings.PLUGINS_FOLDER is None:
+    raise AirflowPluginException("Plugins folder is not set")
+
 # Crawl through the plugins folder to find AirflowPlugin derivatives
-for root, dirs, files in os.walk(plugins_folder, followlinks=True):
+for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
     for f in files:
         try:
             filepath = os.path.join(root, f)
@@ -148,6 +160,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
         except Exception as e:
             log.exception(e)
             log.error('Failed to import plugin %s', filepath)
+            import_errors[filepath] = str(e)
 
 plugins = load_entrypoint_plugins(
     pkg_resources.iter_entry_points('airflow.plugins'),
@@ -173,11 +186,14 @@ executors_modules = []
 macros_modules = []
 
 # Plugin components to integrate directly
-admin_views = []
-flask_blueprints = []
-menu_links = []
-flask_appbuilder_views = []
-flask_appbuilder_menu_links = []
+admin_views = []  # type: List[Any]
+flask_blueprints = []  # type: List[Any]
+menu_links = []  # type: List[Any]
+flask_appbuilder_views = []  # type: List[Any]
+flask_appbuilder_menu_links = []  # type: List[Any]
+global_operator_extra_links = []  # type: List[BaseOperatorLink]
+operator_extra_links = []  # type: List[BaseOperatorLink]
+
 
 for p in plugins:
     operators_modules.append(
@@ -191,7 +207,16 @@ for p in plugins:
     macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
 
     admin_views.extend(p.admin_views)
-    flask_blueprints.extend(p.flask_blueprints)
     menu_links.extend(p.menu_links)
     flask_appbuilder_views.extend(p.appbuilder_views)
     flask_appbuilder_menu_links.extend(p.appbuilder_menu_items)
+    flask_blueprints.extend([{
+        'name': p.name,
+        'blueprint': bp
+    } for bp in p.flask_blueprints])
+    global_operator_extra_links.extend(p.global_operator_extra_links)
+
+    # Only register Operator links if its ``operators`` property is not an empty list
+    # So that we can only attach this links to a specific Operator
+    operator_extra_links.extend([
+        ope for ope in p.operator_extra_links if ope.operators])

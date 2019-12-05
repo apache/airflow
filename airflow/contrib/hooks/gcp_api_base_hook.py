@@ -19,21 +19,80 @@
 #
 import json
 import functools
-
+import logging
+import os
+import tempfile
 import httplib2
+
 import google.auth
+from google.auth.environment_vars import CREDENTIALS
+
 import google_auth_httplib2
 import google.oauth2.service_account
+from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError, Forbidden, \
+    ResourceExhausted
+from googleapiclient.errors import HttpError
+import tenacity
 
+from airflow import LoggingMixin
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
+logger = LoggingMixin().log
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
 
 
-class GoogleCloudBaseHook(BaseHook, LoggingMixin):
+# Constants used by the mechanism of repeating requests in reaction to exceeding the temporary quota.
+INVALID_KEYS = [
+    'DefaultRequestsPerMinutePerProject',
+    'DefaultRequestsPerMinutePerUser',
+    'RequestsPerMinutePerProject',
+    "Resource has been exhausted (e.g. check quota).",
+]
+INVALID_REASONS = [
+    'userRateLimitExceeded',
+]
+
+
+def is_soft_quota_exception(exception):
+    """
+    API for Google services does not have a standardized way to report quota violation errors.
+
+    The function has been adapted by trial and error to the following services:
+
+    * Google Translate
+    * Google Vision
+    * Google Text-to-Speech
+    * Google Speech-to-Text
+    * Google Natural Language
+    * Google Video Intelligence
+    """
+    if isinstance(exception, Forbidden):
+        return any(
+            reason in error["reason"]
+            for reason in INVALID_REASONS
+            for error in exception.errors
+        )
+
+    if isinstance(exception, ResourceExhausted):
+        return any(
+            key in error.details()
+            for key in INVALID_KEYS
+            for error in exception.errors
+        )
+
+    return False
+
+
+class retry_if_temporary_quota(tenacity.retry_if_exception):  # pylint: disable=invalid-name
+    """Retries if there was an exception for exceeding the temporary quote limit."""
+
+    def __init__(self):
+        super(retry_if_temporary_quota, self).__init__(is_soft_quota_exception)
+
+
+class GoogleCloudBaseHook(BaseHook):
     """
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
     API client that is built in the same way no matter which service you use.
@@ -56,17 +115,16 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
     Legacy P12 key files are not supported.
 
     JSON data provided in the UI: Specify 'Keyfile JSON'.
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     """
 
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
-        """
-        :param gcp_conn_id: The connection ID to use when fetching connection info.
-        :type gcp_conn_id: string
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must have
-            domain-wide delegation enabled.
-        :type delegate_to: string
-        """
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson
@@ -154,6 +212,65 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
     def project_id(self):
         return self._get_field('project')
 
+    @property
+    def num_retries(self):
+        """
+        Returns num_retries from Connection.
+
+        :return: the number of times each API request should be retried
+        :rtype: int
+        """
+        return self._get_field('num_retries') or 5
+
+    @staticmethod
+    def quota_retry(*args, **kwargs):
+        """
+        Function decorator that provides a mechanism to repeat requests in response to exceeding a temporary
+        quote limit.
+        """
+        def decorator(fun):
+            default_kwargs = {
+                'wait': tenacity.wait_exponential(multiplier=1, max=100),
+                'retry': retry_if_temporary_quota(),
+                'before': tenacity.before_log(logger, logging.DEBUG),
+                'after': tenacity.after_log(logger, logging.DEBUG),
+            }
+            default_kwargs.update(**kwargs)
+            return tenacity.retry(
+                *args, **default_kwargs
+            )(fun)
+        return decorator
+
+    @staticmethod
+    def catch_http_exception(func):
+        """
+        Function decorator that intercepts HTTP Errors and raises AirflowException
+        with more informative message.
+        """
+
+        @functools.wraps(func)
+        def wrapper_decorator(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except GoogleAPICallError as e:
+                if isinstance(e, AlreadyExists):
+                    raise e
+                else:
+                    self.log.error('The request failed:\n%s', str(e))
+                    raise AirflowException(e)
+            except RetryError as e:
+                self.log.error('The request failed due to a retryable error and retry attempts failed.')
+                raise AirflowException(e)
+            except ValueError as e:
+                self.log.error('The request failed, the parameters are invalid.')
+                raise AirflowException(e)
+            except HttpError as e:
+                self.log.error('The request failed:\n%s', str(e))
+                raise AirflowException(e)
+
+        return wrapper_decorator
+
+    @staticmethod
     def fallback_to_default_project_id(func):
         """
         Decorator that provides fallback for Google Cloud Platform project id. If
@@ -168,8 +285,8 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         def inner_wrapper(self, *args, **kwargs):
             if len(args) > 0:
                 raise AirflowException(
-                    "Use keyword arguments when initializing method with the "
-                    "'fallback_to_default_project_id' decorator")
+                    "You must use keyword arguments in this methods rather than"
+                    " positional")
             if 'project_id' in kwargs:
                 kwargs['project_id'] = self._get_project_id(kwargs['project_id'])
             else:
@@ -181,8 +298,6 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
             return func(self, *args, **kwargs)
         return inner_wrapper
 
-    fallback_to_default_project_id = staticmethod(fallback_to_default_project_id)
-
     def _get_project_id(self, project_id):
         """
         In case project_id is None, overrides it with default project_id from
@@ -193,3 +308,39 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         :return: the project_id specified or default project id if project_id is None
         """
         return project_id if project_id else self.project_id
+
+    class _Decorators(object):
+        """A private inner class for keeping all decorator methods."""
+
+        @staticmethod
+        def provide_gcp_credential_file(func):
+            """
+            Function decorator that provides a GOOGLE_APPLICATION_CREDENTIALS
+            environment variable, pointing to file path of a JSON file of service
+            account key.
+            """
+            @functools.wraps(func)
+            def wrapper(self, *args, **kwargs):
+                with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
+                    key_path = self._get_field('key_path', False)
+                    keyfile_dict = self._get_field('keyfile_dict', False)
+                    current_env_state = os.environ.get(CREDENTIALS)
+                    try:
+                        if key_path:
+                            if key_path.endswith('.p12'):
+                                raise AirflowException(
+                                    'Legacy P12 key file are not supported, use a JSON key file.'
+                                )
+                            os.environ[CREDENTIALS] = key_path
+                        elif keyfile_dict:
+                            conf_file.write(keyfile_dict)
+                            conf_file.flush()
+                            os.environ[CREDENTIALS] = conf_file.name
+                        return func(self, *args, **kwargs)
+                    finally:
+                        if current_env_state is None:
+                            if CREDENTIALS in os.environ:
+                                del os.environ[CREDENTIALS]
+                        else:
+                            os.environ[CREDENTIALS] = current_env_state
+            return wrapper

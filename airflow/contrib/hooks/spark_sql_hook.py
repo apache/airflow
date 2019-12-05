@@ -27,6 +27,7 @@ class SparkSqlHook(BaseHook):
     """
     This hook is a wrapper around the spark-sql binary. It requires that the
     "spark-sql" binary is in the PATH.
+
     :param sql: The SQL query to execute
     :type sql: str
     :param conf: arbitrary Spark configuration property
@@ -91,6 +92,7 @@ class SparkSqlHook(BaseHook):
         """
         Construct the spark-sql command to execute. Verbose output is enabled
         as default.
+
         :param cmd: command to append to the spark-sql command
         :type cmd: str
         :return: full command to be executed

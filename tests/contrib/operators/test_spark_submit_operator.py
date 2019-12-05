@@ -20,13 +20,14 @@
 
 import unittest
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.models import TaskInstance
 
 from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
 from airflow.utils import timezone
 
 from datetime import timedelta
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -39,7 +40,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
         },
         'files': 'hive-site.xml',
         'py_files': 'sample_library.py',
-        'driver_classpath': 'parquet.jar',
+        'archives': 'sample_archive.zip#SAMPLE',
+        'driver_class_path': 'parquet.jar',
         'jars': 'parquet.jar',
         'packages': 'com.databricks:spark-avro_2.11:3.2.0',
         'exclude_packages': 'org.bad.dependency:1.0.0',
@@ -49,6 +51,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'executor_memory': '22g',
         'keytab': 'privileged_user.keytab',
         'principal': 'user/spark@airflow.org',
+        'proxy_user': 'sample_user',
         'name': '{{ task_instance.task_id }}',
         'num_executors': 10,
         'verbose': True,
@@ -65,7 +68,6 @@ class TestSparkSubmitOperator(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -73,22 +75,25 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_execute(self):
+
         # Given / When
         conn_id = 'spark_default'
         operator = SparkSubmitOperator(
             task_id='spark_submit_job',
+            spark_binary="sparky",
             dag=self.dag,
             **self._config
         )
 
-        # Then
+        # Then expected results
         expected_dict = {
             'conf': {
                 'parquet.compression': 'SNAPPY'
             },
             'files': 'hive-site.xml',
             'py_files': 'sample_library.py',
-            'driver_classpath': 'parquet.jar',
+            'archives': 'sample_archive.zip#SAMPLE',
+            'driver_class_path': 'parquet.jar',
             'jars': 'parquet.jar',
             'packages': 'com.databricks:spark-avro_2.11:3.2.0',
             'exclude_packages': 'org.bad.dependency:1.0.0',
@@ -98,6 +103,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
             'executor_memory': '22g',
             'keytab': 'privileged_user.keytab',
             'principal': 'user/spark@airflow.org',
+            'proxy_user': 'sample_user',
             'name': '{{ task_instance.task_id }}',
             'num_executors': 10,
             'verbose': True,
@@ -110,7 +116,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
                 '--start', '{{ macros.ds_add(ds, -1)}}',
                 '--end', '{{ ds }}',
                 '--with-spaces', 'args should keep embdedded spaces',
-            ]
+            ],
+            'spark_binary': 'sparky'
         }
 
         self.assertEqual(conn_id, operator._conn_id)
@@ -118,7 +125,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['conf'], operator._conf)
         self.assertEqual(expected_dict['files'], operator._files)
         self.assertEqual(expected_dict['py_files'], operator._py_files)
-        self.assertEqual(expected_dict['driver_classpath'], operator._driver_classpath)
+        self.assertEqual(expected_dict['archives'], operator._archives)
+        self.assertEqual(expected_dict['driver_class_path'], operator._driver_class_path)
         self.assertEqual(expected_dict['jars'], operator._jars)
         self.assertEqual(expected_dict['packages'], operator._packages)
         self.assertEqual(expected_dict['exclude_packages'], operator._exclude_packages)
@@ -129,12 +137,14 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['executor_memory'], operator._executor_memory)
         self.assertEqual(expected_dict['keytab'], operator._keytab)
         self.assertEqual(expected_dict['principal'], operator._principal)
+        self.assertEqual(expected_dict['proxy_user'], operator._proxy_user)
         self.assertEqual(expected_dict['name'], operator._name)
         self.assertEqual(expected_dict['num_executors'], operator._num_executors)
         self.assertEqual(expected_dict['verbose'], operator._verbose)
         self.assertEqual(expected_dict['java_class'], operator._java_class)
         self.assertEqual(expected_dict['driver_memory'], operator._driver_memory)
         self.assertEqual(expected_dict['application_args'], operator._application_args)
+        self.assertEqual(expected_dict['spark_binary'], operator._spark_binary)
 
     def test_render_template(self):
         # Given
@@ -154,7 +164,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
                                      u'--with-spaces',
                                      u'args should keep embdedded spaces',
                                      ]
-        expected_name = "spark_submit_job"
+        expected_name = 'spark_submit_job'
         self.assertListEqual(expected_application_args,
                              getattr(operator, '_application_args'))
         self.assertEqual(expected_name, getattr(operator, '_name'))

@@ -49,6 +49,7 @@ class MongoToS3Operator(BaseOperator):
                  s3_bucket,
                  s3_key,
                  mongo_db=None,
+                 replace=False,
                  *args, **kwargs):
         super(MongoToS3Operator, self).__init__(*args, **kwargs)
         # Conn Ids
@@ -65,9 +66,7 @@ class MongoToS3Operator(BaseOperator):
         # S3 Settings
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
-
-        # KWARGS
-        self.replace = kwargs.pop('replace', False)
+        self.replace = replace
 
     def execute(self, context):
         """

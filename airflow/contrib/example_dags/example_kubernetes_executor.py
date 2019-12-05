@@ -16,82 +16,102 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This is an example dag for using the Kubernetes Executor.
+"""
 from __future__ import print_function
-import airflow
-from airflow.operators.python_operator import PythonOperator
-from airflow.models import DAG
+
 import os
 
+import airflow
+from airflow.models import DAG
+from airflow.operators.python_operator import PythonOperator
+
 args = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 
-dag = DAG(
-    dag_id='example_kubernetes_executor', default_args=args,
+with DAG(
+    dag_id='example_kubernetes_executor',
+    default_args=args,
     schedule_interval=None
-)
+) as dag:
 
-affinity = {
-    'podAntiAffinity': {
-        'requiredDuringSchedulingIgnoredDuringExecution': [
-            {
-                'topologyKey': 'kubernetes.io/hostname',
-                'labelSelector': {
-                    'matchExpressions': [
-                        {
-                            'key': 'app',
-                            'operator': 'In',
-                            'values': ['airflow']
-                        }
-                    ]
+    affinity = {
+        'podAntiAffinity': {
+            'requiredDuringSchedulingIgnoredDuringExecution': [
+                {
+                    'topologyKey': 'kubernetes.io/hostname',
+                    'labelSelector': {
+                        'matchExpressions': [
+                            {
+                                'key': 'app',
+                                'operator': 'In',
+                                'values': ['airflow']
+                            }
+                        ]
+                    }
                 }
-            }
-        ]
+            ]
+        }
     }
-}
 
-tolerations = [{
-    'key': 'dedicated',
-    'operator': 'Equal',
-    'value': 'airflow'
-}]
+    tolerations = [{
+        'key': 'dedicated',
+        'operator': 'Equal',
+        'value': 'airflow'
+    }]
 
+    def print_stuff():  # pylint: disable=missing-docstring
+        print("stuff!")
 
-def print_stuff():
-    print("stuff!")
+    def use_zip_binary():
+        """
+        Checks whether Zip is installed.
 
+        :return: True if it is installed, False if not.
+        :rtype: bool
+        """
+        return_code = os.system("zip")
+        assert return_code == 0
 
-def use_zip_binary():
-    rc = os.system("zip")
-    assert rc == 0
+    # You don't have to use any special KubernetesExecutor configuration if you don't want to
+    start_task = PythonOperator(
+        task_id="start_task",
+        python_callable=print_stuff
+    )
 
+    # But you can if you want to
+    one_task = PythonOperator(
+        task_id="one_task",
+        python_callable=print_stuff,
+        executor_config={"KubernetesExecutor": {"image": "airflow/ci:latest"}}
+    )
 
-# You don't have to use any special KubernetesExecutor configuration if you don't want to
-start_task = PythonOperator(
-    task_id="start_task", python_callable=print_stuff, dag=dag
-)
+    # Use the zip binary, which is only found in this special docker image
+    two_task = PythonOperator(
+        task_id="two_task",
+        python_callable=use_zip_binary,
+        executor_config={"KubernetesExecutor": {"image": "airflow/ci_zip:latest"}}
+    )
 
-# But you can if you want to
-one_task = PythonOperator(
-    task_id="one_task", python_callable=print_stuff, dag=dag,
-    executor_config={"KubernetesExecutor": {"image": "airflow/ci:latest"}}
-)
+    # Limit resources on this operator/task with node affinity & tolerations
+    three_task = PythonOperator(
+        task_id="three_task",
+        python_callable=print_stuff,
+        executor_config={
+            "KubernetesExecutor": {"request_memory": "128Mi",
+                                   "limit_memory": "128Mi",
+                                   "tolerations": tolerations,
+                                   "affinity": affinity}}
+    )
 
-# Use the zip binary, which is only found in this special docker image
-two_task = PythonOperator(
-    task_id="two_task", python_callable=use_zip_binary, dag=dag,
-    executor_config={"KubernetesExecutor": {"image": "airflow/ci_zip:latest"}}
-)
+    # Add arbitrary labels to worker pods
+    four_task = PythonOperator(
+        task_id="four_task",
+        python_callable=print_stuff,
+        executor_config={"KubernetesExecutor": {"labels": {"foo": "bar"}}}
+    )
 
-# Limit resources on this operator/task with node affinity & tolerations
-three_task = PythonOperator(
-    task_id="three_task", python_callable=print_stuff, dag=dag,
-    executor_config={
-        "KubernetesExecutor": {"request_memory": "128Mi",
-                               "limit_memory": "128Mi",
-                               "tolerations": tolerations,
-                               "affinity": affinity}}
-)
-
-start_task.set_downstream([one_task, two_task, three_task])
+    start_task >> [one_task, two_task, three_task, four_task]

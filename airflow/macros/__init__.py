@@ -67,6 +67,23 @@ def ds_format(ds, input_format, output_format):
     return datetime.strptime(ds, input_format).strftime(output_format)
 
 
+def datetime_diff_for_humans(dt, since=None):
+    """
+    Return a human-readable/approximate difference between two datetimes, or
+    one and now.
+
+    :param dt: The datetime to display the diff for
+    :type dt: datetime
+    :param since: When to display the date from. If ``None`` then the diff is
+        between ``dt`` and now.
+    :type since: None or datetime
+    :rtype: str
+    """
+    import pendulum
+
+    return pendulum.instance(dt).diff_for_humans(since)
+
+
 def _integrate_plugins():
     """Integrate plugins to the context"""
     import sys

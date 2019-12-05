@@ -32,11 +32,12 @@ d3.gantt = function() {
     .html(function(d) {
       var s = ""
       s += "<div class='row'>";
-      s += "<div class='col-md-3'>start:<br/>end:<br/>duration:</div>"
+      s += "<div class='col-md-3'>start:<br/>end:<br/>duration:<br/>try_number:</div>"
       s += "<div class='col-md-9'><span style='color: #AAA'> "
       s += d.isoStart + "<br/>";
       s += d.isoEnd + "<br/>";
-      s += d.duration + "<br/>";
+      s += convertSecsToHumanReadable(d.duration) + "<br/>";
+      s += d.try_number + "<br/>";
       s += "</span></div>";
       s += "</div>";
       return s;

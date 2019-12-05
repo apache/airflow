@@ -20,6 +20,7 @@
 import unittest
 import logging
 
+from airflow.exceptions import AirflowException
 try:
     from airflow.operators.docker_operator import DockerOperator
     from airflow.hooks.docker_hook import DockerHook
@@ -27,15 +28,7 @@ try:
 except ImportError:
     pass
 
-from airflow.exceptions import AirflowException
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class DockerOperatorTestCase(unittest.TestCase):
@@ -49,6 +42,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.create_host_config.return_value = host_config
         client_mock.images.return_value = []
+        client_mock.attach.return_value = ['container log']
         client_mock.logs.return_value = ['container log']
         client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.wait.return_value = {"StatusCode": 0}
@@ -58,13 +52,16 @@ class DockerOperatorTestCase(unittest.TestCase):
         operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
                                   image='ubuntu:latest', network_mode='bridge', owner='unittest',
                                   task_id='unittest', volumes=['/host/path:/container/path'],
-                                  working_dir='/container/path', shm_size=1000)
+                                  working_dir='/container/path', shm_size=1000,
+                                  host_tmp_dir='/host/airflow', container_name='test_container',
+                                  tty=True)
         operator.execute(None)
 
         client_class_mock.assert_called_with(base_url='unix://var/run/docker.sock', tls=None,
                                              version='1.19')
 
         client_mock.create_container.assert_called_with(command='env',
+                                                        name='test_container',
                                                         environment={
                                                             'AIRFLOW_TMP_DIR': '/tmp/airflow',
                                                             'UNIT': 'TEST'
@@ -72,7 +69,8 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                         host_config=host_config,
                                                         image='ubuntu:latest',
                                                         user=None,
-                                                        working_dir='/container/path'
+                                                        working_dir='/container/path',
+                                                        tty=True
                                                         )
         client_mock.create_host_config.assert_called_with(binds=['/host/path:/container/path',
                                                                  '/mkdtemp:/tmp/airflow'],
@@ -83,8 +81,10 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                           auto_remove=False,
                                                           dns=None,
                                                           dns_search=None)
+        mkdtemp_mock.assert_called_with(dir='/host/airflow', prefix='airflowtmp', suffix='')
         client_mock.images.assert_called_with(name='ubuntu:latest')
-        client_mock.logs.assert_called_with(container='some_id', stream=True)
+        client_mock.attach.assert_called_with(container='some_id', stdout=True,
+                                              stderr=True, stream=True)
         client_mock.pull.assert_called_with('ubuntu:latest', stream=True)
         client_mock.wait.assert_called_with('some_id')
 
@@ -95,7 +95,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.create_host_config.return_value = mock.Mock()
         client_mock.images.return_value = []
-        client_mock.logs.return_value = []
+        client_mock.attach.return_value = []
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 0}
 
@@ -121,13 +121,13 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.create_host_config.return_value = mock.Mock()
         client_mock.images.return_value = []
-        client_mock.logs.return_value = ['unicode container log 😁']
+        client_mock.attach.return_value = ['unicode container log 😁']
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 0}
 
         client_class_mock.return_value = client_mock
 
-        originalRaiseExceptions = logging.raiseExceptions
+        originalRaiseExceptions = logging.raiseExceptions  # pylint: disable=invalid-name
         logging.raiseExceptions = True
 
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
@@ -143,7 +143,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.create_host_config.return_value = mock.Mock()
         client_mock.images.return_value = []
-        client_mock.logs.return_value = []
+        client_mock.attach.return_value = []
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 1}
 
@@ -172,7 +172,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock = mock.Mock(name='DockerOperator.APIClient mock', spec=APIClient)
         client_mock.images.return_value = []
         client_mock.create_container.return_value = {'Id': 'some_id'}
-        client_mock.logs.return_value = []
+        client_mock.attach.return_value = []
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 0}
         operator_client_mock.return_value = client_mock
@@ -207,7 +207,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock = mock.Mock(name='DockerOperator.APIClient mock', spec=APIClient)
         client_mock.images.return_value = []
         client_mock.create_container.return_value = {'Id': 'some_id'}
-        client_mock.logs.return_value = []
+        client_mock.attach.return_value = []
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 0}
         operator_client_mock.return_value = client_mock

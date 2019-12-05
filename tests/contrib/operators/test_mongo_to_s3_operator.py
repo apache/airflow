@@ -22,14 +22,7 @@ from airflow import DAG
 from airflow.contrib.operators.mongo_to_s3 import MongoToS3Operator
 from airflow.models import TaskInstance
 from airflow.utils import timezone
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test_mongo_to_s3_operator'
 MONGO_CONN_ID = 'default_mongo'

@@ -20,6 +20,7 @@
 import getpass
 import os
 import warnings
+from io import StringIO
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -27,10 +28,9 @@ from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class SSHHook(BaseHook, LoggingMixin):
+class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
@@ -46,7 +46,7 @@ class SSHHook(BaseHook, LoggingMixin):
     :type username: str
     :param password: password of the username to connect to the remote_host
     :type password: str
-    :param key_file: key file to use to connect to the remote_host.
+    :param key_file: path to key file to use to connect to the remote_host
     :type key_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
     :type port: int
@@ -73,6 +73,7 @@ class SSHHook(BaseHook, LoggingMixin):
         self.username = username
         self.password = password
         self.key_file = key_file
+        self.pkey = None
         self.port = port
         self.timeout = timeout
         self.keepalive_interval = keepalive_interval
@@ -99,7 +100,12 @@ class SSHHook(BaseHook, LoggingMixin):
                 self.port = conn.port
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
-                self.key_file = extra_options.get("key_file")
+                if "key_file" in extra_options and self.key_file is None:
+                    self.key_file = extra_options.get("key_file")
+
+                private_key = extra_options.get('private_key')
+                if private_key:
+                    self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
 
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
@@ -115,6 +121,10 @@ class SSHHook(BaseHook, LoggingMixin):
                         and\
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
+
+        if self.pkey and self.key_file:
+            raise AirflowException(
+                "Params key_file and private_key both provided.  Must provide no more than one.")
 
         if not self.remote_host:
             raise AirflowException("Missing required param: remote_host")
@@ -146,11 +156,12 @@ class SSHHook(BaseHook, LoggingMixin):
         """
         Opens a ssh connection to the remote host.
 
-        :return paramiko.SSHClient object
+        :rtype: paramiko.client.SSHClient
         """
 
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
         client = paramiko.SSHClient()
+
         if not self.allow_host_key_change:
             self.log.warning('Remote Identification Change is not verified. '
                              'This wont protect against Man-In-The-Middle attacks')
@@ -160,24 +171,26 @@ class SSHHook(BaseHook, LoggingMixin):
                              'against Man-In-The-Middle attacks')
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        connect_kwargs = dict(
+            hostname=self.remote_host,
+            username=self.username,
+            timeout=self.timeout,
+            compress=self.compress,
+            port=self.port,
+            sock=self.host_proxy
+        )
 
-        if self.password and self.password.strip():
-            client.connect(hostname=self.remote_host,
-                           username=self.username,
-                           password=self.password,
-                           key_filename=self.key_file,
-                           timeout=self.timeout,
-                           compress=self.compress,
-                           port=self.port,
-                           sock=self.host_proxy)
-        else:
-            client.connect(hostname=self.remote_host,
-                           username=self.username,
-                           key_filename=self.key_file,
-                           timeout=self.timeout,
-                           compress=self.compress,
-                           port=self.port,
-                           sock=self.host_proxy)
+        if self.password:
+            password = self.password.strip()
+            connect_kwargs.update(password=password)
+
+        if self.pkey:
+            connect_kwargs.update(pkey=self.pkey)
+
+        if self.key_file:
+            connect_kwargs.update(key_filename=self.key_file)
+
+        client.connect(**connect_kwargs)
 
         if self.keepalive_interval:
             client.get_transport().set_keepalive(self.keepalive_interval)
@@ -216,26 +229,27 @@ class SSHHook(BaseHook, LoggingMixin):
         else:
             local_bind_address = ('localhost',)
 
-        if self.password and self.password.strip():
-            client = SSHTunnelForwarder(self.remote_host,
-                                        ssh_port=self.port,
-                                        ssh_username=self.username,
-                                        ssh_password=self.password,
-                                        ssh_pkey=self.key_file,
-                                        ssh_proxy=self.host_proxy,
-                                        local_bind_address=local_bind_address,
-                                        remote_bind_address=(remote_host, remote_port),
-                                        logger=self.log)
+        tunnel_kwargs = dict(
+            ssh_port=self.port,
+            ssh_username=self.username,
+            ssh_pkey=self.key_file or self.pkey,
+            ssh_proxy=self.host_proxy,
+            local_bind_address=local_bind_address,
+            remote_bind_address=(remote_host, remote_port),
+            logger=self.log
+        )
+
+        if self.password:
+            password = self.password.strip()
+            tunnel_kwargs.update(
+                ssh_password=password,
+            )
         else:
-            client = SSHTunnelForwarder(self.remote_host,
-                                        ssh_port=self.port,
-                                        ssh_username=self.username,
-                                        ssh_pkey=self.key_file,
-                                        ssh_proxy=self.host_proxy,
-                                        local_bind_address=local_bind_address,
-                                        remote_bind_address=(remote_host, remote_port),
-                                        host_pkey_directories=[],
-                                        logger=self.log)
+            tunnel_kwargs.update(
+                host_pkey_directories=[],
+            )
+
+        client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)
 
         return client
 

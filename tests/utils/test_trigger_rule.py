@@ -30,5 +30,6 @@ class TestTriggerRule(unittest.TestCase):
         self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_SUCCESS))
         self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_FAILED))
         self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_FAILED))
+        self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_SKIPPED))
         self.assertTrue(TriggerRule.is_valid(TriggerRule.DUMMY))
-        self.assertEqual(len(TriggerRule.all_triggers()), 7)
+        self.assertEqual(len(TriggerRule.all_triggers()), 8)

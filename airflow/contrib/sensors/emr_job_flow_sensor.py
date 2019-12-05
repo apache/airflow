@@ -27,7 +27,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     If it fails the sensor errors, failing the task.
 
     :param job_flow_id: job_flow_id to check the state of
-    :type job_flow_id: string
+    :type job_flow_id: str
     """
 
     NON_TERMINAL_STATES = ['STARTING', 'BOOTSTRAPPING', 'RUNNING',
@@ -53,3 +53,11 @@ class EmrJobFlowSensor(EmrBaseSensor):
     @staticmethod
     def state_from_response(response):
         return response['Cluster']['Status']['State']
+
+    @staticmethod
+    def failure_message_from_response(response):
+        state_change_reason = response['Cluster']['Status'].get('StateChangeReason')
+        if state_change_reason:
+            return 'for code: {} with message {}'.format(state_change_reason.get('Code', 'No code'),
+                                                         state_change_reason.get('Message', 'Unknown'))
+        return None

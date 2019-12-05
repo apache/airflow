@@ -14,23 +14,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Launches PODs"""
 import json
 import time
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
 from datetime import datetime as dt
-from airflow.contrib.kubernetes.kubernetes_request_factory import \
-    pod_request_factory as pod_factory
+from typing import Tuple, Optional
+
+from requests.exceptions import BaseHTTPError
+
+import tenacity
+
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
+
+from airflow.settings import pod_mutation_hook
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
 from airflow import AirflowException
-from requests.exceptions import HTTPError
+
+from airflow.contrib.kubernetes.pod import Pod
+from airflow.contrib.kubernetes.kubernetes_request_factory import \
+    pod_request_factory as pod_factory
+
 from .kube_client import get_kube_client
 
 
 class PodStatus(object):
+    """Status of the PODs"""
     PENDING = 'pending'
     RUNNING = 'running'
     FAILED = 'failed'
@@ -38,8 +49,20 @@ class PodStatus(object):
 
 
 class PodLauncher(LoggingMixin):
-    def __init__(self, kube_client=None, in_cluster=True, cluster_context=None,
+    """Launches PODS"""
+    def __init__(self,
+                 kube_client=None,
+                 in_cluster=True,
+                 cluster_context=None,
                  extract_xcom=False):
+        """
+        Creates the launcher.
+
+        :param kube_client: kubernetes client
+        :param in_cluster: whether we are in cluster
+        :param cluster_context: context of the cluster
+        :param extract_xcom: whether we should extract xcom
+        """
         super(PodLauncher, self).__init__()
         self._client = kube_client or get_kube_client(in_cluster=in_cluster,
                                                       cluster_context=cluster_context)
@@ -48,11 +71,14 @@ class PodLauncher(LoggingMixin):
         self.kube_req_factory = pod_factory.ExtractXcomPodRequestFactory(
         ) if extract_xcom else pod_factory.SimplePodRequestFactory()
 
-    def run_pod_async(self, pod):
+    def run_pod_async(self, pod, **kwargs):
+        """Runs POD asynchronously"""
+        pod_mutation_hook(pod)
+
         req = self.kube_req_factory.create(pod)
         self.log.debug('Pod Creation Request: \n%s', json.dumps(req, indent=2))
         try:
-            resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace)
+            resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace, **kwargs)
             self.log.debug('Pod Creation Response: %s', resp)
         except ApiException:
             self.log.exception('Exception when attempting to create Namespaced Pod.')
@@ -60,6 +86,7 @@ class PodLauncher(LoggingMixin):
         return resp
 
     def delete_pod(self, pod):
+        """Deletes POD"""
         try:
             self._client.delete_namespaced_pod(
                 pod.name, pod.namespace, body=client.V1DeleteOptions())
@@ -69,7 +96,7 @@ class PodLauncher(LoggingMixin):
                 raise
 
     def run_pod(self, pod, startup_timeout=120, get_logs=True):
-        # type: (Pod) -> (State, result)
+        # type: (Pod, int, bool) -> Tuple[State, Optional[str]]
         """
         Launches the pod synchronously and waits for completion.
         Args:
@@ -90,16 +117,10 @@ class PodLauncher(LoggingMixin):
         return self._monitor_pod(pod, get_logs)
 
     def _monitor_pod(self, pod, get_logs):
-        # type: (Pod) -> (State, content)
+        # type: (Pod, bool) -> Tuple[State, Optional[str]]
 
         if get_logs:
-            logs = self._client.read_namespaced_pod_log(
-                name=pod.name,
-                namespace=pod.namespace,
-                container='base',
-                follow=True,
-                tail_lines=10,
-                _preload_content=False)
+            logs = self.read_pod_logs(pod)
             for line in logs:
                 self.log.info(line)
         result = None
@@ -123,23 +144,53 @@ class PodLauncher(LoggingMixin):
         return status
 
     def pod_not_started(self, pod):
+        """Tests if pod has not started"""
         state = self._task_status(self.read_pod(pod))
         return state == State.QUEUED
 
     def pod_is_running(self, pod):
+        """Tests if pod is running"""
         state = self._task_status(self.read_pod(pod))
-        return state != State.SUCCESS and state != State.FAILED
+        return state not in (State.SUCCESS, State.FAILED)
 
     def base_container_is_running(self, pod):
+        """Tests if base container is running"""
         event = self.read_pod(pod)
         status = next(iter(filter(lambda s: s.name == 'base',
                                   event.status.container_statuses)), None)
         return status.state.running is not None
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(),
+        reraise=True
+    )
+    def read_pod_logs(self, pod):
+        """Reads log from the POD"""
+        try:
+            return self._client.read_namespaced_pod_log(
+                name=pod.name,
+                namespace=pod.namespace,
+                container='base',
+                follow=True,
+                tail_lines=10,
+                _preload_content=False
+            )
+        except BaseHTTPError as e:
+            raise AirflowException(
+                'There was an error reading the kubernetes API: {}'.format(e)
+            )
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(),
+        reraise=True
+    )
     def read_pod(self, pod):
+        """Read POD information"""
         try:
             return self._client.read_namespaced_pod(pod.name, pod.namespace)
-        except HTTPError as e:
+        except BaseHTTPError as e:
             raise AirflowException(
                 'There was an error reading the kubernetes API: {}'.format(e)
             )
@@ -163,7 +214,7 @@ class PodLauncher(LoggingMixin):
 
     def _exec_pod_command(self, resp, command):
         if resp.is_open():
-            self.log.info('Running command... %s\n' % command)
+            self.log.info('Running command... %s\n', command)
             resp.write_stdin(command + '\n')
             while resp.is_open():
                 resp.update(timeout=1)
@@ -172,8 +223,10 @@ class PodLauncher(LoggingMixin):
                 if resp.peek_stderr():
                     self.log.info(resp.read_stderr())
                     break
+        return None
 
     def process_status(self, job_id, status):
+        """Process status infomration for the JOB"""
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED

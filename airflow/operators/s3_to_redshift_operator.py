@@ -28,24 +28,25 @@ class S3ToRedshiftTransfer(BaseOperator):
     Executes an COPY command to load files from s3 to Redshift
 
     :param schema: reference to a specific schema in redshift database
-    :type schema: string
+    :type schema: str
     :param table: reference to a specific table in redshift database
-    :type table: string
+    :type table: str
     :param s3_bucket: reference to a specific S3 bucket
-    :type s3_bucket: string
+    :type s3_bucket: str
     :param s3_key: reference to a specific S3 key
-    :type s3_key: string
+    :type s3_key: str
     :param redshift_conn_id: reference to a specific redshift database
-    :type redshift_conn_id: string
+    :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
-    :type aws_conn_id: string
-    :parame verify: Whether or not to verify SSL certificates for S3 connection.
+    :type aws_conn_id: str
+    :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
-        - False: do not validate SSL certificates. SSL will still be used
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
                  (unless use_ssl is False), but SSL certificates will not be
                  verified.
-        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str

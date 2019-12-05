@@ -27,9 +27,9 @@ class EmrStepSensor(EmrBaseSensor):
     If it fails the sensor errors, failing the task.
 
     :param job_flow_id: job_flow_id which contains the step check the state of
-    :type job_flow_id: string
+    :type job_flow_id: str
     :param step_id: step to check the state of
-    :type step_id: string
+    :type step_id: str
     """
 
     NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE', 'CANCEL_PENDING']
@@ -56,3 +56,12 @@ class EmrStepSensor(EmrBaseSensor):
     @staticmethod
     def state_from_response(response):
         return response['Step']['Status']['State']
+
+    @staticmethod
+    def failure_message_from_response(response):
+        fail_details = response['Step']['Status'].get('FailureDetails')
+        if fail_details:
+            return 'for reason {} with message {} and log file {}'.format(fail_details.get('Reason'),
+                                                                          fail_details.get('Message'),
+                                                                          fail_details.get('LogFile'))
+        return None

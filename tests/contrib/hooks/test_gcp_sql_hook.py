@@ -26,16 +26,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id, \
     mock_base_gcp_hook_no_default_project_id
+from tests.compat import mock
 
 from parameterized import parameterized
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 
 class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
@@ -145,7 +138,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         res = self.cloudsql_hook.get_instance(
             instance='instance')
         self.assertIsNotNone(res)
-        self.assertEquals('instance', res['name'])
+        self.assertEqual('instance', res['name'])
         get_method.assert_called_once_with(instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
@@ -161,7 +154,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             project_id='new-project',
             instance='instance')
         self.assertIsNotNone(res)
-        self.assertEquals('instance', res['name'])
+        self.assertEqual('instance', res['name'])
         get_method.assert_called_once_with(instance='instance', project='new-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
@@ -278,7 +271,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             database='database',
             instance='instance')
         self.assertIsNotNone(res)
-        self.assertEquals('database', res['name'])
+        self.assertEqual('database', res['name'])
         get_method.assert_called_once_with(instance='instance',
                                            database='database',
                                            project='example-project')
@@ -297,7 +290,7 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             database='database',
             instance='instance')
         self.assertIsNotNone(res)
-        self.assertEquals('database', res['name'])
+        self.assertEqual('database', res['name'])
         get_method.assert_called_once_with(instance='instance',
                                            database='database',
                                            project='new-project')
@@ -507,7 +500,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             project_id='example-project',
             instance='instance')
         self.assertIsNotNone(res)
-        self.assertEquals('instance', res['name'])
+        self.assertEqual('instance', res['name'])
         get_method.assert_called_once_with(instance='instance', project='example-project')
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
@@ -641,7 +634,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
             database='database',
             instance='instance')
         self.assertIsNotNone(res)
-        self.assertEquals('database', res['name'])
+        self.assertEqual('database', res['name'])
         get_method.assert_called_once_with(instance='instance',
                                            database='database',
                                            project='example-project')

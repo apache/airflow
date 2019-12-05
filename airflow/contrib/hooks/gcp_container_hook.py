@@ -75,12 +75,12 @@ class GKEClusterHook(GoogleCloudBaseHook):
         completion or an error occurring
 
         :param operation: The Operation to wait for
-        :type operation: A google.cloud.container_V1.gapic.enums.Operator
+        :type operation: google.cloud.container_V1.gapic.enums.Operation
         :param project_id: Google Cloud Platform project ID
         :type project_id: str
         :return: A new, updated operation fetched from Google Cloud
         """
-        self.log.info("Waiting for OPERATION_NAME %s" % operation.name)
+        self.log.info("Waiting for OPERATION_NAME %s", operation.name)
         time.sleep(OPERATIONAL_POLL_INTERVAL)
         while operation.status != Operation.Status.DONE:
             if operation.status == Operation.Status.RUNNING or operation.status == \
@@ -112,10 +112,11 @@ class GKEClusterHook(GoogleCloudBaseHook):
         """
         Append labels to provided Cluster Protobuf
 
-        Labels must fit the regex [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version
-        string follows semantic versioning spec: x.y.z).
+        Labels must fit the regex ``[a-z]([-a-z0-9]*[a-z0-9])?`` (current
+         airflow version string follows semantic versioning spec: x.y.z).
 
-        :param cluster_proto: The proto to append resource_label airflow version to
+        :param cluster_proto: The proto to append resource_label airflow
+            version to
         :type cluster_proto: google.cloud.container_v1.types.Cluster
         :param key: The key label
         :type key: str
@@ -150,8 +151,9 @@ class GKEClusterHook(GoogleCloudBaseHook):
         :return: The full url to the delete operation if successful, else None
         """
 
-        self.log.info("Deleting (project_id={}, zone={}, cluster_id={})".format(
-            self.project_id, self.location, name))
+        self.log.info(
+            "Deleting (project_id=%s, zone=%s, cluster_id=%s)", self.project_id, self.location, name
+        )
 
         try:
             op = self.get_client().delete_cluster(project_id=project_id or self.project_id,
@@ -163,19 +165,21 @@ class GKEClusterHook(GoogleCloudBaseHook):
             # Returns server-defined url for the resource
             return op.self_link
         except NotFound as error:
-            self.log.info('Assuming Success: ' + error.message)
+            self.log.info('Assuming Success: %s', error.message)
 
     def create_cluster(self, cluster, project_id=None, retry=DEFAULT, timeout=DEFAULT):
         """
         Creates a cluster, consisting of the specified number and type of Google Compute
         Engine instances.
 
-        :param cluster: A Cluster protobuf or dict. If dict is provided, it must be of
-            the same form as the protobuf message google.cloud.container_v1.types.Cluster
+        :param cluster: A Cluster protobuf or dict. If dict is provided, it must
+            be of the same form as the protobuf message
+            :class:`google.cloud.container_v1.types.Cluster`
         :type cluster: dict or google.cloud.container_v1.types.Cluster
         :param project_id: Google Cloud Platform project ID
         :type project_id: str
-        :param retry: A retry object (google.api_core.retry.Retry) used to retry requests.
+        :param retry: A retry object (``google.api_core.retry.Retry``) used to
+            retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to
@@ -183,7 +187,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             individual attempt.
         :type timeout: float
         :return: The full url to the new, or existing, cluster
-        :raises
+        :raises:
             ParseError: On JSON parsing problems when trying to convert dict
             AirflowException: cluster is not dict type nor Cluster proto type
         """
@@ -197,10 +201,10 @@ class GKEClusterHook(GoogleCloudBaseHook):
 
         self._append_label(cluster, 'airflow-version', 'v' + version.version)
 
-        self.log.info("Creating (project_id={}, zone={}, cluster_name={})".format(
-            self.project_id,
-            self.location,
-            cluster.name))
+        self.log.info(
+            "Creating (project_id=%s, zone=%s, cluster_name=%s)",
+            self.project_id, self.location, cluster.name
+        )
         try:
             op = self.get_client().create_cluster(project_id=project_id or self.project_id,
                                                   zone=self.location,
@@ -211,7 +215,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
 
             return op.target_link
         except AlreadyExists as error:
-            self.log.info('Assuming Success: ' + error.message)
+            self.log.info('Assuming Success: %s', error.message)
             return self.get_cluster(name=cluster.name).self_link
 
     def get_cluster(self, name, project_id=None, retry=DEFAULT, timeout=DEFAULT):
@@ -229,12 +233,12 @@ class GKEClusterHook(GoogleCloudBaseHook):
             complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :type timeout: float
-        :return: A google.cloud.container_v1.types.Cluster instance
+        :return: google.cloud.container_v1.types.Cluster
         """
-        self.log.info("Fetching cluster (project_id={}, zone={}, cluster_name={})".format(
-            project_id or self.project_id,
-            self.location,
-            name))
+        self.log.info(
+            "Fetching cluster (project_id=%s, zone=%s, cluster_name=%s)",
+            project_id or self.project_id, self.location, name
+        )
 
         return self.get_client().get_cluster(project_id=project_id or self.project_id,
                                              zone=self.location,

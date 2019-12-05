@@ -19,11 +19,11 @@
 #
 
 import unittest
-from airflow import DAG, configuration, models
+from airflow import DAG, models
 from airflow.contrib.sensors.weekday_sensor import DayOfWeekSensor
 from airflow.contrib.utils.weekday import WeekDay
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import DagBag
+from airflow.models import DagBag, TaskFail
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
 
@@ -37,7 +37,6 @@ DEV_NULL = '/dev/null'
 class DayOfWeekSensorTests(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.dagbag = DagBag(
             dag_folder=DEV_NULL,
             include_examples=True
@@ -53,7 +52,7 @@ class DayOfWeekSensorTests(unittest.TestCase):
         session = Session()
         session.query(models.TaskInstance).filter_by(
             dag_id=TEST_DAG_ID).delete()
-        session.query(models.TaskFail).filter_by(
+        session.query(TaskFail).filter_by(
             dag_id=TEST_DAG_ID).delete()
         session.commit()
         session.close()

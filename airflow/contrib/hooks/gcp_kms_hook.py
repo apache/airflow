@@ -76,7 +76,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
             body['additionalAuthenticatedData'] = _b64encode(authenticated_data)
 
         request = keys.encrypt(name=key_name, body=body)
-        response = request.execute()
+        response = request.execute(num_retries=self.num_retries)
 
         ciphertext = response['ciphertext']
         return ciphertext
@@ -102,7 +102,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
             body['additionalAuthenticatedData'] = _b64encode(authenticated_data)
 
         request = keys.decrypt(name=key_name, body=body)
-        response = request.execute()
+        response = request.execute(num_retries=self.num_retries)
 
         plaintext = _b64decode(response['plaintext'])
         return plaintext

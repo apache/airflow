@@ -16,7 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""
+This is an example dag for a AWS EMR Pipeline with auto steps.
+"""
 from datetime import timedelta
 import airflow
 from airflow import DAG
@@ -25,7 +27,7 @@ from airflow.contrib.operators.emr_create_job_flow_operator \
 from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor
 
 DEFAULT_ARGS = {
-    'owner': 'airflow',
+    'owner': 'Airflow',
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(2),
     'email': ['airflow@example.com'],
@@ -53,26 +55,24 @@ JOB_FLOW_OVERRIDES = {
     'Steps': SPARK_TEST_STEPS
 }
 
-dag = DAG(
-    'emr_job_flow_automatic_steps_dag',
+with DAG(
+    dag_id='emr_job_flow_automatic_steps_dag',
     default_args=DEFAULT_ARGS,
     dagrun_timeout=timedelta(hours=2),
     schedule_interval='0 3 * * *'
-)
+) as dag:
 
-job_flow_creator = EmrCreateJobFlowOperator(
-    task_id='create_job_flow',
-    job_flow_overrides=JOB_FLOW_OVERRIDES,
-    aws_conn_id='aws_default',
-    emr_conn_id='emr_default',
-    dag=dag
-)
+    job_flow_creator = EmrCreateJobFlowOperator(
+        task_id='create_job_flow',
+        job_flow_overrides=JOB_FLOW_OVERRIDES,
+        aws_conn_id='aws_default',
+        emr_conn_id='emr_default'
+    )
 
-job_sensor = EmrJobFlowSensor(
-    task_id='check_job_flow',
-    job_flow_id="{{ task_instance.xcom_pull('create_job_flow', key='return_value') }}",
-    aws_conn_id='aws_default',
-    dag=dag
-)
+    job_sensor = EmrJobFlowSensor(
+        task_id='check_job_flow',
+        job_flow_id="{{ task_instance.xcom_pull(task_ids='create_job_flow', key='return_value') }}",
+        aws_conn_id='aws_default'
+    )
 
-job_flow_creator.set_downstream(job_sensor)
+    job_flow_creator >> job_sensor

@@ -78,13 +78,14 @@ class S3ToHiveTransfer(BaseOperator):
     :type delimiter: str
     :param aws_conn_id: source s3 connection
     :type aws_conn_id: str
-    :parame verify: Whether or not to verify SSL certificates for S3 connection.
+    :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
-        - False: do not validate SSL certificates. SSL will still be used
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
                  (unless use_ssl is False), but SSL certificates will not be
                  verified.
-        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
@@ -173,8 +174,9 @@ class S3ToHiveTransfer(BaseOperator):
                 NamedTemporaryFile(mode="wb",
                                    dir=tmp_dir,
                                    suffix=file_ext) as f:
-            self.log.info("Dumping S3 key {0} contents to local file {1}"
-                          .format(s3_key_object.key, f.name))
+            self.log.info(
+                "Dumping S3 key %s contents to local file %s", s3_key_object.key, f.name
+            )
             if self.select_expression:
                 option = {}
                 if self.headers:
@@ -257,18 +259,17 @@ class S3ToHiveTransfer(BaseOperator):
             raise AirflowException("Unable to retrieve header row from file")
         field_names = self.field_dict.keys()
         if len(field_names) != len(header_list):
-            self.log.warning("Headers count mismatch"
-                             "File headers:\n {header_list}\n"
-                             "Field names: \n {field_names}\n"
-                             .format(**locals()))
+            self.log.warning(
+                "Headers count mismatch File headers:\n %s\nField names: \n %s\n", header_list, field_names
+            )
             return False
         test_field_match = [h1.lower() == h2.lower()
                             for h1, h2 in zip(header_list, field_names)]
         if not all(test_field_match):
-            self.log.warning("Headers do not match field names"
-                             "File headers:\n {header_list}\n"
-                             "Field names: \n {field_names}\n"
-                             .format(**locals()))
+            self.log.warning(
+                "Headers do not match field names File headers:\n %s\nField names: \n %s\n",
+                header_list, field_names
+            )
             return False
         else:
             return True

@@ -18,8 +18,8 @@
 # under the License.
 
 import pprint
-from datetime import datetime
 
+import airflow
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
@@ -44,8 +44,8 @@ pp = pprint.PrettyPrinter(indent=4)
 # 2. A Target DAG : c.f. example_trigger_target_dag.py
 
 args = {
-    'start_date': datetime.utcnow(),
-    'owner': 'airflow',
+    'start_date': airflow.utils.dates.days_ago(2),
+    'owner': 'Airflow',
 }
 
 dag = DAG(

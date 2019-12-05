@@ -18,10 +18,13 @@
 # under the License.
 from __future__ import print_function
 
-import json
 import os
+import json
+from typing import Dict
 
-manifest = dict()
+from flask import url_for
+
+manifest = dict()  # type: Dict[str, str]
 
 
 def configure_manifest_files(app):
@@ -39,6 +42,9 @@ def configure_manifest_files(app):
                                          'static/dist/manifest.json')
             with open(manifest_file, 'r') as f:
                 manifest.update(json.load(f))
+
+                for k in manifest.keys():
+                    manifest[k] = os.path.join("dist", manifest[k])
         except Exception:
             print("Please make sure to build the frontend in "
                   "static/ directory and restart the server")
@@ -47,7 +53,7 @@ def configure_manifest_files(app):
     def get_asset_url(filename):
         if app.debug:
             parse_manifest_json()
-        return '/static/dist/{}'.format(manifest.get(filename, ''))
+        return url_for('static', filename=manifest.get(filename, ''))
 
     parse_manifest_json()
 

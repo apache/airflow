@@ -29,14 +29,6 @@ from airflow.utils.decorators import apply_defaults
 class QuboleSensor(BaseSensorOperator):
     """
     Base class for all Qubole Sensors
-
-    :param qubole_conn_id: The qubole connection to run the sensor against
-    :type qubole_conn_id: string
-    :param data: a JSON object containing payload, whose presence needs to be checked
-    :type data: a JSON object
-
-    .. note:: Both ``data`` and ``qubole_conn_id`` fields are template-supported. You can
-    also use ``.txt`` files for template driven use cases.
     """
 
     template_fields = ('data', 'qubole_conn_id')

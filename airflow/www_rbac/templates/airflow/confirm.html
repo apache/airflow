@@ -26,10 +26,15 @@
         <pre><code>{{ details }}</code></pre>
     {% endif %}
     </div>
-    <button class="btn btn-primary" onclick="window.location += '&confirmed=true'">
-        OK!
-    </button>
-    <button class="btn" onclick="window.history.back()">bail.</button>
+    <form method="POST">
+      <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
+      <input name="confirmed" type="hidden" value="true">
+      {% for name,val in request.form.items() if name != "csrf_token" %}
+        <input type="hidden" name="{{ name }}" value="{{ val }}">
+      {% endfor %}
+      <input class="btn btn-primary" type="submit" value="OK!">
+      <button class="btn" onclick="window.history.back(); return false">bail.</button>
+    </form>
     <br>
     <br>
 {% endblock %}

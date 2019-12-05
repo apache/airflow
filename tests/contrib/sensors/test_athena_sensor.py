@@ -18,24 +18,15 @@
 # under the License.
 
 import unittest
-from airflow import configuration, AirflowException
+from airflow import AirflowException
 from airflow.contrib.sensors.aws_athena_sensor import AthenaSensor
 from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class TestAthenaSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
-
         self.sensor = AthenaSensor(task_id='test_athena_sensor',
                                    query_execution_id='abc',
                                    sleep_time=5,

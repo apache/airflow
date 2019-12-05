@@ -48,17 +48,20 @@ class BigQueryCheckOperator(CheckOperator):
     This operator can be used as a data quality check in your pipeline, and
     depending on where you put it in your DAG, you have the choice to
     stop the critical path, preventing from
-    publishing dubious data, or on the side and receive email alterts
+    publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param bigquery_conn_id: reference to the BigQuery database
-    :type bigquery_conn_id: string
+    :type bigquery_conn_id: str
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
-    :type use_legacy_sql: boolean
+    :type use_legacy_sql: bool
     """
+
+    template_fields = ('sql',)
+    template_ext = ('.sql', )
 
     @apply_defaults
     def __init__(self,
@@ -81,11 +84,14 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     Performs a simple value check using sql code.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
-    :type use_legacy_sql: boolean
+    :type use_legacy_sql: bool
     """
+
+    template_fields = ('sql', 'pass_value',)
+    template_ext = ('.sql', )
 
     @apply_defaults
     def __init__(self, sql,
@@ -126,8 +132,10 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     :type metrics_threshold: dict
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
-    :type use_legacy_sql: boolean
+    :type use_legacy_sql: bool
     """
+
+    template_fields = ('table',)
 
     @apply_defaults
     def __init__(self, table, metrics_thresholds, date_filter_column='ds',

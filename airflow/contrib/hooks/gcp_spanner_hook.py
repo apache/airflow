@@ -27,6 +27,9 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 class CloudSpannerHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Spanner APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
     """
     _client = None
 
@@ -41,8 +44,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
 
         :param project_id: The ID of the  GCP project.
         :type project_id: str
-        :return: Client for interacting with the Cloud Spanner API. See:
-            https://googleapis.github.io/google-cloud-python/latest/spanner/client-api.html#google.cloud.spanner_v1.client.Client
+        :return: google.cloud.spanner_v1.client.Client
         :rtype: object
         """
         if not self._client:
@@ -59,8 +61,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         :type project_id: str
         :param instance_id: The ID of the Cloud Spanner instance.
         :type instance_id: str
-        :return: Representation of a Cloud Spanner Instance. See:
-            https://googleapis.github.io/google-cloud-python/latest/spanner/instance-api.html#google.cloud.spanner_v1.instance.Instance
+        :return: google.cloud.spanner_v1.instance.Instance
         :rtype: object
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
@@ -163,13 +164,14 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         """
         Deletes an existing Cloud Spanner instance.
 
-        :param instance_id:  The ID of the Cloud Spanner instance.
+        :param instance_id: The ID of the Cloud Spanner instance.
         :type instance_id: str
-        :param project_id: Optional, the ID of the  GCP project that owns the Cloud Spanner
+        :param project_id: Optional, the ID of the GCP project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
-        :return None
+        :return: None
         """
+
         instance = self._get_client(project_id=project_id).instance(instance_id)
         try:
             instance.delete()
@@ -192,7 +194,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
             database. If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         :return: Database object or None if database does not exist
-        :rtype: Union[Database, None]
+        :rtype: google.cloud.spanner_v1.database.Database or None
         """
 
         instance = self._get_client(project_id=project_id).instance(

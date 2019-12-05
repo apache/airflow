@@ -16,13 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""DAG runs APIs."""
+from typing import Optional, List, Dict, Any
+
 from flask import url_for
 
-from airflow.exceptions import AirflowException
-from airflow.models import DagBag, DagRun
+from airflow.api.common.experimental import check_and_get_dag
+from airflow.models import DagRun
 
 
-def get_dag_runs(dag_id, state=None):
+def get_dag_runs(dag_id, state=None, run_url_route='Airflow.graph'):
+    # type: (str, Optional[str], str) -> List[Dict[str, Any]]
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :param dag_id: String identifier of a DAG
@@ -30,12 +34,7 @@ def get_dag_runs(dag_id, state=None):
     :return: List of DAG runs of a DAG with requested state,
     or all runs if the state is not specified
     """
-    dagbag = DagBag()
-
-    # Check DAG exists.
-    if dag_id not in dagbag.dags:
-        error_message = "Dag id {} not found".format(dag_id)
-        raise AirflowException(error_message)
+    check_and_get_dag(dag_id=dag_id)
 
     dag_runs = list()
     state = state.lower() if state else None
@@ -48,7 +47,7 @@ def get_dag_runs(dag_id, state=None):
             'execution_date': run.execution_date.isoformat(),
             'start_date': ((run.start_date or '') and
                            run.start_date.isoformat()),
-            'dag_run_url': url_for('Airflow.graph', dag_id=run.dag_id,
+            'dag_run_url': url_for(run_url_route, dag_id=run.dag_id,
                                    execution_date=run.execution_date)
         })
 

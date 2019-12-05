@@ -37,7 +37,7 @@ import time
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class SalesforceHook(BaseHook, LoggingMixin):
+class SalesforceHook(BaseHook):
     def __init__(
             self,
             conn_id,
@@ -53,7 +53,7 @@ class SalesforceHook(BaseHook, LoggingMixin):
 
         :param conn_id:     the name of the connection that has the parameters
                             we need to connect to Salesforce.
-                            The connection shoud be type `http` and include a
+                            The connection should be type `http` and include a
                             user's security token in the `Extras` field.
         .. note::
             For the HTTP connection type, you can include a
@@ -276,7 +276,7 @@ class SalesforceHook(BaseHook, LoggingMixin):
 
             schema = self.describe_object(object_name)
 
-            # possible columns that can be convereted to timestamps
+            # possible columns that can be converted to timestamps
             # are the ones that are either date or datetime types
             # strings are too general and we risk unintentional conversion
             possible_timestamp_cols = [

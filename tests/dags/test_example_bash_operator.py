@@ -16,13 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from builtins import range
+
+from datetime import timedelta
 
 import airflow
-from builtins import range
+from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.models import DAG
-from datetime import timedelta
 
 
 args = {
@@ -44,9 +45,8 @@ run_this = BashOperator(
 run_this.set_downstream(run_this_last)
 
 for i in range(3):
-    i = str(i)
     task = BashOperator(
-        task_id='runme_' + i,
+        task_id='runme_' + str(i),
         bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
         dag=dag)
     task.set_downstream(run_this)

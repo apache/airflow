@@ -69,7 +69,8 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
             which the checks have to be performed.
 
     .. note:: All fields in common with template fields of
-            QuboleOperator and CheckOperator are template-supported.
+        QuboleOperator and CheckOperator are template-supported.
+
     """
 
     template_fields = QuboleOperator.template_fields + CheckOperator.template_fields
@@ -128,13 +129,13 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
     :type qubole_conn_id: str
 
     :param pass_value: Expected value of the query results.
-    :type pass_value: str/int/float
+    :type pass_value: str or int or float
 
     :param tolerance: Defines the permissible pass_value range, for example if
         tolerance is 2, the Qubole command output can be anything between
         -2*pass_value and 2*pass_value, without the operator erring out.
 
-    :type tolerance: int/float
+    :type tolerance: int or float
 
 
     kwargs:
@@ -215,11 +216,13 @@ def get_sql_from_qbol_cmd(params):
 def handle_airflow_exception(airflow_exception, hook):
     cmd = hook.cmd
     if cmd is not None:
-        if cmd.is_success:
+        if cmd.is_success(cmd.status):
             qubole_command_results = hook.get_query_results()
             qubole_command_id = cmd.id
             exception_message = '\nQubole Command Id: {qubole_command_id}' \
                                 '\nQubole Command Results:' \
-                                '\n{qubole_command_results}'.format(**locals())
+                                '\n{qubole_command_results}'.format(
+                qubole_command_id=qubole_command_id,  # noqa: E122
+                qubole_command_results=qubole_command_results)
             raise AirflowException(str(airflow_exception) + exception_message)
-    raise AirflowException(airflow_exception.message)
+    raise AirflowException(str(airflow_exception))

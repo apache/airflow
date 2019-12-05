@@ -22,14 +22,7 @@ import unittest
 from airflow import AirflowException
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
     mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST, get_open_mock
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 from airflow.contrib.hooks.gcp_function_hook import GcfHook
 
@@ -118,7 +111,7 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
                 location=GCF_LOCATION,
                 zip_path="/tmp/path.zip"
             )
-            self.assertEquals("http://uploadHere", res)
+            self.assertEqual("http://uploadHere", res)
             generate_upload_url_method.assert_called_with(
                 parent='projects/example-project/locations/location')
             execute_method.assert_called_once_with(num_retries=5)
@@ -183,7 +176,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
             name=GCF_FUNCTION
         )
         self.assertIsNotNone(res)
-        self.assertEquals('function', res['name'])
+        self.assertEqual('function', res['name'])
         get_method.assert_called_once_with(name='function')
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -238,7 +231,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
                 location=GCF_LOCATION,
                 zip_path="/tmp/path.zip"
             )
-            self.assertEquals("http://uploadHere", res)
+            self.assertEqual("http://uploadHere", res)
             generate_upload_url_method.assert_called_with(
                 parent='projects/example-project/locations/location')
             execute_method.assert_called_once_with(num_retries=5)
@@ -264,7 +257,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
                 location=GCF_LOCATION,
                 zip_path="/tmp/path.zip"
             )
-            self.assertEquals("http://uploadHere", res)
+            self.assertEqual("http://uploadHere", res)
             generate_upload_url_method.assert_called_with(
                 parent='projects/new-project/locations/location')
             execute_method.assert_called_once_with(num_retries=5)

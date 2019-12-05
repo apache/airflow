@@ -26,7 +26,8 @@ class SlackWebhookOperator(SimpleHttpOperator):
     """
     This operator allows you to post messages to Slack using incoming webhooks.
     Takes both Slack webhook token directly and connection that has Slack webhook token.
-    If both supplied, Slack webhook token will be used.
+    If both supplied, http_conn_id will be used as base_url,
+    and webhook_token will be taken as endpoint, the relative path of the url.
 
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
@@ -37,12 +38,17 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type webhook_token: str
     :param message: The message you want to send on Slack
     :type message: str
+    :param attachments: The attachments to send on Slack. Should be a list of
+                        dictionaries representing Slack attachments.
+    :type attachments: list
     :param channel: The channel the message should be posted to
     :type channel: str
     :param username: The username to post to slack with
     :type username: str
     :param icon_emoji: The emoji to use as icon for the user posting to Slack
     :type icon_emoji: str
+    :param icon_url: The icon image URL string to use in place of the default icon.
+    :type icon_url: str
     :param link_names: Whether or not to find and link channel and usernames in your
                        message
     :type link_names: bool
@@ -50,14 +56,19 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type proxy: str
     """
 
+    template_fields = ['webhook_token', 'message', 'attachments', 'channel',
+                       'username', 'proxy', ]
+
     @apply_defaults
     def __init__(self,
                  http_conn_id=None,
                  webhook_token=None,
                  message="",
+                 attachments=None,
                  channel=None,
                  username=None,
                  icon_emoji=None,
+                 icon_url=None,
                  link_names=False,
                  proxy=None,
                  *args,
@@ -68,9 +79,11 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.http_conn_id = http_conn_id
         self.webhook_token = webhook_token
         self.message = message
+        self.attachments = attachments
         self.channel = channel
         self.username = username
         self.icon_emoji = icon_emoji
+        self.icon_url = icon_url
         self.link_names = link_names
         self.proxy = proxy
         self.hook = None
@@ -83,9 +96,11 @@ class SlackWebhookOperator(SimpleHttpOperator):
             self.http_conn_id,
             self.webhook_token,
             self.message,
+            self.attachments,
             self.channel,
             self.username,
             self.icon_emoji,
+            self.icon_url,
             self.link_names,
             self.proxy
         )

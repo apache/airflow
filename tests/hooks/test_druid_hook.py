@@ -78,6 +78,31 @@ class TestDruidHook(unittest.TestCase):
         self.assertTrue(status_check.called_once)
 
     @requests_mock.mock()
+    def test_submit_correct_json_body(self, m):
+        task_post = m.post(
+            'http://druid-overlord:8081/druid/indexer/v1/task',
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
+        )
+        status_check = m.get(
+            'http://druid-overlord:8081/druid/indexer/v1/task/'
+            '9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
+            text='{"status":{"status": "SUCCESS"}}'
+        )
+
+        json_ingestion_string = """
+        {
+            "task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"
+        }
+        """
+        self.db_hook.submit_indexing_job(json_ingestion_string)
+
+        self.assertTrue(task_post.called_once)
+        self.assertTrue(status_check.called_once)
+        if task_post.called_once:
+            req_body = task_post.request_history[0].json()
+            self.assertEqual(req_body['task'], "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de")
+
+    @requests_mock.mock()
     def test_submit_unknown_response(self, m):
         task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
@@ -132,7 +157,7 @@ class TestDruidHook(unittest.TestCase):
         get_conn_value.extra_dejson = {'endpoint': 'ingest'}
         mock_get_connection.return_value = get_conn_value
         hook = DruidHook(timeout=1, max_ingestion_time=5)
-        self.assertEquals(hook.get_conn_url(), 'https://test_host:1/ingest')
+        self.assertEqual(hook.get_conn_url(), 'https://test_host:1/ingest')
 
 
 class TestDruidDbApiHook(unittest.TestCase):
@@ -158,7 +183,7 @@ class TestDruidDbApiHook(unittest.TestCase):
 
     def test_get_uri(self):
         db_hook = self.db_hook()
-        self.assertEquals('druid://host:1000/druid/v2/sql', db_hook.get_uri())
+        self.assertEqual('druid://host:1000/druid/v2/sql', db_hook.get_uri())
 
     def test_get_first_record(self):
         statement = 'SQL'
@@ -166,8 +191,8 @@ class TestDruidDbApiHook(unittest.TestCase):
         self.cur.fetchone.return_value = result_sets[0]
 
         self.assertEqual(result_sets[0], self.db_hook().get_first(statement))
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_records(self):
@@ -176,8 +201,8 @@ class TestDruidDbApiHook(unittest.TestCase):
         self.cur.fetchall.return_value = result_sets
 
         self.assertEqual(result_sets, self.db_hook().get_records(statement))
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
 

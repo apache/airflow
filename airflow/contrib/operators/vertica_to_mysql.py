@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import logging
 import MySQLdb
 
 from airflow.contrib.hooks.vertica_hook import VerticaHook
@@ -103,10 +102,10 @@ class VerticaToMySqlTransfer(BaseOperator):
                 if self.bulk_load:
                     tmpfile = NamedTemporaryFile("w")
 
-                    logging.info(
-                        "Selecting rows from Vertica to local file " + str(
-                            tmpfile.name) + "...")
-                    logging.info(self.sql)
+                    self.log.info(
+                        "Selecting rows from Vertica to local file %s...",
+                        tmpfile.name)
+                    self.log.info(self.sql)
 
                     csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
                     for row in cursor.iterate():
@@ -115,21 +114,21 @@ class VerticaToMySqlTransfer(BaseOperator):
 
                     tmpfile.flush()
                 else:
-                    logging.info("Selecting rows from Vertica...")
-                    logging.info(self.sql)
+                    self.log.info("Selecting rows from Vertica...")
+                    self.log.info(self.sql)
 
                     result = cursor.fetchall()
                     count = len(result)
 
-                logging.info("Selected rows from Vertica " + str(count))
+                self.log.info("Selected rows from Vertica %s", count)
 
         if self.mysql_preoperator:
-            logging.info("Running MySQL preoperator...")
+            self.log.info("Running MySQL preoperator...")
             mysql.run(self.mysql_preoperator)
 
         try:
             if self.bulk_load:
-                logging.info("Bulk inserting rows into MySQL...")
+                self.log.info("Bulk inserting rows into MySQL...")
                 with closing(mysql.get_conn()) as conn:
                     with closing(conn.cursor()) as cursor:
                         cursor.execute("LOAD DATA LOCAL INFILE '%s' INTO "
@@ -140,17 +139,17 @@ class VerticaToMySqlTransfer(BaseOperator):
                         conn.commit()
                 tmpfile.close()
             else:
-                logging.info("Inserting rows into MySQL...")
+                self.log.info("Inserting rows into MySQL...")
                 mysql.insert_rows(table=self.mysql_table,
                                   rows=result,
                                   target_fields=selected_columns)
-            logging.info("Inserted rows into MySQL " + str(count))
+            self.log.info("Inserted rows into MySQL %s", count)
         except (MySQLdb.Error, MySQLdb.Warning):
-            logging.error("Inserted rows into MySQL 0")
+            self.log.info("Inserted rows into MySQL 0")
             raise
 
         if self.mysql_postoperator:
-            logging.info("Running MySQL postoperator...")
+            self.log.info("Running MySQL postoperator...")
             mysql.run(self.mysql_postoperator)
 
-        logging.info("Done")
+        self.log.info("Done")

@@ -27,8 +27,10 @@ graft airflow/www_rbac
 graft airflow/www_rbac/static
 graft airflow/www_rbac/templates
 graft airflow/www_rbac/translations
+graft airflow/_vendor/
 include airflow/alembic.ini
 graft scripts/systemd
 graft scripts/upstart
 graft airflow/config_templates
 recursive-exclude airflow/www_rbac/node_modules *
+global-exclude __pycache__  *.pyc

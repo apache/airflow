@@ -19,31 +19,22 @@
 
 import unittest
 
-from airflow import configuration
-from airflow import models
 from airflow.exceptions import AirflowException
+from airflow.models import Connection
 from airflow.utils import db
+from tests.compat import mock
 
 try:
     from airflow.hooks.docker_hook import DockerHook
 except ImportError:
     pass
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
 
 @mock.patch('airflow.hooks.docker_hook.APIClient', autospec=True)
 class DockerHookTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='docker_default',
                 conn_type='docker',
                 host='some.docker.registry.com',
@@ -52,10 +43,11 @@ class DockerHookTest(unittest.TestCase):
             )
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='docker_with_extras',
                 conn_type='docker',
-                host='some.docker.registry.com',
+                host='another.docker.registry.com',
+                port=9876,
                 login='some_user',
                 password='some_p4$$w0rd',
                 extra='{"email": "some@example.com", "reauth": "no"}'
@@ -141,14 +133,14 @@ class DockerHookTest(unittest.TestCase):
         client.login.assert_called_with(
             username='some_user',
             password='some_p4$$w0rd',
-            registry='some.docker.registry.com',
+            registry='another.docker.registry.com:9876',
             reauth=False,
             email='some@example.com'
         )
 
     def test_conn_with_broken_config_missing_username_fails(self, _):
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='docker_without_username',
                 conn_type='docker',
                 host='some.docker.registry.com',
@@ -165,7 +157,7 @@ class DockerHookTest(unittest.TestCase):
 
     def test_conn_with_broken_config_missing_host_fails(self, _):
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='docker_without_host',
                 conn_type='docker',
                 login='some_user',

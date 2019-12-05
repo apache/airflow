@@ -18,13 +18,16 @@
 # under the License.
 
 from builtins import range
+from collections import OrderedDict
 
-from airflow import configuration
+# To avoid circular imports
+import airflow.utils.dag_processing
+from airflow.configuration import conf
+from airflow.settings import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-
-PARALLELISM = configuration.conf.getint('core', 'PARALLELISM')
+PARALLELISM = conf.getint('core', 'PARALLELISM')
 
 
 class BaseExecutor(LoggingMixin):
@@ -39,7 +42,7 @@ class BaseExecutor(LoggingMixin):
         :type parallelism: int
         """
         self.parallelism = parallelism
-        self.queued_tasks = {}
+        self.queued_tasks = OrderedDict()
         self.running = {}
         self.event_buffer = {}
 
@@ -50,13 +53,13 @@ class BaseExecutor(LoggingMixin):
         """
         pass
 
-    def queue_command(self, task_instance, command, priority=1, queue=None):
-        key = task_instance.key
+    def queue_command(self, simple_task_instance, command, priority=1, queue=None):
+        key = simple_task_instance.key
         if key not in self.queued_tasks and key not in self.running:
             self.log.info("Adding to queue: %s", command)
-            self.queued_tasks[key] = (command, priority, queue, task_instance)
+            self.queued_tasks[key] = (command, priority, queue, simple_task_instance)
         else:
-            self.log.info("could not queue task {}".format(key))
+            self.log.info("could not queue task %s", key)
 
     def queue_task_instance(
             self,
@@ -75,7 +78,7 @@ class BaseExecutor(LoggingMixin):
         # cfg_path is needed to propagate the config values if using impersonation
         # (run_as_user), given that there are different code paths running tasks.
         # For a long term solution we need to address AIRFLOW-1986
-        command = task_instance.command(
+        command = task_instance.command_as_list(
             local=True,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
@@ -86,7 +89,7 @@ class BaseExecutor(LoggingMixin):
             pickle_id=pickle_id,
             cfg_path=cfg_path)
         self.queue_command(
-            task_instance,
+            airflow.utils.dag_processing.SimpleTaskInstance(task_instance),
             command,
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
@@ -115,43 +118,46 @@ class BaseExecutor(LoggingMixin):
         else:
             open_slots = self.parallelism - len(self.running)
 
-        self.log.debug("%s running task instances", len(self.running))
-        self.log.debug("%s in queue", len(self.queued_tasks))
+        num_running_tasks = len(self.running)
+        num_queued_tasks = len(self.queued_tasks)
+
+        self.log.debug("%s running task instances", num_running_tasks)
+        self.log.debug("%s in queue", num_queued_tasks)
         self.log.debug("%s open slots", open_slots)
 
-        sorted_queue = sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
-            key=lambda x: x[1][1],
-            reverse=True)
-        for i in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, _, queue, ti) = sorted_queue.pop(0)
-            # TODO(jlowin) without a way to know what Job ran which tasks,
-            # there is a danger that another Job started running a task
-            # that was also queued to this executor. This is the last chance
-            # to check if that happened. The most probable way is that a
-            # Scheduler tried to run a task that was originally queued by a
-            # Backfill. This fix reduces the probability of a collision but
-            # does NOT eliminate it.
-            self.queued_tasks.pop(key)
-            ti.refresh_from_db()
-            if ti.state != State.RUNNING:
-                self.running[key] = command
-                self.execute_async(key=key,
-                                   command=command,
-                                   queue=queue,
-                                   executor_config=ti.executor_config)
-            else:
-                self.log.info(
-                    'Task is already running, not sending to '
-                    'executor: {}'.format(key))
+        Stats.gauge('executor.open_slots', open_slots)
+        Stats.gauge('executor.queued_tasks', num_queued_tasks)
+        Stats.gauge('executor.running_tasks', num_running_tasks)
+
+        self.trigger_tasks(open_slots)
 
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
+    def trigger_tasks(self, open_slots):
+        """
+        Trigger tasks
+
+        :param open_slots: Number of open slots
+        :return:
+        """
+        sorted_queue = sorted(
+            [(k, v) for k, v in self.queued_tasks.items()],
+            key=lambda x: x[1][1],
+            reverse=True)
+        for i in range(min((open_slots, len(self.queued_tasks)))):
+            key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
+            self.queued_tasks.pop(key)
+            self.running[key] = command
+            self.execute_async(key=key,
+                               command=command,
+                               queue=queue,
+                               executor_config=simple_ti.executor_config)
+
     def change_state(self, key, state):
-        self.log.debug("Changing state: {}".format(key))
-        self.running.pop(key)
+        self.log.debug("Changing state: %s", key)
+        self.running.pop(key, None)
         self.event_buffer[key] = state
 
     def fail(self, key):

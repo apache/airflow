@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import mock
 import unittest
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_container_hook import GKEClusterHook
+from tests.compat import mock
 
 
 TASK_ID = 'test-gke-cluster-operator'
@@ -69,7 +69,7 @@ class GKEClusterHookDeleteTest(unittest.TestCase):
         self.gke_hook.delete_cluster('not-existing')
         wait_mock.assert_not_called()
         convert_mock.assert_not_called()
-        log_mock.info.assert_any_call("Assuming Success: " + message)
+        log_mock.info.assert_any_call("Assuming Success: %s", message)
 
     @mock.patch("airflow.contrib.hooks.gcp_container_hook.GKEClusterHook._dict_to_proto")
     @mock.patch(
@@ -161,8 +161,8 @@ class GKEClusterHookCreateTest(unittest.TestCase):
 
         self.gke_hook.create_cluster({})
         wait_mock.assert_not_called()
-        self.assertEquals(convert_mock.call_count, 1)
-        log_mock.info.assert_any_call("Assuming Success: " + message)
+        self.assertEqual(convert_mock.call_count, 1)
+        log_mock.info.assert_any_call("Assuming Success: %s", message)
 
 
 class GKEClusterHookGetTest(unittest.TestCase):
@@ -199,7 +199,7 @@ class GKEClusterHookTest(unittest.TestCase):
     def test_get_client(self, mock_get_credentials, mock_client_info, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_client()
-        mock_get_credentials.assert_called()
+        assert mock_get_credentials.called
         mock_client.assert_called_with(
             credentials=mock_get_credentials.return_value,
             client_info=mock_client_info.return_value)

@@ -18,19 +18,12 @@
 # under the License.
 
 import unittest
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
-from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.contrib.operators.sagemaker_transform_operator \
     import SageMakerTransformOperator
 from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 role = 'arn:aws:iam:role/test-role'
 
@@ -88,7 +81,6 @@ config = {
 class TestSageMakerTransformOperator(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.sagemaker = SageMakerTransformOperator(
             task_id='test_sagemaker_operator',
             aws_conn_id='sagemaker_test_id',

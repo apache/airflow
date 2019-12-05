@@ -20,12 +20,10 @@ import random
 import unittest
 from datetime import timedelta
 
-from airflow import configuration, DAG, operators
+from airflow import DAG, operators
 from airflow.sensors.named_hive_partition_sensor import NamedHivePartitionSensor
 from airflow.utils.timezone import datetime
 from airflow.hooks.hive_hooks import HiveMetastoreHook
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -34,7 +32,6 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 class NamedHivePartitionSensorTests(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         self.dag = DAG('test_dag_id', default_args=args)
         self.next_day = (DEFAULT_DATE +

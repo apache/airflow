@@ -101,6 +101,7 @@ class MySqlToHiveTransfer(BaseOperator):
         d = {
             t.BIT: 'INT',
             t.DECIMAL: 'DOUBLE',
+            t.NEWDECIMAL: 'DOUBLE',
             t.DOUBLE: 'DOUBLE',
             t.FLOAT: 'DOUBLE',
             t.INT24: 'INT',
@@ -122,7 +123,8 @@ class MySqlToHiveTransfer(BaseOperator):
         cursor = conn.cursor()
         cursor.execute(self.sql)
         with NamedTemporaryFile("wb") as f:
-            csv_writer = csv.writer(f, delimiter=self.delimiter, encoding="utf-8")
+            csv_writer = csv.writer(f, delimiter=self.delimiter,
+                                    encoding="utf-8")
             field_dict = OrderedDict()
             for field in cursor.description:
                 field_dict[field[0]] = self.type_map(field[1])

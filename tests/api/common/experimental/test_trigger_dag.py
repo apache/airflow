@@ -106,7 +106,7 @@ class TriggerDagTests(unittest.TestCase):
             execution_date=None,
             replace_microseconds=True)
 
-        self.assertEquals(triggers[0].conf, json.loads(conf))
+        self.assertEqual(triggers[0].conf, json.loads(conf))
 
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_with_dict_conf(self, dag_bag_mock):
@@ -125,7 +125,7 @@ class TriggerDagTests(unittest.TestCase):
             execution_date=None,
             replace_microseconds=True)
 
-        self.assertEquals(triggers[0].conf, conf)
+        self.assertEqual(triggers[0].conf, conf)
 
 
 if __name__ == '__main__':

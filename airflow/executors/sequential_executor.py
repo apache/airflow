@@ -45,7 +45,7 @@ class SequentialExecutor(BaseExecutor):
             self.log.info("Executing command: %s", command)
 
             try:
-                subprocess.check_call(command, shell=True, close_fds=True)
+                subprocess.check_call(command, close_fds=True)
                 self.change_state(key, State.SUCCESS)
             except subprocess.CalledProcessError as e:
                 self.change_state(key, State.FAILED)

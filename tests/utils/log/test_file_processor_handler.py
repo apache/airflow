@@ -20,11 +20,11 @@
 import shutil
 import os
 import unittest
+from freezegun import freeze_time
 
 from airflow.utils.log.file_processor_handler import FileProcessorHandler
 from airflow.utils import timezone
 from datetime import timedelta
-from freezegun import freeze_time
 
 
 class TestFileProcessorHandler(unittest.TestCase):

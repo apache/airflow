@@ -28,6 +28,9 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 class BigtableHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Bigtable APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
     """
 
     _client = None
@@ -48,7 +51,6 @@ class BigtableHook(GoogleCloudBaseHook):
         """
         Retrieves and returns the specified Cloud Bigtable instance if it exists.
         Otherwise, returns None.
-        Must be called with keyword arguments rather than positional.
 
         :param instance_id: The ID of the Cloud Bigtable instance.
         :type instance_id: str
@@ -67,7 +69,6 @@ class BigtableHook(GoogleCloudBaseHook):
     def delete_instance(self, instance_id, project_id=None):
         """
         Deletes the specified Cloud Bigtable instance.
-        Must be called with keyword arguments rather than positional.
         Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
         not exist.
 
@@ -173,7 +174,7 @@ class BigtableHook(GoogleCloudBaseHook):
                      column_families=None):
         """
         Creates the specified Cloud Bigtable table.
-        Raises google.api_core.exceptions.AlreadyExists if the table exists.
+        Raises ``google.api_core.exceptions.AlreadyExists`` if the table exists.
 
         :type instance: Instance
         :param instance: The Cloud Bigtable instance that owns the table.
@@ -184,8 +185,8 @@ class BigtableHook(GoogleCloudBaseHook):
             initially split the table.
         :type column_families: dict
         :param column_families: (Optional) A map of columns to create. The key is the
-            column_id str, and the
-        value is a GarbageCollectionRule.
+            column_id str, and the value is a
+            :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`.
         """
         if column_families is None:
             column_families = {}

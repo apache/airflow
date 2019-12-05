@@ -26,8 +26,8 @@ class PythonSensor(BaseSensorOperator):
     Waits for a Python callable to return True.
 
     User could put input argument in templates_dict
-        e.g templates_dict = {'start_ds': 1970}
-    and access the argument by calling `kwargs['templates_dict']['start_ds']`
+    e.g ``templates_dict = {'start_ds': 1970}``
+    and access the argument by calling ``kwargs['templates_dict']['start_ds']``
     in the the callable
 
     :param python_callable: A reference to an object that is callable
@@ -52,7 +52,6 @@ class PythonSensor(BaseSensorOperator):
     """
 
     template_fields = ('templates_dict',)
-    template_ext = tuple()
 
     @apply_defaults
     def __init__(
@@ -76,6 +75,6 @@ class PythonSensor(BaseSensorOperator):
             context['templates_dict'] = self.templates_dict
             self.op_kwargs = context
 
-        self.log.info("Poking callable: " + str(self.python_callable))
+        self.log.info("Poking callable: %s", str(self.python_callable))
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)
         return bool(return_value)

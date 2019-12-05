@@ -98,6 +98,10 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
     Deletes a Cloud Spanner instance. If an instance does not exist,
     no action is taken and the operator succeeds.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDeleteOperator`
+
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
@@ -143,6 +147,10 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
 class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
     """
     Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDatabaseQueryOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -216,12 +224,16 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
     Creates a new Cloud Spanner database, or if database exists,
     the operator does nothing.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDatabaseDeployOperator`
+
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
     :param database_id: The Cloud Spanner database ID.
     :type database_id: str
     :param ddl_statements: The string list containing DDL for the new database.
-    :type ddl_statements: list of str
+    :type ddl_statements: list[str]
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: str
@@ -282,6 +294,10 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
 class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
     """
     Updates a Cloud Spanner database with the specified DDL statement.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDatabaseUpdateOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -356,6 +372,10 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
 class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
     """
     Deletes a Cloud Spanner database.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSpannerInstanceDatabaseDeleteOperator`
 
     :param instance_id: Cloud Spanner instance ID.
     :type instance_id: str

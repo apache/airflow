@@ -21,14 +21,12 @@ import unittest
 import time
 from datetime import timedelta
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.exceptions import AirflowSensorTimeout, AirflowSkipException
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.timezone import datetime
-
-configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
@@ -70,7 +68,6 @@ class TimeoutTestSensor(BaseSensorOperator):
 
 class SensorTimeoutTest(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

@@ -16,14 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Default configuration for the Airflow webserver"""
 import os
-from airflow import configuration as conf
 from flask_appbuilder.security.manager import AUTH_DB
 # from flask_appbuilder.security.manager import AUTH_LDAP
 # from flask_appbuilder.security.manager import AUTH_OAUTH
 # from flask_appbuilder.security.manager import AUTH_OID
 # from flask_appbuilder.security.manager import AUTH_REMOTE_USER
+
+from airflow.configuration import conf
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 # The SQLAlchemy connection string.
@@ -62,7 +64,7 @@ AUTH_TYPE = AUTH_DB
 # When using OAuth Auth, uncomment to setup provider(s) info
 # Google OAuth example:
 # OAUTH_PROVIDERS = [{
-# 	'name':'google',
+#   'name':'google',
 #     'whitelist': ['@YOU_COMPANY_DOMAIN'],  # optional
 #     'token_key':'access_token',
 #     'icon':'fa-google',
@@ -99,3 +101,21 @@ AUTH_TYPE = AUTH_DB
 # Please make sure to remove "navbar_color" configuration from airflow.cfg
 # in order to fully utilize the theme. (or use that property in conjunction with theme)
 # APP_THEME = "bootstrap-theme.css"  # default bootstrap
+# APP_THEME = "amelia.css"
+# APP_THEME = "cerulean.css"
+# APP_THEME = "cosmo.css"
+# APP_THEME = "cyborg.css"
+# APP_THEME = "darkly.css"
+# APP_THEME = "flatly.css"
+# APP_THEME = "journal.css"
+# APP_THEME = "lumen.css"
+# APP_THEME = "paper.css"
+# APP_THEME = "readable.css"
+# APP_THEME = "sandstone.css"
+# APP_THEME = "simplex.css"
+# APP_THEME = "slate.css"
+# APP_THEME = "solar.css"
+# APP_THEME = "spacelab.css"
+# APP_THEME = "superhero.css"
+# APP_THEME = "united.css"
+# APP_THEME = "yeti.css"

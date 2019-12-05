@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,29 +6,31 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
 
-Experimental Rest API
-=====================
+REST API Reference
+==================
 
-Airflow exposes an experimental Rest API. It is available through the webserver. Endpoints are
-available at /api/experimental/. Please note that we expect the endpoint definitions to change.
+Airflow exposes an REST API. It is available through the webserver. Endpoints are
+available at ``/api/experimental/``.
+
+.. warning::
+
+  The API structure is not stable. We expect the endpoint definitions to change.
 
 Endpoints
 ---------
 
 .. http:post:: /api/experimental/dags/<DAG_ID>/dag_runs
 
-
   Creates a dag_run for a given dag id.
-
 
   **Trigger DAG with config, example:**
 
@@ -44,6 +46,7 @@ Endpoints
 .. http:get:: /api/experimental/dags/<DAG_ID>/dag_runs
 
   Returns a list of Dag Runs for a specific DAG ID.
+
 
 .. http:get:: /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
 
@@ -84,9 +87,11 @@ Endpoints
 
   Get pool by a given name.
 
+
 .. http:post:: /api/experimental/pools
 
   Create a pool.
+
 
 .. http:delete:: /api/experimental/pools/<string:name>
 

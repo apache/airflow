@@ -22,17 +22,11 @@ import sys
 import unittest
 from copy import deepcopy
 
-from airflow import configuration
+from parameterized import parameterized
+
 from airflow.exceptions import AirflowException
 from airflow.contrib.operators.ecs_operator import ECSOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 RESPONSE_WITHOUT_FAILURES = {
     "failures": [],
@@ -60,16 +54,27 @@ class TestECSOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.ecs_operator.AwsHook')
     def setUp(self, aws_hook_mock):
-        configuration.load_test_config()
-
         self.aws_hook_mock = aws_hook_mock
-        self.ecs = ECSOperator(
-            task_id='task',
-            task_definition='t',
-            cluster='c',
-            overrides={},
-            aws_conn_id=None,
-            region_name='eu-west-1')
+        self.ecs_operator_args = {
+            'task_id': 'task',
+            'task_definition': 't',
+            'cluster': 'c',
+            'overrides': {},
+            'aws_conn_id': None,
+            'region_name': 'eu-west-1',
+            'group': 'group',
+            'placement_constraints': [{
+                'expression': 'attribute:ecs.instance-type =~ t2.*',
+                'type': 'memberOf'
+            }],
+            'network_configuration': {
+                'awsvpcConfiguration': {
+                    'securityGroups': ['sg-123abc'],
+                    'subnets': ['subnet-123456ab']
+                }
+            }
+        }
+        self.ecs = ECSOperator(**self.ecs_operator_args)
 
     def test_init(self):
         self.assertEqual(self.ecs.region_name, 'eu-west-1')
@@ -84,27 +89,55 @@ class TestECSOperator(unittest.TestCase):
     def test_template_fields_overrides(self):
         self.assertEqual(self.ecs.template_fields, ('overrides',))
 
+    @parameterized.expand([
+        ['EC2', None],
+        ['FARGATE', None],
+        ['EC2', {'testTagKey': 'testTagValue'}],
+    ])
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
-    def test_execute_without_failures(self, check_mock, wait_mock):
-        client_mock = self.aws_hook_mock.return_value.get_client_type.return_value
+    @mock.patch('airflow.contrib.operators.ecs_operator.AwsHook')
+    def test_execute_without_failures(self, launch_type, tags, aws_hook_mock,
+                                      check_mock, wait_mock):
+        client_mock = aws_hook_mock.return_value.get_client_type.return_value
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
-        self.ecs.execute(None)
+        ecs = ECSOperator(launch_type=launch_type, tags=tags, **self.ecs_operator_args)
+        ecs.execute(None)
 
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('ecs',
-                                                                                region_name='eu-west-1')
+        aws_hook_mock.return_value.get_client_type.assert_called_once_with('ecs',
+                                                                           region_name='eu-west-1')
+        extend_args = {}
+        if launch_type == 'FARGATE':
+            extend_args['platformVersion'] = 'LATEST'
+        if tags:
+            extend_args['tags'] = [{'key': k, 'value': v} for (k, v) in tags.items()]
+
         client_mock.run_task.assert_called_once_with(
             cluster='c',
-            launchType='EC2',
+            launchType=launch_type,
             overrides={},
             startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
-            taskDefinition='t'
+            taskDefinition='t',
+            group='group',
+            placementConstraints=[
+                {
+                    'expression': 'attribute:ecs.instance-type =~ t2.*',
+                    'type': 'memberOf'
+                }
+            ],
+            networkConfiguration={
+                'awsvpcConfiguration': {
+                    'securityGroups': ['sg-123abc'],
+                    'subnets': ['subnet-123456ab']
+                }
+            },
+            **extend_args
         )
 
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
-        self.assertEqual(self.ecs.arn,
+        self.assertEqual(ecs.arn,
                          'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55')
 
     def test_execute_with_failures(self):
@@ -123,7 +156,20 @@ class TestECSOperator(unittest.TestCase):
             launchType='EC2',
             overrides={},
             startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
-            taskDefinition='t'
+            taskDefinition='t',
+            group='group',
+            placementConstraints=[
+                {
+                    'expression': 'attribute:ecs.instance-type =~ t2.*',
+                    'type': 'memberOf'
+                }
+            ],
+            networkConfiguration={
+                'awsvpcConfiguration': {
+                    'securityGroups': ['sg-123abc'],
+                    'subnets': ['subnet-123456ab'],
+                }
+            }
         )
 
     def test_wait_end_tasks(self):
@@ -135,7 +181,7 @@ class TestECSOperator(unittest.TestCase):
         client_mock.get_waiter.assert_called_once_with('tasks_stopped')
         client_mock.get_waiter.return_value.wait.assert_called_once_with(
             cluster='c', tasks=['arn'])
-        self.assertEquals(
+        self.assertEqual(
             sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
 
     def test_check_success_tasks_raises(self):

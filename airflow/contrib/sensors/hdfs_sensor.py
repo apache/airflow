@@ -35,9 +35,7 @@ class HdfsSensorRegex(HdfsSensor):
         """
         sb = self.hook(self.hdfs_conn_id).get_conn()
         self.log.info(
-            'Poking for {self.filepath} to be a directory '
-            'with files matching {self.regex.pattern}'.
-            format(**locals())
+            'Poking for %s to be a directory with files matching %s', self.filepath, self.regex.pattern
         )
         result = [f for f in sb.ls([self.filepath], include_toplevel=False) if
                   f['file_type'] == 'f' and
@@ -68,11 +66,9 @@ class HdfsSensorFolder(HdfsSensor):
                                              self.ignore_copying)
         result = self.filter_for_filesize(result, self.file_size)
         if self.be_empty:
-            self.log.info('Poking for filepath {self.filepath} to a empty directory'
-                          .format(**locals()))
+            self.log.info('Poking for filepath %s to a empty directory', self.filepath)
             return len(result) == 1 and result[0]['path'] == self.filepath
         else:
-            self.log.info('Poking for filepath {self.filepath} to a non empty directory'
-                          .format(**locals()))
+            self.log.info('Poking for filepath %s to a non empty directory', self.filepath)
             result.pop(0)
             return bool(result) and result[0]['file_type'] == 'f'

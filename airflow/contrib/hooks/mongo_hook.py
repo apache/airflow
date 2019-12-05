@@ -19,7 +19,7 @@
 from ssl import CERT_NONE
 
 from airflow.hooks.base_hook import BaseHook
-from pymongo import MongoClient
+from pymongo import MongoClient, ReplaceOne
 
 
 class MongoHook(BaseHook):
@@ -29,8 +29,11 @@ class MongoHook(BaseHook):
     https://docs.mongodb.com/manual/reference/connection-string/index.html
     You can specify connection string options in extra field of your connection
     https://docs.mongodb.com/manual/reference/connection-string/index.html#connection-string-options
+
+    If you want use DNS seedlist, set `srv` to True.
+
     ex.
-        {replicaSet: test, ssl: True, connectTimeoutMS: 30000}
+        {"srv": true, "replicaSet": "test", "ssl": true, "connectTimeoutMS": 30000}
     """
     conn_type = 'mongo'
 
@@ -39,8 +42,22 @@ class MongoHook(BaseHook):
 
         self.mongo_conn_id = conn_id
         self.connection = self.get_connection(conn_id)
-        self.extras = self.connection.extra_dejson
+        self.extras = self.connection.extra_dejson.copy()
         self.client = None
+
+        srv = self.extras.pop('srv', False)
+        scheme = 'mongodb+srv' if srv else 'mongodb'
+
+        self.uri = '{scheme}://{creds}{host}{port}/{database}'.format(
+            scheme=scheme,
+            creds='{}:{}@'.format(
+                self.connection.login, self.connection.password
+            ) if self.connection.login else '',
+
+            host=self.connection.host,
+            port='' if self.connection.port is None else ':{}'.format(self.connection.port),
+            database=self.connection.schema
+        )
 
     def __enter__(self):
         return self
@@ -56,18 +73,6 @@ class MongoHook(BaseHook):
         if self.client is not None:
             return self.client
 
-        conn = self.connection
-
-        uri = 'mongodb://{creds}{host}{port}/{database}'.format(
-            creds='{}:{}@'.format(
-                conn.login, conn.password
-            ) if conn.login is not None else '',
-
-            host=conn.host,
-            port='' if conn.port is None else ':{}'.format(conn.port),
-            database='' if conn.schema is None else conn.schema
-        )
-
         # Mongo Connection Options dict that is unpacked when passed to MongoClient
         options = self.extras
 
@@ -75,7 +80,7 @@ class MongoHook(BaseHook):
         if options.get('ssl', False):
             options.update({'ssl_cert_reqs': CERT_NONE})
 
-        self.client = MongoClient(uri, **options)
+        self.client = MongoClient(self.uri, **options)
 
         return self.client
 
@@ -135,3 +140,158 @@ class MongoHook(BaseHook):
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
         return collection.insert_many(docs, **kwargs)
+
+    def update_one(self, mongo_collection, filter_doc, update_doc,
+                   mongo_db=None, **kwargs):
+        """
+        Updates a single document in a mongo collection.
+        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.update_one
+
+        :param mongo_collection: The name of the collection to update.
+        :type mongo_collection: str
+        :param filter_doc: A query that matches the documents to update.
+        :type filter_doc: dict
+        :param update_doc: The modifications to apply.
+        :type update_doc: dict
+        :param mongo_db: The name of the database to use.
+            Can be omitted; then the database from the connection string is used.
+        :type mongo_db: str
+
+        """
+        collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
+
+        return collection.update_one(filter_doc, update_doc, **kwargs)
+
+    def update_many(self, mongo_collection, filter_doc, update_doc,
+                    mongo_db=None, **kwargs):
+        """
+        Updates one or more documents in a mongo collection.
+        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.update_many
+
+        :param mongo_collection: The name of the collection to update.
+        :type mongo_collection: str
+        :param filter_doc: A query that matches the documents to update.
+        :type filter_doc: dict
+        :param update_doc: The modifications to apply.
+        :type update_doc: dict
+        :param mongo_db: The name of the database to use.
+            Can be omitted; then the database from the connection string is used.
+        :type mongo_db: str
+
+        """
+        collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
+
+        return collection.update_many(filter_doc, update_doc, **kwargs)
+
+    def replace_one(self, mongo_collection, doc, filter_doc=None,
+                    mongo_db=None, **kwargs):
+        """
+        Replaces a single document in a mongo collection.
+        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.replace_one
+
+        .. note::
+            If no ``filter_doc`` is given, it is assumed that the replacement
+            document contain the ``_id`` field which is then used as filters.
+
+        :param mongo_collection: The name of the collection to update.
+        :type mongo_collection: str
+        :param doc: The new document.
+        :type doc: dict
+        :param filter_doc: A query that matches the documents to replace.
+            Can be omitted; then the _id field from doc will be used.
+        :type filter_doc: dict
+        :param mongo_db: The name of the database to use.
+            Can be omitted; then the database from the connection string is used.
+        :type mongo_db: str
+        """
+        collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
+
+        if not filter_doc:
+            filter_doc = {'_id': doc['_id']}
+
+        return collection.replace_one(filter_doc, doc, **kwargs)
+
+    def replace_many(self, mongo_collection, docs,
+                     filter_docs=None, mongo_db=None, upsert=False, collation=None,
+                     **kwargs):
+        """
+        Replaces many documents in a mongo collection.
+
+        Uses bulk_write with multiple ReplaceOne operations
+        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
+
+        .. note::
+            If no ``filter_docs``are given, it is assumed that all
+            replacement documents contain the ``_id`` field which are then
+            used as filters.
+
+        :param mongo_collection: The name of the collection to update.
+        :type mongo_collection: str
+        :param docs: The new documents.
+        :type docs: list[dict]
+        :param filter_docs: A list of queries that match the documents to replace.
+            Can be omitted; then the _id fields from docs will be used.
+        :type filter_docs: list[dict]
+        :param mongo_db: The name of the database to use.
+            Can be omitted; then the database from the connection string is used.
+        :type mongo_db: str
+        :param upsert: If ``True``, perform an insert if no documents
+            match the filters for the replace operation.
+        :type upsert: bool
+        :param collation: An instance of
+            :class:`~pymongo.collation.Collation`. This option is only
+            supported on MongoDB 3.4 and above.
+        :type collation: pymongo.collation.Collation
+
+        """
+        collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
+
+        if not filter_docs:
+            filter_docs = [{'_id': doc['_id']} for doc in docs]
+
+        requests = [
+            ReplaceOne(
+                filter_docs[i],
+                docs[i],
+                upsert=upsert,
+                collation=collation)
+            for i in range(len(docs))
+        ]
+
+        return collection.bulk_write(requests, **kwargs)
+
+    def delete_one(self, mongo_collection, filter_doc, mongo_db=None, **kwargs):
+        """
+        Deletes a single document in a mongo collection.
+        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.delete_one
+
+        :param mongo_collection: The name of the collection to delete from.
+        :type mongo_collection: str
+        :param filter_doc: A query that matches the document to delete.
+        :type filter_doc: dict
+        :param mongo_db: The name of the database to use.
+            Can be omitted; then the database from the connection string is used.
+        :type mongo_db: str
+
+        """
+        collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
+
+        return collection.delete_one(filter_doc, **kwargs)
+
+    def delete_many(self, mongo_collection, filter_doc, mongo_db=None, **kwargs):
+        """
+        Deletes one or more documents in a mongo collection.
+        https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.delete_many
+
+        :param mongo_collection: The name of the collection to delete from.
+        :type mongo_collection: str
+        :param filter_doc: A query that matches the documents to delete.
+        :type filter_doc: dict
+        :param mongo_db: The name of the database to use.
+            Can be omitted; then the database from the connection string is used.
+        :type mongo_db: str
+
+        """
+        collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
+
+        return collection.delete_many(filter_doc, **kwargs)

@@ -28,35 +28,44 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :type bucket: string
+    :type bucket: str
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
-    :type prefix: string
+    :type prefix: str
     :param delimiter: The delimiter by which you want to filter the objects. (templated)
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
-    :type delimiter: string
+    :type delimiter: str
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google Cloud Storage.
-    :type google_cloud_storage_conn_id: string
+    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param dest_aws_conn_id: The destination S3 connection
     :type dest_aws_conn_id: str
     :param dest_s3_key: The base S3 key to be used to store the files. (templated)
     :type dest_s3_key: str
-    :parame dest_verify: Whether or not to verify SSL certificates for S3 connection.
+    :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
-        - False: do not validate SSL certificates. SSL will still be used
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
                  (unless use_ssl is False), but SSL certificates will not be
                  verified.
-        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type dest_verify: bool or str
+    :param replace: Whether or not to verify the existence of the files in the
+        destination bucket.
+        By default is set to False
+        If set to True, will upload all the files replacing the existing ones in
+        the destination bucket.
+        If set to False, will upload only the files that are in the origin but not
+        in the destination bucket.
+    :type replace: bool
     """
     template_fields = ('bucket', 'prefix', 'delimiter', 'dest_s3_key')
     ui_color = '#f0eee4'
@@ -98,8 +107,14 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
             # if we are not replacing -> list all files in the S3 bucket
             # and only keep those files which are present in
             # Google Cloud Storage and not in S3
-            bucket_name, _ = S3Hook.parse_s3_url(self.dest_s3_key)
-            existing_files = s3_hook.list_keys(bucket_name)
+            bucket_name, prefix = S3Hook.parse_s3_url(self.dest_s3_key)
+            # look for the bucket and the prefix to avoid look into
+            # parent directories/keys
+            existing_files = s3_hook.list_keys(bucket_name, prefix=prefix)
+            # in case that no files exists, return an empty array to avoid errors
+            existing_files = existing_files if existing_files is not None else []
+            # remove the prefix for the existing files to allow the match
+            existing_files = [file.replace(prefix, '', 1) for file in existing_files]
             files = list(set(files) - set(existing_files))
 
         if files:

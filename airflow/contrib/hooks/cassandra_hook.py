@@ -36,14 +36,17 @@ class CassandraHook(BaseHook, LoggingMixin):
     Port can be specified in the port field of the connection.
 
     If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for
-    ``ssl.wrap_socket()``. For example:
-            {
-                'ssl_options' : {
-                    'ca_certs' : PATH_TO_CA_CERTS
-                }
-            }
+    ``ssl.wrap_socket()``. For example::
 
-    Default load balancing policy is RoundRobinPolicy. To specify a different LB policy:
+        {
+            'ssl_options' : {
+                'ca_certs' : PATH_TO_CA_CERTS
+            }
+        }
+
+    Default load balancing policy is RoundRobinPolicy. To specify a different
+    LB policy::
+
         - DCAwareRoundRobinPolicy
             {
                 'load_balancing_policy': 'DCAwareRoundRobinPolicy',
@@ -164,7 +167,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
-        :type table: string
+        :type table: str
         """
         keyspace = self.keyspace
         if '.' in table:
@@ -179,7 +182,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
-        :type table: string
+        :type table: str
         :param keys: The keys and their values to check the existence.
         :type keys: dict
         """
