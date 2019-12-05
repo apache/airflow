@@ -249,10 +249,14 @@
         }
         return false;
       }
-      all_dags = $("[id^=toggle]");
-      $.each(all_dags, function(i,v) {
+
+      var encoded_dag_ids = [];
+
+      $.each($("[id^=toggle]"), function(i, v) {
+        var dag_id = $(v).attr('dag_id');
+        encoded_dag_ids.push(encodeURIComponent(dag_id));
+
         $(v).change (function() {
-          var dag_id =  $(v).attr('dag_id');
           if ($(v).prop('checked')) {
             is_paused = 'true'
           } else {
@@ -390,7 +394,7 @@
           container: "body",
         });
       });
-      d3.json("{{ url_for('airflow.task_stats') }}", function(error, json) {
+      d3.json("{{ url_for('airflow.task_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
             g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
