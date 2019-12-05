@@ -23,7 +23,7 @@ from datetime import timedelta
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.hdfs_sensor import HdfsSensor
 from airflow.utils.timezone import datetime
-from tests.core import FakeHDFSHook
+from tests.test_core import FakeHDFSHook
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'

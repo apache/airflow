@@ -152,7 +152,7 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 azure_blob_storage = [
-    'azure-storage>=0.34.0'
+    'azure-storage>=0.34.0',
 ]
 azure_container_instances = [
     'azure-mgmt-containerinstance>=1.5.0'
@@ -371,22 +371,21 @@ devel = [
     'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
+    'flaky',
     'freezegun',
     'ipdb',
     'jira',
     'mock;python_version<"3.3"',
     'mongomock',
     'moto==1.3.5',
-    'nose',
-    'nose-ignore-docstring==0.2',
-    'nose-timer',
     'parameterized',
     'paramiko',
     'pre-commit',
     'pysftp',
+    'pytest',
+    'pytest-cov',
     'pywinrm',
     'qds-sdk>=1.9.6',
-    'rednose',
     'requests_mock',
     'yamllint'
 ]

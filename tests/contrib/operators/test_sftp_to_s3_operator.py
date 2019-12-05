@@ -22,14 +22,12 @@ import unittest
 import boto3
 from moto import mock_s3
 
-from airflow import models
+from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.contrib.operators.sftp_to_s3_operator import SFTPToS3Operator
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
-from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.hooks.S3_hook import S3Hook
 from tests.test_utils.config import conf_vars
 
@@ -42,19 +40,8 @@ S3_CONN_ID = 'aws_default'
 SFTP_MOCK_FILE = 'test_sftp_file.csv'
 S3_MOCK_FILES = 'test_1_file.csv'
 
-TEST_DAG_ID = 'unit_tests'
+TEST_DAG_ID = 'unit_tests_sftp_tos3_op'
 DEFAULT_DATE = datetime(2018, 1, 1)
-
-
-def reset(dag_id=TEST_DAG_ID):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
-
-
-reset()
 
 
 class SFTPToS3OperatorTest(unittest.TestCase):
@@ -62,6 +49,7 @@ class SFTPToS3OperatorTest(unittest.TestCase):
     @mock_s3
     def setUp(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
+
         s3_hook = S3Hook('aws_default')
         hook.no_host_key_check = True
         args = {
