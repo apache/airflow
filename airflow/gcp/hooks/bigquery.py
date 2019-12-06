@@ -1846,7 +1846,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return datasets_list
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def get_dataset_tables_list(self, dataset_id, project_id=None, table_prefix=None, max_results=None):
         """
         Method returns tables list of a BigQuery dataset. If table prefix is specified,
