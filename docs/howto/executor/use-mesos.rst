@@ -18,6 +18,12 @@
 Scaling Out with Mesos (community contributed)
 ==============================================
 
+.. note::
+    Mesos Executor is deprecated (Jira_)
+
+.. _Jira: https://issues.apache.org/jira/browse/AIRFLOW-4313
+
+
 There are two ways you can run airflow as a mesos framework:
 
 1. Running airflow tasks directly on mesos slaves, requiring each mesos slave to have airflow installed and configured.
