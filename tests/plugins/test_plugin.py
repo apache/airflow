@@ -28,7 +28,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.tests import (
-    AirflowLink, AirflowLink2, CustomBaseIndexOpLink, CustomBaseOpLink, GithubLink, GoogleLink,
+    AirflowLink, AirflowLink2, CustomBaseIndexOpLink, CustomOpLink, GithubLink, GoogleLink,
 )
 
 
@@ -109,7 +109,7 @@ class AirflowTestPlugin(AirflowPlugin):
         GithubLink(),
     ]
     operator_extra_links = [
-        GoogleLink(), AirflowLink2(), CustomBaseOpLink(), CustomBaseIndexOpLink(1)
+        GoogleLink(), AirflowLink2(), CustomOpLink(), CustomBaseIndexOpLink(1)
     ]
 
 

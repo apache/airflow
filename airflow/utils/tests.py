@@ -94,7 +94,7 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
         return 'https://console.cloud.google.com/bigquery?j={}'.format(search_query)
 
 
-class CustomBaseOpLink(BaseOperatorLink):
+class CustomOpLink(BaseOperatorLink):
     """
     Operator Link for Apache Airflow Website
     """
@@ -106,7 +106,7 @@ class CustomBaseOpLink(BaseOperatorLink):
         return 'http://google.com/custom_base_link?search={}'.format(search_query)
 
 
-class CustomBaseOperator(BaseOperator):
+class CustomOperator(BaseOperator):
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: Optional[FrozenSet[str]] = None
@@ -118,7 +118,7 @@ class CustomBaseOperator(BaseOperator):
         """
         if isinstance(self.bash_command, str) or self.bash_command is None:
             return (
-                CustomBaseOpLink(),
+                CustomOpLink(),
             )
         return (
             CustomBaseIndexOpLink(i) for i, _ in enumerate(self.bash_command)
@@ -126,7 +126,7 @@ class CustomBaseOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, bash_command=None, *args, **kwargs):
-        super(CustomBaseOperator, self).__init__(*args, **kwargs)
+        super(CustomOperator, self).__init__(*args, **kwargs)
         self.bash_command = bash_command
 
     def execute(self, context):
@@ -135,7 +135,7 @@ class CustomBaseOperator(BaseOperator):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Stringified CustomBaseOperator contain exactly these fields."""
+        """Stringified CustomOperator contain exactly these fields."""
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"bash_command"})
         return cls.__serialized_fields
@@ -146,7 +146,7 @@ class GoogleLink(BaseOperatorLink):
     Operator Link for Apache Airflow Website for Google
     """
     name = 'google'
-    operators = [Dummy3TestOperator, CustomBaseOperator]
+    operators = [Dummy3TestOperator, CustomOperator]
 
     def get_link(self, operator, dttm):
         return 'https://www.google.com'

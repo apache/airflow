@@ -36,7 +36,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.utils.tests import CustomBaseOperator, CustomBaseOpLink, GoogleLink
+from airflow.utils.tests import CustomOperator, CustomOpLink, GoogleLink
 
 serialized_simple_dag_ground_truth = {
     "__version": 1,
@@ -78,11 +78,11 @@ serialized_simple_dag_ground_truth = {
                 "_downstream_task_ids": [],
                 "_inlets": [],
                 "_outlets": [],
-                "_operator_extra_links": [{"airflow.utils.tests.CustomBaseOpLink": {}}],
+                "_operator_extra_links": [{"airflow.utils.tests.CustomOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": [],
-                "_task_type": "CustomBaseOperator",
+                "_task_type": "CustomOperator",
                 "_task_module": "airflow.utils.tests",
             },
         ],
@@ -109,7 +109,7 @@ def make_simple_dag():
         start_date=datetime(2019, 8, 1),
     )
     BaseOperator(task_id='simple_task', dag=dag, owner='airflow')
-    CustomBaseOperator(task_id='custom_task', dag=dag)
+    CustomOperator(task_id='custom_task', dag=dag)
     return {'simple_dag': dag}
 
 
@@ -376,7 +376,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         """
         test_date = datetime(2019, 8, 1)
         dag = DAG(dag_id='simple_dag', start_date=test_date)
-        CustomBaseOperator(task_id='simple_task', dag=dag, bash_command="true")
+        CustomOperator(task_id='simple_task', dag=dag, bash_command="true")
 
         serialized_dag = SerializedDAG.to_dict(dag)
         self.assertIn("bash_command", serialized_dag["dag"]["tasks"][0])
@@ -391,7 +391,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         # Check Serialized version of operator link only contains the inbuilt Op Link
         self.assertEqual(
             serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
-            [{'airflow.utils.tests.CustomBaseOpLink': {}}]
+            [{'airflow.utils.tests.CustomOpLink': {}}]
         )
 
         # Test all the extra_links are set
@@ -401,7 +401,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         ti.xcom_push('search_query', "dummy_value_1")
 
         # Test Deserialized inbuilt link
-        custom_inbuilt_link = simple_task.get_extra_links(test_date, CustomBaseOpLink.name)
+        custom_inbuilt_link = simple_task.get_extra_links(test_date, CustomOpLink.name)
         self.assertEqual('http://google.com/custom_base_link?search=dummy_value_1', custom_inbuilt_link)
 
         # Test Deserialized link registered via Airflow Plugin
@@ -422,8 +422,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         """
         test_date = datetime(2019, 8, 1)
         dag = DAG(dag_id='simple_dag', start_date=test_date)
-        CustomBaseOperator(task_id='simple_task', dag=dag,
-                           bash_command=["echo", "true"])
+        CustomOperator(task_id='simple_task', dag=dag, bash_command=["echo", "true"])
 
         serialized_dag = SerializedDAG.to_dict(dag)
         self.assertIn("bash_command", serialized_dag["dag"]["tasks"][0])
