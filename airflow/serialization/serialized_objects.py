@@ -392,7 +392,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if _operator_link_class in registered_operator_link_classes:
                 single_op_link_class_name = registered_operator_link_classes[_operator_link_class]
             else:
-                raise KeyError("Operator Link Not Found ..., ", _operator_link_class)
+                raise KeyError("Operator Link class %r not registered" % _operator_link_class)
 
             op_predefined_extra_link: BaseOperatorLink = cattr.structure(
                 data, single_op_link_class_name)
