@@ -1111,7 +1111,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         for file_path, processor in self._processors.items():
             duration = now - processor.start_time
             if duration > self._processor_timeout:
-                self.log.info(
+                self.log.error(
                     "Processor for %s with PID %s started at %s has timed out, "
                     "killing it.",
                     file_path, processor.pid, processor.start_time.isoformat())

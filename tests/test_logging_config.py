@@ -157,8 +157,13 @@ class TestLoggingSettings(unittest.TestCase):
     def tearDown(self):
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
+        from airflow.logging_config import configure_logging
+        from airflow.config_templates import airflow_local_settings
+
         for m in [m for m in sys.modules if m not in self.old_modules]:
             del sys.modules[m]
+        importlib.reload(airflow_local_settings)
+        configure_logging()
 
     # When we try to load an invalid config file, we expect an error
     def test_loading_invalid_local_settings(self):

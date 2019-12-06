@@ -155,7 +155,7 @@ class BaseJob(Base, LoggingMixin):
         This also allows for any job to be killed externally, regardless
         of who is running it or on which machine it is running.
 
-        Note that if your heartbeat is set to 60 seconds and you call this
+        Note that if your heart rate is set to 60 seconds and you call this
         method after 10 seconds of processing since the last heartbeat, it
         will sleep 50 seconds to complete the 60 seconds and keep a steady
         heart rate. If you go over 60 seconds before calling it, it won't
@@ -172,17 +172,14 @@ class BaseJob(Base, LoggingMixin):
             if self.state == State.SHUTDOWN:
                 self.kill()
 
-            is_unit_test = conf.getboolean('core', 'unit_test_mode')
-            if not is_unit_test:
-                # Figure out how long to sleep for
-                sleep_for = 0
-                if self.latest_heartbeat:
-                    seconds_remaining = self.heartrate - \
-                        (timezone.utcnow() - self.latest_heartbeat)\
-                        .total_seconds()
-                    sleep_for = max(0, seconds_remaining)
-
-                sleep(sleep_for)
+            # Figure out how long to sleep for
+            sleep_for = 0
+            if self.latest_heartbeat:
+                seconds_remaining = self.heartrate - \
+                    (timezone.utcnow() - self.latest_heartbeat)\
+                    .total_seconds()
+                sleep_for = max(0, seconds_remaining)
+            sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:

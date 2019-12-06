@@ -273,7 +273,7 @@
 ./tests/contrib/sensors/test_python_sensor.py
 ./tests/contrib/sensors/test_redis_pub_sub_sensor.py
 ./tests/contrib/sensors/test_weekday_sensor.py
-./tests/core.py
+./tests/test_core.py
 ./tests/executors/test_celery_executor.py
 ./tests/executors/test_dask_executor.py
 ./tests/hooks/test_docker_hook.py

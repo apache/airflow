@@ -262,7 +262,7 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit_pylint_main.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
+        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$
         pass_filenames: true
         require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
       - id: pylint-tests

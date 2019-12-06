@@ -31,6 +31,7 @@ from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Set
 import jinja2
 from cached_property import cached_property
 from dateutil.relativedelta import relativedelta
+from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
@@ -40,6 +41,7 @@ from airflow.models.pool import Pool
 # noinspection PyPep8Naming
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
@@ -500,7 +502,7 @@ class BaseOperator(Operator, LoggingMixin):
     # /Composing Operators ---------------------------------------------
 
     @property
-    def dag(self):
+    def dag(self) -> Any:
         """
         Returns the Operator's DAG if set, otherwise raises an error
         """
@@ -511,7 +513,7 @@ class BaseOperator(Operator, LoggingMixin):
                 'Operator {} has not been assigned to a DAG yet'.format(self))
 
     @dag.setter
-    def dag(self, dag):
+    def dag(self, dag: Any):
         """
         Operators can be assigned to one DAG, one time. Repeat assignments to
         that same DAG are ok.
@@ -541,7 +543,7 @@ class BaseOperator(Operator, LoggingMixin):
         return getattr(self, '_dag', None) is not None
 
     @property
-    def dag_id(self):
+    def dag_id(self) -> str:
         """Returns dag id if it has one or an adhoc + owner"""
         if self.has_dag():
             return self.dag.dag_id
@@ -549,9 +551,9 @@ class BaseOperator(Operator, LoggingMixin):
             return 'adhoc_' + self.owner
 
     @property
-    def deps(self):
+    def deps(self) -> Set[BaseTIDep]:
         """
-        Returns the list of dependencies for the operator. These differ from execution
+        Returns the set of dependencies for the operator. These differ from execution
         context dependencies in that they are specific to tasks and can be
         extended/overridden by subclasses.
         """
@@ -562,7 +564,7 @@ class BaseOperator(Operator, LoggingMixin):
         }
 
     @property
-    def priority_weight_total(self):
+    def priority_weight_total(self) -> int:
         """
         Total priority weight for the task. It might include all upstream or downstream tasks.
         depending on the weight rule.
@@ -581,17 +583,21 @@ class BaseOperator(Operator, LoggingMixin):
         else:
             upstream = False
 
+        if not self._dag:
+            return self.priority_weight
+        from airflow import DAG
+        dag: DAG = self._dag
         return self.priority_weight + sum(
-            map(lambda task_id: self._dag.task_dict[task_id].priority_weight,
+            map(lambda task_id: dag.task_dict[task_id].priority_weight,
                 self.get_flat_relative_ids(upstream=upstream))
         )
 
     @cached_property
-    def operator_extra_link_dict(self):
+    def operator_extra_link_dict(self) -> Dict[str, Any]:
         """Returns dictionary of all extra links for the operator"""
-        from airflow.plugins_manager import operator_extra_links
 
-        op_extra_links_from_plugin = {}
+        op_extra_links_from_plugin: Dict[str, Any] = {}
+        from airflow.plugins_manager import operator_extra_links
         for ope in operator_extra_links:
             if ope.operators and self.__class__ in ope.operators:
                 op_extra_links_from_plugin.update({ope.name: ope})
@@ -605,18 +611,18 @@ class BaseOperator(Operator, LoggingMixin):
         return operator_extra_links_all
 
     @cached_property
-    def global_operator_extra_link_dict(self):
+    def global_operator_extra_link_dict(self) -> Dict[str, Any]:
         """Returns dictionary of all global extra links"""
         from airflow.plugins_manager import global_operator_extra_links
         return {link.name: link for link in global_operator_extra_links}
 
     @prepare_lineage
-    def pre_execute(self, context):
+    def pre_execute(self, context: Any):
         """
         This hook is triggered right before self.execute() is called.
         """
 
-    def execute(self, context):
+    def execute(self, context: Any):
         """
         This is the main method to derive when creating an operator.
         Context is the same dictionary used as when rendering jinja templates.
@@ -626,14 +632,14 @@ class BaseOperator(Operator, LoggingMixin):
         raise NotImplementedError()
 
     @apply_lineage
-    def post_execute(self, context, result=None):
+    def post_execute(self, context: Any, result: Any = None):
         """
         This hook is triggered right after self.execute() is called.
         It is passed the execution context and any results returned by the
         operator.
         """
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         """
         Override this method to cleanup subprocesses when a task instance
         gets killed. Any use of the threading, subprocess or multiprocessing
@@ -768,7 +774,7 @@ class BaseOperator(Operator, LoggingMixin):
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
         return self.dag.get_template_env() if self.has_dag() else jinja2.Environment(cache_size=0)
 
-    def prepare_template(self):
+    def prepare_template(self) -> None:
         """
         Hook that is triggered after the templated fields get replaced
         by their content. If you need your operator to alter the
@@ -776,7 +782,7 @@ class BaseOperator(Operator, LoggingMixin):
         it should override this method to do so.
         """
 
-    def resolve_template_files(self):
+    def resolve_template_files(self) -> None:
         """Getting the content of files for template_field / template_ext"""
         if self.template_ext:  # pylint: disable=too-many-nested-blocks
             for attr in self.template_fields:
@@ -802,32 +808,32 @@ class BaseOperator(Operator, LoggingMixin):
         self.prepare_template()
 
     @property
-    def upstream_list(self):
+    def upstream_list(self) -> List[str]:
         """@property: list of tasks directly upstream"""
         return [self.dag.get_task(tid) for tid in self._upstream_task_ids]
 
     @property
-    def upstream_task_ids(self):
-        """@property: list of ids of tasks directly upstream"""
+    def upstream_task_ids(self) -> Set[str]:
+        """@property: set of ids of tasks directly upstream"""
         return self._upstream_task_ids
 
     @property
-    def downstream_list(self):
+    def downstream_list(self) -> List[str]:
         """@property: list of tasks directly downstream"""
         return [self.dag.get_task(tid) for tid in self._downstream_task_ids]
 
     @property
-    def downstream_task_ids(self):
-        """@property: list of ids of tasks directly downstream"""
+    def downstream_task_ids(self) -> Set[str]:
+        """@property: set of ids of tasks directly downstream"""
         return self._downstream_task_ids
 
     @provide_session
     def clear(self,
-              start_date=None,
-              end_date=None,
-              upstream=False,
-              downstream=False,
-              session=None):
+              start_date: Optional[datetime] = None,
+              end_date: Optional[datetime] = None,
+              upstream: bool = False,
+              downstream: bool = False,
+              session: Session = None):
         """
         Clears the state of task instances associated with the task, following
         the parameters specified.
@@ -860,7 +866,9 @@ class BaseOperator(Operator, LoggingMixin):
         return count
 
     @provide_session
-    def get_task_instances(self, start_date=None, end_date=None, session=None):
+    def get_task_instances(self, start_date: Optional[datetime] = None,
+                           end_date: Optional[datetime] = None,
+                           session: Session = None) -> List[TaskInstance]:
         """
         Get a set of task instance related to this task for a specific date
         range.
@@ -874,10 +882,15 @@ class BaseOperator(Operator, LoggingMixin):
             .order_by(TaskInstance.execution_date)\
             .all()
 
-    def get_flat_relative_ids(self, upstream=False, found_descendants=None):
+    def get_flat_relative_ids(self,
+                              upstream: bool = False,
+                              found_descendants: Optional[Set[str]] = None) -> Set[str]:
         """
-        Get a flat list of relatives' ids, either upstream or downstream.
+        Get a flat set of relatives' ids, either upstream or downstream.
         """
+
+        if not self._dag:
+            return set()
 
         if not found_descendants:
             found_descendants = set()
@@ -892,20 +905,24 @@ class BaseOperator(Operator, LoggingMixin):
 
         return found_descendants
 
-    def get_flat_relatives(self, upstream=False):
+    def get_flat_relatives(self, upstream: bool = False):
         """
         Get a flat list of relatives, either upstream or downstream.
         """
-        return list(map(lambda task_id: self._dag.task_dict[task_id],
+        if not self._dag:
+            return set()
+        from airflow import DAG
+        dag: DAG = self._dag
+        return list(map(lambda task_id: dag.task_dict[task_id],
                         self.get_flat_relative_ids(upstream)))
 
     def run(
             self,
-            start_date=None,
-            end_date=None,
-            ignore_first_depends_on_past=False,
-            ignore_ti_state=False,
-            mark_success=False):
+            start_date: Optional[datetime] = None,
+            end_date: Optional[datetime] = None,
+            ignore_first_depends_on_past: bool = False,
+            ignore_ti_state: bool = False,
+            mark_success: bool = False) -> None:
         """
         Run a set of task instances for a date range.
         """
@@ -919,7 +936,7 @@ class BaseOperator(Operator, LoggingMixin):
                     execution_date == start_date and ignore_first_depends_on_past),
                 ignore_ti_state=ignore_ti_state)
 
-    def dry_run(self):
+    def dry_run(self) -> None:
         """Performs dry run for the operator - just render template fields."""
         self.log.info('Dry run')
         for attr in self.template_fields:
@@ -928,9 +945,9 @@ class BaseOperator(Operator, LoggingMixin):
                 self.log.info('Rendering template for %s', attr)
                 self.log.info(content)
 
-    def get_direct_relative_ids(self, upstream=False):
+    def get_direct_relative_ids(self, upstream: bool = False) -> Set[str]:
         """
-        Get the direct relative ids to the current task, upstream or
+        Get set of the direct relative ids to the current task, upstream or
         downstream.
         """
         if upstream:
@@ -938,9 +955,9 @@ class BaseOperator(Operator, LoggingMixin):
         else:
             return self._downstream_task_ids
 
-    def get_direct_relatives(self, upstream=False):
+    def get_direct_relatives(self, upstream: bool = False) -> List[str]:
         """
-        Get the direct relatives to the current task, upstream or
+        Get list of the direct relatives to the current task, upstream or
         downstream.
         """
         if upstream:
@@ -953,11 +970,11 @@ class BaseOperator(Operator, LoggingMixin):
             self=self)
 
     @property
-    def task_type(self):
+    def task_type(self) -> str:
         """@property: type of the task"""
         return self.__class__.__name__
 
-    def add_only_new(self, item_set, item):
+    def add_only_new(self, item_set: Set[str], item: str) -> None:
         """Adds only new items to item set"""
         if item in item_set:
             self.log.warning(
@@ -965,12 +982,14 @@ class BaseOperator(Operator, LoggingMixin):
         else:
             item_set.add(item)
 
-    def _set_relatives(self, task_or_task_list, upstream=False):
-        """Sets relatives for the task."""
+    def _set_relatives(self,
+                       task_or_task_list: Union['BaseOperator', List['BaseOperator']],
+                       upstream: bool = False) -> None:
+        """Sets relatives for the task or task list."""
         try:
-            task_list = list(task_or_task_list)
+            task_list = list(task_or_task_list)  # type: ignore
         except TypeError:
-            task_list = [task_or_task_list]
+            task_list = [task_or_task_list]  # type: ignore
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
@@ -980,8 +999,9 @@ class BaseOperator(Operator, LoggingMixin):
 
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
+        # noinspection PyProtectedMember
         dags = {
-            task._dag.dag_id: task._dag  # pylint: disable=protected-access
+            task._dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access
             for task in [self] + task_list if task.has_dag()}
 
         if len(dags) > 1:
@@ -1009,14 +1029,14 @@ class BaseOperator(Operator, LoggingMixin):
                 self.add_only_new(self._downstream_task_ids, task.task_id)
                 task.add_only_new(task.get_direct_relative_ids(upstream=True), self.task_id)
 
-    def set_downstream(self, task_or_task_list):
+    def set_downstream(self, task_or_task_list: Union['BaseOperator', List['BaseOperator']]) -> None:
         """
         Set a task or a task list to be directly downstream from the current
         task.
         """
         self._set_relatives(task_or_task_list, upstream=False)
 
-    def set_upstream(self, task_or_task_list):
+    def set_upstream(self, task_or_task_list: Union['BaseOperator', List['BaseOperator']]) -> None:
         """
         Set a task or a task list to be directly upstream from the current
         task.
@@ -1025,10 +1045,10 @@ class BaseOperator(Operator, LoggingMixin):
 
     @staticmethod
     def xcom_push(
-            context,
-            key,
-            value,
-            execution_date=None):
+            context: Any,
+            key: str,
+            value: Any,
+            execution_date: Optional[datetime] = None) -> None:
         """
         See TaskInstance.xcom_push()
         """
@@ -1039,11 +1059,11 @@ class BaseOperator(Operator, LoggingMixin):
 
     @staticmethod
     def xcom_pull(
-            context,
-            task_ids=None,
-            dag_id=None,
-            key=XCOM_RETURN_KEY,
-            include_prior_dates=None):
+            context: Any,
+            task_ids: Optional[List[str]] = None,
+            dag_id: Optional[str] = None,
+            key: str = XCOM_RETURN_KEY,
+            include_prior_dates: Optional[bool] = None) -> Any:
         """
         See TaskInstance.xcom_pull()
         """
@@ -1054,12 +1074,12 @@ class BaseOperator(Operator, LoggingMixin):
             include_prior_dates=include_prior_dates)
 
     @cached_property
-    def extra_links(self) -> Iterable[str]:
+    def extra_links(self) -> List[str]:
         """@property: extra links for the task. """
         return list(set(self.operator_extra_link_dict.keys())
                     .union(self.global_operator_extra_link_dict.keys()))
 
-    def get_extra_links(self, dttm, link_name):
+    def get_extra_links(self, dttm: datetime, link_name: str) -> Optional[Dict[str, Any]]:
         """
         For an operator, gets the URL that the external links specified in
         `extra_links` should point to.

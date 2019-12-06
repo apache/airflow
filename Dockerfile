@@ -233,7 +233,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} \
     mkdir -pv ${AIRFLOW_HOME}/logs
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
-ARG PIP_DEPENDENCIES_EPOCH_NUMBER="1"
+ARG PIP_DEPENDENCIES_EPOCH_NUMBER="2"
 ENV PIP_DEPENDENCIES_EPOCH_NUMBER=${PIP_DEPENDENCIES_EPOCH_NUMBER}
 
 # Optimizing installation of Cassandra driver
@@ -330,17 +330,6 @@ RUN npm run prod
 
 COPY ./scripts/docker/entrypoint.sh /entrypoint.sh
 
-COPY .bash_completion run-tests-complete run-tests ${HOME}/
-
-COPY .bash_completion.d/run-tests-complete \
-     ${HOME}/.bash_completion.d/run-tests-complete
-
-RUN echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"
-
-RUN chmod +x "${HOME}/run-tests-complete"
-
-RUN chmod +x "${HOME}/run-tests"
-
 # Copy selected subdirectories only
 COPY .github/ ${AIRFLOW_SOURCES}/.github/
 COPY dags/ ${AIRFLOW_SOURCES}/dags/
@@ -351,7 +340,7 @@ COPY docs/ ${AIRFLOW_SOURCES}/docs/
 COPY tests/ ${AIRFLOW_SOURCES}/tests/
 COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
 COPY .coveragerc .rat-excludes .flake8 pylintrc LICENSE MANIFEST.in NOTICE CHANGELOG.txt \
-     .github .bash_completion .bash_completion.d run-tests run-tests-complete \
+     .github \
      setup.cfg setup.py \
      ${AIRFLOW_SOURCES}/
 

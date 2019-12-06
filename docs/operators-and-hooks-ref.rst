@@ -77,10 +77,10 @@ Foundation.
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.cassandra_hook`
+     - :mod:`airflow.providers.apache.cassandra.hooks.cassandra`
      -
-     - :mod:`airflow.contrib.sensors.cassandra_record_sensor`,
-       :mod:`airflow.contrib.sensors.cassandra_table_sensor`
+     - :mod:`airflow.providers.apache.cassandra.sensors.record`,
+       :mod:`airflow.providers.apache.cassandra.sensors.table`
 
    * - `Apache Druid <https://druid.apache.org/>`__
      -
@@ -565,8 +565,8 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
      -
-     - :mod:`airflow.gcp.hooks.dataproc`
-     - :mod:`airflow.gcp.operators.dataproc`
+     - :mod:`airflow.providers.google.cloud.hooks.dataproc`
+     - :mod:`airflow.providers.google.cloud.operators.dataproc`
      -
 
    * - `Datastore <https://cloud.google.com/datastore/>`__
@@ -613,9 +613,9 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Pub/Sub <https://cloud.google.com/pubsub/>`__
      - :doc:`How to use <howto/operator/gcp/pubsub>`
-     - :mod:`airflow.providers.google.cloud..hooks.pubsub`
-     - :mod:`airflow.providers.google.cloud..operators.pubsub`
-     - :mod:`airflow.providers.google.cloud..sensors.pubsub`
+     - :mod:`airflow.providers.google.cloud.hooks.pubsub`
+     - :mod:`airflow.providers.google.cloud.operators.pubsub`
+     - :mod:`airflow.providers.google.cloud.sensors.pubsub`
 
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`
