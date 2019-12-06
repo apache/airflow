@@ -122,8 +122,7 @@ def register_inbuilt_operator_links() -> None:
     inbuilt_operator_links: Set[Type] = set()
 
     try:
-        from airflow.gcp.operators.bigquery import \
-            BigQueryConsoleLink, BigQueryConsoleIndexableLink   # pylint: disable=R0401
+        from airflow.gcp.operators.bigquery import BigQueryConsoleLink, BigQueryConsoleIndexableLink  # noqa E501 # pylint: disable=R0401,line-too-long
         inbuilt_operator_links.update([BigQueryConsoleLink, BigQueryConsoleIndexableLink])
     except ImportError:
         pass
