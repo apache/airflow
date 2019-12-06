@@ -226,6 +226,7 @@ KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 if [[ "${TRAVIS}" == "true" ]]; then
     TRAVIS_ARGS=(
         "--junitxml=${XUNIT_FILE}"
+        "--verbosity=0"
         "--durations=100"
         "--cov=airflow/"
         "--cov-config=.coveragerc"
