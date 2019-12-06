@@ -22,17 +22,17 @@ The ``InProcessExecutor`` is meant as a debug tool and can be used from IDE.
 It is a single process executor that queues :class:`~models.taskinstance.TaskInstance`
 and executes them by running ``_run_raw_task`` method.
 
-Due to it's nature the executor can be sued with SQL Lite database. When used
-with sensors the executor will change sensor mode to ``reschedule`` to do not
-block the execution of DAG.
+Due to its nature the executor can be used with SQL Lite database. When used
+with sensors the executor will change sensor mode to ``reschedule`` to do avoid
+blocking the execution of DAG.
 
 Additionally ``InProcessExecutor`` can be used in a fail-fast mode that will make
-DAG to fail after first failed task. To enable this option set ``AIRFLOW__DEBUG__FAIL_FAST=True``
-or adjust ``fail_fast`` option in your ``airflow.cfg``.
+all other running or scheduled tasks fail immediately. To enable this option set
+``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
 
 **IDE setup steps:**
 
-1. Add main at the end of your DAG file to make it runnable:
+1. Add ``main`` block at the end of your DAG file to make it runnable:
 
   .. code-block:: python
 
@@ -40,13 +40,9 @@ or adjust ``fail_fast`` option in your ``airflow.cfg``.
       dag.clear(reset_dag_runs=True)
       dag.run()
 
-   By adding this running a DAG file will run a backfill job.
+   When you add those lines, running a DAG file will run a backfill job.
 
 2. Setup ``AIRFLOW__CORE__EXECUTOR=InProcessExecutor`` in run configuration of your IDE. In
    this step you should also setup all environment variables required by your DAG.
 
-3. Run the DAG file.
-
-Additionally ``InProcessExecutor`` can be used in a fail-fast mode that will make
-DAG to fail after first failed task. To enable this option set ``AIRFLOW__DEBUG__FAIL_FAST=True``
-or adjust this setting in your ``airflow.cfg``.
+3. Run / debug the DAG file.

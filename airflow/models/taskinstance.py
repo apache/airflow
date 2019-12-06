@@ -899,6 +899,9 @@ class TaskInstance(Base, LoggingMixin):
 
                 task_copy = copy.copy(task)
 
+                # Sensors in `poke` mode can block execution od DAGs when running
+                # with single process executor, thus we change the mode to`reschedule`
+                # to allow parallel task being scheduled and executed
                 if issubclass(type(task_copy), BaseSensorOperator) and \
                         conf.get('core', 'executor') == "InProcessExecutor":
                     self.log.warning("InProcessExecutor changes sensor mode to 'reschedule'.")

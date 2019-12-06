@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """All executors."""
+import importlib
 from typing import Optional
 
 from airflow.executors.base_executor import BaseExecutor
@@ -52,30 +53,26 @@ class ExecutorLoader:
         return cls._default_executor
 
     @staticmethod
-    def _get_executor(executor_name: str) -> BaseExecutor:  # pylint: disable=too-many-return-statements
+    def _get_executor(executor_name: str) -> BaseExecutor:
         """
         Creates a new instance of the named executor.
         In case the executor name is unknown in airflow,
         look for it in the plugins
         """
-        if executor_name == ExecutorLoader.LOCAL_EXECUTOR:
-            from airflow.executors.local_executor import LocalExecutor
-            return LocalExecutor()
-        elif executor_name == ExecutorLoader.SEQUENTIAL_EXECUTOR:
-            from airflow.executors.sequential_executor import SequentialExecutor
-            return SequentialExecutor()
-        elif executor_name == ExecutorLoader.CELERY_EXECUTOR:
-            from airflow.executors.celery_executor import CeleryExecutor
-            return CeleryExecutor()
-        elif executor_name == ExecutorLoader.DASK_EXECUTOR:
-            from airflow.executors.dask_executor import DaskExecutor
-            return DaskExecutor()
-        elif executor_name == ExecutorLoader.KUBERNETES_EXECUTOR:
-            from airflow.executors.kubernetes_executor import KubernetesExecutor
-            return KubernetesExecutor()
-        elif executor_name == ExecutorLoader.INPROCESS_EXECUTOR:
-            from airflow.executors.inprocess_executor import InProcessExecutor
-            return InProcessExecutor()
+
+        executors = {
+            ExecutorLoader.LOCAL_EXECUTOR: 'airflow.executors.local_executor',
+            ExecutorLoader.SEQUENTIAL_EXECUTOR: 'airflow.executors.sequential_executor',
+            ExecutorLoader.CELERY_EXECUTOR: 'airflow.executors.celery_executor',
+            ExecutorLoader.DASK_EXECUTOR: 'airflow.executors.dask_executor',
+            ExecutorLoader.KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor',
+            ExecutorLoader.INPROCESS_EXECUTOR: 'airflow.executors.inprocess_executor'
+
+        }
+        if executor_name in executors:
+            executor_module = importlib.import_module(executors[executor_name])
+            executor = getattr(executor_module, executor_name)
+            return executor()
         else:
             # Load plugins here for executors as at that time the plugins might not have been initialized yet
             # TODO: verify the above and remove two lines below in case plugins are always initialized first
