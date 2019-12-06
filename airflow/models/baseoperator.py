@@ -27,9 +27,10 @@ import warnings
 
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
+from typing import Any, Callable, ClassVar, Dict, FrozenSet, Iterable, List, Optional, Set, Type, Union
 
 
+import attr
 from cached_property import cached_property
 
 import jinja2
@@ -257,7 +258,7 @@ class BaseOperator(LoggingMixin):
     operator_extra_links = ()  # type: Iterable['BaseOperatorLink']
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    _serialized_fields = None  # type: Optional[FrozenSet[str]]
+    __serialized_fields = None  # type: Optional[FrozenSet[str]]
 
     _comps = {
         'task_id',
@@ -793,15 +794,15 @@ class BaseOperator(LoggingMixin):
     def resolve_template_files(self):
         # Getting the content of files for template_field / template_ext
         if self.template_ext:
-            for attr in self.template_fields:
-                content = getattr(self, attr, None)
+            for field in self.template_fields:
+                content = getattr(self, field, None)
                 if content is None:
                     continue
                 elif isinstance(content, six.string_types) and \
                         any([content.endswith(ext) for ext in self.template_ext]):
                     env = self.get_template_env()
                     try:
-                        setattr(self, attr, env.loader.get_source(env, content)[0])
+                        setattr(self, field, env.loader.get_source(env, content)[0])
                     except Exception as e:
                         self.log.exception(e)
                 elif isinstance(content, list):
@@ -937,10 +938,10 @@ class BaseOperator(LoggingMixin):
     def dry_run(self):
         """Performs dry run for the operator - just render template fields."""
         self.log.info('Dry run')
-        for attr in self.template_fields:
-            content = getattr(self, attr)
+        for field in self.template_fields:
+            content = getattr(self, field)
             if content and isinstance(content, six.string_types):
-                self.log.info('Rendering template for %s', attr)
+                self.log.info('Rendering template for %s', field)
                 self.log.info(content)
 
     def get_direct_relative_ids(self, upstream=False):
@@ -1096,15 +1097,15 @@ class BaseOperator(LoggingMixin):
     @classmethod
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
-        if not cls._serialized_fields:
-            cls._serialized_fields = frozenset(
+        if not cls.__serialized_fields:
+            cls.__serialized_fields = frozenset(
                 set(vars(BaseOperator(task_id='test')).keys()) - {
-                    'inlets', 'outlets', '_upstream_task_ids', 'default_args'
-                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
-            )
-        return cls._serialized_fields
+                    'inlets', 'outlets', '_upstream_task_ids', 'default_args', 'dag', '_dag'
+                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'})
+        return cls.__serialized_fields
 
 
+@attr.s(auto_attribs=True)
 class BaseOperatorLink:
     """
     Abstract base class that defines how we get an operator link.
@@ -1112,7 +1113,7 @@ class BaseOperatorLink:
 
     __metaclass__ = ABCMeta
 
-    operators = []   # type: List[Type[BaseOperator]]
+    operators = []   # type: ClassVar[List[Type[BaseOperator]]]
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link
