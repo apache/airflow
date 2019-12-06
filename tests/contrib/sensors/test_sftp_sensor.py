@@ -67,3 +67,9 @@ class SFTPSensorTest(unittest.TestCase):
             sftp_sensor.poke(context)
             sftp_hook_mock.return_value.get_mod_time.assert_called_with(
                 '/path/to/file/1970-01-01.txt')
+
+    def test_hook_not_created_during_init(self):
+        sftp_sensor = SFTPSensor(
+            task_id='unit_test',
+            path='/path/to/file/1970-01-01.txt')
+        self.assertIsNone(sftp_sensor.hook)
