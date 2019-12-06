@@ -387,7 +387,21 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         op_predefined_extra_links = {}
 
         for _operator_links_source in encoded_op_links:
-            _operator_link_class, data = _operator_links_source.popitem()
+            # Get the key, value pair as Tuple where key is OperatorLink ClassName
+            # and value is the dictionary containing the arguments passed to the OperatorLink
+            #
+            # Example of a single iteration:
+            #
+            #   _operator_links_source =
+            #   {'airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink': {'index': 0}},
+            #
+            #   list(_operator_links_source.items()) =
+            #   [('airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink', {'index': 0})]
+            #
+            #   list(_operator_links_source.items())[0] =
+            #   ('airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink', {'index': 0})
+
+            _operator_link_class, data = list(_operator_links_source.items())[0]
 
             if _operator_link_class in registered_operator_link_classes:
                 single_op_link_class_name = registered_operator_link_classes[_operator_link_class]
