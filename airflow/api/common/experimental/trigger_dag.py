@@ -79,7 +79,11 @@ def _trigger_dag(
     triggers = []
     dags_to_trigger = []
     dags_to_trigger.append(dag)
+    is_triggered = dict()
     while dags_to_trigger:
+        if is_triggered.get(dag.dag_id):
+            continue
+        is_triggered[dag.dag_id] = True
         dag = dags_to_trigger.pop()
         trigger = dag.create_dagrun(
             run_id=run_id,
