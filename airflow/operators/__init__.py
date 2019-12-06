@@ -101,7 +101,7 @@ if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
 
 def _integrate_plugins():
     """Integrate plugins to the context"""
-    from airflow.plugins_manager import operators_modules
+    from airflow.plugins_manager import operators_modules, register_inbuilt_operator_links
     for operators_module in operators_modules:
         sys.modules[operators_module.__name__] = operators_module
         globals()[operators_module._name] = operators_module
@@ -121,3 +121,5 @@ def _integrate_plugins():
                     "import from 'airflow.operators.[plugin_module]' "
                     "instead. Support for direct imports will be dropped "
                     "entirely in Airflow 2.0.".format(i=operator_name))
+
+    register_inbuilt_operator_links()

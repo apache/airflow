@@ -37,6 +37,7 @@ from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOper
 from airflow.contrib.operators.bigquery_to_mysql_operator import BigQueryToMySqlOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import Session
 from airflow.utils.db import provide_session
 from tests.compat import mock
@@ -521,8 +522,8 @@ class BigQueryOperatorTest(unittest.TestCase):
         job_id = ['123', '45']
         ti.xcom_push(key='job_id', value=job_id)
 
-        self.assertEqual(
-            {'BigQuery Console #1', 'BigQuery Console #2'},
+        six.assertCountEqual(
+            self, {'BigQuery Console #1', 'BigQuery Console #2'},
             bigquery_task.operator_extra_link_dict.keys()
         )
 
@@ -535,6 +536,43 @@ class BigQueryOperatorTest(unittest.TestCase):
             'https://console.cloud.google.com/bigquery?j=45',
             bigquery_task.get_extra_links(DEFAULT_DATE, 'BigQuery Console #2'),
         )
+
+    def test_bigquery_operator_extra_serialized_field_when_single_query(self):
+        with self.dag:
+            BigQueryOperator(
+                task_id=TASK_ID,
+                sql='SELECT * FROM test_table',
+            )
+        serialized_dag = SerializedDAG.to_dict(self.dag)
+        self.assertIn("sql", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict[TASK_ID]
+        self.assertEqual(getattr(simple_task, "sql"), 'SELECT * FROM test_table')
+
+        #########################################################
+        # Verify Operator Links work with Serialized Operator
+        #########################################################
+
+        # Check Serialized version of operator link
+        self.assertEqual(
+            serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
+            [{'airflow.contrib.operators.bigquery_operator.BigQueryConsoleLink': {}}]
+        )
+
+        # Check DeSerialized version of operator link
+        self.assertIsInstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleLink)
+
+        ti = TaskInstance(task=simple_task, execution_date=DEFAULT_DATE)
+        ti.xcom_push('job_id', 12345)
+
+        # check for positive case
+        url = simple_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name)
+        self.assertEqual(url, 'https://console.cloud.google.com/bigquery?j=12345')
+
+        # check for negative case
+        url2 = simple_task.get_extra_links(datetime(2017, 1, 2), BigQueryConsoleLink.name)
+        self.assertEqual(url2, '')
 
 
 class BigQueryGetDataOperatorTest(unittest.TestCase):
