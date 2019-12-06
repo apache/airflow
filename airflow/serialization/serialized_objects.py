@@ -32,7 +32,6 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
-from airflow.utils.module_loading import import_string
 from airflow.www.utils import get_python_source
 
 
@@ -377,53 +376,30 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         encoded_op_links: list
     ) -> Dict[str, BaseOperatorLink]:
         """
-        Deserialize Operator Links by importing all the modules containing operator links
-        defined in the serialized dict and initialize them by passing arguments using cattr.
-        If the module containing OperatorLink cannot be imported or accessed, this function
-        tries to find the OperatorLink in all the OperatorLinks registered via Airflow Plugins.
+        Deserialize Operator Links if the Classes  are registered in Airflow Plugins.
         Error is raised if the OperatorLink is not found in Plugins too.
 
         :param encoded_op_links: Serialized Operator Link
         :return: De-Serialized Operator Link
         """
-        from airflow.plugins_manager import operator_extra_links
+        from airflow.plugins_manager import registered_operator_link_classes
 
-        # Extra Operator Links
         op_predefined_extra_links = {}
 
         for _operator_links_source in encoded_op_links:
             _operator_link_class, data = list(_operator_links_source.items())[0]
 
-            single_op_link_class_name = None
+            if _operator_link_class in registered_operator_link_classes:
+                single_op_link_class_name = registered_operator_link_classes[_operator_link_class]
+            else:
+                raise KeyError("Operator Link Not Found ..., ", _operator_link_class)
 
-            try:
-                single_op_link_class_name = import_string(_operator_link_class)
-            except ImportError:
-                logging.debug("Module not found or not accessible: %s", _operator_link_class)
+            op_predefined_extra_link: BaseOperatorLink = cattr.structure(
+                data, single_op_link_class_name)
 
-                found_link = False
-                op_link_class_name = _operator_link_class.rsplit(".", 1)[-1]
-
-                logging.debug("Finding Operator Link class (%s) in Airflow Plugins", op_link_class_name)
-
-                for ope in operator_extra_links:
-                    if not ope.operators and ope.__class__.__name__ == op_link_class_name:
-                        # Only match if ope.operators=[] and the Class Names match
-                        single_op_link_class_name = ope.__class__
-                        found_link = True
-
-                if not found_link:
-                    logging.debug(
-                        "Operator Link class (%s) not found in Airflow Plugins", op_link_class_name)
-                    raise ImportError("Error Importing Operator Link: {}".format(op_link_class_name))
-
-            if single_op_link_class_name:
-                op_predefined_extra_link: BaseOperatorLink = cattr.structure(
-                    data, single_op_link_class_name)
-
-                op_predefined_extra_links.update(
-                    {op_predefined_extra_link.name: op_predefined_extra_link}
-                )
+            op_predefined_extra_links.update(
+                {op_predefined_extra_link.name: op_predefined_extra_link}
+            )
 
         return op_predefined_extra_links
 

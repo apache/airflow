@@ -439,7 +439,6 @@ class TestBigQueryOperator(unittest.TestCase):
                 task_id=TASK_ID,
                 sql='SELECT * FROM test_table',
             )
-        # ToDo: Make OperatorLinks working for list of sql queries
         serialized_dag = SerializedDAG.to_dict(self.dag)
         self.assertIn("sql", serialized_dag["dag"]["tasks"][0])
 
