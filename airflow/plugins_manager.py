@@ -27,7 +27,6 @@ from typing import Any, Callable, Dict, List, Optional, Set, Type
 import pkg_resources
 
 from airflow import settings
-from airflow.models.baseoperator import BaseOperatorLink
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -113,22 +112,32 @@ def load_entrypoint_plugins(entry_points, airflow_plugins):
     return airflow_plugins
 
 
-def register_inbuilt_operator_links() -> Dict[str, Type[BaseOperatorLink]]:
+def register_inbuilt_operator_links() -> None:
     """
     Register all the Operators Links that are already defined for the operators
     in the "airflow" project. Example: QDSLink (Operator Link for Qubole Operator)
 
-    :return: Dictionary containing the Operator Link names (including path to the module)
-        and the Operator Link Class
+    This is required to populate the "whitelist" of allowed classes when deserializing operator links
     """
-    from airflow.gcp.operators.bigquery import BigQueryConsoleLink, BigQueryConsoleIndexableLink
-    from airflow.contrib.operators.qubole_operator import QDSLink
+    inbuilt_operator_links: Set[Type] = set()
 
-    inbuilt_operator_links: Set = {
-        BigQueryConsoleLink, BigQueryConsoleIndexableLink, QDSLink,
-    }
+    try:
+        from airflow.gcp.operators.bigquery import \
+            BigQueryConsoleLink, BigQueryConsoleIndexableLink   # pylint: disable=R0401
+        inbuilt_operator_links.update([BigQueryConsoleLink, BigQueryConsoleIndexableLink])
+    except ImportError:
+        pass
 
-    return {"{}.{}".format(link.__module__, link.__name__): link for link in inbuilt_operator_links}
+    try:
+        from airflow.contrib.operators.qubole_operator import QDSLink   # pylint: disable=R0401
+        inbuilt_operator_links.update([QDSLink])
+    except ImportError:
+        pass
+
+    registered_operator_link_classes.update({
+        "{}.{}".format(link.__module__, link.__name__): link
+        for link in inbuilt_operator_links
+    })
 
 
 def is_valid_plugin(plugin_obj, existing_plugins):
@@ -219,7 +228,7 @@ flask_appbuilder_menu_links: List[Any] = []
 stat_name_handler: Any = None
 global_operator_extra_links: List[Any] = []
 operator_extra_links: List[Any] = []
-registered_operator_link_classes: Dict[str, Type[BaseOperatorLink]] = {}
+registered_operator_link_classes: Dict[str, Type] = {}
 """Mapping of class names to class of OperatorLinks registered by plugins.
 
 Used by the DAG serialization code to only allow specific classes to be created
@@ -259,8 +268,6 @@ for p in plugins:
                        link.__class__.__name__): link.__class__
         for link in p.operator_extra_links
     })
-    registered_operator_link_classes.update(register_inbuilt_operator_links())
-
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(
@@ -317,3 +324,4 @@ def integrate_plugins() -> None:
     integrate_hook_plugins()
     integrate_executor_plugins()
     integrate_macro_plugins()
+    register_inbuilt_operator_links()
