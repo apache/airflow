@@ -163,7 +163,8 @@ plugins = []  # type: List[AirflowPlugin]
 
 norm_pattern = re.compile(r'[/|.]')
 
-assert settings.PLUGINS_FOLDER, "Plugins folder is not set"
+if not settings.PLUGINS_FOLDER:
+    raise ValueError("Plugins folder is not set")
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
 for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):

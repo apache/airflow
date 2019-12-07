@@ -232,12 +232,11 @@ class ClusterGenerator:
         self.customer_managed_key = customer_managed_key
         self.single_node = num_workers == 0
 
-        assert not (self.custom_image and self.image_version), \
-            "custom_image and image_version can't be both set"
+        if self.custom_image and self.image_version:
+            raise ValueError("The custom_image and image_version can't be both set")
 
-        assert (
-            not self.single_node or (self.single_node and self.num_preemptible_workers == 0)
-        ), "num_workers == 0 means single node mode - no preemptibles allowed"
+        if self.single_node and self.num_preemptible_workers > 0:
+            raise ValueError("Single node cannot have preemptible workers.")
 
     def _get_init_action_timeout(self):
         match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)

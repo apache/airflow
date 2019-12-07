@@ -251,4 +251,6 @@ else
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 fi
 
+export PYTHONPATH=${AIRFLOW_SOURCES}
+
 in_container_script_end

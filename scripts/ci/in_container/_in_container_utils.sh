@@ -175,4 +175,4 @@ function in_container_refresh_pylint_todo() {
     print_in_container_info
 }
 
-export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access"
+export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"

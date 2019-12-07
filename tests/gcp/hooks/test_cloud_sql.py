@@ -1077,7 +1077,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         get_connection.return_value = connection
         hook = CloudSqlDatabaseHook(gcp_cloudsql_conn_id='cloudsql_connection',
                                     default_gcp_project_id='google_connection')
-        with self.assertRaises(AirflowException) as cm:
+        with self.assertRaises(ValueError) as cm:
             hook.get_sqlproxy_runner()
         err = cm.exception
         self.assertIn('Proxy runner can only be retrieved in case of use_proxy = True', str(err))
