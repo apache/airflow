@@ -212,6 +212,7 @@ exclude_patterns = [
     '_api/airflow/ti_deps',
     '_api/airflow/utils',
     '_api/airflow/version',
+    '_api/airflow/worker',
     '_api/airflow/www',
     '_api/main',
     '_api/airflow/gcp/index.rst',

@@ -34,7 +34,7 @@ args = {
 dag = DAG(
     dag_id='example_bash_operator',
     default_args=args,
-    schedule_interval='0 0 * * *',
+    # schedule_interval='0 0 * * *',
     dagrun_timeout=timedelta(minutes=60),
 )
 
@@ -56,7 +56,7 @@ run_this >> run_this_last
 for i in range(3):
     task = BashOperator(
         task_id='runme_' + str(i),
-        bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
+        bash_command='echo "{{ task_instance_key_str }}" && sleep 15',
         dag=dag,
     )
     task >> run_this

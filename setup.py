@@ -467,6 +467,7 @@ def do_setup():
             'jinja2>=2.10.1, <2.11.0',
             'json-merge-patch==0.2',
             'jsonschema~=3.0',
+            'kombu>=4.6.6',
             'lazy_object_proxy~=1.3',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',

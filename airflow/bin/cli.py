@@ -991,6 +991,24 @@ class CLIFactory:
             'help': 'Show current application configuration.',
             'args': (),
         },
+        {
+            'help': 'Consumer commands',
+            'name': 'consumer',
+            'subcommands': (
+                {
+                    'func': lazy_load_command('airflow.cli.commands.consumer_command.start'),
+                    'name': 'start',
+                    'help': 'Starts Airflow consumer',
+                    'args': ('concurrency', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+                },
+                {
+                    'func': lazy_load_command('airflow.cli.commands.consumer_command.stop'),
+                    'name': 'stop',
+                    'help': 'Stops Airflow consumer',
+                    'args': (),
+                },
+            )
+        }
     )
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
     dag_subparsers = (
