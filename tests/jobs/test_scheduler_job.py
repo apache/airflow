@@ -210,7 +210,12 @@ class TestSchedulerJob(unittest.TestCase):
         queue in the case of an overflow.
         """
         executor = MockExecutor(do_update=True, parallelism=3)
+
         with create_session() as session:
+            dagbag = DagBag(executor=executor, dag_folder=os.path.join(settings.DAGS_FOLDER,
+                                                                       "no_dags.py"))
+            dag = self.create_test_dag()
+            dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
             dag = self.create_test_dag()
             task = DummyOperator(
                 task_id='dummy',
@@ -222,17 +227,27 @@ class TestSchedulerJob(unittest.TestCase):
                 ti.state = State.SCHEDULED
                 tis.append(ti)
                 session.merge(ti)
-            session.commit()
 
-            simple_dag_bag = self._make_simple_dag_bag([dag])
-            scheduler = SchedulerJob(num_runs=1,
-                                     executor=executor,
-                                     subdir=os.path.join(settings.DAGS_FOLDER,
-                                                         "no_dags.py"))
-            mock.patch.object(scheduler, '_change_state_for_tis_without_dagrun').start()
-            scheduler._process_dags(simple_dag_bag)
-            [ti.refresh_from_db() for ti in tis]
+            # scheduler._process_dags(simple_dag_bag)
+            @mock.patch('airflow.models.DagBag', return_value=dagbag)
+            @mock.patch('airflow.models.DagBag.collect_dags')
+            @mock.patch('airflow.jobs.scheduler_job.SchedulerJob._change_state_for_tis_without_dagrun')
+            def do_schedule(mock_dagbag, mock_collect_dags, mock_change_state_for_tis_without_dagrun):
+                # Use a empty file since the above mock will return the
+                # expected DAGs. Also specify only a single file so that it doesn't
+                # try to schedule the above DAG repeatedly.
+                scheduler = SchedulerJob(num_runs=1,
+                                         executor=executor,
+                                         subdir=os.path.join(settings.DAGS_FOLDER,
+                                                             "no_dags.py"))
+                scheduler.heartrate = 0
+                scheduler.run()
+
+            do_schedule()
+            for ti in tis:
+                ti.refresh_from_db()
             self.assertEqual(len(executor.queued_tasks), 0)
+
             successful_tasks = [ti for ti in tis if ti.state == State.SUCCESS]
             scheduled_tasks = [ti for ti in tis if ti.state == State.SCHEDULED]
             self.assertEqual(3, len(successful_tasks))
@@ -1847,14 +1862,15 @@ class TestSchedulerJob(unittest.TestCase):
         """
         executor = MockExecutor(do_update=False)
 
-        dagbag = DagBag(executor=executor)
+        dagbag = DagBag(executor=executor, dag_folder=os.path.join(settings.DAGS_FOLDER,
+                                                                   "no_dags.py"))
         dagbag.dags.clear()
         dagbag.executor = executor
 
         dag = DAG(
             dag_id='test_scheduler_reschedule',
             start_date=DEFAULT_DATE)
-        DummyOperator(
+        dummy_task = DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -1862,11 +1878,10 @@ class TestSchedulerJob(unittest.TestCase):
         dag.clear()
         dag.is_subdag = False
 
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        orm_dag.is_paused = False
-        session.merge(orm_dag)
-        session.commit()
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            orm_dag.is_paused = False
+            session.merge(orm_dag)
 
         dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
 
@@ -1884,11 +1899,17 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler.run()
 
         do_schedule()
-        self.assertEqual(1, len(executor.queued_tasks))
-        executor.queued_tasks.clear()
+        with create_session() as session:
+            ti = session.query(TI).filter(TI.dag_id == dag.dag_id,
+                                          TI.task_id == dummy_task.task_id).first()
+        self.assertEqual(0, len(executor.queued_tasks))
+        self.assertEqual(State.SCHEDULED, ti.state)
 
+        executor.do_update = True
         do_schedule()
-        self.assertEqual(2, len(executor.queued_tasks))
+        self.assertEqual(0, len(executor.queued_tasks))
+        ti.refresh_from_db()
+        self.assertEqual(State.SUCCESS, ti.state)
 
     def test_scheduler_sla_miss_callback(self):
         """
@@ -2146,11 +2167,10 @@ class TestSchedulerJob(unittest.TestCase):
         dag.clear()
         dag.is_subdag = False
 
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        orm_dag.is_paused = False
-        session.merge(orm_dag)
-        session.commit()
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            orm_dag.is_paused = False
+            session.merge(orm_dag)
 
         dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
 
@@ -2168,18 +2188,20 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler.run()
 
         do_schedule()
-        self.assertEqual(1, len(executor.queued_tasks))
+        with create_session() as session:
+            ti = session.query(TI).filter(TI.dag_id == 'test_retry_still_in_executor',
+                                          TI.task_id == 'test_retry_handling_op').first()
+        ti.task = dag_task1
+
+        # Nothing should be left in the queued_tasks as we don't do update in MockExecutor yet,
+        # and the queued_tasks will be cleared by scheduler job.
+        self.assertEqual(0, len(executor.queued_tasks))
 
         def run_with_error(task, ignore_ti_state=False):
             try:
                 task.run(ignore_ti_state=ignore_ti_state)
             except AirflowException:
                 pass
-
-        ti_tuple = next(iter(executor.queued_tasks.values()))
-        (_, _, _, simple_ti) = ti_tuple
-        ti = simple_ti.construct_task_instance()
-        ti.task = dag_task1
 
         self.assertEqual(ti.try_number, 1)
         # At this point, scheduler has tried to schedule the task once and
@@ -2191,33 +2213,23 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
         self.assertEqual(ti.try_number, 2)
 
-        ti.refresh_from_db(lock_for_update=True, session=session)
-        ti.state = State.SCHEDULED
-        session.merge(ti)
-        session.commit()
+        with create_session() as session:
+            ti.refresh_from_db(lock_for_update=True, session=session)
+            ti.state = State.SCHEDULED
+            session.merge(ti)
 
-        # do not schedule
+        # do schedule
         do_schedule()
-        self.assertTrue(executor.has_task(ti))
-        ti.refresh_from_db()
-        # removing self.assertEqual(ti.state, State.SCHEDULED)
-        # as scheduler will move state from SCHEDULED to QUEUED
-
-        # now the executor has cleared and it should be allowed the re-queue,
-        # but tasks stay in the executor.queued_tasks after executor.heartbeat()
-        # will be set back to SCHEDULED state
-        executor.queued_tasks.clear()
-        do_schedule()
-        ti.refresh_from_db()
-
+        # MockExecutor is not aware of the TI since we don't do update yet
+        # and no trace of this TI will be left in the executor.
+        self.assertFalse(executor.has_task(ti))
         self.assertEqual(ti.state, State.SCHEDULED)
 
         # To verify that task does get re-queued.
-        executor.queued_tasks.clear()
         executor.do_update = True
         do_schedule()
         ti.refresh_from_db()
-        self.assertIn(ti.state, [State.RUNNING, State.SUCCESS])
+        self.assertEqual(ti.state, State.SUCCESS)
 
     @unittest.skipUnless("INTEGRATION" in os.environ, "Can only run end to end")
     def test_retry_handling_job(self):
