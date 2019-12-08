@@ -286,17 +286,17 @@ class TestBackfillJob(unittest.TestCase):
 
         executor = MockExecutor()
 
-        conf_ = json.loads("""{"key": "value"}""")
+        config = json.loads("""{"key": "value"}""")
         job = BackfillJob(dag=dag,
                           executor=executor,
                           start_date=DEFAULT_DATE,
                           end_date=DEFAULT_DATE + datetime.timedelta(days=2),
-                          conf=conf_)
+                          conf=config)
         job.run()
 
         dr = DagRun.find(dag_id='test_backfill_conf')
 
-        self.assertEqual(conf_, dr[0].conf)
+        self.assertEqual(config, dr[0].conf)
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
     def test_backfill_respect_task_concurrency_limit(self, mock_log):
@@ -628,11 +628,11 @@ class TestBackfillJob(unittest.TestCase):
             schedule_interval='@daily')
 
         with dag:
-            op1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
-                                dag=dag)
-            op2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
-                                dag=dag)
-            op1.set_upstream(op2)
+            task_1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
+                                   dag=dag)
+            task_2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
+                                   dag=dag)
+            task_1.set_upstream(task_2)
 
         dag.clear()
         executor = MockExecutor()

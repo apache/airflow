@@ -263,6 +263,13 @@ def dag_run_status(dag_id, execution_date):
 
     try:
         info = get_dag_run_state(dag_id, execution_date)
+        if not info:
+            err = f"Missing dag run for {dag_id} and {execution_date}"
+            _log.info(err)
+            response = jsonify(error="{}".format(err))
+            response.status_code = err.status_code
+            return response
+
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))

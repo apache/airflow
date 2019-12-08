@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,9 +26,9 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
 from airflow.configuration import conf
-from airflow.jobs.local_task_job import LocalTaskJob as LJ
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.scheduler_job import DagFileProcessorProcess
-from airflow.models import DagBag, TaskInstance as TI
+from airflow.models import DagBag, TaskInstance
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
 from airflow.utils.dag_processing import DagFileProcessorAgent, DagFileProcessorManager, DagFileStat
@@ -83,7 +82,7 @@ LOGGING_CONFIG = {
 SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
 
 
-class settings_context:  # pylint: disable=invalid-name
+class SettingsContext:
     """
     Sets a settings file and puts it in the Python classpath
 
@@ -192,18 +191,18 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
         dagbag = DagBag(TEST_DAG_FOLDER)
         with create_session() as session:
-            session.query(LJ).delete()
+            session.query(LocalTaskJob).delete()
             dag = dagbag.get_dag('example_branch_operator')
             task = dag.get_task(task_id='run_this_first')
 
-            ti = TI(task, DEFAULT_DATE, State.RUNNING)
-            local_job = LJ(ti)
-            local_job.state = State.SHUTDOWN
-            local_job.id = 1
-            ti.job_id = local_job.id
+            task_instance = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
+            local_task_job = LocalTaskJob(task_instance)
+            local_task_job.state = State.SHUTDOWN
+            local_task_job.id = 1
+            task_instance.job_id = local_task_job.id
 
-            session.add(local_job)
-            session.add(ti)
+            session.add(local_task_job)
+            session.add(task_instance)
             session.commit()
 
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
@@ -212,12 +211,12 @@ class TestDagFileProcessorManager(unittest.TestCase):
             zombies = manager._zombies
             self.assertEqual(1, len(zombies))
             self.assertIsInstance(zombies[0], SimpleTaskInstance)
-            self.assertEqual(ti.dag_id, zombies[0].dag_id)
-            self.assertEqual(ti.task_id, zombies[0].task_id)
-            self.assertEqual(ti.execution_date, zombies[0].execution_date)
+            self.assertEqual(task_instance.dag_id, zombies[0].dag_id)
+            self.assertEqual(task_instance.task_id, zombies[0].task_id)
+            self.assertEqual(task_instance.execution_date, zombies[0].execution_date)
 
-            session.query(TI).delete()
-            session.query(LJ).delete()
+            session.query(TaskInstance).delete()
+            session.query(LocalTaskJob).delete()
 
     def test_zombies_are_correctly_passed_to_dag_file_processor(self):
         """
@@ -228,20 +227,20 @@ class TestDagFileProcessorManager(unittest.TestCase):
                         ('core', 'load_examples'): 'False'}):
             dagbag = DagBag(os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py'))
             with create_session() as session:
-                session.query(LJ).delete()
+                session.query(LocalTaskJob).delete()
                 dag = dagbag.get_dag('test_example_bash_operator')
                 task = dag.get_task(task_id='run_this_last')
 
-                ti = TI(task, DEFAULT_DATE, State.RUNNING)
-                local_job = LJ(ti)
-                local_job.state = State.SHUTDOWN
-                local_job.id = 1
-                ti.job_id = local_job.id
+                task_instance = TaskInstance(task, DEFAULT_DATE, State.RUNNING)
+                local_task_job = LocalTaskJob(task_instance)
+                local_task_job.state = State.SHUTDOWN
+                local_task_job.id = 1
+                task_instance.job_id = local_task_job.id
 
-                session.add(local_job)
-                session.add(ti)
+                session.add(local_task_job)
+                session.add(task_instance)
                 session.commit()
-                fake_zombies = [SimpleTaskInstance(ti)]
+                fake_zombies = [SimpleTaskInstance(task_instance)]
 
             class FakeDagFileProcessorRunner(DagFileProcessorProcess):
                 # This fake processor will return the zombies it received in constructor
@@ -297,8 +296,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 parsing_result.extend(processor_agent.harvest_simple_dags())
 
             self.assertEqual(len(fake_zombies), len(parsing_result))
-            self.assertEqual(set(zombie.key for zombie in fake_zombies),
-                             set(result.key for result in parsing_result))
+            self.assertEqual(
+                {zombie.key for zombie in fake_zombies}, {result.key for result in parsing_result})
 
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.kill")
@@ -347,9 +346,8 @@ class TestDagFileProcessorAgent(unittest.TestCase):
     def tearDown(self):
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
-        for mod in sys.modules:
-            if mod not in self.old_modules:
-                del sys.modules[mod]
+        for module in [m for m in sys.modules if m not in self.old_modules]:
+            del sys.modules[module]
 
     def test_reload_module(self):
         """
@@ -357,7 +355,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         class path, thus when reloading logging module the airflow.processor_manager
         logger should not be configured.
         """
-        with settings_context(SETTINGS_FILE_VALID):
+        with SettingsContext(SETTINGS_FILE_VALID):
             # Launch a process through DagFileProcessorAgent, which will try
             # reload the logging module.
             def processor_factory(file_path, zombies):

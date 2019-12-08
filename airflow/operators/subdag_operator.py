@@ -70,7 +70,7 @@ class SubDagOperator(BaseSensorOperator):
                  propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.subdag = subdag
+        self.subdag: DAG = subdag
         self.propagate_skipped_state = propagate_skipped_state
 
         self._validate_dag(kwargs)

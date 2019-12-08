@@ -17,13 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Task APIs.."""
+from typing import Optional
+
 from airflow.api.common.experimental import check_and_get_dag
-from airflow.models import TaskInstance
+from airflow.models.baseoperator import BaseOperator
 
 
-def get_task(dag_id: str, task_id: str) -> TaskInstance:
+def get_task(dag_id: str, task_id: str) -> Optional[BaseOperator]:
     """Return the task object identified by the given dag_id and task_id."""
     dag = check_and_get_dag(dag_id, task_id)
 
-    # Return the task.
-    return dag.get_task(task_id)
+    if dag:
+        return dag.get_task(task_id)
+    return None

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,9 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+"""Scheduler of JOBS for Airflow."""
 import logging
-import multiprocessing
 import os
 import signal
 import sys
@@ -27,22 +25,26 @@ import threading
 import time
 from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
-from datetime import timedelta
+from datetime import datetime, timedelta
+from multiprocessing import Pipe, Process, Queue
+from multiprocessing.connection import Connection
 from time import sleep
-from typing import List, Set
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
-from setproctitle import setproctitle
+from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 from sqlalchemy import and_, func, not_, or_
-from sqlalchemy.orm.session import make_transient
+# noinspection PyProtectedMember
+from sqlalchemy.orm.session import Session, make_transient  # pylint: disable=no-name-in-module
 
 from airflow import models, settings
 from airflow.configuration import conf
+from airflow.dag.base_dag import BaseDag
 from airflow.exceptions import AirflowException
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
-from airflow.models import DAG, DagRun, SlaMiss, errors
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models import DAG, DagBag, DagModel, DagRun, SlaMiss, errors
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, SCHEDULED_DEPS, DepContext
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
@@ -73,41 +75,47 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
     # Counter that increments every time an instance of this class is created
     class_creation_counter = 0
 
-    def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
+    def __init__(self, file_path: str, pickle_dags: bool, dag_id_white_list: List[str],
+                 zombies: List[SimpleTaskInstance]):
+        super().__init__()
         self._file_path = file_path
 
         # The process that was launched to process the given .
-        self._process = None
+        self._process: Optional[Process] = None
         self._dag_id_white_list = dag_id_white_list
         self._pickle_dags = pickle_dags
         self._zombies = zombies
         # The result of Scheduler.process_file(file_path).
-        self._result = None
+        self._result: Tuple[List[SimpleDag], int] = ([], 0)
         # Whether the process is done running.
-        self._done = False
+        self._done: bool = False
         # When the process started.
-        self._start_time = None
+        self._start_time: Optional[datetime] = None
+        # parent channel for Pipe communication
+        self._parent_channel: Optional[Connection] = None
+        # Queue to send results to
+        self._result_queue: Optional[Queue] = None
         # This ID is use to uniquely name the process / thread that's launched
         # by this processor instance
-        self._instance_id = DagFileProcessorProcess.class_creation_counter
+        self._instance_id: int = DagFileProcessorProcess.class_creation_counter
         DagFileProcessorProcess.class_creation_counter += 1
 
     @property
-    def file_path(self):
+    def file_path(self) -> str:
         return self._file_path
 
     @staticmethod
-    def _run_file_processor(result_channel,
-                            file_path,
-                            pickle_dags,
-                            dag_id_white_list,
-                            thread_name,
-                            zombies):
+    def _run_file_processor(result_channel: Connection,
+                            file_path: str,
+                            pickle_dags: bool,
+                            dag_id_white_list: List[str],
+                            thread_name: str,
+                            zombies: List[SimpleTaskInstance]) -> None:
         """
         Process the given file.
 
         :param result_channel: the connection to use for passing back the result
-        :type result_channel: multiprocessing.Connection
+        :type result_channel: multiprocessing.connection.Connection
         :param file_path: the file to process
         :type file_path: str
         :param pickle_dags: whether to pickle the DAGs found in the file and
@@ -155,7 +163,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                 log.info(
                     "Processing %s took %.3f seconds", file_path, end_time - start_time
                 )
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             # Log exceptions through the logging framework.
             log.exception("Got an exception! Propagating...")
             raise
@@ -165,12 +173,12 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
             # tear it down manually here
             settings.dispose_orm()
 
-    def start(self):
+    def start(self) -> None:
         """
         Launch the process and start processing the DAG.
         """
-        self._parent_channel, _child_channel = multiprocessing.Pipe()
-        self._process = multiprocessing.Process(
+        self._parent_channel, _child_channel = Pipe()
+        self._process = Process(
             target=type(self)._run_file_processor,
             args=(
                 _child_channel,
@@ -185,7 +193,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         self._start_time = timezone.utcnow()
         self._process.start()
 
-    def kill(self):
+    def kill(self) -> None:
         """
         Kill the process launched to process the file, and ensure consistent state.
         """
@@ -195,7 +203,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         self._result_queue = None
         self._kill_process()
 
-    def terminate(self, sigkill=False):
+    def terminate(self, sigkill: bool = False) -> None:
         """
         Terminate (and then kill) the process launched to process the file.
 
@@ -210,15 +218,17 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         self._process.join(5)
         if sigkill:
             self._kill_process()
+        if not self._parent_channel:
+            raise AirflowException("Parent channel not set")
         self._parent_channel.close()
 
     def _kill_process(self):
-        if self._process.is_alive():
+        if self._process and self._process.is_alive() and self._process.pid:
             self.log.warning("Killing PID %s", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
 
     @property
-    def pid(self):
+    def pid(self) -> Optional[int]:
         """
         :return: the PID of the process launched to process the given file
         :rtype: int
@@ -228,7 +238,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         return self._process.pid
 
     @property
-    def exit_code(self):
+    def exit_code(self) -> Optional[int]:
         """
         After the process is finished, this can be called to get the return code
 
@@ -237,10 +247,12 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         """
         if not self._done:
             raise AirflowException("Tried to call retcode before process was finished!")
-        return self._process.exitcode
+        if self._process:
+            return self._process.exitcode
+        return None
 
     @property
-    def done(self):
+    def done(self) -> bool:
         """
         Check if the process launched to process this file is done.
 
@@ -252,6 +264,9 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
 
         if self._done:
             return True
+
+        if not self._parent_channel:
+            raise AirflowException("Parent channel is not set")
 
         if self._parent_channel.poll():
             try:
@@ -274,17 +289,17 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         return False
 
     @property
-    def result(self):
+    def result(self) -> Tuple[List[SimpleDag], int]:
         """
         :return: result of running SchedulerJob.process_file()
-        :rtype: airflow.utils.dag_processing.SimpleDag
+        :rtype: list[airflow.utils.dag_processing.SimpleDagBag]
         """
         if not self.done:
             raise AirflowException("Tried to get the result before it's done!")
         return self._result
 
     @property
-    def start_time(self):
+    def start_time(self) -> datetime:
         """
         :return: when this started to process the file
         :rtype: datetime
@@ -292,6 +307,13 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         if self._start_time is None:
             raise AirflowException("Tried to get start time before it started!")
         return self._start_time
+
+# TODO: remove those after extracting some methods
+# pylint: disable=too-many-nested-blocks
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-return-statements
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-statements
 
 
 class DagFileProcessor(LoggingMixin):
@@ -316,46 +338,52 @@ class DagFileProcessor(LoggingMixin):
     :param log: Logger to save the processing process
     :type log: logging.Logger
     """
-    def __init__(self, dag_ids, log):
+    def __init__(self, dag_ids: List[str], log: logging.Logger):
+        super().__init__()
         self.dag_ids = dag_ids
         self._log = log
 
     @provide_session
-    def manage_slas(self, dag, session=None):
+    def manage_slas(self, dag: DAG, session: Session = None) -> None:
         """
         Finding all tasks that have SLAs defined, and sending alert emails
         where needed. New SLA misses are also recorded in the database.
 
         We are assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
+
+        :param dag: DAG to manage SLAs for
+        :type dag: airflow.models.dag.DAG
+        :param session: SQL Alchemy session
+        :type session: sqlalchemy.orm.session.Session
         """
         if not any([isinstance(ti.sla, timedelta) for ti in dag.tasks]):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
-        TI = models.TaskInstance
-        sq = (
+        # noinspection PyUnresolvedReferences
+        session_query = (
             session
             .query(
-                TI.task_id,
-                func.max(TI.execution_date).label('max_ti')
+                TaskInstance.task_id,
+                func.max(TaskInstance.execution_date).label('max_ti')
             )
-            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
-            .filter(TI.dag_id == dag.dag_id)
+            .with_hint(TaskInstance, 'USE INDEX (PRIMARY)', dialect_name='mysql')
+            .filter(TaskInstance.dag_id == dag.dag_id)
             .filter(
                 or_(
-                    TI.state == State.SUCCESS,
-                    TI.state == State.SKIPPED
+                    TaskInstance.state == State.SUCCESS,
+                    TaskInstance.state == State.SKIPPED
                 )
             )
-            .filter(TI.task_id.in_(dag.task_ids))
-            .group_by(TI.task_id).subquery('sq')
+            .filter(TaskInstance.task_id.in_(dag.task_ids))
+            .group_by(TaskInstance.task_id).subquery('sq')
         )
 
-        max_tis = session.query(TI).filter(
-            TI.dag_id == dag.dag_id,
-            TI.task_id == sq.c.task_id,
-            TI.execution_date == sq.c.max_ti,
+        max_tis = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.task_id == session_query.c.task_id,
+            TaskInstance.execution_date == session_query.c.max_ti,
         ).all()
 
         ts = timezone.utcnow()
@@ -366,7 +394,7 @@ class DagFileProcessor(LoggingMixin):
                 dttm = dag.following_schedule(dttm)
                 while dttm < timezone.utcnow():
                     following_schedule = dag.following_schedule(dttm)
-                    if following_schedule + task.sla < timezone.utcnow():
+                    if following_schedule and following_schedule + task.sla < timezone.utcnow():
                         session.merge(SlaMiss(
                             task_id=ti.task_id,
                             dag_id=ti.dag_id,
@@ -386,11 +414,11 @@ class DagFileProcessor(LoggingMixin):
             sla_dates = [sla.execution_date for sla in slas]
             qry = (
                 session
-                .query(TI)
+                .query(TaskInstance)
                 .filter(
-                    TI.state != State.SUCCESS,
-                    TI.execution_date.in_(sla_dates),
-                    TI.dag_id == dag.dag_id
+                    TaskInstance.state != State.SUCCESS,
+                    TaskInstance.execution_date.in_(sla_dates),
+                    TaskInstance.dag_id == dag.dag_id
                 ).all()
             )
             blocking_tis = []
@@ -415,11 +443,12 @@ class DagFileProcessor(LoggingMixin):
             if dag.sla_miss_callback:
                 # Execute the alert callback
                 self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
+                # noinspection PyBroadException
                 try:
                     dag.sla_miss_callback(dag, task_list, blocking_task_list, slas,
                                           blocking_tis)
                     notification_sent = True
-                except Exception:
+                except Exception:  # pylint: disable=broad-except
                     self.log.exception("Could not call sla_miss_callback for DAG %s",
                                        dag.dag_id)
             email_content = """\
@@ -431,7 +460,7 @@ class DagFileProcessor(LoggingMixin):
                        bug=asciiart.bug)
 
             tasks_missed_sla = [dag.get_task(sla.task_id) for sla in slas]
-            emails = set()
+            emails: Set[str] = set()
             for task in tasks_missed_sla:
                 if task.email:
                     if isinstance(task.email, str):
@@ -439,14 +468,15 @@ class DagFileProcessor(LoggingMixin):
                     elif isinstance(task.email, (list, tuple)):
                         emails |= set(task.email)
             if emails:
+                # noinspection PyBroadException
                 try:
                     send_email(
                         emails,
-                        "[airflow] SLA miss on DAG=" + dag.dag_id,
+                        "[airflow] SLA miss on DAG=" + str(dag.dag_id),
                         email_content)
                     email_sent = True
                     notification_sent = True
-                except Exception:
+                except Exception:  # pylint: disable=broad-except
                     self.log.exception("Could not send SLA Miss email notification for"
                                        " DAG %s", dag.dag_id)
             # If we sent any notification, update the sla_miss table
@@ -459,7 +489,7 @@ class DagFileProcessor(LoggingMixin):
             session.commit()
 
     @staticmethod
-    def update_import_errors(session, dagbag):
+    def update_import_errors(session: Session, dagbag: DagBag):
         """
         For the DAGs in the given DagBag, record any associated import errors and clears
         errors for files that no longer have them. These are usually displayed through the
@@ -484,7 +514,7 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
     @provide_session
-    def create_dag_run(self, dag, session=None):
+    def create_dag_run(self, dag: DAG, session=None) -> Optional[DagRun]:
         """
         This method checks whether a new DagRun needs to be created
         for a DAG based on scheduling interval.
@@ -499,8 +529,8 @@ class DagFileProcessor(LoggingMixin):
             )
             # return if already reached maximum active runs and no timeout setting
             if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
-                return
-            timedout_runs = 0
+                return None
+            timed_out_runs = 0
             for dr in active_runs:
                 if (
                     dr.start_date and dag.dagrun_timeout and
@@ -510,19 +540,20 @@ class DagFileProcessor(LoggingMixin):
                     dr.end_date = timezone.utcnow()
                     dag.handle_callback(dr, success=False, reason='dagrun_timeout',
                                         session=session)
-                    timedout_runs += 1
+                    timed_out_runs += 1
             session.commit()
-            if len(active_runs) - timedout_runs >= dag.max_active_runs:
-                return
+            if len(active_runs) - timed_out_runs >= dag.max_active_runs:
+                return None
 
             # this query should be replaced by find dagrun
+            # noinspection PyUnresolvedReferences
             qry = (
                 session.query(func.max(DagRun.execution_date))
                     .filter_by(dag_id=dag.dag_id)
                     .filter(or_(
                         DagRun.external_trigger == False,  # noqa: E712 pylint: disable=singleton-comparison
                         # add % as a wildcard for the like query
-                        DagRun.run_id.like(DagRun.ID_PREFIX + '%')
+                        DagRun.run_id.like(DagRun.ID_PREFIX + '%')  # type: ignore
                     )
                 )
             )
@@ -543,7 +574,8 @@ class DagFileProcessor(LoggingMixin):
                 if next_start <= now:
                     new_start = last_start
                 else:
-                    new_start = dag.previous_schedule(last_start)
+                    if last_start:
+                        new_start = dag.previous_schedule(last_start)
 
                 if dag.start_date:
                     if new_start >= dag.start_date:
@@ -556,18 +588,20 @@ class DagFileProcessor(LoggingMixin):
                 # First run
                 task_start_dates = [t.start_date for t in dag.tasks]
                 if task_start_dates:
-                    next_run_date = dag.normalize_schedule(min(task_start_dates))
-                    self.log.debug(
-                        "Next run date based on tasks %s",
-                        next_run_date
-                    )
+                    min_task_start_dates = min(task_start_dates)
+                    if min_task_start_dates:
+                        next_run_date = dag.normalize_schedule(min_task_start_dates)
+                        self.log.debug(
+                            "Next run date based on tasks %s",
+                            next_run_date
+                        )
             else:
                 next_run_date = dag.following_schedule(last_scheduled_run)
 
             # make sure backfills are also considered
             last_run = dag.get_last_dagrun(session=session)
             if last_run and next_run_date:
-                while next_run_date <= last_run.execution_date:
+                while next_run_date and next_run_date <= last_run.execution_date:
                     next_run_date = dag.following_schedule(next_run_date)
 
             # don't ever schedule prior to the dag's start_date
@@ -584,10 +618,11 @@ class DagFileProcessor(LoggingMixin):
 
             # don't ever schedule in the future or if next_run_date is None
             if not next_run_date or next_run_date > timezone.utcnow():
-                return
+                return None
 
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType
+            period_end: Optional[datetime] = None
             if dag.schedule_interval == '@once':
                 period_end = next_run_date
             elif next_run_date:
@@ -595,16 +630,16 @@ class DagFileProcessor(LoggingMixin):
 
             # Don't schedule a dag beyond its end_date (as specified by the dag param)
             if next_run_date and dag.end_date and next_run_date > dag.end_date:
-                return
+                return None
 
             # Don't schedule a dag beyond its end_date (as specified by the task params)
             # Get the min task end date, which may come from the dag.default_args
-            min_task_end_date = []
-            task_end_dates = [t.end_date for t in dag.tasks if t.end_date]
+            min_task_end_date: Optional[datetime] = None
+            task_end_dates = [task.end_date for task in dag.tasks if task.end_date]
             if task_end_dates:
                 min_task_end_date = min(task_end_dates)
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
-                return
+                return None
 
             if next_run_date and period_end and period_end <= timezone.utcnow():
                 next_run = dag.create_dagrun(
@@ -615,18 +650,23 @@ class DagFileProcessor(LoggingMixin):
                     external_trigger=False
                 )
                 return next_run
+            return None
+        return None
 
     @provide_session
-    def _process_task_instances(self, dag, task_instances_list, session=None):
+    def _process_task_instances(self, dag: DAG,
+                                task_instances_list: List[TaskInstanceKeyType],
+                                session: Session = None):
         """
         This method schedules the tasks for a single DAG by looking at the
         active DAG runs and adding task instances that should run to the
         queue.
+
         """
 
         # update the state of the previously active dag runs
         dag_runs = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)
-        active_dag_runs = []
+        active_dag_runs: List[DagRun] = []
         for run in dag_runs:
             self.log.info("Examining DAG run %s", run)
             # don't consider runs that are executed in the future
@@ -674,7 +714,7 @@ class DagFileProcessor(LoggingMixin):
                     self.log.debug('Queuing task: %s', ti)
                     task_instances_list.append(ti.key)
 
-    def _process_dags(self, dagbag, dags, tis_out):
+    def _process_dags(self, dagbag: DagBag, dags: List[BaseDag], tis_out: List[TaskInstanceKeyType]):
         """
         Iterates over the dags and processes them. Processing includes:
 
@@ -685,22 +725,24 @@ class DagFileProcessor(LoggingMixin):
         :param dagbag: a collection of DAGs to process
         :type dagbag: airflow.models.DagBag
         :param dags: the DAGs from the DagBag to process
-        :type dags: airflow.models.DAG
+        :type dags: list[airflow.models.DAG]
         :param tis_out: A list to add generated TaskInstance objects
         :type tis_out: list[TaskInstance]
         :rtype: None
         """
-        for dag in dags:
-            dag = dagbag.get_dag(dag.dag_id)
+        for base_dag in dags:
+            if not base_dag.dag_id:
+                raise ValueError(f"The dag {base_dag} has dag_id None. It should not happen here.")
+            dag: Optional[DAG] = dagbag.get_dag(base_dag.dag_id)
             if not dag:
-                self.log.error("DAG ID %s was not found in the DagBag", dag.dag_id)
+                self.log.error("DAG ID %s was not found in the DagBag", base_dag.dag_id)
                 continue
 
             if dag.is_paused:
-                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
+                self.log.info("Not processing DAG %s since it's paused", base_dag.dag_id)
                 continue
 
-            self.log.info("Processing %s", dag.dag_id)
+            self.log.info("Processing %s", base_dag.dag_id)
 
             # Only creates DagRun for DAGs that are not subdag since
             # DagRun of subdags are created when SubDagOperator executes.
@@ -718,7 +760,9 @@ class DagFileProcessor(LoggingMixin):
             if conf.getboolean('core', 'CHECK_SLAS', fallback=True):
                 self.manage_slas(dag)
 
-    def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]):
+    def _find_dags_to_process(self,
+                              dags: Iterable[BaseDag],
+                              paused_dag_ids: Set[str]) -> List[BaseDag]:
         """
         Find the DAGs that are not paused to process.
 
@@ -726,7 +770,7 @@ class DagFileProcessor(LoggingMixin):
         :param paused_dag_ids: paused DAG IDs
         :return: DAGs to process
         """
-        if len(self.dag_ids) > 0:
+        if self.dag_ids:
             dags = [dag for dag in dags
                     if dag.dag_id in self.dag_ids and
                     dag.dag_id not in paused_dag_ids]
@@ -736,7 +780,10 @@ class DagFileProcessor(LoggingMixin):
         return dags
 
     @provide_session
-    def process_file(self, file_path, zombies, pickle_dags=False, session=None):
+    def process_file(self, file_path: str,
+                     zombies: List[SimpleTaskInstance],
+                     pickle_dags: bool = False,
+                     session: Session = None) -> Tuple[List[SimpleDag], int]:
         """
         Process a Python file containing Airflow DAGs.
 
@@ -750,9 +797,11 @@ class DagFileProcessor(LoggingMixin):
         5. Kill (in ORM) any task instances belonging to the DAGs that haven't
         issued a heartbeat in a while.
 
-        Returns a list of SimpleDag objects that represent the DAGs found in
-        the file
+        Returns a tuple of list of SimpleDag objects that represent the DAGs found in
+        the file and number of import errors.
 
+        :param session: SQL Alchemy session
+        :type session: sqlalchemy.orm.session.Session
         :param file_path: the path to the Python file that should be executed
         :type file_path: str
         :param zombies: zombie task instances to kill.
@@ -761,20 +810,21 @@ class DagFileProcessor(LoggingMixin):
             save them to the db
         :type pickle_dags: bool
         :return: a list of SimpleDags made from the Dags found in the file
-        :rtype: List[airflow.utils.dag_processing.SimpleDagBag]
+        :rtype: Tuple[List[airflow.utils.dag_processing.SimpleDagBag], int]
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
         # As DAGs are parsed from this file, they will be converted into SimpleDags
-        simple_dags = []
+        simple_dags: List[SimpleDag] = []
 
+        # noinspection PyBroadException
         try:
             dagbag = models.DagBag(file_path, include_examples=False)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.log.exception("Failed at reloading the DAG file %s", file_path)
             Stats.incr('dag_file_refresh_error', 1, 1)
-            return [], []
+            return [], 0
 
-        if len(dagbag.dags) > 0:
+        if dagbag.dags:
             self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
@@ -782,27 +832,29 @@ class DagFileProcessor(LoggingMixin):
             return [], len(dagbag.import_errors)
 
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
-        for dag in dagbag.dags.values():
-            dag.sync_to_db()
+        for dag_obj in dagbag.dags.values():
+            dag_obj.sync_to_db()
 
-        paused_dag_ids = {dag.dag_id for dag in dagbag.dags.values() if dag.is_paused}
+        paused_dag_ids: Set[str] = \
+            {dag.dag_id for dag in dagbag.dags.values() if dag.is_paused and dag.dag_id}
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id in dagbag.dags:
             # Only return DAGs that are not paused
             if dag_id not in paused_dag_ids:
-                dag = dagbag.get_dag(dag_id)
-                pickle_id = None
-                if pickle_dags:
-                    pickle_id = dag.pickle(session).id
-                simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
+                dag: Optional[DAG] = dagbag.get_dag(dag_id)
+                if dag:
+                    pickle_id = None
+                    if pickle_dags:
+                        pickle_id = dag.pickle(session).id
+                    simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
 
         dags = self._find_dags_to_process(dagbag.dags.values(), paused_dag_ids)
 
         # Not using multiprocessing.Queue() since it's no longer a separate
         # process and due to some unusual behavior. (empty() incorrectly
         # returns true as described in https://bugs.python.org/issue23582 )
-        ti_keys_to_schedule = []
+        ti_keys_to_schedule: List[TaskInstanceKeyType] = []
 
         self._process_dags(dagbag, dags, ti_keys_to_schedule)
 
@@ -812,8 +864,8 @@ class DagFileProcessor(LoggingMixin):
             ti = models.TaskInstance(task, ti_key[2])
 
             ti.refresh_from_db(session=session, lock_for_update=True)
-            # We check only deps needed to set TI to SCHEDULED state here.
-            # Deps needed to set TI to QUEUED state will be batch checked later
+            # We check only deps needed to set TaskInstance to SCHEDULED state here.
+            # Deps needed to set TaskInstance to QUEUED state will be batch checked later
             # by the scheduler for better performance.
             dep_context = DepContext(deps=SCHEDULED_DEPS, ignore_task_deps=True)
 
@@ -836,13 +888,15 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
         # Record import errors into the ORM
+        # noinspection PyBroadException
         try:
             self.update_import_errors(session, dagbag)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.log.exception("Error logging import errors!")
+        # noinspection PyBroadException
         try:
             dagbag.kill_zombies(zombies)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.log.exception("Error killing zombies!")
 
         return simple_dags, len(dagbag.import_errors)
@@ -881,21 +935,23 @@ class SchedulerJob(BaseJob):
 
     def __init__(
             self,
-            dag_id=None,
-            dag_ids=None,
-            subdir=settings.DAGS_FOLDER,
-            num_runs=conf.getint('scheduler', 'num_runs'),
-            processor_poll_interval=conf.getfloat('scheduler', 'processor_poll_interval'),
-            do_pickle=False,
-            log=None,
+            dag_id: Optional[str] = None,
+            dag_ids: Optional[List[str]] = None,
+            subdir: Optional[str] = settings.DAGS_FOLDER,
+            num_runs: int = conf.getint('scheduler', 'num_runs'),
+            processor_poll_interval: float = conf.getfloat('scheduler', 'processor_poll_interval'),
+            do_pickle: bool = False,
+            log: Optional[logging.Logger] = None,
             *args, **kwargs):
         # for BaseJob compatibility
         self.dag_id = dag_id
-        self.dag_ids = [dag_id] if dag_id else []
+        self.dag_ids: List[str] = [dag_id] if dag_id else []
         if dag_ids:
             self.dag_ids.extend(dag_ids)
 
-        self.subdir = subdir
+        if not subdir:
+            raise ValueError("Subdir is None")
+        self.subdir: str = subdir
 
         self.num_runs = num_runs
         self._processor_poll_interval = processor_poll_interval
@@ -913,12 +969,12 @@ class SchedulerJob(BaseJob):
             self.using_sqlite = True
 
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
-        self.processor_agent = None
+        self.processor_agent: Optional[DagFileProcessorAgent] = None
 
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
-    def _exit_gracefully(self, signum, frame):
+    def _exit_gracefully(self, signum: int, _) -> None:
         """
         Helper method to clean up processor_agent to avoid leaving orphan processes.
         """
@@ -927,7 +983,7 @@ class SchedulerJob(BaseJob):
             self.processor_agent.end()
         sys.exit(os.EX_OK)
 
-    def is_alive(self, grace_multiplier=None):
+    def is_alive(self, grace_multiplier: Optional[float] = None) -> bool:
         """
         Is this SchedulerJob alive?
 
@@ -950,10 +1006,10 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def _change_state_for_tis_without_dagrun(self,
-                                             simple_dag_bag,
-                                             old_states,
-                                             new_state,
-                                             session=None):
+                                             simple_dag_bag: SimpleDagBag,
+                                             old_states: Iterable[Optional[str]],
+                                             new_state: State,
+                                             session: Session = None) -> None:
         """
         For all DAG IDs in the SimpleDagBag, look for task instances in the
         old_states and set them to new_state if the corresponding DagRun
@@ -961,6 +1017,8 @@ class SchedulerJob(BaseJob):
         normally should not happen, but it can if the state of DagRuns are
         changed manually.
 
+        :param session: SQL Alchemy session
+        :type session: sqlalchemy.orm.session.Session
         :param old_states: examine TaskInstances in this state
         :type old_states: list[airflow.utils.state.State]
         :param new_state: set TaskInstances to this state
@@ -970,6 +1028,7 @@ class SchedulerJob(BaseJob):
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         """
         tis_changed = 0
+        # noinspection PyUnresolvedReferences
         query = session \
             .query(models.TaskInstance) \
             .outerjoin(models.DagRun, and_(
@@ -979,7 +1038,7 @@ class SchedulerJob(BaseJob):
             .filter(models.TaskInstance.state.in_(old_states)) \
             .filter(or_(
                 models.DagRun.state != State.RUNNING,
-                models.DagRun.state.is_(None)))
+                models.DagRun.state.is_(None)))  # pylint: disable=no-member
         if self.using_sqlite:
             tis_to_change = query \
                 .with_for_update() \
@@ -1008,26 +1067,27 @@ class SchedulerJob(BaseJob):
             Stats.gauge('scheduler.tasks.without_dagrun', tis_changed)
 
     @provide_session
-    def __get_concurrency_maps(self, states, session=None):
+    def __get_concurrency_maps(self, states: Iterable[Optional[str]], session=None) -> \
+            Tuple[Dict[str, int], Dict[Tuple[str, str], int]]:
         """
         Get the concurrency maps.
 
         :param states: List of states to query for
-        :type states: list[airflow.utils.state.State]
+        :type states: iterable[airflow.utils.state.State]
         :return: A map from (dag_id, task_id) to # of task instances and
          a map from (dag_id, task_id) to # of task instances in the given state list
-        :rtype: dict[tuple[str, str], int]
+        :rtype: tuple[dict[str, int], dict[[str, str], int]]
 
         """
-        TI = models.TaskInstance
+        # noinspection PyUnresolvedReferences
         ti_concurrency_query = (
             session
-            .query(TI.task_id, TI.dag_id, func.count('*'))
-            .filter(TI.state.in_(states))
-            .group_by(TI.task_id, TI.dag_id)
+            .query(TaskInstance.task_id, TaskInstance.dag_id, func.count('*'))
+            .filter(TaskInstance.state.in_(states))
+            .group_by(TaskInstance.task_id, TaskInstance.dag_id)
         ).all()
-        dag_map = defaultdict(int)
-        task_map = defaultdict(int)
+        dag_map: Dict[str, int] = defaultdict(int)
+        task_map: Dict[Tuple[str, str], int] = defaultdict(int)
         for result in ti_concurrency_query:
             task_id, dag_id, count = result
             dag_map[dag_id] += count
@@ -1035,7 +1095,9 @@ class SchedulerJob(BaseJob):
         return dag_map, task_map
 
     @provide_session
-    def _find_executable_task_instances(self, simple_dag_bag, states, session=None):
+    def _find_executable_task_instances(self, simple_dag_bag: SimpleDagBag,
+                                        states: Iterable[Optional[str]],
+                                        session=None) -> List[TaskInstance]:
         """
         Finds TIs that are ready for execution with respect to pool limits,
         dag concurrency, executor state, and priority.
@@ -1043,47 +1105,48 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: TaskInstances associated with DAGs in the
             simple_dag_bag will be fetched from the DB and executed
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
-        :param executor: the executor that runs task instances
-        :type executor: BaseExecutor
         :param states: Execute TaskInstances in these states
-        :type states: tuple[airflow.utils.state.State]
+        :type states: iterable[airflow.utils.state.State]
         :return: list[airflow.models.TaskInstance]
         """
         from airflow.jobs.backfill_job import BackfillJob  # Avoid circular import
-        executable_tis = []
+        executable_tis: List[TaskInstance] = []
 
         # Get all task instances associated with scheduled
         # DagRuns which are not backfilled, in the given states,
         # and the dag is not paused
-        TI = models.TaskInstance
-        DR = models.DagRun
-        DM = models.DagModel
+        # noinspection PyUnresolvedReferences,PyComparisonWithNone
         ti_query = (
             session
-            .query(TI)
-            .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
+            .query(TaskInstance)
+            .filter(TaskInstance.dag_id.in_(simple_dag_bag.dag_ids))
             .outerjoin(
-                DR,
-                and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
+                DagRun,
+                and_(DagRun.dag_id == TaskInstance.dag_id,
+                     DagRun.execution_date == TaskInstance.execution_date)
             )
-            .filter(or_(DR.run_id == None,  # noqa: E711 pylint: disable=singleton-comparison
-                    not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
-            .outerjoin(DM, DM.dag_id == TI.dag_id)
-            .filter(or_(DM.dag_id == None,  # noqa: E711 pylint: disable=singleton-comparison
-                    not_(DM.is_paused)))
+            .filter(or_(DagRun.run_id == None,  # noqa: E711 pylint: disable=singleton-comparison
+                    not_(DagRun.run_id.  # type: ignore
+                         like(BackfillJob.ID_PREFIX + '%'))))  # type: ignore # pylint: disable=no-member
+            .outerjoin(DagModel, DagModel.dag_id == TaskInstance.dag_id)
+            .filter(or_(DagModel.dag_id == None,  # noqa: E711 pylint: disable=singleton-comparison
+                    not_(DagModel.is_paused)))
         )
 
         # Additional filters on task instance state
         if None in states:
+            # noinspection PyComparisonWithNone,PyUnresolvedReferences
             ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(states))  # noqa: E711 pylint: disable=singleton-comparison
+                or_(TaskInstance.state == None,   # noqa: E711 pylint: disable=singleton-comparison
+                    TaskInstance.state.in_(states))  # pylint: disable=no-member
             )
         else:
-            ti_query = ti_query.filter(TI.state.in_(states))
+            # noinspection PyUnresolvedReferences
+            ti_query = ti_query.filter(TaskInstance.state.in_(states))
 
         task_instances_to_examine = ti_query.all()
 
-        if len(task_instances_to_examine) == 0:
+        if not task_instances_to_examine:
             self.log.debug("No tasks to consider for execution.")
             return executable_tis
 
@@ -1098,7 +1161,7 @@ class SchedulerJob(BaseJob):
         # Get the pool settings
         pools = {p.pool: p for p in session.query(models.Pool).all()}
 
-        pool_to_task_instances = defaultdict(list)
+        pool_to_task_instances: Dict[str, List[TaskInstance]] = defaultdict(list)
         for task_instance in task_instances_to_examine:
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
@@ -1116,8 +1179,7 @@ class SchedulerJob(BaseJob):
                     pool
                 )
                 continue
-            else:
-                open_slots = pools[pool].open_slots(session=session)
+            open_slots = pools[pool].open_slots(session=session)
 
             num_ready = len(task_instances)
             self.log.info(
@@ -1127,7 +1189,8 @@ class SchedulerJob(BaseJob):
             )
 
             priority_sorted_task_instances = sorted(
-                task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date))
+                task_instances, key=lambda task_instance_lambda: (-task_instance_lambda.priority_weight,
+                                                                  task_instance_lambda.execution_date))
 
             # Number of tasks that cannot be scheduled because of no open slot in pool
             num_starving_tasks = 0
@@ -1214,47 +1277,50 @@ class SchedulerJob(BaseJob):
         return executable_tis
 
     @provide_session
-    def _change_state_for_executable_task_instances(self, task_instances,
-                                                    acceptable_states, session=None):
+    def _change_state_for_executable_task_instances(self, task_instances: List[TaskInstance],
+                                                    acceptable_states: Iterable[Optional[str]],
+                                                    session: Session = None):
         """
         Changes the state of task instances in the list with one of the given states
         to QUEUED atomically, and returns the TIs changed in SimpleTaskInstance format.
 
+        :param session: SQL Alchemy session
+        :type session: sqlalchemy.orm.session.Session
         :param task_instances: TaskInstances to change the state of
         :type task_instances: list[airflow.models.TaskInstance]
         :param acceptable_states: Filters the TaskInstances updated to be in these states
-        :type acceptable_states: Iterable[State]
+        :type acceptable_states: Iterable[Optional[str]]
         :rtype: list[airflow.models.taskinstance.SimpleTaskInstance]
         """
-        if len(task_instances) == 0:
+        if not task_instances:
             session.commit()
             return []
 
-        TI = models.TaskInstance
         filter_for_ti_state_change = (
             [and_(
-                TI.dag_id == ti.dag_id,
-                TI.task_id == ti.task_id,
-                TI.execution_date == ti.execution_date)
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.task_id == ti.task_id,
+                TaskInstance.execution_date == ti.execution_date)
                 for ti in task_instances])
         ti_query = (
             session
-            .query(TI)
+            .query(TaskInstance)
             .filter(or_(*filter_for_ti_state_change)))
 
         if None in acceptable_states:
             ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(acceptable_states))  # noqa pylint: disable=singleton-comparison
+                or_(TaskInstance.state == None, TaskInstance.state.in_(acceptable_states))  # noqa pylint: disable=singleton-comparison
             )
         else:
-            ti_query = ti_query.filter(TI.state.in_(acceptable_states))
+            # noinspection PyUnresolvedReferences
+            ti_query = ti_query.filter(TaskInstance.state.in_(acceptable_states))
 
         tis_to_set_to_queued = (
             ti_query
             .with_for_update()
             .all())
 
-        if len(tis_to_set_to_queued) == 0:
+        if not tis_to_set_to_queued:
             self.log.info("No tasks were able to have their state changed to queued.")
             session.commit()
             return []
@@ -1278,8 +1344,8 @@ class SchedulerJob(BaseJob):
                       len(tis_to_set_to_queued), task_instance_str)
         return simple_task_instances
 
-    def _enqueue_task_instances_with_queued_state(self, simple_dag_bag,
-                                                  simple_task_instances):
+    def _enqueue_task_instances_with_queued_state(self, simple_dag_bag: SimpleDagBag,
+                                                  simple_task_instances: List[SimpleTaskInstance]) -> None:
         """
         Takes task_instances, which should have been set to queued, and enqueues them
         with the executor.
@@ -1289,11 +1355,10 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: Should contains all of the task_instances' dags
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         """
-        TI = models.TaskInstance
         # actually enqueue them
         for simple_task_instance in simple_task_instances:
             simple_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
-            command = TI.generate_command(
+            command = TaskInstance.generate_command(
                 simple_task_instance.dag_id,
                 simple_task_instance.task_id,
                 simple_task_instance.execution_date,
@@ -1322,9 +1387,9 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def _execute_task_instances(self,
-                                simple_dag_bag,
-                                states,
-                                session=None):
+                                simple_dag_bag: SimpleDagBag,
+                                states: Iterable[Optional[str]],
+                                session: Session = None) -> int:
         """
         Attempts to execute TaskInstances that should be executed by the scheduler.
 
@@ -1334,11 +1399,13 @@ class SchedulerJob(BaseJob):
         2. Change the state for the TIs above atomically.
         3. Enqueue the TIs in the executor.
 
+        :param session: SQL Alchemy session
+        :type session: sqlalchemy.orm.session.Session
         :param simple_dag_bag: TaskInstances associated with DAGs in the
             simple_dag_bag will be fetched from the DB and executed
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         :param states: Execute TaskInstances in these states
-        :type states: tuple[airflow.utils.state.State]
+        :type states: iterable[airflow.utils.state.State]
         :return: Number of task instance with state changed.
         """
         executable_tis = self._find_executable_task_instances(simple_dag_bag, states,
@@ -1358,32 +1425,34 @@ class SchedulerJob(BaseJob):
         return helpers.reduce_in_chunks(query, executable_tis, 0, self.max_tis_per_query)
 
     @provide_session
-    def _change_state_for_tasks_failed_to_execute(self, session):
+    def _change_state_for_tasks_failed_to_execute(self, session: Session = None) -> None:
         """
         If there are tasks left over in the executor,
         we set them back to SCHEDULED to avoid creating hanging tasks.
 
         :param session: session for ORM operations
+        :type session: sqlalchemy.orm.session.Session
         """
         if self.executor.queued_tasks:
-            TI = models.TaskInstance
+            # noinspection PyProtectedMember
             filter_for_ti_state_change = (
                 [and_(
-                    TI.dag_id == dag_id,
-                    TI.task_id == task_id,
-                    TI.execution_date == execution_date,
-                    # The TI.try_number will return raw try_number+1 since the
+                    TaskInstance.dag_id == dag_id,
+                    TaskInstance.task_id == task_id,
+                    TaskInstance.execution_date == execution_date,
+                    # The TaskInstance.try_number will return raw try_number+1 since the
                     # ti is not running. And we need to -1 to match the DB record.
-                    TI._try_number == try_number - 1,
-                    TI.state == State.QUEUED)
+                    # TODO: refactor this. This is rather convoluted
+                    TaskInstance._try_number == try_number - 1,  # pylint: disable=protected-access
+                    TaskInstance.state == State.QUEUED)
                     for dag_id, task_id, execution_date, try_number
                     in self.executor.queued_tasks.keys()])
-            ti_query = (session.query(TI)
+            ti_query = (session.query(TaskInstance)
                         .filter(or_(*filter_for_ti_state_change)))
             tis_to_set_to_scheduled = (ti_query
                                        .with_for_update()
                                        .all())
-            if len(tis_to_set_to_scheduled) == 0:
+            if not tis_to_set_to_scheduled:
                 session.commit()
                 return
 
@@ -1400,13 +1469,18 @@ class SchedulerJob(BaseJob):
             self.log.info("Set the following tasks to scheduled state:\n\t%s", task_instance_str)
 
     @provide_session
-    def _process_executor_events(self, simple_dag_bag, session=None):
+    def _process_executor_events(self, simple_dag_bag: SimpleDagBag, session: Session = None) -> None:
         """
         Respond to executor events.
+
+        :param simple_dag_bag: DAG Bag to process
+        :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
+        :param session: SQL Alchemy session
+        :type session: sqlalchemy.orm.session.Session
+
         """
         # TODO: this shares quite a lot of code with _manage_executor_state
 
-        TI = models.TaskInstance
         for key, state in list(self.executor.get_event_buffer(simple_dag_bag.dag_ids)
                                    .items()):
             dag_id, task_id, execution_date, try_number = key
@@ -1415,10 +1489,10 @@ class SchedulerJob(BaseJob):
                 "exited with status %s for try_number %s",
                 dag_id, task_id, execution_date, state, try_number
             )
-            if state == State.FAILED or state == State.SUCCESS:
-                qry = session.query(TI).filter(TI.dag_id == dag_id,
-                                               TI.task_id == task_id,
-                                               TI.execution_date == execution_date)
+            if state in {State.FAILED, State.SUCCESS}:
+                qry = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id,
+                                                         TaskInstance.task_id == task_id,
+                                                         TaskInstance.execution_date == execution_date)
                 ti = qry.first()
                 if not ti:
                     self.log.warning("TaskInstance %s went missing from the database", ti)
@@ -1431,13 +1505,18 @@ class SchedulerJob(BaseJob):
                            "killed externally?".format(ti, state, ti.state))
                     Stats.incr('scheduler.tasks.killed_externally')
                     self.log.error(msg)
+                    # noinspection PyBroadException
                     try:
                         simple_dag = simple_dag_bag.get_dag(dag_id)
                         dagbag = models.DagBag(simple_dag.full_filepath)
                         dag = dagbag.get_dag(dag_id)
-                        ti.task = dag.get_task(task_id)
-                        ti.handle_failure(msg)
-                    except Exception:
+                        if dag:
+                            ti.task = dag.get_task(task_id)
+                            ti.handle_failure(msg)
+                        else:
+                            # The exception is caught few lines below
+                            raise AirflowException(f"Cannot load the DAG with dag id {dag_id}.")
+                    except Exception:  # pylint: disable=broad-except
                         self.log.error("Cannot load the dag bag to handle failure for %s"
                                        ". Setting task to FAILED without callbacks or "
                                        "retries. Do you have enough resources?", ti)
@@ -1445,7 +1524,7 @@ class SchedulerJob(BaseJob):
                         session.merge(ti)
                         session.commit()
 
-    def _execute(self):
+    def _execute(self) -> None:
         self.log.info("Starting the scheduler")
 
         # DAGs can be pickled for easier remote execution by some executors
@@ -1481,18 +1560,21 @@ class SchedulerJob(BaseJob):
                                                      processor_timeout,
                                                      async_mode)
 
+        # noinspection PyBroadException
         try:
             self._execute_helper()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.log.exception("Exception when executing execute_helper")
         finally:
+            if not self.processor_agent:
+                raise AirflowException("Processor agent is not set.")
             self.processor_agent.end()
             self.log.info("Exited execute loop")
 
     def _get_simple_dags(self):
         return self.processor_agent.harvest_simple_dags()
 
-    def _execute_helper(self):
+    def _execute_helper(self) -> None:
         """
         The actual scheduler loop. The main steps in the loop are:
             #. Harvest DAG parsing results through DagFileProcessorAgent
@@ -1514,6 +1596,8 @@ class SchedulerJob(BaseJob):
         self.log.info("Resetting orphaned tasks for active dag runs")
         self.reset_state_for_orphaned_tasks()
 
+        if not self.processor_agent:
+            raise AirflowException("Processor agent is not set.")
         # Start after resetting orphaned tasks to avoid stressing out DB.
         self.processor_agent.start()
 
@@ -1526,6 +1610,8 @@ class SchedulerJob(BaseJob):
         while True:
             self.log.debug("Starting Loop...")
             loop_start_time = time.time()
+            if not self.processor_agent:
+                raise AirflowException("Processor agent is not set.")
 
             if self.using_sqlite:
                 self.processor_agent.heartbeat()
@@ -1591,13 +1677,15 @@ class SchedulerJob(BaseJob):
 
         self.executor.end()
 
+        if not settings.Session:
+            raise ValueError("The settings.Session is None")
         settings.Session.remove()
 
     def _validate_and_run_task_instances(self, simple_dag_bag):
         if len(simple_dag_bag.simple_dags) > 0:
             try:
                 self._process_and_execute_tasks(simple_dag_bag)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-except
                 self.log.error("Error queuing tasks")
                 self.log.exception(e)
                 return False
@@ -1634,5 +1722,11 @@ class SchedulerJob(BaseJob):
                                      (State.SCHEDULED,))
 
     @provide_session
-    def heartbeat_callback(self, session=None):
+    def heartbeat_callback(self, session: Session = None) -> None:
+        """
+        Callback for heartbeats.
+
+        :param session: SQL Alchemy session
+        :type session: sqlalchemy.orm.session.Session
+        """
         Stats.incr('scheduler_heartbeat', 1, 1)

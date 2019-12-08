@@ -184,7 +184,7 @@ class TestDagFileProcessor(unittest.TestCase):
             dagbag = DagBag(executor=executor, dag_folder=os.path.join(settings.DAGS_FOLDER,
                                                                        "no_dags.py"))
             dag = self.create_test_dag()
-            dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
+            dagbag.bag_dag(dag=dag, root_dag=dag)
             dag = self.create_test_dag()
             task = DummyOperator(
                 task_id='dummy',
@@ -333,7 +333,7 @@ class TestDagFileProcessor(unittest.TestCase):
 
         dag_file_processor.manage_slas(dag=dag, session=session)
 
-        self.assertTrue(len(mock_send_email.call_args_list), 1)
+        self.assertEqual(len(mock_send_email.call_args_list), 1)
 
         send_email_to = mock_send_email.call_args_list[0][0][0]
         self.assertIn(email1, send_email_to)
@@ -761,11 +761,11 @@ class TestDagFileProcessor(unittest.TestCase):
                       catchup=catchup,
                       default_args=default_args)
 
-            op1 = DummyOperator(task_id='t1', dag=dag)
-            op2 = DummyOperator(task_id='t2', dag=dag)
-            op2.set_upstream(op1)
-            op3 = DummyOperator(task_id='t3', dag=dag)
-            op3.set_upstream(op2)
+            task_1 = DummyOperator(task_id='t1', dag=dag)
+            task_2 = DummyOperator(task_id='t2', dag=dag)
+            task_2.set_upstream(task_1)
+            task_3 = DummyOperator(task_id='t3', dag=dag)
+            task_3.set_upstream(task_2)
 
             session = settings.Session()
             orm_dag = DagModel(dag_id=dag.dag_id)
@@ -1198,8 +1198,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_default_pool'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
-        op1 = DummyOperator(dag=dag, task_id='dummy1')
-        op2 = DummyOperator(dag=dag, task_id='dummy2')
+        task_1 = DummyOperator(dag=dag, task_id='dummy1')
+        task_2 = DummyOperator(dag=dag, task_id='dummy2')
         dagbag = self._make_simple_dag_bag([dag])
 
         executor = MockExecutor(do_update=True)
@@ -1208,8 +1208,8 @@ class TestSchedulerJob(unittest.TestCase):
         dr1 = dag_file_processor.create_dag_run(dag)
         dr2 = dag_file_processor.create_dag_run(dag)
 
-        ti1 = TI(task=op1, execution_date=dr1.execution_date)
-        ti2 = TI(task=op2, execution_date=dr2.execution_date)
+        ti1 = TI(task=task_1, execution_date=dr1.execution_date)
+        ti2 = TI(task=task_2, execution_date=dr2.execution_date)
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
 
@@ -2280,11 +2280,11 @@ class TestSchedulerJob(unittest.TestCase):
             orm_dag.is_paused = False
             session.merge(orm_dag)
 
-        dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
+        dagbag.bag_dag(dag=dag, root_dag=dag)
 
         @mock.patch('airflow.models.DagBag', return_value=dagbag)
         @mock.patch('airflow.models.DagBag.collect_dags')
-        def do_schedule(mock_dagbag, mock_collect_dags):
+        def do_schedule(mock_dagbag=None, mock_collect_dags=None):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.
@@ -2338,11 +2338,11 @@ class TestSchedulerJob(unittest.TestCase):
             orm_dag.is_paused = False
             session.merge(orm_dag)
 
-        dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
+        dagbag.bag_dag(dag=dag, root_dag=dag)
 
         @mock.patch('airflow.models.DagBag', return_value=dagbag)
         @mock.patch('airflow.models.DagBag.collect_dags')
-        def do_schedule(mock_dagbag, mock_collect_dags):
+        def do_schedule(mock_dagbag=None, mock_collect_dags=None):
             # Use a empty file since the above mock will return the
             # expected DAGs. Also specify only a single file so that it doesn't
             # try to schedule the above DAG repeatedly.

@@ -98,7 +98,7 @@ SETTINGS_FILE_EMPTY = """
 SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
 
 
-class settings_context:  # pylint: disable=invalid-name
+class SettingsContext:
     """
     Sets a settings file and puts it in the Python classpath
 
@@ -171,7 +171,7 @@ class TestLoggingSettings(unittest.TestCase):
     # When we try to load an invalid config file, we expect an error
     def test_loading_invalid_local_settings(self):
         from airflow.logging_config import configure_logging, log
-        with settings_context(SETTINGS_FILE_INVALID):
+        with SettingsContext(SETTINGS_FILE_INVALID):
             with patch.object(log, 'warning') as mock_info:
                 # Load config
                 with self.assertRaises(ValueError):
@@ -185,7 +185,7 @@ class TestLoggingSettings(unittest.TestCase):
         # Test what happens when the config is somewhere in a subfolder
         module_structure = 'etc.airflow.config'
         dir_structure = module_structure.replace('.', '/')
-        with settings_context(SETTINGS_FILE_VALID, dir_structure):
+        with SettingsContext(SETTINGS_FILE_VALID, dir_structure):
             from airflow.logging_config import configure_logging, log
             with patch.object(log, 'info') as mock_info:
                 configure_logging()
@@ -198,7 +198,7 @@ class TestLoggingSettings(unittest.TestCase):
 
     # When we try to load a valid config
     def test_loading_valid_local_settings(self):
-        with settings_context(SETTINGS_FILE_VALID):
+        with SettingsContext(SETTINGS_FILE_VALID):
             from airflow.logging_config import configure_logging, log
             with patch.object(log, 'info') as mock_info:
                 configure_logging()
@@ -211,7 +211,7 @@ class TestLoggingSettings(unittest.TestCase):
 
     # When we load an empty file, it should go to default
     def test_loading_no_local_settings(self):
-        with settings_context(SETTINGS_FILE_EMPTY):
+        with SettingsContext(SETTINGS_FILE_EMPTY):
             from airflow.logging_config import configure_logging
             with self.assertRaises(ImportError):
                 configure_logging()

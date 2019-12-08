@@ -117,7 +117,6 @@
 ./airflow/jobs/backfill_job.py
 ./airflow/jobs/base_job.py
 ./airflow/jobs/local_task_job.py
-./airflow/jobs/scheduler_job.py
 ./airflow/lineage/backend/atlas/typedefs.py
 ./airflow/lineage/datasets.py
 ./airflow/logging_config.py
@@ -126,10 +125,7 @@
 ./airflow/models/base.py
 ./airflow/models/connection.py
 ./airflow/models/crypto.py
-./airflow/models/dag.py
-./airflow/models/dagbag.py
 ./airflow/models/dagpickle.py
-./airflow/models/dagrun.py
 ./airflow/models/errors.py
 ./airflow/models/kubernetes.py
 ./airflow/models/log.py

@@ -20,24 +20,28 @@
 from datetime import datetime
 from typing import Optional
 
+from airflow import DAG
 from airflow.exceptions import DagNotFound, DagRunNotFound, TaskNotFound
-from airflow.models import DagBag, DagModel, DagRun
+from airflow.models import DagBag, DagRun
 
 
-def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DagModel:
+def check_and_get_dag(dag_id: str, task_id: Optional[str] = None) -> DAG:
     """Checks that DAG exists and in case it is specified that Task exist"""
     dagbag = DagBag()
     if dag_id not in dagbag.dags:
-        error_message = "Dag id {} not found".format(dag_id)
+        error_message = f"Dag id {dag_id} not found"
         raise DagNotFound(error_message)
     dag = dagbag.get_dag(dag_id)
+    if not dag:
+        error_message = f"Dag id {dag_id} not found"
+        raise DagNotFound(error_message)
     if task_id and not dag.has_task(task_id):
         error_message = 'Task {} not found in dag {}'.format(task_id, dag_id)
         raise TaskNotFound(error_message)
     return dag
 
 
-def check_and_get_dagrun(dag: DagModel, execution_date: datetime) -> DagRun:
+def check_and_get_dagrun(dag: DAG, execution_date: datetime) -> DagRun:
     """Get DagRun object and check that it exists"""
     dagrun = dag.get_dagrun(execution_date=execution_date)
     if not dagrun:

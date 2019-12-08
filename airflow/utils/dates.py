@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Dates utilities"""
 from datetime import datetime, timedelta
+from typing import Optional, Tuple, Union, cast
 
 from croniter import croniter
 from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest  # pylint: disable=unused-import
@@ -33,8 +33,31 @@ cron_presets = {
     '@yearly': '0 0 1 1 *',
 }
 
+# TODO: remove when some methods are extracted
+# pylint: disable=too-many-nested-blocks
+# pylint: disable=too-many-branches
 
-def date_range(start_date, end_date=None, num=None, delta=None):  # pylint: disable=too-many-branches
+
+ScheduleInterval = Union[str, timedelta, relativedelta]
+
+
+def get_timedelta_croniter_from_delta(start_date: datetime, delta: ScheduleInterval) -> \
+        Tuple[Optional[timedelta], Optional[croniter]]:
+    """
+    Converts ScheduleInterval into a tuple of timedelta, croniter (one of them will be None)
+    """
+    if isinstance(delta, str):
+        return None, croniter(delta, start_date)
+    elif isinstance(delta, timedelta):
+        return abs(delta), None
+    else:
+        raise Exception("Wait. delta must be either datetime.timedelta or cron expression as str")
+
+
+def date_range(start_date: datetime,
+               end_date: Optional[datetime] = None,
+               num: Optional[int] = None,
+               delta: Optional[ScheduleInterval] = None):  # pylint: disable=too-many-branches
     """
     Get a set of dates as a list based on a start, end and delta, delta
     can be something that can be added to `datetime.datetime`
@@ -56,6 +79,8 @@ def date_range(start_date, end_date=None, num=None, delta=None):  # pylint: disa
     :type start_date: datetime.datetime
     :param end_date: right boundary for the date range
     :type end_date: datetime.datetime
+    :param delta: time difference
+    :tupe delta: timedelta
     :param num: alternatively to end_date, you can specify the number of
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
@@ -72,49 +97,45 @@ def date_range(start_date, end_date=None, num=None, delta=None):  # pylint: disa
     if not end_date and not num:
         end_date = timezone.utcnow()
 
-    delta_iscron = False
     time_zone = start_date.tzinfo
+    if timezone.is_localized(start_date):
+        start_date = timezone.make_naive(start_date, time_zone)
 
-    if isinstance(delta, str):
-        delta_iscron = True
-        if timezone.is_localized(start_date):
-            start_date = timezone.make_naive(start_date, time_zone)
-        cron = croniter(delta, start_date)
-    elif isinstance(delta, timedelta):
-        delta = abs(delta)
-    else:
-        raise Exception("Wait. delta must be either datetime.timedelta or cron expression as str")
-
+    timedelta_specs, croniter_specs = get_timedelta_croniter_from_delta(start_date=start_date, delta=delta)
     dates = []
     if end_date:
         if timezone.is_naive(start_date) and not timezone.is_naive(end_date):
             end_date = timezone.make_naive(end_date, time_zone)
+        end_date = cast(datetime, end_date)  # Date time cannot be None here - casting helps with pylint
         while start_date <= end_date:
             if timezone.is_naive(start_date):
                 dates.append(timezone.make_aware(start_date, time_zone))
             else:
                 dates.append(start_date)
-
-            if delta_iscron:
-                start_date = cron.get_next(datetime)
-            else:
-                start_date += delta
+            if croniter_specs:
+                start_date = croniter_specs.get_next(datetime)
+            elif timedelta_specs:
+                start_date += timedelta_specs
     else:
+        if not num:
+            return sorted(dates)
         for _ in range(abs(num)):
             if timezone.is_naive(start_date):
                 dates.append(timezone.make_aware(start_date, time_zone))
             else:
                 dates.append(start_date)
 
-            if delta_iscron and num > 0:
-                start_date = cron.get_next(datetime)
-            elif delta_iscron:
-                start_date = cron.get_prev(datetime)
-            elif num > 0:
-                start_date += delta
-            else:
-                start_date -= delta
-
+            if croniter_specs:
+                if num > 0:
+                    start_date = croniter_specs.get_next(datetime)
+                else:
+                    start_date = croniter_specs.get_prev(datetime)
+            elif timedelta_specs:
+                delta = cast(timedelta, delta)  # At this time we know delta is timedelta
+                if num > 0:
+                    start_date += delta
+                else:
+                    start_date -= delta
     return sorted(dates)
 
 
@@ -205,7 +226,7 @@ def infer_time_unit(time_seconds_arr):
     specified in seconds.
     e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
     """
-    if len(time_seconds_arr) == 0:
+    if not time_seconds_arr:
         return 'hours'
     max_time_seconds = max(time_seconds_arr)
     if max_time_seconds <= 60 * 2:

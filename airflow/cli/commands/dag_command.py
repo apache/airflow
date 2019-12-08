@@ -42,8 +42,8 @@ def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt="fancy_grid"):
             'Run ID': dag_run.run_id,
             'State': dag_run.state,
             'DAG ID': dag_run.dag_id,
-            'Execution date': dag_run.execution_date.isoformat(),
-            'Start date': dag_run.start_date.isoformat() if dag_run.start_date else '',
+            'Execution date': dag_run.execution_date.isoformat() if dag_run.execution_date else None,
+            'Start date': dag_run.start_date.isoformat() if dag_run.start_date else None,
         } for dag_run in dag_runs
     )
     return "\n%s" % tabulate(

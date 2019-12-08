@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,12 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""Mixing as a base of Logging classes."""
 import logging
 import re
 import sys
 from logging import Handler, Logger, StreamHandler
-
 # 7-bit C1 ANSI escape sequences
+from types import TracebackType
+from typing import IO, AnyStr, Iterable, Iterator, List, Optional, Type
+
 ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
 
 
@@ -39,6 +41,7 @@ class LoggingMixin:
     """
     def __init__(self, context=None):
         self._set_context(context)
+        self._log: Optional[Logger] = None
 
     @property
     def log(self) -> Logger:
@@ -59,24 +62,74 @@ class LoggingMixin:
             set_context(self.log, context)
 
 
-# TODO: Formally inherit from io.IOBase
-class StreamLogWriter:
+class StreamLogWriter(IO[str]):
     """
     Allows to redirect stdout and stderr to logger
     """
+
+    def close(self) -> None:
+        pass
+
+    def fileno(self) -> int:
+        return 0
+
+    def read(self, n: int = 0) -> str:
+        return ""
+
+    def readable(self) -> bool:
+        return False
+
+    def readline(self, limit: int = 0) -> str:
+        return ""
+
+    def readlines(self, hint: int = 0) -> List[AnyStr]:
+        return []
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        return 0
+
+    def seekable(self) -> bool:
+        return False
+
+    def tell(self) -> int:
+        return 0
+
+    def truncate(self, size: Optional[int] = 0) -> int:
+        return 0
+
+    def writable(self) -> bool:
+        return True
+
+    def writelines(self, lines: Iterable[AnyStr]) -> None:
+        for line in lines:
+            self.write(line)
+
+    def __next__(self) -> AnyStr:
+        pass
+
+    def __iter__(self) -> Iterator[AnyStr]:
+        pass
+
+    def __enter__(self) -> IO[AnyStr]:
+        pass
+
+    def __exit__(self, t: Optional[Type[BaseException]], value: Optional[BaseException],
+                 traceback: Optional[TracebackType]) -> Optional[bool]:
+        pass
+
     encoding = False
 
-    def __init__(self, logger, level):
+    def __init__(self, logger: Logger, level: int):
         """
-        :param log: The log level method to write to, ie. log.debug, log.warning
-        :return:
+        :param logger: Logger to write the logs to
+        :param level: The log level method to write to, ie. log.debug, log.warning
         """
         self.logger = logger
         self.level = level
         self._buffer = str()
 
     @property
-    def closed(self):
+    def closed(self) -> bool:
         """
         Returns False to indicate that the stream is not closed (as it will be
         open for the duration of Airflow's lifecycle).
@@ -85,34 +138,43 @@ class StreamLogWriter:
         """
         return False
 
-    def _propagate_log(self, message):
+    def _propagate_log(self, message: AnyStr) -> None:
         """
         Propagate message removing escape codes.
         """
-        self.logger.log(self.level, remove_escape_codes(message))
+        if isinstance(message, bytes):
+            message_str = message.decode("utf-8")
+        else:
+            message_str = message
+        self.logger.log(self.level, remove_escape_codes(message_str))
 
-    def write(self, message):
+    def write(self, message: AnyStr) -> int:
         """
         Do whatever it takes to actually log the specified logging record
 
         :param message: message to log
         """
-        if not message.endswith("\n"):
-            self._buffer += message
+        if isinstance(message, bytes):
+            message_str = message.decode("utf-8")
         else:
-            self._buffer += message
+            message_str = message
+        if not message_str.endswith("\n"):
+            self._buffer += message_str
+        else:
+            self._buffer += message_str
             self._propagate_log(self._buffer.rstrip())
             self._buffer = str()
+        return len(message_str)
 
-    def flush(self):
+    def flush(self) -> None:
         """
         Ensure all logging output has been flushed
         """
-        if len(self._buffer) > 0:
+        if self._buffer:
             self._propagate_log(self._buffer)
             self._buffer = str()
 
-    def isatty(self):
+    def isatty(self) -> bool:
         """
         Returns False to indicate the fd is not connected to a tty(-like) device.
         For compatibility reasons.

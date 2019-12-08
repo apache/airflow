@@ -40,6 +40,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DuplicateTaskIdFound
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.base import Operator
+from airflow.models.dag import DAG
 from airflow.models.pool import Pool
 # noinspection PyPep8Naming
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
@@ -412,13 +413,18 @@ class BaseOperator(Operator, LoggingMixin):
         # Private attributes
         self._upstream_task_ids: Set[str] = set()
         self._downstream_task_ids: Set[str] = set()
-        self._dag = None
+        self._dag: Optional[DAG] = None
 
-        self.dag = dag or DagContext.get_current_dag()
+        if dag:
+            self.dag = dag
+        else:
+            current_dag = DagContext.get_current_dag()
+            if not current_dag:
+                raise ValueError("The DAG should be set for the operator")
+            self.dag = current_dag
 
         # subdag parameter is only set for SubDagOperator.
         # Setting it to None by default as other Operators do not have that field
-        from airflow.models.dag import DAG
         self.subdag: Optional[DAG] = None
 
         self._log = logging.getLogger("airflow.task.operators")
@@ -466,7 +472,6 @@ class BaseOperator(Operator, LoggingMixin):
 
         If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
         if isinstance(other, DAG):
             # if this dag is already assigned, do nothing
             # otherwise, do normal dag assignment
@@ -482,7 +487,6 @@ class BaseOperator(Operator, LoggingMixin):
 
         If "Other" is a DAG, the DAG is assigned to the Operator.
         """
-        from airflow.models.dag import DAG
         if isinstance(other, DAG):
             # if this dag is already assigned, do nothing
             # otherwise, do normal dag assignment
@@ -511,23 +515,22 @@ class BaseOperator(Operator, LoggingMixin):
     # /Composing Operators ---------------------------------------------
 
     @property
-    def dag(self) -> Any:
+    def dag(self) -> DAG:
         """
         Returns the Operator's DAG if set, otherwise raises an error
         """
-        if self.has_dag():
+        if self.has_dag() and self._dag:
             return self._dag
         else:
             raise AirflowException(
                 'Operator {} has not been assigned to a DAG yet'.format(self))
 
     @dag.setter
-    def dag(self, dag: Any):
+    def dag(self, dag: DAG):
         """
         Operators can be assigned to one DAG, one time. Repeat assignments to
         that same DAG are ok.
         """
-        from airflow.models.dag import DAG
         if dag is None:
             self._dag = None
             return
@@ -554,7 +557,7 @@ class BaseOperator(Operator, LoggingMixin):
     @property
     def dag_id(self) -> str:
         """Returns dag id if it has one or an adhoc + owner"""
-        if self.has_dag():
+        if self.has_dag() and self.dag and self.dag.dag_id:
             return self.dag.dag_id
         else:
             return 'adhoc_' + self.owner
@@ -594,7 +597,6 @@ class BaseOperator(Operator, LoggingMixin):
 
         if not self._dag:
             return self.priority_weight
-        from airflow import DAG
         dag: DAG = self._dag
         return self.priority_weight + sum(
             map(lambda task_id: dag.task_dict[task_id].priority_weight,
@@ -818,7 +820,7 @@ class BaseOperator(Operator, LoggingMixin):
         self.prepare_template()
 
     @property
-    def upstream_list(self) -> List[str]:
+    def upstream_list(self) -> List['BaseOperator']:
         """@property: list of tasks directly upstream"""
         return [self.dag.get_task(tid) for tid in self._upstream_task_ids]
 
@@ -828,7 +830,7 @@ class BaseOperator(Operator, LoggingMixin):
         return self._upstream_task_ids
 
     @property
-    def downstream_list(self) -> List[str]:
+    def downstream_list(self) -> List['BaseOperator']:
         """@property: list of tasks directly downstream"""
         return [self.dag.get_task(tid) for tid in self._downstream_task_ids]
 
@@ -921,7 +923,6 @@ class BaseOperator(Operator, LoggingMixin):
         """
         if not self._dag:
             return set()
-        from airflow import DAG
         dag: DAG = self._dag
         return list(map(lambda task_id: dag.task_dict[task_id],
                         self.get_flat_relative_ids(upstream)))
@@ -965,7 +966,7 @@ class BaseOperator(Operator, LoggingMixin):
         else:
             return self._downstream_task_ids
 
-    def get_direct_relatives(self, upstream: bool = False) -> List[str]:
+    def get_direct_relatives(self, upstream: bool = False) -> List['BaseOperator']:
         """
         Get list of the direct relatives to the current task, upstream or
         downstream.
@@ -993,13 +994,14 @@ class BaseOperator(Operator, LoggingMixin):
             item_set.add(item)
 
     def _set_relatives(self,
-                       task_or_task_list: Union['BaseOperator', List['BaseOperator']],
-                       upstream: bool = False) -> None:
-        """Sets relatives for the task or task list."""
-        try:
-            task_list = list(task_or_task_list)  # type: ignore
-        except TypeError:
-            task_list = [task_or_task_list]  # type: ignore
+                       task_or_task_list: Union['BaseOperator',
+                                                List['BaseOperator']],
+                       upstream: bool = False):
+        """Sets relatives for the task."""
+        if isinstance(task_or_task_list, List):
+            task_list = cast(List['BaseOperator'], task_or_task_list)
+        else:
+            task_list = cast(List['BaseOperator'], [task_or_task_list])
 
         for task in task_list:
             if not isinstance(task, BaseOperator):
@@ -1011,8 +1013,8 @@ class BaseOperator(Operator, LoggingMixin):
         # without a DAG are assigned to that DAG.
         # noinspection PyProtectedMember
         dags = {
-            task._dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access
-            for task in [self] + task_list if task.has_dag()}
+            task.dag.dag_id: task._dag  # type: ignore  # pylint: disable=protected-access
+            for task in [self] + task_list if task.dag and task.dag.dag_id}
 
         if len(dags) > 1:
             raise AirflowException(
@@ -1052,6 +1054,33 @@ class BaseOperator(Operator, LoggingMixin):
         task.
         """
         self._set_relatives(task_or_task_list, upstream=True)
+
+    def _set_relative_ids(self, task_id__or_task_id_list: Union[str, List[str]], upstream: bool = False) \
+            -> None:
+        """Sets relative task ids for the task."""
+        if isinstance(task_id__or_task_id_list, List):
+            task_list = cast(List[str], task_id__or_task_id_list)
+        else:
+            task_list = cast(List[str], [task_id__or_task_id_list])
+
+        if upstream:
+            self._upstream_task_ids = set(task_list)
+        else:
+            self._downstream_task_ids = set(task_list)
+
+    def set_downstream_ids(self, task_id_or_task_id_list: Union[str, List[str]]) -> None:
+        """
+        Set a task or a task list to be directly downstream from the current
+        task.
+        """
+        self._set_relative_ids(task_id_or_task_id_list, upstream=False)
+
+    def set_upstream_ids(self, task_id_or_task_id_list: Union[str, List[str]]) -> None:
+        """
+        Set a task or a task list to be directly upstream from the current
+        task.
+        """
+        self._set_relative_ids(task_id_or_task_id_list, upstream=True)
 
     @staticmethod
     def xcom_push(

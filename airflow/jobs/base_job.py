@@ -105,7 +105,7 @@ class BaseJob(Base, LoggingMixin):
         """
         return session.query(cls).order_by(cls.latest_heartbeat.desc()).limit(1).first()
 
-    def is_alive(self, grace_multiplier=2.1):
+    def is_alive(self, grace_multiplier: float = 2.1):
         """
         Is this job currently alive.
 

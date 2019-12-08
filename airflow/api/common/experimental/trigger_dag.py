@@ -23,6 +23,7 @@ from typing import List, Optional, Union
 
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
+from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -78,20 +79,20 @@ def _trigger_dag(
             run_conf = json.loads(conf)
 
     triggers = []
-    dags_to_trigger = []
-    dags_to_trigger.append(dag)
-    while dags_to_trigger:
-        dag = dags_to_trigger.pop()
-        trigger = dag.create_dagrun(
-            run_id=run_id,
-            execution_date=execution_date,
-            state=State.RUNNING,
-            conf=run_conf,
-            external_trigger=True,
-        )
-        triggers.append(trigger)
-        if dag.subdags:
-            dags_to_trigger.extend(dag.subdags)
+    if dag:
+        dags_to_trigger: List[DAG] = [dag]
+        while dags_to_trigger:
+            dag = dags_to_trigger.pop()
+            trigger = dag.create_dagrun(
+                run_id=run_id,
+                execution_date=execution_date,
+                state=State.RUNNING,
+                conf=run_conf,
+                external_trigger=True,
+            )
+            triggers.append(trigger)
+            if dag.subdags:
+                dags_to_trigger.extend([subdag for subdag in dag.subdags if subdag])
     return triggers
 
 

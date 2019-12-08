@@ -20,6 +20,7 @@
 """Base classes for DAG and DagBag."""
 
 from abc import ABCMeta, abstractmethod
+from typing import Iterable, Optional
 
 
 class BaseDag(metaclass=ABCMeta):
@@ -29,53 +30,55 @@ class BaseDag(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def dag_id(self):
+    def dag_id(self) -> Optional[str]:
         """
         :return: the DAG ID
-        :rtype: unicode
+        :rtype: str
         """
         raise NotImplementedError()
 
     @property
     @abstractmethod
-    def task_ids(self):
+    def task_ids(self) -> Iterable[str]:
         """
         :return: A list of task IDs that are in this DAG
-        :rtype: List[unicode]
+        :rtype: List[str]
         """
         raise NotImplementedError()
 
     @property
     @abstractmethod
-    def full_filepath(self):
+    def full_filepath(self) -> str:
         """
         :return: The absolute path to the file that contains this DAG's definition
-        :rtype: unicode
+        :rtype: str
         """
         raise NotImplementedError()
 
     @property
     @abstractmethod
-    def concurrency(self):
+    def concurrency(self) -> int:
         """
         :return: maximum number of tasks that can run simultaneously from this DAG
         :rtype: int
         """
         raise NotImplementedError()
 
+    @property
     @abstractmethod
-    def is_paused(self):
+    def is_paused(self) -> bool:
         """
         :return: whether this DAG is paused or not
         :rtype: bool
         """
         raise NotImplementedError()
 
+    @property
     @abstractmethod
-    def pickle_id(self):
+    def pickle_id(self) -> Optional[str]:
         """
         :return: The pickle ID for this DAG, if it has one. Otherwise None.
-        :rtype: unicode
+        :rtype: str
         """
         raise NotImplementedError
 
@@ -86,15 +89,15 @@ class BaseDagBag:
     """
     @property
     @abstractmethod
-    def dag_ids(self):
+    def dag_ids(self) -> Iterable[str]:
         """
         :return: a list of DAG IDs in this bag
-        :rtype: List[unicode]
+        :rtype: List[str]
         """
         raise NotImplementedError()
 
     @abstractmethod
-    def get_dag(self, dag_id):
+    def get_dag(self, dag_id) -> Optional['BaseDag']:
         """
         :return: whether the task exists in this bag
         :rtype: airflow.dag.base_dag.BaseDag

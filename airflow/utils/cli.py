@@ -165,7 +165,7 @@ def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     if not use_regex:
         return [get_dag(subdir, dag_id)]
     dagbag = DagBag(process_subdir(subdir))
-    matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
+    matched_dags = [dag for dag in dagbag.dags.values() if dag.dag_id and re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
             'dag_id could not be found with regex: {}. Either the dag did not exist '
