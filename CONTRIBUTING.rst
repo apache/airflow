@@ -221,7 +221,7 @@ Limitations:
     Breeze container-based solution provides a reproducible environment that is
     consistent with other developers.
 
--   You are **STRONGLY** encouraged to also install and use `pre-commit hooks <#pre-commit-hooks>`_
+-   You are **STRONGLY** encouraged to also install and use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`_
     for your local virtualenv development environment.
     Pre-commit hooks can speed up your development cycle a lot.
 
