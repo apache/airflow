@@ -22,6 +22,7 @@ import logging
 import signal
 import subprocess
 import textwrap
+from typing import List
 
 from tabulate import tabulate
 
@@ -31,6 +32,23 @@ from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.cli import get_dag, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
+
+
+def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt="fancy_grid"):
+    tabulat_data = (
+        {
+            'ID': dag_run.id,
+            'Run ID': dag_run.run_id,
+            'State': dag_run.state,
+            'DAG ID': dag_run.dag_id,
+            'Execution date': dag_run.execution_date.isoformat(),
+            'Start date': dag_run.start_date.isoformat() if dag_run.start_date else '',
+        } for dag_run in dag_runs
+    )
+    return "\n%s" % tabulate(
+        tabular_data=tabulat_data,
+        tablefmt=tablefmt
+    )
 
 
 @cli_utils.action_logging
@@ -275,42 +293,20 @@ def dag_list_dag_runs(args, dag=None):
         error_message = "Dag id {} not found".format(args.dag_id)
         raise AirflowException(error_message)
 
-    dag_runs = []
     state = args.state.lower() if args.state else None
-    for dag_run in DagRun.find(dag_id=args.dag_id,
-                               state=state,
-                               no_backfills=args.no_backfill):
-        dag_runs.append({
-            'id': dag_run.id,
-            'run_id': dag_run.run_id,
-            'state': dag_run.state,
-            'dag_id': dag_run.dag_id,
-            'execution_date': dag_run.execution_date.isoformat(),
-            'start_date': ((dag_run.start_date or '') and
-                           dag_run.start_date.isoformat()),
-        })
+    dag_runs = DagRun.find(
+        dag_id=args.dag_id,
+        state=state,
+        no_backfills=args.no_backfill
+    )
+
     if not dag_runs:
         print('No dag runs for {dag_id}'.format(dag_id=args.dag_id))
+        return
 
-    header_template = textwrap.dedent("""\n
-    {line}
-    DAG RUNS
-    {line}
-    {dag_run_header}
-    """)
-
-    dag_runs.sort(key=lambda x: x['execution_date'], reverse=True)
-    dag_run_header = '%-3s | %-20s | %-10s | %-20s | %-20s |' % ('id',
-                                                                 'run_id',
-                                                                 'state',
-                                                                 'execution_date',
-                                                                 'start_date')
-    print(header_template.format(dag_run_header=dag_run_header,
-                                 line='-' * 120))
-    for dag_run in dag_runs:
-        record = '%-3s | %-20s | %-10s | %-20s | %-20s |' % (dag_run['id'],
-                                                             dag_run['run_id'],
-                                                             dag_run['state'],
-                                                             dag_run['execution_date'],
-                                                             dag_run['start_date'])
-        print(record)
+    dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
+    table = _tabulate_dag_runs(
+        dag_runs,
+        tablefmt=args.output
+    )
+    print(table)
