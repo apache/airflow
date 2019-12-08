@@ -122,7 +122,7 @@ class PodLauncher(LoggingMixin):
         if get_logs:
             logs = self.read_pod_logs(pod)
             for line in logs:
-                self.log.info("Log: %s", line.decode().rstrip())
+                self.log.info("%s", line.decode().rstrip())
         result = None
         if self.extract_xcom:
             while self.base_container_is_running(pod):
@@ -222,7 +222,6 @@ class PodLauncher(LoggingMixin):
                 resp.update(timeout=1)
                 if resp.peek_stdout():
                     stdout = resp.read_stdout()
-                    self.log.info("Stdout: %s", stdout.rstrip())
                     return stdout
                 if resp.peek_stderr():
                     self.log.info("Stderr: %s", resp.read_stderr().rstrip())
