@@ -22,7 +22,7 @@ import inspect
 import os
 import re
 import sys
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Set, Type
 
 import pkg_resources
 
@@ -110,6 +110,33 @@ def load_entrypoint_plugins(entry_points, airflow_plugins):
                 plugin_obj.on_load()
                 airflow_plugins.append(plugin_obj)
     return airflow_plugins
+
+
+def register_inbuilt_operator_links() -> None:
+    """
+    Register all the Operators Links that are already defined for the operators
+    in the "airflow" project. Example: QDSLink (Operator Link for Qubole Operator)
+
+    This is required to populate the "whitelist" of allowed classes when deserializing operator links
+    """
+    inbuilt_operator_links: Set[Type] = set()
+
+    try:
+        from airflow.gcp.operators.bigquery import BigQueryConsoleLink, BigQueryConsoleIndexableLink  # noqa E501 # pylint: disable=R0401,line-too-long
+        inbuilt_operator_links.update([BigQueryConsoleLink, BigQueryConsoleIndexableLink])
+    except ImportError:
+        pass
+
+    try:
+        from airflow.contrib.operators.qubole_operator import QDSLink   # pylint: disable=R0401
+        inbuilt_operator_links.update([QDSLink])
+    except ImportError:
+        pass
+
+    registered_operator_link_classes.update({
+        "{}.{}".format(link.__module__, link.__name__): link
+        for link in inbuilt_operator_links
+    })
 
 
 def is_valid_plugin(plugin_obj, existing_plugins):
@@ -200,6 +227,12 @@ flask_appbuilder_menu_links: List[Any] = []
 stat_name_handler: Any = None
 global_operator_extra_links: List[Any] = []
 operator_extra_links: List[Any] = []
+registered_operator_link_classes: Dict[str, Type] = {}
+"""Mapping of class names to class of OperatorLinks registered by plugins.
+
+Used by the DAG serialization code to only allow specific classes to be created
+during deserialization
+"""
 
 stat_name_handlers = []
 for p in plugins:
@@ -227,10 +260,13 @@ for p in plugins:
     if p.stat_name_handler:
         stat_name_handlers.append(p.stat_name_handler)
     global_operator_extra_links.extend(p.global_operator_extra_links)
-    # Only register Operator links if its ``operators`` property is not an empty list
-    # So that we can only attach this links to a specific Operator
-    operator_extra_links.extend([
-        ope for ope in p.operator_extra_links if ope.operators])
+    operator_extra_links.extend([ope for ope in p.operator_extra_links])
+
+    registered_operator_link_classes.update({
+        "{}.{}".format(link.__class__.__module__,
+                       link.__class__.__name__): link.__class__
+        for link in p.operator_extra_links
+    })
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(
@@ -287,3 +323,4 @@ def integrate_plugins() -> None:
     integrate_hook_plugins()
     integrate_executor_plugins()
     integrate_macro_plugins()
+    register_inbuilt_operator_links()

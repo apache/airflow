@@ -24,8 +24,9 @@ This module contains Google BigQuery operators.
 
 import json
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
+from typing import Any, Dict, FrozenSet, Iterable, List, Optional, SupportsAbs, Union
 
+import attr
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
@@ -337,14 +338,13 @@ class BigQueryConsoleLink(BaseOperatorLink):
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
 
 
+@attr.s(auto_attribs=True)
 class BigQueryConsoleIndexableLink(BaseOperatorLink):
     """
     Helper class for constructing BigQuery link.
     """
 
-    def __init__(self, index) -> None:
-        super().__init__()
-        self.index = index
+    index: int = attr.ib()
 
     @property
     def name(self) -> str:
@@ -458,6 +458,9 @@ class BigQueryOperator(BaseOperator):
     template_fields = ('sql', 'destination_dataset_table', 'labels')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
+
+    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
+    __serialized_fields: Optional[FrozenSet[str]] = None
 
     @property
     def operator_extra_links(self):
@@ -593,6 +596,13 @@ class BigQueryOperator(BaseOperator):
         if self.bq_cursor is not None:
             self.log.info('Cancelling running query')
             self.bq_cursor.cancel_query()
+
+    @classmethod
+    def get_serialized_fields(cls):
+        """Serialized BigQueryOperator contain exactly these fields."""
+        if not cls.__serialized_fields:
+            cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"sql"})
+        return cls.__serialized_fields
 
 
 class BigQueryCreateEmptyTableOperator(BaseOperator):

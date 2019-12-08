@@ -39,9 +39,11 @@ class SFTPSensor(BaseSensorOperator):
     def __init__(self, path, sftp_conn_id='sftp_default', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.path = path
-        self.hook = SFTPHook(sftp_conn_id)
+        self.hook = None
+        self.sftp_conn_id = sftp_conn_id
 
     def poke(self, context):
+        self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info('Poking for %s', self.path)
         try:
             self.hook.get_mod_time(self.path)
