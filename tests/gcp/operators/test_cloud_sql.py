@@ -227,7 +227,7 @@ class TestCloudSql(unittest.TestCase):
 
     @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
     def test_create_should_throw_ex_when_empty_project_id(self, mock_hook):
-        with self.assertRaises(ValueError) as cm:
+        with self.assertRaises(AirflowException) as cm:
             op = CloudSqlInstanceCreateOperator(
                 project_id="",
                 body=CREATE_BODY,
