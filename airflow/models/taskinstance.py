@@ -25,7 +25,7 @@ import os
 import signal
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, Optional, Tuple, Union, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 from urllib.parse import quote
 
 import dill

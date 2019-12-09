@@ -35,7 +35,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle, DagRun
-from airflow.models.taskinstance import TaskInstanceKeyType
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.ti_deps.dep_context import BACKFILL_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
@@ -626,17 +626,26 @@ class BackfillJob(BaseJob):
 
     @provide_session
     def _collect_errors(self, ti_status, session=None):
-        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKey]):
+        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKeyType]) -> str:
             # Sorting by execution date first
             sorted_ti_keys = sorted(
                 set_ti_keys, key=lambda ti_key: (ti_key[2], ti_key[0], ti_key[1], ti_key[3]))
             return tabulate(sorted_ti_keys, headers=["DAG ID", "Task ID", "Execution date", "Try number"])
+
+        def tabulate_tis_set(set_tis: Set[TaskInstance]) -> str:
+            # Sorting by execution date first
+            sorted_tis = sorted(
+                set_tis, key=lambda ti: (ti.execution_date, ti.dag_id, ti.task_id, ti.try_number))
+            tis_values = (
+                (ti.dag_id, ti.task_id, ti.execution_date, ti.try_number)
+                for ti in sorted_tis
+            )
+            return tabulate(tis_values, headers=["DAG ID", "Task ID", "Execution date", "Try number"])
+
         err = ''
         if ti_status.failed:
             err += "Some task instances failed:\n"
             err += tabulate_ti_keys_set(ti_status.failed)
-        if ti_status.failed and ti_status.deadlocked:
-            err += "-" * 79 + "\n"
         if ti_status.deadlocked:
             err += 'BackfillJob is deadlocked.'
             deadlocked_depends_on_past = any(
@@ -656,16 +665,16 @@ class BackfillJob(BaseJob):
                     'backfill with the option '
                     '"ignore_first_depends_on_past=True" or passing "-I" at '
                     'the command line.')
-            err += ' These tasks have succeeded:\n'
+            err += '\nThese tasks have succeeded:\n'
             err += tabulate_ti_keys_set(ti_status.succeeded)
-            err += '\n These tasks are running:\n'
+            err += '\n\nThese tasks are running:\n'
             err += tabulate_ti_keys_set(ti_status.running)
-            err += '\n These tasks have failed:\n'
+            err += '\n\nThese tasks have failed:\n'
             err += tabulate_ti_keys_set(ti_status.failed)
-            err += '\n These tasks are skipped:\n'
+            err += '\n\nThese tasks are skipped:\n'
             err += tabulate_ti_keys_set(ti_status.skipped)
-            err += '\n These tasks are deadlocked:\n'
-            err += ti_status.deadlocked
+            err += '\n\nThese tasks are deadlocked:\n'
+            err += tabulate_tis_set(ti_status.deadlocked)
 
         return err
 
