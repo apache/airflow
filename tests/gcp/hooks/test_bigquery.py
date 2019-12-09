@@ -1379,7 +1379,12 @@ class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
 
 
 class TestBigQueryWithKMS(unittest.TestCase):
-    def test_create_empty_table_with_kms(self):
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_empty_table_with_kms(self, mock_get_service, mock_get_creds_and_proj_id):
         project_id = "bq-project"
         dataset_id = "bq_dataset"
         table_id = "bq_table"
@@ -1390,9 +1395,10 @@ class TestBigQueryWithKMS(unittest.TestCase):
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
 
         cursor.create_empty_table(
             project_id=project_id,
@@ -1412,7 +1418,12 @@ class TestBigQueryWithKMS(unittest.TestCase):
         )
 
     # pylint: disable=too-many-locals
-    def test_create_external_table_with_kms(self):
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_external_table_with_kms(self, mock_get_service, mock_project_id):
         project_id = "bq-project"
         dataset_id = "bq_dataset"
         table_id = "bq_table"
@@ -1439,9 +1450,10 @@ class TestBigQueryWithKMS(unittest.TestCase):
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
 
         cursor.create_external_table(
             external_project_dataset_table=external_project_dataset_table,
@@ -1492,7 +1504,12 @@ class TestBigQueryWithKMS(unittest.TestCase):
             projectId=project_id, datasetId=dataset_id, body=body
         )
 
-    def test_patch_table_with_kms(self):
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_patch_table_with_kms(self, mock_get_service, mock_project_id):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -1500,9 +1517,11 @@ class TestBigQueryWithKMS(unittest.TestCase):
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
 
-        mock_service = mock.Mock()
-        method = (mock_service.tables.return_value.patch)
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        mock_service = mock_get_service.return_value
+        method = mock_service.tables.return_value.patch
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+
         cursor.patch_table(
             dataset_id=dataset_id,
             table_id=table_id,
@@ -1521,12 +1540,18 @@ class TestBigQueryWithKMS(unittest.TestCase):
             body=body
         )
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_with_kms(self, run_with_config):
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_run_query_with_kms(self, run_with_config, mock_get_service, mock_get_creds_and_proj_id):
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.run_query(
             sql='query',
             encryption_configuration=encryption_configuration
@@ -1537,12 +1562,19 @@ class TestBigQueryWithKMS(unittest.TestCase):
             encryption_configuration
         )
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_copy_with_kms(self, run_with_config):
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value="project_id"
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_run_copy_with_kms(self, run_with_config, mock_get_service, mock_project_id):
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.run_copy(
             source_project_dataset_tables='p.d.st',
             destination_project_dataset_table='p.d.dt',
@@ -1554,12 +1586,19 @@ class TestBigQueryWithKMS(unittest.TestCase):
             encryption_configuration
         )
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_load_with_kms(self, run_with_config):
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+        return_value="project_id"
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_run_load_with_kms(self, run_with_config, mock_get_service, mock_project_id):
         encryption_configuration = {
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.run_load(
             destination_project_dataset_table='p.d.dt',
             source_uris=['abc.csv'],
