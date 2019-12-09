@@ -18,7 +18,6 @@
 # under the License.
 
 import unittest
-from typing import List
 from unittest import mock
 
 from googleapiclient.errors import HttpError
@@ -160,79 +159,106 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
             )
 
 
-# Helpers to test_cancel_queries that have mock_poll_job_complete returning false,
-# unless mock_job_cancel was called with the same job_id
-mock_canceled_jobs = []  # type: List
-
-
-def mock_poll_job_complete(job_id):
-    return job_id in mock_canceled_jobs
-
-
-# pylint: disable=invalid-name
-# noinspection PyUnusedLocal
-def mock_job_cancel(projectId, jobId):  # pylint: disable=unused-argument
-    mock_canceled_jobs.append(jobId)
-    return mock.Mock()
-
-
 class TestBigQueryBaseCursor(unittest.TestCase):
-    def test_invalid_schema_update_options(self):
-        with self.assertRaises(Exception) as context:
-            hook.BigQueryBaseCursor("test", "test").run_load(
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_invalid_schema_update_options(self, mock_get_service, mock_get_creds_and_proj_id):
+        with self.assertRaisesRegex(
+            Exception,
+            r"\['THIS IS NOT VALID'\] contains invalid schema update options.Please only use one or more of "
+            r"the following options: \['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]"
+        ):
+            bq_hook = hook.BigQueryHook()
+            cursor = bq_hook.get_cursor()
+            cursor.run_load(
                 "test.test",
                 "test_schema.json",
                 ["test_data.json"],
                 schema_update_options=["THIS IS NOT VALID"]
             )
-        self.assertIn("THIS IS NOT VALID", str(context.exception))
 
-    def test_invalid_schema_update_and_write_disposition(self):
-        with self.assertRaises(Exception) as context:
-            hook.BigQueryBaseCursor("test", "test").run_load(
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_invalid_schema_update_and_write_disposition(self, mock_get_service, mock_get_creds_and_proj_id):
+        with self.assertRaisesRegex(Exception, "schema_update_options is only allowed if"
+                                               " write_disposition is 'WRITE_APPEND' or 'WRITE_TRUNCATE'."):
+            bq_hook = hook.BigQueryHook()
+            cursor = bq_hook.get_cursor()
+            cursor.run_load(
                 "test.test",
                 "test_schema.json",
                 ["test_data.json"],
                 schema_update_options=['ALLOW_FIELD_ADDITION'],
                 write_disposition='WRITE_EMPTY'
             )
-        self.assertIn("schema_update_options is only", str(context.exception))
 
-    def test_cancel_queries(self):
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.poll_job_complete", side_effect=[False, True])
+    @mock.patch('airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_cancel_queries(self, mock_get_service, mock_get_creds_and_proj_id, mock_poll_job_complete):
         project_id = 12345
         running_job_id = 3
 
-        mock_jobs = mock.Mock()
-        mock_jobs.cancel = mock.Mock(side_effect=mock_job_cancel)
-        mock_service = mock.Mock()
-        mock_service.jobs = mock.Mock(return_value=mock_jobs)
+        mock_get_creds_and_proj_id.return_value = ("CREDENTIALS", project_id)
 
-        bq_hook = hook.BigQueryBaseCursor(mock_service, project_id)
-        bq_hook.running_job_id = running_job_id
-        bq_hook.poll_job_complete = mock.Mock(side_effect=mock_poll_job_complete)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.running_job_id = running_job_id
+        cursor.cancel_query()
 
-        bq_hook.cancel_query()
+        mock_poll_job_complete.has_calls(mock.call(running_job_id), mock.call(running_job_id))
+        mock_get_service.return_value.jobs.return_value.cancel.assert_called_once_with(
+            projectId=project_id, jobId=running_job_id
+        )
 
-        mock_jobs.cancel.assert_called_once_with(projectId=project_id, jobId=running_job_id)
-
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_sql_dialect_default(self, run_with_config):
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_run_query_sql_dialect_default(
+        self, run_with_config, mock_get_service, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.run_query('query')
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useLegacySql'], True)
 
     @parameterized.expand([(None, True), (True, True), (False, False)])
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
-    def test_run_query_sql_dialect(self, bool_val, expected, run_with_config):
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+    def test_run_query_sql_dialect(
+        self, bool_val, expected, run_with_config, mock_get_service, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.run_query('query', use_legacy_sql=bool_val)
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useLegacySql'], expected)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_sql_dialect_legacy_with_query_params(self, run_with_config):
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_run_query_sql_dialect_legacy_with_query_params(
+        self, run_with_config, mock_get_service, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         params = [{
             'name': "param_name",
             'parameterType': {'type': "STRING"},
@@ -242,21 +268,36 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useLegacySql'], False)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_sql_dialect_legacy_with_query_params_fails(self, mock_run_with_configuration):
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_run_query_sql_dialect_legacy_with_query_params_fails(
+        self, mock_get_service, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         params = [{
             'name': "param_name",
             'parameterType': {'type': "STRING"},
             'parameterValue': {'value': "param_value"}
         }]
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "Query parameters are not allowed when using legacy SQL"):
             cursor.run_query('query', use_legacy_sql=True, query_params=params)
 
     @parameterized.expand([(True,), (False,)])
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
-    def test_api_resource_configs(self, bool_val, run_with_config):
-        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+    def test_api_resource_configs(
+        self, bool_val, run_with_config, mock_get_service, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.run_query('query',
                          api_resource_configs={
                              'query': {'useQueryCache': bool_val}})
@@ -264,24 +305,41 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self.assertIs(args[0]['query']['useQueryCache'], bool_val)
         self.assertIs(args[0]['query']['useLegacySql'], True)
 
-    def test_api_resource_configs_duplication_warning(self):
-        with self.assertRaises(ValueError):
-            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_api_resource_configs_duplication_warning(self, mock_get_service, mock_get_creds_and_proj_id):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Values of useLegacySql param are duplicated\. api_resource_configs contained useLegacySql "
+            r"param in `query` config and useLegacySql was also provided with arg to run_query\(\) method\. "
+            r"Please remove duplicates\."
+        ):
+            bq_hook = hook.BigQueryHook()
+            cursor = bq_hook.get_cursor()
             cursor.run_query('query',
                              use_legacy_sql=True,
                              api_resource_configs={
                                  'query': {'useLegacySql': False}})
 
     def test_validate_value(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(
+            TypeError, "case_1 argument must have a type <class 'dict'> not <class 'str'>"
+        ):
             _validate_value("case_1", "a", dict)
         self.assertIsNone(_validate_value("case_2", 0, int))
 
     def test_duplication_check(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Values of key_one param are duplicated. api_resource_configs contained key_one param in"
+            r" `query` config and key_one was also provided with arg to run_query\(\) method. "
+            r"Please remove duplicates."
+        ):
             key_one = True
-            _api_resource_configs_duplication_check(
-                "key_one", key_one, {"key_one": False})
+            _api_resource_configs_duplication_check("key_one", key_one, {"key_one": False})
         self.assertIsNone(_api_resource_configs_duplication_check(
             "key_one", key_one, {"key_one": True}))
 
@@ -290,7 +348,9 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         valid_configs = ["test_config_known", "compatibility_val"]
         backward_compatibility_configs = {"compatibility_val": "val"}
 
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError, "test_config_unknown is not a valid src_fmt_configs for type test_format."
+        ):
             # This config should raise a value error.
             src_fmt_configs = {"test_config_unknown": "val"}
             _validate_src_fmt_configs(source_format,
