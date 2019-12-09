@@ -120,15 +120,22 @@ class TestBigQueryTableSplitter(unittest.TestCase):
 
 
 class TestBigQueryHookSourceFormat(unittest.TestCase):
-    def test_invalid_source_format(self):
-        with self.assertRaises(Exception) as context:
-            hook.BigQueryBaseCursor("test", "test").run_load(
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_invalid_source_format(self, mock_get_service, mock_get_creds_and_proj_id):
+        with self.assertRaisesRegex(
+            Exception,
+            r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
+            r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]"
+        ):
+            bq_hook = hook.BigQueryHook()
+            cursor = bq_hook.get_cursor()
+            cursor.run_load(
                 "test.test", "test_schema.json", ["test_data.json"], source_format="json"
             )
-
-        # since we passed 'json' in, and it's not valid, make sure it's present in the
-        # error string.
-        self.assertIn("JSON", str(context.exception))
 
 
 class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
