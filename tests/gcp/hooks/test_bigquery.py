@@ -386,7 +386,9 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
 
 class TestTableDataOperations(unittest.TestCase):
-    def test_insert_all_succeed(self):
+    @mock.patch('airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_insert_all_succeed(self, mock_get_service, mock_get_creds_and_proj_id):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -400,12 +402,15 @@ class TestTableDataOperations(unittest.TestCase):
             "skipInvalidRows": False,
         }
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tabledata.return_value.insertAll
         method.return_value.execute.return_value = {
             "kind": "bigquery#tableDataInsertAllResponse"
         }
-        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+
+        mock_get_creds_and_proj_id.return_value = ("CREDENTIALS", project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.insert_all(project_id, dataset_id, table_id, rows)
         method.assert_called_once_with(
             projectId=project_id,
@@ -414,7 +419,9 @@ class TestTableDataOperations(unittest.TestCase):
             body=body
         )
 
-    def test_insert_all_fail(self):
+    @mock.patch('airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_insert_all_fail(self, mock_get_service, mock_get_creds_and_proj_id):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -422,7 +429,7 @@ class TestTableDataOperations(unittest.TestCase):
             {"json": {"a_key": "a_value_0"}}
         ]
 
-        mock_service = mock.Mock()
+        mock_service = mock_get_service.return_value
         method = mock_service.tabledata.return_value.insertAll
         method.return_value.execute.return_value = {
             "kind": "bigquery#tableDataInsertAllResponse",
@@ -433,8 +440,14 @@ class TestTableDataOperations(unittest.TestCase):
                 }
             ]
         }
-        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
-        with self.assertRaises(Exception):
+        mock_get_creds_and_proj_id.return_value = ("CREDENTIALS", project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        with self.assertRaisesRegex(
+            Exception,
+            r"BigQuery job failed\. Error was: 1 insert error\(s\) occurred: "
+            r"bq-project:bq_dataset\.bq_table\. Details: \[{'index': 1, 'errors': \[\]}\]"
+        ):
             cursor.insert_all(project_id, dataset_id, table_id,
                               rows, fail_on_error=True)
 
