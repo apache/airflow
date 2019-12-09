@@ -1324,19 +1324,22 @@ class TestBigQueryHookLegacySql(unittest.TestCase):
 
 
 class TestBigQueryHookLocation(unittest.TestCase):
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_location_propagates_properly(self, run_with_config):
-        with mock.patch.object(hook.BigQueryHook, 'get_service'):
-            bq_hook = hook.BigQueryHook(location=None)
-            self.assertIsNone(bq_hook.location)
-
-            bq_cursor = hook.BigQueryBaseCursor(mock.Mock(),
-                                                'test-project',
-                                                location=None)
-            self.assertIsNone(bq_cursor.location)
-            bq_cursor.run_query(sql='select 1', location='US')
-            assert run_with_config.call_count == 1
-            self.assertEqual(bq_cursor.location, 'US')
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_location_propagates_properly(
+        self, run_with_config, mock_get_service, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook(location=None)
+        self.assertIsNone(bq_hook.location)
+        cursor = bq_hook.get_cursor()
+        self.assertIsNone(cursor.location)
+        cursor.run_query(sql='select 1', location='US')
+        assert run_with_config.call_count == 1
+        self.assertEqual(cursor.location, 'US')
 
 
 class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
