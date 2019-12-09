@@ -1294,21 +1294,33 @@ class TestClusteringInRunJob(unittest.TestCase):
 class TestBigQueryHookLegacySql(unittest.TestCase):
     """Ensure `use_legacy_sql` param in `BigQueryHook` propagates properly."""
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_hook_uses_legacy_sql_by_default(self, run_with_config):
-        with mock.patch.object(hook.BigQueryHook, 'get_service'):
-            bq_hook = hook.BigQueryHook()
-            bq_hook.get_first('query')
-            args, kwargs = run_with_config.call_args
-            self.assertIs(args[0]['query']['useLegacySql'], True)
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_hook_uses_legacy_sql_by_default(
+        self, run_with_config, mock_get_service, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        bq_hook.get_first('query')
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['query']['useLegacySql'], True)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_legacy_sql_override_propagates_properly(self, run_with_config):
-        with mock.patch.object(hook.BigQueryHook, 'get_service'):
-            bq_hook = hook.BigQueryHook(use_legacy_sql=False)
-            bq_hook.get_first('query')
-            args, kwargs = run_with_config.call_args
-            self.assertIs(args[0]['query']['useLegacySql'], False)
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_legacy_sql_override_propagates_properly(
+        self, run_with_config, mock_get_service, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook(use_legacy_sql=False)
+        bq_hook.get_first('query')
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['query']['useLegacySql'], False)
 
 
 class TestBigQueryHookLocation(unittest.TestCase):
