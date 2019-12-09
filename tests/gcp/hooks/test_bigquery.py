@@ -755,9 +755,13 @@ class TestBigQueryCursor(unittest.TestCase):
 
 
 class TestLabelsInRunJob(unittest.TestCase):
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_with_arg(self, mocked_rwc):
-        project_id = 12345
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_run_query_with_arg(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
 
         def run_with_config(config):
             self.assertEqual(
@@ -765,8 +769,9 @@ class TestLabelsInRunJob(unittest.TestCase):
             )
         mocked_rwc.side_effect = run_with_config
 
-        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
-        bq_hook.run_query(
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.run_query(
             sql='select 1',
             destination_dataset_table='my_dataset.my_table',
             labels={'label1': 'test1', 'label2': 'test2'}
