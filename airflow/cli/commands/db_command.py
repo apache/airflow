@@ -61,8 +61,8 @@ def shell(args):
                 [client]
                 host     = {url.host}
                 user     = {url.username}
-                password = {url.password}
-                port     = {url.port}
+                password = {url.password or ""}
+                port     = {url.port or ""}
                 database = {url.database}
                 """).strip()
             f.write(content.encode())
