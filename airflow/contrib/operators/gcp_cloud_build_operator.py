@@ -20,10 +20,22 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.cloud_build import CloudBuildCreateBuildOperator  # noqa
+from airflow.gcp.operators.cloud_build import CloudBuildCreateOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.cloud_build`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class CloudBuildCreateBuildOperator(CloudBuildCreateOperator):
+    """
+    This class is deprecated. Please use `airflow.gcp.operators.cloud_build.CloudBuildCreateOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.cloud_build.CloudBuildCreateOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

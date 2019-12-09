@@ -203,7 +203,7 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_build.CloudBuildCreateBuildOperator",
+        "airflow.gcp.operators.cloud_build.CloudBuildCreateOperator",
         "airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator",
     ),
     (
