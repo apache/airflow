@@ -18,11 +18,12 @@
 InProcess Executor
 ==================
 
-The ``InProcessExecutor`` is meant as a debug tool and can be used from IDE.
-It is a single process executor that queues :class:`~models.taskinstance.TaskInstance`
-and executes them by running ``_run_raw_task`` method.
+The :class:`~airflow.executors.inprocess_executor.InProcessExecutor` is meant as
+a debug tool and can be used from IDE. It is a single process executor that
+queues :class:`~models.taskinstance.TaskInstance` and executes them by running
+``_run_raw_task`` method.
 
-Due to its nature the executor can be used with SQL Lite database. When used
+Due to its nature the executor can be used with SQLite database. When used
 with sensors the executor will change sensor mode to ``reschedule`` to do avoid
 blocking the execution of DAG.
 

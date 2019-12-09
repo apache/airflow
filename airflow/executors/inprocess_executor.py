@@ -32,11 +32,10 @@ from airflow.utils.state import State
 
 class InProcessExecutor(BaseExecutor):
     """
-    This executor is meant for debugging purposes. It can be used with
-    sqlite since sqlite do not support multiple connections.
+    This executor is meant for debugging purposes. It can be used with SQLite.
 
     It executes one task instance at time. Additionally to support working
-    with sensors, sensor's ``mode`` will be automatically set to "reschedule".
+    with sensors, all sensors ``mode`` will be automatically set to "reschedule".
     """
 
     _terminated = threading.Event()
@@ -77,7 +76,7 @@ class InProcessExecutor(BaseExecutor):
         self.log.debug("Executing task: %s", ti)
         key = ti.key
         try:
-            params = self.tasks_params.get(ti.key, {})
+            params = self.tasks_params.pop(ti.key, {})
             ti._run_raw_task(  # pylint: disable=protected-access
                 job_id=ti.job_id, **params
             )

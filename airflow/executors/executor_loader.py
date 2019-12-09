@@ -34,6 +34,14 @@ class ExecutorLoader:
     INPROCESS_EXECUTOR = "InProcessExecutor"
 
     _default_executor: Optional[BaseExecutor] = None
+    executors = {
+        LOCAL_EXECUTOR: 'airflow.executors.local_executor',
+        SEQUENTIAL_EXECUTOR: 'airflow.executors.sequential_executor',
+        CELERY_EXECUTOR: 'airflow.executors.celery_executor',
+        DASK_EXECUTOR: 'airflow.executors.dask_executor',
+        KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor',
+        INPROCESS_EXECUTOR: 'airflow.executors.inprocess_executor'
+    }
 
     @classmethod
     def get_default_executor(cls) -> BaseExecutor:
@@ -52,25 +60,15 @@ class ExecutorLoader:
 
         return cls._default_executor
 
-    @staticmethod
-    def _get_executor(executor_name: str) -> BaseExecutor:
+    @classmethod
+    def _get_executor(cls, executor_name: str) -> BaseExecutor:
         """
         Creates a new instance of the named executor.
         In case the executor name is unknown in airflow,
         look for it in the plugins
         """
-
-        executors = {
-            ExecutorLoader.LOCAL_EXECUTOR: 'airflow.executors.local_executor',
-            ExecutorLoader.SEQUENTIAL_EXECUTOR: 'airflow.executors.sequential_executor',
-            ExecutorLoader.CELERY_EXECUTOR: 'airflow.executors.celery_executor',
-            ExecutorLoader.DASK_EXECUTOR: 'airflow.executors.dask_executor',
-            ExecutorLoader.KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor',
-            ExecutorLoader.INPROCESS_EXECUTOR: 'airflow.executors.inprocess_executor'
-
-        }
-        if executor_name in executors:
-            executor_module = importlib.import_module(executors[executor_name])
+        if executor_name in cls.executors:
+            executor_module = importlib.import_module(cls.executors[executor_name])
             executor = getattr(executor_module, executor_name)
             return executor()
         else:

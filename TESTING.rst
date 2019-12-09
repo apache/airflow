@@ -294,9 +294,9 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
 DAG testing
 ===========
 
-To ease and speed up process of developing DAGs you can use ``InProcessExecutor`` - a single
-process executor for debugging purposes. Using this executor you can run and debug DAGs
-from your IDE.
+To ease and speed up process of developing DAGs you can use
+:class:`~airflow.executors.inprocess_executor.InProcessExecutor` - a single process executor
+for debugging purposes. Using this executor you can run and debug DAGs from your IDE.
 
 **IDE setup steps:**
 

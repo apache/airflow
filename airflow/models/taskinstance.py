@@ -899,7 +899,7 @@ class TaskInstance(Base, LoggingMixin):
 
                 task_copy = copy.copy(task)
 
-                # Sensors in `poke` mode can block execution od DAGs when running
+                # Sensors in `poke` mode can block execution of DAGs when running
                 # with single process executor, thus we change the mode to`reschedule`
                 # to allow parallel task being scheduled and executed
                 if issubclass(type(task_copy), BaseSensorOperator) and \
