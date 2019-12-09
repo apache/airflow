@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from typing import List, Optional
+from typing import List
 from unittest import mock
 
 from googleapiclient.errors import HttpError
@@ -32,25 +32,28 @@ from airflow.gcp.hooks.bigquery import (
 
 
 class TestBigQueryHookConnection(unittest.TestCase):
-    hook = None  # type: Optional[hook.BigQueryHook]
 
-    def setUp(self):
-        self.hook = hook.BigQueryHook()
-
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryConnection")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook._authorize")
     @mock.patch("airflow.gcp.hooks.bigquery.build")
-    def test_bigquery_client_creation(self, mock_build, mock_authorize, mock_bigquery_connection):
-        result = self.hook.get_conn()
+    def test_bigquery_client_creation(
+        self, mock_build, mock_authorize, mock_bigquery_connection, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        result = bq_hook.get_conn()
         mock_build.assert_called_once_with(
             'bigquery', 'v2', http=mock_authorize.return_value, cache_discovery=False
         )
         mock_bigquery_connection.assert_called_once_with(
             service=mock_build.return_value,
-            project_id=self.hook.project_id,
-            use_legacy_sql=self.hook.use_legacy_sql,
-            location=self.hook.location,
-            num_retries=self.hook.num_retries
+            project_id=bq_hook.project_id,
+            use_legacy_sql=bq_hook.use_legacy_sql,
+            location=bq_hook.location,
+            num_retries=bq_hook.num_retries
         )
         self.assertEqual(mock_bigquery_connection.return_value, result)
 
