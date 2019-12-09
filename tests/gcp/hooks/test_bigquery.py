@@ -16,13 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
 import unittest
 from typing import List, Optional
 from unittest import mock
 
 from googleapiclient.errors import HttpError
+from parameterized import parameterized
 
 from airflow.gcp.hooks import bigquery as hook
 from airflow.gcp.hooks.bigquery import (
@@ -133,96 +133,47 @@ class TestBigQueryDataframeResults(unittest.TestCase):
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('dataset.table', None)
+        with self.assertRaisesRegex(Exception, "INTERNAL: No default project is specified"):
+            hook._split_tablename("dataset.table", None)
 
-        self.assertIn('INTERNAL: No default project is specified',
-                      str(context.exception), "")
+    @parameterized.expand([
+        ("project", "dataset", "table", "dataset.table"),
+        ("alternative", "dataset", "table", "alternative:dataset.table"),
+        ("alternative", "dataset", "table", "alternative.dataset.table"),
+        ("alt1:alt", "dataset", "table", "alt1:alt.dataset.table"),
+        ("alt1:alt", "dataset", "table", "alt1:alt:dataset.table"),
+    ])
+    def test_split_tablename(self, project_expected, dataset_expected, table_expected, table_input):
+        default_project_id = "project"
+        project, dataset, table = hook._split_tablename(table_input, default_project_id)
+        self.assertEqual(project_expected, project)
+        self.assertEqual(dataset_expected, dataset)
+        self.assertEqual(table_expected, table)
 
-    def test_split_dataset_table(self):
-        project, dataset, table = hook._split_tablename('dataset.table',
-                                                        'project')
-        self.assertEqual("project", project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_split_project_dataset_table(self):
-        project, dataset, table = hook._split_tablename('alternative:dataset.table',
-                                                        'project')
-        self.assertEqual("alternative", project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_sql_split_project_dataset_table(self):
-        project, dataset, table = hook._split_tablename('alternative.dataset.table',
-                                                        'project')
-        self.assertEqual("alternative", project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_colon_in_project(self):
-        project, dataset, table = hook._split_tablename('alt1:alt.dataset.table',
-                                                        'project')
-
-        self.assertEqual('alt1:alt', project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_valid_double_column(self):
-        project, dataset, table = hook._split_tablename('alt1:alt:dataset.table',
-                                                        'project')
-
-        self.assertEqual('alt1:alt', project)
-        self.assertEqual("dataset", dataset)
-        self.assertEqual("table", table)
-
-    def test_invalid_syntax_triple_colon(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt2:alt3:dataset.table',
-                                  'project')
-
-        self.assertIn('Use either : or . to specify project',
-                      str(context.exception), "")
-        self.assertFalse('Format exception for' in str(context.exception))
-
-    def test_invalid_syntax_triple_dot(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1.alt.dataset.table',
-                                  'project')
-
-        self.assertIn('Expect format of (<project.|<project:)<dataset>.<table>',
-                      str(context.exception), "")
-        self.assertFalse('Format exception for' in str(context.exception))
-
-    def test_invalid_syntax_column_double_project_var(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt2:alt.dataset.table',
-                                  'project', 'var_x')
-
-        self.assertIn('Use either : or . to specify project',
-                      str(context.exception), "")
-        self.assertIn('Format exception for var_x:',
-                      str(context.exception), "")
-
-    def test_invalid_syntax_triple_colon_project_var(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt2:alt:dataset.table',
-                                  'project', 'var_x')
-
-        self.assertIn('Use either : or . to specify project',
-                      str(context.exception), "")
-        self.assertIn('Format exception for var_x:',
-                      str(context.exception), "")
-
-    def test_invalid_syntax_triple_dot_var(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1.alt.dataset.table',
-                                  'project', 'var_x')
-
-        self.assertIn('Expect format of (<project.|<project:)<dataset>.<table>',
-                      str(context.exception), "")
-        self.assertIn('Format exception for var_x:',
-                      str(context.exception), "")
+    @parameterized.expand([
+        ("alt1:alt2:alt3:dataset.table", None, "Use either : or . to specify project got {}"),
+        (
+            "alt1.alt.dataset.table", None,
+            r"Expect format of \(<project\.\|<project\:\)<dataset>\.<table>, got {}",
+        ),
+        (
+            "alt1:alt2:alt.dataset.table", "var_x",
+            "Format exception for var_x: Use either : or . to specify project got {}",
+        ),
+        (
+            "alt1:alt2:alt:dataset.table", "var_x",
+            "Format exception for var_x: Use either : or . to specify project got {}",
+        ),
+        (
+            "alt1.alt.dataset.table", "var_x",
+            r"Format exception for var_x: Expect format of "
+            r"\(<project\.\|<project:\)<dataset>.<table>, got {}",
+        ),
+    ])
+    def test_invalid_syntax(self, table_input, var_name, exception_message):
+        default_project_id = "project"
+        with self.assertRaisesRegex(Exception, exception_message.format(table_input)):
+            hook._split_tablename(table_input, default_project_id, var_name)
 
 
 class TestBigQueryHookSourceFormat(unittest.TestCase):
@@ -314,13 +265,13 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useLegacySql'], True)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_sql_dialect_override(self, run_with_config):
-        for bool_val in [True, False]:
-            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
-            cursor.run_query('query', use_legacy_sql=bool_val)
-            args, kwargs = run_with_config.call_args
-            self.assertIs(args[0]['query']['useLegacySql'], bool_val)
+    @parameterized.expand([(None, True), (True, True), (False, False)])
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_run_query_sql_dialect(self, bool_val, expected, run_with_config):
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        cursor.run_query('query', use_legacy_sql=bool_val)
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['query']['useLegacySql'], expected)
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_sql_dialect_legacy_with_query_params(self, run_with_config):
@@ -345,16 +296,16 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         with self.assertRaises(ValueError):
             cursor.run_query('query', use_legacy_sql=True, query_params=params)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_api_resource_configs(self, run_with_config):
-        for bool_val in [True, False]:
-            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
-            cursor.run_query('query',
-                             api_resource_configs={
-                                 'query': {'useQueryCache': bool_val}})
-            args, kwargs = run_with_config.call_args
-            self.assertIs(args[0]['query']['useQueryCache'], bool_val)
-            self.assertIs(args[0]['query']['useLegacySql'], True)
+    @parameterized.expand([(True,), (False,)])
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_api_resource_configs(self, bool_val, run_with_config):
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        cursor.run_query('query',
+                         api_resource_configs={
+                             'query': {'useQueryCache': bool_val}})
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['query']['useQueryCache'], bool_val)
+        self.assertIs(args[0]['query']['useLegacySql'], True)
 
     def test_api_resource_configs_duplication_warning(self):
         with self.assertRaises(ValueError):
