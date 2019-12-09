@@ -1343,28 +1343,31 @@ class TestBigQueryHookLocation(unittest.TestCase):
 
 
 class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
-    def test_run_with_configuration_location(self):
+    @mock.patch('airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_run_with_configuration_location(self, mock_get_service, mock_get_creds_and_proj_id):
         project_id = 'bq-project'
         running_job_id = 'job_vjdi28vskdui2onru23'
         location = 'asia-east1'
 
-        mock_service = mock.Mock()
-        method = (mock_service.jobs.return_value.get)
+        mock_get_creds_and_proj_id.return_value = ("CREDENTIALS", project_id)
+        method = mock_get_service.return_value.jobs.return_value.get
 
-        mock_service.jobs.return_value.insert.return_value.execute.return_value = {
+        mock_get_service.return_value.jobs.return_value.insert.return_value.execute.return_value = {
             'jobReference': {
                 'jobId': running_job_id,
                 'location': location
             }
         }
 
-        mock_service.jobs.return_value.get.return_value.execute.return_value = {
+        mock_get_service.return_value.jobs.return_value.get.return_value.execute.return_value = {
             'status': {
                 'state': 'DONE'
             }
         }
 
-        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
         cursor.running_job_id = running_job_id
         cursor.run_with_configuration({})
 
