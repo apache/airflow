@@ -728,7 +728,7 @@ class TestTableOperations(unittest.TestCase):
 
 
 class TestBigQueryCursor(unittest.TestCase):
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     def test_execute_with_parameters(self, mocked_rwc):
         hook.BigQueryCursor("test", "test").execute(
             "SELECT %(foo)s", {"foo": "bar"})
