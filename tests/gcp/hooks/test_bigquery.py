@@ -342,13 +342,17 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                                       backward_compatibility_configs)
 
         src_fmt_configs = {"test_config_known": "val"}
-        src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
-                                                    backward_compatibility_configs)
-        assert "test_config_known" in src_fmt_configs, \
-            "src_fmt_configs should contain al known src_fmt_configs"
-
-        assert "compatibility_val" in src_fmt_configs, \
+        src_fmt_configs = _validate_src_fmt_configs(
+            source_format, src_fmt_configs, valid_configs, backward_compatibility_configs
+        )
+        self.assertIn(
+            "test_config_known", src_fmt_configs, "src_fmt_configs should contain al known src_fmt_configs"
+        )
+        self.assertIn(
+            "compatibility_val",
+            src_fmt_configs,
             "_validate_src_fmt_configs should add backward_compatibility config"
+        )
 
 
 class TestTableDataOperations(unittest.TestCase):
@@ -651,7 +655,7 @@ class TestBigQueryCursor(unittest.TestCase):
     def test_execute_with_parameters(self, mocked_rwc):
         hook.BigQueryCursor("test", "test").execute(
             "SELECT %(foo)s", {"foo": "bar"})
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
 
 class TestLabelsInRunJob(unittest.TestCase):
@@ -672,7 +676,7 @@ class TestLabelsInRunJob(unittest.TestCase):
             labels={'label1': 'test1', 'label2': 'test2'}
         )
 
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
 
 class TestDatasetsOperations(unittest.TestCase):
@@ -962,7 +966,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
             source_uris=[],
         )
 
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_with_auto_detect(self, run_with_config):
@@ -995,7 +999,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
             time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
         )
 
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_default(self, mocked_rwc):
@@ -1008,7 +1012,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
         bq_hook.run_query(sql='select 1')
 
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_with_arg(self, mocked_rwc):
@@ -1033,7 +1037,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
                                'field': 'test_field', 'expirationMs': 1000}
         )
 
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
     def test_dollar_makes_partition(self):
         tp_out = _cleanse_time_partitioning('test.teast$20170101', {})
@@ -1073,7 +1077,7 @@ class TestClusteringInRunJob(unittest.TestCase):
             source_uris=[],
         )
 
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_load_with_arg(self, mocked_rwc):
@@ -1097,7 +1101,7 @@ class TestClusteringInRunJob(unittest.TestCase):
             time_partitioning={'type': 'DAY'}
         )
 
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_default(self, mocked_rwc):
@@ -1110,7 +1114,7 @@ class TestClusteringInRunJob(unittest.TestCase):
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
         bq_hook.run_query(sql='select 1')
 
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_with_arg(self, mocked_rwc):
@@ -1133,7 +1137,7 @@ class TestClusteringInRunJob(unittest.TestCase):
             time_partitioning={'type': 'DAY'}
         )
 
-        assert mocked_rwc.call_count == 1
+        self.assertEqual(mocked_rwc.call_count, 1, "run_with_configuration() was not called exactly once")
 
 
 class TestBigQueryHookLegacySql(unittest.TestCase):
@@ -1168,7 +1172,9 @@ class TestBigQueryHookLocation(unittest.TestCase):
                                                 location=None)
             self.assertIsNone(bq_cursor.location)
             bq_cursor.run_query(sql='select 1', location='US')
-            assert run_with_config.call_count == 1
+            self.assertEqual(
+                run_with_config.call_count, 1, "run_with_configuration() was not called exactly once"
+            )
             self.assertEqual(bq_cursor.location, 'US')
 
 
