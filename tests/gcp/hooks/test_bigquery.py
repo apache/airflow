@@ -64,7 +64,7 @@ class TestPandasGbqCredentials(unittest.TestCase):
         return_value=("CREDENTIALS", "PROJECT_ID",)
     )
     @mock.patch('airflow.gcp.hooks.bigquery.read_gbq')
-    def test_credentials_provided(self, mock_read_gbq, _):
+    def test_credentials_provided(self, mock_read_gbq, mock_get_creds_and_proj_id):
         self.instance = hook.BigQueryHook()  # pylint: disable=attribute-defined-outside-init
 
         self.instance.get_pandas_df('select 1')
