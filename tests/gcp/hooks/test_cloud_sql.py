@@ -37,7 +37,7 @@ from tests.gcp.utils.base_gcp_mock import (
 class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.CloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
             self.cloudsql_hook = CloudSqlHook(api_version='v1', gcp_conn_id='test')
 
@@ -420,12 +420,12 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
 
 class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
     def setUp(self):
-        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.CloudBaseHook.__init__',
                         new=mock_base_gcp_hook_no_default_project_id):
             self.cloudsql_hook_no_default_project_id = CloudSqlHook(api_version='v1', gcp_conn_id='test')
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -449,7 +449,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
                                                                operation_name='operation_id')
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -473,7 +473,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -497,7 +497,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
                                                                operation_name='operation_id')
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -521,7 +521,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -544,7 +544,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -567,7 +567,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -591,7 +591,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -614,7 +614,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -639,7 +639,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -663,7 +663,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -687,7 +687,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -710,7 +710,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -736,7 +736,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -760,7 +760,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -785,7 +785,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -809,7 +809,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -838,7 +838,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -863,7 +863,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -890,7 +890,7 @@ class TestGcpSqlHookNoDefaultProjectID(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -1077,7 +1077,7 @@ class TestCloudsqlDatabaseHook(unittest.TestCase):
         get_connection.return_value = connection
         hook = CloudSqlDatabaseHook(gcp_cloudsql_conn_id='cloudsql_connection',
                                     default_gcp_project_id='google_connection')
-        with self.assertRaises(AirflowException) as cm:
+        with self.assertRaises(ValueError) as cm:
             hook.get_sqlproxy_runner()
         err = cm.exception
         self.assertIn('Proxy runner can only be retrieved in case of use_proxy = True', str(err))

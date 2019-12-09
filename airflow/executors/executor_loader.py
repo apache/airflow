@@ -78,8 +78,9 @@ class ExecutorLoader:
             from airflow import plugins_manager
             plugins_manager.integrate_executor_plugins()
             executor_path = executor_name.split('.')
-            assert len(executor_path) == 2, f"Executor {executor_name} not supported: " \
-                                            f"please specify in format plugin_module.executor"
-
-            assert executor_path[0] in globals(), f"Executor {executor_name} not supported"
+            if len(executor_path) != 2:
+                raise ValueError(f"Executor {executor_name} not supported: "
+                                 f"please specify in format plugin_module.executor")
+            if executor_path[0] not in globals():
+                raise ValueError(f"Executor {executor_name} not supported")
             return globals()[executor_path[0]].__dict__[executor_path[1]]()

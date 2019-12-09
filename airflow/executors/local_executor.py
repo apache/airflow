@@ -188,7 +188,8 @@ class LocalExecutor(BaseExecutor):
             :param queue: Name of the queue
             :param executor_config: configuration for the executor
             """
-            assert self.executor.result_queue, NOT_STARTED_MESSAGE
+            if not self.executor.result_queue:
+                raise AirflowException(NOT_STARTED_MESSAGE)
             local_worker = LocalWorker(self.executor.result_queue, key=key, command=command)
             self.executor.workers_used += 1
             self.executor.workers_active += 1
@@ -228,10 +229,10 @@ class LocalExecutor(BaseExecutor):
         def start(self) -> None:
             """Starts limited parallelism implementation."""
             if not self.executor.manager:
-                raise AirflowException("Executor must be started!")
+                raise AirflowException(NOT_STARTED_MESSAGE)
             self.queue = self.executor.manager.Queue()
             if not self.executor.result_queue:
-                raise AirflowException("Executor must be started!")
+                raise AirflowException(NOT_STARTED_MESSAGE)
             self.executor.workers = [
                 QueuedLocalWorker(self.queue, self.executor.result_queue)
                 for _ in range(self.executor.parallelism)
@@ -257,7 +258,8 @@ class LocalExecutor(BaseExecutor):
             :param queue: name of the queue
             :param executor_config: configuration for the executor
            """
-            assert self.queue, NOT_STARTED_MESSAGE
+            if not self.queue:
+                raise AirflowException(NOT_STARTED_MESSAGE)
             self.queue.put((key, command))
 
         def sync(self):
@@ -300,14 +302,16 @@ class LocalExecutor(BaseExecutor):
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         """Execute asynchronously."""
-        assert self.impl, NOT_STARTED_MESSAGE
+        if not self.impl:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.impl.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
 
     def sync(self) -> None:
         """
         Sync will get called periodically by the heartbeat method.
         """
-        assert self.impl, NOT_STARTED_MESSAGE
+        if not self.impl:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.impl.sync()
 
     def end(self) -> None:
@@ -315,8 +319,10 @@ class LocalExecutor(BaseExecutor):
         Ends the executor.
         :return:
         """
-        assert self.impl, NOT_STARTED_MESSAGE
-        assert self.manager, NOT_STARTED_MESSAGE
+        if not self.impl:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.manager:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.impl.end()
         self.manager.shutdown()
 

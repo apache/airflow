@@ -21,7 +21,6 @@
 ./airflow/contrib/hooks/qubole_check_hook.py
 ./airflow/contrib/hooks/sagemaker_hook.py
 ./airflow/contrib/hooks/segment_hook.py
-./airflow/contrib/hooks/sftp_hook.py
 ./airflow/contrib/hooks/slack_webhook_hook.py
 ./airflow/contrib/hooks/snowflake_hook.py
 ./airflow/contrib/hooks/spark_jdbc_hook.py
@@ -65,7 +64,6 @@
 ./airflow/contrib/operators/sagemaker_transform_operator.py
 ./airflow/contrib/operators/sagemaker_tuning_operator.py
 ./airflow/contrib/operators/segment_track_event_operator.py
-./airflow/contrib/operators/sftp_operator.py
 ./airflow/contrib/operators/sftp_to_s3_operator.py
 ./airflow/contrib/operators/slack_webhook_operator.py
 ./airflow/contrib/operators/snowflake_operator.py
@@ -100,7 +98,6 @@
 ./airflow/contrib/sensors/sagemaker_training_sensor.py
 ./airflow/contrib/sensors/sagemaker_transform_sensor.py
 ./airflow/contrib/sensors/sagemaker_tuning_sensor.py
-./airflow/contrib/sensors/sftp_sensor.py
 ./airflow/contrib/sensors/wasb_sensor.py
 ./airflow/contrib/sensors/weekday_sensor.py
 ./airflow/hooks/dbapi_hook.py

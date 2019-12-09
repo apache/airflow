@@ -50,15 +50,20 @@ def puller(**kwargs):
 
     # get value_1
     pulled_value_1 = ti.xcom_pull(key=None, task_ids='push')
-    assert pulled_value_1 == value_1
+    if pulled_value_1 != value_1:
+        raise ValueError(f'The two values differ {pulled_value_1} and {value_1}')
 
     # get value_2
     pulled_value_2 = ti.xcom_pull(task_ids='push_by_returning')
-    assert pulled_value_2 == value_2
+    if pulled_value_2 != value_2:
+        raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
 
     # get both value_1 and value_2
     pulled_value_1, pulled_value_2 = ti.xcom_pull(key=None, task_ids=['push', 'push_by_returning'])
-    assert (pulled_value_1, pulled_value_2) == (value_1, value_2)
+    if pulled_value_1 != value_1:
+        raise ValueError(f'The two values differ {pulled_value_1} and {value_1}')
+    if pulled_value_2 != value_2:
+        raise ValueError(f'The two values differ {pulled_value_2} and {value_2}')
 
 
 push1 = PythonOperator(

@@ -30,10 +30,10 @@ from google.cloud.automl_v1beta1.types import (
     ImageObjectDetectionModelDeploymentMetadata, InputConfig, Model, Operation, PredictResponse, TableSpec,
 )
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class CloudAutoMLHook(GoogleCloudBaseHook):
+class CloudAutoMLHook(CloudBaseHook):
     """
     Google Cloud AutoML hook.
 
@@ -79,8 +79,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
             credentials=self._get_credentials(), client_info=self.client_info
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_model(
         self,
         model: Union[dict, Model],
@@ -115,15 +115,16 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.location_path(project_id, location)
         return client.create_model(
             parent=parent, model=model, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def batch_predict(
         self,
         model_id: str,
@@ -170,7 +171,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.prediction_client
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.batch_predict(
@@ -184,8 +186,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def predict(
         self,
         model_id: str,
@@ -225,7 +227,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.PredictResponse` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.prediction_client
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.predict(
@@ -238,8 +241,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_dataset(
         self,
         dataset: Union[dict, Dataset],
@@ -271,7 +274,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.Dataset` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.location_path(project=project_id, location=location)
         result = client.create_dataset(
@@ -283,8 +287,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def import_data(
         self,
         dataset_id: str,
@@ -319,7 +323,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.dataset_path(
             project=project_id, location=location, dataset=dataset_id
@@ -333,8 +338,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def list_column_specs(  # pylint: disable=too-many-arguments
         self,
         dataset_id: str,
@@ -382,7 +387,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.ColumnSpec` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.table_spec_path(
             project=project_id,
@@ -401,8 +407,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def get_model(
         self,
         model_id: str,
@@ -433,7 +439,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.Model` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.get_model(
@@ -441,8 +448,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_model(
         self,
         model_id: str,
@@ -473,7 +480,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.delete_model(
@@ -481,8 +489,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def update_dataset(
         self,
         dataset: Union[dict, Dataset],
@@ -515,7 +523,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.Dataset` instance..
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         result = client.update_dataset(
             dataset=dataset,
@@ -526,8 +535,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def deploy_model(
         self,
         model_id: str,
@@ -570,7 +579,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.deploy_model(
@@ -625,7 +635,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
             This object can also be configured to iterate over the pages
             of the response through the `options` parameter.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.dataset_path(
             project=project_id, location=location, dataset=dataset_id
@@ -640,8 +651,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def list_datasets(
         self,
         location: str,
@@ -672,7 +683,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
             This object can also be configured to iterate over the pages
             of the response through the `options` parameter.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.location_path(project=project_id, location=location)
         result = client.list_datasets(
@@ -680,8 +692,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_dataset(
         self,
         dataset_id: str,
@@ -712,7 +724,8 @@ class CloudAutoMLHook(GoogleCloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.dataset_path(
             project=project_id, location=location, dataset=dataset_id

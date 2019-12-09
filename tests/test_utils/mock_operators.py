@@ -15,13 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import namedtuple
+from typing import NamedTuple
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+
 # Namedtuple for testing purposes
-MockNamedTuple = namedtuple("MockNamedTuple", ["var1", "var2"])
+class MockNamedTuple(NamedTuple):
+    var1: str
+    var2: str
 
 
 class MockOperator(BaseOperator):

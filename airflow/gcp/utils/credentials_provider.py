@@ -108,8 +108,8 @@ def provide_gcp_credentials(
     :param key_file_dict: Dictionary with credentials.
     :type key_file_dict: Dict
     """
-    msg = "Please provide `key_file_path` or `key_file_dict`."
-    assert key_file_path or key_file_dict, msg
+    if not key_file_path and not key_file_dict:
+        raise ValueError("Please provide `key_file_path` or `key_file_dict`.")
 
     if key_file_path and key_file_path.endswith(".p12"):
         raise AirflowException(

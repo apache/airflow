@@ -138,9 +138,12 @@ class AWSDataSyncCreateTaskOperator(BaseOperator):
         if not location_arns:
             self.log.info('Creating location for LocationUri %s',
                           location_uri)
-            return self.get_hook().create_location(
+            location_arn = self.get_hook().create_location(
                 location_uri,
                 **create_location_kwargs)
+            self.log.info(
+                'Created a Location with LocationArn %s', location_arn)
+            return location_arn
         else:
             self.log.info('Found LocationArns %s for LocationUri %s',
                           location_arns, location_uri)
@@ -171,6 +174,7 @@ class AWSDataSyncCreateTaskOperator(BaseOperator):
         )
         if not self.task_arn:
             raise AirflowException('Task could not be created')
+        self.log.info('Created a Task with TaskArn %s', self.task_arn)
         return self.task_arn
 
 

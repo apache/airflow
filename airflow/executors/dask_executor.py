@@ -22,6 +22,7 @@ from typing import Any, Dict, Optional
 from distributed import Client, Future, as_completed
 from distributed.security import Security
 
+from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKeyType
@@ -35,7 +36,8 @@ class DaskExecutor(BaseExecutor):
         super().__init__(parallelism=0)
         if cluster_address is None:
             cluster_address = conf.get('dask', 'cluster_address')
-        assert cluster_address, 'Please provide a Dask cluster address in airflow.cfg'
+        if not cluster_address:
+            raise ValueError('Please provide a Dask cluster address in airflow.cfg')
         self.cluster_address = cluster_address
         # ssl / tls parameters
         self.tls_ca = conf.get('dask', 'tls_ca')
@@ -63,17 +65,21 @@ class DaskExecutor(BaseExecutor):
                       command: CommandType,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
-        assert self.futures, NOT_STARTED_MESSAGE
+        if not self.futures:
+            raise AirflowException(NOT_STARTED_MESSAGE)
 
         def airflow_run():
             return subprocess.check_call(command, close_fds=True)
 
-        assert self.client, "The Dask executor has not been started yet!"
+        if not self.client:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+
         future = self.client.submit(airflow_run, pure=False)
         self.futures[future] = key
 
     def _process_future(self, future: Future) -> None:
-        assert self.futures, NOT_STARTED_MESSAGE
+        if not self.futures:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         if future.done():
             key = self.futures[future]
             if future.exception():
@@ -87,19 +93,23 @@ class DaskExecutor(BaseExecutor):
             self.futures.pop(future)
 
     def sync(self) -> None:
-        assert self.futures, NOT_STARTED_MESSAGE
+        if not self.futures:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         # make a copy so futures can be popped during iteration
         for future in self.futures.copy():
             self._process_future(future)
 
     def end(self) -> None:
-        assert self.client, NOT_STARTED_MESSAGE
-        assert self.futures, NOT_STARTED_MESSAGE
+        if not self.client:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.futures:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.client.cancel(list(self.futures.keys()))
         for future in as_completed(self.futures.copy()):
             self._process_future(future)
 
     def terminate(self):
-        assert self.futures, NOT_STARTED_MESSAGE
+        if not self.futures:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.client.cancel(self.futures.keys())
         self.end()
