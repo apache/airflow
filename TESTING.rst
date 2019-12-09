@@ -27,7 +27,7 @@ Airflow Test Infrastructure
 * **Integration tests** are available in the Breeze development environment
   that is also used for Airflow Travis CI tests. Integration test are special tests that require
   additional services running - such as Postgres/Mysql/Kerberos etc. Those tests are not yet
-  clearly marked as integration tests but soon there will be clearly separated by pytest annotations.
+  clearly marked as integration tests but soon they will be clearly separated by pytest annotations.
 
 * **System tests** are automatic tests that use external systems like
   Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
