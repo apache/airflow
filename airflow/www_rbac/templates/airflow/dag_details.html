@@ -41,6 +41,14 @@
         <td>{{ dag.schedule_interval }}</td>
       </tr>
       <tr>
+        <th>start_date</td>
+        <td>{{ dag.start_date }}</td>
+      </tr>
+      <tr>
+        <th>end_date</td>
+        <td>{{ dag.end_date }}</td>
+      </tr>
+      <tr>
         <th>max_active_runs</td>
         <td>{{ active_runs | length }} / {{ dag.max_active_runs }}</td>
       </tr>
