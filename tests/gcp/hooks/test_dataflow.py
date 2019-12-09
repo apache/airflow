@@ -145,7 +145,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
 class TestDataFlowHook(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
+        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__'),
                         new=mock_init):
             self.dataflow_hook = DataFlowHook(gcp_conn_id='test')
 
@@ -297,7 +297,7 @@ class TestDataFlowHook(unittest.TestCase):
 class TestDataFlowTemplateHook(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
+        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__'),
                         new=mock_init):
             self.dataflow_hook = DataFlowHook(gcp_conn_id='test')
 

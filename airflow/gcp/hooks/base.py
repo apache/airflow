@@ -101,7 +101,7 @@ class retry_if_temporary_quota(tenacity.retry_if_exception):  # pylint: disable=
 RT = TypeVar('RT')  # pylint: disable=invalid-name
 
 
-class GoogleCloudBaseHook(BaseHook):
+class CloudBaseHook(BaseHook):
     """
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
     API client that is built in the same way no matter which service you use.
@@ -302,7 +302,7 @@ class GoogleCloudBaseHook(BaseHook):
         """
 
         @functools.wraps(func)
-        def wrapper_decorator(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
+        def wrapper_decorator(self: CloudBaseHook, *args, **kwargs) -> RT:
             try:
                 return func(self, *args, **kwargs)
             except GoogleAPICallError as e:
@@ -335,7 +335,7 @@ class GoogleCloudBaseHook(BaseHook):
         :return: result of the function call
         """
         @functools.wraps(func)
-        def inner_wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
+        def inner_wrapper(self: CloudBaseHook, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than"
@@ -362,7 +362,7 @@ class GoogleCloudBaseHook(BaseHook):
         makes it easier to use multiple connection in one function.
         """
         @functools.wraps(func)
-        def wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
+        def wrapper(self: CloudBaseHook, *args, **kwargs) -> RT:
             with self.provide_gcp_credential_file_as_context():
                 return func(self, *args, **kwargs)
         return wrapper

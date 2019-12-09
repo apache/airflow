@@ -24,8 +24,8 @@ import os
 import sys
 import textwrap
 import zipfile
-from collections import namedtuple
 from datetime import datetime, timedelta
+from typing import NamedTuple
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 
@@ -40,6 +40,17 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
+
+
+class FileLoadStat(NamedTuple):
+    """
+    Information about single file
+    """
+    file: str
+    duration: timedelta
+    dag_num: int
+    task_num: int
+    dags: str
 
 
 class DagBag(BaseDagBag, LoggingMixin):
@@ -402,8 +413,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing
         stats = []
-        FileLoadStat = namedtuple(
-            'FileLoadStat', "file duration dag_num task_num dags")
 
         from airflow.utils.file import correct_maybe_zipped, list_py_file_paths
         dag_folder = correct_maybe_zipped(dag_folder)

@@ -24,14 +24,14 @@ from typing import Any, Dict, Optional
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
 # noinspection PyAbstractClass
-class CloudBuildHook(GoogleCloudBaseHook):
+class CloudBuildHook(CloudBaseHook):
     """
     Hook for the Google Cloud Build APIs.
 
@@ -70,7 +70,7 @@ class CloudBuildHook(GoogleCloudBaseHook):
             self._conn = build("cloudbuild", self.api_version, http=http_authorized, cache_discovery=False)
         return self._conn
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_build(self, body: Dict, project_id: Optional[str] = None) -> Dict:
         """
         Starts a build with the specified configuration.

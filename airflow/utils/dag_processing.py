@@ -253,18 +253,20 @@ class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-DagParsingStat = NamedTuple('DagParsingStat', [
-    ('file_paths', List[str]),
-    ('done', bool),
-    ('all_files_processed', bool)
-])
-DagFileStat = NamedTuple('DagFileStat', [
-    ('num_dags', int),
-    ('import_errors', int),
-    ('last_finish_time', datetime),
-    ('last_duration', float),
-    ('run_count', int),
-])
+class DagParsingStat(NamedTuple):
+    """Information on processing progress"""
+    file_paths: List[str]
+    done: bool
+    all_files_processed: bool
+
+
+class DagFileStat(NamedTuple):
+    """Information about single processing of one file"""
+    num_dags: int
+    import_errors: int
+    last_finish_time: datetime
+    last_duration: float
+    run_count: int
 
 
 class DagParsingSignal(enum.Enum):

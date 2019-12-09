@@ -34,12 +34,12 @@ from google.cloud.container_v1.types import Cluster
 from google.protobuf.json_format import ParseDict
 
 from airflow import AirflowException, version
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
 
 
-class GKEClusterHook(GoogleCloudBaseHook):
+class GKEClusterHook(CloudBaseHook):
     """
     Hook for Google Kubernetes Engine APIs.
 
@@ -138,7 +138,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
         cluster_proto.resource_labels.update({key: val})
         return cluster_proto
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_cluster(
         self,
         name: str,
@@ -185,7 +185,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             self.log.info('Assuming Success: %s', error.message)
             return None
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_cluster(
         self,
         cluster: Union[Dict, Cluster],
@@ -243,7 +243,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             self.log.info('Assuming Success: %s', error.message)
             return self.get_cluster(name=cluster.name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def get_cluster(
         self,
         name: str,

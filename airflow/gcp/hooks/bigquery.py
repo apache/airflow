@@ -37,12 +37,12 @@ from pandas_gbq.gbq import (
 )
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
+class BigQueryHook(CloudBaseHook, DbApiHook):
     """
     Interact with BigQuery. This hook uses the Google Cloud Platform
     connection.
@@ -1846,7 +1846,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return datasets_list
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def get_dataset_tables_list(self, dataset_id, project_id=None, table_prefix=None, max_results=None):
         """
         Method returns tables list of a BigQuery dataset. If table prefix is specified,

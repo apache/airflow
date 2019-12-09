@@ -32,7 +32,7 @@ AUDIO_CONFIG = {"audio_encoding": "MP3"}
 class TestTextToSpeechHook(unittest.TestCase):
     def setUp(self):
         with patch(
-            "airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcp_text_to_speech_hook = CloudTextToSpeechHook(gcp_conn_id="test")

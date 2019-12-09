@@ -32,7 +32,7 @@ AUDIO = {"uri": "gs://bucket/object"}
 class TestTextToSpeechOperator(unittest.TestCase):
     def setUp(self):
         with patch(
-            "airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcp_speech_to_text_hook = CloudSpeechToTextHook(gcp_conn_id="test")

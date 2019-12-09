@@ -318,7 +318,7 @@ segment = [
     'analytics-python>=1.2.9',
 ]
 sendgrid = [
-    'sendgrid>=5.2.0,<6',
+    'sendgrid>=6.0.0,<7',
 ]
 sentry = [
     'blinker>=1.1',

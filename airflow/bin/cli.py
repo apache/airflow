@@ -601,7 +601,7 @@ class CLIFactory:
                             "search for all the dagruns with the given state. "
                             "If no_backfill option is given, it will filter out "
                             "all backfill dagruns for given dag id.",
-                    'args': ('dag_id', 'no_backfill', 'state'),
+                    'args': ('dag_id', 'no_backfill', 'state', 'output',),
                 },
                 {
                     'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),

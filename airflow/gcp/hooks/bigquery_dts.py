@@ -31,7 +31,7 @@ from google.cloud.bigquery_datatransfer_v1.types import (
 from google.protobuf.json_format import MessageToDict, ParseDict
 from googleapiclient.discovery import Resource
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
 def get_object_id(obj: dict) -> str:
@@ -41,7 +41,7 @@ def get_object_id(obj: dict) -> str:
     return obj["name"].rpartition("/")[-1]
 
 
-class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
+class BiqQueryDataTransferServiceHook(CloudBaseHook):
     """
      Hook for Google Bigquery Transfer API.
 
@@ -94,8 +94,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
             )
         return self._conn
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_transfer_config(
         self,
         transfer_config: Union[dict, TransferConfig],
@@ -139,8 +139,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_transfer_config(
         self,
         transfer_config_id: str,
@@ -177,8 +177,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
             name=name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def start_manual_transfer_runs(
         self,
         transfer_config_id: str,
@@ -234,8 +234,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def get_transfer_run(
         self,
         run_id: str,
