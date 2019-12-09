@@ -1846,6 +1846,69 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return datasets_list
 
+    @GoogleCloudBaseHook.catch_http_exception
+    def get_dataset_tables_list(self, dataset_id, project_id=None, table_prefix=None, max_results=None):
+        """
+        Method returns tables list of a BigQuery dataset. If table prefix is specified,
+        only tables beginning by it are returned.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :param table_prefix: Tables must begin by this prefix to be returned (case sensitive)
+        :type table_prefix: str
+        :param max_results: The maximum number of results to return in a single response page.
+            Leverage the page tokens to iterate through the entire collection.
+        :type max_results: int
+        :return: dataset_tables_list
+
+            Example of returned dataset_tables_list: ::
+
+                    [
+                       {
+                          "projectId": "your-project",
+                          "datasetId": "dataset",
+                          "tableId": "table1"
+                        },
+                        {
+                          "projectId": "your-project",
+                          "datasetId": "dataset",
+                          "tableId": "table2"
+                        }
+                    ]
+        """
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        optional_params = {}
+        if max_results:
+            optional_params['maxResults'] = max_results
+
+        request = self.service.tables().list(projectId=dataset_project_id,
+                                             datasetId=dataset_id,
+                                             **optional_params)
+        dataset_tables_list = []
+        while request is not None:
+            response = request.execute(num_retries=self.num_retries)
+
+            for table in response.get('tables', []):
+                table_ref = table.get('tableReference')
+                table_id = table_ref.get('tableId')
+                if table_id and (not table_prefix or table_id.startswith(table_prefix)):
+                    dataset_tables_list.append(table_ref)
+
+            request = self.service.tables().list_next(previous_request=request,
+                                                      previous_response=response)
+
+        self.log.info("%s tables found", len(dataset_tables_list))
+
+        return dataset_tables_list
+
     def patch_dataset(self, dataset_id: str, dataset_resource: str, project_id: Optional[str] = None) -> Dict:
         """
         Patches information in an existing dataset.

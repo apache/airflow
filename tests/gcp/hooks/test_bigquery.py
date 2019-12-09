@@ -797,6 +797,73 @@ class TestDatasetsOperations(unittest.TestCase):
                 project_id=project_id)
             self.assertEqual(result, expected_result['datasets'])
 
+    def test_get_dataset_tables_list(self):
+        tables_list_result = [
+            {
+                "tableReference": {
+                    "projectId": "project_test",
+                    "datasetId": "dataset_test",
+                    "tableId": "first_table"
+                }
+            },
+            {
+                "tableReference": {
+                    "projectId": "project_test",
+                    "datasetId": "dataset_test",
+                    "tableId": "second_table"
+                }
+            }
+        ]
+
+        project_id = "project_test"
+        dataset_id = "dataset_test"
+        table_prefix = "second"
+
+        expected_result = [table['tableReference'] for table in tables_list_result
+                           if table['tableReference']['tableId'].startswith(table_prefix)]
+
+        mock_service = mock.Mock()
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        mock_service.tables.return_value.list.return_value.execute.return_value = {
+            'tables': tables_list_result}
+        mock_service.tables.return_value.list_next.return_value = None
+
+        result = cursor.get_dataset_tables_list(project_id=project_id,
+                                                dataset_id=dataset_id,
+                                                table_prefix=table_prefix)
+
+        self.assertEqual(result, expected_result)
+
+    def test_get_dataset_tables_list_multiple_pages(self):
+        table = {
+            "tableReference": {
+                "projectId": "project_test",
+                "datasetId": "dataset_test",
+                "tableId": "table_test"
+            }
+        }
+        expected_result = [table['tableReference']] * 4
+        project_id = "project_test"
+        dataset_id = "dataset_test"
+
+        pages_requests = [
+            mock.Mock(**{'execute.return_value': {"tables": [table]}})
+            for _ in range(4)
+        ]
+        tables_mock = mock.Mock(
+            **{'list.return_value': pages_requests[1],
+               'list_next.side_effect': pages_requests[1:] + [None]}
+        )
+
+        mock_service = mock.Mock()
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        mock_service.tables.return_value = tables_mock
+
+        result = cursor.get_dataset_tables_list(project_id=project_id,
+                                                dataset_id=dataset_id)
+
+        self.assertEqual(result, expected_result)
+
     def test_delete_dataset(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'

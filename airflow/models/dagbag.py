@@ -317,6 +317,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         had a heartbeat for too long, in the current DagBag.
 
         :param zombies: zombie task instances to kill.
+        :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
         :param session: DB session.
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
