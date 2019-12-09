@@ -31,7 +31,7 @@ class ExecutorLoader:
     CELERY_EXECUTOR = "CeleryExecutor"
     DASK_EXECUTOR = "DaskExecutor"
     KUBERNETES_EXECUTOR = "KubernetesExecutor"
-    INPROCESS_EXECUTOR = "InProcessExecutor"
+    DEBUG_EXECUTOR = "DebugExecutor"
 
     _default_executor: Optional[BaseExecutor] = None
     executors = {
@@ -40,7 +40,7 @@ class ExecutorLoader:
         CELERY_EXECUTOR: 'airflow.executors.celery_executor',
         DASK_EXECUTOR: 'airflow.executors.dask_executor',
         KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor',
-        INPROCESS_EXECUTOR: 'airflow.executors.inprocess_executor'
+        DEBUG_EXECUTOR: 'airflow.executors.debug_executor'
     }
 
     @classmethod

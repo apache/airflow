@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains InProcessExecutor that is a single
+This module contains DebugExecutor that is a single
 process executor meaning it does not use multiprocessing.
 """
 
@@ -30,7 +30,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.utils.state import State
 
 
-class InProcessExecutor(BaseExecutor):
+class DebugExecutor(BaseExecutor):
     """
     This executor is meant for debugging purposes. It can be used with SQLite.
 

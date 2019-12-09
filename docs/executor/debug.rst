@@ -15,10 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-InProcess Executor
+Debug Executor
 ==================
 
-The :class:`~airflow.executors.inprocess_executor.InProcessExecutor` is meant as
+The :class:`~airflow.executors.debug_executor.DebugExecutor` is meant as
 a debug tool and can be used from IDE. It is a single process executor that
 queues :class:`~models.taskinstance.TaskInstance` and executes them by running
 ``_run_raw_task`` method.
@@ -27,7 +27,7 @@ Due to its nature the executor can be used with SQLite database. When used
 with sensors the executor will change sensor mode to ``reschedule`` to do avoid
 blocking the execution of DAG.
 
-Additionally ``InProcessExecutor`` can be used in a fail-fast mode that will make
+Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
 all other running or scheduled tasks fail immediately. To enable this option set
 ``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
 
@@ -43,7 +43,7 @@ all other running or scheduled tasks fail immediately. To enable this option set
 
    When you add those lines, running a DAG file will run a backfill job.
 
-2. Setup ``AIRFLOW__CORE__EXECUTOR=InProcessExecutor`` in run configuration of your IDE. In
+2. Setup ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in run configuration of your IDE. In
    this step you should also setup all environment variables required by your DAG.
 
 3. Run / debug the DAG file.

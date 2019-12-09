@@ -295,7 +295,7 @@ DAG testing
 ===========
 
 To ease and speed up process of developing DAGs you can use
-:class:`~airflow.executors.inprocess_executor.InProcessExecutor` - a single process executor
+:class:`~airflow.executors.debug_executor.DebugExecutor` - a single process executor
 for debugging purposes. Using this executor you can run and debug DAGs from your IDE.
 
 **IDE setup steps:**
@@ -310,11 +310,11 @@ for debugging purposes. Using this executor you can run and debug DAGs from your
 
    When you add those lines, running a DAG file will run a backfill job.
 
-2. Setup ``AIRFLOW__CORE__EXECUTOR=InProcessExecutor`` in run configuration of your IDE. In
+2. Setup ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in run configuration of your IDE. In
    this step you should also setup all environment variables required by your DAG.
 
 3. Run / debug the DAG file.
 
-Additionally ``InProcessExecutor`` can be used in a fail-fast mode that will make
+Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
 all other running or scheduled tasks fail immediately. To enable this option set
 ``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.

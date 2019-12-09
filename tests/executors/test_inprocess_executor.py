@@ -18,16 +18,16 @@
 from unittest import mock
 from unittest.mock import MagicMock
 
-from airflow.executors.inprocess_executor import InProcessExecutor
+from airflow.executors.debug_executor import DebugExecutor
 from airflow.utils.state import State
 
 
-class TestInProcessExecutor:
-    @mock.patch("airflow.executors.inprocess_executor.InProcessExecutor._run_task")
+class TestDebugExecutor:
+    @mock.patch("airflow.executors.debug_executor.DebugExecutor._run_task")
     def test_sync(self, run_task_mock):
         run_task_mock.return_value = True
 
-        executor = InProcessExecutor()
+        executor = DebugExecutor()
 
         ti1 = MagicMock(key="t1")
         ti2 = MagicMock(key="t2")
@@ -37,14 +37,14 @@ class TestInProcessExecutor:
         assert not executor.tasks_to_run
         run_task_mock.assert_has_calls([mock.call(ti1), mock.call(ti2)])
 
-    @mock.patch("airflow.executors.inprocess_executor.TaskInstance")
+    @mock.patch("airflow.executors.debug_executor.TaskInstance")
     def test_run_task(self, task_instance_mock):
         ti_key = "key"
         job_id = " job_id"
         task_instance_mock.key = ti_key
         task_instance_mock.job_id = job_id
 
-        executor = InProcessExecutor()
+        executor = DebugExecutor()
         executor.running = set([ti_key])
         succeeded = executor._run_task(task_instance_mock)
 
@@ -55,7 +55,7 @@ class TestInProcessExecutor:
         key = "ti_key"
         ti = MagicMock(key=key)
 
-        executor = InProcessExecutor()
+        executor = DebugExecutor()
         executor.queue_task_instance(task_instance=ti, mark_success=True, pool="pool")
 
         assert key in executor.queued_tasks
@@ -67,7 +67,7 @@ class TestInProcessExecutor:
 
     def test_trigger_tasks(self):
         execute_async_mock = MagicMock()
-        executor = InProcessExecutor()
+        executor = DebugExecutor()
         executor.execute_async = execute_async_mock
 
         executor.queued_tasks = {
@@ -84,7 +84,7 @@ class TestInProcessExecutor:
     def test_end(self):
         ti = MagicMock(key="ti_key")
 
-        executor = InProcessExecutor()
+        executor = DebugExecutor()
         executor.tasks_to_run = [ti]
         executor.running = set([ti.key])
         executor.end()
@@ -92,10 +92,10 @@ class TestInProcessExecutor:
         ti.set_state.assert_called_once_with(State.UPSTREAM_FAILED)
         assert not executor.running
 
-    @mock.patch("airflow.executors.inprocess_executor.InProcessExecutor.change_state")
+    @mock.patch("airflow.executors.debug_executor.DebugExecutor.change_state")
     def test_fail_fast(self, change_state_mock):
         with mock.patch.dict("os.environ", {"AIRFLOW__DEBUG__FAIL_FAST": "True"}):
-            executor = InProcessExecutor()
+            executor = DebugExecutor()
 
         ti1 = MagicMock(key="t1")
         ti2 = MagicMock(key="t2")
