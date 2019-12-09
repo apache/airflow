@@ -139,18 +139,25 @@ class TestBigQueryHookSourceFormat(unittest.TestCase):
 
 
 class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
-    def test_invalid_source_format(self):
-        with self.assertRaises(Exception) as context:
-            hook.BigQueryBaseCursor("test", "test").create_external_table(
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=("CREDENTIALS", "PROJECT_ID",)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_invalid_source_format(self, mock_get_service, mock_get_creds_and_proj_id):
+        with self.assertRaisesRegex(
+            Exception,
+            r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
+            r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]"
+        ):
+            bq_hook = hook.BigQueryHook()
+            cursor = bq_hook.get_cursor()
+            cursor.create_external_table(
                 external_project_dataset_table='test.test',
                 schema_fields='test_schema.json',
                 source_uris=['test_data.json'],
                 source_format='json'
             )
-
-        # since we passed 'csv' in, and it's not valid, make sure it's present in the
-        # error string.
-        self.assertIn("JSON", str(context.exception))
 
 
 # Helpers to test_cancel_queries that have mock_poll_job_complete returning false,
