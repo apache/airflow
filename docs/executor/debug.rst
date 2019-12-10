@@ -24,7 +24,7 @@ queues :class:`~models.taskinstance.TaskInstance` and executes them by running
 ``_run_raw_task`` method.
 
 Due to its nature the executor can be used with SQLite database. When used
-with sensors the executor will change sensor mode to ``reschedule`` to do avoid
+with sensors the executor will change sensor mode to ``reschedule`` to avoid
 blocking the execution of DAG.
 
 Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
