@@ -21,8 +21,10 @@
 import time
 from collections import OrderedDict
 from datetime import datetime
+from typing import Set
 
 from sqlalchemy.orm.session import Session, make_transient
+from tabulate import tabulate
 
 from airflow import models
 from airflow.exceptions import (
@@ -33,6 +35,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagPickle, DagRun
+from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.ti_deps.dep_context import BACKFILL_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
@@ -65,19 +68,19 @@ class BackfillJob(BaseJob):
         it easier to pass it around.
 
         :param to_run: Tasks to run in the backfill
-        :type to_run: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
+        :type to_run: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
         :param running: Maps running task instance key to task instance object
-        :type running: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
+        :type running: dict[tuple[TaskInstanceKeyType], airflow.models.TaskInstance]
         :param skipped: Tasks that have been skipped
-        :type skipped: set[tuple[string, string, datetime.datetime]]
+        :type skipped: set[tuple[TaskInstanceKeyType]]
         :param succeeded: Tasks that have succeeded so far
-        :type succeeded: set[tuple[string, string, datetime.datetime]]
+        :type succeeded: set[tuple[TaskInstanceKeyType]]
         :param failed: Tasks that have failed
-        :type failed: set[tuple[string, string, datetime.datetime]]
+        :type failed: set[tuple[TaskInstanceKeyType]]
         :param not_ready: Tasks not ready for execution
-        :type not_ready: set[tuple[string, string, datetime.datetime]]
+        :type not_ready: set[tuple[TaskInstanceKeyType]]
         :param deadlocked: Deadlocked tasks
-        :type deadlocked: set[tuple[string, string, datetime.datetime]]
+        :type deadlocked: set[airflow.models.TaskInstance]
         :param active_runs: Active dag runs at a certain point in time
         :type active_runs: list[DagRun]
         :param executed_dag_run_dates: Datetime objects for the executed dag runs
@@ -623,15 +626,28 @@ class BackfillJob(BaseJob):
 
     @provide_session
     def _collect_errors(self, ti_status, session=None):
+        def tabulate_ti_keys_set(set_ti_keys: Set[TaskInstanceKeyType]) -> str:
+            # Sorting by execution date first
+            sorted_ti_keys = sorted(
+                set_ti_keys, key=lambda ti_key: (ti_key[2], ti_key[0], ti_key[1], ti_key[3]))
+            return tabulate(sorted_ti_keys, headers=["DAG ID", "Task ID", "Execution date", "Try number"])
+
+        def tabulate_tis_set(set_tis: Set[TaskInstance]) -> str:
+            # Sorting by execution date first
+            sorted_tis = sorted(
+                set_tis, key=lambda ti: (ti.execution_date, ti.dag_id, ti.task_id, ti.try_number))
+            tis_values = (
+                (ti.dag_id, ti.task_id, ti.execution_date, ti.try_number)
+                for ti in sorted_tis
+            )
+            return tabulate(tis_values, headers=["DAG ID", "Task ID", "Execution date", "Try number"])
+
         err = ''
         if ti_status.failed:
-            err += (
-                "---------------------------------------------------\n"
-                "Some task instances failed:\n{}\n".format(ti_status.failed))
+            err += "Some task instances failed:\n"
+            err += tabulate_ti_keys_set(ti_status.failed)
         if ti_status.deadlocked:
-            err += (
-                '---------------------------------------------------\n'
-                'BackfillJob is deadlocked.')
+            err += 'BackfillJob is deadlocked.'
             deadlocked_depends_on_past = any(
                 t.are_dependencies_met(
                     dep_context=DepContext(ignore_depends_on_past=False),
@@ -649,11 +665,16 @@ class BackfillJob(BaseJob):
                     'backfill with the option '
                     '"ignore_first_depends_on_past=True" or passing "-I" at '
                     'the command line.')
-            err += ' These tasks have succeeded:\n{}\n'.format(ti_status.succeeded)
-            err += ' These tasks are running:\n{}\n'.format(ti_status.running)
-            err += ' These tasks have failed:\n{}\n'.format(ti_status.failed)
-            err += ' These tasks are skipped:\n{}\n'.format(ti_status.skipped)
-            err += ' These tasks are deadlocked:\n{}\n'.format(ti_status.deadlocked)
+            err += '\nThese tasks have succeeded:\n'
+            err += tabulate_ti_keys_set(ti_status.succeeded)
+            err += '\n\nThese tasks are running:\n'
+            err += tabulate_ti_keys_set(ti_status.running)
+            err += '\n\nThese tasks have failed:\n'
+            err += tabulate_ti_keys_set(ti_status.failed)
+            err += '\n\nThese tasks are skipped:\n'
+            err += tabulate_ti_keys_set(ti_status.skipped)
+            err += '\n\nThese tasks are deadlocked:\n'
+            err += tabulate_tis_set(ti_status.deadlocked)
 
         return err
 

@@ -221,7 +221,7 @@ Limitations:
     Breeze container-based solution provides a reproducible environment that is
     consistent with other developers.
 
--   You are **STRONGLY** encouraged to also install and use `pre-commit hooks <#pre-commit-hooks>`_
+-   You are **STRONGLY** encouraged to also install and use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`_
     for your local virtualenv development environment.
     Pre-commit hooks can speed up your development cycle a lot.
 
@@ -268,7 +268,7 @@ Static code checks
 ==================
 
 We check our code quality via static code checks. See
-`STATIC_CODE_CHECKS.rst`_ for details.
+`STATIC_CODE_CHECKS.rst <STATIC_CODE_CHECKS.rst>`_ for details.
 
 Your code must pass all the static code checks in Travis CI in order to be eligible for Code Review.
 The easiest way to make sure your code is good before pushing is to use pre-commit checks locally

@@ -148,6 +148,28 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
         self.assertIsNotNone(dag)
         self.assertEqual(len(dag.tasks), 1)
 
+**Unit test a DAG structure:**
+This is an example test want to verify the structure of a code-generated DAG against a dict object 
+
+.. code::
+
+ import unittest
+ class testClass(unittest.TestCase):
+     def assertDagDictEqual(self,source,dag):
+         self.assertEqual(dag.task_dict.keys(),source.keys())
+         for task_id,downstream_list in source.items():
+             self.assertTrue(dag.has_task(task_id), msg="Missing task_id: {} in dag".format(task_id))
+             task = dag.get_task(task_id)
+             self.assertEqual(task.downstream_task_ids, set(downstream_list),
+                              msg="unexpected downstream link in {}".format(task_id))
+     def test_dag(self):
+         self.assertDagDictEqual({   
+           "DummyInstruction_0": ["DummyInstruction_1"],   
+           "DummyInstruction_1": ["DummyInstruction_2"],   
+           "DummyInstruction_2": ["DummyInstruction_3"],   
+           "DummyInstruction_3": []   
+         },dag)   
+
 **Unit test for custom operator:**
 
 .. code::

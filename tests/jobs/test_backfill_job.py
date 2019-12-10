@@ -33,7 +33,8 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached,
 )
-from airflow.jobs import BackfillJob, SchedulerJob
+from airflow.jobs.backfill_job import BackfillJob
+from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
@@ -136,10 +137,12 @@ class TestBackfillJob(unittest.TestCase):
         target_dag = self.dagbag.get_dag('example_trigger_target_dag')
         target_dag.sync_to_db()
 
-        scheduler = SchedulerJob()
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=Mock())
         task_instances_list = Mock()
-        scheduler._process_task_instances(target_dag,
-                                          task_instances_list=task_instances_list)
+        dag_file_processor._process_task_instances(
+            target_dag,
+            task_instances_list=task_instances_list
+        )
         self.assertFalse(task_instances_list.append.called)
 
         job = BackfillJob(
@@ -150,8 +153,10 @@ class TestBackfillJob(unittest.TestCase):
         )
         job.run()
 
-        scheduler._process_task_instances(target_dag,
-                                          task_instances_list=task_instances_list)
+        dag_file_processor._process_task_instances(
+            target_dag,
+            task_instances_list=task_instances_list
+        )
 
         self.assertTrue(task_instances_list.append.called)
 
@@ -434,7 +439,7 @@ class TestBackfillJob(unittest.TestCase):
             if len(running_task_instances) == default_pool_slots:
                 default_pool_task_slot_count_reached_at_least_once = True
 
-        self.assertEquals(8, num_running_task_instances)
+        self.assertEqual(8, num_running_task_instances)
         self.assertTrue(default_pool_task_slot_count_reached_at_least_once)
 
         times_dag_concurrency_limit_reached_in_debug = self._times_called_with(

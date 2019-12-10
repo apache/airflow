@@ -27,7 +27,7 @@ Airflow Test Infrastructure
 * **Integration tests** are available in the Breeze development environment
   that is also used for Airflow Travis CI tests. Integration test are special tests that require
   additional services running - such as Postgres/Mysql/Kerberos etc. Those tests are not yet
-  clearly marked as integration tests but soon there will be clearly separated by pytest annotations.
+  clearly marked as integration tests but soon they will be clearly separated by pytest annotations.
 
 * **System tests** are automatic tests that use external systems like
   Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
@@ -47,7 +47,13 @@ Running Unit Tests from IDE
 ---------------------------
 
 To run unit tests from the IDE, create the `local virtualenv <LOCAL_VRTUALENV.rst>`_,
-select it as the default project's environment, and run unit tests as follows:
+select it as the default project's environment, then configure your test runner:
+
+.. image:: images/configure_test_runner.png
+    :align: center
+    :alt: Configuring test runner
+
+and run unit tests as follows:
 
 .. image:: images/running_unittests.png
     :align: center
@@ -99,6 +105,13 @@ To run whole test class:
 .. code-block:: bash
 
     pytest tests/test_core.py::TestCore
+
+You can use all available pytest flags, for example to increase log level
+for debugging purposes:
+
+.. code-block:: bash
+
+    pytest --log-level=DEBUG tests/test_core.py::TestCore
 
 **Note:** We do not provide a clear distinction between tests
 (Unit/Integration/System tests), but we are working on it.

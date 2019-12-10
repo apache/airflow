@@ -176,7 +176,7 @@ class SimpleDagBag(BaseDagBag):
         return self.dag_id_to_simple_dag[dag_id]
 
 
-class AbstractDagFileProcessor(metaclass=ABCMeta):
+class AbstractDagFileProcessorProcess(metaclass=ABCMeta):
     """
     Processes a DAG file. See SchedulerJob.process_file() for more details.
     """
@@ -253,18 +253,20 @@ class AbstractDagFileProcessor(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-DagParsingStat = NamedTuple('DagParsingStat', [
-    ('file_paths', List[str]),
-    ('done', bool),
-    ('all_files_processed', bool)
-])
-DagFileStat = NamedTuple('DagFileStat', [
-    ('num_dags', int),
-    ('import_errors', int),
-    ('last_finish_time', datetime),
-    ('last_duration', float),
-    ('run_count', int),
-])
+class DagParsingStat(NamedTuple):
+    """Information on processing progress"""
+    file_paths: List[str]
+    done: bool
+    all_files_processed: bool
+
+
+class DagFileStat(NamedTuple):
+    """Information about single processing of one file"""
+    num_dags: int
+    import_errors: int
+    last_finish_time: datetime
+    last_duration: float
+    run_count: int
 
 
 class DagParsingSignal(enum.Enum):
@@ -302,7 +304,7 @@ class DagFileProcessorAgent(LoggingMixin):
         :type max_runs: int
         :param processor_factory: function that creates processors for DAG
             definition files. Arguments are (dag_definition_path, log_file_path)
-        :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
+        :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessorProcess)
         :param processor_timeout: How long to wait before timing out a DAG file processor
         :type processor_timeout: timedelta
         :param async_mode: Whether to start agent in async mode
@@ -520,7 +522,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
     :type max_runs: int
     :param processor_factory: function that creates processors for DAG
         definition files. Arguments are (dag_definition_path)
-    :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
+    :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessorProcess)
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :type processor_timeout: timedelta
     :param signal_conn: connection to communicate signal with processor agent.
@@ -533,7 +535,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                  dag_directory: str,
                  file_paths: List[str],
                  max_runs: int,
-                 processor_factory: Callable[[str, List[Any]], AbstractDagFileProcessor],
+                 processor_factory: Callable[[str, List[Any]], AbstractDagFileProcessorProcess],
                  processor_timeout: timedelta,
                  signal_conn: Connection,
                  async_mode: bool = True):
@@ -565,7 +567,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._zombie_threshold_secs = (
             conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
         # Map from file path to the processor
-        self._processors: Dict[str, AbstractDagFileProcessor] = {}
+        self._processors: Dict[str, AbstractDagFileProcessorProcess] = {}
 
         self._heartbeat_count = 0
 
@@ -609,6 +611,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         we can get parallelism and isolation from potentially harmful
         user code.
         """
+
+        # Start a new process group
+        os.setpgid(0, 0)
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
@@ -948,8 +953,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         self._kill_timed_out_processors()
 
-        finished_processors: Dict[str, AbstractDagFileProcessor] = {}
-        running_processors: Dict[str, AbstractDagFileProcessor] = {}
+        finished_processors: Dict[str, AbstractDagFileProcessorProcess] = {}
+        running_processors: Dict[str, AbstractDagFileProcessorProcess] = {}
 
         for file_path, processor in self._processors.items():
             if processor.done:

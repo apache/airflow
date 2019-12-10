@@ -225,6 +225,11 @@ def task_test(args, dag=None):
             debugger.post_mortem()
         else:
             raise
+    finally:
+        if not already_has_stream_handler:
+            # Make sure to reset back to normal. When run for CLI this doesn't
+            # matter, but it does for test suite
+            logging.getLogger('airflow.task').propagate = False
 
 
 @cli_utils.action_logging

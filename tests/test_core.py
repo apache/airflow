@@ -31,13 +31,15 @@ from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
-from airflow import DAG, exceptions, jobs, settings, utils
+from airflow import DAG, exceptions, settings, utils
 from airflow.configuration import (
     DEFAULT_CONFIG, AirflowConfigException, conf, parameterized_config, run_command,
 )
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
+from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import Connection, DagBag, DagRun, TaskFail, TaskInstance, Variable
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
@@ -133,7 +135,8 @@ class TestCore(unittest.TestCase):
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
 
-        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_run = dag_file_processor.create_dag_run(dag)
         self.assertIsNotNone(dag_run)
         self.assertEqual(dag.dag_id, dag_run.dag_id)
         self.assertIsNotNone(dag_run.run_id)
@@ -160,7 +163,8 @@ class TestCore(unittest.TestCase):
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
 
-        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_run = dag_file_processor.create_dag_run(dag)
         self.assertIsNotNone(dag_run)
         self.assertEqual(dag.dag_id, dag_run.dag_id)
         self.assertIsNotNone(dag_run.run_id)
@@ -173,7 +177,7 @@ class TestCore(unittest.TestCase):
         )
         self.assertEqual(State.RUNNING, dag_run.state)
         self.assertFalse(dag_run.external_trigger)
-        dag_run2 = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_run2 = dag_file_processor.create_dag_run(dag)
         self.assertIsNotNone(dag_run2)
         self.assertEqual(dag.dag_id, dag_run2.dag_id)
         self.assertIsNotNone(dag_run2.run_id)
@@ -203,12 +207,12 @@ class TestCore(unittest.TestCase):
             owner='Also fake',
             start_date=DEFAULT_DATE))
 
-        scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag.create_dagrun(run_id=DagRun.id_for_date(DEFAULT_DATE),
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)
-        dag_run = scheduler.create_dag_run(dag)
+        dag_run = dag_file_processor.create_dag_run(dag)
         self.assertIsNotNone(dag_run)
         self.assertEqual(dag.dag_id, dag_run.dag_id)
         self.assertIsNotNone(dag_run.run_id)
@@ -233,8 +237,8 @@ class TestCore(unittest.TestCase):
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
-        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
-        dag_run2 = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_run = DagFileProcessor(dag_ids=[], log=mock.MagicMock()).create_dag_run(dag)
+        dag_run2 = DagFileProcessor(dag_ids=[], log=mock.MagicMock()).create_dag_run(dag)
 
         self.assertIsNotNone(dag_run)
         self.assertIsNone(dag_run2)
@@ -284,13 +288,13 @@ class TestCore(unittest.TestCase):
                   schedule_interval=delta)
         dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
 
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         # Create and schedule the dag runs
         dag_runs = []
-        scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
         for _ in range(runs):
-            dag_runs.append(scheduler.create_dag_run(dag))
+            dag_runs.append(dag_file_processor.create_dag_run(dag))
 
-        additional_dag_run = scheduler.create_dag_run(dag)
+        additional_dag_run = dag_file_processor.create_dag_run(dag)
 
         for dag_run in dag_runs:
             self.assertIsNotNone(dag_run)
@@ -318,10 +322,10 @@ class TestCore(unittest.TestCase):
                   schedule_interval=delta)
         dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
 
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
         dag_runs = []
-        scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
         for _ in range(runs):
-            dag_run = scheduler.create_dag_run(dag)
+            dag_run = dag_file_processor.create_dag_run(dag)
             dag_runs.append(dag_run)
 
             # Mark the DagRun as complete
@@ -330,7 +334,7 @@ class TestCore(unittest.TestCase):
             session.commit()
 
         # Attempt to schedule an additional dag run (for 2016-01-01)
-        additional_dag_run = scheduler.create_dag_run(dag)
+        additional_dag_run = dag_file_processor.create_dag_run(dag)
 
         for dag_run in dag_runs:
             self.assertIsNotNone(dag_run)
@@ -677,7 +681,7 @@ class TestCore(unittest.TestCase):
         TI = TaskInstance
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
-        job = jobs.LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        job = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         job.run()
 
     def test_raw_job(self):
@@ -877,7 +881,7 @@ class TestCore(unittest.TestCase):
         task = dag.task_dict.get('sleeps_forever')
 
         ti = TI(task=task, execution_date=DEFAULT_DATE)
-        job = jobs.LocalTaskJob(
+        job = LocalTaskJob(
             task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
 
         # Running task instance asynchronously
