@@ -160,6 +160,8 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+    # If adding new fields here then remember to add them to
+    # refresh_from_db() or they wont display in the UI correctly
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -443,14 +445,23 @@ class TaskInstance(Base, LoggingMixin):
         else:
             ti = qry.first()
         if ti:
-            self.state = ti.state
+            # Fields ordered per model definition
             self.start_date = ti.start_date
             self.end_date = ti.end_date
+            self.duration = ti.duration
+            self.state = ti.state
             # Get the raw value of try_number column, don't read through the
             # accessor here otherwise it will be incremented by one already.
             self.try_number = ti._try_number
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
+            self.unixname = ti.unixname
+            self.job_id = ti.job_id
+            self.pool = ti.pool
+            self.queue = ti.queue
+            self.priority_weight = ti.priority_weight
+            self.operator = ti.operator
+            self.queued_dttm = ti.queued_dttm
             self.pid = ti.pid
             if refresh_executor_config:
                 self.executor_config = ti.executor_config

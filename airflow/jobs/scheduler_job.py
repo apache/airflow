@@ -1261,9 +1261,7 @@ class SchedulerJob(BaseJob):
         # set TIs to queued state
         for task_instance in tis_to_set_to_queued:
             task_instance.state = State.QUEUED
-            task_instance.queued_dttm = (timezone.utcnow()
-                                         if not task_instance.queued_dttm
-                                         else task_instance.queued_dttm)
+            task_instance.queued_dttm = timezone.utcnow()
             session.merge(task_instance)
 
         # Generate a list of SimpleTaskInstance for the use of queuing
@@ -1391,6 +1389,7 @@ class SchedulerJob(BaseJob):
             # set TIs to queued state
             for task_instance in tis_to_set_to_scheduled:
                 task_instance.state = State.SCHEDULED
+                task_instance.queued_dttm = None
                 self.executor.queued_tasks.pop(task_instance.key)
 
             task_instance_str = "\n\t".join(
