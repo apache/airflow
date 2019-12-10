@@ -412,10 +412,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             for perm in self.DAG_PERMS:
                 merge_pv(perm, dag.dag_id)
 
-        # for all the dag-level role, add the permission of viewer
+        # for all the dag-level role, add the permission of the configurable BASE_ROLE
         # with the dag view to ab_permission_view
         all_roles = self.get_all_roles()
-        viewer_role = self.find_role('Viewer')
+        base_role_name = appbuilder.config.get('BASE_ROLE')
+        base_role = self.find_role(base_role_name)
 
         dag_role = [role for role in all_roles if role.name not in EXISTING_ROLES]
         update_perm_views = []
@@ -429,7 +430,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         all_perm_view_by_user = session.query(ab_perm_view_role)\
             .join(perm_view, perm_view.id == ab_perm_view_role
                   .columns.permission_view_id)\
-            .filter(ab_perm_view_role.columns.role_id == viewer_role.id)\
+            .filter(ab_perm_view_role.columns.role_id == base_role.id)\
             .join(view_menu)\
             .filter(perm_view.view_menu_id != dag_vm.id)
         all_perm_views = {role.permission_view_id for role in all_perm_view_by_user}
