@@ -49,6 +49,7 @@ services:
       - ../../.bash_aliases:/root/.bash_aliases:cached
       - ../../.inputrc:/root/.inputrc:cached
       - ../../.flake8:/opt/airflow/.flake8:cached
+      - ../../pytest.ini:/opt/airflow/pytest.ini:cached
       - ../../.rat-excludes:/opt/airflow/.rat-excludes:cached
       - ../../logs:/root/airflow/logs:cached
       - ../../tmp:/opt/airflow/tmp:cached

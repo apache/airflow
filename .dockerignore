@@ -39,6 +39,7 @@
 !.coveragerc
 !.rat-excludes
 !.flake8
+!pytest.ini
 !LICENSE
 !MANIFEST.in
 !NOTICE

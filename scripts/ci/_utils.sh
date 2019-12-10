@@ -81,7 +81,7 @@ function print_info() {
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
-    print_info "Mount whole sourcce directory for static checks"
+    print_info "Mount whole airflow source directory for static checks (make sure all files are in container)"
     print_info
     AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
       "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
@@ -104,6 +104,7 @@ elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
       "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
       "-v" "${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached" \
       "-v" "${AIRFLOW_SOURCES}/.flake8:/opt/airflow/.flake8:cached" \
+      "-v" "${AIRFLOW_SOURCES}/pytest.ini:/opt/airflow/pytest.ini:cached" \
       "-v" "${AIRFLOW_SOURCES}/setup.cfg:/opt/airflow/setup.cfg:cached" \
       "-v" "${AIRFLOW_SOURCES}/setup.py:/opt/airflow/setup.py:cached" \
       "-v" "${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached" \
@@ -802,14 +803,6 @@ function build_image_on_ci() {
         fi
     elif [[ ${TRAVIS_JOB_NAME} == "Static"* ]]; then
         rebuild_ci_image_if_needed
-    elif [[ ${TRAVIS_JOB_NAME} == "Pylint"* ]]; then
-        rebuild_ci_slim_image_if_needed
-        match_files_regexp '.*\.py'
-        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
-            rebuild_ci_image_if_needed
-        else
-            touch "${BUILD_CACHE_DIR}"/.skip_tests
-        fi
     elif [[ ${TRAVIS_JOB_NAME} == "Build documentation"* ]]; then
         rebuild_ci_image_if_needed
     else
