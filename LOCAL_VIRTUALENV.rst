@@ -122,6 +122,20 @@ Simply enter the Breeze environment by using ``workon`` and, once you are in it,
 
   ./breeze --initialize-local-virtualenv
 
+Optional - create a local virtualenv with conda
+-----------------------------------------------
+
+- install `miniconda3 <https://docs.conda.io/en/latest/miniconda.html>`_
+
+.. code-block:: bash
+
+  conda create -n airflow python=3.6
+  conda activate airflow
+  pip install -U -e ".[devel,gcp,postgres,ssh]"
+
+  # if necessary, start with a clean AIRFLOW_HOME, e.g.
+  # rm -rf ~/airflow
+  airflow db init
 
 Running Tests
 -------------
