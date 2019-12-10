@@ -91,6 +91,13 @@ class TestStreamLogWriter(unittest.TestCase):
         log = StreamLogWriter(logger, 1)
         self.assertFalse(log.isatty())
 
+    def test_fileno(self):
+        logger = mock.MagicMock()
+        logger.log = mock.MagicMock()
+
+        log = StreamLogWriter(logger, 1)
+        self.assertEqual(log.fileno(), 1)
+
     def test_encoding(self):
         logger = mock.MagicMock()
         logger.log = mock.MagicMock()

@@ -116,6 +116,13 @@ class StreamLogWriter:
         """
         return False
 
+    def fileno(self):
+        """
+        Returns the stdout file descriptor 1.
+        For compatibility reasons e.g python subprocess module stdout redirection.
+        """
+        return 1
+
 
 class RedirectStdHandler(StreamHandler):
     """
