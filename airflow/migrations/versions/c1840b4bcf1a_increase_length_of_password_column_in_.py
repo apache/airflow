@@ -19,7 +19,7 @@
 """Increase length of password column in connection table
 
 Revision ID: c1840b4bcf1a
-Revises: 004c1210f153
+Revises: fe461863935f
 Create Date: 2019-10-02 16:56:54.865550
 
 """
@@ -29,7 +29,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'c1840b4bcf1a'
-down_revision = '004c1210f153'
+down_revision = 'fe461863935f'
 branch_labels = None
 depends_on = None
 
