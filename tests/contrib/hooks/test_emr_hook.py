@@ -69,6 +69,26 @@ class TestEmrHook(unittest.TestCase):
         # The AmiVersion comes back as {Requested,Running}AmiVersion fields.
         self.assertEqual(cluster['RequestedAmiVersion'], '3.2')
 
+    @mock_emr
+    def test_get_cluster_id_by_name(self):
+        """
+        Test that we can resolve cluster id by cluster name.
+        """
+        hook = EmrHook(aws_conn_id='aws_default', emr_conn_id='emr_default')
+
+        job_flow = hook.create_job_flow({'Name': 'test_cluster',
+                                         'Instances': {'KeepJobFlowAliveWhenNoSteps': True}})
+
+        job_flow_id = job_flow['JobFlowId']
+
+        matching_cluster = hook.get_cluster_id_by_name('test_cluster', ['RUNNING', 'WAITING'])
+
+        self.assertEqual(matching_cluster, job_flow_id)
+
+        no_match = hook.get_cluster_id_by_name('foo', ['RUNNING', 'WAITING', 'BOOTSTRAPPING'])
+
+        self.assertIsNone(no_match)
+
 
 if __name__ == '__main__':
     unittest.main()
