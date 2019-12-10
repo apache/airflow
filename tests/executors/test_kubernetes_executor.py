@@ -136,7 +136,6 @@ class TestKubeConfig(unittest.TestCase):
     def test_kube_config_worker_annotations_properly_parsed(self):
         from airflow.configuration import conf
         configuration_dict = conf.as_dict(display_sensitive=True)
-        print(configuration_dict.get('kubernetes', 'worker_annotations'))
         annotations = KubeConfig().kube_annotations
         self.assertEqual({'iam.com/role': 'role-arn', 'other/annotation': 'value'}, annotations)
 

@@ -374,8 +374,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Kubernetes using namespace %s", self.namespace)
         self.kube_client = kube_client
         self.launcher = PodLauncher(kube_client=self.kube_client)
-        # Parse the airflow.cfg once on AirflowKubernetesScheduler initialization
-        self.worker_configuration = WorkerConfiguration(kube_config=self.kube_config).make_pod()
+        # Parse the airflow kubernetes configuration once on AirflowKubernetesScheduler initialization
+        self.worker_configuration_pod = WorkerConfiguration(kube_config=self.kube_config).make_pod()
         self._manager = multiprocessing.Manager()
         self.watcher_queue = self._manager.Queue()
         self.worker_uuid = worker_uuid
@@ -425,7 +425,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             date=safe_date,
             command=command,
             kube_executor_config=kube_executor_config,
-            worker_config=self.worker_configuration,
+            worker_config_template_pod=self.worker_configuration_pod,
             namespace=self.namespace,
             worker_uuid=self.worker_uuid
         )
