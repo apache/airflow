@@ -98,14 +98,16 @@ def send_email(to, subject, html_content, files=None, cc=None,
     for fname in files:
         basename = os.path.basename(fname)
 
-        attachment = Attachment()
-        attachment.type = mimetypes.guess_type(basename)[0]
-        attachment.filename = basename
-        attachment.disposition = "attachment"
-        attachment.content_id = '<{0}>'.format(basename)
-
         with open(fname, "rb") as file:
-            attachment.content = base64.b64encode(file.read()).decode('utf-8')
+            content = base64.b64encode(file.read()).decode('utf-8')
+
+        attachment = Attachment(
+            file_content=content,
+            file_type=mimetypes.guess_type(basename)[0],
+            file_name=basename,
+            disposition="attachment",
+            content_id=f"<{basename}>"
+        )
 
         mail.add_attachment(attachment)
     _post_sendgrid_mail(mail.get())
@@ -113,7 +115,7 @@ def send_email(to, subject, html_content, files=None, cc=None,
 
 def _post_sendgrid_mail(mail_data):
     log = LoggingMixin().log
-    sendgrid_client = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
+    sendgrid_client = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
     response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
     if 200 <= response.status_code < 300:

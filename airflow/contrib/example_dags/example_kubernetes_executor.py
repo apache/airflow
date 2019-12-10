@@ -72,7 +72,8 @@ with DAG(
         :rtype: bool
         """
         return_code = os.system("zip")
-        assert return_code == 0
+        if return_code != 0:
+            raise SystemError("The zip binary is missing")
 
     # You don't have to use any special KubernetesExecutor configuration if you don't want to
     start_task = PythonOperator(

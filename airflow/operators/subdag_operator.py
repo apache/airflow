@@ -24,11 +24,10 @@ from typing import Optional
 
 from sqlalchemy.orm.session import Session
 
-from airflow import settings
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
 from airflow.models import DagRun
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -78,7 +77,7 @@ class SubDagOperator(BaseSensorOperator):
         self._validate_pool(session)
 
     def _validate_dag(self, kwargs):
-        dag = kwargs.get('dag') or settings.CONTEXT_MANAGER_DAG
+        dag = kwargs.get('dag') or DagContext.get_current_dag()
 
         if not dag:
             raise AirflowException('Please pass in the `dag` param or call within a DAG context manager')

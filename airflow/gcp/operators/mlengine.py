@@ -129,7 +129,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         for parallel processing. Defaults to 10 if not specified. Should be a
         string representing the worker count ("10" instead of 10, "50" instead
         of 50, etc.)
-    :type max_worker_count: string
+    :type max_worker_count: str
     :param runtime_version: The Google Cloud ML Engine runtime version to use
         for batch prediction.
     :type runtime_version: str
@@ -162,7 +162,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
+    def __init__(self,  # pylint: disable=too-many-arguments
                  job_id: str,
                  region: str,
                  data_format: str,
@@ -916,7 +916,7 @@ class MLEngineTrainingOperator(BaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
+    def __init__(self,  # pylint: disable=too-many-arguments
                  job_id: str,
                  package_uris: List[str],
                  training_python_module: str,

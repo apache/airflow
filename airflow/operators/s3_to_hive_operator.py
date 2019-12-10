@@ -17,6 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains operator to move data from Hive to S3 bucket.
+"""
+
 import bz2
 import gzip
 import os
@@ -33,7 +37,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
 
 
-class S3ToHiveTransfer(BaseOperator):
+class S3ToHiveTransfer(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
     Moves data from S3 to Hive. The operator downloads a file from S3,
     stores the file locally before loading it into a Hive table.
@@ -104,7 +108,7 @@ class S3ToHiveTransfer(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             s3_key: str,
             field_dict: Dict,
@@ -148,20 +152,18 @@ class S3ToHiveTransfer(BaseOperator):
 
     def execute(self, context):
         # Downloading file from S3
-        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        hive_hook = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Downloading S3 file")
 
         if self.wildcard_match:
-            if not self.s3.check_for_wildcard_key(self.s3_key):
-                raise AirflowException("No key matches {0}"
-                                       .format(self.s3_key))
-            s3_key_object = self.s3.get_wildcard_key(self.s3_key)
+            if not s3_hook.check_for_wildcard_key(self.s3_key):
+                raise AirflowException(f"No key matches {self.s3_key}")
+            s3_key_object = s3_hook.get_wildcard_key(self.s3_key)
         else:
-            if not self.s3.check_for_key(self.s3_key):
-                raise AirflowException(
-                    "The key {0} does not exists".format(self.s3_key))
-            s3_key_object = self.s3.get_key(self.s3_key)
+            if not s3_hook.check_for_key(self.s3_key):
+                raise AirflowException(f"The key {self.s3_key} does not exists")
+            s3_key_object = s3_hook.get_key(self.s3_key)
 
         _, file_ext = os.path.splitext(s3_key_object.key)
         if (self.select_expression and self.input_compressed and
@@ -187,7 +189,7 @@ class S3ToHiveTransfer(BaseOperator):
                 if self.input_compressed:
                     input_serialization['CompressionType'] = 'GZIP'
 
-                content = self.s3.select_key(
+                content = s3_hook.select_key(
                     bucket_name=s3_key_object.bucket_name,
                     key=s3_key_object.key,
                     expression=self.select_expression,
@@ -200,7 +202,7 @@ class S3ToHiveTransfer(BaseOperator):
 
             if self.select_expression or not self.headers:
                 self.log.info("Loading file %s into Hive", f.name)
-                self.hive.load_file(
+                hive_hook.load_file(
                     f.name,
                     self.hive_table,
                     field_dict=self.field_dict,
@@ -238,7 +240,7 @@ class S3ToHiveTransfer(BaseOperator):
                                                       tmp_dir))
                 self.log.info("Headless file %s", headless_file)
                 self.log.info("Loading file %s into Hive", headless_file)
-                self.hive.load_file(headless_file,
+                hive_hook.load_file(headless_file,
                                     self.hive_table,
                                     field_dict=self.field_dict,
                                     create=self.create,

@@ -26,10 +26,10 @@ from google.api_core.retry import Retry
 from google.cloud.videointelligence_v1 import VideoIntelligenceServiceClient
 from google.cloud.videointelligence_v1.types import VideoContext
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
+class CloudVideoIntelligenceHook(CloudBaseHook):
     """
     Hook for Google Cloud Video Intelligence APIs.
 
@@ -61,7 +61,7 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
             )
         return self._conn
 
-    @GoogleCloudBaseHook.quota_retry()
+    @CloudBaseHook.quota_retry()
     def annotate_video(
         self,
         input_uri: Optional[str] = None,

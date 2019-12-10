@@ -45,7 +45,8 @@ with DAG(
             foo.write('Hello')
 
         return_code = os.system("cat /foo/volume_mount_test.txt")
-        assert return_code == 0
+        if return_code != 0:
+            raise ValueError(f"Error when checking volume mount. Return code {return_code}")
 
     # You can use annotations on your kubernetes pods!
     start_task = PythonOperator(

@@ -31,10 +31,10 @@ from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
 
-from airflow.contrib.hooks.cassandra_hook import CassandraHook
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
+from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.utils.decorators import apply_defaults
 
 

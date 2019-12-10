@@ -35,7 +35,7 @@ from airflow.gcp.operators.mlengine import MLEngineBatchPredictionOperator
 from airflow.operators.python_operator import PythonOperator
 
 
-def create_evaluate_ops(task_prefix,  # pylint:disable=too-many-arguments
+def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
                         data_format,
                         input_paths,
                         prediction_path,

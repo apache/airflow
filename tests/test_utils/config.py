@@ -28,7 +28,6 @@ from airflow.configuration import conf
 def conf_vars(overrides):
     original = {}
     original_env_vars = {}
-    reconfigure_vars = False
     for (section, key), value in overrides.items():
 
         env = conf._env_var_name(section, key)
@@ -43,18 +42,15 @@ def conf_vars(overrides):
             conf.set(section, key, value)
         else:
             conf.remove_option(section, key)
-
-        if section == 'core' and key.lower().endswith('_folder'):
-            reconfigure_vars = True
-    if reconfigure_vars:
-        settings.configure_vars()
-    yield
-    for (section, key), value in original.items():
-        if value is not None:
-            conf.set(section, key, value)
-        else:
-            conf.remove_option(section, key)
-    for env, value in original_env_vars.items():
-        os.environ[env] = value
-    if reconfigure_vars:
+    settings.configure_vars()
+    try:
+        yield
+    finally:
+        for (section, key), value in original.items():
+            if value is not None:
+                conf.set(section, key, value)
+            else:
+                conf.remove_option(section, key)
+        for env, value in original_env_vars.items():
+            os.environ[env] = value
         settings.configure_vars()

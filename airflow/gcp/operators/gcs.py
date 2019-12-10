@@ -368,7 +368,8 @@ class GoogleCloudStorageDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
-        assert objects is not None or prefix is not None
+        if not objects and not prefix:
+            raise ValueError("Either object or prefix should be set. Both are None")
 
         super().__init__(*args, **kwargs)
 

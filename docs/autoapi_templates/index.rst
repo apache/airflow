@@ -76,18 +76,19 @@ All operators are in the following packages:
 
   airflow/providers/amazon/aws/sensors/index
 
-  airflow/providers/amazon/aws/operators/index
-
-  airflow/providers/amazon/aws/sensors/index
+  airflow/providers/apache/cassandra/sensors/index
 
   airflow/providers/google/cloud/operators/index
 
-  airflow/providers/google/marketing_platform/operators/index
-
   airflow/providers/google/cloud/sensors/index
+
+  airflow/providers/google/marketing_platform/operators/index
 
   airflow/providers/google/marketing_platform/sensors/index
 
+  airflow/providers/sftp/operators/index
+
+  airflow/providers/sftp/sensors/index
 
 Hooks
 -----
@@ -112,14 +113,15 @@ All hooks are in the following packages:
 
   airflow/providers/amazon/aws/hooks/index
 
-  airflow/providers/amazon/aws/hooks/index
-
   airflow/providers/google/cloud/hooks/index
 
   airflow/providers/google/marketing_platform/hooks/index
 
   airflow/providers/google/cloud/hooks/index
 
+  airflow/providers/apache/cassandra/hooks/index
+
+  airflow/providers/sftp/hooks/index
 
 Executors
 ---------

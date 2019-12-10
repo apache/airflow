@@ -26,12 +26,10 @@ import uuid
 
 import kubernetes.client.models as k8s
 
-from airflow.executors import Executors
-
 
 class PodDefaults:
     """
-    Static defaults for the PodGenerator
+    Static defaults for Pods
     """
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
@@ -69,8 +67,6 @@ class PodGenerator:
     :type envs: Dict[str, str]
     :param cmds: The command to be run on the pod
     :type cmds: List[str]
-    :param secrets: Secrets to be launched to the pod
-    :type secrets: List[airflow.kubernetes.models.secret.Secret]
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
@@ -88,7 +84,7 @@ class PodGenerator:
     :param configmaps: Any configmap refs to envfrom.
         If more than one configmap is required, provide a comma separated list
         configmap_a,configmap_b
-    :type configmaps: str
+    :type configmaps: List[str]
     :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
     :param pod: The fully specified pod.
@@ -229,8 +225,9 @@ class PodGenerator:
             raise TypeError(
                 'Cannot convert a non-dictionary or non-PodGenerator '
                 'object into a KubernetesExecutorConfig')
-
-        namespaced = obj.get(Executors.KubernetesExecutor, {})
+        # We do not want to extract constant here from ExecutorLoader because it is just
+        # A name in dictionary rather than executor selection mechanism and it causes cyclic import
+        namespaced = obj.get("KubernetesExecutor", {})
 
         resources = namespaced.get('resources')
 

@@ -99,8 +99,11 @@ def default_action_log(log, **_):
     :param **_: other keyword arguments that is not being used by this function
     :return: None
     """
-    with create_session() as session:
-        session.add(log)
+    try:
+        with create_session() as session:
+            session.add(log)
+    except Exception as error:
+        logging.warning("Failed to log action with %s", error)
 
 
 __pre_exec_callbacks = []  # type: List[Callable]

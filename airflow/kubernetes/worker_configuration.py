@@ -25,6 +25,7 @@ from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version as airflow_version
 
 
 class WorkerConfiguration(LoggingMixin):
@@ -375,6 +376,8 @@ class WorkerConfiguration(LoggingMixin):
                 'task_id': task_id,
                 'execution_date': execution_date,
                 'try_number': str(try_number),
+                'airflow_version': airflow_version.replace('+', '-'),
+                'kubernetes_executor': 'True',
             },
             cmds=airflow_command,
             volumes=self._get_volumes(),

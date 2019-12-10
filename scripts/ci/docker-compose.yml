@@ -104,6 +104,7 @@ services:
       - AIRFLOW_CONTAINER_DOCKER_IMAGE
       - KUBERNETES_VERSION
       - KUBERNETES_MODE
+      - BREEZE
     depends_on:
       - postgres
       - mysql

@@ -30,7 +30,7 @@ from airflow.models import TaskInstance as TI
 from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
-from tests.core import TEST_DAG_FOLDER
+from tests.test_core import TEST_DAG_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -76,18 +76,18 @@ class TestStandardTaskRunner(unittest.TestCase):
         pgid = os.getpgid(runner.process.pid)
         self.assertTrue(pgid)
 
-        procs = []
-        for p in psutil.process_iter():
+        processes = []
+        for process in psutil.process_iter():
             try:
-                if os.getpgid(p.pid) == pgid:
-                    procs.append(p)
+                if os.getpgid(process.pid) == pgid:
+                    processes.append(process)
             except OSError:
                 pass
 
         runner.terminate()
 
-        for p in procs:
-            self.assertFalse(psutil.pid_exists(p.pid))
+        for process in processes:
+            self.assertFalse(psutil.pid_exists(process.pid))
 
     def test_on_kill(self):
         """
@@ -121,10 +121,15 @@ class TestStandardTaskRunner(unittest.TestCase):
         runner = StandardTaskRunner(job1)
         runner.start()
 
-        # give the task some time to startup
-        time.sleep(3)
-
+        # Give the task some time to startup
+        time.sleep(10)
         runner.terminate()
+
+        # Wait some time for the result
+        for _ in range(20):
+            if os.path.exists(path):
+                break
+            time.sleep(2)
 
         with open(path, "r") as f:
             self.assertEqual("ON_KILL_TEST", f.readline())

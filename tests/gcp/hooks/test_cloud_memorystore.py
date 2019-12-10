@@ -60,7 +60,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
             self.hook = CloudMemorystoreHook(gcp_conn_id="test")
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -83,7 +83,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         self.assertEqual(Instance(name=TEST_NAME), result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -124,7 +124,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         self.assertEqual(Instance(name=TEST_NAME), result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -144,7 +144,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -164,7 +164,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -188,7 +188,7 @@ class TestCloudMemorystoreWithDefaultProjectIdHook(TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -292,7 +292,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         self.assertEqual(Instance(name=TEST_NAME), result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -328,7 +328,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -363,7 +363,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -402,7 +402,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -441,7 +441,7 @@ class TestCloudMemorystoreWithoutDefaultProjectIdHook(TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
