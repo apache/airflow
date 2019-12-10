@@ -262,71 +262,82 @@ def pprinttable(rows):
     return s
 
 
-def reap_process_group(pid, log, sig=signal.SIGTERM,
+def reap_process_group(pgid, log, sig=signal.SIGTERM,
                        timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
     """
-    Tries really hard to terminate all children (including grandchildren). Will send
+    Tries really hard to terminate all processes in the group (including grandchildren). Will send
     sig (SIGTERM) to the process group of pid. If any process is alive after timeout
     a SIGKILL will be send.
 
     :param log: log handler
-    :param pid: pid to kill
+    :param pgid: process group id to kill
     :param sig: signal type
     :param timeout: how much time a process has to terminate
     """
 
+    returncodes = {}
+
     def on_terminate(p):
         log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
+        returncodes[p.pid] = p.returncode
 
-    if pid == os.getpid():
+    def signal_procs(sig):
+        try:
+            os.killpg(pgid, sig)
+        except OSError as err:
+            # If operation not permitted error is thrown due to run_as_user,
+            # use sudo -n(--non-interactive) to kill the process
+            if err.errno == errno.EPERM:
+                subprocess.check_call(
+                    ["sudo", "-n", "kill", "-" + str(sig)] + map(children, lambda p: str(p.pid))
+                )
+            else:
+                raise
+
+    if pgid == os.getpgid(0):
         raise RuntimeError("I refuse to kill myself")
 
     try:
-        parent = psutil.Process(pid)
+        parent = psutil.Process(pgid)
+
+        children = parent.children(recursive=True)
+        children.append(parent)
     except psutil.NoSuchProcess:
-        # Race condition - the process already exited
-        return
+        # The process already exited, but maybe it's children haven't.
+        children = []
+        for p in psutil.process_iter():
+            try:
+                if os.getpgid(p.pid) == pgid and p.pid != 0:
+                    children.append(p)
+            except OSError:
+                pass
 
-    children = parent.children(recursive=True)
-    children.append(parent)
-
+    log.info("Sending %s to GPID %s", sig, pgid)
     try:
-        pg = os.getpgid(pid)
+        signal_procs(sig)
     except OSError as err:
-        # Skip if not such process - we experience a race and it just terminated
+        # No such process, which means there is no such process group - our job
+        # is done
         if err.errno == errno.ESRCH:
-            return
-        raise
-
-    log.info("Sending %s to GPID %s", sig, pg)
-    try:
-        os.killpg(os.getpgid(pid), sig)
-    except OSError as err:
-        if err.errno == errno.ESRCH:
-            return
-        # If operation not permitted error is thrown due to run_as_user,
-        # use sudo -n(--non-interactive) to kill the process
-        if err.errno == errno.EPERM:
-            subprocess.check_call(["sudo", "-n", "kill", "-" + str(sig), str(os.getpgid(pid))])
-        raise
+            return returncodes
 
     _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
         for p in alive:
-            log.warning("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
+            log.warning("process %s did not respond to SIGTERM. Trying SIGKILL", p)
 
         try:
-            os.killpg(os.getpgid(pid), signal.SIGKILL)
+            signal_procs(signal.SIGKILL)
         except OSError as err:
-            if err.errno == errno.ESRCH:
-                return
-            raise
+            if err.errno != errno.ESRCH:
+                raise
 
-        gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
+        _, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
         if alive:
             for p in alive:
                 log.error("Process %s (%s) could not be killed. Giving up.", p, p.pid)
+    return returncodes
 
 
 def parse_template_string(template_string):

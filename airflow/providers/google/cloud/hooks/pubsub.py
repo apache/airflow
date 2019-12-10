@@ -103,7 +103,8 @@ class PubSubHook(CloudBaseHook):
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         self._validate_messages(messages)
 
         publisher = self.get_conn()
@@ -198,7 +199,8 @@ class PubSubHook(CloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         publisher = self.get_conn()
         topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
 
@@ -259,7 +261,8 @@ class PubSubHook(CloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         publisher = self.get_conn()
         topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
 
@@ -352,7 +355,8 @@ class PubSubHook(CloudBaseHook):
             the ``subscription`` parameter is not supplied
         :rtype: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         subscriber = self.subscriber_client
 
         if not subscription:
@@ -423,7 +427,8 @@ class PubSubHook(CloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 
@@ -487,7 +492,8 @@ class PubSubHook(CloudBaseHook):
             the base64-encoded message content. See
             https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 
@@ -540,7 +546,8 @@ class PubSubHook(CloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 

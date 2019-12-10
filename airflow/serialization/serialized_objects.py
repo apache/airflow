@@ -205,7 +205,8 @@ class BaseSerialization:
         elif isinstance(encoded_var, list):
             return [cls._deserialize(v) for v in encoded_var]
 
-        assert isinstance(encoded_var, dict)
+        if not isinstance(encoded_var, dict):
+            raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
         var = encoded_var[Encoding.VAR]
         type_ = encoded_var[Encoding.TYPE]
 

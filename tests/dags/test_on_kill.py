@@ -25,6 +25,11 @@ from airflow.utils.timezone import datetime
 
 class DummyWithOnKill(DummyOperator):
     def execute(self, context):
+        import os
+        # This runs extra processes, so that we can be sure that we correctly
+        # tidy up all processes launched by a task when killing
+        if not os.fork():
+            os.system('sleep 10')
         time.sleep(10)
 
     def on_kill(self):

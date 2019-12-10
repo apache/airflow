@@ -226,6 +226,7 @@ KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 if [[ "${TRAVIS}" == "true" ]]; then
     TRAVIS_ARGS=(
         "--junitxml=${XUNIT_FILE}"
+        "--verbosity=0"
         "--durations=100"
         "--cov=airflow/"
         "--cov-config=.coveragerc"
@@ -250,5 +251,7 @@ else
     ARGS=("${TRAVIS_ARGS[@]}" "tests/integration/kubernetes")
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 fi
+
+export PYTHONPATH=${AIRFLOW_SOURCES}
 
 in_container_script_end

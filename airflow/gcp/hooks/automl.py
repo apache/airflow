@@ -115,7 +115,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.location_path(project_id, location)
         return client.create_model(
@@ -170,7 +171,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.prediction_client
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.batch_predict(
@@ -225,7 +227,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.PredictResponse` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.prediction_client
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.predict(
@@ -271,7 +274,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.Dataset` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.location_path(project=project_id, location=location)
         result = client.create_dataset(
@@ -319,7 +323,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.dataset_path(
             project=project_id, location=location, dataset=dataset_id
@@ -382,7 +387,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.ColumnSpec` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.table_spec_path(
             project=project_id,
@@ -433,7 +439,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.Model` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.get_model(
@@ -473,7 +480,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.delete_model(
@@ -515,7 +523,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types.Dataset` instance..
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         result = client.update_dataset(
             dataset=dataset,
@@ -570,7 +579,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.model_path(project=project_id, location=location, model=model_id)
         result = client.deploy_model(
@@ -625,7 +635,8 @@ class CloudAutoMLHook(CloudBaseHook):
             This object can also be configured to iterate over the pages
             of the response through the `options` parameter.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.dataset_path(
             project=project_id, location=location, dataset=dataset_id
@@ -672,7 +683,8 @@ class CloudAutoMLHook(CloudBaseHook):
             This object can also be configured to iterate over the pages
             of the response through the `options` parameter.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         parent = client.location_path(project=project_id, location=location)
         result = client.list_datasets(
@@ -712,7 +724,8 @@ class CloudAutoMLHook(CloudBaseHook):
 
         :return: `google.cloud.automl_v1beta1.types._OperationFuture` instance
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         client = self.get_conn()
         name = client.dataset_path(
             project=project_id, location=location, dataset=dataset_id

@@ -104,7 +104,8 @@ class CloudFunctionsHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().projects().locations().functions().create(  # pylint: disable=no-member
             location=self._full_location(project_id, location),
             body=body
@@ -147,7 +148,8 @@ class CloudFunctionsHook(CloudBaseHook):
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = \
             self.get_conn().projects().locations().functions().generateUploadUrl(  # pylint: disable=no-member # noqa
             parent=self._full_location(project_id, location)

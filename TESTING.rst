@@ -106,6 +106,13 @@ To run whole test class:
 
     pytest tests/test_core.py::TestCore
 
+You can use all available pytest flags, for example to increase log level
+for debugging purposes:
+
+.. code-block:: bash
+
+    pytest --log-level=DEBUG tests/test_core.py::TestCore
+
 **Note:** We do not provide a clear distinction between tests
 (Unit/Integration/System tests), but we are working on it.
 

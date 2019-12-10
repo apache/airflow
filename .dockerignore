@@ -40,6 +40,7 @@
 !.rat-excludes
 !.flake8
 !pylintrc
+!pytest.ini
 !LICENSE
 !MANIFEST.in
 !NOTICE

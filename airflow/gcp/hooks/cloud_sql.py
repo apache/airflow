@@ -113,7 +113,8 @@ class CloudSqlHook(CloudBaseHook):
         :return: A Cloud SQL instance resource.
         :rtype: dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         return self.get_conn().instances().get(  # pylint: disable=no-member
             project=project_id,
             instance=instance
@@ -132,7 +133,8 @@ class CloudSqlHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().instances().insert(  # pylint: disable=no-member
             project=project_id,
             body=body
@@ -159,7 +161,8 @@ class CloudSqlHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().instances().patch(  # pylint: disable=no-member
             project=project_id,
             instance=instance,
@@ -181,7 +184,8 @@ class CloudSqlHook(CloudBaseHook):
         :type instance: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().instances().delete(  # pylint: disable=no-member
             project=project_id,
             instance=instance,
@@ -206,7 +210,8 @@ class CloudSqlHook(CloudBaseHook):
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases#resource.
         :rtype: dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         return self.get_conn().databases().get(  # pylint: disable=no-member
             project=project_id,
             instance=instance,
@@ -228,7 +233,8 @@ class CloudSqlHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().databases().insert(  # pylint: disable=no-member
             project=project_id,
             instance=instance,
@@ -264,7 +270,8 @@ class CloudSqlHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().databases().patch(  # pylint: disable=no-member
             project=project_id,
             instance=instance,
@@ -289,7 +296,8 @@ class CloudSqlHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().databases().delete(  # pylint: disable=no-member
             project=project_id,
             instance=instance,
@@ -316,7 +324,8 @@ class CloudSqlHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         try:
             response = self.get_conn().instances().export(  # pylint: disable=no-member
                 project=project_id,
@@ -348,7 +357,8 @@ class CloudSqlHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         try:
             response = self.get_conn().instances().import_(  # pylint: disable=no-member
                 project=project_id,
@@ -374,7 +384,8 @@ class CloudSqlHook(CloudBaseHook):
         :type operation_name: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         service = self.get_conn()
         while True:
             operation_response = service.operations().get(  # pylint: disable=no-member
@@ -872,8 +883,9 @@ class CloudSqlDatabaseHook(BaseHook):
                     self.reserve_free_tcp_port()
             if not self.sql_proxy_unique_path:
                 self.sql_proxy_unique_path = self._generate_unique_path()
+        if not self.database_type:
+            raise ValueError("The database_type should be set")
 
-        assert self.database_type is not None
         database_uris = CONNECTION_URIS[self.database_type]  # type: Dict[str, Dict[str, str]]
         ssl_spec = None
         socket_path = None
@@ -954,8 +966,9 @@ class CloudSqlDatabaseHook(BaseHook):
         :rtype: CloudSqlProxyRunner
         """
         if not self.use_proxy:
-            raise AirflowException("Proxy runner can only be retrieved in case of use_proxy = True")
-        assert self.sql_proxy_unique_path is not None
+            raise ValueError("Proxy runner can only be retrieved in case of use_proxy = True")
+        if not self.sql_proxy_unique_path:
+            raise ValueError("The sql_proxy_unique_path should be set")
         return CloudSqlProxyRunner(
             path_prefix=self.sql_proxy_unique_path,
             instance_specification=self._get_sqlproxy_instance_specification(),
@@ -981,8 +994,10 @@ class CloudSqlDatabaseHook(BaseHook):
         Clean up database hook after it was used.
         """
         if self.database_type == 'postgres':
-            assert self.db_hook is not None
-            assert isinstance(self.db_hook, PostgresHook)
+            if not self.db_hook:
+                raise ValueError("The db_hook should be set")
+            if not isinstance(self.db_hook, PostgresHook):
+                raise ValueError(f"The db_hook should be PostrgresHook and is {type(self.db_hook)}")
             conn = getattr(self.db_hook, 'conn')  # type: ignore
             if conn and conn.notices:
                 for output in self.db_hook.conn.notices:

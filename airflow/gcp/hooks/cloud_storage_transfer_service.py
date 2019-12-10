@@ -164,7 +164,8 @@ class GCPTransferServiceHook(CloudBaseHook):
         :return: Transfer Job
         :rtype: dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         return (
             self.get_conn()  # pylint: disable=no-member
             .transferJobs()
@@ -188,7 +189,8 @@ class GCPTransferServiceHook(CloudBaseHook):
         if request_filter is None:
             if 'filter' in kwargs:
                 request_filter = kwargs['filter']
-                assert isinstance(request_filter, Dict)
+                if not isinstance(request_filter, Dict):
+                    raise ValueError(f"The request_filter should be Dict and is {type(request_filter)}")
                 warnings.warn("Use 'request_filter' instead of 'filter'", DeprecationWarning)
             else:
                 raise TypeError("list_transfer_job missing 1 required positional argument: 'request_filter'")
@@ -245,7 +247,8 @@ class GCPTransferServiceHook(CloudBaseHook):
         :type project_id: str
         :rtype: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         (
             self.get_conn()  # pylint: disable=no-member
             .transferJobs()
@@ -314,7 +317,8 @@ class GCPTransferServiceHook(CloudBaseHook):
         if request_filter is None:
             if 'filter' in kwargs:
                 request_filter = kwargs['filter']
-                assert isinstance(request_filter, Dict)
+                if not isinstance(request_filter, Dict):
+                    raise ValueError(f"The request_filter should be Dict and is {type(request_filter)}")
                 warnings.warn("Use 'request_filter' instead of 'filter'", DeprecationWarning)
             else:
                 raise TypeError(

@@ -89,7 +89,8 @@ class ComputeEngineHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().instances().start(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -121,7 +122,8 @@ class ComputeEngineHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().instances().stop(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -163,7 +165,8 @@ class ComputeEngineHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self._execute_set_machine_type(zone, resource_id, body, project_id)
         try:
             operation_name = response["name"]
@@ -202,7 +205,8 @@ class ComputeEngineHook(CloudBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :rtype: dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().instanceTemplates().get(  # pylint: disable=no-member
             project=project_id,
             instanceTemplate=resource_id
@@ -234,7 +238,8 @@ class ComputeEngineHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().instanceTemplates().insert(  # pylint: disable=no-member
             project=project_id,
             body=body,
@@ -272,7 +277,8 @@ class ComputeEngineHook(CloudBaseHook):
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
         :rtype: dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().instanceGroupManagers().get(  # pylint: disable=no-member
             project=project_id,
             zone=zone,
@@ -312,7 +318,8 @@ class ComputeEngineHook(CloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().instanceGroupManagers().patch(  # pylint: disable=no-member
             project=project_id,
             zone=zone,

@@ -165,8 +165,9 @@ class CloudBaseHook(BaseHook):
         else:
             # Get credentials from JSON data provided in the UI.
             try:
-                assert keyfile_dict is not None
-                keyfile_dict_json = json.loads(keyfile_dict)  # type: Dict[str, str]
+                if not keyfile_dict:
+                    raise ValueError("The keyfile_dict should be set")
+                keyfile_dict_json: Dict[str, str] = json.loads(keyfile_dict)
 
                 # Depending on how the JSON was formatted, it may contain
                 # escaped newlines. Convert those to actual newlines.

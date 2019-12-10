@@ -133,7 +133,8 @@ class _DataflowJobsController(LoggingMixin):
         :rtype: bool
         """
         self._refresh_jobs()
-        assert self._jobs is not None
+        if not self._jobs:
+            raise ValueError("Could not read _jobs")
 
         for job in self._jobs:
             if job['currentState'] not in DataflowJobStatus.END_STATES:
@@ -255,7 +256,8 @@ class _DataflowJobsController(LoggingMixin):
         """
         if not self._jobs:
             self._refresh_jobs()
-        assert self._jobs is not None
+        if not self._jobs:
+            raise ValueError("Could nit read _jobs")
 
         return self._jobs
 
@@ -426,7 +428,8 @@ class DataFlowHook(CloudBaseHook):
         :param multiple_jobs: True if to check for multiple job in dataflow
         :type multiple_jobs: bool
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['jobName'] = name
@@ -466,7 +469,8 @@ class DataFlowHook(CloudBaseHook):
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         variables = self._set_variables(variables)
         name = self._build_dataflow_job_name(job_name, append_job_name)
@@ -506,7 +510,8 @@ class DataFlowHook(CloudBaseHook):
             issues check: https://issues.apache.org/jira/browse/BEAM-1251
         :type py_interpreter: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['job_name'] = name
@@ -605,7 +610,8 @@ class DataFlowHook(CloudBaseHook):
         :return: True if job is running.
         :rtype: bool
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         variables = self._set_variables(variables)
         jobs_controller = _DataflowJobsController(

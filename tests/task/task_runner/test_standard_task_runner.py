@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import getpass
 import os
 import time
 import unittest
@@ -31,6 +32,7 @@ from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_core import TEST_DAG_FOLDER
+from tests.test_utils.db import clear_db_runs
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -39,8 +41,7 @@ LOGGING_CONFIG = {
     'disable_existing_loggers': False,
     'formatters': {
         'airflow.task': {
-            'format': '[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - '
-                      '%%(message)s'
+            'format': '[%(asctime)s] {{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'
         },
     },
     'handlers': {
@@ -61,33 +62,64 @@ LOGGING_CONFIG = {
 
 
 class TestStandardTaskRunner(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         dictConfig(LOGGING_CONFIG)
+
+    @classmethod
+    def tearDownClass(cls):
+        clear_db_runs()
 
     def test_start_and_terminate(self):
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.command_as_list.return_value = ['sleep', '1000']
+        local_task_job.task_instance.command_as_list.return_value = [
+            'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
+        ]
 
         runner = StandardTaskRunner(local_task_job)
         runner.start()
+        time.sleep(0.5)
 
         pgid = os.getpgid(runner.process.pid)
-        self.assertTrue(pgid)
+        self.assertGreater(pgid, 0)
+        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
 
-        processes = []
-        for process in psutil.process_iter():
-            try:
-                if os.getpgid(process.pid) == pgid:
-                    processes.append(process)
-            except OSError:
-                pass
+        processes = list(self._procs_in_pgroup(pgid))
 
         runner.terminate()
 
         for process in processes:
-            self.assertFalse(psutil.pid_exists(process.pid))
+            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+
+        self.assertIsNotNone(runner.return_code())
+
+    def test_start_and_terminate_run_as_user(self):
+        local_task_job = mock.Mock()
+        local_task_job.task_instance = mock.MagicMock()
+        local_task_job.task_instance.run_as_user = getpass.getuser()
+        local_task_job.task_instance.command_as_list.return_value = [
+            'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
+        ]
+
+        runner = StandardTaskRunner(local_task_job)
+
+        runner.start()
+        time.sleep(0.5)
+
+        pgid = os.getpgid(runner.process.pid)
+        self.assertGreater(pgid, 0)
+        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+
+        processes = list(self._procs_in_pgroup(pgid))
+
+        runner.terminate()
+
+        for process in processes:
+            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+
+        self.assertIsNotNone(runner.return_code())
 
     def test_on_kill(self):
         """
@@ -121,8 +153,15 @@ class TestStandardTaskRunner(unittest.TestCase):
         runner = StandardTaskRunner(job1)
         runner.start()
 
-        # Give the task some time to startup
-        time.sleep(10)
+        # give the task some time to startup
+        time.sleep(3)
+
+        pgid = os.getpgid(runner.process.pid)
+        self.assertGreater(pgid, 0)
+        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+
+        processes = list(self._procs_in_pgroup(pgid))
+
         runner.terminate()
 
         # Wait some time for the result
@@ -133,6 +172,18 @@ class TestStandardTaskRunner(unittest.TestCase):
 
         with open(path, "r") as f:
             self.assertEqual("ON_KILL_TEST", f.readline())
+
+        for process in processes:
+            self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
+
+    @staticmethod
+    def _procs_in_pgroup(pgid):
+        for p in psutil.process_iter(attrs=['pid', 'name']):
+            try:
+                if os.getpgid(p.pid) == pgid and p.pid != 0:
+                    yield p
+            except OSError:
+                pass
 
 
 if __name__ == '__main__':

@@ -269,7 +269,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     def run(self) -> None:
         """Performs watching"""
         kube_client: client.CoreV1Api = get_kube_client()
-        assert self.worker_uuid, NOT_STARTED_MESSAGE
+        if not self.worker_uuid:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         while True:
             try:
                 self.resource_version = self._run(kube_client, self.resource_version,
@@ -657,7 +658,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         proper support
         for State.LAUNCHED
         """
-        assert self.kube_client, NOT_STARTED_MESSAGE
+        if not self.kube_client:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         queued_tasks = session\
             .query(TaskInstance)\
             .filter(TaskInstance.state == State.QUEUED).all()
@@ -737,7 +739,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         """Starts the executor"""
         self.log.info('Start Kubernetes executor')
         self.worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid()
-        assert self.worker_uuid, "Could not get worker_uuid"
+        if not self.worker_uuid:
+            raise AirflowException("Could not get worker uuid")
         self.log.debug('Start with worker_uuid: %s', self.worker_uuid)
         # always need to reset resource version since we don't know
         # when we last started, note for behavior below
@@ -764,7 +767,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         )
 
         kube_executor_config = PodGenerator.from_obj(executor_config)
-        assert self.task_queue, NOT_STARTED_MESSAGE
+        if not self.task_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.task_queue.put((key, command, kube_executor_config))
 
     def sync(self) -> None:
@@ -773,10 +777,16 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             self.log.debug('self.running: %s', self.running)
         if self.queued_tasks:
             self.log.debug('self.queued: %s', self.queued_tasks)
-        assert self.kube_scheduler, NOT_STARTED_MESSAGE
-        assert self.kube_config, NOT_STARTED_MESSAGE
-        assert self.result_queue, NOT_STARTED_MESSAGE
-        assert self.task_queue, NOT_STARTED_MESSAGE
+        if not self.worker_uuid:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.kube_scheduler:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.kube_config:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.result_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.task_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.kube_scheduler.sync()
 
         last_resource_version = None
@@ -819,7 +829,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def _change_state(self, key: TaskInstanceKeyType, state: Optional[str], pod_id: str) -> None:
         if state != State.RUNNING:
             if self.kube_config.delete_worker_pods:
-                assert self.kube_scheduler, NOT_STARTED_MESSAGE
+                if not self.kube_scheduler:
+                    raise AirflowException(NOT_STARTED_MESSAGE)
                 self.kube_scheduler.delete_pod(pod_id)
                 self.log.info('Deleted pod: %s', str(key))
             try:
@@ -829,7 +840,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.event_buffer[key] = state
 
     def _flush_task_queue(self) -> None:
-        assert self.task_queue, NOT_STARTED_MESSAGE
+        if not self.task_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.log.debug('Executor shutting down, task_queue approximate size=%d', self.task_queue.qsize())
         while True:
             try:
@@ -841,7 +853,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 break
 
     def _flush_result_queue(self) -> None:
-        assert self.result_queue, NOT_STARTED_MESSAGE
+        if not self.result_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.log.debug('Executor shutting down, result_queue approximate size=%d', self.result_queue.qsize())
         while True:  # pylint: disable=too-many-nested-blocks
             try:
@@ -863,9 +876,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def end(self) -> None:
         """Called when the executor shuts down"""
-        assert self.task_queue, NOT_STARTED_MESSAGE
-        assert self.result_queue, NOT_STARTED_MESSAGE
-        assert self.kube_scheduler, NOT_STARTED_MESSAGE
+        if not self.task_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.result_queue:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if not self.kube_scheduler:
+            raise AirflowException(NOT_STARTED_MESSAGE)
         self.log.info('Shutting down Kubernetes executor')
         self.log.debug('Flushing task_queue...')
         self._flush_task_queue()

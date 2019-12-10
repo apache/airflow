@@ -17,61 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-from unittest.mock import patch
+import importlib
+from unittest import TestCase
 
-from paramiko import SFTP_FAILURE, SFTP_NO_SUCH_FILE
+OLD_PATH = "airflow.contrib.sensors.sftp_sensor"
+NEW_PATH = "airflow.providers.sftp.sensors.sftp_sensor"
+WARNING_MESSAGE = "This module is deprecated. Please use `{}`.".format(NEW_PATH)
 
-from airflow.contrib.sensors.sftp_sensor import SFTPSensor
 
-
-class TestSFTPSensor(unittest.TestCase):
-    @patch('airflow.contrib.sensors.sftp_sensor.SFTPHook')
-    def test_file_present(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
-        sftp_sensor = SFTPSensor(
-            task_id='unit_test',
-            path='/path/to/file/1970-01-01.txt')
-        context = {
-            'ds': '1970-01-01'
-        }
-        output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
-            '/path/to/file/1970-01-01.txt')
-        self.assertTrue(output)
-
-    @patch('airflow.contrib.sensors.sftp_sensor.SFTPHook')
-    def test_file_absent(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(
-            SFTP_NO_SUCH_FILE, 'File missing')
-        sftp_sensor = SFTPSensor(
-            task_id='unit_test',
-            path='/path/to/file/1970-01-01.txt')
-        context = {
-            'ds': '1970-01-01'
-        }
-        output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
-            '/path/to/file/1970-01-01.txt')
-        self.assertFalse(output)
-
-    @patch('airflow.contrib.sensors.sftp_sensor.SFTPHook')
-    def test_sftp_failure(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(
-            SFTP_FAILURE, 'SFTP failure')
-        sftp_sensor = SFTPSensor(
-            task_id='unit_test',
-            path='/path/to/file/1970-01-01.txt')
-        context = {
-            'ds': '1970-01-01'
-        }
-        with self.assertRaises(OSError):
-            sftp_sensor.poke(context)
-            sftp_hook_mock.return_value.get_mod_time.assert_called_once_with(
-                '/path/to/file/1970-01-01.txt')
-
-    def test_hook_not_created_during_init(self):
-        sftp_sensor = SFTPSensor(
-            task_id='unit_test',
-            path='/path/to/file/1970-01-01.txt')
-        self.assertIsNone(sftp_sensor.hook)
+class TestMovingSFTPHookToCore(TestCase):
+    def test_move_sftp_sensor_to_core(self):
+        with self.assertWarns(DeprecationWarning) as warn:
+            # Reload to see deprecation warning each time
+            importlib.import_module(OLD_PATH)
+        self.assertEqual(WARNING_MESSAGE, str(warn.warning))

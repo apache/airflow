@@ -67,7 +67,8 @@ class BigtableHook(CloudBaseHook):
             the default project_id from the GCP connection is used.
         :type project_id: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
 
         instance = self._get_client(project_id=project_id).instance(instance_id)
         if not instance.exists():
@@ -88,7 +89,8 @@ class BigtableHook(CloudBaseHook):
         :param instance_id: The ID of the Cloud Bigtable instance.
         :type instance_id: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         instance = self.get_instance(instance_id=instance_id, project_id=project_id)
         if instance:
             instance.delete()
@@ -147,7 +149,8 @@ class BigtableHook(CloudBaseHook):
         :param timeout: (optional) timeout (in seconds) for instance creation.
                         If None is not specified, Operator will wait indefinitely.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         cluster_storage_type = enums.StorageType(cluster_storage_type)
         instance_type = enums.Instance.Type(instance_type)
 
@@ -225,7 +228,8 @@ class BigtableHook(CloudBaseHook):
             BigTable exists. If set to None or missing,
             the default project_id from the GCP connection is used.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         table = self.get_instance(instance_id=instance_id, project_id=project_id).table(table_id=table_id)
         table.delete()
 

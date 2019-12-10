@@ -83,7 +83,8 @@ class CloudBuildHook(CloudBaseHook):
         :type project_id: str
         :return: Dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         service = self.get_conn()
 
         # Create build

@@ -127,7 +127,8 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: A ``google.cloud.bigquery_datatransfer_v1.types.TransferConfig`` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = client.project_path(project_id)
         return client.create_transfer_config(
@@ -168,7 +169,8 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = client.project_transfer_config_path(
             project=project_id, transfer_config=transfer_config_id
@@ -220,7 +222,8 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.StartManualTransferRunsResponse`` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = client.project_transfer_config_path(
             project=project_id, transfer_config=transfer_config_id
@@ -266,7 +269,8 @@ class BiqQueryDataTransferServiceHook(CloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = client.project_run_path(
             project=project_id, transfer_config=transfer_config_id, run=run_id

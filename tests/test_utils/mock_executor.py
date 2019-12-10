@@ -55,9 +55,11 @@ class MockExecutor(BaseExecutor):
                 (_, prio, _, _) = val
                 # Sort by priority (DESC), then date,task, try
                 return -prio, date, dag_id, task_id, try_number
-            sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
 
-            for (key, (_, _, _, simple_ti)) in sorted_queue:
+            open_slots = self.parallelism - len(self.running)
+            sorted_queue = sorted(self.queued_tasks.items(), key=sort_by)
+            for index in range(min((open_slots, len(sorted_queue)))):
+                (key, (_, _, _, simple_ti)) = sorted_queue[index]
                 self.queued_tasks.pop(key)
                 state = self.mock_task_results[key]
                 ti = simple_ti.construct_task_instance(session=session, lock_for_update=True)

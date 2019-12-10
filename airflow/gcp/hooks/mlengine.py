@@ -112,7 +112,8 @@ class MLEngineHook(CloudBaseHook):
             terminal state (which might be FAILED or CANCELLED state).
         :rtype: dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         hook = self.get_conn()
 
@@ -331,7 +332,8 @@ class MLEngineHook(CloudBaseHook):
             Otherwise raises an error.
         :rtype: Dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         hook = self.get_conn()
         full_name = 'projects/{}/models/{}/versions/{}'.format(
@@ -434,7 +436,8 @@ class MLEngineHook(CloudBaseHook):
         :type project_id: str
         :raises: googleapiclient.errors.HttpError
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         hook = self.get_conn()
 
