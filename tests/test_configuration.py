@@ -26,6 +26,7 @@ from airflow import configuration
 from airflow.configuration import (
     AirflowConfigParser, conf, expand_env_var, get_airflow_config, get_airflow_home, parameterized_config,
 )
+from tests.test_utils.reset_warning_registry import reset_warning_registry
 
 
 @unittest.mock.patch.dict('os.environ', {
@@ -405,14 +406,14 @@ AIRFLOW_HOME = /root/airflow
                 test_conf = make_config()
 
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+        with reset_warning_registry():
+            with warnings.catch_warnings(record=True) as w:
+                with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
+                    test_conf = make_config()
 
-        with warnings.catch_warnings(record=True) as w:
-            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
-                test_conf = make_config()
+                    self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
 
-                self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
-
-                self.assertListEqual([], w)
+                    self.assertListEqual([], w)
 
     def test_deprecated_funcs(self):
         for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
