@@ -171,9 +171,6 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         # cluster has RBAC enabled, your workers may need service account permissions to
         # interact with cluster components.
         self.executor_namespace = conf.get(self.kubernetes_section, 'namespace')
-        # Task secrets managed by KubernetesExecutor.
-        self.gcp_service_account_keys = conf.get(self.kubernetes_section,
-                                                 'gcp_service_account_keys')
 
         # If the user is using the git-sync container to clone their repository via git,
         # allow them to specify repository, tag, and pod name for the init container.
@@ -723,17 +720,6 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     secret_name, e
                 )
                 raise
-
-        # For each GCP service account key, inject it as a secret in executor
-        # namespace with the specific secret name configured in the airflow.cfg.
-        # We let exceptions to pass through to users.
-        if self.kube_config.gcp_service_account_keys:
-            name_path_pair_list = [
-                {'name': account_spec.strip().split('=')[0],
-                 'path': account_spec.strip().split('=')[1]}
-                for account_spec in self.kube_config.gcp_service_account_keys.split(',')]
-            for service_account in name_path_pair_list:
-                _create_or_update_secret(service_account['name'], service_account['path'])
 
     def start(self) -> None:
         """Starts the executor"""
