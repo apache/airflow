@@ -65,7 +65,6 @@ class MockExecutor(BaseExecutor):
                 ti = simple_ti.construct_task_instance(session=session, lock_for_update=True)
                 ti.set_state(state, session=session)
                 self.change_state(key, state)
-                print(key)
 
     def terminate(self):
         pass
