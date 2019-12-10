@@ -340,7 +340,7 @@ COPY docs/ ${AIRFLOW_SOURCES}/docs/
 COPY tests/ ${AIRFLOW_SOURCES}/tests/
 COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
 COPY .coveragerc .rat-excludes .flake8 pylintrc LICENSE MANIFEST.in NOTICE CHANGELOG.txt \
-     .github \
+     .github pytest.ini \
      setup.cfg setup.py \
      ${AIRFLOW_SOURCES}/
 
