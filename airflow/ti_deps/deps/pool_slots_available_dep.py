@@ -50,6 +50,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
         P = models.Pool
         pool_name = ti.pool
 
+        # TODO: Should we add the cache here to reduce n+1 problem?
         pools = session.query(P).filter(P.pool == pool_name).all()
         if not pools:
             yield self._failing_status(
@@ -59,7 +60,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
         else:
             # Controlled by UNIQUE key in slot_pool table,
             # only one result can be returned.
-            open_slots = pools[0].open_slots()
+            open_slots = pools[0].open_slots(session=session)
 
         if ti.state in STATES_TO_COUNT_AS_RUNNING:
             open_slots += 1

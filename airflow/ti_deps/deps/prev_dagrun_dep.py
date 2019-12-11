@@ -57,8 +57,8 @@ class PrevDagrunDep(BaseTIDep):
                     reason="This task instance was the first task instance for its task.")
                 return
         else:
-            dr = ti.get_dagrun()
-            last_dagrun = dr.get_previous_dagrun() if dr else None
+            dr = ti.get_dagrun(session=session)
+            last_dagrun = dr.get_previous_dagrun(session=session) if dr else None
 
             if not last_dagrun:
                 yield self._passing_status(
