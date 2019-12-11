@@ -19,7 +19,7 @@
 
 import json
 from builtins import bytes
-from urllib.parse import urlparse, unquote, parse_qsl
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declared_attr
@@ -144,6 +144,41 @@ class Connection(Base, LoggingMixin):
         self.port = uri_parts.port
         if uri_parts.query:
             self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
+
+    def get_uri(self):
+        uri = '{}://'.format(str(self.conn_type).lower().replace('_', '-'))
+
+        authority_block = ''
+        if self.login is not None:
+            authority_block += quote(self.login, safe='')
+
+        if self.password is not None:
+            authority_block += ':' + quote(self.password, safe='')
+
+        if authority_block != '':
+            authority_block += '@'
+
+            uri += authority_block
+
+        host_block = ''
+        if self.host:
+            host_block += quote(self.host, safe='')
+
+        if self.port:
+            if host_block != '':
+                host_block += ':{}'.format(self.port)
+            else:
+                host_block += '@:{}'.format(self.port)
+
+        if self.schema:
+            host_block += '/{}'.format(quote(self.schema, safe=''))
+
+        uri += host_block
+
+        if self.extra_dejson:
+            uri += '?{}'.format(urlencode(self.extra_dejson))
+
+        return uri
 
     def get_password(self):
         if self._password and self.is_encrypted:
