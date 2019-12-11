@@ -488,7 +488,7 @@ class BackfillJob(BaseJob):
                         self.log.debug('Sending %s to executor', ti)
                         # Skip scheduled state, we are executing immediately
                         ti.state = State.QUEUED
-                        ti.queued_dttm = timezone.utcnow() if not ti.queued_dttm else ti.queued_dttm
+                        ti.queued_dttm = timezone.utcnow()
                         session.merge(ti)
 
                         cfg_path = None
