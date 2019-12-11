@@ -22,10 +22,37 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Airflow Jira utility](#airflow-jira-utility)
 - [Airflow Pull Request Tool](#airflow-pull-request-tool)
 - [Airflow release signing tool](#airflow-release-signing-tool)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Airflow Jira utility
+
+The `airflow-jira` script interact with the Airflow project in <https://issues.apache.org/jira/>. There are two modes of operation
+
+
+- `compare` will examine issues in Jira based on the "Fix Version" field.
+
+  This is useful for preparing releases, and also has an `--unmerged` flag to
+  only show issues that aren't detected in the current branch.
+
+  To run this check out the release branch (for instance `v1-10-test`) and run:
+
+  ```
+  ./dev/airflow-jira compare --unmerged --previous-version 1.10.6 1.10.7
+  ```
+
+  The `--previous-version` is optional, but might speed up operation. That
+  should be a tag reachable from the current HEAD, and will limit the script to
+  look for cherry-picks in the commit range `$PREV_VERSION..HEAD`
+
+- `changelog` will create a _rough_ output for creating the changelog file for a release
+
+  This output will not be perfect and will need manual processing to make sure
+  the descriptions make sense, and that the items are in the right section (for
+  instance you might want to create 'Doc-only' and 'Misc/Internal' section.)
 
 ## Airflow Pull Request Tool
 
