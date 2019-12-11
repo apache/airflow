@@ -143,7 +143,8 @@ class KubernetesRequestFactory:
             req['spec']['volumes'].append({
                 'name': vol_id,
                 'secret': {
-                    'secretName': vol.secret
+                    'secretName': vol.secret,
+                    'defaultMode': vol.volume_mode
                 }
             })
 

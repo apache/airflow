@@ -154,7 +154,8 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         secrets = [
             Secret('volume', 'KEY1', 's1', 'key-1'),
             Secret('env', 'KEY2', 's2'),
-            Secret('volume', 'KEY3', 's3', 'key-2')
+            Secret('volume', 'KEY3', 's3', 'key-2'),
+            Secret('volume', 'KEY4', 's4', volume_mode=256)
         ]
         pod = Pod('v3.14', {}, [], secrets=secrets)
         self.expected['spec']['containers'][0]['volumeMounts'] = [{
@@ -164,6 +165,10 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         }, {
             'mountPath': 'KEY3',
             'name': 'secretvol1',
+            'readOnly': True
+        }, {
+            'mountPath': 'KEY4',
+            'name': 'secretVol2',
             'readOnly': True
         }]
         self.expected['spec']['volumes'] = [{
@@ -175,6 +180,12 @@ class TestKubernetesRequestFactory(unittest.TestCase):
             'name': 'secretvol1',
             'secret': {
                 'secretName': 's3'
+            }
+        }, {
+            'name': 'secretVol2',
+            'secret': {
+                'secretName': 's4',
+                'defaultMode': 256
             }
         }]
         KubernetesRequestFactory.extract_volume_secrets(pod, self.input_req)

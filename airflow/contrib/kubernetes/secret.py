@@ -20,7 +20,7 @@ from airflow.exceptions import AirflowConfigException
 class Secret(object):
     """Defines Kubernetes Secret Volume"""
 
-    def __init__(self, deploy_type, deploy_target, secret, key=None):
+    def __init__(self, deploy_type, deploy_target, secret, key=None, volume_mode=None):
         """Initialize a Kubernetes Secret Object. Used to track requested secrets from
         the user.
         :param deploy_type: The type of secret deploy in Kubernetes, either `env` or
@@ -34,6 +34,9 @@ class Secret(object):
         :type secret: str
         :param key: (Optional) Key of the secret within the Kubernetes Secret
             if not provided in `deploy_type` `env` it will mount all secrets in object
+        :param volume_mode (Optional) defaultMode for volume in case where
+            secret is mounted as a volume. Eg: 256 to set defaultMode of 0400 (octal)
+            for SSH key.
         :type key: str or None
         """
         self.deploy_type = deploy_type
@@ -50,19 +53,22 @@ class Secret(object):
 
         self.secret = secret
         self.key = key
+        self.volume_mode = volume_mode
 
     def __eq__(self, other):
         return (
             self.deploy_type == other.deploy_type and
             self.deploy_target == other.deploy_target and
             self.secret == other.secret and
-            self.key == other.key
+            self.key == other.key and
+            self.volume_mode == other.volume_mode
         )
 
     def __repr__(self):
-        return 'Secret({}, {}, {}, {})'.format(
+        return 'Secret({}, {}, {}, {}, {})'.format(
             self.deploy_type,
             self.deploy_target,
             self.secret,
-            self.key
+            self.key,
+            self.volume_mode
         )
