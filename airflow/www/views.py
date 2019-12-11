@@ -571,25 +571,27 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
-    def rendered(self):
+    @provide_session
+    def rendered(self, session=None):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = timezone.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
-        # Loads dag from file
-        logging.info("Processing DAG file to render template.")
-        dag = dagbag.get_dag(dag_id, from_file_only=True)
+
+        logging.info("Retrieving rendered templates.")
+        dag = dagbag.get_dag(dag_id)
+
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
-            ti.render_templates()
+            ti.get_rendered_template_fields()
         except Exception as e:
             flash("Error rendering template: " + str(e), "error")
         title = "Rendered Template"
         html_dict = {}
-        for template_field in task.__class__.template_fields:
+        for template_field in task.template_fields:
             content = getattr(task, template_field)
             if template_field in wwwutils.get_attr_renderer():
                 html_dict[template_field] = \

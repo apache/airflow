@@ -45,6 +45,9 @@ from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dependencies import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -1876,6 +1879,48 @@ class TestTaskInstanceView(TestBase):
         # in to FAB) but simply that our UTC conversion was run - i.e. it
         # doesn't blow up!
         self.check_content_in_response('List Task Instance', resp)
+
+
+class TestRenderedView(TestBase):
+
+    def setUp(self):
+        super().setUp()
+        self.default_date = datetime(2020, 3, 1)
+        self.dag = DAG("testdag", start_date=self.default_date)
+        self.task = BashOperator(
+            task_id='testtask',
+            bash_command='{{ task_instance_key_str }}',
+            dag=self.dag
+        )
+        SerializedDagModel.write_dag(self.dag)
+        with create_session() as session:
+            session.query(RTIF).delete()
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        with create_session() as session:
+            session.query(RTIF).delete()
+
+    @mock.patch('airflow.www.views.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.models.taskinstance.STORE_SERIALIZED_DAGS', True)
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_rendered_view(self, get_dag_function):
+        """
+        Test that the Rendered View contains the values from RenderedTaskInstanceFields
+        """
+        get_dag_function.return_value = SerializedDagModel.get(self.dag.dag_id).dag
+
+        self.assertEqual(self.task.bash_command, '{{ task_instance_key_str }}')
+        ti = TaskInstance(self.task, self.default_date)
+
+        with create_session() as session:
+            session.add(RTIF(ti))
+
+        url = ('rendered?task_id=testtask&dag_id=testdag&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response("testdag__testtask__20200301", resp)
 
 
 class TestTriggerDag(TestBase):

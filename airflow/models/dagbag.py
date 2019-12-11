@@ -116,25 +116,18 @@ class DagBag(BaseDagBag, LoggingMixin):
     def dag_ids(self) -> List[str]:
         return self.dags.keys()
 
-    def get_dag(self, dag_id: str, from_file_only: bool = False):
+    def get_dag(self, dag_id):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
 
         :param dag_id: DAG Id
         :type dag_id: str
-        :param from_file_only: returns a DAG loaded from file.
-        :type from_file_only: bool
         """
         # Avoid circular import
         from airflow.models.dag import DagModel
 
         # Only read DAGs from DB if this dagbag is store_serialized_dags.
-        # from_file_only is an exception, currently it is for renderring templates
-        # in UI only. Because functions are gone in serialized DAGs, DAGs must be
-        # imported from files.
-        # FIXME: this exception should be removed in future, then webserver can be
-        # decoupled from DAG files.
-        if self.store_serialized_dags and not from_file_only:
+        if self.store_serialized_dags:
             # Import here so that serialized dag is only imported when serialization is enabled
             from airflow.models.serialized_dag import SerializedDagModel
             if dag_id not in self.dags:

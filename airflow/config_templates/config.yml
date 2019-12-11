@@ -316,6 +316,18 @@
       type: string
       example: ~
       default: "30"
+    - name: max_num_rendered_ti_fields_per_task
+      description: |
+        Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
+        in the Database.
+        When Dag Serialization is enabled (``store_serialized_dags=True``), all the template_fields
+        for each of Task Instance are stored in the Database.
+        Keeping this number small may cause an error when you try to view ``Rendered`` tab in
+        TaskInstance view for older tasks.
+      version_added: 2.0.0
+      type: integer
+      example: ~
+      default: "30"
     - name: check_slas
       description: |
         On each dagrun check against defined SLAs
