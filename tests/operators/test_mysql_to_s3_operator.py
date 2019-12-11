@@ -20,10 +20,14 @@
 import unittest
 from unittest import mock
 
-from boto3.session import Session
-from parameterized import parameterized
+from io import StringIO
+import numpy as np
+import pandas as pd
 
-from airflow.operators.mysql_to_s3_operator import MySqlToS3Operator
+from boto3.session import Session
+
+from airflow.operators.mysql_to_s3_operator import MySQLToS3Operator
+from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 class TestMySqlToS3Operator(unittest.TestCase):
     
@@ -36,10 +40,10 @@ class TestMySqlToS3Operator(unittest.TestCase):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
-        header=False
-        index=False
+        header = False
+        index = False
         
-        MySqlToS3Operator(
+        MySQLToS3Operator(
                 query=query,
                 s3_bucket=s3_bucket,
                 s3_key=s3_key,
@@ -49,7 +53,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
                 dag=None
         ).execute(None)
         
-        data_df = hook.get_pandas_df(query)
+        df = mock_run.get_pandas_df(query)
         for col in df:
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
@@ -59,8 +63,10 @@ class TestMySqlToS3Operator(unittest.TestCase):
                     df[col] = np.where(df[col].isnull(), None, df[col]).astype(pd.Int64Dtype)
         
         file_obj = StringIO()
-        data_df.to_csv(file_obj, header=header, index=index)
-        s3_conn.load_file_obj(file_obj=file_obj,
+        df.to_csv(file_obj, header=header, index=index)
+        mock_session.load_file_obj(file_obj=file_obj,
                                    key=s3_key,
-                                   bucket_name=s3_bucket,
-                                   **kwargs)
+                                   bucket_name=s3_bucket)
+        
+    assert mock_run.call_count == 1
+    assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], load_file_obj)
