@@ -41,6 +41,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Remove gcp_service_account_keys option in airflow.cfg file
+
+This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
+recommended service account keys for the Google Cloud Platform management method is
+[Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
+
 ### Removal of airflow.AirflowMacroPlugin class
 
 The class was there in airflow package but it has not been used (apparently since 2015).

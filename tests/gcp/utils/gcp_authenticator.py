@@ -136,7 +136,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         """
         Sets full key path - if GCP_CONFIG_DIR points to absolute
             directory, it tries to find the key in this directory. Otherwise it assumes
-            that Airflow is running from the directory where configuration is checked 
+            that Airflow is running from the directory where configuration is checked
             out next to airflow directory in config directory
             it tries to find the key folder in the workspace's config
             directory.

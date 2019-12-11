@@ -249,14 +249,6 @@ class PodGenerator:
                     limits=limits
                 )
 
-        annotations = namespaced.get('annotations', {})
-        gcp_service_account_key = namespaced.get('gcp_service_account_key', None)
-
-        if annotations is not None and gcp_service_account_key is not None:
-            annotations.update({
-                'iam.cloud.google.com/service-account': gcp_service_account_key
-            })
-
         pod_spec_generator = PodGenerator(
             image=namespaced.get('image'),
             envs=namespaced.get('env'),
