@@ -16,25 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime
+from airflow.models import DAG  # noqa - needed to work against airflow "safe mode" parsing
 
-from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
-
-
-def raise_error():
-    raise Exception("This dag shouldn't have been executed")
-
-
-DEFAULT_DATE = datetime(2019, 12, 1)
-
-args = {
-    'owner': 'airflow',
-    'start_date': DEFAULT_DATE,
-}
-
-dag = DAG(dag_id='test_ignore_this_dag', default_args=args)
-task = PythonOperator(
-    task_id='task1',
-    python_callable=raise_error,
-    dag=dag)
+raise Exception("This dag shouldn't have been executed")
