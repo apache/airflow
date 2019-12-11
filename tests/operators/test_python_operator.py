@@ -494,6 +494,30 @@ class TestBranchOperator(unittest.TestCase):
             else:
                 raise Exception
 
+    def test_xcom_push(self):
+        self.branch_op = BranchPythonOperator(task_id='make_choice',
+                                              dag=self.dag,
+                                              python_callable=lambda: 'branch_1')
+
+        self.branch_1.set_upstream(self.branch_op)
+        self.branch_2.set_upstream(self.branch_op)
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(
+                    ti.xcom_pull(task_ids='make_choice'), 'branch_1')
+
 
 class TestShortCircuitOperator(unittest.TestCase):
     @classmethod

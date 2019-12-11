@@ -46,6 +46,10 @@ assists users migrating to a new version.
 This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
 recommended service account keys for the Google Cloud Platform management method is
 [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
+### BranchPythonOperator has a return value
+`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch, 
+where previously it returned None. Since it inherets from BaseOperator it will do an 
+`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making. 
 
 ### Removal of airflow.AirflowMacroPlugin class
 
