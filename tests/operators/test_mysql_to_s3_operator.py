@@ -23,7 +23,6 @@ from unittest import mock
 
 import numpy as np
 import pandas as pd
-
 from boto3.session import Session
 
 from airflow.operators.mysql_to_s3_operator import MySQLToS3Operator
