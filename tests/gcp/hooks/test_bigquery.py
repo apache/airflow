@@ -820,7 +820,8 @@ class TestDatasetsOperations(unittest.TestCase):
     )
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     def test_create_empty_dataset_no_dataset_id_err(self, mock_get_service, mock_get_creds_and_proj_id):
-        with self.assertRaisesRegex(ValueError, r"{} not provided datasetId\. Impossible to create dataset"):
+        with self.assertRaisesRegex(ValueError, r"dataset_id not provided and datasetId not exist in the "
+                                                r"datasetReference\. Impossible to create dataset"):
             bq_hook = hook.BigQueryHook()
             cursor = bq_hook.get_cursor()
             cursor.create_empty_dataset(dataset_id="", project_id="")
