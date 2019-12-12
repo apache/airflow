@@ -49,7 +49,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_function_hook.GcfHook",
     ),
     (
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook",
+        "airflow.gcp.hooks.kms.CloudKMSHook",
         "airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook",
     ),
     (
