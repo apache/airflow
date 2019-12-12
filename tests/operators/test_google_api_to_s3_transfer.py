@@ -20,7 +20,8 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from airflow import configuration, models
+from airflow import models
+from airflow.configuration import load_test_config
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.operators.google_api_to_s3_transfer import GoogleApiToS3Transfer
 from airflow.utils import db
@@ -29,7 +30,7 @@ from airflow.utils import db
 class TestGoogleApiToS3Transfer(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
+        load_test_config()
 
         db.merge_conn(
             models.Connection(

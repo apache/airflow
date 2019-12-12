@@ -152,7 +152,7 @@ class SSHHook(BaseHook):
 
         self.port = self.port or SSH_PORT
 
-    def get_conn(self):
+    def get_conn(self) -> paramiko.SSHClient:
         """
         Opens a ssh connection to the remote host.
 

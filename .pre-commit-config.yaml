@@ -58,8 +58,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add license for all JS files
-        files: \.js$
+        name: Add license for all JS/CSS files
+        files: \.(js|css)$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
           - --comment-style
@@ -143,6 +143,7 @@ repos:
     rev: v2.4.0
     hooks:
       - id: check-merge-conflict
+      - id: debug-statements
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: mixed-line-ending
@@ -183,6 +184,13 @@ repos:
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^airflow/_vendor/.*$|^build/.*$|^.tox/.*$|^venv/.*$
         additional_dependencies: ['isort']
+      - id: setup-order
+        name: Checks for an order of dependencies in setup.py
+        language: python
+        files: ^setup.py$
+        pass_filenames: false
+        require_serial: true
+        entry: tests/test_order_setup.py
       - id: update-breeze-file
         name: Update output of breeze command in BREEZE.rst
         entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
@@ -190,6 +198,45 @@ repos:
         files: ^BREEZE.rst$|^breeze$|^breeze-complete$
         pass_filenames: false
         require_serial: true
+      - id: pydevd
+        language: pygrep
+        name: Check for pydevd debug statements accidentally left
+        entry: "pydevd.*settrace\\("
+        pass_filenames: true
+        files: \.py$
+      - id: consistent-pylint
+        language: pygrep
+        name: Check for inconsitent pylint disable/enable without space
+        entry: "pylint:disable|pylint:enable"
+        pass_filenames: true
+        files: \.py$
+      - id: base-operator
+        language: pygrep
+        name: Make sure BaseOperator is imported from airflow.models.baseoperator in core
+        entry: "from airflow\\.models import.* BaseOperator"
+        files: \.py$
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/gcp/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/sensors/.*$|
+          ^airflow/providers/.*$|
+          ^airflow/contrib/.*$
+      - id: base-operator
+        language: pygrep
+        name: Make sure BaseOperator is imported from airflow.models outside of core
+        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow/gcp/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/sensors/.*$|
+          ^airflow/providers/.*\.py$|
+          ^airflow/contrib/.*\.py$
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh
@@ -215,14 +262,16 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit_pylint_main.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
+        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$
         pass_filenames: true
-      - id: pylint
+        require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
+      - id: pylint-tests
         name: Run pylint for tests
         language: system
         entry: "./scripts/ci/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
+        require_serial: false  # For tests, it's perfectly OK to run pylint in parallel
       - id: flake8
         name: Run flake8
         language: system

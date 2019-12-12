@@ -157,6 +157,7 @@ airflow-*.err
 airflow-*.out
 airflow-*.log
 airflow-*.pid
+.airflow_db_initialised
 
 # mypy
 .mypy_cache/

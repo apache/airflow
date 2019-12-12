@@ -35,11 +35,12 @@ from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
+from airflow.version import version as airflow_version
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
 except Exception as e:  # pylint: disable=broad-except
-    if os.environ.get('KUBERNETES_VERSION'):
+    if os.environ.get('KUBERNETES_VERSION') and os.environ.get('ENV', 'kubernetes') == 'kubernetes':
         raise e
     else:
         raise unittest.SkipTest(
@@ -61,7 +62,10 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 'namespace': 'default',
                 'name': ANY,
                 'annotations': {},
-                'labels': {'foo': 'bar'}
+                'labels': {
+                    'foo': 'bar', 'kubernetes_pod_operator': 'True',
+                    'airflow_version': airflow_version.replace('+', '-')
+                }
             },
             'spec': {
                 'affinity': {},

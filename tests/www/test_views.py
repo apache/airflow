@@ -28,7 +28,7 @@ import sys
 import tempfile
 import unittest
 import urllib
-from datetime import timedelta
+from datetime import datetime as dt, timedelta
 from unittest import mock
 from urllib.parse import quote_plus
 
@@ -38,13 +38,13 @@ from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
 
-from airflow import models, settings
+from airflow import models, settings, version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.jobs import BaseJob
-from airflow.models import DAG, BaseOperator, Connection, DagRun, TaskInstance
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models import DAG, Connection, DagRun, TaskInstance
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dep_context import QUEUEABLE_STATES, RUNNABLE_STATES
@@ -372,6 +372,15 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
+    def test_doc_site_url(self):
+        resp = self.client.get('/', follow_redirects=True)
+        if "dev" in version.version:
+            airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+        else:
+            airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
+
+        self.check_content_in_response(airflow_doc_site, resp)
+
     def test_health(self):
 
         # case-1: healthy scheduler status
@@ -583,7 +592,7 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post('run', data=form)
         self.check_content_in_response('', resp, resp_code=302)
 
-    @mock.patch('airflow.executors.get_default_executor')
+    @mock.patch('airflow.executors.executor_loader.ExecutorLoader.get_default_executor')
     def test_run_with_runnable_states(self, get_default_executor_function):
         executor = CeleryExecutor()
         executor.heartbeat = lambda: True
@@ -613,7 +622,7 @@ class TestAirflowBaseViews(TestBase):
                   .format(state) + "The task must be cleared in order to be run"
             self.assertFalse(re.search(msg, resp.get_data(as_text=True)))
 
-    @mock.patch('airflow.executors.get_default_executor')
+    @mock.patch('airflow.executors.executor_loader.ExecutorLoader.get_default_executor')
     def test_run_with_not_runnable_states(self, get_default_executor_function):
         get_default_executor_function.return_value = CeleryExecutor()
 
@@ -692,6 +701,7 @@ class TestConfigurationView(TestBase):
 
 class TestLogView(TestBase):
     DAG_ID = 'dag_for_testing_log_view'
+    DAG_ID_REMOVED = 'removed_dag_for_testing_log_view'
     TASK_ID = 'task_for_testing_log_view'
     DEFAULT_DATE = timezone.datetime(2017, 9, 1)
     ENDPOINT = 'log?dag_id={dag_id}&task_id={task_id}&' \
@@ -731,12 +741,23 @@ class TestLogView(TestBase):
         from airflow.www.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dag.sync_to_db()
-        task = DummyOperator(task_id=self.TASK_ID, dag=dag)
+        dag_removed = DAG(self.DAG_ID_REMOVED, start_date=self.DEFAULT_DATE)
+        dag_removed.sync_to_db()
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
         with create_session() as session:
-            self.ti = TaskInstance(task=task, execution_date=self.DEFAULT_DATE)
+            self.ti = TaskInstance(
+                task=DummyOperator(task_id=self.TASK_ID, dag=dag),
+                execution_date=self.DEFAULT_DATE
+            )
             self.ti.try_number = 1
+            self.ti_removed_dag = TaskInstance(
+                task=DummyOperator(task_id=self.TASK_ID, dag=dag_removed),
+                execution_date=self.DEFAULT_DATE
+            )
+            self.ti_removed_dag.try_number = 1
+
             session.merge(self.ti)
+            session.merge(self.ti_removed_dag)
 
     def tearDown(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -862,6 +883,28 @@ class TestLogView(TestBase):
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
         self.assertEqual(200, response.status_code)
 
+    @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
+    def test_get_logs_with_metadata_for_removed_dag(self, mock_read):
+        mock_read.return_value = (['airflow log line'], [{'end_of_log': True}])
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}"
+        url = url_template.format(self.DAG_ID_REMOVED, self.TASK_ID,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()), 1, json.dumps({}))
+        response = self.client.get(
+            url,
+            data=dict(
+                username='test',
+                password='test'
+            ),
+            follow_redirects=True
+        )
+
+        self.assertIn('"message":', response.data.decode('utf-8'))
+        self.assertIn('"metadata":', response.data.decode('utf-8'))
+        self.assertIn('airflow log line', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
 
 class TestVersionView(TestBase):
     def test_version(self):
@@ -886,7 +929,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.test = test
         self.endpoint = endpoint
 
-    def setUp(self):  # pylint:disable=invalid-name
+    def setUp(self):  # pylint: disable=invalid-name
         from airflow.www.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
@@ -900,7 +943,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
             )
             self.runs.append(run)
 
-    def tearDown(self):  # pylint:disable=invalid-name
+    def tearDown(self):  # pylint: disable=invalid-name
         self.test.session.query(DagRun).filter(
             DagRun.dag_id == self.DAG_ID).delete()
         self.test.session.commit()
@@ -1129,7 +1172,8 @@ class TestDagACLView(TestBase):
     """
     Test Airflow DAG acl
     """
-    default_date = timezone.datetime(2018, 6, 1)
+    next_year = dt.now().year + 1
+    default_date = timezone.datetime(next_year, 6, 1)
     run_id = "test_{}".format(models.DagRun.id_for_date(default_date))
 
     @classmethod
@@ -1370,6 +1414,26 @@ class TestDagACLView(TestBase):
         resp = self.client.get('task_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_in_response('example_subdag_operator', resp)
+
+    def test_task_stats_success_when_selecting_dags(self):
+        self.logout()
+        self.login(username='all_dag_user',
+                   password='all_dag_user')
+
+        resp = self.client.get('task_stats?dag_ids=example_subdag_operator', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertNotIn('example_bash_operator', stats)
+        self.assertIn('example_subdag_operator', stats)
+
+        # Multiple
+        resp = self.client.get('task_stats?dag_ids=example_subdag_operator,example_bash_operator',
+                               follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertIn('example_bash_operator', stats)
+        self.assertIn('example_subdag_operator', stats)
+        self.check_content_not_in_response('example_xcom', resp)
 
     def test_code_success(self):
         self.logout()

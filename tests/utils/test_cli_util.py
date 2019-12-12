@@ -24,6 +24,8 @@ from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime
 
+from airflow import AirflowException, settings
+from airflow.bin.cli import CLIFactory
 from airflow.utils import cli, cli_action_loggers
 
 
@@ -70,6 +72,20 @@ class TestCliUtil(unittest.TestCase):
         """
         with fail_action_logger_callback():
             success_func(Namespace())
+
+    def test_process_subdir_path_with_placeholder(self):
+        self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
+
+    def test_get_dags(self):
+        parser = CLIFactory.get_parser()
+        dags = cli.get_dags(parser.parse_args(['tasks', 'clear', 'example_subdag_operator', '--yes']))
+        self.assertEqual(len(dags), 1)
+
+        dags = cli.get_dags(parser.parse_args(['tasks', 'clear', 'subdag', '-dx', '--yes']))
+        self.assertGreater(len(dags), 1)
+
+        with self.assertRaises(AirflowException):
+            cli.get_dags(parser.parse_args(['tasks', 'clear', 'foobar', '-dx', '--yes']))
 
 
 @contextmanager

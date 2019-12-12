@@ -58,6 +58,14 @@
       "type": "string",
       "pattern": "^#[a-fA-F0-9]{3,6}$"
     },
+    "extra_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 1
+      }
+    },
     "dag": {
       "type": "object",
       "properties": {
@@ -112,6 +120,7 @@
       "properties": {
         "_task_type": { "type": "string" },
         "_task_module": { "type": "string" },
+        "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },

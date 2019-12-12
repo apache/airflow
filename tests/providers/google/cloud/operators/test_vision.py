@@ -230,11 +230,11 @@ class TestCloudVisionProductDelete(unittest.TestCase):
 
 
 class TestCloudVisionReferenceImageCreate(unittest.TestCase):
-    @mock.patch(  # type: ignore
+    @mock.patch(
         'airflow.providers.google.cloud.operators.vision.CloudVisionHook',
-        **{'return_value.create_reference_image.return_value': {}}
     )
     def test_minimal_green_path(self, mock_hook):
+        mock_hook.return_value.create_reference_image.return_value = {}
         op = CloudVisionReferenceImageCreateOperator(
             location=LOCATION_TEST,
             product_id=PRODUCT_ID_TEST,

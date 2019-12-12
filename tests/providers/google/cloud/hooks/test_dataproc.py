@@ -19,7 +19,7 @@
 #
 import unittest
 
-from google.cloud.dataproc_v1beta2.types import JobStatus  # pylint:disable=no-name-in-module
+from google.cloud.dataproc_v1beta2.types import JobStatus  # pylint: disable=no-name-in-module
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
@@ -49,7 +49,7 @@ def mock_init(*args, **kwargs):
 class TestDataprocHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            BASE_STRING.format("GoogleCloudBaseHook.__init__"), new=mock_init
+            BASE_STRING.format("CloudBaseHook.__init__"), new=mock_init
         ):
             self.hook = DataprocHook(gcp_conn_id="test")
 

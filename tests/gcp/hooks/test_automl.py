@@ -53,7 +53,7 @@ MASK = {"field": "mask"}
 class TestAuoMLHook(unittest.TestCase):
     def setUp(self) -> None:
         with mock.patch(
-            "airflow.gcp.hooks.automl.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.automl.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudAutoMLHook()
@@ -62,7 +62,7 @@ class TestAuoMLHook(unittest.TestCase):
             )
 
     @mock.patch(
-        "airflow.gcp.hooks.automl.GoogleCloudBaseHook.client_info",
+        "airflow.gcp.hooks.automl.CloudBaseHook.client_info",
         new_callable=lambda: CLIENT_INFO,
     )
     @mock.patch("airflow.gcp.hooks.automl.AutoMlClient")
@@ -73,12 +73,12 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.gcp.hooks.automl.GoogleCloudBaseHook.client_info",
+        "airflow.gcp.hooks.automl.CloudBaseHook.client_info",
         new_callable=lambda: CLIENT_INFO,
     )
     @mock.patch("airflow.gcp.hooks.automl.PredictionServiceClient")
     def test_prediction_client(self, mock_prediction_client, mock_client_info):
-        client = self.hook.prediction_client  # pylint:disable=unused-variable  # noqa
+        client = self.hook.prediction_client  # pylint: disable=unused-variable  # noqa
         mock_prediction_client.assert_called_once_with(
             credentials=CREDENTIALS, client_info=CLIENT_INFO
         )
