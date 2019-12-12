@@ -95,7 +95,7 @@ class AWSDataSyncHook(AwsHook):
         return location["LocationArn"]
 
     def get_location_arns(
-        self, location_uri, case_sensitive=True, ignore_trailing_slash=True
+        self, location_uri, case_sensitive=False, ignore_trailing_slash=True
     ):
         """
         Return all LocationArns which match a LocationUri.
@@ -118,14 +118,14 @@ class AWSDataSyncHook(AwsHook):
         if ignore_trailing_slash and location_uri.endswith("/"):
             location_uri = location_uri[:-1]
 
-        for location in self.locations:
-            location_uri2 = location["LocationUri"]
+        for location_from_aws in self.locations:
+            location_uri_from_aws = location_from_aws["LocationUri"]
             if not case_sensitive:
-                location_uri2 = location_uri2.lower()
-            if ignore_trailing_slash and location_uri2.endswith("/"):
-                location_uri2 = location_uri2[:-1]
-            if location_uri == location_uri2:
-                result.append(location["LocationArn"])
+                location_uri_from_aws = location_uri_from_aws.lower()
+            if ignore_trailing_slash and location_uri_from_aws.endswith("/"):
+                location_uri_from_aws = location_uri_from_aws[:-1]
+            if location_uri == location_uri_from_aws:
+                result.append(location_from_aws["LocationArn"])
         return result
 
     def _refresh_locations(self):

@@ -58,8 +58,6 @@ MOCK_DATA = {
     "delete_task_id": "test_aws_datasync_delete_task_operator",
     "source_location_uri": SOURCE_LOCATION_URI,
     "destination_location_uri": DESTINATION_LOCATION_URI,
-    "location_search_case_sensitive": True,
-    "location_search_ignore_trailing_slash": True,
     "create_task_kwargs": CREATE_TASK_KWARGS,
     "update_task_kwargs": UPDATE_TASK_KWARGS,
     "create_source_location_kwargs": {
@@ -135,6 +133,7 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         task_arn=None,
         source_location_uri=SOURCE_LOCATION_URI,
         destination_location_uri=DESTINATION_LOCATION_URI,
+        choose_location_strategy=None
     ):
         # Create operator
         self.datasync = AWSDataSyncOperator(
@@ -143,8 +142,6 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
             task_arn=task_arn,
             source_location_uri=source_location_uri,
             destination_location_uri=destination_location_uri,
-            location_search_case_sensitive=True,
-            location_search_ignore_trailing_slash=True,
             create_task_kwargs={"Options": {"VerifyMode": "NONE", "Atime": "NONE"}},
             create_source_location_kwargs={
                 "Subdirectory": SOURCE_SUBDIR,
@@ -157,6 +154,7 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
                 "S3BucketArn": DESTINATION_LOCATION_ARN,
                 "S3Config": {"BucketAccessRoleArn": "myrole"},
             },
+            choose_location_strategy=choose_location_strategy,
             wait_interval_seconds=0,
         )
 
@@ -166,6 +164,10 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         self.assertEqual(self.datasync.task_id, MOCK_DATA["create_task_id"])
         # Defaults
         self.assertEqual(self.datasync.aws_conn_id, "aws_default")
+        self.assertFalse(self.datasync.choose_task_strategy)
+        self.assertFalse(  # Empty dict
+            self.datasync.task_execution_kwargs
+        )
         # Assignments
         self.assertEqual(
             self.datasync.source_location_uri, MOCK_DATA["source_location_uri"]
@@ -173,14 +175,6 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         self.assertEqual(
             self.datasync.destination_location_uri,
             MOCK_DATA["destination_location_uri"],
-        )
-        self.assertEqual(
-            self.datasync.location_search_case_sensitive,
-            MOCK_DATA["location_search_case_sensitive"],
-        )
-        self.assertEqual(
-            self.datasync.location_search_ignore_trailing_slash,
-            MOCK_DATA["location_search_ignore_trailing_slash"],
         )
         self.assertEqual(
             self.datasync.create_task_kwargs, MOCK_DATA["create_task_kwargs"]
@@ -192,6 +186,9 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         self.assertEqual(
             self.datasync.create_destination_location_kwargs,
             MOCK_DATA["create_destination_location_kwargs"],
+        )
+        self.assertFalse(
+            self.datasync.choose_location_strategy
         )
 
     def test_init_fails(self, mock_get_conn):
@@ -280,10 +277,28 @@ class TestAWSDataSyncOperatorCreate(AWSDataSyncTestCaseBase):
         tasks_before = len(tasks["Tasks"])
 
         self.set_up_operator(task_arn=self.task_arn)
+        self.datasync.execute(None)
 
         tasks = self.client.list_tasks()
         tasks_after = len(tasks["Tasks"])
         self.assertEqual(tasks_before, tasks_after)
+
+    def create_task_many_locations(self, mock_get_conn):
+        # ### Set up mocks:
+        mock_get_conn.return_value = self.client
+        # ### Begin tests:
+
+        # Create duplicate source location to choose from
+        self.client.create_location_smb(
+            **MOCK_DATA["create_source_location_kwargs"]
+        )
+
+        self.set_up_operator(task_arn=self.task_arn)
+        with self.assertRaises(AirflowException):
+            self.datasync.execute(None)
+
+        self.set_up_operator(task_arn=self.task_arn, choose_location_strategy='random')
+        self.datasync.execute(None)
 
     def test_execute_specific_task(self, mock_get_conn):
         # ### Set up mocks:
@@ -323,6 +338,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         task_arn=None,
         source_location_uri=SOURCE_LOCATION_URI,
         destination_location_uri=DESTINATION_LOCATION_URI,
+        choose_task_strategy=None
     ):
         # Create operator
         self.datasync = AWSDataSyncOperator(
@@ -336,6 +352,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
                 "create_destination_location_kwargs"
             ],
             create_task_kwargs=MOCK_DATA["create_task_kwargs"],
+            choose_task_strategy=choose_task_strategy,
             wait_interval_seconds=0,
         )
 
@@ -345,6 +362,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         self.assertEqual(self.datasync.task_id, MOCK_DATA["get_task_id"])
         # Defaults
         self.assertEqual(self.datasync.aws_conn_id, "aws_default")
+        self.assertFalse(self.datasync.choose_location_strategy)
         # Assignments
         self.assertEqual(
             self.datasync.source_location_uri, MOCK_DATA["source_location_uri"]
@@ -353,6 +371,7 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
             self.datasync.destination_location_uri,
             MOCK_DATA["destination_location_uri"],
         )
+        self.assertFalse(self.datasync.choose_task_strategy)
 
     def test_init_fails(self, mock_get_conn):
         # ### Set up mocks:
@@ -463,6 +482,9 @@ class TestAWSDataSyncOperatorGetTasks(AWSDataSyncTestCaseBase):
         self.assertEqual(len(tasks["Tasks"]), 2)
         locations = self.client.list_locations()
         self.assertEqual(len(locations["Locations"]), 2)
+
+        self.set_up_operator(task_arn=self.task_arn, choose_task_strategy='random')
+        self.datasync.execute(None)
 
     def test_execute_specific_task(self, mock_get_conn):
         # ### Set up mocks:

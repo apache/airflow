@@ -39,7 +39,7 @@ from os import getenv
 from airflow import models, utils
 from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
 
-# [START howto_operator_datasync_complex_args]
+# [START howto_operator_datasync_2_args]
 SOURCE_LOCATION_URI = getenv(
     "SOURCE_LOCATION_URI", "smb://hostname/directory/")
 
@@ -75,15 +75,15 @@ UPDATE_TASK_KWARGS = json.loads(
 )
 
 default_args = {"start_date": utils.dates.days_ago(1)}
-# [END howto_operator_datasync_complex_args]
+# [END howto_operator_datasync_2_args]
 
 with models.DAG(
-    "example_datasync_complex",
+    "example_datasync_2",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
 ) as dag:
 
-    # [START howto_operator_datasync_complex]
+    # [START howto_operator_datasync_2]
     datasync_task = AWSDataSyncOperator(
         aws_conn_id="aws_default",
         task_id="datasync_task",
@@ -98,4 +98,4 @@ with models.DAG(
 
         delete_task_after_execution=True
     )
-    # [END howto_operator_datasync_complex]
+    # [END howto_operator_datasync_2]
