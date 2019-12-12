@@ -16,9 +16,10 @@
 # under the License.
 
 import json
+import math
 import time
 import tenacity
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Generator, List
 
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -31,7 +32,10 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from airflow import AirflowException
 from requests.exceptions import BaseHTTPError
+from urllib3 import HTTPResponse
 from .kube_client import get_kube_client
+
+POD_LOGS_POLL_INTERVAL_SECONDS = 5
 
 
 class PodStatus:
@@ -143,17 +147,88 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True
     )
-    def read_pod_logs(self, pod):
+    def _read_pod_log_chunk(self, pod: Pod, last_line: bytes) -> HTTPResponse:
+        # The CoreV1Api doesn't support since_time even though the API does, so we must use
+        # since_seconds. Add 15 seconds of buffer just in case of NTP woes
+        if last_line:
+            # Strip fractional part because strptime doesn't support nanosecond parsing
+            timestamp = last_line.split(b" ", 1)[0]
+            last_chunk_dt = dt.strptime(timestamp.split(b".", 1)[0].decode("utf-8"),
+                                        "%Y-%m-%dT%H:%M:%S")
+            since_time = last_chunk_dt
+        else:
+            since_time = dt.utcfromtimestamp(0)
+        since_seconds = math.ceil((dt.utcnow() - since_time).total_seconds() + 15)
+        resp = self._client.read_namespaced_pod_log(
+            name=pod.name,
+            namespace=pod.namespace,
+            container='base',
+            follow=False,
+            since_seconds=since_seconds,
+            timestamps=True,
+            _preload_content=False
+        )
+
+        # If we've already read a chunk, skip until we find a matching line
+        # Just in case since_seconds doesn't get everything we want, keep the previous lines in a buffer
+        buffered_lines = []  # type: List[bytes]
+        skipping_lines = True
+        for line in resp:
+            if skipping_lines:
+                if line == last_line:
+                    self.log.debug("Found duplicate line. Stopping log skipping")
+                    buffered_lines = []
+                    skipping_lines = False
+                else:
+                    buffered_lines.append(line)
+            else:
+                yield line
+
+        if buffered_lines:
+            self.log.warn(
+                "End of previous log chunk not found in next chunk. May indicated log line loss"
+            )
+            for buffered_line in buffered_lines:
+                yield buffered_line
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_exponential(),
+        reraise=True
+    )
+    def read_pod_logs(self, pod: Pod) -> Generator[str, None, None]:
+        """
+        Reads pod logs from the Kubernetes API until the pod stops.
+
+        This explicitly does not use the `follow` parameter due to issues around log rotation
+        (https://github.com/kubernetes/kubernetes/issues/28369). Once that is fixed, using follow instead
+        of polling for pod status should be fine, but deduping on timestamp will still be desired in case the
+        underlying request fails
+
+        :param pod:
+        :return:
+        """
+
+        # The timestamps returned from the Kubernetes API are in nanoseconds, and appear to never duplicate
+        # across lines so we can use the timestamp plus the line content to deduplicate log lines across
+        # multiple runs
+        last_line = ""
+        # We use a variable here instead of looping on self.pod_is_running so that we can get one more read
+        # in the loop before breaking out
+        pod_is_running = True
 
         try:
-            return self._client.read_namespaced_pod_log(
-                name=pod.name,
-                namespace=pod.namespace,
-                container='base',
-                follow=True,
-                tail_lines=10,
-                _preload_content=False
-            )
+            while pod_is_running:
+                pod_is_running = self.pod_is_running(pod)
+                if not pod_is_running:
+                    self.log.info("pod stopped, pulling logs one more time")
+
+                for line in self._read_pod_log_chunk(pod, last_line):
+                    timestamp, log_line = line.split(b" ", 1)
+                    yield log_line
+                    last_line = line
+
+                time.sleep(POD_LOGS_POLL_INTERVAL_SECONDS)
         except BaseHTTPError as e:
             raise AirflowException(
                 'There was an error reading the kubernetes API: {}'.format(e)

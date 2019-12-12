@@ -37,13 +37,13 @@ class Resources:
 
     def has_limits(self):
         return self.limit_cpu is not None or \
-               self.limit_memory is not None or \
-               self.limit_ephemeral_storage is not None
+            self.limit_memory is not None or \
+            self.limit_ephemeral_storage is not None
 
     def has_requests(self):
         return self.request_cpu is not None or \
-               self.request_memory is not None or \
-               self.request_ephemeral_storage is not None
+            self.request_memory is not None or \
+            self.request_ephemeral_storage is not None
 
 
 class Port:

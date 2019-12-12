@@ -510,7 +510,7 @@ def run(args, dag=None):
 
     hostname = get_hostname()
     log.info("Running %s on host %s", ti, hostname)
-    
+
     if args.serve_logs:
         env = os.environ.copy()
         sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)

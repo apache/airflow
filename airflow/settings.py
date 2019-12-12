@@ -25,6 +25,8 @@ import sys
 import socket
 import time
 
+from typing import Any
+
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker, Query
 from sqlalchemy.pool import NullPool
@@ -57,7 +59,8 @@ class RetryingQuery(Query):
         self.max_tries = 1 + conf.getint('core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRIES')
 
         try:
-            self.max_retry_time_seconds = max(0, conf.getint('core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRY_SECONDS'))
+            self.max_retry_time_seconds = max(0, conf.getint(
+                'core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRY_SECONDS'))
         except conf.AirflowConfigException:
             self.max_retry_time_seconds = 30
 
@@ -69,13 +72,14 @@ class RetryingQuery(Query):
                 return super().__iter__()
 
             except Exception as ex:
-                log.warning(f'Try {try_number}/{self.max_tries} failed to perform db action.', exc_info=ex)
+                log.warning('Try {}/{} failed to perform db action.'.format(try_number, self.max_tries),
+                            exc_info=ex)
                 last_exc = ex
                 time.sleep(min(float(self.max_retry_time_seconds), 0.1 * (1 << try_number)))
 
             try_number += 1
 
-        log.error(f'Failed to perform db action after {self.max_tries} attempts.')
+        log.error('Failed to perform db action after {} attempts.'.format(self.max_tries))
         raise last_exc
 
 
@@ -97,7 +101,7 @@ class DummyStatsLogger(object):
         pass
 
 
-Stats = DummyStatsLogger
+Stats = DummyStatsLogger  # type: Any
 
 try:
     if conf.getboolean('scheduler', 'statsd_on'):
