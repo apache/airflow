@@ -561,8 +561,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 self.log.warning(
                     'task_id/dag_id are not safe to use as Kubernetes labels. This can cause '
                     'severe performance regressions. Please see '
-                    'https://kubernetes.io/docs/concepts/overview/working-with-objects'
-                    '/labels/#syntax-and-character-set'
+                    '<https://kubernetes.io/docs/concepts/overview/working-with-objects'
+                    '/labels/#syntax-and-character-set>. '
                     'Given dag_id: %s, task_id: %s', task_id, dag_id
                 )
 
