@@ -216,13 +216,11 @@ class PodLauncher(LoggingMixin):
         if resp.is_open():
             self.log.info('Running command... %s\n', command)
             resp.write_stdin(command + '\n')
-            while resp.is_open():
-                resp.update(timeout=1)
-                if resp.peek_stdout():
-                    return resp.read_stdout()
-                if resp.peek_stderr():
-                    self.log.info(resp.read_stderr())
-                    break
+            resp.run_forever(timeout=2)
+            if resp.peek_stdout():
+                return resp.read_stdout()
+            if resp.peek_stderr():
+                self.log.info(resp.read_stderr())
         return None
 
     def process_status(self, job_id, status):
