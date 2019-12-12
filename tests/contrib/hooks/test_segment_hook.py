@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import mock
 import unittest
+from unittest import mock
 
-from airflow import configuration, AirflowException
-
+from airflow import AirflowException
 from airflow.contrib.hooks.segment_hook import SegmentHook
 
 TEST_CONN_ID = 'test_segment'
@@ -32,7 +31,6 @@ class TestSegmentHook(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        configuration.load_test_config()
 
         self.conn = conn = mock.MagicMock()
         conn.write_key = WRITE_KEY
@@ -44,7 +42,7 @@ class TestSegmentHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
-            def get_connection(self, connection_id):
+            def get_connection(self, _):
                 return conn
 
         self.test_hook = UnitTestSegmentHook(segment_conn_id=TEST_CONN_ID)

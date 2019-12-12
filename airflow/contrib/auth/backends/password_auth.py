@@ -16,40 +16,43 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Password authentication backend"""
 import base64
-import flask_login
-from flask_login import login_required, current_user, logout_user  # noqa: F401
-from flask import flash, Response
-from wtforms import Form, PasswordField, StringField
-from wtforms.validators import InputRequired
 from functools import wraps
 
-from flask import url_for, redirect, make_response
-from flask_bcrypt import generate_password_hash, check_password_hash
-
+import flask_login
+from flask import Response, flash, make_response, redirect, url_for
+from flask_bcrypt import check_password_hash, generate_password_hash
+# noinspection PyUnresolvedReferences
+# pylint: disable=unused-import
+from flask_login import current_user, login_required, logout_user  # noqa: F401
 from sqlalchemy import Column, String
 from sqlalchemy.ext.hybrid import hybrid_property
+from wtforms import Form, PasswordField, StringField
+from wtforms.validators import InputRequired
 
 from airflow import models
-from airflow.utils.db import provide_session, create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() below
-login_manager.login_message = None
+LOGIN_MANAGER = flask_login.LoginManager()
+LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
+LOGIN_MANAGER.login_message = None
 
-log = LoggingMixin().log
+LOG = LoggingMixin().log
 
 
-client_auth = None
+CLIENT_AUTH = None
 
 
 class AuthenticationError(Exception):
-    pass
+    """Error returned on authentication problems"""
 
 
+# pylint: disable=no-member
+# noinspection PyUnresolvedReferences
 class PasswordUser(models.User):
+    """Stores user with password"""
     _password = Column('password', String(255))
 
     def __init__(self, user):
@@ -57,13 +60,16 @@ class PasswordUser(models.User):
 
     @hybrid_property
     def password(self):
+        """Returns password for the user"""
         return self._password
 
     @password.setter
     def password(self, plaintext):
+        """Sets password for the user"""
         self._password = str(generate_password_hash(plaintext, 12), 'utf-8')
 
     def authenticate(self, plaintext):
+        """Authenticates user"""
         return check_password_hash(self._password, plaintext)
 
     @property
@@ -85,18 +91,24 @@ class PasswordUser(models.User):
         """Returns the current user id as required by flask_login"""
         return str(self.id)
 
+    # pylint: disable=no-self-use
+    # noinspection PyMethodMayBeStatic
     def data_profiling(self):
         """Provides access to data profiling tools"""
         return True
+    # pylint: enable=no-self-use
 
     def is_superuser(self):
+        """Returns True if user is superuser"""
         return hasattr(self, 'user') and self.user.is_superuser()
 
 
-@login_manager.user_loader
+# noinspection PyUnresolvedReferences
+@LOGIN_MANAGER.user_loader
 @provide_session
 def load_user(userid, session=None):
-    log.debug("Loading user %s", userid)
+    """Loads user from the database"""
+    LOG.debug("Loading user %s", userid)
     if not userid or userid == 'None':
         return None
 
@@ -128,12 +140,13 @@ def authenticate(session, username, password):
     if not user.authenticate(password):
         raise AuthenticationError()
 
-    log.info("User %s successfully authenticated", username)
+    LOG.info("User %s successfully authenticated", username)
     return user
 
 
 @provide_session
 def login(self, request, session=None):
+    """Logs the user in"""
     if current_user.is_authenticated:
         flash("You are already logged in")
         return redirect(url_for('admin.index'))
@@ -159,9 +172,12 @@ def login(self, request, session=None):
                            form=form)
 
 
+# pylint: disable=too-few-public-methods
 class LoginForm(Form):
+    """Form for the user"""
     username = StringField('Username', [InputRequired()])
     password = PasswordField('Password', [InputRequired()])
+# pylint: enable=too-few-public-methods
 
 
 def _unauthorized():
@@ -176,11 +192,12 @@ def _forbidden():
     return Response("Forbidden", 403)
 
 
-def init_app(app):
-    pass
+def init_app(_):
+    """Initializes backend"""
 
 
 def requires_authentication(function):
+    """Decorator for functions that require authentication"""
     @wraps(function)
     def decorated(*args, **kwargs):
         from flask import request

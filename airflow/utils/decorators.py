@@ -17,22 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
+import inspect
 import os
-
-# inspect.signature is only available in Python 3. funcsigs.signature is
-# a backport.
-try:
-    import inspect
-    signature = inspect.signature
-except AttributeError:
-    import funcsigs
-    signature = funcsigs.signature
-
 from copy import copy
 from functools import wraps
 
-from airflow import settings
 from airflow.exceptions import AirflowException
+
+signature = inspect.signature
 
 
 def apply_defaults(func):
@@ -59,13 +52,14 @@ def apply_defaults(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        from airflow.models.dag import DagContext
         if len(args) > 1:
             raise AirflowException(
                 "Use keyword arguments when initializing operators")
         dag_args = {}
         dag_params = {}
 
-        dag = kwargs.get('dag', None) or settings.CONTEXT_MANAGER_DAG
+        dag = kwargs.get('dag', None) or DagContext.get_current_dag()
         if dag:
             dag_args = copy(dag.default_args) or {}
             dag_params = copy(dag.params) or {}
@@ -98,6 +92,7 @@ def apply_defaults(func):
         result = func(*args, **kwargs)
         return result
     return wrapper
+
 
 if 'BUILDING_AIRFLOW_DOCS' in os.environ:
     # flake8: noqa: F811

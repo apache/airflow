@@ -1,20 +1,22 @@
 {#
-  Licensed to the Apache Software Foundation (ASF) under one or more
-  contributor license agreements.  See the NOTICE file distributed with
-  this work for additional information regarding copyright ownership.
-  The ASF licenses this file to You under the Apache License, Version 2.0
-  (the "License"); you may not use this file except in compliance with
-  the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
-
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 #}
+
 {% extends "airflow/master.html" %}
 
 {% block title %}Airflow - DAGs{% endblock %}
@@ -36,7 +38,7 @@
         <form id="search_form" class="form-inline" style="width: 100%; text-align: right;">
             <div id="dags_filter" class="form-group" style="width: 100%;">
               <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
-              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}">
+              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}" autocomplete="off">
             </div>
         </form>
       </div>
@@ -103,13 +105,11 @@
 
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
-                  {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
-                  {% if last_run and last_run.execution_date %}
-                    <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
-                      {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
-                    </a>
-                    <span aria-hidden="true" id="statuses_info" title="Start Date: {{ last_run.start_date.strftime("%Y-%m-%d %H:%M") }}" class="glyphicon glyphicon-info-sign"></span>
-                  {% endif %}
+                  <div height="10" width="10" id='last-run-{{ dag.safe_dag_id }}' style="display: block;">
+                    <a></a>
+                    <img class="loading-last-run" width="15" src="{{ url_for("static", filename="loading.gif") }}">
+                    <span aria-hidden="true" id="statuses_info" title=" " class="glyphicon glyphicon-info-sign" style="display:none"></span>
+                  </div>
                 </td>
 
                 <!-- Column 8: Dag Runs -->
@@ -198,9 +198,9 @@
 
     </div>
     {% if not hide_paused %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=False">Hide Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=False, search=request.args.get('search', None)) }}">Hide Paused DAGs</a>
     {% else %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=True">Show Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=True, search=request.args.get('search', None)) }}">Show Paused DAGs</a>
     {% endif %}
   </div>
 {% endblock %}
@@ -220,8 +220,9 @@
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
         if (e.which === ENTER_KEY_CODE) {
-          search_query = $('#dag_query').val();
-          window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+          var query = new URLSearchParams(window.location.search);
+          query.set("search", e.target.value.trim())
+          window.location = DAGS_INDEX + "?" + query.toString();
           e.preventDefault();
         }
       });
@@ -248,10 +249,14 @@
         }
         return false;
       }
-      all_dags = $("[id^=toggle]");
-      $.each(all_dags, function(i,v) {
+
+      var encoded_dag_ids = [];
+
+      $.each($("[id^=toggle]"), function(i, v) {
+        var dag_id = $(v).attr('dag_id');
+        encoded_dag_ids.push(encodeURIComponent(dag_id));
+
         $(v).change (function() {
-          var dag_id =  $(v).attr('dag_id');
           if ($(v).prop('checked')) {
             is_paused = 'true'
           } else {
@@ -264,10 +269,8 @@
 
       var $input = $(".typeahead");
       unique_options_search = new Set([
-          {% for token in auto_complete_data %}
-            "{{token}}",
-          {% endfor %}
-        ]);
+        {% for token in auto_complete_data %}"{{token}}", {% endfor %}
+      ]);
 
       $input.typeahead({
         source: [...unique_options_search],
@@ -275,14 +278,15 @@
         afterSelect: function(value) {
           search_query = value.trim()
           if (search_query) {
-            window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+            var query = new URLSearchParams(window.location.search);
+            query.set("search", search_query)
+            window.location = DAGS_INDEX + "?" + query;
           }
         }
       });
 
       $input.change(function() {
         var current = $input.typeahead("getActive");
-
       });
 
       $('#dags').dataTable({
@@ -308,6 +312,21 @@
             .css('background-color', 'red');
           }
         });
+      });
+      d3.json("{{ url_for('Airflow.last_dagruns') }}", function(error, json) {
+        for(var safe_dag_id in json) {
+          dag_id = json[safe_dag_id].dag_id;
+          last_run = json[safe_dag_id].last_run;
+          g = d3.select('div#last-run-' + safe_dag_id)
+          g.selectAll('a')
+            .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" + last_run)
+            .text(last_run);
+          g.selectAll('span')
+            .attr("data-original-title", "Start Date: " + last_run)
+            .style('display', null);
+          g.selectAll(".loading-last-run").remove();
+        }
+        d3.selectAll(".loading-last-run").remove();
       });
       d3.json("{{ url_for('Airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
@@ -388,7 +407,7 @@
           container: "body",
         });
       });
-      d3.json("{{ url_for('Airflow.task_stats') }}", function(error, json) {
+      d3.json("{{ url_for('Airflow.task_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
             g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
@@ -429,7 +448,7 @@
               })
               .attr('fill-opacity', 0)
               .attr('r', diameter/2)
-              .attr('title', function(d) {return d.state})
+              .attr('title', function(d) {return d.state || 'none'})
               .attr('style', function(d) {
                 if (d.count > 0)
                     return"cursor:pointer;"

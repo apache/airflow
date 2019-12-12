@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-#
 # flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
@@ -20,6 +19,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 # Airflow documentation build configuration file, created by
 # sphinx-quickstart on Thu Oct  9 20:50:01 2014.
 #
@@ -31,10 +31,18 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
+"""Configuration of Airflow Docs"""
 import os
 import sys
+from typing import Dict
 
 import airflow
+
+try:
+    import sphinx_airflow_theme  # pylint: disable=unused-import
+    airflow_theme_is_available = True
+except ImportError:
+    airflow_theme_is_available = False
 
 autodoc_mock_imports = [
     'MySQLdb',
@@ -113,6 +121,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
+    'sphinx.ext.graphviz',
     'sphinxarg.ext',
     'sphinxcontrib.httpdomain',
     'sphinx.ext.intersphinx',
@@ -171,6 +180,8 @@ exclude_patterns = [
     '_api/airflow/_vendor',
     '_api/airflow/api',
     '_api/airflow/bin',
+    '_api/airflow/cli',
+    '_api/airflow/cli/command',
     '_api/airflow/config_templates',
     '_api/airflow/configuration',
     '_api/airflow/contrib/auth',
@@ -186,19 +197,48 @@ exclude_patterns = [
     '_api/airflow/index.rst',
     '_api/airflow/jobs',
     '_api/airflow/lineage',
+    '_api/airflow/typing_compat',
     '_api/airflow/logging_config',
     '_api/airflow/macros',
     '_api/airflow/migrations',
     '_api/airflow/plugins_manager',
     '_api/airflow/security',
+    '_api/airflow/serialization',
     '_api/airflow/settings',
+    '_api/airflow/sentry',
     '_api/airflow/stats',
     '_api/airflow/task',
+    '_api/airflow/kubernetes',
     '_api/airflow/ti_deps',
     '_api/airflow/utils',
     '_api/airflow/version',
     '_api/airflow/www',
     '_api/main',
+    '_api/airflow/gcp/index.rst',
+    '_api/airflow/gcp/example_dags',
+    '_api/airflow/gcp/utils',
+    '_api/airflow/providers/index.rst',
+    '_api/airflow/providers/amazon/index.rst',
+    '_api/airflow/providers/amazon/aws/index.rst',
+    '_api/airflow/providers/amazon/aws/example_dags',
+    '_api/airflow/providers/google/index.rst',
+    '_api/airflow/providers/google/cloud/index.rst',
+    '_api/airflow/providers/google/cloud/example_dags',
+    '_api/airflow/providers/google/marketing_platform/index.rst',
+    '_api/airflow/providers/google/marketing_platform/example_dags',
+    '_api/airflow/providers/google/cloud/index.rst',
+    '_api/airflow/providers/google/cloud/example_dags',
+    '_api/airflow/providers/amazon/index.rst',
+    '_api/airflow/providers/amazon/aws/index.rst',
+    '_api/airflow/providers/amazon/aws/example_dags',
+    '_api/airflow/providers/apache/index.rst',
+    '_api/airflow/providers/apache/cassandra/index.rst',
+    '_api/airflow/providers/sftp/index.rst',
+    '_api/enums/index.rst',
+    '_api/json_schema/index.rst',
+    '_api/base_serialization/index.rst',
+    '_api/serialized_baseoperator/index.rst',
+    '_api/serialized_dag/index.rst',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
@@ -230,14 +270,34 @@ keep_warnings = True
 
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
-    'google-cloud-python': (
-        'https://googleapis.github.io/google-cloud-python/latest/', None),
     'mongodb': ('https://api.mongodb.com/python/current/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'python': ('https://docs.python.org/3/', None),
-    'requests': ('http://docs.python-requests.org/en/master/', None),
+    'requests': ('https://requests.readthedocs.io/en/master/', None),
     'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
     'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
+    # google-cloud-python
+    'google-cloud-automl': ('https://googleapis.dev/python/automl/latest', None),
+    'google-cloud-bigquery': ('https://googleapis.dev/python/bigquery/latest', None),
+    'google-cloud-bigquery-datatransfer': ('https://googleapis.dev/python/bigquerydatatransfer/latest', None),
+    'google-cloud-bigquery-storage': ('https://googleapis.dev/python/bigquerystorage/latest', None),
+    'google-cloud-bigtable': ('https://googleapis.dev/python/bigtable/latest', None),
+    'google-cloud-container': ('https://googleapis.dev/python/container/latest', None),
+    'google-cloud-core': ('https://googleapis.dev/python/google-cloud-core/latest', None),
+    'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest', None),
+    'google-cloud-dlp': ('https://googleapis.dev/python/dlp/latest', None),
+    'google-cloud-kms': ('https://googleapis.dev/python/cloudkms/latest', None),
+    'google-cloud-language': ('https://googleapis.dev/python/language/latest', None),
+    'google-cloud-pubsub': ('https://googleapis.dev/python/pubsub/latest', None),
+    'google-cloud-redis': ('https://googleapis.dev/python/redis/latest', None),
+    'google-cloud-spanner': ('https://googleapis.dev/python/spanner/latest', None),
+    'google-cloud-speech': ('https://googleapis.dev/python/speech/latest', None),
+    'google-cloud-storage': ('https://googleapis.dev/python/storage/latest', None),
+    'google-cloud-tasks': ('https://googleapis.dev/python/cloudtasks/latest', None),
+    'google-cloud-texttospeech': ('https://googleapis.dev/python/texttospeech/latest', None),
+    'google-cloud-translate': ('https://googleapis.dev/python/translation/latest', None),
+    'google-cloud-videointelligence': ('https://googleapis.dev/python/videointelligence/latest', None),
+    'google-cloud-vision': ('https://googleapis.dev/python/vision/latest', None),
 }
 
 # -- Options for HTML output ----------------------------------------------
@@ -246,16 +306,13 @@ intersphinx_mapping = {
 # a list of builtin themes.
 html_theme = 'sphinx_rtd_theme'
 
+if airflow_theme_is_available:
+    html_theme = 'sphinx_airflow_theme'
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 # html_theme_options = {}
-
-# Add any paths that contain custom themes here, relative to this directory.
-# html_theme_path = []
-import sphinx_rtd_theme
-
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -268,20 +325,23 @@ html_short_title = ""
 # of the sidebar.
 # html_logo = None
 
-# The name of an image file (within the static path) to use as favicon of the
-# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
-# pixels large.
-# html_favicon = None
+html_favicon = "../airflow/www/static/pin_32.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['_static']
+html_static_path = ['static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation.
 # html_extra_path = []
+
+# A list of JavaScript filename. The entry must be a filename string or a
+# tuple containing the filename string and the attributes dictionary. The
+# filename must be relative to the html_static_path, or a full URI with
+# scheme like http://example.org/script.js.
+html_js_files = ['jira-links.js']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -292,7 +352,14 @@ html_short_title = ""
 # html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-# html_sidebars = {}
+if airflow_theme_is_available:
+    html_sidebars = {
+        '**': [
+            'version-selector.html',
+            'searchbox.html',
+            'globaltoc.html',
+        ]
+    }
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -338,7 +405,7 @@ latex_elements = {
 
     # Additional stuff for the LaTeX preamble.
     # 'preamble': '',
-}
+}  # type: Dict[str,str]
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
@@ -390,7 +457,7 @@ man_pages = [
 texinfo_documents = [(
     'index', 'Airflow', 'Airflow Documentation',
     'Apache Airflow', 'Airflow',
-    'Airflow is a system to programmaticaly author, schedule and monitor data pipelines.',
+    'Airflow is a system to programmatically author, schedule and monitor data pipelines.',
     'Miscellaneous'
 ), ]
 
@@ -425,13 +492,14 @@ autoapi_ignore = [
     '*/airflow/contrib/operators/s3_to_gcs_transfer_operator.py',
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
+    '*/airflow/kubernetes/kubernetes_request_factory/*',
 
     '*/node_modules/*',
     '*/migrations/*',
 ]
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
-autoapi_keep_files = False
+autoapi_keep_files = True
 
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.
@@ -439,3 +507,29 @@ autoapi_root = '_api'
 
 # -- Options for example include ------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
+
+# -- Additional HTML Context variable
+html_context = {
+    # Google Analytics ID.
+    # For more information look at:
+    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
+    'theme_analytics_id': 'UA-140539454-1',
+    # Variables used to build a button for editing the source code
+    #
+    # The path is created according to the following template:
+    #
+    # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
+    # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
+    # {{ pagename }}{{ suffix }}
+    #
+    # More information:
+    # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
+    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
+    #
+    'theme_vcs_pageview_mode': 'edit',
+    'conf_py_path': '/docs/',
+    'github_user': 'apache',
+    'github_repo': 'airflow',
+    'github_version': os.environ.get('GITHUB_TREE', None),
+    'display_github': os.environ.get('GITHUB_TREE', None) is not None,
+}

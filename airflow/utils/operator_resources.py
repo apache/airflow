@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 # Constants for resources (megabytes are the base unit)
@@ -28,7 +28,7 @@ PB = 1024 * TB
 EB = 1024 * PB
 
 
-class Resource(object):
+class Resource:
     """
     Represents a resource requirement in an execution environment for an operator.
 
@@ -90,7 +90,7 @@ class GpuResource(Resource):
         super().__init__('GPU', 'gpu(s)', qty)
 
 
-class Resources(object):
+class Resources:
     """
     The resources required by an operator. Resources that are not specified will use the
     default values from the airflow config.
@@ -105,10 +105,10 @@ class Resources(object):
     :type gpus: long
     """
     def __init__(self,
-                 cpus=configuration.conf.getint('operators', 'default_cpus'),
-                 ram=configuration.conf.getint('operators', 'default_ram'),
-                 disk=configuration.conf.getint('operators', 'default_disk'),
-                 gpus=configuration.conf.getint('operators', 'default_gpus')
+                 cpus=conf.getint('operators', 'default_cpus'),
+                 ram=conf.getint('operators', 'default_ram'),
+                 disk=conf.getint('operators', 'default_disk'),
+                 gpus=conf.getint('operators', 'default_gpus')
                  ):
         self.cpus = CpuResource(cpus)
         self.ram = RamResource(ram)

@@ -19,14 +19,14 @@
 
 import unittest
 from collections import OrderedDict
+from unittest.mock import Mock, PropertyMock, patch
+
+from airflow.operators.mssql_to_hive import MsSqlToHiveTransfer
 
 try:
     import pymssql
 except ImportError:
     pymssql = None
-from mock import patch, PropertyMock, Mock
-
-from airflow.operators.mssql_to_hive import MsSqlToHiveTransfer
 
 
 @unittest.skipIf(pymssql is None, 'pymssql package not present')

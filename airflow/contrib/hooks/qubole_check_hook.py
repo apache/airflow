@@ -17,16 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.contrib.hooks.qubole_hook import QuboleHook
-from airflow.exceptions import AirflowException
+
+from io import StringIO
+
 from qds_sdk.commands import Command
 
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
-
+from airflow.contrib.hooks.qubole_hook import QuboleHook
+from airflow.exceptions import AirflowException
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 COL_DELIM = '\t'
 ROW_DELIM = '\r\n'

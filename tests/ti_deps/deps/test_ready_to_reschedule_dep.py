@@ -19,7 +19,7 @@
 
 import unittest
 from datetime import timedelta
-from mock import Mock, patch
+from unittest.mock import Mock, patch
 
 from airflow.models import DAG, TaskInstance, TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
@@ -28,7 +28,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
 
-class NotInReschedulePeriodDepTest(unittest.TestCase):
+class TestNotInReschedulePeriodDep(unittest.TestCase):
 
     def _get_task_instance(self, state):
         dag = DAG('test_dag')
@@ -53,7 +53,7 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 
     @patch('airflow.models.taskreschedule.TaskReschedule.find_for_task_instance', return_value=[])
-    def test_should_pass_if_no_reschedule_record_exists(self, find_for_task_instance):
+    def test_should_pass_if_no_reschedule_record_exists(self, mock_find_for_task_instance):
         ti = self._get_task_instance(State.NONE)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 

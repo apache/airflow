@@ -18,10 +18,12 @@
 # under the License.
 
 import logging
-import pandas as pd
 import sys
 
-from airflow import configuration, settings
+import pandas as pd
+
+from airflow import settings
+from airflow.configuration import conf
 from airflow.jobs import SchedulerJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import timezone
@@ -104,7 +106,7 @@ class SchedulerMetricsJob(SchedulerJob):
         """
         Override the scheduler heartbeat to determine when the test is complete
         """
-        super(SchedulerMetricsJob, self).heartbeat()
+        super().heartbeat()
         session = settings.Session()
         # Get all the relevant task instances
         TI = TaskInstance
@@ -144,7 +146,7 @@ def clear_dag_runs():
         DagRun.dag_id.in_(DAG_IDS),
     ).all()
     for dr in drs:
-        logging.info('Deleting DagRun :: {}'.format(dr))
+        logging.info('Deleting DagRun :: %s', dr)
         session.delete(dr)
 
 
@@ -161,7 +163,7 @@ def clear_dag_task_instances():
         .all()
     )
     for ti in tis:
-        logging.info('Deleting TaskInstance :: {}'.format(ti))
+        logging.info('Deleting TaskInstance :: %s', ti)
         session.delete(ti)
     session.commit()
 
@@ -174,7 +176,7 @@ def set_dags_paused_state(is_paused):
     dms = session.query(DagModel).filter(
         DagModel.dag_id.in_(DAG_IDS))
     for dm in dms:
-        logging.info('Setting DAG :: {} is_paused={}'.format(dm, is_paused))
+        logging.info('Setting DAG :: %s is_paused=%s', dm, is_paused)
         dm.is_paused = is_paused
     session.commit()
 
@@ -191,7 +193,7 @@ def main():
             logging.error('Specify a positive integer for timeout.')
             sys.exit(1)
 
-    configuration.load_test_config()
+    conf.load_test_config()
 
     set_dags_paused_state(False)
     clear_dag_runs()

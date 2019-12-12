@@ -17,11 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Helper function to generate a DAG and operators given some arguments."""
+
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 
 
 def subdag(parent_dag_name, child_dag_name, args):
+    """
+    Generate a DAG to be used as a subdag.
+
+    :param str parent_dag_name: Id of the parent DAG
+    :param str child_dag_name: Id of the child DAG
+    :param dict args: Default arguments to provide to the subdag
+    :return: DAG to use as a subdag
+    :rtype: airflow.models.DAG
+    """
     dag_subdag = DAG(
         dag_id='%s.%s' % (parent_dag_name, child_dag_name),
         default_args=args,

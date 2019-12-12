@@ -17,18 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import time
-import socket
 import json
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.jenkins_hook import JenkinsHook
+import socket
+import time
+from urllib.error import HTTPError, URLError
+
 import jenkins
 from jenkins import JenkinsException
 from requests import Request
-import six
-from six.moves.urllib.error import HTTPError, URLError
+
+from airflow.contrib.hooks.jenkins_hook import JenkinsHook
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 def jenkins_request_with_headers(jenkins_server, req):
@@ -53,17 +54,10 @@ def jenkins_request_with_headers(jenkins_server, req):
                 "empty response" % jenkins_server.server)
         return {'body': response_body.decode('utf-8'), 'headers': response_headers}
     except HTTPError as e:
-        # Jenkins's funky authentication means its nigh impossible to
-        # distinguish errors.
+        # Jenkins's funky authentication means its nigh impossible to distinguish errors.
         if e.code in [401, 403, 500]:
-            # six.moves.urllib.error.HTTPError provides a 'reason'
-            # attribute for all python version except for ver 2.6
-            # Falling back to HTTPError.msg since it contains the
-            # same info as reason
             raise JenkinsException(
-                'Error in request. ' +
-                'Possibly authentication failed [%s]: %s' % (
-                    e.code, e.msg)
+                'Error in request. Possibly authentication failed [%s]: %s' % (e.code, e.msg)
             )
         elif e.code == 404:
             raise jenkins.NotFoundException('Requested item could not be found')
@@ -72,10 +66,6 @@ def jenkins_request_with_headers(jenkins_server, req):
     except socket.timeout as e:
         raise jenkins.TimeoutException('Error in request: %s' % e)
     except URLError as e:
-        # python 2.6 compatibility to ensure same exception raised
-        # since URLError wraps a socket timeout on python 2.6.
-        if str(e.reason) == "timed out":
-            raise jenkins.TimeoutException('Error in request: %s' % e.reason)
         raise JenkinsException('Error in request: %s' % e.reason)
 
 
@@ -134,7 +124,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """
         # Warning if the parameter is too long, the URL can be longer than
         # the maximum allowed size
-        if self.parameters and isinstance(self.parameters, six.string_types):
+        if self.parameters and isinstance(self.parameters, str):
             import ast
             self.parameters = ast.literal_eval(self.parameters)
 
@@ -142,8 +132,9 @@ class JenkinsJobTriggerOperator(BaseOperator):
             # We need a None to call the non parametrized jenkins api end point
             self.parameters = None
 
-        request = Request(jenkins_server.build_job_url(self.job_name,
-                                                       self.parameters, None))
+        request = Request(
+            method='POST',
+            url=jenkins_server.build_job_url(self.job_name, self.parameters, None))
         return jenkins_request_with_headers(jenkins_server, request)
 
     def poll_job_in_queue(self, location, jenkins_server):
@@ -167,8 +158,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
         # once it will be available in python-jenkins (v > 0.4.15)
         self.log.info('Polling jenkins queue at the url %s', location)
         while try_count < self.max_try_before_job_appears:
-            location_answer = jenkins_request_with_headers(jenkins_server,
-                                                           Request(location))
+            location_answer = jenkins_request_with_headers(
+                jenkins_server, Request(method='POST', url=location))
             if location_answer is not None:
                 json_response = json.loads(location_answer['body'])
                 if 'executable' in json_response:

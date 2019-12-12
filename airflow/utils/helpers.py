@@ -18,33 +18,37 @@
 # under the License.
 
 import errno
-
-import psutil
-
-from builtins import input
-from past.builtins import basestring
-from datetime import datetime
-from functools import reduce
 import os
 import re
 import signal
+import subprocess
+from datetime import datetime
+from functools import reduce
 
+import psutil
 from jinja2 import Template
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+
+try:
+    # Fix Python > 3.7 deprecation
+    from collections.abc import Iterable
+except ImportError:
+    # Preserve Python < 3.3 compatibility
+    from collections import Iterable
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
-KEY_REGEX = re.compile(r'^[\w\-\.]+$')
+KEY_REGEX = re.compile(r'^[\w.-]+$')
 
 
 def validate_key(k, max_length=250):
-    if not isinstance(k, basestring):
+    if not isinstance(k, str):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
         raise AirflowException(
@@ -88,23 +92,11 @@ def ask_yesno(question):
             print("Please respond by yes or no.")
 
 
-def is_in(obj, l):
-    """
-    Checks whether an object is one of the item in the list.
-    This is different from ``in`` because ``in`` uses __cmp__ when
-    present. Here we change based on the object itself
-    """
-    for item in l:
-        if item is obj:
-            return True
-    return False
-
-
 def is_container(obj):
     """
     Test if an object is a container (iterable) but not a string
     """
-    return hasattr(obj, '__iter__') and not isinstance(obj, basestring)
+    return hasattr(obj, '__iter__') and not isinstance(obj, str)
 
 
 def as_tuple(obj):
@@ -151,19 +143,49 @@ def as_flattened_list(iterable):
 
 
 def chain(*tasks):
-    """
+    r"""
     Given a number of tasks, builds a dependency chain.
+    Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
+    If you want to chain between two List[airflow.models.BaseOperator], have to
+    make sure they have same length.
 
-    chain(task_1, task_2, task_3, task_4)
+    chain(t1, [t2, t3], [t4, t5], t6)
 
     is equivalent to
 
-    task_1.set_downstream(task_2)
-    task_2.set_downstream(task_3)
-    task_3.set_downstream(task_4)
+      / -> t2 -> t4 \
+    t1               -> t6
+      \ -> t3 -> t5 /
+
+    t1.set_downstream(t2)
+    t1.set_downstream(t3)
+    t2.set_downstream(t4)
+    t3.set_downstream(t5)
+    t4.set_downstream(t6)
+    t5.set_downstream(t6)
+
+    :param tasks: List of tasks or List[airflow.models.BaseOperator] to set dependencies
+    :type tasks: List[airflow.models.BaseOperator] or airflow.models.BaseOperator
     """
-    for up_task, down_task in zip(tasks[:-1], tasks[1:]):
-        up_task.set_downstream(down_task)
+    from airflow.models.baseoperator import BaseOperator
+    for index, up_task in enumerate(tasks[:-1]):
+        down_task = tasks[index + 1]
+        if isinstance(up_task, BaseOperator):
+            up_task.set_downstream(down_task)
+        elif isinstance(down_task, BaseOperator):
+            down_task.set_upstream(up_task)
+        else:
+            if not isinstance(up_task, Iterable) or not isinstance(down_task, Iterable):
+                raise TypeError(
+                    'Chain not supported between instances of {up_type} and {down_type}'.format(
+                        up_type=type(up_task), down_type=type(down_task)))
+            elif len(up_task) != len(down_task):
+                raise AirflowException(
+                    'Chain not supported different length Iterable but get {up_len} and {down_len}'.format(
+                        up_len=len(up_task), down_len=len(down_task)))
+            else:
+                for up, down in zip(up_task, down_task):
+                    up.set_downstream(down)
 
 
 def cross_downstream(from_tasks, to_tasks):
@@ -232,7 +254,7 @@ def pprinttable(rows):
     s += separator + '\n'
 
     def f(t):
-        return "{}".format(t) if isinstance(t, basestring) else t
+        return "{}".format(t) if isinstance(t, str) else t
 
     for line in rows:
         s += pattern % tuple(f(t) for t in line) + '\n'
@@ -240,53 +262,82 @@ def pprinttable(rows):
     return s
 
 
-def reap_process_group(pid, log, sig=signal.SIGTERM,
+def reap_process_group(pgid, log, sig=signal.SIGTERM,
                        timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
     """
-    Tries really hard to terminate all children (including grandchildren). Will send
+    Tries really hard to terminate all processes in the group (including grandchildren). Will send
     sig (SIGTERM) to the process group of pid. If any process is alive after timeout
     a SIGKILL will be send.
 
     :param log: log handler
-    :param pid: pid to kill
+    :param pgid: process group id to kill
     :param sig: signal type
     :param timeout: how much time a process has to terminate
     """
 
+    returncodes = {}
+
     def on_terminate(p):
         log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
+        returncodes[p.pid] = p.returncode
 
-    if pid == os.getpid():
+    def signal_procs(sig):
+        try:
+            os.killpg(pgid, sig)
+        except OSError as err:
+            # If operation not permitted error is thrown due to run_as_user,
+            # use sudo -n(--non-interactive) to kill the process
+            if err.errno == errno.EPERM:
+                subprocess.check_call(
+                    ["sudo", "-n", "kill", "-" + str(sig)] + map(children, lambda p: str(p.pid))
+                )
+            else:
+                raise
+
+    if pgid == os.getpgid(0):
         raise RuntimeError("I refuse to kill myself")
 
-    parent = psutil.Process(pid)
-
-    children = parent.children(recursive=True)
-    children.append(parent)
-
     try:
-        pg = os.getpgid(pid)
+        parent = psutil.Process(pgid)
+
+        children = parent.children(recursive=True)
+        children.append(parent)
+    except psutil.NoSuchProcess:
+        # The process already exited, but maybe it's children haven't.
+        children = []
+        for p in psutil.process_iter():
+            try:
+                if os.getpgid(p.pid) == pgid and p.pid != 0:
+                    children.append(p)
+            except OSError:
+                pass
+
+    log.info("Sending %s to GPID %s", sig, pgid)
+    try:
+        signal_procs(sig)
     except OSError as err:
-        # Skip if not such process - we experience a race and it just terminated
+        # No such process, which means there is no such process group - our job
+        # is done
         if err.errno == errno.ESRCH:
-            return
-        raise
+            return returncodes
 
-    log.info("Sending %s to GPID %s", sig, pg)
-    os.killpg(os.getpgid(pid), sig)
-
-    gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+    _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
         for p in alive:
-            log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
+            log.warning("process %s did not respond to SIGTERM. Trying SIGKILL", p)
 
-        os.killpg(os.getpgid(pid), signal.SIGKILL)
+        try:
+            signal_procs(signal.SIGKILL)
+        except OSError as err:
+            if err.errno != errno.ESRCH:
+                raise
 
-        gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
+        _, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
         if alive:
             for p in alive:
                 log.error("Process %s (%s) could not be killed. Giving up.", p, p.pid)
+    return returncodes
 
 
 def parse_template_string(template_string):
@@ -316,3 +367,7 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def convert_camel_to_snake(camel_str):
+    return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()

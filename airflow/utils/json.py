@@ -17,12 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime, date
 import json
+from datetime import date, datetime
+
 import numpy as np
 
-
 # Dates and JSON encoding/decoding
+
 
 class AirflowJsonEncoder(json.JSONEncoder):
 

@@ -34,26 +34,24 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class SalesforceHook(BaseHook):
+    """
+    Create new connection to Salesforce and allows you to pull data out of SFDC and save it to a file.
+
+    You can then use that file with other Airflow operators to move the data into another data source.
+
+    :param conn_id: the name of the connection that has the parameters we need to connect to Salesforce.
+        The connection should be type `http` and include a user's security token in the `Extras` field.
+    :type conn_id: str
+
+    .. note::
+        For the HTTP connection type, you can include a
+        JSON structure in the `Extras` field.
+        We need a user's security token to connect to Salesforce.
+        So we define it in the `Extras` field as `{"security_token":"YOUR_SECURITY_TOKEN"}`
+
+    """
 
     def __init__(self, conn_id):
-        """
-        Create new connection to Salesforce and allows you to pull data out of SFDC and save it to a file.
-
-        You can then use that file with other Airflow operators to move the data into another data source.
-
-        :param conn_id: the name of the connection that has the parameters we need to connect to Salesforce.
-            The connection should be type `http` and include a user's security token in the `Extras` field.
-        :type conn_id: str
-
-        .. note::
-            For the HTTP connection type, you can include a
-            JSON structure in the `Extras` field.
-            We need a user's security token to connect to Salesforce.
-            So we define it in the `Extras` field as:
-                `{"security_token":"YOUR_SECURITY_TOKEN"}`
-
-        """
-        super().__init__(conn_id)
         self.conn_id = conn_id
         self.conn = None
 
@@ -73,19 +71,24 @@ class SalesforceHook(BaseHook):
             )
         return self.conn
 
-    def make_query(self, query):
+    def make_query(self, query, include_deleted=False, query_params=None):
         """
         Make a query to Salesforce.
 
         :param query: The query to make to Salesforce.
         :type query: str
+        :param include_deleted: True if the query should include deleted records.
+        :type include_deleted: bool
+        :param query_params: Additional optional arguments
+        :type query_params: dict
         :return: The query result.
         :rtype: dict
         """
         conn = self.get_conn()
 
         self.log.info("Querying for all objects")
-        query_results = conn.query_all(query)
+        query_params = query_params or {}
+        query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
         self.log.info("Received results: Total size: %s; Done: %s",
                       query_results['totalSize'], query_results['done'])

@@ -13,6 +13,10 @@ unittests.db
 # Airflow temporary artifacts
 airflow/git_version
 airflow/www/static/coverage/
+airflow/www/static/dist
+airflow/www_rbac/static/coverage/
+airflow/www_rbac/static/dist/
+
 logs/
 airflow-webserver.pid
 
@@ -56,7 +60,6 @@ pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
-.tox/
 .coverage
 .coverage.*
 .cache
@@ -77,6 +80,7 @@ local_settings.py
 # Flask stuff:
 instance/
 .webassets-cache
+/webserver_config.py
 
 # Scrapy stuff:
 .scrapy
@@ -139,12 +143,12 @@ rat-results.txt
 *.generated
 *.tar.gz
 scripts/ci/kubernetes/kube/.generated/airflow.yaml
+scripts/ci/kubernetes/docker/requirements.txt
 
 # Node & Webpack Stuff
 *.entry.js
 node_modules
 npm-debug.log*
-static/dist
 derby.log
 metastore_db
 
@@ -153,8 +157,20 @@ airflow-*.err
 airflow-*.out
 airflow-*.log
 airflow-*.pid
+.airflow_db_initialised
 
 # mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Needed for CI Dockerfile build system
+.build
+/tmp
+/files
+
+/hive_scratch_dir/
+/.bash_aliases
+/.bash_history
+/.inputrc
+log.txt*

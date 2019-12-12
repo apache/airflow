@@ -21,15 +21,13 @@ import unittest
 
 import jenkins
 
-from airflow.contrib.operators.jenkins_job_trigger_operator \
-    import JenkinsJobTriggerOperator
 from airflow.contrib.hooks.jenkins_hook import JenkinsHook
-
+from airflow.contrib.operators.jenkins_job_trigger_operator import JenkinsJobTriggerOperator
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 
 
-class JenkinsOperatorTestCase(unittest.TestCase):
+class TestJenkinsOperator(unittest.TestCase):
     @unittest.skipIf(mock is None, 'mock package not present')
     def test_execute(self):
         jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret')
@@ -64,8 +62,8 @@ class JenkinsOperatorTestCase(unittest.TestCase):
             operator.execute(None)
 
             self.assertEqual(jenkins_mock.get_build_info.call_count, 1)
-            jenkins_mock.get_build_info.assert_called_with(name='a_job_on_jenkins',
-                                                           number='1')
+            jenkins_mock.get_build_info.assert_called_once_with(name='a_job_on_jenkins',
+                                                                number='1')
 
     @unittest.skipIf(mock is None, 'mock package not present')
     def test_execute_job_polling_loop(self):
@@ -135,6 +133,24 @@ class JenkinsOperatorTestCase(unittest.TestCase):
                 sleep_time=1)
 
             self.assertRaises(AirflowException, operator.execute, None)
+
+    @unittest.skipIf(mock is None, 'mock package not present')
+    def test_build_job_request_settings(self):
+        jenkins_mock = mock.Mock(spec=jenkins.Jenkins, auth='secret', timeout=2)
+        jenkins_mock.build_job_url.return_value = 'http://apache.org'
+
+        with mock.patch('airflow.contrib.operators.jenkins_job_trigger_operator'
+                        '.jenkins_request_with_headers') as mock_make_request:
+            operator = JenkinsJobTriggerOperator(
+                dag=None,
+                task_id="build_job_test",
+                job_name="a_job_on_jenkins",
+                jenkins_connection_id="fake_jenkins_connection")
+            operator.build_job(jenkins_mock)
+            mock_request = mock_make_request.call_args_list[0][0][1]
+
+        self.assertEqual(mock_request.method, 'POST')
+        self.assertEqual(mock_request.url, 'http://apache.org')
 
 
 if __name__ == "__main__":

@@ -18,19 +18,16 @@
 # under the License.
 #
 
+import datetime
 import json
 import unittest
-import datetime
+from unittest import mock
 
-import mock
 import pandas as pd
 
-from airflow import configuration, DAG
-from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
-
 import airflow.contrib.operators.hive_to_dynamodb
-
-configuration.load_test_config()
+from airflow import DAG
+from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -42,10 +39,9 @@ except ImportError:
     mock_dynamodb2 = None
 
 
-class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
+class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
@@ -67,7 +63,7 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
                 return_value=pd.DataFrame(data=[('1', 'sid')], columns=['id', 'name']))
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
-    def test_get_records_with_schema(self, get_results_mock):
+    def test_get_records_with_schema(self, mock_get_pandas_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
             TableName='test_airflow',
@@ -107,7 +103,7 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
                 return_value=pd.DataFrame(data=[('1', 'sid'), ('1', 'gupta')], columns=['id', 'name']))
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
-    def test_pre_process_records_with_schema(self, get_results_mock):
+    def test_pre_process_records_with_schema(self, mock_get_pandas_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
             TableName='test_airflow',

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,73 +16,62 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import contextlib
 import os
+import unittest
 import warnings
 from collections import OrderedDict
-
-import six
+from unittest import mock
 
 from airflow import configuration
-from airflow.configuration import conf, AirflowConfigParser, parameterized_config
-
-import unittest
-
-
-@contextlib.contextmanager
-def env_vars(**vars):
-    original = {}
-    for key, value in vars.items():
-        original[key] = os.environ.get(key)
-        if value is not None:
-            os.environ[key] = value
-        else:
-            os.environ.pop(key, None)
-    yield
-    for key, value in original.items():
-        if value is not None:
-            os.environ[key] = value
-        else:
-            os.environ.pop(key, None)
+from airflow.configuration import (
+    AirflowConfigParser, conf, expand_env_var, get_airflow_config, get_airflow_home, parameterized_config,
+)
 
 
-class ConfTest(unittest.TestCase):
+@unittest.mock.patch.dict('os.environ', {
+    'AIRFLOW__TESTSECTION__TESTKEY': 'testvalue',
+    'AIRFLOW__TESTSECTION__TESTPERCENT': 'with%percent'
+})
+class TestConf(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        os.environ['AIRFLOW__TESTSECTION__TESTKEY'] = 'testvalue'
-        os.environ['AIRFLOW__TESTSECTION__TESTPERCENT'] = 'with%percent'
-        configuration.load_test_config()
         conf.set('core', 'percent', 'with%%inside')
 
-    @classmethod
-    def tearDownClass(cls):
-        del os.environ['AIRFLOW__TESTSECTION__TESTKEY']
-        del os.environ['AIRFLOW__TESTSECTION__TESTPERCENT']
-
     def test_airflow_home_default(self):
-        with env_vars(AIRFLOW_HOME=None):
+        with unittest.mock.patch.dict('os.environ'):
+            if 'AIRFLOW_HOME' in os.environ:
+                del os.environ['AIRFLOW_HOME']
             self.assertEqual(
-                configuration.get_airflow_home(),
-                configuration.expand_env_var('~/airflow'))
+                get_airflow_home(),
+                expand_env_var('~/airflow'))
 
     def test_airflow_home_override(self):
-        with env_vars(AIRFLOW_HOME='/path/to/airflow'):
+        with unittest.mock.patch.dict('os.environ', AIRFLOW_HOME='/path/to/airflow'):
             self.assertEqual(
-                configuration.get_airflow_home(),
+                get_airflow_home(),
                 '/path/to/airflow')
 
     def test_airflow_config_default(self):
-        with env_vars(AIRFLOW_CONFIG=None):
+        with unittest.mock.patch.dict('os.environ'):
+            if 'AIRFLOW_CONFIG' in os.environ:
+                del os.environ['AIRFLOW_CONFIG']
             self.assertEqual(
-                configuration.get_airflow_config('/home/airflow'),
-                configuration.expand_env_var('/home/airflow/airflow.cfg'))
+                get_airflow_config('/home/airflow'),
+                expand_env_var('/home/airflow/airflow.cfg'))
 
     def test_airflow_config_override(self):
-        with env_vars(AIRFLOW_CONFIG='/path/to/airflow/airflow.cfg'):
+        with unittest.mock.patch.dict('os.environ', AIRFLOW_CONFIG='/path/to/airflow/airflow.cfg'):
             self.assertEqual(
-                configuration.get_airflow_config('/home//airflow'),
+                get_airflow_config('/home//airflow'),
                 '/path/to/airflow/airflow.cfg')
+
+    def test_case_sensitivity(self):
+        # section and key are case insensitive for get method
+        # note: this is not the case for as_dict method
+        self.assertEqual(conf.get("core", "percent"), "with%inside")
+        self.assertEqual(conf.get("core", "PERCENT"), "with%inside")
+        self.assertEqual(conf.get("CORE", "PERCENT"), "with%inside")
 
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
@@ -94,6 +82,17 @@ class ConfTest(unittest.TestCase):
 
         self.assertTrue(conf.has_option('testsection', 'testkey'))
 
+        with unittest.mock.patch.dict(
+            'os.environ',
+            AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY='nested'
+        ):
+            opt = conf.get('kubernetes_environment_variables', 'AIRFLOW__TESTSECTION__TESTKEY')
+            self.assertEqual(opt, 'nested')
+
+    @mock.patch.dict(
+        'os.environ',
+        AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__AIRFLOW__TESTSECTION__TESTKEY='nested'
+    )
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
 
@@ -104,6 +103,9 @@ class ConfTest(unittest.TestCase):
 
         # test env vars
         self.assertEqual(cfg_dict['testsection']['testkey'], '< hidden >')
+        self.assertEqual(
+            cfg_dict['kubernetes_environment_variables']['AIRFLOW__TESTSECTION__TESTKEY'],
+            '< hidden >')
 
     def test_conf_as_dict_source(self):
         # test display_source
@@ -132,6 +134,14 @@ class ConfTest(unittest.TestCase):
         # Values with '%' in them should be escaped
         self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%%percent')
         self.assertEqual(cfg_dict['core']['percent'], 'with%%inside')
+
+    def test_conf_as_dict_exclude_env(self):
+        # test display_sensitive
+        cfg_dict = conf.as_dict(include_env=False, display_sensitive=True)
+
+        # Since testsection is only created from env vars, it shouldn't be
+        # present at all if we don't ask for env vars to be included.
+        self.assertNotIn('testsection', cfg_dict)
 
     def test_command_precedence(self):
         TEST_CONFIG = '''[test]
@@ -178,6 +188,12 @@ key6 = value6
         cfg_dict = test_conf.as_dict(display_sensitive=True)
         self.assertEqual('cmd_result', cfg_dict['test']['key2'])
         self.assertNotIn('key2_cmd', cfg_dict['test'])
+
+        # If we exclude _cmds then we should still see the commands to run, not
+        # their values
+        cfg_dict = test_conf.as_dict(include_cmds=False, display_sensitive=True)
+        self.assertNotIn('key4', cfg_dict['test'])
+        self.assertEqual('printf key4_result', cfg_dict['test']['key4_cmd'])
 
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
@@ -240,6 +256,16 @@ key2 = 1.23
         self.assertTrue(isinstance(test_conf.getfloat('valid', 'key2'), float))
         self.assertEqual(1.23, test_conf.getfloat('valid', 'key2'))
 
+    def test_has_option(self):
+        TEST_CONFIG = '''[test]
+key1 = value1
+'''
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(TEST_CONFIG)
+        self.assertTrue(test_conf.has_option('test', 'key1'))
+        self.assertFalse(test_conf.has_option('test', 'key_not_exists'))
+        self.assertFalse(test_conf.has_option('section_not_exists', 'key1'))
+
     def test_remove_option(self):
         TEST_CONFIG = '''[test]
 key1 = hello
@@ -290,12 +316,30 @@ key3 = value3
             test_conf.getsection('testsection')
         )
 
+    def test_kubernetes_environment_variables_section(self):
+        TEST_CONFIG = '''
+[kubernetes_environment_variables]
+key1 = hello
+AIRFLOW_HOME = /root/airflow
+'''
+        TEST_CONFIG_DEFAULT = '''
+[kubernetes_environment_variables]
+'''
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
+        test_conf.read_string(TEST_CONFIG)
+
+        self.assertEqual(
+            OrderedDict([('key1', 'hello'), ('AIRFLOW_HOME', '/root/airflow')]),
+            test_conf.getsection('kubernetes_environment_variables')
+        )
+
     def test_broker_transport_options(self):
         section_dict = conf.getsection("celery_broker_transport_options")
         self.assertTrue(isinstance(section_dict['visibility_timeout'], int))
         self.assertTrue(isinstance(section_dict['_test_only_bool'], bool))
         self.assertTrue(isinstance(section_dict['_test_only_float'], float))
-        self.assertTrue(isinstance(section_dict['_test_only_string'], six.string_types))
+        self.assertTrue(isinstance(section_dict['_test_only_string'], str))
 
     def test_deprecated_options(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
@@ -308,9 +352,8 @@ key3 = value3
         conf.remove_option('celery', 'worker_concurrency')
 
         with self.assertWarns(DeprecationWarning):
-            os.environ['AIRFLOW__CELERY__CELERYD_CONCURRENCY'] = '99'
-            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
-            os.environ.pop('AIRFLOW__CELERY__CELERYD_CONCURRENCY')
+            with mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
+                self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
 
         with self.assertWarns(DeprecationWarning):
             conf.set('celery', 'celeryd_concurrency', '99')
@@ -358,15 +401,22 @@ key3 = value3
             self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
 
         with self.assertWarns(FutureWarning):
-            with env_vars(AIRFLOW__CORE__TASK_RUNNER='BashTaskRunner'):
+            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='BashTaskRunner'):
                 test_conf = make_config()
 
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
 
         with warnings.catch_warnings(record=True) as w:
-            with env_vars(AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
+            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
                 test_conf = make_config()
 
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
 
                 self.assertListEqual([], w)
+
+    def test_deprecated_funcs(self):
+        for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
+                     'remove_option', 'as_dict', 'set']:
+            with mock.patch('airflow.configuration.{}'.format(func)):
+                with self.assertWarns(DeprecationWarning):
+                    getattr(configuration, func)()

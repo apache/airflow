@@ -17,20 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
-from tests.compat import mock
-import logging
-from itertools import product
-from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
-from collections import OrderedDict
-from airflow.exceptions import AirflowException
-from tempfile import NamedTemporaryFile, mkdtemp
-from gzip import GzipFile
 import bz2
-import shutil
-import filecmp
 import errno
+import filecmp
+import logging
+import shutil
+import unittest
+from collections import OrderedDict
+from gzip import GzipFile
+from itertools import product
+from tempfile import NamedTemporaryFile, mkdtemp
+
+from airflow.exceptions import AirflowException
+from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
+from tests.compat import mock
 
 try:
     import boto3
@@ -39,10 +39,10 @@ except ImportError:
     mock_s3 = None
 
 
-class S3ToHiveTransferTest(unittest.TestCase):
+class TestS3ToHiveTransfer(unittest.TestCase):
 
     def setUp(self):
-        self.fn = {}
+        self.file_names = {}
         self.task_id = 'S3ToHiveTransferTest'
         self.s3_key = 'S32hive_test_file'
         self.field_dict = OrderedDict([('Sno', 'BIGINT'), ('Some,Text', 'STRING')])
@@ -69,9 +69,9 @@ class S3ToHiveTransferTest(unittest.TestCase):
                        'input_compressed': self.input_compressed
                        }
         try:
-            header = "Sno\tSome,Text \n".encode()
-            line1 = "1\tAirflow Test\n".encode()
-            line2 = "2\tS32HiveTransfer\n".encode()
+            header = b"Sno\tSome,Text \n"
+            line1 = b"1\tAirflow Test\n"
+            line2 = b"2\tS32HiveTransfer\n"
             self.tmp_dir = mkdtemp(prefix='test_tmps32hive_')
             # create sample txt, gz and bz2 with and without headers
             with NamedTemporaryFile(mode='wb+',
@@ -124,13 +124,13 @@ class S3ToHiveTransferTest(unittest.TestCase):
     # file types (file extension and header)
     def _set_fn(self, fn, ext, header):
         key = self._get_key(ext, header)
-        self.fn[key] = fn
+        self.file_names[key] = fn
 
     # Helper method to fetch a file of a
     # certain format (file extension and header)
     def _get_fn(self, ext, header):
         key = self._get_key(ext, header)
-        return self.fn[key]
+        return self.file_names[key]
 
     @staticmethod
     def _get_key(ext, header):
@@ -156,10 +156,7 @@ class S3ToHiveTransferTest(unittest.TestCase):
     def test_bad_parameters(self):
         self.kwargs['check_headers'] = True
         self.kwargs['headers'] = False
-        self.assertRaisesRegexp(AirflowException,
-                                "To check_headers.*",
-                                S3ToHiveTransfer,
-                                **self.kwargs)
+        self.assertRaisesRegex(AirflowException, "To check_headers.*", S3ToHiveTransfer, **self.kwargs)
 
     def test__get_top_row_as_list(self):
         self.kwargs['delimiter'] = '\t'
@@ -220,10 +217,7 @@ class S3ToHiveTransferTest(unittest.TestCase):
         for (ext, has_header) in product(['.txt', '.gz', '.bz2', '.GZ'], [True, False]):
             self.kwargs['headers'] = has_header
             self.kwargs['check_headers'] = has_header
-            logging.info("Testing {0} format {1} header".
-                         format(ext,
-                                ('with' if has_header else 'without'))
-                         )
+            logging.info("Testing %s format %s header", ext, 'with' if has_header else 'without')
             self.kwargs['input_compressed'] = ext.lower() != '.txt'
             self.kwargs['s3_key'] = 's3://bucket/' + self.s3_key + ext
             ip_fn = self._get_fn(ext, self.kwargs['headers'])
@@ -280,7 +274,7 @@ class S3ToHiveTransferTest(unittest.TestCase):
                 input_serialization['CSV']['FileHeaderInfo'] = 'USE'
 
             # Confirm that select_key was called with the right params
-            with mock.patch('airflow.hooks.S3_hook.S3Hook.select_key',
+            with mock.patch('airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key',
                             return_value="") as mock_select_key:
                 # Execute S3ToHiveTransfer
                 s32hive = S3ToHiveTransfer(**self.kwargs)

@@ -19,10 +19,8 @@
 
 import unittest
 
-from airflow import configuration
-from airflow.contrib.sensors.sagemaker_endpoint_sensor \
-    import SageMakerEndpointSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.contrib.sensors.sagemaker_endpoint_sensor import SageMakerEndpointSensor
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 
@@ -56,12 +54,9 @@ DESCRIBE_ENDPOINT_UPDATING_RESPONSE = {
 
 
 class TestSageMakerEndpointSensor(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'describe_endpoint')
-    def test_sensor_with_failure(self, mock_describe, mock_client):
+    def test_sensor_with_failure(self, mock_describe, mock_get_conn):
         mock_describe.side_effect = [DESCRIBE_ENDPOINT_FAILED_RESPONSE]
         sensor = SageMakerEndpointSensor(
             task_id='test_task',
@@ -75,7 +70,7 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
     @mock.patch.object(SageMakerHook, 'describe_endpoint')
-    def test_sensor(self, mock_describe, hook_init, mock_client):
+    def test_sensor(self, mock_describe, hook_init, mock_get_conn):
         hook_init.return_value = None
 
         mock_describe.side_effect = [
@@ -96,7 +91,12 @@ class TestSageMakerEndpointSensor(unittest.TestCase):
         self.assertEqual(mock_describe.call_count, 3)
 
         # make sure the hook was initialized with the specific params
-        hook_init.assert_called_with(aws_conn_id='aws_test')
+        calls = [
+            mock.call(aws_conn_id='aws_test'),
+            mock.call(aws_conn_id='aws_test'),
+            mock.call(aws_conn_id='aws_test')
+        ]
+        hook_init.assert_has_calls(calls)
 
 
 if __name__ == '__main__':

@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pendulum
+
 from airflow.models import BaseOperator, SkipMixin
-from airflow.utils import timezone
 
 
 class LatestOnlyOperator(BaseOperator, SkipMixin):
@@ -28,6 +29,9 @@ class LatestOnlyOperator(BaseOperator, SkipMixin):
 
     If the task is run outside of the latest schedule interval, all
     directly downstream tasks will be skipped.
+
+    Note that downstream tasks are never skipped if the given DAG_Run is
+    marked as externally triggered.
     """
 
     ui_color = '#e9ffdb'  # nyanza
@@ -39,7 +43,7 @@ class LatestOnlyOperator(BaseOperator, SkipMixin):
             self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
             return
 
-        now = timezone.utcnow()
+        now = pendulum.utcnow()
         left_window = context['dag'].following_schedule(
             context['execution_date'])
         right_window = context['dag'].following_schedule(left_window)

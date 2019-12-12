@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime, date
 import json
 import unittest
+from datetime import date, datetime
 
 import numpy as np
 
@@ -60,11 +60,11 @@ class TestAirflowJsonEncoder(unittest.TestCase):
         )
 
     def test_encode_raises(self):
-        self.assertRaisesRegexp(TypeError,
-                                "^%s is not JSON serializable$" % Exception,
-                                json.dumps,
-                                Exception,
-                                cls=utils_json.AirflowJsonEncoder)
+        self.assertRaisesRegex(TypeError,
+                               "^.*is not JSON serializable$",
+                               json.dumps,
+                               Exception,
+                               cls=utils_json.AirflowJsonEncoder)
 
 
 if __name__ == '__main__':

@@ -16,18 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Hook for Web HDFS"""
+from hdfs import HdfsError, InsecureClient
 
-from hdfs import InsecureClient, HdfsError
-
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-_kerberos_security_mode = configuration.conf.get("core", "security") == "kerberos"
+_kerberos_security_mode = conf.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
     try:
-        from hdfs.ext.kerberos import KerberosClient
+        from hdfs.ext.kerberos import KerberosClient  # pylint: disable=ungrouped-imports
     except ImportError:
         log = LoggingMixin().log
         log.error("Could not load the Kerberos extension for the WebHDFSHook.")
@@ -35,7 +35,7 @@ if _kerberos_security_mode:
 
 
 class AirflowWebHDFSHookException(AirflowException):
-    pass
+    """Exception specific for WebHDFS hook"""
 
 
 class WebHDFSHook(BaseHook):
@@ -49,7 +49,6 @@ class WebHDFSHook(BaseHook):
     """
 
     def __init__(self, webhdfs_conn_id='webhdfs_default', proxy_user=None):
-        super().__init__(webhdfs_conn_id)
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user
 

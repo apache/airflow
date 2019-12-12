@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Managing Connections
 ====================
@@ -73,10 +75,10 @@ named ``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable
 must be all uppercase).
 
 Airflow assumes the value returned from the environment variable to be in a URI
-format (e.g.``postgres://user:password@localhost:5432/master`` or
+format (e.g. ``postgres://user:password@localhost:5432/master`` or
 ``s3://accesskey:secretkey@S3``). The underscore character is not allowed
 in the scheme part of URI, so it must be changed to a hyphen character
-(e.g. `google-compute-platform` if `conn_type` is `google_compute_platform`).
+(e.g. ``google-compute-platform`` if ``conn_type`` is ``google_compute_platform``).
 Query parameters are parsed to one-dimensional dict and then used to fill extra.
 
 

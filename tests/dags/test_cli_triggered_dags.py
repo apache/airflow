@@ -37,7 +37,6 @@ def fail():
 def success(ti=None, *args, **kwargs):
     if ti.execution_date != DEFAULT_DATE + timedelta(days=1):
         fail()
-    return
 
 
 # DAG tests that tasks ignore all dependencies
@@ -51,6 +50,5 @@ dag1_task1 = PythonOperator(
 dag1_task2 = PythonOperator(
     task_id='test_run_dependent_task',
     python_callable=success,
-    provide_context=True,
     dag=dag1)
 dag1_task1.set_downstream(dag1_task2)

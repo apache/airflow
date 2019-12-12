@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from past.builtins import basestring
-
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -54,7 +52,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         super().__init__(
             poke_interval=poke_interval, *args, **kwargs)
 
-        if isinstance(partition_names, basestring):
+        if isinstance(partition_names, str):
             raise TypeError('partition_names must be an array of strings')
 
         self.metastore_conn_id = metastore_conn_id

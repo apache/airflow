@@ -19,11 +19,9 @@
 #
 
 import unittest
+from unittest.mock import Mock, patch
 
-from mock import Mock
-from mock import patch
-
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
 from airflow.models import Connection
 from airflow.utils import db, timezone
@@ -49,7 +47,6 @@ minimal_test_ticket = {
 
 class TestJiraSensor(unittest.TestCase):
     def setUp(self):
-        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
@@ -82,7 +79,7 @@ class TestJiraSensor(unittest.TestCase):
         self.assertTrue(jira_mock.return_value.issue.called)
 
     @staticmethod
-    def field_checker_func(context, issue):
+    def field_checker_func(context, issue):  # pylint: disable=unused-argument
         return "test-label-1" in issue['fields']['labels']
 
 

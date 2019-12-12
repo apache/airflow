@@ -19,10 +19,8 @@
 
 import unittest
 
-from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.operators.sagemaker_model_operator \
-    import SageMakerModelOperator
+from airflow.contrib.operators.sagemaker_model_operator import SageMakerModelOperator
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 
@@ -48,7 +46,6 @@ create_model_params = {
 class TestSageMakerModelOperator(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.sagemaker = SageMakerModelOperator(
             task_id='test_sagemaker_operator',
             aws_conn_id='sagemaker_test_id',

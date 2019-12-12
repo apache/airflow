@@ -16,10 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Hook for Mongo DB"""
 from ssl import CERT_NONE
 
-from airflow.hooks.base_hook import BaseHook
 from pymongo import MongoClient, ReplaceOne
+
+from airflow.hooks.base_hook import BaseHook
 
 
 class MongoHook(BaseHook):
@@ -38,7 +40,6 @@ class MongoHook(BaseHook):
     conn_type = 'mongo'
 
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
-        super().__init__(source='mongo')
 
         self.mongo_conn_id = conn_id
         self.connection = self.get_connection(conn_id)
@@ -84,7 +85,8 @@ class MongoHook(BaseHook):
 
         return self.client
 
-    def close_conn(self):
+    def close_conn(self) -> None:
+        """Closes connection"""
         client = self.client
         if client is not None:
             client.close()

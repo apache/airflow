@@ -18,12 +18,13 @@
 # under the License.
 
 import unittest
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.slack_hook import SlackHook
 from tests.compat import mock
 
 
-class SlackHookTestCase(unittest.TestCase):
+class TestSlackHook(unittest.TestCase):
     def test_init_with_token_only(self):
         test_token = 'test_token'
         slack_hook = SlackHook(token=test_token, slack_conn_id=None)
@@ -38,7 +39,7 @@ class SlackHookTestCase(unittest.TestCase):
         test_slack_conn_id = 'test_slack_conn_id'
         slack_hook = SlackHook(token=None, slack_conn_id=test_slack_conn_id)
 
-        get_connection_mock.assert_called_with(test_slack_conn_id)
+        get_connection_mock.assert_called_once_with(test_slack_conn_id)
         self.assertEqual(slack_hook.token, test_password)
 
     @mock.patch('airflow.hooks.slack_hook.SlackHook.get_connection')
@@ -81,8 +82,8 @@ class SlackHookTestCase(unittest.TestCase):
 
         slack_hook.call(test_method, test_api_params)
 
-        slack_client_class_mock.assert_called_with(test_token)
-        slack_client_mock.api_call.assert_called_with(test_method, **test_api_params)
+        slack_client_class_mock.assert_called_once_with(test_token)
+        slack_client_mock.api_call.assert_called_once_with(test_method, **test_api_params)
 
     @mock.patch('airflow.hooks.slack_hook.SlackClient')
     def test_call_with_failure(self, slack_client_class_mock):

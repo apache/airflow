@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import namedtuple
+from typing import NamedTuple
 
 from airflow.utils.db import provide_session
 
 
-class BaseTIDep(object):
+class BaseTIDep:
     """
     Abstract base class for dependencies that must be satisfied in order for task
     instances to run. For example, a task that can only run if a certain number of its
@@ -103,8 +103,7 @@ class BaseTIDep(object):
                 reason="Context specified all task dependencies should be ignored.")
             return
 
-        for dep_status in self._get_dep_statuses(ti, session, dep_context):
-            yield dep_status
+        yield from self._get_dep_statuses(ti, session, dep_context)
 
     @provide_session
     def is_met(self, ti, session, dep_context=None):
@@ -148,6 +147,11 @@ class BaseTIDep(object):
         return TIDepStatus(self.name, True, reason)
 
 
-# Dependency status for a specific task instance indicating whether or not the task
-# instance passed the dependency.
-TIDepStatus = namedtuple('TIDepStatus', ['dep_name', 'passed', 'reason'])
+class TIDepStatus(NamedTuple):
+    """
+    Dependency status for a specific task instance indicating whether or not the task
+    instance passed the dependency.
+    """
+    dep_name: str
+    passed: bool
+    reason: str

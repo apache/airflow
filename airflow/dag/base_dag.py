@@ -17,14 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""Base classes for DAG and DagBag."""
+
 from abc import ABCMeta, abstractmethod
 
 
-class BaseDag():
+class BaseDag(metaclass=ABCMeta):
     """
     Base DAG object that both the SimpleDag and DAG inherit.
     """
-    __metaclass__ = ABCMeta
 
     @property
     @abstractmethod
@@ -79,7 +80,7 @@ class BaseDag():
         raise NotImplementedError
 
 
-class BaseDagBag(object):
+class BaseDagBag:
     """
     Base object that both the SimpleDagBag and DagBag inherit.
     """

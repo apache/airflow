@@ -19,15 +19,14 @@
 
 import json
 import unittest
+from unittest.mock import patch
 
 from freezegun import freeze_time
-from mock import patch
 
-from airflow import AirflowException
-from airflow import models
+from airflow import AirflowException, models
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
-from airflow.models import DagModel, DagBag
+from airflow.models import DagBag, DagModel
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
@@ -42,7 +41,7 @@ class TestLocalClient(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        super(TestLocalClient, cls).setUpClass()
+        super().setUpClass()
         DagBag(example_bash_operator.__file__).get_dag("example_bash_operator").sync_to_db()
 
     def setUp(self):
@@ -124,18 +123,19 @@ class TestLocalClient(unittest.TestCase):
         self.client.create_pool(name='foo1', slots=1, description='')
         self.client.create_pool(name='foo2', slots=2, description='')
         pools = sorted(self.client.get_pools(), key=lambda p: p[0])
-        self.assertEqual(pools, [('foo1', 1, ''), ('foo2', 2, '')])
+        self.assertEqual(pools, [('default_pool', 128, 'Default pool'),
+                                 ('foo1', 1, ''), ('foo2', 2, '')])
 
     def test_create_pool(self):
         pool = self.client.create_pool(name='foo', slots=1, description='')
         self.assertEqual(pool, ('foo', 1, ''))
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 1)
+            self.assertEqual(session.query(models.Pool).count(), 2)
 
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 1)
+            self.assertEqual(session.query(models.Pool).count(), 2)
         self.client.delete_pool(name='foo')
         with create_session() as session:
-            self.assertEqual(session.query(models.Pool).count(), 0)
+            self.assertEqual(session.query(models.Pool).count(), 1)

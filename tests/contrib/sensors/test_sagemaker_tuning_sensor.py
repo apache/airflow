@@ -19,10 +19,8 @@
 
 import unittest
 
-from airflow import configuration
-from airflow.contrib.sensors.sagemaker_tuning_sensor \
-    import SageMakerTuningSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.contrib.sensors.sagemaker_tuning_sensor import SageMakerTuningSensor
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 
@@ -57,9 +55,6 @@ DESCRIBE_TUNING_STOPPING_RESPONSE = {
 
 
 class TestSageMakerTuningSensor(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'describe_tuning_job')
     def test_sensor_with_failure(self, mock_describe_job, mock_client):
@@ -97,7 +92,12 @@ class TestSageMakerTuningSensor(unittest.TestCase):
         self.assertEqual(mock_describe_job.call_count, 3)
 
         # make sure the hook was initialized with the specific params
-        hook_init.assert_called_with(aws_conn_id='aws_test')
+        calls = [
+            mock.call(aws_conn_id='aws_test'),
+            mock.call(aws_conn_id='aws_test'),
+            mock.call(aws_conn_id='aws_test'),
+        ]
+        hook_init.assert_has_calls(calls)
 
 
 if __name__ == '__main__':

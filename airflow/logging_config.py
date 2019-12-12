@@ -21,7 +21,7 @@ import logging
 import warnings
 from logging.config import dictConfig
 
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.module_loading import import_string
 

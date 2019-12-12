@@ -20,20 +20,18 @@
 
 import unittest
 
-from airflow import DAG, configuration
+from airflow import DAG
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.utils.timezone import datetime
-
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'python_sensor_dag'
 
 
-class PythonSensorTests(unittest.TestCase):
+class TestPythonSensor(unittest.TestCase):
 
     def setUp(self):
-        configuration.load_test_config()
         self.args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE

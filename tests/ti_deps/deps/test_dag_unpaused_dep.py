@@ -18,13 +18,13 @@
 # under the License.
 
 import unittest
-from mock import Mock
+from unittest.mock import Mock
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 
 
-class DagUnpausedDepTest(unittest.TestCase):
+class TestDagUnpausedDep(unittest.TestCase):
 
     def test_concurrency_reached(self):
         """
