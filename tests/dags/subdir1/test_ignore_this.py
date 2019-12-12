@@ -16,6 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.models import DAG  # noqa - needed to work against airflow "safe mode" parsing
 
-raise Exception("This dag shouldn't have been executed")
+# needed to work against airflow "safe mode" parsing
+from airflow.models import DAG  # noqa # pylint: disable=unused-import
+
+raise Exception("This dag file should have been ignored!")
