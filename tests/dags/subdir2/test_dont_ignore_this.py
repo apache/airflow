@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,21 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
 
-[pytest]
-addopts =
-    -rasl
-    --verbosity=1
-;    This will treat all tests as flaky
-;    --force-flaky
-norecursedirs =
-    .eggs
-    airflow
-    tests/dags
-    tests/dags_with_system_exit
-    tests/test_utils
-    tests/dags_corrupted
-    tests/dags
-faulthandler_timeout = 480
-log_print = True
-log_level = INFO
+from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
+
+DEFAULT_DATE = datetime(2019, 12, 1)
+
+dag = DAG(dag_id='test_dag_under_subdir2', start_date=DEFAULT_DATE, schedule_interval=None)
+task = BashOperator(
+    task_id='task1',
+    bash_command='echo "test dag under sub directory subdir2"',
+    dag=dag)

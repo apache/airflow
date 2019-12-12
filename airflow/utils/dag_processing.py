@@ -348,7 +348,7 @@ def list_py_file_paths(directory, safe_mode=conf.getboolean('core', 'DAG_DISCOVE
             # We want patterns defined in a parent folder's .airflowignore to
             # apply to subdirs too
             for d in dirs:
-                patterns_by_dir[os.path.join(root, d)] = patterns
+                patterns_by_dir[os.path.join(root, d)] = list(patterns)
 
             for f in files:
                 try:
