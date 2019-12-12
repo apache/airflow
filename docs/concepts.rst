@@ -131,7 +131,7 @@ This is a subtle but very important point: in general, if two operators need to
 share information, like a filename or small amount of data, you should consider
 combining them into a single operator. If it absolutely can't be avoided,
 Airflow does have a feature for operator cross-communication called XCom that is
-described elsewhere in this document.
+described in the section :ref:`XComs <concepts:xcom>`
 
 Airflow provides operators for many common tasks, including:
 
