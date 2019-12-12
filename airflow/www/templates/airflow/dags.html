@@ -328,7 +328,7 @@
         }
         d3.selectAll(".loading-last-run").remove();
       });
-      d3.json("{{ url_for('Airflow.dag_stats') }}", function(error, json) {
+      d3.json("{{ url_for('Airflow.dag_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
             g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
