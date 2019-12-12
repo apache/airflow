@@ -363,14 +363,19 @@ A task goes through various stages from start to completion. In the Airflow UI
 (graph and tree views), these stages are displayed by a color representing each
 stage:
 
-.. image:: img/task_lifecycle.png
+.. image:: img/task_stages.png
+
+The complete lifecycle of the task looks like this:
+
+.. image:: img/task_lifecycle_diagram.png
 
 The happy flow consists of the following stages:
 
-1. no status (scheduler created empty task instance)
-2. queued (scheduler placed a task to run on the queue)
-3. running (worker picked up a task and is now running it)
-4. success (task completed)
+1. No status (scheduler created empty task instance)
+2. Scheduled (scheduler determined task instance needs to run)
+3. Queued (scheduler sent task to executor to run on the queue)
+4. Running (worker picked up a task and is now running it)
+5. Success (task completed)
 
 There is also visual difference between scheduled and manually triggered
 DAGs/tasks:
