@@ -19,7 +19,6 @@
 """System tests for Google BigQuery hooks"""
 
 import unittest
-from unittest import mock
 
 from airflow.gcp.hooks import bigquery as hook
 from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
@@ -31,51 +30,26 @@ class BigQueryDataframeResultsSystemTest(unittest.TestCase):
     def setUp(self):
         self.instance = hook.BigQueryHook()
 
-    @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
-        new_callable=mock.PropertyMock,
-        return_value=None
-    )
-    def test_output_is_dataframe_with_valid_query(self, mock_project_id):
+    def test_output_is_dataframe_with_valid_query(self):
         import pandas as pd
         df = self.instance.get_pandas_df('select 1')
         self.assertIsInstance(df, pd.DataFrame)
 
-    @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
-        new_callable=mock.PropertyMock,
-        return_value=None
-    )
-    def test_throws_exception_with_invalid_query(self, mock_project_id):
+    def test_throws_exception_with_invalid_query(self):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df('from `1`')
         self.assertIn('Reason: ', str(context.exception), "")
 
-    @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
-        new_callable=mock.PropertyMock,
-        return_value=None
-    )
-    def test_succeeds_with_explicit_legacy_query(self, mock_project_id):
+    def test_succeeds_with_explicit_legacy_query(self):
         df = self.instance.get_pandas_df('select 1', dialect='legacy')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
-    @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
-        new_callable=mock.PropertyMock,
-        return_value=None
-    )
-    def test_succeeds_with_explicit_std_query(self, mock_project_id):
+    def test_succeeds_with_explicit_std_query(self):
         df = self.instance.get_pandas_df(
             'select * except(b) from (select 1 a, 2 b)', dialect='standard')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
-    @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
-        new_callable=mock.PropertyMock,
-        return_value=None
-    )
-    def test_throws_exception_with_incompatible_syntax(self, mock_project_id):
+    def test_throws_exception_with_incompatible_syntax(self):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df(
                 'select * except(b) from (select 1 a, 2 b)', dialect='legacy')
