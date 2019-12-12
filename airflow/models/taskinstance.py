@@ -909,6 +909,8 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
         """
+        from airflow.sensors.base_sensor_operator import BaseSensorOperator
+
         task = self.task
         self.pool = pool or task.pool
         self.test_mode = test_mode
@@ -924,6 +926,15 @@ class TaskInstance(Base, LoggingMixin):
                 context = self.get_template_context()
 
                 task_copy = copy.copy(task)
+
+                # Sensors in `poke` mode can block execution of DAGs when running
+                # with single process executor, thus we change the mode to`reschedule`
+                # to allow parallel task being scheduled and executed
+                if isinstance(task_copy, BaseSensorOperator) and \
+                        conf.get('core', 'executor') == "DebugExecutor":
+                    self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
+                    task_copy.mode = 'reschedule'
+
                 self.task = task_copy
 
                 def signal_handler(signum, frame):
