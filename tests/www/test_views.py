@@ -496,6 +496,22 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('last_dagruns', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
+    def test_last_dagruns_success_when_selecting_dags(self):
+        resp = self.client.get('last_dagruns?dag_ids=example_subdag_operator', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertNotIn('example_bash_operator', stats)
+        self.assertIn('example_subdag_operator', stats)
+
+        # Multiple
+        resp = self.client.get('last_dagruns?dag_ids=example_subdag_operator,example_bash_operator',
+                               follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        stats = json.loads(resp.data.decode('utf-8'))
+        self.assertIn('example_bash_operator', stats)
+        self.assertIn('example_subdag_operator', stats)
+        self.check_content_not_in_response('example_xcom', resp)
+
     def test_tree(self):
         url = 'tree?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
