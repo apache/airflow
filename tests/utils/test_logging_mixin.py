@@ -18,11 +18,18 @@
 # under the License.
 
 import mock
-import unittest
 import warnings
+
+import six
 
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils.log.logging_mixin import set_context, StreamLogWriter
+
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
 
 
 class TestLoggingMixin(unittest.TestCase):
