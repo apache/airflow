@@ -614,6 +614,27 @@ class AirflowKubernetesScheduler(LoggingMixin):
             return None
 
         with create_session() as session:
+            task = (
+                session
+                .query(TaskInstance)
+                .filter_by(task_id=task_id, dag_id=dag_id, execution_date=ex_time)
+                .one_or_none()
+            )
+            if task:
+                self.log.info(
+                    'Found matching task %s-%s (%s) with current state of %s',
+                    task.dag_id, task.task_id, task.execution_date, task.state
+                )
+                return (dag_id, task_id, ex_time, try_num)
+            else:
+                self.log.warning(
+                    'task_id/dag_id are not safe to use as Kubernetes labels. This can cause '
+                    'severe performance regressions. Please see '
+                    '<https://kubernetes.io/docs/concepts/overview/working-with-objects'
+                    '/labels/#syntax-and-character-set>. '
+                    'Given dag_id: %s, task_id: %s', task_id, dag_id
+                )
+
             tasks = (
                 session
                 .query(TaskInstance)
