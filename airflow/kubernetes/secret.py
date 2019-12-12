@@ -31,7 +31,7 @@ from airflow.kubernetes.k8s_model import K8SModel
 class Secret(K8SModel):
     """Defines Kubernetes Secret Volume"""
 
-    def __init__(self, deploy_type, deploy_target, secret, key=None):
+    def __init__(self, deploy_type, deploy_target, secret, key=None, volume_mode=None):
         """
         Initialize a Kubernetes Secret Object. Used to track requested secrets from
         the user.
@@ -48,6 +48,10 @@ class Secret(K8SModel):
         :param key: (Optional) Key of the secret within the Kubernetes Secret
             if not provided in `deploy_type` `env` it will mount all secrets in object
         :type key: str or None
+        :param volume_mode (Optional) defaultMode for volume in case where
+            secret is mounted as a volume. Eg: 256 to set defaultMode of 0400 (octal)
+            for SSH key.
+        :type volume_mode: int or None
         """
         if deploy_type not in ('env', 'volume'):
             raise AirflowConfigException("deploy_type must be env or volume")
@@ -66,6 +70,7 @@ class Secret(K8SModel):
 
         self.secret = secret
         self.key = key
+        self.volume_mode = volume_mode
 
     def to_env_secret(self) -> k8s.V1EnvVar:
         """Stores es environment secret"""
@@ -92,7 +97,8 @@ class Secret(K8SModel):
             k8s.V1Volume(
                 name=vol_id,
                 secret=k8s.V1SecretVolumeSource(
-                    secret_name=self.secret
+                    secret_name=self.secret,
+                    default_mode=self.volume_mode
                 )
             ),
             k8s.V1VolumeMount(
@@ -130,9 +136,10 @@ class Secret(K8SModel):
         )
 
     def __repr__(self):
-        return 'Secret({}, {}, {}, {})'.format(
+        return 'Secret({}, {}, {}, {}, {})'.format(
             self.deploy_type,
             self.deploy_target,
             self.secret,
-            self.key
+            self.key,
+            self.volume_mode
         )

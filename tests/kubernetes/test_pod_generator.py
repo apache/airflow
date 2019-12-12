@@ -41,6 +41,8 @@ class TestPodGenerator(unittest.TestCase):
             Secret('volume', '/etc/foo', 'secret_b'),
             # This should produce a single secret mounted in env
             Secret('env', 'TARGET', 'secret_b', 'source_b'),
+            # This should be a single secret mounted in volumeMounts with defaultMode override
+            Secret('volume', '/etc/bar', 'secret_c', volume_mode=256),
         ]
         self.resources = Resources('1Gi', 1, '2Gi', 2, 1)
         self.k8s_client = ApiClient()
@@ -105,6 +107,10 @@ class TestPodGenerator(unittest.TestCase):
                         'mountPath': '/etc/foo',
                         'name': 'secretvol0',
                         'readOnly': True
+                    }, {
+                        'mountPath': '/etc/bar',
+                        'name': 'secretvol1',
+                        'readOnly': True
                     }]
                 }],
                 'restartPolicy': 'Never',
@@ -112,6 +118,12 @@ class TestPodGenerator(unittest.TestCase):
                     'name': 'secretvol0',
                     'secret': {
                         'secretName': 'secret_b'
+                    }
+                }, {
+                    'name': 'secretvol1',
+                    'secret': {
+                        'secretName': 'secret_c',
+                        'defaultMode': 256
                     }
                 }],
                 'hostNetwork': False,
