@@ -29,6 +29,7 @@ from boto3.session import Session
 from airflow.operators.mysql_to_s3_operator import MySQLToS3Operator
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
+
 class TestMySqlToS3Operator(unittest.TestCase):
 
     @mock.patch("boto3.session.Session")
@@ -42,7 +43,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
         s3_key = "key"
         header = False
         index = False
-    
+
         MySQLToS3Operator(query=query,
                           s3_bucket=s3_bucket,
                           s3_key=s3_key,
