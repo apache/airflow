@@ -227,7 +227,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """
         connection_cmd = self._get_spark_binary_path()
 
-        # The url ot the spark master
+        # The url of the spark master
         connection_cmd += ["--master", self._connection['master']]
 
         if self._conf:
@@ -236,6 +236,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
+                # Allow dynamic setting of hadoop/yarn configuration environments
+                self._env = self._env_vars
             else:
                 tmpl = "spark.kubernetes.driverEnv.{}={}"
             for key in self._env_vars:
