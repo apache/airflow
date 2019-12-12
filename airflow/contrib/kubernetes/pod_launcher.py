@@ -204,7 +204,7 @@ class PodLauncher(LoggingMixin):
                                  _preload_content=False)
         try:
             result = self._exec_pod_command(
-                resp, 'cat {}/return.json'.format(self.kube_req_factory.XCOM_MOUNT_PATH))
+                resp, 'cat -u {}/return.json'.format(self.kube_req_factory.XCOM_MOUNT_PATH))
             self._exec_pod_command(resp, 'kill -s SIGINT 1')
         finally:
             resp.close()
