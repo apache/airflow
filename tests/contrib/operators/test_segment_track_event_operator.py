@@ -17,14 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import mock
 import unittest
+from unittest import mock
 
-from airflow import configuration, AirflowException
-
+from airflow import AirflowException
 from airflow.contrib.hooks.segment_hook import SegmentHook
-from airflow.contrib.operators.segment_track_event_operator \
-    import SegmentTrackEventOperator
+from airflow.contrib.operators.segment_track_event_operator import SegmentTrackEventOperator
 
 TEST_CONN_ID = 'test_segment'
 WRITE_KEY = 'foo'
@@ -34,7 +32,6 @@ class TestSegmentHook(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        configuration.load_test_config()
 
         self.conn = conn = mock.MagicMock()
         conn.write_key = WRITE_KEY
@@ -46,7 +43,7 @@ class TestSegmentHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
-            def get_connection(self, connection_id):
+            def get_connection(self, unused_connection_id):
                 return conn
 
         self.test_hook = UnitTestSegmentHook(segment_conn_id=TEST_CONN_ID)
@@ -62,7 +59,7 @@ class TestSegmentHook(unittest.TestCase):
             self.test_hook.on_error('error', ['items'])
 
 
-class SegmentTrackEventOperatorTest(unittest.TestCase):
+class TestSegmentTrackEventOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.segment_track_event_operator.SegmentHook')
     def test_execute(self, mock_hook):

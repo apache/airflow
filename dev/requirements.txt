@@ -2,4 +2,3 @@ click>=6.6,<7
 jira>=1.0.7,<2
 keyring==10.1
 gitpython
-

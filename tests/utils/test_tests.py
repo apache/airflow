@@ -18,10 +18,11 @@
 # under the License.
 
 import unittest
+
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 
-class UtilsTestsTest(unittest.TestCase):
+class TestTestUtils(unittest.TestCase):
 
     def test_assertEqualIgnoreMultipleSpaces_raises(self):
         str1 = 'w oo f'

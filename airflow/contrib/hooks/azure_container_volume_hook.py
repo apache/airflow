@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
+
 from airflow.hooks.base_hook import BaseHook
-from azure.mgmt.containerinstance.models import (Volume,
-                                                 AzureFileVolume)
 
 
 class AzureContainerVolumeHook(BaseHook):

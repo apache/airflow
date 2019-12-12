@@ -18,15 +18,15 @@
 # under the License.
 
 import json
-from builtins import bytes
 from typing import Any
 
-from sqlalchemy import Column, Integer, String, Text, Boolean
+from cryptography.fernet import InvalidToken as InvalidFernetToken
+from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
-from airflow.models.base import Base, ID_LEN
-from airflow.models.crypto import get_fernet, InvalidFernetToken
+from airflow.models.base import ID_LEN, Base
+from airflow.models.crypto import get_fernet
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -51,12 +51,10 @@ class Variable(Base, LoggingMixin):
                 fernet = get_fernet()
                 return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
             except InvalidFernetToken:
-                log.error("Can't decrypt _val for key={}, invalid token "
-                          "or value".format(self.key))
+                log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
                 return None
             except Exception:
-                log.error("Can't decrypt _val for key={}, FERNET_KEY "
-                          "configuration missing".format(self.key))
+                log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
                 return None
         else:
             return self._val
@@ -102,9 +100,9 @@ class Variable(Base, LoggingMixin):
     @provide_session
     def get(
         cls,
-        key,  # type: str
-        default_var=__NO_DEFAULT_SENTINEL,  # type: Any
-        deserialize_json=False,  # type: bool
+        key: str,
+        default_var: Any = __NO_DEFAULT_SENTINEL,
+        deserialize_json: bool = False,
         session=None
     ):
         obj = session.query(cls).filter(cls.key == key).first()
@@ -123,14 +121,14 @@ class Variable(Base, LoggingMixin):
     @provide_session
     def set(
         cls,
-        key,  # type: str
-        value,  # type: Any
-        serialize_json=False,  # type: bool
+        key: str,
+        value: Any,
+        serialize_json: bool = False,
         session=None
     ):
 
         if serialize_json:
-            stored_value = json.dumps(value)
+            stored_value = json.dumps(value, indent=2)
         else:
             stored_value = str(value)
 

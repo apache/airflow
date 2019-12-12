@@ -42,12 +42,12 @@ class PigCliHook(BaseHook):
         self.pig_properties = conn.extra_dejson.get('pig_properties', '')
         self.conn = conn
 
-    def run_cli(self, pig, verbose=True):
+    def run_cli(self, pig, pig_opts=None, verbose=True):
         """
         Run an pig script using the pig cli
 
         >>> ph = PigCliHook()
-        >>> result = ph.run_cli("ls /;")
+        >>> result = ph.run_cli("ls /;", pig_opts="-x mapreduce")
         >>> ("hdfs://" in result)
         True
         """
@@ -60,11 +60,17 @@ class PigCliHook(BaseHook):
                 pig_bin = 'pig'
                 cmd_extra = []
 
-                pig_cmd = [pig_bin, '-f', fname] + cmd_extra
+                pig_cmd = [pig_bin]
 
                 if self.pig_properties:
                     pig_properties_list = self.pig_properties.split()
                     pig_cmd.extend(pig_properties_list)
+                if pig_opts:
+                    pig_opts_list = pig_opts.split()
+                    pig_cmd.extend(pig_opts_list)
+
+                pig_cmd.extend(['-f', fname] + cmd_extra)
+
                 if verbose:
                     self.log.info("%s", " ".join(pig_cmd))
                 sp = subprocess.Popen(

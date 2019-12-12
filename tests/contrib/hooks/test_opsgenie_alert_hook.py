@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import unittest
-import requests_mock
 import json
+import unittest
 
-from airflow import configuration
+import requests_mock
+
+from airflow import AirflowException
+from airflow.contrib.hooks.opsgenie_alert_hook import OpsgenieAlertHook
 from airflow.models import Connection
 from airflow.utils import db
-from airflow.contrib.hooks.opsgenie_alert_hook import OpsgenieAlertHook
-from airflow import AirflowException
 
 
 class TestOpsgenieAlertHook(unittest.TestCase):
@@ -67,7 +67,6 @@ class TestOpsgenieAlertHook(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id=self.conn_id,

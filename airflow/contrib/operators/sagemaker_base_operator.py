@@ -18,7 +18,6 @@
 # under the License.
 
 import json
-
 from typing import Iterable
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook

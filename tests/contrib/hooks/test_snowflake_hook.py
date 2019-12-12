@@ -18,12 +18,11 @@
 # under the License.
 #
 import os
-
-import mock
 import unittest
+from unittest import mock
 
-from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
@@ -53,7 +52,7 @@ class TestSnowflakeHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
-            def get_connection(self, connection_id):
+            def get_connection(self, _):
                 return conn
 
         self.db_hook = UnitTestSnowflakeHook()
@@ -71,8 +70,8 @@ class TestSnowflakeHook(unittest.TestCase):
                                         serialization.PrivateFormat.PKCS8,
                                         serialization.NoEncryption())
 
-        with open(self.nonEncryptedPrivateKey, "wb") as f:
-            f.write(private_key)
+        with open(self.nonEncryptedPrivateKey, "wb") as file:
+            file.write(private_key)
 
         key = rsa.generate_private_key(
             backend=default_backend(),
@@ -84,8 +83,8 @@ class TestSnowflakeHook(unittest.TestCase):
                                         encryption_algorithm=serialization.BestAvailableEncryption(
                                             self.conn.password.encode()))
 
-        with open(self.encryptedPrivateKey, "wb") as f:
-            f.write(private_key)
+        with open(self.encryptedPrivateKey, "wb") as file:
+            file.write(private_key)
 
     def tearDown(self):
         os.remove(self.encryptedPrivateKey)

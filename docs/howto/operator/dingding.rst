@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 Dingding Operators
 ==================
@@ -35,8 +37,9 @@ Basic Usage
 Use the :class:`~airflow/contrib/operators/dingding_operator.DingdingOperator`
 to send Dingding message:
 
-.. literalinclude:: ../../../airflow/contrib/example_dags/example_dingding_operator.py
+.. exampleinclude:: ../../../airflow/contrib/example_dags/example_dingding_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_dingding]
     :end-before: [END howto_operator_dingding]
 
@@ -47,8 +50,9 @@ Remind users in message
 Use parameters ``at_mobiles`` and ``at_all`` to remind specific users when you send message,
 ``at_mobiles`` will be ignored When ``at_all`` is set to ``True``:
 
-.. literalinclude:: ../../../airflow/contrib/example_dags/example_dingding_operator.py
+.. exampleinclude:: ../../../airflow/contrib/example_dags/example_dingding_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_dingding_remind_users]
     :end-before: [END howto_operator_dingding_remind_users]
 
@@ -59,8 +63,9 @@ Send rich text message
 The Dingding operator can send rich text messages including link, markdown, actionCard and feedCard.
 A rich text message can not remind specific users except by using markdown type message:
 
-.. literalinclude:: ../../../airflow/contrib/example_dags/example_dingding_operator.py
+.. exampleinclude:: ../../../airflow/contrib/example_dags/example_dingding_operator.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_dingding_rich_text]
     :end-before: [END howto_operator_dingding_rich_text]
 
@@ -72,7 +77,7 @@ Dingding operator could handle task callback by writing a function wrapper dingd
 and then pass the function to ``sla_miss_callback``, ``on_success_callback``, ``on_failure_callback``,
 or ``on_retry_callback``. Here we use ``on_failure_callback`` as an example:
 
-.. literalinclude:: ../../../airflow/contrib/example_dags/example_dingding_operator.py
+.. exampleinclude:: ../../../airflow/contrib/example_dags/example_dingding_operator.py
     :language: python
     :start-after: [START howto_operator_dingding_failure_callback]
     :end-before: [END howto_operator_dingding_failure_callback]

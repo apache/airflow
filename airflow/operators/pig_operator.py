@@ -18,6 +18,7 @@
 # under the License.
 
 import re
+from typing import Optional
 
 from airflow.hooks.pig_hook import PigCliHook
 from airflow.models import BaseOperator
@@ -38,6 +39,8 @@ class PigOperator(BaseOperator):
         ``DAG(user_defined_macros=myargs)`` parameter. View the DAG
         object documentation for more details.
     :type pigparams_jinja_translate: bool
+    :param pig_opts: pig options, such as: -x tez, -useHCatalog, ...
+    :type pig_opts: str
     """
 
     template_fields = ('pig',)
@@ -46,15 +49,18 @@ class PigOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, pig,
-            pig_cli_conn_id='pig_cli_default',
-            pigparams_jinja_translate=False,
-            *args, **kwargs):
+            self,
+            pig: str,
+            pig_cli_conn_id: str = 'pig_cli_default',
+            pigparams_jinja_translate: bool = False,
+            pig_opts: Optional[str] = None,
+            *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id
+        self.pig_opts = pig_opts
 
     def get_hook(self):
         return PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
@@ -67,7 +73,7 @@ class PigOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Executing: %s', self.pig)
         self.hook = self.get_hook()
-        self.hook.run_cli(pig=self.pig)
+        self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)
 
     def on_kill(self):
         self.hook.kill()

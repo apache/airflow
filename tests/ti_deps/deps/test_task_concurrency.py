@@ -19,14 +19,15 @@
 
 import unittest
 from datetime import datetime
-from mock import Mock
+from unittest.mock import Mock
 
-from airflow.models import DAG, BaseOperator
+from airflow.models import DAG
+from airflow.models.baseoperator import BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 
 
-class TaskConcurrencyDepTest(unittest.TestCase):
+class TestTaskConcurrencyDep(unittest.TestCase):
 
     def _get_task(self, **kwargs):
         return BaseOperator(task_id='test_task', dag=DAG('test_dag'), **kwargs)

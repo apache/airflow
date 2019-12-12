@@ -23,9 +23,9 @@ Create Date: 2017-11-10 22:22:31.326152
 
 """
 
+import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mysql
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "0e2a74e0fc9f"

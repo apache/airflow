@@ -17,30 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.contrib.hooks.redis_hook import RedisHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.redis_hook import RedisHook
 
 
 class RedisPubSubSensor(BaseSensorOperator):
 
     """
     Redis sensor for reading a message from pub sub channels
+
+    :param channels: The channels to be subscribed to (templated)
+    :type channels: str or list of str
+    :param redis_conn_id: the redis connection id
+    :type redis_conn_id: str
     """
     template_fields = ('channels',)
     ui_color = '#f0eee4'
 
     @apply_defaults
     def __init__(self, channels, redis_conn_id, *args, **kwargs):
-        """
-        Create a new RedisPubSubSensor and subscribe to the channels
-
-        :param channels: The channels to be subscribed to (templated)
-        :type channels: str or list of str
-        :param redis_conn_id: the redis connection id
-        :type redis_conn_id: str
-        """
-
         super().__init__(*args, **kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id

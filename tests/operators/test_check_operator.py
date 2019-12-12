@@ -22,7 +22,7 @@ from datetime import datetime
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.operators.check_operator import ValueCheckOperator, CheckOperator, IntervalCheckOperator
+from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 from tests.compat import mock
 
 
@@ -64,19 +64,19 @@ class TestValueCheckOperator(unittest.TestCase):
         pass_value_str = "2018-03-22"
         operator = self._construct_operator('select date from tab1;', "{{ ds }}")
 
-        result = operator.render_template('pass_value', operator.pass_value, {'ds': pass_value_str})
+        operator.render_template_fields({'ds': pass_value_str})
 
         self.assertEqual(operator.task_id, self.task_id)
-        self.assertEqual(result, pass_value_str)
+        self.assertEqual(operator.pass_value, pass_value_str)
 
     def test_pass_value_template_string_float(self):
         pass_value_float = 4.0
         operator = self._construct_operator('select date from tab1;', pass_value_float)
 
-        result = operator.render_template('pass_value', operator.pass_value, {})
+        operator.render_template_fields({})
 
         self.assertEqual(operator.task_id, self.task_id)
-        self.assertEqual(result, str(pass_value_float))
+        self.assertEqual(operator.pass_value, str(pass_value_float))
 
     @mock.patch.object(ValueCheckOperator, 'get_db_hook')
     def test_execute_pass(self, mock_get_db_hook):
@@ -88,7 +88,7 @@ class TestValueCheckOperator(unittest.TestCase):
 
         operator.execute(None)
 
-        mock_hook.get_first.assert_called_with(sql)
+        mock_hook.get_first.assert_called_once_with(sql)
 
     @mock.patch.object(ValueCheckOperator, 'get_db_hook')
     def test_execute_fail(self, mock_get_db_hook):
@@ -98,11 +98,11 @@ class TestValueCheckOperator(unittest.TestCase):
 
         operator = self._construct_operator('select value from tab1 limit 1;', 5, 1)
 
-        with self.assertRaisesRegexp(AirflowException, 'Tolerance:100.0%'):
+        with self.assertRaisesRegex(AirflowException, 'Tolerance:100.0%'):
             operator.execute()
 
 
-class IntervalCheckOperatorTest(unittest.TestCase):
+class TestIntervalCheckOperator(unittest.TestCase):
 
     def _construct_operator(self, table, metric_thresholds,
                             ratio_formula, ignore_zero):
@@ -115,7 +115,7 @@ class IntervalCheckOperatorTest(unittest.TestCase):
         )
 
     def test_invalid_ratio_formula(self):
-        with self.assertRaisesRegexp(AirflowException, 'Invalid diff_method'):
+        with self.assertRaisesRegex(AirflowException, 'Invalid diff_method'):
             self._construct_operator(
                 table='test_table',
                 metric_thresholds={
@@ -170,8 +170,7 @@ class IntervalCheckOperatorTest(unittest.TestCase):
                 [1, 1, 1, 1],  # current
             ]
 
-            for r in rows:
-                yield r
+            yield from rows
 
         mock_hook.get_first.side_effect = returned_row()
         mock_get_db_hook.return_value = mock_hook
@@ -188,7 +187,7 @@ class IntervalCheckOperatorTest(unittest.TestCase):
             ignore_zero=True,
         )
 
-        with self.assertRaisesRegexp(AirflowException, "f0, f1, f2"):
+        with self.assertRaisesRegex(AirflowException, "f0, f1, f2"):
             operator.execute()
 
     @mock.patch.object(IntervalCheckOperator, 'get_db_hook')
@@ -201,8 +200,7 @@ class IntervalCheckOperatorTest(unittest.TestCase):
                 [1, 1, 1, 1],  # current
             ]
 
-            for r in rows:
-                yield r
+            yield from rows
 
         mock_hook.get_first.side_effect = returned_row()
         mock_get_db_hook.return_value = mock_hook
@@ -219,5 +217,5 @@ class IntervalCheckOperatorTest(unittest.TestCase):
             ignore_zero=True,
         )
 
-        with self.assertRaisesRegexp(AirflowException, "f0, f1"):
+        with self.assertRaisesRegex(AirflowException, "f0, f1"):
             operator.execute()

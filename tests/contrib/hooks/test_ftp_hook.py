@@ -16,11 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-import mock
-import six
+import io
 import unittest
+from unittest import mock
 
 from airflow.contrib.hooks import ftp_hook as fh
 
@@ -112,14 +111,14 @@ class TestFTPHook(unittest.TestCase):
         self.conn_mock.size.assert_called_once_with(path)
 
     def test_retrieve_file(self):
-        _buffer = six.StringIO('buffer')
+        _buffer = io.StringIO('buffer')
         with fh.FTPHook() as ftp_hook:
             ftp_hook.retrieve_file(self.path, _buffer)
         self.conn_mock.retrbinary.assert_called_once_with('RETR path', _buffer.write)
 
     def test_retrieve_file_with_callback(self):
         func = mock.Mock()
-        _buffer = six.StringIO('buffer')
+        _buffer = io.StringIO('buffer')
         with fh.FTPHook() as ftp_hook:
             ftp_hook.retrieve_file(self.path, _buffer, callback=func)
         self.conn_mock.retrbinary.assert_called_once_with('RETR path', func)
@@ -129,11 +128,9 @@ class TestIntegrationFTPHook(unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-        from airflow import configuration
         from airflow.utils import db
         from airflow.models import Connection
 
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='ftp_passive', conn_type='ftp',
@@ -147,25 +144,25 @@ class TestIntegrationFTPHook(unittest.TestCase):
     def _test_mode(self, hook_type, connection_id, expected_mode):
         hook = hook_type(connection_id)
         conn = hook.get_conn()
-        conn.set_pasv.assert_called_with(expected_mode)
+        conn.set_pasv.assert_called_once_with(expected_mode)
 
     @mock.patch("ftplib.FTP")
-    def test_ftp_passive_mode(self, ftp_mock):
+    def test_ftp_passive_mode(self, mock_ftp):
         from airflow.contrib.hooks.ftp_hook import FTPHook
         self._test_mode(FTPHook, "ftp_passive", True)
 
     @mock.patch("ftplib.FTP")
-    def test_ftp_active_mode(self, ftp_mock):
+    def test_ftp_active_mode(self, mock_ftp):
         from airflow.contrib.hooks.ftp_hook import FTPHook
         self._test_mode(FTPHook, "ftp_active", False)
 
     @mock.patch("ftplib.FTP_TLS")
-    def test_ftps_passive_mode(self, ftps_mock):
+    def test_ftps_passive_mode(self, mock_ftp):
         from airflow.contrib.hooks.ftp_hook import FTPSHook
         self._test_mode(FTPSHook, "ftp_passive", True)
 
     @mock.patch("ftplib.FTP_TLS")
-    def test_ftps_active_mode(self, ftps_mock):
+    def test_ftps_active_mode(self, mock_ftp):
         from airflow.contrib.hooks.ftp_hook import FTPSHook
         self._test_mode(FTPSHook, "ftp_active", False)
 

@@ -24,8 +24,6 @@ import unittest
 import uuid
 
 from airflow.contrib.operators.azure_cosmos_operator import AzureCosmosInsertDocumentOperator
-
-from airflow import configuration
 from airflow.models import Connection
 from airflow.utils import db
 from tests.compat import mock
@@ -40,7 +38,6 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         self.test_master_key = 'magic_test_key'
         self.test_database_name = 'test_database_name'
         self.test_collection_name = 'test_collection_name'
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='azure_cosmos_test_key_id',

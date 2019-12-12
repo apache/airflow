@@ -17,19 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import Connection
-from airflow.utils import timezone
-
+from flask_appbuilder.fieldwidgets import (
+    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, DateTimePickerWidget, Select2Widget,
+)
 from flask_appbuilder.forms import DynamicForm
-from flask_appbuilder.fieldwidgets import (BS3TextFieldWidget, BS3TextAreaFieldWidget,
-                                           BS3PasswordFieldWidget, Select2Widget,
-                                           DateTimePickerWidget)
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
-
 from wtforms import validators
-from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
-                            StringField, DateTimeField, BooleanField)
+from wtforms.fields import (
+    BooleanField, DateTimeField, IntegerField, PasswordField, SelectField, StringField, TextAreaField,
+)
+
+from airflow.models import Connection
+from airflow.utils import timezone
 
 
 class DateTimeForm(FlaskForm):
@@ -70,6 +70,7 @@ class DagRunForm(DynamicForm):
         widget=DateTimePickerWidget())
     run_id = StringField(
         lazy_gettext('Run Id'),
+        validators=[validators.DataRequired()],
         widget=BS3TextFieldWidget())
     state = SelectField(
         lazy_gettext('State'),
@@ -80,6 +81,12 @@ class DagRunForm(DynamicForm):
         widget=DateTimePickerWidget())
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
+
+    def populate_obj(self, item):
+        # TODO: This is probably better done as a custom field type so we can
+        # set TZ at parse time
+        super().populate_obj(item)
+        item.execution_date = timezone.make_aware(item.execution_date)
 
 
 class ConnectionForm(DynamicForm):

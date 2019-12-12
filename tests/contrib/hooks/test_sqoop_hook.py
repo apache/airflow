@@ -21,16 +21,13 @@
 import collections
 import json
 import unittest
+from io import StringIO
+from unittest.mock import call, patch
 
-from airflow import configuration
 from airflow.contrib.hooks.sqoop_hook import SqoopHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
-
-from mock import patch, call
-
-from io import StringIO
 
 
 class TestSqoopHook(unittest.TestCase):
@@ -87,7 +84,6 @@ class TestSqoopHook(unittest.TestCase):
     }
 
     def setUp(self):
-        configuration.load_test_config()
         db.merge_conn(
             Connection(
                 conn_id='sqoop_test', conn_type='sqoop', schema='schema',

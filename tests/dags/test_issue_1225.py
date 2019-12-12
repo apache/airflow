@@ -28,7 +28,6 @@ from datetime import datetime, timedelta
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
-from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 DEFAULT_DATE = datetime(2016, 1, 1)
@@ -105,26 +104,6 @@ dag6_task2 = DummyOperator(
     dag=dag6,)
 dag6_task2.set_upstream(dag6_task1)
 
-
-# DAG tests that a deadlocked subdag is properly caught
-dag7 = DAG(dag_id='test_subdag_deadlock', default_args=default_args)
-subdag7 = DAG(dag_id='test_subdag_deadlock.subdag', default_args=default_args)
-subdag7_task1 = PythonOperator(
-    task_id='test_subdag_fail',
-    dag=subdag7,
-    python_callable=fail)
-subdag7_task2 = DummyOperator(
-    task_id='test_subdag_dummy_1',
-    dag=subdag7,)
-subdag7_task3 = DummyOperator(
-    task_id='test_subdag_dummy_2',
-    dag=subdag7)
-dag7_subdag1 = SubDagOperator(
-    task_id='subdag',
-    dag=dag7,
-    subdag=subdag7)
-subdag7_task1.set_downstream(subdag7_task2)
-subdag7_task2.set_downstream(subdag7_task3)
 
 # DAG tests that a Dag run that doesn't complete but has a root failure is marked running
 dag8 = DAG(dag_id='test_dagrun_states_root_fail_unfinished', default_args=default_args)

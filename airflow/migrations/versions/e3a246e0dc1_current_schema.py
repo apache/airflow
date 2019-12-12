@@ -25,8 +25,8 @@ Create Date: 2015-08-18 16:35:00.883495
 
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import func
 from sqlalchemy.engine.reflection import Inspector
 

@@ -17,6 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains operator to move data from Hive to Samba.
+"""
+
 from tempfile import NamedTemporaryFile
 
 from airflow.hooks.hive_hooks import HiveServer2Hook
@@ -46,11 +50,11 @@ class Hive2SambaOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 hql,
-                 destination_filepath,
-                 samba_conn_id='samba_default',
-                 hiveserver2_conn_id='hiveserver2_default',
-                 *args, **kwargs):
+                 hql: str,
+                 destination_filepath: str,
+                 samba_conn_id: str = 'samba_default',
+                 hiveserver2_conn_id: str = 'hiveserver2_default',
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.samba_conn_id = samba_conn_id

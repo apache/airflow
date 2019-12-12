@@ -17,38 +17,43 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import ImportError as BuiltinImportError
+from typing import Optional
 
-from airflow import configuration
+from cryptography.fernet import Fernet, MultiFernet
+
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class InvalidFernetToken(Exception):
-    # If Fernet isn't loaded we need a valid exception class to catch. If it is
-    # loaded this will get reset to the actual class once get_fernet() is called
-    pass
+class FernetProtocol(Protocol):
+    def decrypt(self, b):
+        ...
+
+    def encrypt(self, b):
+        ...
 
 
-class NullFernet(object):
+class NullFernet:
     """
     A "Null" encryptor class that doesn't encrypt or decrypt but that presents
     a similar interface to Fernet.
 
     The purpose of this is to make the rest of the code not have to know the
     difference, and to only display the message once, not 20 times when
-    `airflow initdb` is ran.
+    `airflow db init` is ran.
     """
     is_encrypted = False
 
-    def decrpyt(self, b):
+    def decrypt(self, b):
         return b
 
     def encrypt(self, b):
         return b
 
 
-_fernet = None
+_fernet = None  # type: Optional[FernetProtocol]
 
 
 def get_fernet():
@@ -66,20 +71,9 @@ def get_fernet():
 
     if _fernet:
         return _fernet
-    try:
-        from cryptography.fernet import Fernet, MultiFernet, InvalidToken
-        global InvalidFernetToken
-        InvalidFernetToken = InvalidToken
-
-    except BuiltinImportError:
-        log.warning(
-            "cryptography not found - values will not be stored encrypted."
-        )
-        _fernet = NullFernet()
-        return _fernet
 
     try:
-        fernet_key = configuration.conf.get('core', 'FERNET_KEY')
+        fernet_key = conf.get('core', 'FERNET_KEY')
         if not fernet_key:
             log.warning(
                 "empty cryptography key - values will not be stored encrypted."
