@@ -1062,7 +1062,12 @@ class TaskInstance(Base, LoggingMixin):
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
-    def handle_failure(self, error, test_mode=False, context=None, session=None):
+    def handle_failure(self, error, test_mode=None, context=None, session=None):
+        if test_mode is None:
+            test_mode = self.test_mode
+        if context is None:
+            context = self.get_template_context()
+
         self.log.exception(error)
         task = self.task
         self.end_date = timezone.utcnow()

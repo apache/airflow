@@ -1414,3 +1414,37 @@ class TestTaskInstance(unittest.TestCase):
         context = ti.get_template_context()
         with self.assertRaises(KeyError):
             task.render_template('{{ var.json.get("missing_variable") }}', context)
+
+    def test_handle_failure(self):
+        from unittest import mock
+
+        start_date = timezone.datetime(2016, 6, 1)
+        dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)
+
+        with mock.MagicMock() as mock_on_failure_1, mock.MagicMock() as mock_on_retry_1:
+            task1 = DummyOperator(task_id="test_handle_failure_on_failure",
+                                  on_failure_callback=mock_on_failure_1,
+                                  on_retry_callback=mock_on_retry_1,
+                                  dag=dag)
+            ti1 = TI(task=task1, execution_date=start_date)
+            ti1.state = State.FAILED
+            ti1.handle_failure("test failure handling")
+
+        context_arg_1 = mock_on_failure_1.call_args[0][0]
+        assert context_arg_1 and "task_instance" in context_arg_1
+        mock_on_retry_1.assert_not_called()
+
+        with mock.MagicMock() as mock_on_failure_2, mock.MagicMock() as mock_on_retry_2:
+            task2 = DummyOperator(task_id="test_handle_failure_on_retry",
+                                  on_failure_callback=mock_on_failure_2,
+                                  on_retry_callback=mock_on_retry_2,
+                                  retries=1,
+                                  dag=dag)
+            ti2 = TI(task=task2, execution_date=start_date)
+            ti2.state = State.FAILED
+            ti2.handle_failure("test retry handling")
+
+        mock_on_failure_2.assert_not_called()
+
+        context_arg_2 = mock_on_retry_2.call_args[0][0]
+        assert context_arg_2 and "task_instance" in context_arg_2
