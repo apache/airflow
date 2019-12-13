@@ -1214,33 +1214,55 @@ class TaskInstance(Base, LoggingMixin):
 
         class VariableAccessor:
             """
-            Wrapper around Variable. This way you can get variables in templates by using
-            {var.value.your_variable_name}.
+            Wrapper around Variable. This way you can get variables in
+            templates by using ``{{ var.value.variable_name }}`` or
+            ``{{ var.value.get('variable_name', 'fallback') }}``.
             """
             def __init__(self):
                 self.var = None
 
-            def __getattr__(self, item):
+            def __getattr__(
+                self,
+                item,
+            ):
                 self.var = Variable.get(item)
                 return self.var
 
             def __repr__(self):
                 return str(self.var)
 
+            @staticmethod
+            def get(
+                item,
+                default_var=Variable._Variable__NO_DEFAULT_SENTINEL,
+            ):
+                return Variable.get(item, default_var=default_var)
+
         class VariableJsonAccessor:
             """
-            Wrapper around deserialized Variables. This way you can get variables
-            in templates by using {var.json.your_variable_name}.
+            Wrapper around Variable. This way you can get variables in
+            templates by using ``{{ var.json.variable_name }}`` or
+            ``{{ var.json.get('variable_name', {'fall': 'back'}) }}``.
             """
             def __init__(self):
                 self.var = None
 
-            def __getattr__(self, item):
+            def __getattr__(
+                self,
+                item,
+            ):
                 self.var = Variable.get(item, deserialize_json=True)
                 return self.var
 
             def __repr__(self):
                 return str(self.var)
+
+            @staticmethod
+            def get(
+                item,
+                default_var=Variable._Variable__NO_DEFAULT_SENTINEL,
+            ):
+                return Variable.get(item, default_var=default_var, deserialize_json=True)
 
         return {
             'conf': conf,
