@@ -435,18 +435,29 @@ class Airflow(AirflowBaseView):
     def last_dagruns(self, session=None):
         DagRun = models.DagRun
 
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+        allowed_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+
+        if 'all_dags' in allowed_dag_ids:
+            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
+
+        selected_dag_ids = {
+            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+        }
+
+        if selected_dag_ids:
+            filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
+        else:
+            filter_dag_ids = allowed_dag_ids
 
         if not filter_dag_ids:
-            return
+            return wwwutils.json_response({})
 
         query = session.query(
             DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('last_run')
         ).group_by(DagRun.dag_id)
 
-        if 'all_dags' not in filter_dag_ids:
-            # Filter to only ask for accesible dags
-            query = query.filter(DagRun.dag_id.in_(filter_dag_ids.keys()))
+        # Filter to only ask for accessible and selected dags
+        query = query.filter(DagRun.dag_id.in_(filter_dag_ids))
 
         resp = {
             r.dag_id.replace('.', '__dot__'): {
