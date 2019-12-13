@@ -52,6 +52,7 @@ The following config options support this ``_cmd`` version:
 * ``sql_alchemy_conn`` in ``[core]`` section
 * ``fernet_key`` in ``[core]`` section
 * ``broker_url`` in ``[celery]`` section
+* ``flower_basic_auth`` in ``[celery]`` section
 * ``result_backend`` in ``[celery]`` section
 * ``password`` in ``[atlas]`` section
 * ``smtp_password`` in ``[smtp]`` section
