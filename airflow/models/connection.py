@@ -115,6 +115,7 @@ class Connection(Base, LoggingMixin):
             schema=None, port=None, extra=None,
             uri=None):
         self.conn_id = conn_id
+        self.uri_without_query = None
         if uri:
             self.parse_from_uri(uri)
         else:
@@ -144,6 +145,10 @@ class Connection(Base, LoggingMixin):
         self.port = uri_parts.port
         if uri_parts.query:
             self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
+        if conn_type:
+            self.uri_without_query = uri_parts.scheme + "://" + uri_parts.netloc + uri_parts.path
+        else:
+            self.uri_without_query = uri_parts.netloc + uri_parts.path
 
     def get_password(self):
         if self._password and self.is_encrypted:

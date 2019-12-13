@@ -185,6 +185,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 conn_data['master'] = "{}:{}".format(conn.host, conn.port)
             else:
                 conn_data['master'] = conn.host
+            if conn.uri_without_query:
+                conn_data['master'] = conn.uri_without_query
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
