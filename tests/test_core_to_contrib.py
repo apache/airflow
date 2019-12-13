@@ -416,12 +416,11 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator",
     ),
     (
-        "airflow.gcp.operators.speech_to_text.GcpSpeechToTextRecognizeSpeechOperator",
-        "airflow.contrib.operators.gcp_speech_to_text_operator."
-        "GcpSpeechToTextRecognizeSpeechOperator",
+        "airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator",
+        "airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator",
     ),
     (
-        "airflow.gcp.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator",
+        "airflow.gcp.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator",
         "airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator",
     ),
     (
