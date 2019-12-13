@@ -126,7 +126,7 @@ class DataFlowJavaOperator(BaseOperator):
     .. code-block:: python
 
        t1 = DataFlowJavaOperator(
-           task_id='datapflow_example',
+           task_id='dataflow_example',
            jar='{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar',
            options={
                'autoscalingAlgorithm': 'BASIC',
@@ -236,7 +236,7 @@ class DataflowTemplateOperator(BaseOperator):
     .. code-block:: python
 
        t1 = DataflowTemplateOperator(
-           task_id='datapflow_example',
+           task_id='dataflow_example',
            template='{{var.value.gcp_dataflow_base}}',
            parameters={
                'inputFile': "gs://bucket/input/my_input.txt",
