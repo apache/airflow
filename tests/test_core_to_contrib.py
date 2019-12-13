@@ -153,6 +153,7 @@ HOOK = [
         "airflow.contrib.hooks.aws_sns_hook.AwsSnsHook",
     ),
 ]
+
 OPERATOR = [
     (
         "airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator",
@@ -769,6 +770,7 @@ OPERATOR = [
         "airflow.contrib.operators.sns_publish_operator.SnsPublishOperator",
     )
 ]
+
 SENSOR = [
     (
         "airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor",
@@ -813,12 +815,21 @@ SENSOR = [
         "airflow.providers.amazon.aws.sensors.sqs.SQSSensor",
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
     ),
-
 ]
-ALL = HOOK + OPERATOR + SENSOR
+
+PROTOCOLS = [
+    (
+        "airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol",
+        "airflow.contrib.operators.awsbatch_operator.BatchProtocol",
+    ),
+]
+
+
+ALL = HOOK + OPERATOR + SENSOR + PROTOCOLS
+
 RENAMED_HOOKS = [
     (old_class, new_class)
-    for old_class, new_class in ALL
+    for old_class, new_class in HOOK + OPERATOR + SENSOR
     if old_class.rpartition(".")[2] != new_class.rpartition(".")[2]
 ]
 
@@ -848,6 +859,14 @@ class TestMovingCoreToContrib(TestCase):
         module = importlib.import_module(path)
         class_ = getattr(module, class_name)
         return class_
+
+    @parameterized.expand(PROTOCOLS)
+    def test_is_protocol_deprecated(self, _, old_module):
+        deprecation_warning_msg = "This class is deprecated."
+        old_module_class = self.get_class_from_path(old_module)
+        with self.assertWarnsRegex(DeprecationWarning, deprecation_warning_msg) as wrn:
+            self.assertTrue(deprecation_warning_msg, wrn)
+            old_module_class()
 
     @parameterized.expand(RENAMED_HOOKS)
     def test_is_class_deprecated(self, new_module, old_module):

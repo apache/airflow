@@ -253,10 +253,30 @@ Migrated are:
 | airflow.contrib.hooks.aws_sns_hook.AwsSnsHook                   | airflow.providers.amazon.aws.hooks.sns.AwsSnsHook        |
 | airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator |
 | airflow.contrib.operators.awsbatch.AWSBatchOperator | airflow.providers.amazon.aws.operators.batch.AwsBatchOperator |
+| airflow.contrib.operators.awsbatch.BatchProtocol | airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol |
+| private attrs and methods on AWSBatchOperator | airflow.providers.amazon.aws.hooks.batch_client.AwsBatchClient |
+| n/a | airflow.providers.amazon.aws.hooks.batch_waiters.AwsBatchWaiters |
 | airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator |
 | airflow.contrib.operators.aws_sns_publish_operator.SnsPublishOperator | airflow.providers.amazon.aws.operators.sns.SnsPublishOperator |
 | airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.amazon.aws.sensors.athena.AthenaSensor        |
 | airflow.contrib.sensors.aws_sqs_sensor.SQSSensor             | airflow.providers.amazon.aws.sensors.sqs.SQSSensor        |
+
+### AWS Batch Operator
+
+The `AwsBatchOperator` was refactored to extract an `AwsBatchClient` (and inherit from it).  The
+changes are mostly backwards compatible and clarify the public API for these classes; some
+private methods on `AwsBatchOperator` for polling a job status were relocated and renamed
+to surface new public methods on `AwsBatchClient` (and via inheritance on `AwsBatchOperator`).  A
+couple of job attributes are renamed on an instance of `AwsBatchOperator`; these were mostly
+used like private attributes but they were surfaced in the public API, so any use of them needs
+to be updated as follows:
+- `AwsBatchOperator().jobId` -> `AwsBatchOperator().job_id`
+- `AwsBatchOperator().jobName` -> `AwsBatchOperator().job_name`
+
+The `AwsBatchOperator` gets a new option to define a custom model for waiting on job status changes.
+The `AwsBatchOperator` can use a new `waiters` parameter, an instance of `AwsBatchWaiters`, to
+specify that custom job waiters will be used to monitor a batch job.  See the latest API
+documentation for details.
 
 ### Additional arguments passed to BaseOperator cause an exception
 

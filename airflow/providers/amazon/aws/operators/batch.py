@@ -19,115 +19,79 @@
 #
 
 """
-Airflow operator for AWS batch service
+An Airflow operator for AWS Batch services
 
-.. seealso:: http://boto3.readthedocs.io/en/latest/reference/services/batch.html
+.. seealso::
+
+    - http://boto3.readthedocs.io/en/latest/guide/configuration.html
+    - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
+    - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
+from typing import Dict, Optional
 
-import sys
-from random import randint
-from time import sleep
-from typing import Optional
-
-import botocore.exceptions
-import botocore.waiter
-
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.typing_compat import Protocol
+from airflow.providers.amazon.aws.hooks.batch_client import AwsBatchClient
 from airflow.utils.decorators import apply_defaults
 
-# pylint: disable=invalid-name, unused-argument
 
-
-class BatchProtocol(Protocol):
+class AwsBatchOperator(BaseOperator, AwsBatchClient):
     """
-    .. seealso:: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
-    """
-
-    def describe_jobs(self, jobs) -> dict:
-        """Get job descriptions from AWS batch"""
-        ...
-
-    def get_waiter(self, x: str) -> botocore.waiter.Waiter:
-        """Get an AWS service waiter
-
-        Note that AWS batch might not have any waiters (until botocore PR1307 is merged and released).
-
-        .. code-block:: python
-
-            import boto3
-            boto3.client('batch').waiter_names == []
-
-        .. seealso:: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/clients.html#waiters
-        .. seealso:: https://github.com/boto/botocore/pull/1307
-        """
-        ...
-
-    def submit_job(
-        self, jobName, jobQueue, jobDefinition, arrayProperties, parameters, containerOverrides
-    ) -> dict:
-        """Submit a batch job
-        :type jobName: str
-        :type jobQueue: str
-        :type jobDefinition: str
-        :type arrayProperties: dict
-        :type parameters: dict
-        :type containerOverrides: dict
-        """
-        ...
-
-    def terminate_job(self, jobId: str, reason: str) -> dict:
-        """Terminate a batch job"""
-        ...
-
-
-class AwsBatchOperator(BaseOperator):
-    """
-    Execute a job on AWS Batch Service
-
-    .. warning: the queue parameter was renamed to job_queue to segregate the
-                internal CeleryExecutor queue from the AWS Batch internal queue.
+    Execute a job on AWS Batch
 
     :param job_name: the name for the job that will run on AWS Batch (templated)
     :type job_name: str
+
     :param job_definition: the job definition name on AWS Batch
     :type job_definition: str
+
     :param job_queue: the queue name on AWS Batch
     :type job_queue: str
-    :param overrides: the same parameter that boto3 will receive on
-        containerOverrides (templated)
-        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#Batch.Client.submit_job
-    :type overrides: dict
-    :param array_properties: the same parameter that boto3 will receive on
-        arrayProperties
-        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#Batch.Client.submit_job
-    :type array_properties: dict
-    :param parameters: the same parameter that boto3 will receive on
-        parameters (templated)
-        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#Batch.Client.submit_job
-    :type parameters: dict
-    :param max_retries: exponential backoff retries while waiter is not
-        merged, 4200 = 48 hours
+
+    :param overrides: the `containerOverrides` parameter for boto3 (templated)
+    :type overrides: Dict
+
+    :param array_properties: the `arrayProperties` parameter for boto3
+    :type array_properties: Dict
+
+    :param parameters: the `parameters` for boto3 (templated)
+    :type parameters: Dict
+
+    :param job_id: the job ID, usually unknown (None) until the
+        submit_job operation gets the jobId defined by AWS Batch
+    :type job_id: Optional[str]
+
+    :param waiters: an :py:class:`.AwsBatchWaiters` object (see note below);
+        if None, polling is used with max_retries and status_retries.
+    :type waiters: Optional[AwsBatchWaiters]
+
+    :param max_retries: exponential back-off retries, 4200 = 48 hours;
+        polling is only used when waiters is None
     :type max_retries: int
-    :param status_retries: number of retries to get job description (status), 10
+
+    :param status_retries: number of HTTP retries to get job status, 10;
+        polling is only used when waiters is None
     :type status_retries: int
+
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
-        credential boto3 strategy will be used
-        (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+        credential boto3 strategy will be used.
     :type aws_conn_id: str
+
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
     :type region_name: str
+
+    .. note::
+        Any custom waiters must return a waiter for these calls:
+        .. code-block:: python
+
+            waiter = waiters.get_waiter("JobExists")
+            waiter = waiters.get_waiter("JobRunning")
+            waiter = waiters.get_waiter("JobComplete")
     """
 
-    MAX_RETRIES = 4200
-    STATUS_RETRIES = 10
-
     ui_color = "#c3dae0"
-    client = None  # type: BatchProtocol
-    arn = None  # type: str
+    arn = None  # type: Optional[str]
     template_fields = (
         "job_name",
         "overrides",
@@ -143,39 +107,60 @@ class AwsBatchOperator(BaseOperator):
         overrides,
         array_properties=None,
         parameters=None,
+        job_id=None,
+        waiters=None,
         max_retries=None,
         status_retries=None,
         aws_conn_id=None,
         region_name=None,
         **kwargs,
     ):  # pylint: disable=too-many-arguments
-        super().__init__(**kwargs)
 
+        BaseOperator.__init__(self, **kwargs)
+        AwsBatchClient.__init__(
+            self,
+            max_retries=max_retries,
+            status_retries=status_retries,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+        )
+
+        self.job_id = job_id
         self.job_name = job_name
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.job_definition = job_definition
         self.job_queue = job_queue
         self.overrides = overrides
         self.array_properties = array_properties or {}
         self.parameters = parameters
-        self.max_retries = max_retries or self.MAX_RETRIES
-        self.status_retries = status_retries or self.STATUS_RETRIES
+        self.waiters = waiters
 
-        self.jobId = None  # pylint: disable=invalid-name
-        self.jobName = None  # pylint: disable=invalid-name
+    def execute(self, context: Dict):
+        """
+        Submit and monitor an AWS Batch job
 
-        self.hook = self.get_hook()
+        :raises: AirflowException
+        """
+        self.submit_job(context)
+        self.monitor_job(context)
 
-    def execute(self, context):
+    def on_kill(self):
+        response = self.client.terminate_job(
+            jobId=self.job_id, reason="Task killed by the user"
+        )
+        self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
+
+    def submit_job(self, context: Dict):  # pylint: disable=unused-argument
+        """
+        Submit an AWS Batch job
+
+        :raises: AirflowException
+        """
         self.log.info(
-            "Running AWS Batch Job - job definition: %s - on queue %s",
+            "Running AWS Batch job - job definition: %s - on queue %s",
             self.job_definition,
             self.job_queue,
         )
-        self.log.info("AWS Batch Job - container overrides: %s", self.overrides)
-
-        self.client = self.hook.get_client_type("batch", region_name=self.region_name)
+        self.log.info("AWS Batch job - container overrides: %s", self.overrides)
 
         try:
             response = self.client.submit_job(
@@ -186,137 +171,29 @@ class AwsBatchOperator(BaseOperator):
                 parameters=self.parameters,
                 containerOverrides=self.overrides,
             )
+            self.job_id = response["jobId"]
 
-            self.log.info("AWS Batch Job started: %s", response)
-
-            self.jobId = response["jobId"]
-            self.jobName = response["jobName"]
-
-            self._wait_for_task_ended()
-            self._check_success_task()
-
-            self.log.info("AWS Batch Job has been successfully executed: %s", response)
+            self.log.info("AWS Batch job (%s) started: %s", self.job_id, response)
 
         except Exception as e:
-            self.log.info("AWS Batch Job has failed")
+            self.log.info("AWS Batch job (%s) failed submission", self.job_id)
             raise AirflowException(e)
 
-    def _wait_for_task_ended(self):
+    def monitor_job(self, context: Dict):  # pylint: disable=unused-argument
         """
-        Try to use a waiter from the below pull request
+        Monitor an AWS Batch job
 
-            * https://github.com/boto/botocore/pull/1307
-
-        If the waiter is not available apply a exponential backoff
-
-            * docs.aws.amazon.com/general/latest/gr/api-retries.html
+        :raises: AirflowException
         """
         try:
-            waiter = self.client.get_waiter("job_execution_complete")
-            waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
-            waiter.wait(jobs=[self.jobId])
-        except ValueError:
-            self._poll_for_task_ended()
+            if self.waiters:
+                self.waiters.wait_for_job(self.job_id)
+            else:
+                self.wait_for_job(self.job_id)
 
-    def _poll_for_task_ended(self):
-        """
-        Poll for job status
+            self.check_job_success(self.job_id)
+            self.log.info("AWS Batch job (%s) succeeded", self.job_id)
 
-            * docs.aws.amazon.com/general/latest/gr/api-retries.html
-        """
-        # Allow a batch job some time to spin up.  A random interval
-        # decreases the chances of exceeding an AWS API throttle
-        # limit when there are many concurrent tasks.
-        pause = randint(5, 30)
-
-        tries = 0
-        while tries < self.max_retries:
-            tries += 1
-            self.log.info(
-                "AWS Batch job (%s) status check (%d of %d) in the next %.2f seconds",
-                self.jobId,
-                tries,
-                self.max_retries,
-                pause,
-            )
-            sleep(pause)
-
-            response = self._get_job_description()
-            jobs = response.get("jobs")
-            status = jobs[-1]["status"]  # check last job status
-            self.log.info("AWS Batch job (%s) status: %s", self.jobId, status)
-
-            # status options: 'SUBMITTED'|'PENDING'|'RUNNABLE'|'STARTING'|'RUNNING'|'SUCCEEDED'|'FAILED'
-            if status in ["SUCCEEDED", "FAILED"]:
-                break
-
-            pause = 1 + pow(tries * 0.3, 2)
-
-    def _get_job_description(self) -> Optional[dict]:
-        """
-        Get job description
-
-            * https://docs.aws.amazon.com/batch/latest/APIReference/API_DescribeJobs.html
-            * https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
-        """
-        tries = 0
-        while tries < self.status_retries:
-            tries += 1
-            try:
-                response = self.client.describe_jobs(jobs=[self.jobId])
-                if response and response.get("jobs"):
-                    return response
-                else:
-                    self.log.error("Job description has no jobs (%s): %s", self.jobId, response)
-            except botocore.exceptions.ClientError as err:
-                response = err.response
-                self.log.error("Job description error (%s): %s", self.jobId, response)
-                if tries < self.status_retries:
-                    error = response.get("Error", {})
-                    if error.get("Code") == "TooManyRequestsException":
-                        pause = randint(1, 10)  # avoid excess requests with a random pause
-                        self.log.info(
-                            "AWS Batch job (%s) status retry (%d of %d) in the next %.2f seconds",
-                            self.jobId,
-                            tries,
-                            self.status_retries,
-                            pause,
-                        )
-                        sleep(pause)
-                        continue
-
-        msg = "Failed to get job description ({})".format(self.jobId)
-        raise AirflowException(msg)
-
-    def _check_success_task(self):
-        """
-        Check the final status of the batch job; the job status options are:
-        'SUBMITTED'|'PENDING'|'RUNNABLE'|'STARTING'|'RUNNING'|'SUCCEEDED'|'FAILED'
-        """
-        response = self._get_job_description()
-        jobs = response.get("jobs")
-
-        matching_jobs = [job for job in jobs if job["jobId"] == self.jobId]
-        if not matching_jobs:
-            raise AirflowException(
-                "Job ({}) has no job description {}".format(self.jobId, response)
-            )
-
-        job = matching_jobs[0]
-        self.log.info("AWS Batch stopped, check status: %s", job)
-        job_status = job["status"]
-        if job_status == "FAILED":
-            reason = job["statusReason"]
-            raise AirflowException("Job ({}) failed with status {}".format(self.jobId, reason))
-        elif job_status in ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"]:
-            raise AirflowException(
-                "Job ({}) is still pending {}".format(self.jobId, job_status)
-            )
-
-    def get_hook(self):
-        """Get an AWS API client (boto3)"""
-        return AwsHook(aws_conn_id=self.aws_conn_id)
-
-    def on_kill(self):
-        response = self.client.terminate_job(jobId=self.jobId, reason="Task killed by the user")
-        self.log.info(response)
+        except Exception as e:
+            self.log.info("AWS Batch job (%s) failed monitoring", self.job_id)
+            raise AirflowException(e)
