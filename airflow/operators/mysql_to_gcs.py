@@ -113,6 +113,8 @@ class MySqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
         :param schema_type: BigQuery data type
         :type schema_type: str
         """
+        if value is None:
+            return value
         if isinstance(value, (datetime, date)):
             return calendar.timegm(value.timetuple())
         if isinstance(value, timedelta):
