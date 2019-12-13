@@ -137,7 +137,7 @@ class Variable(Base, LoggingMixin):
         else:
             stored_value = str(value)
 
-        Variable.delete(key)
+        Variable.delete(key, session=session)
         session.add(Variable(key=key, val=stored_value))  # type: ignore
         session.flush()
 
