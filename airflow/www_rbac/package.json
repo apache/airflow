@@ -67,7 +67,7 @@
     "js-yaml": ">=3.13.1",
     "lodash": "^4.17.13",
     "moment-timezone": "^0.5.21",
-    "npm": "^6.4.1",
+    "npm": "^6.13.4",
     "nvd3": "^1.8.6",
     "url-search-params-polyfill": "^6.0.0"
   }
