@@ -41,17 +41,33 @@ class TestRedisHook(unittest.TestCase):
 
     def test_real_ping(self):
         hook = RedisHook(redis_conn_id='redis_default')
-        redis = hook.get_conn()
 
-        self.assertTrue(redis.ping(), 'Connection to Redis with PING works.')
+        self.assertTrue(hook.ping_redis(), 'Connection to Redis with PING works.')
 
     def test_real_get_and_set(self):
         hook = RedisHook(redis_conn_id='redis_default')
-        redis = hook.get_conn()
 
-        self.assertTrue(redis.set('test_key', 'test_value'), 'Connection to Redis with SET works.')
-        self.assertEqual(redis.get('test_key'), b'test_value', 'Connection to Redis with GET works.')
-        self.assertEqual(redis.delete('test_key'), 1, 'Connection to Redis with DELETE works.')
+        self.assertTrue(hook.set_key_value('test_key', 'test_value'), 'Connection to Redis with SET works.')
+        self.assertEqual(hook.get_key('test_key'), b'test_value', 'Connection to Redis with GET works.')
+        self.assertEqual(hook.delete_key('test_key'), 1, 'Connection to Redis with DELETE works.')
+
+    def test_exists(self):
+        hook = RedisHook(redis_conn_id='redis_default')
+
+        k, v = 'test_key_exists_true', 'test_val'
+
+        hook.set_key_value(k, v)
+
+        assert hook.check_if_key_exists(k)
+
+        hook.delete_key(k)
+
+    def test_exists_false(self):
+        hook = RedisHook(redis_conn_id='redis_default')
+
+        k = 'test_key_exists_false'
+
+        assert not hook.check_if_key_exists(k)
 
 
 if __name__ == '__main__':

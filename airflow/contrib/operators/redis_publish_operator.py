@@ -61,6 +61,6 @@ class RedisPublishOperator(BaseOperator):
 
         self.log.info('Sending messsage %s to Redis on channel %s', self.message, self.channel)
 
-        result = redis_hook.get_conn().publish(channel=self.channel, message=self.message)
+        result = redis_hook.publish_message(channel=self.channel, message=self.message)
 
         self.log.info('Result of publishing %s', result)

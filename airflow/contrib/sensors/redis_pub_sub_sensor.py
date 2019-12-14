@@ -40,7 +40,7 @@ class RedisPubSubSensor(BaseSensorOperator):
         super().__init__(*args, **kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id
-        self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
+        self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).create_pubsub()
         self.pubsub.subscribe(self.channels)
 
     def poke(self, context):

@@ -66,3 +66,47 @@ class RedisHook(BaseHook):
                 db=self.db)
 
         return self.redis
+
+    def set_key_value(self, k, v):
+        """
+        Create redis key ${k} with value ${v}
+        """
+        client = self.get_conn()
+
+        return client.set(k, v)
+
+    def get_key(self, k):
+        """ Get value of key ${key} stored in Redis """
+        client = self.get_conn()
+
+        return client.get(k)
+
+    def delete_key(self, k):
+        """ Delete key ${k} from redis """
+        client = self.get_conn()
+
+        return client.delete(k)
+
+    def publish_message(self, channel, message):
+        """ Publish message ${message} to channel ${channel}"""
+        client = self.get_conn()
+
+        client.publish(channel=channel, message=message)
+
+    def check_if_key_exists(self, key):
+        """ Verify if key ${k} exists in Redis """
+        client = self.get_conn()
+
+        return client.exists(key)
+
+    def create_pubsub(self):
+        """ Create pubsub object which can subscribe to Redis channel """
+        client = self.get_conn()
+
+        return client.pubsub()
+
+    def ping_redis(self):
+        """ Ping Redis to verify if connection is fine """
+        client = self.get_conn()
+
+        return client.ping()
