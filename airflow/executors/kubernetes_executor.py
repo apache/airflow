@@ -268,14 +268,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             'Event: and now my watch begins starting at resource_version: %s, '
             'worker_uuid: %s', resource_version, worker_uuid)
         watcher = watch.Watch()
-        watcher_timeout = max(kube_config.kube_client_request_args.get('_request_timeout', [60, 60])[0] - 1, 1)
-        kwargs = {'label_selector': 'airflow-worker={}'.format(worker_uuid),
-                  'timeout_seconds': watcher_timeout}
-        if resource_version:
-            kwargs['resource_version'] = resource_version
-        if kube_config.kube_client_request_args:
-            for key, value in kube_config.kube_client_request_args.iteritems():
-                kwargs[key] = value
+        kwargs = self._get_watcher_args(resource_version, worker_uuid, kube_config)
 
         last_resource_version = None
         for event in watcher.stream(kube_client.list_namespaced_pod, self.namespace,
@@ -294,6 +287,18 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             last_resource_version = task.metadata.resource_version
 
         return last_resource_version
+
+    def _get_watcher_args(self, resource_version, worker_uuid, kube_config):
+        """Builds and returns the kwargs necessary for Watcher"""
+        kwargs = {'label_selector': 'airflow-worker={}'.format(worker_uuid)}
+        if resource_version:
+            kwargs['resource_version'] = resource_version
+        if kube_config.kube_client_request_args:
+            for key, value in kube_config.kube_client_request_args.iteritems():
+                kwargs[key] = value
+            conn_timeout = kube_config.kube_client_request_args.get('_request_timeout', [60, 60])[0]
+            kwargs['timeout_seconds'] = conn_timeout - 1 if conn_timeout - 1 > 0 else 1
+        return kwargs
 
     def process_error(self, event):
         """Process error response"""
