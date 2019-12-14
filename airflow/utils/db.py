@@ -382,6 +382,8 @@ def resetdb(rbac):
     Clear out the database
     """
     from airflow import models
+    # noinspection PyUnresolvedReferences
+    from airflow.jobs.base_job import BaseJob  # noqa: F401
 
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext
