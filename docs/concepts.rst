@@ -587,6 +587,15 @@ and variables should be defined in code and stored in source control,
 it can be useful to have some variables or configuration items
 accessible and modifiable through the UI.
 
+Here is an example on how you could set Variables in code :
+
+.. code:: python
+
+    from airflow.models import Variable
+    Variable.set("foo", 5)
+    Variable.set("bar", 10)
+
+Here is an example on how you could retreive Variables in code :
 
 .. code:: python
 
@@ -601,6 +610,16 @@ as such. The third call uses the ``default_var`` parameter with the value
 ``None``, which either returns an existing value or ``None`` if the variable
 isn't defined. The get function will throw a ``KeyError`` if the variable
 doesn't exist and no default is provided.
+
+You can use the ``default_var`` argument to make sure of not overwriting
+an exsisting Variable key :
+
+.. code:: python
+
+    from airflow.models import Variable
+    variable = Variable.get("foo", default_var=None)
+    if variable is None:
+        Variable.set("foo", 5)
 
 You can use a variable from a jinja template with the syntax :
 
