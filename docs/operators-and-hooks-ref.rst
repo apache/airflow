@@ -590,6 +590,12 @@ These integrations allow you to perform various operations within the Google Clo
      - :mod:`airflow.providers.google.cloud.operators.dlp`
      -
 
+   * - `DataFusion <https://cloud.google.com/data-fusion/>`__
+     - :doc:`How to use <howto/operator/gcp/datafusion>`
+     - :mod:`airflow.providers.google.cloud.hooks.datafusion`
+     - :mod:`airflow.providers.google.cloud.operators.datafusion`
+     -
+
    * - `Dataflow <https://cloud.google.com/dataflow/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.dataflow`
