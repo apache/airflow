@@ -309,6 +309,17 @@ class Connection(Base, LoggingMixin):
     def __repr__(self):
         return self.conn_id
 
+    def log_info(self):
+        return ("id: {}. Host: {}, Port: {}, Schema: {}, "
+                "Login: {}, Password: {}, extra: {}".
+                format(self.conn_id,
+                       self.host,
+                       self.port,
+                       self.schema,
+                       self.login,
+                       "XXXXXXXX" if self.password else None,
+                       "XXXXXXXX" if self.extra_dejson else None))
+
     def debug_info(self):
         return ("id: {}. Host: {}, Port: {}, Schema: {}, "
                 "Login: {}, Password: {}, extra: {}".
