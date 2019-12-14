@@ -308,7 +308,10 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
 
         return last_resource_version
 
-    def _get_watcher_args(self, resource_version, worker_uuid, kube_config):
+    def _get_watcher_args(self,
+                          resource_version: Optional[str],
+                          worker_uuid: str,
+                          kube_config: Any) -> dict:
         """Builds and returns the kwargs necessary for Watcher"""
         kwargs = {'label_selector': 'airflow-worker={}'.format(worker_uuid)}
         if resource_version:
