@@ -23,9 +23,9 @@ from tempfile import NamedTemporaryFile
 from typing import Optional, Union
 
 from airflow import AirflowException
-from airflow.contrib.hooks.sftp_hook import SFTPHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
+from airflow.providers.sftp.hooks.sftp_hook import SFTPHook
 from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"

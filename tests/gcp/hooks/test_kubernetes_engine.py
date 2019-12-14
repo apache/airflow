@@ -58,7 +58,7 @@ class TestGKEClusterHookDelete(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -83,7 +83,7 @@ class TestGKEClusterHookDelete(unittest.TestCase):
         convert_mock.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -104,7 +104,7 @@ class TestGKEClusterHookDelete(unittest.TestCase):
         log_mock.info.assert_any_call("Assuming Success: %s", message)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -127,7 +127,7 @@ class TestGKEClusterHookCreate(unittest.TestCase):
         self.gke_hook._client = mock.Mock()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -155,7 +155,7 @@ class TestGKEClusterHookCreate(unittest.TestCase):
         convert_mock.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -196,12 +196,14 @@ class TestGKEClusterHookCreate(unittest.TestCase):
             wait_mock.assert_not_called()
             convert_mock.assert_not_called()
 
+    @mock.patch('airflow.gcp.hooks.kubernetes_engine.GKEClusterHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), TEST_GCP_PROJECT_ID))
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.log")
     @mock.patch("airflow.gcp.hooks.kubernetes_engine.ParseDict")
     @mock.patch(
         "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook.wait_for_operation")
-    def test_create_cluster_already_exists(self, wait_mock, convert_mock, log_mock):
+    def test_create_cluster_already_exists(self, wait_mock, convert_mock, log_mock, mock_get_credentials):
         from google.api_core.exceptions import AlreadyExists
         # To force an error
         message = 'Already Exists'

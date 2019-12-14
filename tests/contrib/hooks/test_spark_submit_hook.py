@@ -489,6 +489,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # Then
         self.assertEqual(cmd[4], "spark.yarn.appMasterEnv.bar=foo")
+        self.assertEqual(hook._env, {"bar": "foo"})
 
     def test_resolve_spark_submit_env_vars_k8s(self):
         # Given

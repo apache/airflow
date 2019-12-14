@@ -30,7 +30,7 @@ import airflow.example_dags
 from airflow import models
 from airflow.configuration import conf
 from airflow.models import DagBag, DagModel, TaskInstance as TI
-from airflow.utils.dag_processing import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER

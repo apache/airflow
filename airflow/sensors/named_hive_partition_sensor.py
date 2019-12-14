@@ -52,6 +52,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         super().__init__(
             poke_interval=poke_interval, *args, **kwargs)
 
+        self.next_index_to_poke = 0
         if isinstance(partition_names, str):
             raise TypeError('partition_names must be an array of strings')
 
@@ -93,8 +94,12 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
     def poke(self, context):
 
-        self.partition_names = [
-            partition_name for partition_name in self.partition_names
-            if not self.poke_partition(partition_name)
-        ]
-        return not self.partition_names
+        number_of_partitions = len(self.partition_names)
+        poke_index_start = self.next_index_to_poke
+        for i in range(number_of_partitions):
+            self.next_index_to_poke = (poke_index_start + i) % number_of_partitions
+            if not self.poke_partition(self.partition_names[self.next_index_to_poke]):
+                return False
+
+        self.next_index_to_poke = 0
+        return True

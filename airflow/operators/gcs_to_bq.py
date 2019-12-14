@@ -32,12 +32,12 @@ from airflow.utils.decorators import apply_defaults
 # pylint: disable=too-many-instance-attributes
 class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     """
-    Loads files from Google cloud storage into BigQuery.
+    Loads files from Google Cloud Storage into BigQuery.
 
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
-    point the operator to a Google cloud storage object name. The object in
-    Google cloud storage must be a JSON file with the schema fields in it.
+    point the operator to a Google Cloud Storage object name. The object in
+    Google Cloud Storage must be a JSON file with the schema fields in it.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -45,7 +45,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
 
     :param bucket: The bucket to load from. (templated)
     :type bucket: str
-    :param source_objects: List of Google cloud storage URIs to load from. (templated)
+    :param source_objects: List of Google Cloud Storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type source_objects: list[str]
     :param destination_project_dataset_table: The dotted

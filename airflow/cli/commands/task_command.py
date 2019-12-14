@@ -24,8 +24,8 @@ import os
 import textwrap
 from contextlib import redirect_stderr, redirect_stdout
 
-from airflow import DAG, AirflowException, LoggingMixin, conf, jobs, settings
-from airflow.executors import get_default_executor
+from airflow import DAG, AirflowException, conf, jobs, settings
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import cli as cli_utils, db
@@ -69,7 +69,7 @@ def _run(args, dag, ti):
                 print(e)
                 raise e
 
-        executor = get_default_executor()
+        executor = ExecutorLoader.get_default_executor()
         executor.start()
         print("Sending to executor.")
         executor.queue_task_instance(
@@ -90,8 +90,6 @@ def task_run(args, dag=None):
     """Runs a single task instance"""
     if dag:
         args.dag_id = dag.dag_id
-
-    log = LoggingMixin().log
 
     # Load custom airflow config
     if args.cfg_path:
@@ -114,7 +112,7 @@ def task_run(args, dag=None):
         dag = get_dag(args)
     elif not dag:
         with db.create_session() as session:
-            log.info('Loading pickle id %s', args.pickle)
+            print(f'Loading pickle id {args.pickle}')
             dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
             if not dag_pickle:
                 raise AirflowException("Who hid the pickle!? [missing pickle]")
@@ -127,7 +125,7 @@ def task_run(args, dag=None):
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
-    log.info("Running %s on host %s", ti, hostname)
+    print(f"Running {ti} on host {hostname}")
 
     if args.interactive:
         _run(args, dag, ti)
@@ -195,7 +193,14 @@ def task_test(args, dag=None):
     # We want log outout from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
-    logging.getLogger('airflow.task').propagate = True
+    handlers = logging.getLogger('airflow.task').handlers
+    already_has_stream_handler = False
+    for handler in handlers:
+        already_has_stream_handler = isinstance(handler, logging.StreamHandler)
+        if already_has_stream_handler:
+            break
+    if not already_has_stream_handler:
+        logging.getLogger('airflow.task').propagate = True
 
     dag = dag or get_dag(args)
 
@@ -220,6 +225,11 @@ def task_test(args, dag=None):
             debugger.post_mortem()
         else:
             raise
+    finally:
+        if not already_has_stream_handler:
+            # Make sure to reset back to normal. When run for CLI this doesn't
+            # matter, but it does for test suite
+            logging.getLogger('airflow.task').propagate = False
 
 
 @cli_utils.action_logging

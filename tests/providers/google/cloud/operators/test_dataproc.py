@@ -129,7 +129,7 @@ def assert_warning(msg: str, warning: Any):
 
 class TestsClusterGenerator(unittest.TestCase):
     def test_image_version(self):
-        with self.assertRaises(AssertionError) as err:
+        with self.assertRaises(ValueError) as err:
             ClusterGenerator(custom_image="custom_image", image_version="image_version")
             self.assertIn("custom_image and image_version", str(err))
 

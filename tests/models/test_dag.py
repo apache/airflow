@@ -37,7 +37,7 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
-from airflow.utils.dag_processing import list_py_file_paths
+from airflow.utils.file import list_py_file_paths
 from airflow.utils.state import State
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
@@ -968,3 +968,14 @@ class TestDag(unittest.TestCase):
         self.assertEqual(t1, t2)
         self.assertEqual(dag.task_dict, {t1.task_id: t1, t3.task_id: t3})
         self.assertEqual(dag.task_dict, {t2.task_id: t2, t3.task_id: t3})
+
+    def test_sub_dag_updates_all_references_while_deepcopy(self):
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            t1 = DummyOperator(task_id='t1')
+            t2 = DummyOperator(task_id='t2')
+            t3 = DummyOperator(task_id='t3')
+            t1 >> t2
+            t2 >> t3
+
+        sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
+        self.assertEqual(id(sub_dag.task_dict['t1'].downstream_list[0].dag), id(sub_dag))

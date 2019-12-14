@@ -131,7 +131,7 @@ This is a subtle but very important point: in general, if two operators need to
 share information, like a filename or small amount of data, you should consider
 combining them into a single operator. If it absolutely can't be avoided,
 Airflow does have a feature for operator cross-communication called XCom that is
-described elsewhere in this document.
+described in the section :ref:`XComs <concepts:xcom>`
 
 Airflow provides operators for many common tasks, including:
 
@@ -277,9 +277,9 @@ Relationship Helper
 ``chain`` and ``cross_downstream`` function provide easier ways to set relationships
 between operators in specific situation.
 
-When setting relationships between two list of operators and wish all up list
-operators as upstream to all down list operators, we have to split one list
-manually using bitshift composition.
+When setting a relationship between two lists, 
+if we want all operators in one list to be upstream to all operators in the other,
+we cannot use a single bitshift composition. Instead we have to split one of the lists:
 
 .. code:: python
 
@@ -363,14 +363,19 @@ A task goes through various stages from start to completion. In the Airflow UI
 (graph and tree views), these stages are displayed by a color representing each
 stage:
 
-.. image:: img/task_lifecycle.png
+.. image:: img/task_stages.png
+
+The complete lifecycle of the task looks like this:
+
+.. image:: img/task_lifecycle_diagram.png
 
 The happy flow consists of the following stages:
 
-1. no status (scheduler created empty task instance)
-2. queued (scheduler placed a task to run on the queue)
-3. running (worker picked up a task and is now running it)
-4. success (task completed)
+1. No status (scheduler created empty task instance)
+2. Scheduled (scheduler determined task instance needs to run)
+3. Queued (scheduler sent task to executor to run on the queue)
+4. Running (worker picked up a task and is now running it)
+5. Success (task completed)
 
 There is also visual difference between scheduled and manually triggered
 DAGs/tasks:
@@ -568,6 +573,7 @@ of what this may look like:
 Note that XComs are similar to `Variables`_, but are specifically designed
 for inter-task communication rather than global settings.
 
+.. _concepts:variables:
 
 Variables
 =========

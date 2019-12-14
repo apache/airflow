@@ -145,7 +145,7 @@ with models.DAG(
 
     prediction = MLEngineBatchPredictionOperator(
         task_id="prediction",
-        project_id="polidea-airflow",
+        project_id=PROJECT_ID,
         job_id="prediciton-{{ ts_nodash }}-{{ params.model_name }}",
         region="us-central1",
         model_name=MODEL_NAME,
@@ -201,7 +201,7 @@ with models.DAG(
         return summary
 
     evaluate_prediction, evaluate_summary, evaluate_validation = mlengine_operator_utils.create_evaluate_ops(
-        task_prefix="evalueate-ops",  # pylint:disable=too-many-arguments
+        task_prefix="evalueate-ops",  # pylint: disable=too-many-arguments
         data_format="TEXT",
         input_paths=[PREDICTION_INPUT],
         prediction_path=PREDICTION_OUTPUT,

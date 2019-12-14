@@ -21,8 +21,7 @@ set -uo pipefail
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export MOUNT_LOCAL_SOURCES="true"
-
+export AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
 export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_utils.sh

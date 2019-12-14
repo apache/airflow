@@ -22,6 +22,7 @@ from argparse import Namespace
 import sqlalchemy
 
 import airflow
+from airflow.bin import cli
 from airflow.cli.commands import worker_command
 from tests.compat import mock, patch
 from tests.test_utils.config import conf_vars
@@ -59,3 +60,31 @@ class TestWorkerPrecheck(unittest.TestCase):
         """
         mock_session.side_effect = sqlalchemy.exc.OperationalError("m1", "m2", "m3", "m4")
         self.assertEqual(airflow.settings.validate_session(), False)
+
+
+class TestWorkerServeLogs(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.CLIFactory.get_parser()
+
+    def test_serve_logs_on_worker_start(self):
+        with patch('airflow.cli.commands.worker_command.subprocess.Popen') as mock_popen:
+            mock_popen.return_value.communicate.return_value = (b'output', b'error')
+            mock_popen.return_value.returncode = 0
+            args = self.parser.parse_args(['worker', '-c', '-1'])
+
+            with patch('celery.platforms.check_privileges') as mock_privil:
+                mock_privil.return_value = 0
+                worker_command.worker(args)
+                mock_popen.assert_called()
+
+    def test_skip_serve_logs_on_worker_start(self):
+        with patch('airflow.cli.commands.worker_command.subprocess.Popen') as mock_popen:
+            mock_popen.return_value.communicate.return_value = (b'output', b'error')
+            mock_popen.return_value.returncode = 0
+            args = self.parser.parse_args(['worker', '-c', '-1', '-s'])
+
+            with patch('celery.platforms.check_privileges') as mock_privil:
+                mock_privil.return_value = 0
+                worker_command.worker(args)
+                mock_popen.assert_not_called()

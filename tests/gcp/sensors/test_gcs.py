@@ -21,15 +21,12 @@ from unittest import TestCase, mock
 
 import pendulum
 
-from airflow import DAG, models
+from airflow import DAG
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.gcp.sensors.gcs import (
     GoogleCloudStorageObjectSensor, GoogleCloudStorageObjectUpdatedSensor, GoogleCloudStoragePrefixSensor,
     ts_function,
 )
-from airflow.settings import Session
-
-TEST_DAG_ID = 'test-dag_id'
 
 TEST_BUCKET = "TEST_BUCKET"
 
@@ -41,20 +38,9 @@ TEST_GCP_CONN_ID = 'TEST_GCP_CONN_ID'
 
 TEST_PREFIX = "TEST_PREFIX"
 
-TEST_DAG_ID = 'unit_tests'
+TEST_DAG_ID = 'unit_tests_gcs_sensor'
 
 DEFAULT_DATE = datetime(2015, 1, 1)
-
-
-def reset(dag_id=TEST_DAG_ID):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
-
-
-reset()
 
 MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
                    for i in range(20)]

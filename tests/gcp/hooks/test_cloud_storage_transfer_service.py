@@ -67,7 +67,7 @@ def _without_key(body, key):
 class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            'airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
+            'airflow.gcp.hooks.base.CloudBaseHook.__init__',
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.gct_hook = GCPTransferServiceHook(gcp_conn_id='test')
@@ -83,7 +83,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         self.assertEqual(self.gct_hook._conn, result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -109,7 +109,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -134,7 +134,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         list_execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -189,7 +189,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -232,7 +232,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -257,7 +257,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
         mock_sleep.assert_called_once_with(TIME_TO_SLEEP_IN_SECONDS)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -281,7 +281,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
             self.assertTrue(list_method.called)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -375,7 +375,7 @@ class TestGCPTransferServiceHookWithPassedProjectId(unittest.TestCase):
 class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            'airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
+            'airflow.gcp.hooks.base.CloudBaseHook.__init__',
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gct_hook = GCPTransferServiceHook(gcp_conn_id='test')
@@ -391,7 +391,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         self.assertEqual(self.gct_hook._conn, result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -406,7 +406,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -422,7 +422,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -450,7 +450,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         list_execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -506,7 +506,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -549,7 +549,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection(unittest.TestCase):
 class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            'airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
+            'airflow.gcp.hooks.base.CloudBaseHook.__init__',
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.gct_hook = GCPTransferServiceHook(gcp_conn_id='test')
@@ -565,7 +565,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         self.assertEqual(self.gct_hook._conn, result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -584,7 +584,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -603,7 +603,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -627,7 +627,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -646,7 +646,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         self.assertEqual(res, [TEST_TRANSFER_OPERATION] * 4)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -667,7 +667,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -684,7 +684,7 @@ class TestGCPTransferServiceHookWithoutProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )

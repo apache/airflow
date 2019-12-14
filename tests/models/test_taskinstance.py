@@ -33,7 +33,7 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule
+from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
@@ -1348,3 +1348,69 @@ class TestTaskInstance(unittest.TestCase):
         self.assertIsInstance(template_context["execution_date"], pendulum.datetime)
         self.assertIsInstance(template_context["next_execution_date"], pendulum.datetime)
         self.assertIsInstance(template_context["prev_execution_date"], pendulum.datetime)
+
+    @parameterized.expand(
+        [
+            ('{{ var.value.a_variable }}', 'a test value'),
+            ('{{ var.value.get("a_variable") }}', 'a test value'),
+            ('{{ var.value.get("a_variable", "unused_fallback") }}', 'a test value'),
+            ('{{ var.value.get("missing_variable", "fallback") }}', 'fallback'),
+        ]
+    )
+    def test_template_with_variable(self, content, expected_output):
+        """
+        Test the availability of variables in templates
+        """
+        Variable.set('a_variable', 'a test value')
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        result = task.render_template(content, context)
+        self.assertEqual(result, expected_output)
+
+    def test_template_with_variable_missing(self):
+        """
+        Test the availability of variables in templates
+        """
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        with self.assertRaises(KeyError):
+            task.render_template('{{ var.value.get("missing_variable") }}', context)
+
+    @parameterized.expand(
+        [
+            ('{{ var.value.a_variable }}', '{\n  "a": {\n    "test": "value"\n  }\n}'),
+            ('{{ var.json.a_variable["a"]["test"] }}', 'value'),
+            ('{{ var.json.get("a_variable")["a"]["test"] }}', 'value'),
+            ('{{ var.json.get("a_variable", {"a": {"test": "unused_fallback"}})["a"]["test"] }}', 'value'),
+            ('{{ var.json.get("missing_variable", {"a": {"test": "fallback"}})["a"]["test"] }}', 'fallback'),
+        ]
+    )
+    def test_template_with_json_variable(self, content, expected_output):
+        """
+        Test the availability of variables in templates
+        """
+        Variable.set('a_variable', {'a': {'test': 'value'}}, serialize_json=True)
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        result = task.render_template(content, context)
+        self.assertEqual(result, expected_output)
+
+    def test_template_with_json_variable_missing(self):
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        with self.assertRaises(KeyError):
+            task.render_template('{{ var.json.get("missing_variable") }}', context)

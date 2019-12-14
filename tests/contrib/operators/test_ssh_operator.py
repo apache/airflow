@@ -17,37 +17,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import unittest.mock
 from base64 import b64encode
 
 from parameterized import parameterized
 
-from airflow import AirflowException, models
+from airflow import AirflowException
 from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
-from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
-TEST_DAG_ID = 'unit_tests'
+TEST_DAG_ID = 'unit_tests_ssh_test_op'
 TEST_CONN_ID = "conn_id_for_testing"
 TIMEOUT = 5
 DEFAULT_DATE = datetime(2017, 1, 1)
 COMMAND = "echo -n airflow"
 COMMAND_WITH_SUDO = "sudo " + COMMAND
-
-
-def reset(dag_id=TEST_DAG_ID):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
-
-
-reset()
 
 
 class TestSSHOperator(unittest.TestCase):

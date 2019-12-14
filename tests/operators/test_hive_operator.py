@@ -22,10 +22,9 @@ import os
 import unittest
 from unittest import mock
 
-import nose
-
 from airflow import DAG, operators
 from airflow.configuration import conf
+from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import TaskInstance
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
@@ -156,9 +155,6 @@ class HiveOperatorTest(TestHiveEnvironment):
 
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
-    import airflow.hooks.hive_hooks
-    import airflow.operators.presto_to_mysql
-
     class TestHivePresto(TestHiveEnvironment):
 
         def test_hive(self):
@@ -274,19 +270,19 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             self.assertEqual(t[1], "table")
             self.assertEqual(t[2], "part1=this.can.be.an.issue/part2=this_should_be_ok")
 
-        @nose.tools.raises(airflow.exceptions.AirflowSensorTimeout)
         def test_named_hive_partition_sensor_times_out_on_nonexistent_partition(self):
-            t = operators.sensors.NamedHivePartitionSensor(
-                task_id='hive_partition_check',
-                partition_names=[
-                    "airflow.static_babynames_partitioned/ds={{ds}}",
-                    "airflow.static_babynames_partitioned/ds=nonexistent"
-                ],
-                poke_interval=0.1,
-                timeout=1,
-                dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                  ignore_ti_state=True)
+            with self.assertRaises(AirflowSensorTimeout):
+                t = operators.sensors.NamedHivePartitionSensor(
+                    task_id='hive_partition_check',
+                    partition_names=[
+                        "airflow.static_babynames_partitioned/ds={{ds}}",
+                        "airflow.static_babynames_partitioned/ds=nonexistent"
+                    ],
+                    poke_interval=0.1,
+                    timeout=1,
+                    dag=self.dag)
+                t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                      ignore_ti_state=True)
 
         def test_hive_partition_sensor(self):
             t = operators.sensors.HivePartitionSensor(

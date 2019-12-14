@@ -21,7 +21,6 @@
 import datetime
 import os
 import pathlib
-import re
 import time
 
 from qds_sdk.commands import (
@@ -33,7 +32,6 @@ from qds_sdk.qubole import Qubole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import TaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
@@ -220,26 +218,6 @@ class QuboleHook(BaseHook):
         if self.cmd is None:
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
         Command.get_jobs_id(cmd_id)
-
-    # noinspection PyMethodMayBeStatic
-    def get_extra_links(self, operator, dttm):
-        """
-        Get link to qubole command result page.
-
-        :param operator: operator
-        :param dttm: datetime
-        :return: url link
-        """
-        conn = BaseHook.get_connection(operator.kwargs['qubole_conn_id'])
-        if conn and conn.host:
-            host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
-        else:
-            host = 'https://api.qubole.com/v2/analyze?command_id='
-
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        qds_command_id = ti.xcom_pull(task_ids=operator.task_id, key='qbol_cmd_id')
-        url = host + str(qds_command_id) if qds_command_id else ''
-        return url
 
     def create_cmd_args(self, context):
         """Creates command arguments"""
