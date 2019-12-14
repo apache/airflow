@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator
+from airflow.operators.gcs_to_s3 import GCSToS3Operator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from tests.compat import mock
 
@@ -36,7 +36,7 @@ S3_BUCKET = 's3://bucket/'
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 
-class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
+class TestGCSToS3Operator(unittest.TestCase):
 
     # Test1: incremental behaviour (just some files missing)
     @mock_s3
@@ -47,13 +47,13 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=False)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=False)
         # create dest bucket
         hook = S3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
@@ -77,13 +77,13 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=False)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=False)
         # create dest bucket with all the files
         hook = S3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
@@ -107,13 +107,13 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=False)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=False)
         # create dest bucket without files
         hook = S3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
@@ -136,13 +136,13 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=True)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=True)
         # create dest bucket with all the files
         hook = S3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
@@ -166,13 +166,13 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=True)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=True)
         # create dest bucket with just two files (the first two files in MOCK_FILES)
         hook = S3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
