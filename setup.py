@@ -151,6 +151,9 @@ async_packages = [
 atlas = [
     'atlasclient>=0.1.2',
 ]
+aws = [
+    'boto3>=1.7.0, <1.8.0',
+]
 azure_blob_storage = [
     'azure-storage>=0.34.0',
 ]
@@ -208,7 +211,6 @@ elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
     'elasticsearch-dsl>=5.0.0,<6.0.0',
 ]
-emr = ['boto3>=1.0.0, <1.8.0']
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
@@ -305,9 +307,6 @@ rabbitmq = [
 redis = [
     'redis~=3.2',
 ]
-s3 = [
-    'boto3>=1.7.0, <1.8.0'
-]
 salesforce = [
     'simple-salesforce>=0.72',
 ]
@@ -400,15 +399,15 @@ if PY3:
 else:
     devel += ['unittest2']
 
-devel_minreq = cgroups + devel + doc + kubernetes + mysql + password + s3
+devel_minreq = aws + cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + webhdfs
 devel_azure = azure_cosmos + azure_data_lake + devel_minreq
-devel_all = (all_dbs + atlas +
+devel_all = (all_dbs + atlas + aws +
              azure_blob_storage + azure_container_instances + azure_cosmos + azure_data_lake +
              celery + cgroups + crypto + datadog + devel + doc + docker + druid +
              elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + oracle +
              papermill + password + pinot +
-             redis + s3 + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
+             redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
              virtualenv + webhdfs + zendesk)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
@@ -505,6 +504,8 @@ def do_setup():
             'all_dbs': all_dbs,
             'async': async_packages,
             'atlas': atlas,
+            'aws': aws,
+            'azure': azure_blob_storage + azure_container_instances + azure_cosmos + azure_data_lake,
             'azure_blob_storage': azure_blob_storage,
             'azure_container_instances': azure_container_instances,
             'azure_cosmos': azure_cosmos,
@@ -525,7 +526,7 @@ def do_setup():
             'docker': docker,
             'druid': druid,
             'elasticsearch': elasticsearch,
-            'emr': emr,
+            'emr': aws,
             'gcp': gcp,
             'gcp_api': gcp,
             'github_enterprise': flask_oauth,
@@ -549,7 +550,7 @@ def do_setup():
             'qds': qds,
             'rabbitmq': rabbitmq,
             'redis': redis,
-            's3': s3,
+            's3': aws,
             'salesforce': salesforce,
             'samba': samba,
             'segment': segment,
