@@ -40,6 +40,20 @@
 
 </ul>
 <div class="tab-content">
+<style>
+  .log_red{
+    color:red;
+    font-weight:bold;
+  }
+  .log_green{
+    color:green;
+    font-weight:bold;
+  }
+  .log_orange{
+    color:orange;
+    font-weight:bold;
+  }
+</style>
   {% for log in logs %}
   <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
     <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
@@ -123,8 +137,14 @@
             if(auto_tailing && checkAutoTailingCondition()) {
               var should_scroll = true;
             }
-            // The message may contain HTML, so either have to escape it or write it as text.
-            var escaped_message = escapeHtml(res.message);
+            
+            // Colored log support - replace the color tag with html span tag
+            var rows = res.message.split('\n');
+            for(var i=0; i<rows.length;i++){
+                var c = ((/\[class\=(.*)\]/).exec(rows[i])) ? (/\[class\=(.*)\]/).exec(rows[i])[1] : '';
+              rows[i]= '<div class="log_' + c +'">'+ escapeHtml(rows[i].replace(/\[class\=(.*)\]/,'')) + '</div>'
+            }
+            escaped_message = rows.join('')
 
             // Detect urls
             var url_regex = /http(s)?:\/\/[\w\.\-]+(\.?:[\w\.\-]+)*([\/?#][\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=\.%]+)?/g;
