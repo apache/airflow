@@ -16,10 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from contextlib import closing
 
-from pyhive import presto
-from pyhive.exc import DatabaseError
-from requests.auth import HTTPBasicAuth
+import prestodb
+from prestodb.exceptions import DatabaseError
+from prestodb.transaction import IsolationLevel
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -44,18 +45,22 @@ class PrestoHook(DbApiHook):
     def get_conn(self):
         """Returns a connection object"""
         db = self.get_connection(self.presto_conn_id)
-        reqkwargs = None
+        auth = None
         if db.password is not None:
-            reqkwargs = {'auth': HTTPBasicAuth(db.login, db.password)}
-        return presto.connect(
+            auth = prestodb.auth.BasicAuthentication(db.login, db.password)
+
+        isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
+        return prestodb.dbapi.connect(
             host=db.host,
             port=db.port,
-            username=db.login,
+            user=db.login,
             source=db.extra_dejson.get('source', 'airflow'),
-            protocol=db.extra_dejson.get('protocol', 'http'),
+            http_scheme=db.extra_dejson.get('protocol', 'http'),
             catalog=db.extra_dejson.get('catalog', 'hive'),
-            requests_kwargs=reqkwargs,
-            schema=db.schema)
+            schema=db.schema,
+            auth=auth,
+            isolation_level=getattr(IsolationLevel, isolation_level, 0)
+        )
 
     @staticmethod
     def _strip_sql(sql):
@@ -121,10 +126,7 @@ class PrestoHook(DbApiHook):
         """
         return super().run(self._strip_sql(hql), parameters)
 
-    # TODO Enable commit_every once PyHive supports transaction.
-    # Unfortunately, PyHive 0.5.1 doesn't support transaction for now,
-    # whereas Presto 0.132+ does.
-    def insert_rows(self, table, rows, target_fields=None):
+    def insert_rows(self, table, rows, target_fields=None, commit_every=0):
         """
         A generic way to insert a set of tuples into a table.
 
@@ -134,5 +136,17 @@ class PrestoHook(DbApiHook):
         :type rows: iterable of tuples
         :param target_fields: The names of the columns to fill in the table
         :type target_fields: iterable of strings
+        :param commit_every: The maximum number of rows to insert in one
+            transaction. Set to 0 to insert all rows in one transaction.
+        :type commit_every: int
         """
-        super().insert_rows(table, rows, target_fields, 0)
+        with closing(self.get_conn()) as conn:
+            if conn.isolation_level == 0:
+                self.log.info(
+                    'Transactions are not enable in presto connection. '
+                    'Please use the isolation_level property to enable it. '
+                    'Falling back to insert all rows in one transaction.'
+                )
+                commit_every = 0
+
+        super().insert_rows(table, rows, target_fields, commit_every)
