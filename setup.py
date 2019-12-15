@@ -247,6 +247,9 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive>=0.6.0',
 ]
+presto = [
+    'presto-python-client>=0.7.0'
+]
 jdbc = [
     'jaydebeapi>=1.1.1',
 ]
@@ -356,7 +359,7 @@ zendesk = [
 ]
 # End dependencies group
 
-all_dbs = cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql + pinot + postgres + vertica
+all_dbs = cassandra + cloudant + druid + hdfs + hive + presto + mongo + mssql + mysql + pinot + postgres + vertica
 
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -402,7 +405,7 @@ else:
     devel += ['unittest2']
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
-devel_hadoop = devel_minreq + hdfs + hive + kerberos + webhdfs
+devel_hadoop = devel_minreq + hdfs + hive + presto + kerberos + webhdfs
 devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel +
              doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
              kerberos + kubernetes + ldap + oracle + pagerduty + papermill +
@@ -524,6 +527,7 @@ def do_setup():
             'grpc': grpc,
             'hdfs': hdfs,
             'hive': hive,
+            'presto': presto,
             'jdbc': jdbc,
             'jira': jira,
             'kerberos': kerberos,
