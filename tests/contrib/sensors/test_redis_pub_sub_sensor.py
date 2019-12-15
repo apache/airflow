@@ -64,15 +64,17 @@ class TestRedisPubSubSensor(unittest.TestCase):
 
     @patch('airflow.contrib.hooks.redis_hook.RedisHook.get_conn')
     def test_poke_mock_false(self, mock_redis_conn):
+        channel = 'test_poke_mock_false'
+
         sensor = RedisPubSubSensor(
             task_id='test_task',
             dag=self.dag,
-            channels='test',
+            channels=channel,
             redis_conn_id='redis_default'
         )
+
         self.mock_redis_conn = mock_redis_conn
-        self.mock_redis_conn().pubsub().get_message.return_value = \
-            {'type': 'subscribe', 'channel': b'test', 'data': b'd1'}
+        self.mock_redis_conn().pubsub().get_message.return_value = None
 
         result = sensor.poke(self.mock_context)
         self.assertFalse(result)
@@ -81,34 +83,40 @@ class TestRedisPubSubSensor(unittest.TestCase):
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
 
     def test_poke_true(self):
+        channel = 'test_poke_true'
+
         sensor = RedisPubSubSensor(
             task_id='test_task',
             dag=self.dag,
-            channels='test',
+            channels=channel,
             redis_conn_id='redis_default'
         )
 
         hook = RedisHook(redis_conn_id='redis_default')
-        redis = hook.get_conn()
-        redis.publish('test', 'message')
+
+        hook.publish_message(channel, 'message')
 
         result = sensor.poke(self.mock_context)
         self.assertFalse(result)
+
         result = sensor.poke(self.mock_context)
         self.assertTrue(result)
+
         context_calls = [
             call.xcom_push(
                 key='message',
-                value={'type': 'message', 'pattern': None, 'channel': b'test', 'data': b'message'})]
+                value={'type': 'message', 'pattern': None, 'channel': channel.encode(), 'data': b'message'})]
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
         result = sensor.poke(self.mock_context)
         self.assertFalse(result)
 
     def test_poke_false(self):
+        channel = 'test_poke_false'
+
         sensor = RedisPubSubSensor(
             task_id='test_task',
             dag=self.dag,
-            channels='test',
+            channels=channel,
             redis_conn_id='redis_default'
         )
 

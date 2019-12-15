@@ -40,6 +40,7 @@ class RedisPubSubSensor(BaseSensorOperator):
         super().__init__(*args, **kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id
+
         self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).create_pubsub()
         self.pubsub.subscribe(self.channels)
 
@@ -55,15 +56,15 @@ class RedisPubSubSensor(BaseSensorOperator):
         """
         self.log.info('RedisPubSubSensor checking for message on channels: %s', self.channels)
 
-        message = self.pubsub.get_message()
+        message = self.pubsub.get_message(ignore_subscribe_messages=True)
+
         self.log.info('Message %s from channel %s', message, self.channels)
 
         # Process only message types
-        if message and message['type'] == 'message':
-
+        if message:
             context['ti'].xcom_push(key='message', value=message)
             self.pubsub.unsubscribe(self.channels)
 
             return True
-
-        return False
+        else:
+            return False

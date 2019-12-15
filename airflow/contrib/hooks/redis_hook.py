@@ -20,7 +20,10 @@
 """
 RedisHook module
 """
+from typing import Any, Optional
+
 from redis import Redis
+from redis.client import PubSub
 
 from airflow.hooks.base_hook import BaseHook
 
@@ -44,7 +47,7 @@ class RedisHook(BaseHook):
         self.password = None
         self.db = None
 
-    def get_conn(self):
+    def get_conn(self) -> Redis:
         """
         Returns a Redis connection.
         """
@@ -67,45 +70,45 @@ class RedisHook(BaseHook):
 
         return self.redis
 
-    def set_key_value(self, k, v):
+    def set_key_value(self, key: str, value: Any) -> Optional[bool]:
         """
         Create redis key ${k} with value ${v}
         """
         client = self.get_conn()
 
-        return client.set(k, v)
+        return client.set(key, value)
 
-    def get_key(self, k):
+    def get_key(self, key: str) -> Optional[Any]:
         """ Get value of key ${key} stored in Redis """
         client = self.get_conn()
 
-        return client.get(k)
+        return client.get(key)
 
-    def delete_key(self, k):
+    def delete_key(self, key: str) -> int:
         """ Delete key ${k} from redis """
         client = self.get_conn()
 
-        return client.delete(k)
+        return client.delete(key)
 
-    def publish_message(self, channel, message):
+    def publish_message(self, channel: str, message: str) -> int:
         """ Publish message ${message} to channel ${channel}"""
         client = self.get_conn()
 
-        client.publish(channel=channel, message=message)
+        return client.publish(channel=channel, message=message)
 
-    def check_if_key_exists(self, key):
+    def check_if_key_exists(self, key: str) -> bool:
         """ Verify if key ${k} exists in Redis """
         client = self.get_conn()
 
         return client.exists(key)
 
-    def create_pubsub(self):
+    def create_pubsub(self) -> PubSub:
         """ Create pubsub object which can subscribe to Redis channel """
         client = self.get_conn()
 
         return client.pubsub()
 
-    def ping_redis(self):
+    def ping_redis(self) -> Optional[bool]:
         """ Ping Redis to verify if connection is fine """
         client = self.get_conn()
 
