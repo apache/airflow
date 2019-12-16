@@ -18,7 +18,7 @@
 # under the License.
 """
 This module contains operator for copying
-data from Cassandra to Google cloud storage in JSON format.
+data from Cassandra to Google Cloud Storage in JSON format.
 """
 import json
 import warnings
@@ -40,7 +40,7 @@ from airflow.utils.decorators import apply_defaults
 
 class CassandraToGoogleCloudStorageOperator(BaseOperator):
     """
-    Copy data from Cassandra to Google cloud storage in JSON format
+    Copy data from Cassandra to Google Cloud Storage in JSON format
 
     Note: Arrays of arrays are not supported.
 
@@ -49,7 +49,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     :param bucket: The bucket to upload to.
     :type bucket: str
     :param filename: The filename to use as the object name when uploading
-        to Google cloud storage. A {} should be specified in the filename
+        to Google Cloud Storage. A {} should be specified in the filename
         to allow the operator to inject file numbers in cases where the
         file is split due to size.
     :type filename: str

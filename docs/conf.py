@@ -233,6 +233,13 @@ exclude_patterns = [
     '_api/airflow/providers/amazon/aws/example_dags',
     '_api/airflow/providers/apache/index.rst',
     '_api/airflow/providers/apache/cassandra/index.rst',
+    '_api/airflow/providers/sftp/index.rst',
+    '_api/enums/index.rst',
+    '_api/json_schema/index.rst',
+    '_api/base_serialization/index.rst',
+    '_api/serialized_baseoperator/index.rst',
+    '_api/serialized_dag/index.rst',
+    '_api/airflow/providers/jira',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]

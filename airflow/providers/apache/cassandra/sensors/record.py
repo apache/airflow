@@ -16,6 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains sensor that check the existence
+of a record in a Cassandra cluster.
+"""
+
+from typing import Dict
+
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -46,13 +53,13 @@ class CassandraRecordSensor(BaseSensorOperator):
     template_fields = ('table', 'keys')
 
     @apply_defaults
-    def __init__(self, table, keys, cassandra_conn_id, *args, **kwargs):
+    def __init__(self, table: str, keys: Dict[str, str], cassandra_conn_id: str, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table
         self.keys = keys
 
-    def poke(self, context):
+    def poke(self, context: Dict[str, str]) -> bool:
         self.log.info('Sensor check existence of record: %s', self.keys)
         hook = CassandraHook(self.cassandra_conn_id)
         return hook.record_exists(self.table, self.keys)

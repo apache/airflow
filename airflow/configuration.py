@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-#
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -148,7 +147,7 @@ class AirflowConfigParser(ConfigParser):
 
     def _validate(self):
         if (
-                self.get("core", "executor") != 'SequentialExecutor' and
+                self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):
             raise AirflowConfigException(
                 "error: cannot use sqlite with the {}".format(
@@ -574,7 +573,7 @@ getsection = conf.getsection
 has_option = conf.has_option
 remove_option = conf.remove_option
 as_dict = conf.as_dict
-set = conf.set # noqa
+set = conf.set  # noqa
 
 for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
              remove_option, as_dict, set]:

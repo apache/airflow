@@ -289,7 +289,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         total_wildcards = operator.source_object.count(WILDCARD)
 
         error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. " \
-                    "Found {}".format(total_wildcards, SOURCE_OBJECT_MULTIPLE_WILDCARDS)
+                    "Found {}".format(total_wildcards)
 
         with self.assertRaisesRegex(AirflowException, error_msg):
             operator.execute(None)

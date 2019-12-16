@@ -23,9 +23,18 @@ import sys
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
-from airflow import conf, settings
+from airflow import settings
+from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler
+
+
+def _serve_logs(env, skip_serve_logs=False):
+    """Starts serve_logs sub-process"""
+    if skip_serve_logs is False:
+        sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+        return sub_proc
+    return None
 
 
 @cli_utils.action_logging
@@ -43,8 +52,11 @@ def worker(args):
     from celery.bin import worker  # pylint: disable=redefined-outer-name
 
     autoscale = args.autoscale
+    skip_serve_logs = args.skip_serve_logs
+
     if autoscale is None and conf.has_option("celery", "worker_autoscale"):
         autoscale = conf.get("celery", "worker_autoscale")
+
     worker = worker.worker(app=celery_app)   # pylint: disable=redefined-outer-name
     options = {
         'optimization': 'fair',
@@ -76,9 +88,8 @@ def worker(args):
             stderr=stderr,
         )
         with ctx:
-            sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+            sub_proc = _serve_logs(env, skip_serve_logs)
             worker.run(**options)
-            sub_proc.kill()
 
         stdout.close()
         stderr.close()
@@ -86,7 +97,8 @@ def worker(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
-
+        sub_proc = _serve_logs(env, skip_serve_logs)
         worker.run(**options)
+
+    if sub_proc:
         sub_proc.kill()

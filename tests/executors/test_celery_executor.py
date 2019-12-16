@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
+import datetime
 import os
 import sys
 import unittest
@@ -24,14 +24,19 @@ from multiprocessing import Pool
 from unittest import mock
 
 # leave this it is used by the test worker
+# noinspection PyUnresolvedReferences
 import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=ungrouped-imports
 from celery import Celery, states as celery_states
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
 from parameterized import parameterized
 
+from airflow import DAG
 from airflow.configuration import conf
 from airflow.executors import celery_executor
+from airflow.models import TaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.operators.bash_operator import BashOperator
 from airflow.utils.state import State
 
 
@@ -76,14 +81,17 @@ class TestCeleryExecutor(unittest.TestCase):
             with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
                 success_command = ['true', 'some_parameter']
                 fail_command = ['false', 'some_parameter']
+                execute_date = datetime.datetime.now()
 
                 cached_celery_backend = celery_executor.execute_command.backend
-                task_tuples_to_send = [('success', 'fake_simple_ti', success_command,
-                                        celery_executor.celery_configuration['task_default_queue'],
-                                        celery_executor.execute_command),
-                                       ('fail', 'fake_simple_ti', fail_command,
-                                        celery_executor.celery_configuration['task_default_queue'],
-                                        celery_executor.execute_command)]
+                task_tuples_to_send = [
+                    (('success', 'fake_simple_ti', execute_date, 0),
+                     None, success_command, celery_executor.celery_configuration['task_default_queue'],
+                     celery_executor.execute_command),
+                    (('fail', 'fake_simple_ti', execute_date, 0),
+                     None, fail_command, celery_executor.celery_configuration['task_default_queue'],
+                     celery_executor.execute_command)
+                ]
 
                 chunksize = executor._num_tasks_per_send_process(len(task_tuples_to_send))
                 num_processes = min(len(task_tuples_to_send), executor._sync_parallelism)
@@ -97,21 +105,21 @@ class TestCeleryExecutor(unittest.TestCase):
                 send_pool.close()
                 send_pool.join()
 
-                for key, command, result in key_and_async_results:
+                for task_instance_key, _, result in key_and_async_results:
                     # Only pops when enqueued successfully, otherwise keep it
                     # and expect scheduler loop to deal with it.
                     result.backend = cached_celery_backend
-                    executor.running[key] = command
-                    executor.tasks[key] = result
-                    executor.last_state[key] = celery_states.PENDING
+                    executor.running.add(task_instance_key)
+                    executor.tasks[task_instance_key] = result
+                    executor.last_state[task_instance_key] = celery_states.PENDING
 
-                executor.running['success'] = True
-                executor.running['fail'] = True
+                executor.running.add(('success', 'fake_simple_ti', execute_date, 0))
+                executor.running.add(('fail', 'fake_simple_ti', execute_date, 0))
 
                 executor.end(synchronous=True)
 
-        self.assertTrue(executor.event_buffer['success'], State.SUCCESS)
-        self.assertTrue(executor.event_buffer['fail'], State.FAILED)
+        self.assertEqual(executor.event_buffer[('success', 'fake_simple_ti', execute_date, 0)], State.SUCCESS)
+        self.assertEqual(executor.event_buffer[('fail', 'fake_simple_ti', execute_date, 0)], State.FAILED)
 
         self.assertNotIn('success', executor.tasks)
         self.assertNotIn('fail', executor.tasks)
@@ -129,11 +137,19 @@ class TestCeleryExecutor(unittest.TestCase):
             # fake_execute_command takes no arguments while execute_command takes 1,
             # which will cause TypeError when calling task.apply_async()
             executor = celery_executor.CeleryExecutor()
-            value_tuple = 'command', '_', 'queue', 'should_be_a_simple_ti'
-            executor.queued_tasks['key'] = value_tuple
+            task = BashOperator(
+                task_id="test",
+                bash_command="true",
+                dag=DAG(dag_id='id'),
+                start_date=datetime.datetime.now()
+            )
+            value_tuple = 'command', 1, None, \
+                SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.datetime.now()))
+            key = ('fail', 'fake_simple_ti', datetime.datetime.now(), 0)
+            executor.queued_tasks[key] = value_tuple
             executor.heartbeat()
         self.assertEqual(1, len(executor.queued_tasks))
-        self.assertEqual(executor.queued_tasks['key'], value_tuple)
+        self.assertEqual(executor.queued_tasks[key], value_tuple)
 
     def test_exception_propagation(self):
         with self._prepare_app() as app:

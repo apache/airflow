@@ -51,7 +51,7 @@ def resolve_dags_folder() -> str:
     return dags
 
 
-class empty_dags_directory(  # pylint:disable=invalid-name
+class empty_dags_directory(  # pylint: disable=invalid-name
     ContextDecorator, LoggingMixin
 ):
     """

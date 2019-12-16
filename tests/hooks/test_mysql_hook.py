@@ -40,6 +40,7 @@ class TestMySqlHookConn(unittest.TestCase):
         super().setUp()
 
         self.connection = Connection(
+            conn_type='mysql',
             login='login',
             password='password',
             host='host',
@@ -60,6 +61,14 @@ class TestMySqlHookConn(unittest.TestCase):
         self.assertEqual(kwargs['passwd'], 'password')
         self.assertEqual(kwargs['host'], 'host')
         self.assertEqual(kwargs['db'], 'schema')
+
+    @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
+    def test_get_uri(self, mock_connect):
+        self.connection.extra = json.dumps({'charset': 'utf-8'})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        self.assertEqual(self.db_hook.get_uri(), "mysql://login:password@host/schema?charset=utf-8")
 
     @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
     def test_get_conn_from_connection(self, mock_connect):

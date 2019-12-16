@@ -52,19 +52,27 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     }]
 
     def setUp(self):
-        args = {
+        self.args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
         }
 
         # Mock out the emr_client (moto has incorrect response)
         self.emr_client_mock = MagicMock()
+
+        # Mock out the emr_client creator
+        emr_session_mock = MagicMock()
+        emr_session_mock.client.return_value = self.emr_client_mock
+        self.boto3_session_mock = MagicMock(return_value=emr_session_mock)
+
+        self.mock_context = MagicMock()
+
         self.operator = EmrAddStepsOperator(
             task_id='test_task',
             job_flow_id='j-8989898989',
             aws_conn_id='aws_default',
             steps=self._config,
-            dag=DAG('test_dag_id', default_args=args)
+            dag=DAG('test_dag_id', default_args=self.args)
         )
 
     def test_init(self):
@@ -93,13 +101,29 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     def test_execute_returns_step_id(self):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
-        # Mock out the emr_client creator
-        emr_session_mock = MagicMock()
-        emr_session_mock.client.return_value = self.emr_client_mock
-        self.boto3_session_mock = MagicMock(return_value=emr_session_mock)
+        with patch('boto3.session.Session', self.boto3_session_mock):
+            self.assertEqual(self.operator.execute(self.mock_context), ['s-2LH3R5GW3A53T'])
+
+    def test_init_with_cluster_name(self):
+        expected_job_flow_id = 'j-1231231234'
+
+        self.emr_client_mock.get_cluster_id_by_name.return_value = expected_job_flow_id
+        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):
-            self.assertEqual(self.operator.execute(None), ['s-2LH3R5GW3A53T'])
+            operator = EmrAddStepsOperator(
+                task_id='test_task',
+                job_flow_name='test_cluster',
+                cluster_states=['RUNNING', 'WAITING'],
+                aws_conn_id='aws_default',
+                dag=DAG('test_dag_id', default_args=self.args)
+            )
+
+            operator.execute(self.mock_context)
+
+            ti = self.mock_context['ti']
+
+            ti.xcom_push.assert_any_call(key='job_flow_id', value=expected_job_flow_id)
 
 
 if __name__ == '__main__':

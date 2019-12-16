@@ -38,7 +38,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GoogleCloudStorageToGoogleCloudStorageOperator`
 
-    :param source_bucket: The source Google cloud storage bucket where the
+    :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
     :type source_bucket: str
     :param source_object: The source name of the object to copy in the Google cloud
@@ -48,12 +48,12 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         end of the object name. Appending a wildcard to the bucket name is
         unsupported.
     :type source_object: str
-    :param destination_bucket: The destination Google cloud storage bucket
+    :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. If the destination_bucket is None, it defaults
         to source_bucket. (templated)
     :type destination_bucket: str
     :param destination_object: The destination name of the object in the
-        destination Google cloud storage bucket. (templated)
+        destination Google Cloud Storage bucket. (templated)
         If a wildcard is supplied in the source_object argument, this is the
         prefix that will be prepended to the final destination objects' paths.
         Note that the source path's part before the wildcard will be removed;

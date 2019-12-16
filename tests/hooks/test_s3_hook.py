@@ -263,8 +263,8 @@ class TestS3Hook(unittest.TestCase):
         conn.create_bucket(Bucket="mybucket")
 
         hook.load_string("Contént", "my_key", "mybucket")
-        body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
-
+        resource = boto3.resource('s3').Object('mybucket', 'my_key')  # pylint: disable=no-member
+        body = resource.get()['Body'].read()
         self.assertEqual(body, b'Cont\xC3\xA9nt')
 
     @mock_s3
@@ -276,7 +276,8 @@ class TestS3Hook(unittest.TestCase):
         conn.create_bucket(Bucket="mybucket")
 
         hook.load_bytes(b"Content", "my_key", "mybucket")
-        body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
+        resource = boto3.resource('s3').Object('mybucket', 'my_key')  # pylint: disable=no-member
+        body = resource.get()['Body'].read()
 
         self.assertEqual(body, b'Content')
 
@@ -291,7 +292,8 @@ class TestS3Hook(unittest.TestCase):
             temp_file.write(b"Content")
             temp_file.seek(0)
             hook.load_file_obj(temp_file, "my_key", "mybucket")
-            body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
+            resource = boto3.resource('s3').Object('mybucket', 'my_key')  # pylint: disable=no-member
+            body = resource.get()['Body'].read()
 
             self.assertEqual(body, b'Content')
 
