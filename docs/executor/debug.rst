@@ -33,15 +33,15 @@ all other running or scheduled tasks fail immediately. To enable this option set
 
 **IDE setup steps:**
 
-1. Add ``main`` block at the end of your DAG file to make it runnable:
+1. Add ``main`` block at the end of your DAG file to make it runnable.
+It will run a backfill job:
 
-  .. code-block:: python
+.. code-block:: python
 
-    if __name__ == '__main__':
-      dag.clear(reset_dag_runs=True)
-      dag.run()
+  if __name__ == '__main__':
+    dag.clear(reset_dag_runs=True)
+    dag.run()
 
-   When you add those lines, running a DAG file will run a backfill job.
 
 2. Setup ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in run configuration of your IDE. In
    this step you should also setup all environment variables required by your DAG.
