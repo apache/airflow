@@ -362,7 +362,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
 
 # pylint: disable=too-many-instance-attributes
-class BigQueryOperator(BaseOperator):
+class BigQueryExecuteQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database.
     This operator does not assert idempotency.
@@ -1336,7 +1336,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
             project_id=self.project_id)
 
 
-class BigQueryTableDeleteOperator(BaseOperator):
+class BigQueryDeleteTableOperator(BaseOperator):
     """
     Deletes BigQuery tables
 
