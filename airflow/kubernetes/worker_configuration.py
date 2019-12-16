@@ -25,7 +25,6 @@ from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.version import version as airflow_version
 
 
 class WorkerConfiguration(LoggingMixin):
@@ -379,25 +378,12 @@ class WorkerConfiguration(LoggingMixin):
 
         return self.kube_config.git_dags_folder_mount_point
 
-    def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
-                 try_number, airflow_command) -> k8s.V1Pod:
+    def as_pod(self) -> k8s.V1Pod:
         """Creates POD."""
         pod_generator = PodGenerator(
-            namespace=namespace,
-            name=pod_id,
             image=self.kube_config.kube_image,
             image_pull_policy=self.kube_config.kube_image_pull_policy,
             image_pull_secrets=self.kube_config.image_pull_secrets,
-            labels={
-                'airflow-worker': worker_uuid,
-                'dag_id': dag_id,
-                'task_id': task_id,
-                'execution_date': execution_date,
-                'try_number': str(try_number),
-                'airflow_version': airflow_version.replace('+', '-'),
-                'kubernetes_executor': 'True',
-            },
-            cmds=airflow_command,
             volumes=self._get_volumes(),
             volume_mounts=self._get_volume_mounts(),
             init_containers=self._get_init_containers(),
