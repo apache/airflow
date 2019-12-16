@@ -221,7 +221,8 @@
         // check for key press on ENTER (key code 13) to trigger the search
         if (e.which === ENTER_KEY_CODE) {
           var query = new URLSearchParams(window.location.search);
-          query.set("search", e.target.value.trim())
+          query.set("search", e.target.value.trim());
+          query.delete("page");
           window.location = DAGS_INDEX + "?" + query.toString();
           e.preventDefault();
         }
