@@ -50,6 +50,8 @@ class TestRedisPubSubSensor(unittest.TestCase):
             redis_conn_id='redis_default'
         )
 
+        sensor._subscribe_to_channels()
+
         self.mock_redis_conn = mock_redis_conn
         self.mock_redis_conn().pubsub().get_message.return_value = \
             {'type': 'message', 'channel': b'test', 'data': b'd1'}
@@ -73,6 +75,8 @@ class TestRedisPubSubSensor(unittest.TestCase):
             redis_conn_id='redis_default'
         )
 
+        sensor._subscribe_to_channels()
+
         self.mock_redis_conn = mock_redis_conn
         self.mock_redis_conn().pubsub().get_message.return_value = None
 
@@ -91,6 +95,8 @@ class TestRedisPubSubSensor(unittest.TestCase):
             channels=channel,
             redis_conn_id='redis_default'
         )
+
+        sensor._subscribe_to_channels()
 
         hook = RedisHook(redis_conn_id='redis_default')
 
@@ -119,6 +125,8 @@ class TestRedisPubSubSensor(unittest.TestCase):
             channels=channel,
             redis_conn_id='redis_default'
         )
+
+        sensor._subscribe_to_channels()
 
         result = sensor.poke(self.mock_context)
         self.assertFalse(result)
