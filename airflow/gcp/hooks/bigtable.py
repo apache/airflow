@@ -330,7 +330,7 @@ class BigtableHook(GoogleCloudBaseHook):
         row.delete()
         row.commit()
 
-    def check_and_mutate_row(self, instance: Instance, table_id: str, row_key: str, column_family_id: str, column: str, filter, new_value: str, state: bool = True, app_profile_id: Optional[str] = None):
+    def check_and_mutate_row(self, instance: Instance, table_id: str, row_key: str, column_family_id: str, column: str, filter: RowFilter, new_value: str, state: bool = True, app_profile_id: Optional[str] = None):
         """
         Scans a table for cells that match the filter, column family id, column value, and state of the filter,
         and sets matching cells to new_value.
