@@ -49,7 +49,7 @@ class TestWinRMHook(unittest.TestCase):
         with self.assertRaises(AirflowException):
             WinRMHook(remote_host='host').get_conn()
 
-    @patch('airflow.contrib.hooks.winrm_hook.Protocol')
+    @patch('airflow.contrib.hooks.winrm_hook.Protocol', autospec=True)
     @patch('airflow.contrib.hooks.winrm_hook.WinRMHook.get_connection',
            return_value=Connection(
                login='username',
@@ -58,18 +58,18 @@ class TestWinRMHook(unittest.TestCase):
                extra="""{
                    "endpoint": "endpoint",
                    "remote_port": 123,
-                   "transport": "transport",
+                   "transport": "plaintext",
                    "service": "service",
                    "keytab": "keytab",
                    "ca_trust_path": "ca_trust_path",
                    "cert_pem": "cert_pem",
                    "cert_key_pem": "cert_key_pem",
-                   "server_cert_validation": "server_cert_validation",
+                   "server_cert_validation": "validate",
                    "kerberos_delegation": "true",
-                   "read_timeout_sec": 123,
+                   "read_timeout_sec": 124,
                    "operation_timeout_sec": 123,
                    "kerberos_hostname_override": "kerberos_hostname_override",
-                   "message_encryption": "message_encryption",
+                   "message_encryption": "auto",
                    "credssp_disable_tlsv1_2": "true",
                    "send_cbt": "false"
                }"""
