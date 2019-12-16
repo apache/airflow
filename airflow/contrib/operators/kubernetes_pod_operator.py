@@ -287,7 +287,9 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     @staticmethod
     def _set_resources(resources):
-        return [Resources(**resources) if resources else Resources()]
+        if not resources:
+            return []
+        return [Resources(**resources)]
 
     @staticmethod
     def _set_name(name):

@@ -17,8 +17,6 @@
 #
 
 import unittest
-import uuid
-from datetime import datetime
 
 from tests.compat import mock
 from tests.test_utils.config import conf_vars
@@ -345,8 +343,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.git_subpath = 'path'
 
         worker_config = WorkerConfiguration(self.kube_config)
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         self.assertEqual(0, pod.spec.security_context.run_as_user)
 
@@ -355,8 +352,19 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_folder = 'dags'
 
         worker_config = WorkerConfiguration(self.kube_config)
-        pod = worker_config.make_pod("default", "sample-uuid", "test_pod_id", "test_dag_id",
-                                     "test_task_id", "2019-11-21 11:08:22.920875", 1, "bash -c 'ls /'")
+        pod = PodGenerator.construct_pod(
+            "test_dag_id",
+            "test_task_id",
+            "test_pod_id",
+            1,
+            "2019-11-21 11:08:22.920875",
+            ["bash -c 'ls /'"],
+            None,
+            worker_config.as_pod(),
+            "default",
+            "sample-uuid",
+
+        )
         expected_labels = {
             'airflow-worker': 'sample-uuid',
             'airflow_version': airflow_version.replace('+', '-'),
@@ -382,8 +390,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         worker_config = WorkerConfiguration(self.kube_config)
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         init_containers = worker_config._get_init_containers()
         git_ssh_key_file = next((x.value for x in init_containers[0].env
@@ -412,8 +419,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         worker_config = WorkerConfiguration(self.kube_config)
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         username_env = k8s.V1EnvVar(
             name='GIT_SYNC_USERNAME',
@@ -470,8 +476,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_folder = 'dags'
         worker_config = WorkerConfiguration(self.kube_config)
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         self.assertTrue(pod.spec.affinity['podAntiAffinity'] is not None)
         self.assertEqual('app',
@@ -495,8 +500,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             tolerations=self.tolerations_config,
         ).gen_pod()
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         result = PodGenerator.reconcile_pods(pod, config_pod)
 
@@ -626,10 +630,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.env_from_secret_ref = 'secret_a,secret_b'
         worker_config = WorkerConfiguration(self.kube_config)
         secrets = worker_config._get_secrets()
-        expected = [
-            Secret('env', None, 'secret_a'),
-            Secret('env', None, 'secret_b')
-        ]
+        expected = [Secret('env', None, 'secret_a'), Secret('env', None, 'secret_b')]
         self.assertListEqual(expected, secrets)
 
     def test_get_env_from(self):
@@ -673,7 +674,6 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.image_pull_secrets = 'image_pull_secret1,image_pull_secret2'
 
         worker_config = WorkerConfiguration(self.kube_config)
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         self.assertEqual(2, len(pod.spec.image_pull_secrets))
