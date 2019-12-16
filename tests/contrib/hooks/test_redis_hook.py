@@ -20,18 +20,22 @@
 
 import unittest
 
+from mock import Mock, patch
+
 from airflow.contrib.hooks.redis_hook import RedisHook
 
 
 class TestRedisHook(unittest.TestCase):
     def test_get_conn(self):
         hook = RedisHook(redis_conn_id='redis_default')
+
         self.assertEqual(hook.redis, None)
 
         self.assertEqual(hook.host, None, 'host initialised as None.')
         self.assertEqual(hook.port, None, 'port initialised as None.')
         self.assertEqual(hook.password, None, 'password initialised as None.')
         self.assertEqual(hook.db, None, 'db initialised as None.')
+
         self.assertIs(hook.get_conn(), hook.get_conn(), 'Connection initialized only if None.')
 
     def test_get_conn_password_stays_none(self):
@@ -39,35 +43,33 @@ class TestRedisHook(unittest.TestCase):
         hook.get_conn()
         self.assertEqual(hook.password, None)
 
-    def test_real_ping(self):
+    @patch('redis.Redis.ping', Mock(return_value=True))
+    def test_ping(self):
         hook = RedisHook(redis_conn_id='redis_default')
 
         self.assertTrue(hook.ping_redis(), 'Connection to Redis with PING works.')
 
-    def test_real_get_and_set(self):
+    @patch('redis.Redis.set', Mock(return_value=True))
+    @patch('redis.Redis.get', Mock(return_value=b'_value'))
+    @patch('redis.Redis.delete', Mock(return_value=1))
+    def test_get_and_set(self):
         hook = RedisHook(redis_conn_id='redis_default')
 
-        self.assertTrue(hook.set_key_value('test_key', 'test_value'), 'Connection to Redis with SET works.')
-        self.assertEqual(hook.get_key('test_key'), b'test_value', 'Connection to Redis with GET works.')
-        self.assertEqual(hook.delete_key('test_key'), 1, 'Connection to Redis with DELETE works.')
+        self.assertTrue(hook.set_key_value('_dummy', '_value'), 'Connection to Redis with SET works.')
+        self.assertEqual(hook.get_key('_dummy'), b'_value', 'Connection to Redis with GET works.')
+        self.assertEqual(hook.delete_key('_dummy'), 1, 'Connection to Redis with DELETE works.')
 
+    @patch('redis.Redis.exists', Mock(return_value=True))
     def test_exists(self):
         hook = RedisHook(redis_conn_id='redis_default')
 
-        k, v = 'test_key_exists_true', 'test_val'
+        assert hook.check_if_key_exists('_dummy')
 
-        hook.set_key_value(k, v)
-
-        assert hook.check_if_key_exists(k)
-
-        hook.delete_key(k)
-
+    @patch('redis.Redis.exists', Mock(return_value=False))
     def test_exists_false(self):
         hook = RedisHook(redis_conn_id='redis_default')
 
-        k = 'test_key_exists_false'
-
-        assert not hook.check_if_key_exists(k)
+        assert not hook.check_if_key_exists('_dummy')
 
 
 if __name__ == '__main__':
