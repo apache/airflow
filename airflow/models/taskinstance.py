@@ -923,6 +923,13 @@ class TaskInstance(Base, LoggingMixin):
                 self.render_templates(context=context)
                 task_copy.pre_execute(context=context)
 
+                try:
+                    if task.on_execute_callback:
+                        task.on_execute_callback(context)
+                except Exception as e3:
+                    self.log.error("Failed when executing execute callback")
+                    self.log.exception(e3)
+
                 # If a timeout is specified for the task, make it fail
                 # if it goes beyond
                 result = None

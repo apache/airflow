@@ -1415,6 +1415,32 @@ class TestTaskInstance(unittest.TestCase):
         with self.assertRaises(KeyError):
             task.render_template('{{ var.json.get("missing_variable") }}', context)
 
+    def test_execute_callback(self):
+        called = False
+
+        def on_execute_callable(context):
+            nonlocal called
+            called = True
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_dagrun_execute_callback'
+            )
+
+        dag = DAG('test_execute_callbak', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task = DummyOperator(task_id='op', email='test@test.test',
+                             on_execute_callback=on_execute_callable,
+                             dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        assert called
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
     def test_handle_failure(self):
         from unittest import mock
 
