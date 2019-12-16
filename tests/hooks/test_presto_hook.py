@@ -22,6 +22,8 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
+from prestodb.transaction import IsolationLevel
+
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.models import Connection
 
@@ -69,6 +71,9 @@ class TestPrestoHook(unittest.TestCase):
 
             def get_conn(self):
                 return conn
+
+            def get_isolation_level(self):
+                return IsolationLevel.READ_COMMITTED
 
         self.db_hook = UnitTestPrestoHook()
 

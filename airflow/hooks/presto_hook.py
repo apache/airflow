@@ -16,8 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from contextlib import closing
-
 import prestodb
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
@@ -45,11 +43,8 @@ class PrestoHook(DbApiHook):
     def get_conn(self):
         """Returns a connection object"""
         db = self.get_connection(self.presto_conn_id)
-        auth = None
-        if db.password is not None:
-            auth = prestodb.auth.BasicAuthentication(db.login, db.password)
+        auth = prestodb.auth.BasicAuthentication(db.login, db.password) if db.password else None
 
-        isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
         return prestodb.dbapi.connect(
             host=db.host,
             port=db.port,
@@ -59,8 +54,14 @@ class PrestoHook(DbApiHook):
             catalog=db.extra_dejson.get('catalog', 'hive'),
             schema=db.schema,
             auth=auth,
-            isolation_level=getattr(IsolationLevel, isolation_level, 0)
+            isolation_level=self.get_isolation_level()
         )
+
+    def get_isolation_level(self):
+        """Returns an isolation level"""
+        db = self.get_connection(self.presto_conn_id)
+        isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
+        return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
 
     @staticmethod
     def _strip_sql(sql):
@@ -140,13 +141,12 @@ class PrestoHook(DbApiHook):
             transaction. Set to 0 to insert all rows in one transaction.
         :type commit_every: int
         """
-        with closing(self.get_conn()) as conn:
-            if conn.isolation_level == 0:
-                self.log.info(
-                    'Transactions are not enable in presto connection. '
-                    'Please use the isolation_level property to enable it. '
-                    'Falling back to insert all rows in one transaction.'
-                )
-                commit_every = 0
+        if self.get_isolation_level() == IsolationLevel.AUTOCOMMIT:
+            self.log.info(
+                'Transactions are not enable in presto connection. '
+                'Please use the isolation_level property to enable it. '
+                'Falling back to insert all rows in one transaction.'
+            )
+            commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every)

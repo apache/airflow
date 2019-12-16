@@ -300,7 +300,7 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = [
-    'presto-python-client>=0.7.0'
+    'presto-python-client>=0.7.0,<0.8'
 ]
 qds = [
     'qds-sdk>=1.10.4',
