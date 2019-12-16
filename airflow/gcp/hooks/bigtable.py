@@ -187,8 +187,10 @@ class BigtableHook(GoogleCloudBaseHook):
         instance: Instance,
         table_id: str,
         initial_split_keys: Optional[List] = None,
-        column_families: Optional[Dict[str, GarbageCollectionRule]] = None
+        column_families: Optional[Dict[str, GarbageCollectionRule]] = None,
+        app_profile_id: Optional[str] = None
     ) -> None:
+
         """
         Creates the specified Cloud Bigtable table.
         Raises ``google.api_core.exceptions.AlreadyExists`` if the table exists.
@@ -204,12 +206,14 @@ class BigtableHook(GoogleCloudBaseHook):
         :param column_families: (Optional) A map of columns to create. The key is the
             column_id str, and the value is a
             :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`.
+        :type app_profile_id: Optional[str]
+        :param app_profile_id: the ID of the application profile to use when connecting to this Table
         """
         if column_families is None:
             column_families = {}
         if initial_split_keys is None:
             initial_split_keys = []
-        table = Table(table_id, instance)
+        table = Table(table_id, instance, app_profile_id=app_profile_id)
         table.create(initial_split_keys, column_families)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
@@ -249,7 +253,7 @@ class BigtableHook(GoogleCloudBaseHook):
         cluster.update()
 
     @staticmethod
-    def get_column_families_for_table(instance: Instance, table_id: str) -> Dict[str, ColumnFamily]:
+    def get_column_families_for_table(instance: Instance, table_id: str, app_profile_id: Optional[str] = None) -> Dict[str, ColumnFamily]:
         """
         Fetches Column Families for the specified table in Cloud Bigtable.
 
@@ -258,13 +262,15 @@ class BigtableHook(GoogleCloudBaseHook):
         :type table_id: str
         :param table_id: The ID of the table in Cloud Bigtable to fetch Column Families
             from.
+        :type app_profile_id: str
+        :param app_profile_id: The string name of the app profile ID you would like to use to read/write from this table
         """
 
-        table = Table(table_id, instance)
+        table = Table(table_id, instance, app_profile_id=app_profile_id)
         return table.list_column_families()
 
     @staticmethod
-    def get_cluster_states_for_table(instance: Instance, table_id: str) -> Dict[str, ClusterState]:
+    def get_cluster_states_for_table(instance: Instance, table_id: str, app_profile_id: Optional[str] = None) -> Dict[str, ClusterState]:
         """
         Fetches Cluster States for the specified table in Cloud Bigtable.
         Raises google.api_core.exceptions.NotFound if the table does not exist.
@@ -274,12 +280,15 @@ class BigtableHook(GoogleCloudBaseHook):
         :type table_id: str
         :param table_id: The ID of the table in Cloud Bigtable to fetch Cluster States
             from.
+        :type app_profile_id: str
+        :param app_profile_id: The string name of the app profile ID you would like to use to read/write from this table
+
         """
 
-        table = Table(table_id, instance)
+        table = Table(table_id, instance, app_profile_id=app_profile_id)
         return table.get_cluster_states()
 
-    def create_rowkey_regex_filter(self, regex):
+    def create_rowkey_regex_filter(self, regex: str):
         """
         A helper method to create a RowKeyRegexFilter subclass of RowFilter, which
         will only match rows with keys that exactly match the regex string.
@@ -290,8 +299,19 @@ class BigtableHook(GoogleCloudBaseHook):
         """
         return RowKeyRegexFilter(regex)
 
+    def create_value_regex_filter(self, regex: str):
+        """
+        A helper method to create a ValueRegexFilter subclass of RowFilter, which
+        will only match rows with values that exactly match the regex string.
+        Returns a RowFilter.
 
-    def delete_row(self, instance, table_id, row_key):
+        :type regex: str
+        :param regex: The exact match regex string for the value we wish to find
+        """
+        return ValueRegexFilter(regex)
+
+
+    def delete_row(self, instance: Instance, table_id: str, row_key: str, app_profile_id: Optional[str] = None):
         """
         Deletes a row in the given Bigtable Table
                 :type instance: Instance
@@ -300,19 +320,23 @@ class BigtableHook(GoogleCloudBaseHook):
         :param table_id: The Cloud Bigtable Table that owns the Row
         :type row_key: str
         :param row_key: The key of the row whose cells to check
+        :type app_profile_id: str
+        :param app_profile_id: The string name of the app profile ID you would like to use to read/write from this table
 
         Returns a boolean of whether or not the row was successfully deleted
         """
-        table = Table(table_id, instance)
+        table = Table(table_id, instance, app_profile_id=app_profile_id)
         row = DirectRow(row_key, table)
         row.delete()
         row.commit()
 
-    def check_and_mutate_row(self, instance, table_id, row_key, column_family_id, column, filter, new_value, state=True):
+    def check_and_mutate_row(self, instance: Instance, table_id: str, row_key: str, column_family_id: str, column: str, filter, new_value: str, state: bool = True, app_profile_id: Optional[str] = None):
         """
-        Scans a table for cells that match the filter, column family id and column value
-        and sets matching cells to new_value. If no matching cells are found, no mutations occur.
-        Returns True if mutations were applied and False otherwise.
+        Scans a table for cells that match the filter, column family id, column value, and state of the filter,
+        and sets matching cells to new_value.
+        If matching cells for the filter are found, and state is True, then the mutation is applied.
+        If no matching cells are found, and state is False, then the mutation is applied.
+        Returns True if the filter returned results and False otherwise.
 
         :type instance: Instance
         :param instance: The Cloud Bigtable Instance that owns the Table
@@ -328,8 +352,11 @@ class BigtableHook(GoogleCloudBaseHook):
         :param filter: The RowFilter object representation of a filter or filters on which to predicate the check
         :type new_value: str
         :param new_value: The value to which to set matching cells
+        :type app_profile_id: str
+        :param app_profile_id: The string name of the app profile ID you would like to use to read/write from this table
+
         """
-        table = Table(table_id, instance)
+        table = Table(table_id, instance, app_profile_id=app_profile_id)
         row = ConditionalRow(row_key, table, filter)
         row.set_cell(column_family_id, column, new_value, timestamp=None, state=state)
         return row.commit()
