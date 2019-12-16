@@ -1014,7 +1014,7 @@ class Airflow(AirflowViewMixin, BaseView):
             of queueable processes:
               <code>parallelism</code>,
               <code>dag_concurrency</code>,
-              <code>max_active_dag_runs_per_dag</code>,
+              <code>max_active_runs_per_dag</code>,
               <code>non_pooled_task_slot_count</code><br/>
             {}
             <br/>
