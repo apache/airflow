@@ -705,6 +705,8 @@ class TestKubernetesPodOperator(unittest.TestCase):
             task_id="task",
             volumes=[volume],
             init_containers=[init_container],
+            in_cluster=False,
+            do_xcom_push=False,
         )
 
         k.execute(None)
