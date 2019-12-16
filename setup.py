@@ -349,7 +349,7 @@ webhdfs = [
     'hdfs[avro,dataframe,kerberos]>=2.0.4',
 ]
 winrm = [
-    'pywinrm==0.2.2',
+    'pywinrm~=0.4',
 ]
 zendesk = [
     'zdesk',
