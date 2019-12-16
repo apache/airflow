@@ -55,7 +55,7 @@ class TestWinRMHook(unittest.TestCase):
                password='password',
                host='remote_host',
                extra="""{
-                   "endpoint": "http://endpoint",
+                   "endpoint": "endpoint",
                    "remote_port": 123,
                    "transport": "plaintext",
                    "service": "service",
