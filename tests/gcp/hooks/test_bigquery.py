@@ -767,8 +767,8 @@ class TestBigQueryCursor(unittest.TestCase):
             "SELECT %(foo)s", {"foo": "bar"})
         assert mocked_rwc.call_count == 1
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    @mock.patch.object(hook.BigQueryCursor, 'flush_results')
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryCursor.flush_results")
     def test_flush_cursor_in_execute(self, _, mocked_fr):
         hook.BigQueryCursor("test", "test").execute(
             "SELECT %(foo)s", {"foo": "bar"})
