@@ -607,7 +607,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         )
 
 
-class CloudDLPDeleteDlpJobOperator(BaseOperator):
+class CloudDLPDeleteDLPJobOperator(BaseOperator):
     """
     Deletes a long-running DlpJob. This method indicates that the client is no longer
     interested in the DlpJob result. The job will be cancelled if possible.
@@ -912,7 +912,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         )
 
 
-class CloudDLPGetDlpJobOperator(BaseOperator):
+class CloudDLPGetDLPJobOperator(BaseOperator):
     """
     Gets the latest state of a long-running DlpJob.
 
@@ -1032,7 +1032,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         )
 
 
-class CloudDLPGetJobTripperOperator(BaseOperator):
+class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
     """
     Gets a job trigger.
 
@@ -1303,7 +1303,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         )
 
 
-class CloudDLPListDlpJobsOperator(BaseOperator):
+class CloudDLPListDLPJobsOperator(BaseOperator):
     """
     Lists DlpJobs that match the specified filter in the request.
 
