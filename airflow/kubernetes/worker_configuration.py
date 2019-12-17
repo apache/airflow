@@ -66,6 +66,9 @@ class WorkerConfiguration(LoggingMixin):
             name='GIT_SYNC_DEST',
             value=self.kube_config.git_sync_dest
         ), k8s.V1EnvVar(
+            name='GIT_SYNC_REV',
+            value=self.kube_config.git_sync_rev
+        ), k8s.V1EnvVar(
             name='GIT_SYNC_DEPTH',
             value='1'
         ), k8s.V1EnvVar(

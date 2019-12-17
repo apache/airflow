@@ -120,6 +120,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.git_sync_root = conf.get(self.kubernetes_section, 'git_sync_root')
         # Optionally, the name at which to publish the checked-out files under --root
         self.git_sync_dest = conf.get(self.kubernetes_section, 'git_sync_dest')
+        # Optionally, the tag or hash to checkout
+        self.git_sync_rev = conf.get(self.kubernetes_section, 'git_sync_rev')
         # Optionally, if git_dags_folder_mount_point is set the worker will use
         # {git_dags_folder_mount_point}/{git_sync_dest}/{git_subpath} as dags_folder
         self.git_dags_folder_mount_point = conf.get(self.kubernetes_section,
