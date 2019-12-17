@@ -25,8 +25,8 @@ import os
 from airflow import models
 from airflow.operators.bash_operator import BashOperator
 from airflow.providers.google.cloud.operators.pubsub import (
-    PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
-    PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
+    PubSubCreateSubscriptionOperator, PubSubCreateTopicOperator, PubSubDeleteSubscriptionOperator,
+    PubSubDeleteTopicOperator, PubSubPublishMessageOperator,
 )
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 from airflow.utils.dates import days_ago
@@ -51,13 +51,13 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
 ) as example_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
-    create_topic = PubSubTopicCreateOperator(
+    create_topic = PubSubCreateTopicOperator(
         task_id="create_topic", topic=TOPIC, project_id=GCP_PROJECT_ID
     )
     # [END howto_operator_gcp_pubsub_create_topic]
 
     # [START howto_operator_gcp_pubsub_create_subscription]
-    subscribe_task = PubSubSubscriptionCreateOperator(
+    subscribe_task = PubSubCreateSubscriptionOperator(
         task_id="subscribe_task", project_id=GCP_PROJECT_ID, topic=TOPIC
     )
     # [END howto_operator_gcp_pubsub_create_subscription]
@@ -80,7 +80,7 @@ with models.DAG(
     # [END howto_operator_gcp_pubsub_pull_messages_result]
 
     # [START howto_operator_gcp_pubsub_publish]
-    publish_task = PubSubPublishOperator(
+    publish_task = PubSubPublishMessageOperator(
         task_id="publish_task",
         project_id=GCP_PROJECT_ID,
         topic=TOPIC,
@@ -89,7 +89,7 @@ with models.DAG(
     # [END howto_operator_gcp_pubsub_publish]
 
     # [START howto_operator_gcp_pubsub_unsubscribe]
-    unsubscribe_task = PubSubSubscriptionDeleteOperator(
+    unsubscribe_task = PubSubDeleteSubscriptionOperator(
         task_id="unsubscribe_task",
         project_id=GCP_PROJECT_ID,
         subscription="{{ task_instance.xcom_pull('subscribe_task') }}",
@@ -97,7 +97,7 @@ with models.DAG(
     # [END howto_operator_gcp_pubsub_unsubscribe]
 
     # [START howto_operator_gcp_pubsub_delete_topic]
-    delete_topic = PubSubTopicDeleteOperator(
+    delete_topic = PubSubDeleteTopicOperator(
         task_id="delete_topic", topic=TOPIC, project_id=GCP_PROJECT_ID
     )
     # [END howto_operator_gcp_pubsub_delete_topic]

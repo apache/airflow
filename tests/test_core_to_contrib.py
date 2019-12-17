@@ -607,23 +607,23 @@ OPERATOR = [
         "PostgresToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubPublishMessageOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubPublishOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubCreateSubscriptionOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubDeleteSubscriptionOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubCreateTopicOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator",
     ),
     (
