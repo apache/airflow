@@ -184,6 +184,12 @@ class AirflowConfigParser(ConfigParser):
         env_var = self._env_var_name(section, key)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
+        # alternatively AIRFLOW__{SECTION}__{KEY}_CMD (for a command)
+        env_var_cmd = env_var + '_CMD'
+        if env_var_cmd in os.environ:
+            # if this is a valid command key...
+            if (section, key) in self.as_command_stdout:
+                return run_command(os.environ[env_var_cmd])
 
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
