@@ -126,6 +126,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type security_context: dict
     :param dnspolicy: dnspolicy for the pod.
     :type dnspolicy: str
+    :param schedulername: Specify a schedulername for the pod
+    :type schedulername: str
     :param full_pod_spec: The complete podSpec
     :type full_pod_spec: kubernetes.client.models.V1Pod
     """
@@ -345,6 +347,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             dnspolicy=self.dnspolicy,
             init_containers=self.init_containers,
             restart_policy='Never',
+            schedulername=self.schedulername,
             priority_class_name=self.priority_class_name,
             pod=self.full_pod_spec,
         ).gen_pod()

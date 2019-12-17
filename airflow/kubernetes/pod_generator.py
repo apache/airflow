@@ -146,6 +146,8 @@ class PodGenerator:
     :type configmaps: str
     :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
+    :param schedulername: Specify a schedulername for the pod
+    :type schedulername: str
     :param pod: The fully specified pod.
     :type pod: kubernetes.client.models.V1Pod
     :param extract_xcom: Whether to bring up a container for xcom
@@ -178,6 +180,7 @@ class PodGenerator:
         security_context=None,
         configmaps=None,
         dnspolicy=None,
+        schedulername=None,
         priority_class_name=None,
         pod=None,
         extract_xcom=False,
@@ -230,6 +233,7 @@ class PodGenerator:
         self.spec.security_context = security_context
         self.spec.tolerations = tolerations
         self.spec.dns_policy = dnspolicy
+        self.spec.scheduler_name = schedulername
         self.spec.host_network = hostnetwork
         self.spec.affinity = affinity
         self.spec.service_account_name = service_account_name
@@ -367,6 +371,7 @@ class PodGenerator:
             security_context=namespaced.get('security_context'),
             configmaps=namespaced.get('configmaps'),
             dnspolicy=namespaced.get('dnspolicy'),
+            schedulername=namespaced.get('schedulername'),
             pod=namespaced.get('pod'),
             extract_xcom=namespaced.get('extract_xcom'),
         )
