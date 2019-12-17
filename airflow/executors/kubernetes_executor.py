@@ -320,7 +320,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             for key, value in kube_config.kube_client_request_args.iteritems():
                 kwargs[key] = value
             conn_timeout = kube_config.kube_client_request_args.get('_request_timeout', [60, 60])[0]
-            kwargs['timeout_seconds'] = conn_timeout - 1 if conn_timeout - 1 > 0 else 1
+            kwargs['timeout_seconds'] = max(conn_timeout - 1, 1)
         return kwargs
 
     def process_error(self, event: Any) -> str:
