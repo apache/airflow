@@ -97,11 +97,11 @@ HOOK = [
         "airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook",
     ),
     (
-        "airflow.gcp.hooks.cloud_sql.CloudSqlHook",
+        "airflow.gcp.hooks.cloud_sql.CloudSQLHook",
         "airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook",
     ),
     (
-        "airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook",
+        "airflow.gcp.hooks.cloud_sql.CloudSQLDatabaseHook",
         "airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook",
     ),
     (

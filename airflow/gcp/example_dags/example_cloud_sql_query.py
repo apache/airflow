@@ -44,7 +44,7 @@ from urllib.parse import quote_plus
 
 import airflow
 from airflow import models
-from airflow.gcp.operators.cloud_sql import CloudSqlQueryOperator
+from airflow.gcp.operators.cloud_sql import CloudSQLExecuteQueryOperator
 
 # [START howto_operator_cloudsql_query_arguments]
 
@@ -282,7 +282,7 @@ with models.DAG(
     prev_task = None
 
     for connection_name in connection_names:
-        task = CloudSqlQueryOperator(
+        task = CloudSQLExecuteQueryOperator(
             gcp_cloudsql_conn_id=connection_name,
             task_id="example_gcp_sql_task_" + connection_name,
             sql=SQL

@@ -428,8 +428,8 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook                                                                  |airflow.providers.google.cloud.hooks.pubsub.PubSubHook                                                                        |
 |airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook                                                     |
 |airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook                                                           |airflow.gcp.hooks.spanner.SpannerHook                                                                      |
-|airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook                                                           |airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook                                                           |
-|airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook                                                                   |airflow.gcp.hooks.cloud_sql.CloudSqlHook                                                                   |
+|airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook                                                           |airflow.gcp.hooks.cloud_sql.CloudSQLDatabaseHook                                                           |
+|airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook                                                                   |airflow.gcp.hooks.cloud_sql.CloudSQLHook                                                                   |
 |airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook                                                               |airflow.gcp.hooks.tasks.CloudTasksHook                                                                     |
 |airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook                                                 |airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook                                                     |
 |airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook                                                    |airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook                                    |
@@ -1033,12 +1033,12 @@ Operators involved:
   * GCP Function Operators
     * GcfFunctionDeployOperator
   * GCP Cloud SQL Operators
-    * CloudSqlInstanceCreateOperator
-    * CloudSqlInstancePatchOperator
-    * CloudSqlInstanceDeleteOperator
-    * CloudSqlInstanceDatabaseCreateOperator
-    * CloudSqlInstanceDatabasePatchOperator
-    * CloudSqlInstanceDatabaseDeleteOperator
+    * CloudSQLCreateInstanceOperator
+    * CloudSQLInstancePatchOperator
+    * CloudSQLDeleteInstanceOperator
+    * CloudSQLCreateInstanceDatabaseOperator
+    * CloudSQLPatchInstanceDatabaseOperator
+    * CloudSQLDeleteInstanceDatabaseOperator
 
 Other GCP operators are unaffected.
 

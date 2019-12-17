@@ -27,10 +27,10 @@ from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.gcp.operators.cloud_sql import (
-    CloudSqlInstanceCreateOperator, CloudSqlInstanceDatabaseCreateOperator,
-    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceDatabasePatchOperator,
-    CloudSqlInstanceDeleteOperator, CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator,
-    CloudSqlInstancePatchOperator, CloudSqlQueryOperator,
+    CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,
+    CloudSQLDeleteInstanceDatabaseOperator, CloudSQLDeleteInstanceOperator, CloudSQLExecuteQueryOperator,
+    CloudSQLExportInstanceOperator, CloudSQLImportInstanceOperator, CloudSQLInstancePatchOperator,
+    CloudSQLPatchInstanceDatabaseOperator,
 )
 from airflow.models import Connection
 
@@ -161,12 +161,12 @@ IMPORT_BODY = {
 
 
 class TestCloudSql(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlInstanceCreateOperator._check_if_instance_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLCreateInstanceOperator._check_if_instance_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_create(self, mock_hook, _check_if_instance_exists):
         _check_if_instance_exists.return_value = False
         mock_hook.return_value.create_instance.return_value = True
-        op = CloudSqlInstanceCreateOperator(
+        op = CloudSQLCreateInstanceOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             body=CREATE_BODY,
@@ -184,12 +184,12 @@ class TestCloudSql(unittest.TestCase):
         self.assertIsNone(result)
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceCreateOperator._check_if_instance_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLCreateInstanceOperator._check_if_instance_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_create_missing_project_id(self, mock_hook, _check_if_instance_exists):
         _check_if_instance_exists.return_value = False
         mock_hook.return_value.create_instance.return_value = True
-        op = CloudSqlInstanceCreateOperator(
+        op = CloudSQLCreateInstanceOperator(
             instance=INSTANCE_NAME,
             body=CREATE_BODY,
             task_id="id"
@@ -206,12 +206,12 @@ class TestCloudSql(unittest.TestCase):
         self.assertIsNone(result)
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceCreateOperator._check_if_instance_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLCreateInstanceOperator._check_if_instance_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_create_idempotent(self, mock_hook, _check_if_instance_exists):
         _check_if_instance_exists.return_value = True
         mock_hook.return_value.create_instance.return_value = True
-        op = CloudSqlInstanceCreateOperator(
+        op = CloudSQLCreateInstanceOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             body=CREATE_BODY,
@@ -225,10 +225,10 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_create_should_throw_ex_when_empty_project_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceCreateOperator(
+            op = CloudSQLCreateInstanceOperator(
                 project_id="",
                 body=CREATE_BODY,
                 instance=INSTANCE_NAME,
@@ -239,10 +239,10 @@ class TestCloudSql(unittest.TestCase):
         self.assertIn("The required parameter 'project_id' is empty", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_create_should_throw_ex_when_empty_body(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceCreateOperator(
+            op = CloudSQLCreateInstanceOperator(
                 project_id=PROJECT_ID,
                 body={},
                 instance=INSTANCE_NAME,
@@ -253,10 +253,10 @@ class TestCloudSql(unittest.TestCase):
         self.assertIn("The required parameter 'body' is empty", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_create_should_throw_ex_when_empty_instance(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceCreateOperator(
+            op = CloudSQLCreateInstanceOperator(
                 project_id=PROJECT_ID,
                 body=CREATE_BODY,
                 instance="",
@@ -267,7 +267,7 @@ class TestCloudSql(unittest.TestCase):
         self.assertIn("The required parameter 'instance' is empty", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_create_should_validate_list_type(self, mock_hook):
         wrong_list_type_body = {
             "name": INSTANCE_NAME,
@@ -280,7 +280,7 @@ class TestCloudSql(unittest.TestCase):
             }
         }
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceCreateOperator(
+            op = CloudSQLCreateInstanceOperator(
                 project_id=PROJECT_ID,
                 body=wrong_list_type_body,
                 instance=INSTANCE_NAME,
@@ -293,7 +293,7 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_create_should_validate_non_empty_fields(self, mock_hook):
         empty_tier_body = {
             "name": INSTANCE_NAME,
@@ -303,7 +303,7 @@ class TestCloudSql(unittest.TestCase):
             }
         }
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceCreateOperator(
+            op = CloudSQLCreateInstanceOperator(
                 project_id=PROJECT_ID,
                 body=empty_tier_body,
                 instance=INSTANCE_NAME,
@@ -316,10 +316,10 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_patch(self, mock_hook):
         mock_hook.return_value.patch_instance.return_value = True
-        op = CloudSqlInstancePatchOperator(
+        op = CloudSQLInstancePatchOperator(
             project_id=PROJECT_ID,
             body=PATCH_BODY,
             instance=INSTANCE_NAME,
@@ -335,10 +335,10 @@ class TestCloudSql(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_patch_missing_project_id(self, mock_hook):
         mock_hook.return_value.patch_instance.return_value = True
-        op = CloudSqlInstancePatchOperator(
+        op = CloudSQLInstancePatchOperator(
             body=PATCH_BODY,
             instance=INSTANCE_NAME,
             task_id="id"
@@ -354,13 +354,13 @@ class TestCloudSql(unittest.TestCase):
         self.assertTrue(result)
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstancePatchOperator._check_if_instance_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLInstancePatchOperator._check_if_instance_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_patch_should_bubble_up_ex_if_not_exists(self, mock_hook,
                                                               _check_if_instance_exists):
         _check_if_instance_exists.return_value = False
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstancePatchOperator(
+            op = CloudSQLInstancePatchOperator(
                 project_id=PROJECT_ID,
                 body=PATCH_BODY,
                 instance=INSTANCE_NAME,
@@ -374,11 +374,11 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.return_value.patch_instance.assert_not_called()
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDeleteOperator._check_if_instance_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLDeleteInstanceOperator._check_if_instance_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_delete(self, mock_hook, _check_if_instance_exists):
         _check_if_instance_exists.return_value = True
-        op = CloudSqlInstanceDeleteOperator(
+        op = CloudSQLDeleteInstanceOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             task_id="id"
@@ -393,11 +393,11 @@ class TestCloudSql(unittest.TestCase):
         )
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDeleteOperator._check_if_instance_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLDeleteInstanceOperator._check_if_instance_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_delete_missing_project_id(self, mock_hook, _check_if_instance_exists):
         _check_if_instance_exists.return_value = True
-        op = CloudSqlInstanceDeleteOperator(
+        op = CloudSQLDeleteInstanceOperator(
             instance=INSTANCE_NAME,
             task_id="id"
         )
@@ -411,14 +411,14 @@ class TestCloudSql(unittest.TestCase):
         )
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDeleteOperator._check_if_instance_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLDeleteInstanceOperator._check_if_instance_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_delete_should_abort_and_succeed_if_not_exists(
             self,
             mock_hook,
             _check_if_instance_exists):
         _check_if_instance_exists.return_value = False
-        op = CloudSqlInstanceDeleteOperator(
+        op = CloudSQLDeleteInstanceOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             task_id="id"
@@ -430,11 +430,11 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.return_value.delete_instance.assert_not_called()
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDatabaseCreateOperator._check_if_db_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLCreateInstanceDatabaseOperator._check_if_db_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_create(self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = False
-        op = CloudSqlInstanceDatabaseCreateOperator(
+        op = CloudSQLCreateInstanceDatabaseOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             body=DATABASE_INSERT_BODY,
@@ -451,11 +451,11 @@ class TestCloudSql(unittest.TestCase):
         self.assertTrue(result)
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDatabaseCreateOperator._check_if_db_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLCreateInstanceDatabaseOperator._check_if_db_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_create_missing_project_id(self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = False
-        op = CloudSqlInstanceDatabaseCreateOperator(
+        op = CloudSQLCreateInstanceDatabaseOperator(
             instance=INSTANCE_NAME,
             body=DATABASE_INSERT_BODY,
             task_id="id"
@@ -471,12 +471,12 @@ class TestCloudSql(unittest.TestCase):
         self.assertTrue(result)
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDatabaseCreateOperator._check_if_db_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLCreateInstanceDatabaseOperator._check_if_db_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_create_should_abort_and_succeed_if_exists(
             self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = True
-        op = CloudSqlInstanceDatabaseCreateOperator(
+        op = CloudSQLCreateInstanceDatabaseOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             body=DATABASE_INSERT_BODY,
@@ -489,11 +489,11 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.return_value.create_database.assert_not_called()
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDatabasePatchOperator._check_if_db_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLPatchInstanceDatabaseOperator._check_if_db_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_patch(self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = True
-        op = CloudSqlInstanceDatabasePatchOperator(
+        op = CloudSQLPatchInstanceDatabaseOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             database=DB_NAME,
@@ -512,11 +512,11 @@ class TestCloudSql(unittest.TestCase):
         self.assertTrue(result)
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDatabasePatchOperator._check_if_db_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLPatchInstanceDatabaseOperator._check_if_db_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_patch_missing_project_id(self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = True
-        op = CloudSqlInstanceDatabasePatchOperator(
+        op = CloudSQLPatchInstanceDatabaseOperator(
             instance=INSTANCE_NAME,
             database=DB_NAME,
             body=DATABASE_PATCH_BODY,
@@ -534,13 +534,13 @@ class TestCloudSql(unittest.TestCase):
         self.assertTrue(result)
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDatabasePatchOperator._check_if_db_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLPatchInstanceDatabaseOperator._check_if_db_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_patch_should_throw_ex_if_not_exists(
             self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = False
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceDatabasePatchOperator(
+            op = CloudSQLPatchInstanceDatabaseOperator(
                 project_id=PROJECT_ID,
                 instance=INSTANCE_NAME,
                 database=DB_NAME,
@@ -555,10 +555,10 @@ class TestCloudSql(unittest.TestCase):
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.patch_database.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_patch_should_throw_ex_when_empty_database(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceDatabasePatchOperator(
+            op = CloudSQLPatchInstanceDatabaseOperator(
                 project_id=PROJECT_ID,
                 instance=INSTANCE_NAME,
                 database="",
@@ -572,11 +572,11 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.return_value.patch_database.assert_not_called()
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDatabaseDeleteOperator._check_if_db_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLDeleteInstanceDatabaseOperator._check_if_db_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_delete(self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = True
-        op = CloudSqlInstanceDatabaseDeleteOperator(
+        op = CloudSQLDeleteInstanceDatabaseOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             database=DB_NAME,
@@ -593,11 +593,11 @@ class TestCloudSql(unittest.TestCase):
         )
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDatabaseDeleteOperator._check_if_db_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLDeleteInstanceDatabaseOperator._check_if_db_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_delete_missing_project_id(self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = True
-        op = CloudSqlInstanceDatabaseDeleteOperator(
+        op = CloudSQLDeleteInstanceDatabaseOperator(
             instance=INSTANCE_NAME,
             database=DB_NAME,
             task_id="id"
@@ -613,12 +613,12 @@ class TestCloudSql(unittest.TestCase):
         )
 
     @mock.patch("airflow.gcp.operators.cloud_sql"
-                ".CloudSqlInstanceDatabaseDeleteOperator._check_if_db_exists")
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+                ".CloudSQLDeleteInstanceDatabaseOperator._check_if_db_exists")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_db_delete_should_abort_and_succeed_if_not_exists(
             self, mock_hook, _check_if_db_exists):
         _check_if_db_exists.return_value = False
-        op = CloudSqlInstanceDatabaseDeleteOperator(
+        op = CloudSQLDeleteInstanceDatabaseOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             database=DB_NAME,
@@ -630,10 +630,10 @@ class TestCloudSql(unittest.TestCase):
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_database.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_export(self, mock_hook):
         mock_hook.return_value.export_instance.return_value = True
-        op = CloudSqlInstanceExportOperator(
+        op = CloudSQLExportInstanceOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             body=EXPORT_BODY,
@@ -649,10 +649,10 @@ class TestCloudSql(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_export_missing_project_id(self, mock_hook):
         mock_hook.return_value.export_instance.return_value = True
-        op = CloudSqlInstanceExportOperator(
+        op = CloudSQLExportInstanceOperator(
             instance=INSTANCE_NAME,
             body=EXPORT_BODY,
             task_id="id"
@@ -667,10 +667,10 @@ class TestCloudSql(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_import(self, mock_hook):
         mock_hook.return_value.export_instance.return_value = True
-        op = CloudSqlInstanceImportOperator(
+        op = CloudSQLImportInstanceOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
             body=IMPORT_BODY,
@@ -686,10 +686,10 @@ class TestCloudSql(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSqlHook")
+    @mock.patch("airflow.gcp.operators.cloud_sql.CloudSQLHook")
     def test_instance_import_missing_project_id(self, mock_hook):
         mock_hook.return_value.export_instance.return_value = True
-        op = CloudSqlInstanceImportOperator(
+        op = CloudSQLImportInstanceOperator(
             instance=INSTANCE_NAME,
             body=IMPORT_BODY,
             task_id="id"
@@ -761,7 +761,7 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
                 use_ssl=use_ssl)
         self._setup_connections(get_connections, uri)
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlQueryOperator(
+            op = CloudSQLExecuteQueryOperator(
                 sql=sql,
                 task_id='task_id'
             )
@@ -778,7 +778,7 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
               "_the_limit_of_UNIX_socket_asdadadasadasd&" \
               "use_proxy=True&sql_proxy_use_tcp=False"
         self._setup_connections(get_connections, uri)
-        operator = CloudSqlQueryOperator(
+        operator = CloudSQLExecuteQueryOperator(
             sql=['SELECT * FROM TABLE'],
             task_id='task_id'
         )
