@@ -34,7 +34,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GceBaseOperator(BaseOperator):
+class ComputeEngineBaseOperator(BaseOperator):
     """
     Abstract base operator for Google Compute Engine operators to inherit from.
     """
@@ -67,13 +67,13 @@ class GceBaseOperator(BaseOperator):
         pass
 
 
-class GceInstanceStartOperator(GceBaseOperator):
+class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     """
     Starts an instance in Google Compute Engine.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceInstanceStartOperator`
+        :ref:`howto/operator:ComputeEngineStartInstanceOperator`
 
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
@@ -115,13 +115,13 @@ class GceInstanceStartOperator(GceBaseOperator):
                                    project_id=self.project_id)
 
 
-class GceInstanceStopOperator(GceBaseOperator):
+class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     """
     Stops an instance in Google Compute Engine.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceInstanceStopOperator`
+        :ref:`howto/operator:ComputeEngineStopInstanceOperator`
 
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
@@ -168,14 +168,14 @@ SET_MACHINE_TYPE_VALIDATION_SPECIFICATION = [
 ]
 
 
-class GceSetMachineTypeOperator(GceBaseOperator):
+class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     """
     Changes the machine type for a stopped instance to the machine type specified in
         the request.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceSetMachineTypeOperator`
+        :ref:`howto/operator:ComputeEngineSetMachineTypeOperator`
 
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
@@ -282,13 +282,13 @@ GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE = [
 ]
 
 
-class GceInstanceTemplateCopyOperator(GceBaseOperator):
+class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     """
     Copies the instance template, applying specified changes.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceInstanceTemplateCopyOperator`
+        :ref:`howto/operator:ComputeEngineCopyInstanceTemplateOperator`
 
     :param resource_id: Name of the Instance Template
     :type resource_id: str
@@ -391,7 +391,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
                                           project_id=self.project_id)
 
 
-class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
+class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseOperator):
     """
     Patches the Instance Group Manager, replacing source template URL with the
     destination one. API V1 does not have update/patch operations for Instance
@@ -399,7 +399,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceInstanceGroupManagerUpdateTemplateOperator`
+        :ref:`howto/operator:ComputeEngineInstanceGroupUpdateManagerTemplateOperator`
 
     :param resource_id: Name of the Instance Group Manager
     :type resource_id: str

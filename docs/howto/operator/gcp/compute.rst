@@ -29,13 +29,13 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GceInstanceStartOperator:
+.. _howto/operator:ComputeEngineStartInstanceOperator:
 
-GceInstanceStartOperator
-------------------------
+ComputeEngineStartInstanceOperator
+----------------------------------
 
 Use the
-:class:`~airflow.gcp.operators.compute.GceInstanceStartOperator`
+:class:`~airflow.gcp.operators.compute.ComputeEngineStartInstanceOperator`
 to start an existing Google Compute Engine instance.
 
 
@@ -85,15 +85,15 @@ More information
 See Google Compute Engine API documentation to `start an instance
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/start>`_.
 
-.. _howto/operator:GceInstanceStopOperator:
+.. _howto/operator:ComputeEngineStopInstanceOperator:
 
-GceInstanceStopOperator
------------------------
+ComputeEngineStopInstanceOperator
+---------------------------------
 
 Use the operator to stop Google Compute Engine instance.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.GceInstanceStopOperator`
+:class:`~airflow.gcp.operators.compute.ComputeEngineStopInstanceOperator`
 
 Arguments
 """""""""
@@ -140,15 +140,15 @@ More information
 See Google Compute Engine API documentation to `stop an instance
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/stop>`_.
 
-.. _howto/operator:GceSetMachineTypeOperator:
+.. _howto/operator:ComputeEngineSetMachineTypeOperator:
 
-GceSetMachineTypeOperator
--------------------------
+ComputeEngineSetMachineTypeOperator
+-----------------------------------
 
 Use the operator to change machine type of a Google Compute Engine instance.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.GceSetMachineTypeOperator`.
+:class:`~airflow.gcp.operators.compute.ComputeEngineSetMachineTypeOperator`.
 
 Arguments
 """""""""
@@ -201,16 +201,16 @@ More information
 See Google Compute Engine API documentation to `set the machine type
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType>`_.
 
-.. _howto/operator:GceInstanceTemplateCopyOperator:
+.. _howto/operator:ComputeEngineCopyInstanceTemplateOperator:
 
-GceInstanceTemplateCopyOperator
--------------------------------
+ComputeEngineCopyInstanceTemplateOperator
+-----------------------------------------
 
 Use the operator to copy an existing Google Compute Engine instance template
 applying a patch to it.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.GceInstanceTemplateCopyOperator`.
+:class:`~airflow.gcp.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
 
 Arguments
 """""""""
@@ -262,15 +262,15 @@ More information
 See Google Compute Engine API documentation to `create a new instance with an existing template
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates>`_.
 
-.. _howto/operator:GceInstanceGroupManagerUpdateTemplateOperator:
+.. _howto/operator:ComputeEngineInstanceGroupUpdateManagerTemplateOperator:
 
-GceInstanceGroupManagerUpdateTemplateOperator
----------------------------------------------
+ComputeEngineInstanceGroupUpdateManagerTemplateOperator
+-------------------------------------------------------
 
 Use the operator to update a template in Google Compute Engine Instance Group Manager.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator`.
+:class:`~airflow.gcp.operators.compute.ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.
 
 Arguments
 """""""""
@@ -320,7 +320,7 @@ Templating
 Troubleshooting
 """""""""""""""
 
-You might find that your GceInstanceGroupManagerUpdateTemplateOperator fails with
+You might find that your ComputeEngineInstanceGroupUpdateManagerTemplateOperator fails with
 missing permissions. To execute the operation, the service account requires
 the permissions that theService Account User role provides
 (assigned via Google Cloud IAM).
