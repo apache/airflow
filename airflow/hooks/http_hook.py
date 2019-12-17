@@ -143,8 +143,7 @@ class HttpHook(BaseHook):
             response.raise_for_status()
         except requests.exceptions.HTTPError:
             self.log.error("HTTP error: %s", response.reason)
-            if self.method not in ['GET', 'HEAD']:
-                self.log.error(response.text)
+            self.log.error(response.text)
             raise AirflowException(str(response.status_code) + ":" + response.reason)
 
     def run_and_check(self, session, prepped_request, extra_options):
