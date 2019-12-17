@@ -22,6 +22,7 @@ import mock
 import unittest
 
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.models import Connection
 
 
 class TestDbApiHook(unittest.TestCase):
@@ -149,3 +150,25 @@ class TestDbApiHook(unittest.TestCase):
         sql = "INSERT INTO {}  VALUES (%s)".format(table)
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
+
+    def test_get_uri_schema_not_none(self):
+        self.db_hook.get_connection = mock.MagicMock(return_value=Connection(
+            conn_type="conn_type",
+            host="host",
+            login="login",
+            password="password",
+            schema="schema",
+            port=1
+        ))
+        self.assertEqual("conn_type://login:password@host:1/schema", self.db_hook.get_uri())
+
+    def test_get_uri_schema_none(self):
+        self.db_hook.get_connection = mock.MagicMock(return_value=Connection(
+            conn_type="conn_type",
+            host="host",
+            login="login",
+            password="password",
+            schema=None,
+            port=1
+        ))
+        self.assertEqual("conn_type://login:password@host:1/", self.db_hook.get_uri())
