@@ -129,6 +129,7 @@ class TestHttpSensor(unittest.TestCase):
         response = requests.Response()
         response.status_code = 404
         response.reason = 'Not Found'
+        response._content = b'This endpoint doesnt exist'
         mock_session_send.return_value = response
 
         task = HttpSensor(
@@ -150,11 +151,17 @@ class TestHttpSensor(unittest.TestCase):
             self.assertTrue(mock_errors.called)
             calls = [
                 mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('This endpoint doesnt exist'),
                 mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('This endpoint doesnt exist'),
                 mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('This endpoint doesnt exist'),
                 mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('This endpoint doesnt exist'),
                 mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('This endpoint doesnt exist'),
                 mock.call('HTTP error: %s', 'Not Found'),
+                mock.call('This endpoint doesnt exist'),
             ]
             mock_errors.assert_has_calls(calls)
 
