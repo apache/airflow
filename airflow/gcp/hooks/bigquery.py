@@ -1686,7 +1686,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if not dataset_reference["datasetReference"].get("datasetId") and not dataset_id:
             raise ValueError(
-                "{} not provided datasetId. Impossible to create dataset")
+                "dataset_id not provided and datasetId not exist in the datasetReference. "
+                "Impossible to create dataset")
 
         dataset_required_params = [(dataset_id, "datasetId", ""),
                                    (project_id, "projectId", self.project_id)]
