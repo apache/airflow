@@ -221,13 +221,6 @@ class WorkerConfiguration(LoggingMixin):
 
         return worker_secrets
 
-    def _get_image_pull_secrets(self) -> List[k8s.V1LocalObjectReference]:
-        """Extracts any image pull secrets for fetching container(s)"""
-        if not self.kube_config.image_pull_secrets:
-            return []
-        pull_secrets = self.kube_config.image_pull_secrets.split(',')
-        return list(map(k8s.V1LocalObjectReference, pull_secrets))
-
     def _get_security_context(self) -> k8s.V1PodSecurityContext:
         """Defines the security context"""
 
@@ -370,6 +363,7 @@ class WorkerConfiguration(LoggingMixin):
             name=pod_id,
             image=self.kube_config.kube_image,
             image_pull_policy=self.kube_config.kube_image_pull_policy,
+            image_pull_secrets=self.kube_config.image_pull_secrets,
             labels={
                 'airflow-worker': worker_uuid,
                 'dag_id': dag_id,
