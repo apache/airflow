@@ -23,8 +23,8 @@ import unittest
 
 import botocore.exceptions
 
-from airflow.contrib.operators.awsbatch_operator import AWSBatchOperator
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.operators.batch import AwsBatchOperator
 from tests.compat import mock
 
 JOB_NAME = "51455483-c62c-48ac-9b88-53a6a725baa3"
@@ -36,15 +36,15 @@ RESPONSE_WITHOUT_FAILURES = {
 }
 
 
-class TestAWSBatchOperator(unittest.TestCase):
+class TestAwsBatchOperator(unittest.TestCase):
 
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
 
-    @mock.patch("airflow.contrib.operators.awsbatch_operator.AwsHook")
+    @mock.patch("airflow.providers.amazon.aws.operators.batch.AwsHook")
     def setUp(self, aws_hook_mock):
         self.aws_hook_mock = aws_hook_mock
-        self.batch = AWSBatchOperator(
+        self.batch = AwsBatchOperator(
             task_id="task",
             job_name=JOB_NAME,
             job_queue="queue",
@@ -76,8 +76,8 @@ class TestAWSBatchOperator(unittest.TestCase):
     def test_template_fields_overrides(self):
         self.assertEqual(self.batch.template_fields, ("job_name", "overrides", "parameters",))
 
-    @mock.patch.object(AWSBatchOperator, "_wait_for_task_ended")
-    @mock.patch.object(AWSBatchOperator, "_check_success_task")
+    @mock.patch.object(AwsBatchOperator, "_wait_for_task_ended")
+    @mock.patch.object(AwsBatchOperator, "_check_success_task")
     def test_execute_without_failures(self, check_mock, wait_mock):
         client_mock = self.aws_hook_mock.return_value.get_client_type.return_value
         client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
@@ -130,7 +130,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock.get_waiter.return_value.wait.assert_called_once_with(jobs=[JOB_ID])
         self.assertEqual(sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
 
-    @mock.patch("airflow.contrib.operators.awsbatch_operator.randint")
+    @mock.patch("airflow.providers.amazon.aws.operators.batch.randint")
     def test_poll_job_status_success(self, mock_randint):
         client_mock = mock.Mock()
         self.batch.jobId = JOB_ID
@@ -146,7 +146,7 @@ class TestAWSBatchOperator(unittest.TestCase):
 
         client_mock.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
 
-    @mock.patch("airflow.contrib.operators.awsbatch_operator.randint")
+    @mock.patch("airflow.providers.amazon.aws.operators.batch.randint")
     def test_poll_job_status_running(self, mock_randint):
         client_mock = mock.Mock()
         self.batch.jobId = JOB_ID
@@ -164,7 +164,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock.describe_jobs.assert_called_with(jobs=[JOB_ID])
         self.assertEqual(client_mock.describe_jobs.call_count, self.MAX_RETRIES)
 
-    @mock.patch("airflow.contrib.operators.awsbatch_operator.randint")
+    @mock.patch("airflow.providers.amazon.aws.operators.batch.randint")
     def test_poll_job_status_hit_api_throttle(self, mock_randint):
         client_mock = mock.Mock()
         self.batch.jobId = JOB_ID

@@ -302,7 +302,7 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `AWS Batch <https://aws.amazon.com/batch/>`__
      -
-     - :mod:`airflow.contrib.operators.awsbatch_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.batch`
      -
 
    * - `AWS DataSync <https://aws.amazon.com/datasync/>`__

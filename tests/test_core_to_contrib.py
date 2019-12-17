@@ -771,6 +771,10 @@ OPERATOR = [
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
     ),
     (
+        "airflow.providers.amazon.aws.operators.batch.AwsBatchOperator",
+        "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
+    ),
+    (
         "airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator",
         "airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator",
     ),
