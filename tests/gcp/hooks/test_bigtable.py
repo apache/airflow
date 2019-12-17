@@ -39,6 +39,7 @@ CBT_ROWKEY = 'rowkey'
 CBT_COLUMN_FAMILY = 'column_family'
 CBT_COLUMN = 'column'
 
+
 class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
 
     def setUp(self):
@@ -479,7 +480,8 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
             client=client)
         filter = bigtable_hook_default_project_id.create_rowkey_regex_filter.return_value
         self.bigtable_hook_default_project_id.check_and_mutate_row(
-            instance=instance, table_id=CBT_TABLE, row_key=CBT_ROWKEY, column_family_id=CBT_COLUMN_FAMILY, column=CBT_COLUMN, filter=filter, 'test')
+            instance=instance, table_id=CBT_TABLE, row_key=CBT_ROWKEY,
+            column_family_id=CBT_COLUMN_FAMILY, column=CBT_COLUMN, filter=filter, new_value='test')
         get_client.assert_not_called()
         check_and_mutate_row.assert_called_once_with()
 

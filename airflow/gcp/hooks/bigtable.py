@@ -27,7 +27,7 @@ from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionR
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
 from google.cloud.bigtable.row import ConditionalRow, DirectRow
-from google.cloud.bigtable.row_filters import RowKeyRegexFilter
+from google.cloud.bigtable.row_filters import RowFilter, RowKeyRegexFilter, ValueRegexFilter
 from google.cloud.bigtable_admin_v2 import enums
 
 from airflow.gcp.hooks.base import GoogleCloudBaseHook
@@ -253,7 +253,10 @@ class BigtableHook(GoogleCloudBaseHook):
         cluster.update()
 
     @staticmethod
-    def get_column_families_for_table(instance: Instance, table_id: str, app_profile_id: Optional[str] = None) -> Dict[str, ColumnFamily]:
+    def get_column_families_for_table(
+        instance: Instance,
+        table_id: str,
+        app_profile_id: Optional[str] = None) -> Dict[str, ColumnFamily]:
         """
         Fetches Column Families for the specified table in Cloud Bigtable.
 
@@ -270,7 +273,10 @@ class BigtableHook(GoogleCloudBaseHook):
         return table.list_column_families()
 
     @staticmethod
-    def get_cluster_states_for_table(instance: Instance, table_id: str, app_profile_id: Optional[str] = None) -> Dict[str, ClusterState]:
+    def get_cluster_states_for_table(
+        instance: Instance,
+        table_id: str,
+        app_profile_id: Optional[str] = None) -> Dict[str, ClusterState]:
         """
         Fetches Cluster States for the specified table in Cloud Bigtable.
         Raises google.api_core.exceptions.NotFound if the table does not exist.
@@ -281,7 +287,8 @@ class BigtableHook(GoogleCloudBaseHook):
         :param table_id: The ID of the table in Cloud Bigtable to fetch Cluster States
             from.
         :type app_profile_id: str
-        :param app_profile_id: The string name of the app profile ID you would like to use to read/write from this table
+        :param app_profile_id: The string name of the app profile ID you
+            would like to use to read/write from this table
 
         """
 
@@ -293,7 +300,6 @@ class BigtableHook(GoogleCloudBaseHook):
         A helper method to create a RowKeyRegexFilter subclass of RowFilter, which
         will only match rows with keys that exactly match the regex string.
         Returns a RowFilter.
-
         :type regex: str
         :param regex: The exact match regex string for the value we wish to find
         """
@@ -311,7 +317,12 @@ class BigtableHook(GoogleCloudBaseHook):
         return ValueRegexFilter(regex)
 
 
-    def delete_row(self, instance: Instance, table_id: str, row_key: str, app_profile_id: Optional[str] = None):
+    def delete_row(
+        self,
+        instance: Instance,
+        table_id: str,
+        row_key: str,
+        app_profile_id: Optional[str] = None):
         """
         Deletes a row in the given Bigtable Table
                 :type instance: Instance
@@ -321,8 +332,8 @@ class BigtableHook(GoogleCloudBaseHook):
         :type row_key: str
         :param row_key: The key of the row whose cells to check
         :type app_profile_id: str
-        :param app_profile_id: The string name of the app profile ID you would like to use to read/write from this table
-
+        :param app_profile_id: The string name of the app profile
+            ID you would like to use to read/write from this table
         Returns a boolean of whether or not the row was successfully deleted
         """
         table = Table(table_id, instance, app_profile_id=app_profile_id)
@@ -330,7 +341,17 @@ class BigtableHook(GoogleCloudBaseHook):
         row.delete()
         row.commit()
 
-    def check_and_mutate_row(self, instance: Instance, table_id: str, row_key: str, column_family_id: str, column: str, filter: RowFilter, new_value: str, state: bool = True, app_profile_id: Optional[str] = None):
+    def check_and_mutate_row(
+        self,
+        instance: Instance,
+        table_id: str,
+        row_key: str,
+        column_family_id: str,
+        column: str,
+        filter: RowFilter,
+        new_value: str,
+        state: bool = True,
+        app_profile_id: Optional[str] = None):
         """
         Scans a table for cells that match the filter, column family id, column value, and state of the filter,
         and sets matching cells to new_value.
