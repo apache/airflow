@@ -425,6 +425,34 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertIn(password_env, pod.init_containers[0]["env"],
                       'The password env for git credentials did not get into the init container')
 
+    def test_make_pod_git_sync_rev(self):
+        # Tests the pod created with git_sync_credentials_secret will get into the init container
+        self.kube_config.git_sync_rev = 'sampletag'
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.worker_fs_group = None
+        self.kube_config.git_dags_folder_mount_point = 'dags'
+        self.kube_config.git_sync_dest = 'repo'
+        self.kube_config.git_subpath = 'path'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        kube_executor_config = KubernetesExecutorConfig(annotations=[],
+                                                        volumes=[],
+                                                        volume_mounts=[])
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
+                                     kube_executor_config)
+
+        rev_env = {
+            'name': 'GIT_SYNC_REV',
+            'value': self.kube_config.git_sync_rev
+        }
+
+        self.assertIn(rev_env, pod.init_containers[0]["env"],
+                      'The git_sync_rev env did not get into the init container')
+
     def test_init_environment_using_git_sync_run_as_user_empty(self):
         # Tests if git_syn_run_as_user is none, then no securityContext created in init container
 

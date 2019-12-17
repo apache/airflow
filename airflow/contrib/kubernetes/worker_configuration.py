@@ -69,6 +69,9 @@ class WorkerConfiguration(LoggingMixin):
         }, {
             'name': 'GIT_SYNC_ONE_TIME',
             'value': 'true'
+        }, {
+            'name': 'GIT_SYNC_REV',
+            'value': self.kube_config.git_sync_rev
         }]
         if self.kube_config.git_user:
             init_environment.append({
