@@ -29,7 +29,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class DatastoreExportOperator(BaseOperator):
+class CloudDatastoreExportEntitiesOperator(BaseOperator):
     """
     Export entities from Google Cloud Datastore to Cloud Storage
 
@@ -116,7 +116,7 @@ class DatastoreExportOperator(BaseOperator):
         return result
 
 
-class DatastoreImportOperator(BaseOperator):
+class CloudDatastoreImportEntitiesOperator(BaseOperator):
     """
     Import entities from Cloud Storage to Google Cloud Datastore
 
