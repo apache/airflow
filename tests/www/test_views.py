@@ -95,7 +95,7 @@ class TestBase(unittest.TestCase):
 
     def check_content_in_response(self, text, resp, resp_code=200):
         resp_html = resp.data.decode('utf-8')
-        self.assertEqual(resp_code, resp.status_code)
+        assert resp_code == resp.status_code, str(resp_html)
         if isinstance(text, list):
             for line in text:
                 self.assertIn(line, resp_html)
@@ -104,7 +104,7 @@ class TestBase(unittest.TestCase):
 
     def check_content_not_in_response(self, text, resp, resp_code=200):
         resp_html = resp.data.decode('utf-8')
-        self.assertEqual(resp_code, resp.status_code)
+        assert resp_code == resp.status_code, str(resp_html)
         if isinstance(text, list):
             for line in text:
                 self.assertNotIn(line, resp_html)
