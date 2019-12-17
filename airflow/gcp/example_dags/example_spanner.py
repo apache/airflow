@@ -37,9 +37,9 @@ import os
 
 from airflow import models
 from airflow.gcp.operators.spanner import (
-    CloudSpannerInstanceDatabaseDeleteOperator, CloudSpannerInstanceDatabaseDeployOperator,
-    CloudSpannerInstanceDatabaseQueryOperator, CloudSpannerInstanceDatabaseUpdateOperator,
-    CloudSpannerInstanceDeleteOperator, CloudSpannerInstanceDeployOperator,
+    SpannerDeleteDatabaseInstanceOperator, SpannerDeleteInstanceOperator,
+    SpannerDeployDatabaseInstanceOperator, SpannerDeployInstanceOperator,
+    SpannerQueryDatabaseInstanceOperator, SpannerUpdateDatabaseInstanceOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -66,7 +66,7 @@ with models.DAG(
 ) as dag:
     # Create
     # [START howto_operator_spanner_deploy]
-    spanner_instance_create_task = CloudSpannerInstanceDeployOperator(
+    spanner_instance_create_task = SpannerDeployInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
         configuration_name=GCP_SPANNER_CONFIG_NAME,
@@ -74,7 +74,7 @@ with models.DAG(
         display_name=GCP_SPANNER_DISPLAY_NAME,
         task_id='spanner_instance_create_task'
     )
-    spanner_instance_update_task = CloudSpannerInstanceDeployOperator(
+    spanner_instance_update_task = SpannerDeployInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         configuration_name=GCP_SPANNER_CONFIG_NAME,
         node_count=int(GCP_SPANNER_NODE_COUNT) + 1,
@@ -84,7 +84,7 @@ with models.DAG(
     # [END howto_operator_spanner_deploy]
 
     # [START howto_operator_spanner_database_deploy]
-    spanner_database_deploy_task = CloudSpannerInstanceDatabaseDeployOperator(
+    spanner_database_deploy_task = SpannerDeployDatabaseInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
@@ -94,7 +94,7 @@ with models.DAG(
         ],
         task_id='spanner_database_deploy_task'
     )
-    spanner_database_deploy_task2 = CloudSpannerInstanceDatabaseDeployOperator(
+    spanner_database_deploy_task2 = SpannerDeployDatabaseInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
         ddl_statements=[
@@ -106,7 +106,7 @@ with models.DAG(
     # [END howto_operator_spanner_database_deploy]
 
     # [START howto_operator_spanner_database_update]
-    spanner_database_update_task = CloudSpannerInstanceDatabaseUpdateOperator(
+    spanner_database_update_task = SpannerUpdateDatabaseInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
@@ -118,7 +118,7 @@ with models.DAG(
     # [END howto_operator_spanner_database_update]
 
     # [START howto_operator_spanner_database_update_idempotent]
-    spanner_database_update_idempotent1_task = CloudSpannerInstanceDatabaseUpdateOperator(
+    spanner_database_update_idempotent1_task = SpannerUpdateDatabaseInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
@@ -128,7 +128,7 @@ with models.DAG(
         ],
         task_id='spanner_database_update_idempotent1_task'
     )
-    spanner_database_update_idempotent2_task = CloudSpannerInstanceDatabaseUpdateOperator(
+    spanner_database_update_idempotent2_task = SpannerUpdateDatabaseInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
         operation_id=OPERATION_ID,
@@ -140,14 +140,14 @@ with models.DAG(
     # [END howto_operator_spanner_database_update_idempotent]
 
     # [START howto_operator_spanner_query]
-    spanner_instance_query_task = CloudSpannerInstanceDatabaseQueryOperator(
+    spanner_instance_query_task = SpannerQueryDatabaseInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
         query=["DELETE FROM my_table2 WHERE true"],
         task_id='spanner_instance_query_task'
     )
-    spanner_instance_query_task2 = CloudSpannerInstanceDatabaseQueryOperator(
+    spanner_instance_query_task2 = SpannerQueryDatabaseInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
         query=["DELETE FROM my_table2 WHERE true"],
@@ -156,13 +156,13 @@ with models.DAG(
     # [END howto_operator_spanner_query]
 
     # [START howto_operator_spanner_database_delete]
-    spanner_database_delete_task = CloudSpannerInstanceDatabaseDeleteOperator(
+    spanner_database_delete_task = SpannerDeleteDatabaseInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
         task_id='spanner_database_delete_task'
     )
-    spanner_database_delete_task2 = CloudSpannerInstanceDatabaseDeleteOperator(
+    spanner_database_delete_task2 = SpannerDeleteDatabaseInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         database_id=GCP_SPANNER_DATABASE_ID,
         task_id='spanner_database_delete_task2'
@@ -170,12 +170,12 @@ with models.DAG(
     # [END howto_operator_spanner_database_delete]
 
     # [START howto_operator_spanner_delete]
-    spanner_instance_delete_task = CloudSpannerInstanceDeleteOperator(
+    spanner_instance_delete_task = SpannerDeleteInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
         task_id='spanner_instance_delete_task'
     )
-    spanner_instance_delete_task2 = CloudSpannerInstanceDeleteOperator(
+    spanner_instance_delete_task2 = SpannerDeleteInstanceOperator(
         instance_id=GCP_SPANNER_INSTANCE_ID,
         task_id='spanner_instance_delete_task2'
     )

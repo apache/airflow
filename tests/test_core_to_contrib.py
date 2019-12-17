@@ -395,27 +395,27 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeleteOperator",
+        "airflow.gcp.operators.spanner.SpannerDeleteDatabaseInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeployOperator",
+        "airflow.gcp.operators.spanner.SpannerDeployDatabaseInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseQueryOperator",
+        "airflow.gcp.operators.spanner.SpannerQueryDatabaseInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseUpdateOperator",
+        "airflow.gcp.operators.spanner.SpannerUpdateDatabaseInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDeleteOperator",
+        "airflow.gcp.operators.spanner.SpannerDeleteInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDeployOperator",
+        "airflow.gcp.operators.spanner.SpannerDeployInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator",
     ),
     (
