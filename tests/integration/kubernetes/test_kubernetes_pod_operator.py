@@ -87,6 +87,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
+                'initContainers': [],
                 'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
@@ -640,6 +641,84 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 name=secret_ref
             ))]
         )
+
+    def test_init_container(self):
+        # GIVEN
+        volume_mounts = [k8s.V1VolumeMount(
+            mount_path='/etc/foo',
+            name='test-volume',
+            sub_path=None,
+            read_only=True
+        )]
+
+        init_environments = [k8s.V1EnvVar(
+            name='key1',
+            value='value1'
+        ), k8s.V1EnvVar(
+            name='key2',
+            value='value2'
+        )]
+
+        init_container = k8s.V1Container(
+            name="init-container",
+            image="ubuntu:16.04",
+            env=init_environments,
+            volume_mounts=volume_mounts,
+            command=["bash", "-cx"],
+            args=["echo 10"]
+        )
+
+        volume_config = {
+            'persistentVolumeClaim':
+            {
+                'claimName': 'test-volume'
+            }
+        }
+        volume = Volume(name='test-volume', configs=volume_config)
+
+        expected_init_container = {
+            'name': 'init-container',
+            'image': 'ubuntu:16.04',
+            'command': ['bash', '-cx'],
+            'args': ['echo 10'],
+            'env': [{
+                'name': 'key1',
+                'value': 'value1'
+            }, {
+                'name': 'key2',
+                'value': 'value2'
+            }],
+            'volumeMounts': [{
+                'mountPath': '/etc/foo',
+                'name': 'test-volume',
+                'readOnly': True
+            }],
+        }
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            volumes=[volume],
+            init_containers=[init_container],
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+
+        k.execute(None)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['initContainers'] = [expected_init_container]
+        self.expected_pod['spec']['volumes'] = [{
+            'name': 'test-volume',
+            'persistentVolumeClaim': {
+                'claimName': 'test-volume'
+            }
+        }]
+        self.assertEqual(self.expected_pod, actual_pod)
 
 
 # pylint: enable=unused-argument

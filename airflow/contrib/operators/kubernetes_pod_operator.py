@@ -128,6 +128,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type do_xcom_push: bool
+    :param init_containers: init container for the launched Pod
+    :type init_containers: list[kubernetes.client.models.V1Container]
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -164,6 +166,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  pod_runtime_info_envs: Optional[List[PodRuntimeInfoEnv]] = None,
                  dnspolicy: Optional[str] = None,
                  full_pod_spec: Optional[k8s.V1Pod] = None,
+                 init_containers: Optional[List[k8s.V1Container]] = None,
                  *args,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
@@ -203,6 +206,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
         self.full_pod_spec = full_pod_spec
+        self.init_containers = init_containers or []
 
     def execute(self, context):
         try:
@@ -240,6 +244,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 security_context=self.security_context,
                 dnspolicy=self.dnspolicy,
                 pod=self.full_pod_spec,
+                init_containers=self.init_containers,
             ).gen_pod()
 
             pod = append_to_pod(
