@@ -22,12 +22,45 @@ This module is deprecated. Please use `airflow.gcp.operators.kubernetes_engine`.
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.kubernetes_engine import (  # noqa
-    GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
+from airflow.gcp.operators.kubernetes_engine import (
+    ComputeEngineCreateClusterOperator, ComputeEngineDeleteClusterOperator, GKEStartPodOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.kubernetes_engine`",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.gcp.operators.kubernetes_engine.`",
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class GKEClusterCreateOperator(ComputeEngineCreateClusterOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.kubernetes_engine.ComputeEngineCreateClusterOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2, )
+        super().__init__(*args, **kwargs)
+
+
+class GKEClusterDeleteOperator(ComputeEngineDeleteClusterOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.kubernetes_engine.ComputeEngineDeleteClusterOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2, )
+        super().__init__(*args, **kwargs)
+
+
+class GKEPodOperator(GKEStartPodOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.kubernetes_engine.GKEStartPodOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2, )
+        super().__init__(*args, **kwargs)

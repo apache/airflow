@@ -81,7 +81,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook",
     ),
     (
-        "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook",
+        "airflow.gcp.hooks.kubernetes_engine.GKEHook",
         "airflow.contrib.hooks.gcp_container_hook.GKEClusterHook",
     ),
     (
@@ -232,15 +232,15 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEClusterCreateOperator",
+        "airflow.gcp.operators.kubernetes_engine.ComputeEngineCreateClusterOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEClusterDeleteOperator",
+        "airflow.gcp.operators.kubernetes_engine.ComputeEngineDeleteClusterOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEPodOperator",
+        "airflow.gcp.operators.kubernetes_engine.GKEStartPodOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEPodOperator",
     ),
     (

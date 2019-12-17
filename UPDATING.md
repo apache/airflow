@@ -303,9 +303,9 @@ The following metrics are deprecated and won't be emitted in Airflow 2.0:
 - `dag.loading-duration.<basename>` -- use `dag_processing.last_duration.<basename>` instead
 - `dag_processing.last_runtime.<basename>` -- use `dag_processing.last_duration.<basename>` instead
 
-### The gcp_conn_id parameter in GKEPodOperator is required
+### The gcp_conn_id parameter in GKEStartPodOperator is required
 
-In previous versions, it was possible to pass the `None` value to the `gcp_conn_id` in the GKEPodOperator
+In previous versions, it was possible to pass the `None` value to the `gcp_conn_id` in the GKEStartPodOperator
 operator, which resulted in credentials being determined according to the
 [Application Default Credentials](https://cloud.google.com/docs/authentication/production) strategy.
 
@@ -379,7 +379,7 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook                                                              |airflow.gcp.hooks.bigtable.BigtableHook                                                                    |
 |airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook                                                         |airflow.gcp.hooks.cloud_build.CloudBuildHook                                                               |
 |airflow.contrib.hooks.gcp_compute_hook.GceHook                                                                    |airflow.gcp.hooks.compute.ComputeEngineHook                                                                |
-|airflow.contrib.hooks.gcp_container_hook.GKEClusterHook                                                           |airflow.gcp.hooks.kubernetes_engine.GKEClusterHook                                                         |
+|airflow.contrib.hooks.gcp_container_hook.GKEClusterHook                                                           |airflow.gcp.hooks.kubernetes_engine.GKEHook                                                         |
 |airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook                                                              |airflow.gcp.hooks.dataflow.DataflowHook                                                                    |
 |airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook                                                              |airflow.gcp.hooks.dataproc.DataprocHook                                                                    |
 |airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook                                                                   |airflow.gcp.hooks.dlp.CloudDLPHook                                                                         |
@@ -445,9 +445,9 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator                                            |airflow.gcp.operators.compute.GceInstanceStopOperator                                                      |
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator                                    |airflow.gcp.operators.compute.GceInstanceTemplateCopyOperator                                              |
 |airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator                                          |airflow.gcp.operators.compute.GceSetMachineTypeOperator                                                    |
-|airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator                                         |airflow.gcp.operators.kubernetes_engine.GKEClusterCreateOperator                                           |
-|airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator                                         |airflow.gcp.operators.kubernetes_engine.GKEClusterDeleteOperator                                           |
-|airflow.contrib.operators.gcp_container_operator.GKEPodOperator                                                   |airflow.gcp.operators.kubernetes_engine.GKEPodOperator                                                     |
+|airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator                                         |airflow.gcp.operators.kubernetes_engine.ComputeEngineCreateClusterOperator                                 |
+|airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator                                         |airflow.gcp.operators.kubernetes_engine.ComputeEngineDeleteClusterOperator                                           |
+|airflow.contrib.operators.gcp_container_operator.GKEStartPodOperator                                                   |airflow.gcp.operators.kubernetes_engine.GKEStartPodOperator                                                     |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPCancelDLPJobOperator                                           |airflow.gcp.operators.dlp.CloudDLPCancelDLPJobOperator                                                     |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDLPJobOperator                                           |airflow.gcp.operators.dlp.CloudDLPCreateDLPJobOperator                                                     |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDeidentifyTemplateOperator                               |airflow.gcp.operators.dlp.CloudDLPCreateDeidentifyTemplateOperator                                         |

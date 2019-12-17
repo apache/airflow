@@ -25,7 +25,7 @@ import os
 import airflow
 from airflow import models
 from airflow.gcp.operators.kubernetes_engine import (
-    GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
+    ComputeEngineCreateClusterOperator, ComputeEngineDeleteClusterOperator, GKEStartPodOperator,
 )
 from airflow.operators.bash_operator import BashOperator
 
@@ -42,14 +42,14 @@ with models.DAG(
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
 ) as dag:
-    create_cluster = GKEClusterCreateOperator(
+    create_cluster = ComputeEngineCreateClusterOperator(
         task_id="create_cluster",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         body=CLUSTER,
     )
 
-    pod_task = GKEPodOperator(
+    pod_task = GKEStartPodOperator(
         task_id="pod_task",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
@@ -59,7 +59,7 @@ with models.DAG(
         name="test-pod",
     )
 
-    pod_task_xcom = GKEPodOperator(
+    pod_task_xcom = GKEStartPodOperator(
         task_id="pod_task_xcom",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
@@ -76,7 +76,7 @@ with models.DAG(
         task_id="pod_task_xcom_result",
     )
 
-    delete_cluster = GKEClusterDeleteOperator(
+    delete_cluster = ComputeEngineDeleteClusterOperator(
         task_id="delete_cluster",
         name=CLUSTER_NAME,
         project_id=GCP_PROJECT_ID,
