@@ -122,6 +122,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type pod_runtime_info_envs: list[airflow.kubernetes.pod_runtime_info_env.PodRuntimeInfoEnv]
     :param dnspolicy: dnspolicy for the pod.
     :type dnspolicy: str
+    :param schedulername: Specify a schedulername for the pod
+    :type schedulername: str
     :param full_pod_spec: The complete podSpec
     :type full_pod_spec: kubernetes.client.models.V1Pod
     :param do_xcom_push: If True, the content of the file
@@ -165,6 +167,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  security_context: Optional[Dict] = None,
                  pod_runtime_info_envs: Optional[List[PodRuntimeInfoEnv]] = None,
                  dnspolicy: Optional[str] = None,
+                 schedulername: Optional[str] = None,
                  full_pod_spec: Optional[k8s.V1Pod] = None,
                  init_containers: Optional[List[k8s.V1Container]] = None,
                  *args,
@@ -205,6 +208,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.security_context = security_context or {}
         self.pod_runtime_info_envs = pod_runtime_info_envs or []
         self.dnspolicy = dnspolicy
+        self.schedulername = schedulername
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
 
@@ -243,6 +247,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 configmaps=self.configmaps,
                 security_context=self.security_context,
                 dnspolicy=self.dnspolicy,
+                schedulername=self.schedulername,
                 pod=self.full_pod_spec,
                 init_containers=self.init_containers,
             ).gen_pod()
