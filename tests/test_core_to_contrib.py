@@ -33,7 +33,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook",
     ),
     (
-        "airflow.gcp.hooks.dataflow.DataFlowHook",
+        "airflow.gcp.hooks.dataflow.DataflowHook",
         "airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook",
     ),
     (
@@ -159,15 +159,15 @@ OPERATOR = [
         "airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.gcp.operators.dataflow.DataFlowJavaOperator",
+        "airflow.gcp.operators.dataflow.DataflowCreateJavaJobOperator",
         "airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator",
     ),
     (
-        "airflow.gcp.operators.dataflow.DataFlowPythonOperator",
+        "airflow.gcp.operators.dataflow.DataflowCreatePythonJobOperator",
         "airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator",
     ),
     (
-        "airflow.gcp.operators.dataflow.DataflowTemplateOperator",
+        "airflow.gcp.operators.dataflow.DataflowTemplatedJobStartOperator",
         "airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator",
     ),
     (

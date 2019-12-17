@@ -30,7 +30,7 @@ import dill
 
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.gcp.operators.dataflow import DataFlowPythonOperator
+from airflow.gcp.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.gcp.operators.mlengine import MLEngineBatchPredictionOperator
 from airflow.operators.python_operator import PythonOperator
 
@@ -223,7 +223,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
         dag=dag)
 
     metric_fn_encoded = base64.b64encode(dill.dumps(metric_fn, recurse=True)).decode()
-    evaluate_summary = DataFlowPythonOperator(
+    evaluate_summary = DataflowCreatePythonJobOperator(
         task_id=(task_prefix + "-summary"),
         py_options=["-m"],
         py_file="airflow.gcp.utils.mlengine_prediction_summary",
