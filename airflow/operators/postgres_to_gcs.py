@@ -26,11 +26,11 @@ import time
 from decimal import Decimal
 
 from airflow.hooks.postgres_hook import PostgresHook
-from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator
+from airflow.operators.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class PostgresToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
+class PostgresToGCSOperator(BaseSQLToGCSOperator):
     """
     Copy data from Postgres to Google Cloud Storage in JSON or CSV format.
 

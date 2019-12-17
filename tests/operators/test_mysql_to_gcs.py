@@ -25,7 +25,7 @@ import mock
 from _mysql_exceptions import ProgrammingError
 from parameterized import parameterized
 
-from airflow.operators.mysql_to_gcs import MySqlToGoogleCloudStorageOperator
+from airflow.operators.mysql_to_gcs import MySQLToGCSOperator
 
 TASK_ID = 'test-mysql-to-gcs'
 MYSQL_CONN_ID = 'mysql_conn_test'
@@ -72,7 +72,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
     def test_init(self):
         """Test MySqlToGoogleCloudStorageOperator instance is properly initialized."""
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME,
             export_format='CSV', field_delimiter='|')
         self.assertEqual(op.task_id, TASK_ID)
@@ -91,7 +91,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
         (None, "BYTES", None)
     ])
     def test_convert_type(self, value, schema_type, expected):
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID,
             mysql_conn_id=MYSQL_CONN_ID,
             sql=SQL,
@@ -105,7 +105,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_exec_success_json(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for JSON"""
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID,
             mysql_conn_id=MYSQL_CONN_ID,
             sql=SQL,
@@ -137,7 +137,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_exec_success_csv(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for CSV"""
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID,
             mysql_conn_id=MYSQL_CONN_ID,
             sql=SQL,
@@ -170,7 +170,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_exec_success_csv_ensure_utc(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for CSV"""
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID,
             mysql_conn_id=MYSQL_CONN_ID,
             sql=SQL,
@@ -204,7 +204,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_exec_success_csv_with_delimiter(self, gcs_hook_mock_class, mysql_hook_mock_class):
         """Test successful run of execute function for CSV with a field delimiter"""
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID,
             mysql_conn_id=MYSQL_CONN_ID,
             sql=SQL,
@@ -257,7 +257,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID,
             sql=SQL,
             bucket=BUCKET,
@@ -283,7 +283,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID,
             sql=SQL,
             bucket=BUCKET,
@@ -299,7 +299,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     def test_query_with_error(self, mock_gcs_hook, mock_mysql_hook):
         mock_mysql_hook.return_value.get_conn.\
             return_value.cursor.return_value.execute.side_effect = ProgrammingError
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID,
             sql=SQL,
             bucket=BUCKET,
@@ -313,7 +313,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
     def test_execute_with_query_error(self, mock_gcs_hook, mock_mysql_hook):
         mock_mysql_hook.return_value.get_conn.\
             return_value.cursor.return_value.execute.side_effect = ProgrammingError
-        op = MySqlToGoogleCloudStorageOperator(
+        op = MySQLToGCSOperator(
             task_id=TASK_ID,
             sql=SQL,
             bucket=BUCKET,

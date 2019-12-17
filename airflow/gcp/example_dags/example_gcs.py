@@ -28,8 +28,8 @@ from airflow.gcp.operators.gcs import (
     GcsFileTransformOperator, GCSListObjectsOperator, GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
 )
 from airflow.operators.bash_operator import BashOperator
-from airflow.operators.gcs_to_gcs import GoogleCloudStorageToGoogleCloudStorageOperator
-from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator
+from airflow.operators.gcs_to_gcs import GCSToGCSOperator
+from airflow.operators.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}
@@ -76,7 +76,7 @@ with models.DAG(
         bash_command="echo \"{{ task_instance.xcom_pull('list_buckets') }}\"",
     )
 
-    upload_file = FileToGoogleCloudStorageOperator(
+    upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file",
         src=PATH_TO_UPLOAD_FILE,
         dst=BUCKET_FILE_LOCATION,
@@ -115,7 +115,7 @@ with models.DAG(
         filename=PATH_TO_SAVED_FILE,
     )
 
-    copy_file = GoogleCloudStorageToGoogleCloudStorageOperator(
+    copy_file = GCSToGCSOperator(
         task_id="copy_file",
         source_bucket=BUCKET_1,
         source_object=BUCKET_FILE_LOCATION,

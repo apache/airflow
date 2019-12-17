@@ -31,7 +31,7 @@ from airflow.providers.microsoft.azure.operators.adls_list import AzureDataLakeS
 from airflow.utils.decorators import apply_defaults
 
 
-class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
+class ADLSToGCSOperator(AzureDataLakeStorageListOperator):
     """
     Synchronizes an Azure Data Lake Storage path with a GCS bucket
 

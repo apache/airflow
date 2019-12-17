@@ -715,7 +715,7 @@ class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageToGoogleCloudStorageOperator`
+        :ref:`howto/operator:GCSToGCSOperator`
 
     **Example**:
 

@@ -32,7 +32,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
+class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
     """
     :param sql: The SQL to execute.
     :type sql: str
@@ -96,7 +96,7 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(BaseSQLToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super(BaseSQLToGCSOperator, self).__init__(*args, **kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(

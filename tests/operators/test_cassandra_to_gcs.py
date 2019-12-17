@@ -22,7 +22,7 @@ from unittest import mock
 
 from mock import call
 
-from airflow.operators.cassandra_to_gcs import CassandraToGoogleCloudStorageOperator
+from airflow.operators.cassandra_to_gcs import CassandraToGCSOperator
 
 TMP_FILE_NAME = "temp-file"
 
@@ -40,7 +40,7 @@ class TestCassandraToGCS(unittest.TestCase):
         gzip = True
         mock_tempfile.return_value.name = TMP_FILE_NAME
 
-        operator = CassandraToGoogleCloudStorageOperator(
+        operator = CassandraToGCSOperator(
             task_id="test-cas-to-gcs",
             cql="select * from keyspace1.table1",
             bucket=test_bucket,
@@ -58,7 +58,7 @@ class TestCassandraToGCS(unittest.TestCase):
         mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
 
     def test_convert_value(self):
-        op = CassandraToGoogleCloudStorageOperator
+        op = CassandraToGCSOperator
         self.assertEqual(op.convert_value(None), None)
         self.assertEqual(op.convert_value(1), 1)
         self.assertEqual(op.convert_value(1.0), 1.0)

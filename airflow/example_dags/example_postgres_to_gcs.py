@@ -20,7 +20,7 @@
 Example DAG using PostgresToGoogleCloudStorageOperator.
 """
 from airflow import models
-from airflow.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator
+from airflow.operators.postgres_to_gcs import PostgresToGCSOperator
 from airflow.utils.dates import days_ago
 
 GCS_BUCKET = "postgres_to_gcs_example"
@@ -35,7 +35,7 @@ with models.DAG(
     schedule_interval=None,  # Override to match your needs
     tags=['example'],
 ) as dag:
-    upload_data = PostgresToGoogleCloudStorageOperator(
+    upload_data = PostgresToGCSOperator(
         task_id="get_data",
         sql=SQL_QUERY,
         bucket=GCS_BUCKET,

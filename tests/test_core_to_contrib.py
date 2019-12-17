@@ -18,6 +18,7 @@
 # under the License.
 
 import importlib
+from inspect import isabstract
 from typing import Any
 from unittest import TestCase, mock
 
@@ -260,7 +261,7 @@ HOOK = [
 
 OPERATOR = [
     (
-        "airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator",
+        "airflow.operators.adls_to_gcs.ADLSToGCSOperator",
         "airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator",
     ),
     (
@@ -284,7 +285,7 @@ OPERATOR = [
         "airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator",
     ),
     (
-        "airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator",
+        "airflow.operators.local_to_gcs.LocalFilesystemToGCSOperator",
         "airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator",
     ),
     (
@@ -675,7 +676,7 @@ OPERATOR = [
         "airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator",
     ),
     (
-        "airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator",
+        "airflow.operators.gcs_to_gcs.GCSToGCSOperator",
         "airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator",
     ),
     (
@@ -699,15 +700,15 @@ OPERATOR = [
         "airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator",
     ),
     (
-        "airflow.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator",
+        "airflow.operators.mssql_to_gcs.MSSQLToGCSOperator",
         "airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator",
+        "airflow.operators.mysql_to_gcs.MySQLToGCSOperator",
         "airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.operators.postgres_to_gcs.PostgresToGoogleCloudStorageOperator",
+        "airflow.operators.postgres_to_gcs.PostgresToGCSOperator",
         "airflow.contrib.operators.postgres_to_gcs_operator."
         "PostgresToGoogleCloudStorageOperator",
     ),
@@ -732,7 +733,7 @@ OPERATOR = [
         "airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator",
     ),
     (
-        "airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
+        "airflow.operators.sql_to_gcs.BaseSQLToGCSOperator",
         "airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
     ),
     (
@@ -826,7 +827,7 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
     ),
     (
-        "airflow.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator",
+        "airflow.operators.bigquery_to_gcs.BigQueryToGCSOperator",
         "airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator",
     ),
     (
@@ -1129,7 +1130,6 @@ PROTOCOLS = [
     ),
 ]
 
-
 ALL = HOOK + OPERATOR + SENSOR + PROTOCOLS
 
 RENAMED_HOOKS = [
@@ -1159,10 +1159,24 @@ class TestMovingCoreToContrib(TestCase):
             self.assert_warning(new_path, warning_msg)
 
     @staticmethod
-    def get_class_from_path(path_to_class):
+    def get_class_from_path(path_to_class, parent=False):
+        """
+        :param parent indicates if "path_to_class" arg is super class
+        """
+
         path, _, class_name = path_to_class.rpartition(".")
         module = importlib.import_module(path)
         class_ = getattr(module, class_name)
+
+        if isabstract(class_) and not parent:
+            class_name = f"Mock({class_.__name__})"
+
+            attributes = {
+                a: mock.MagicMock() for a in class_.__abstractmethods__
+            }
+
+            new_class = type(class_name, (class_,), attributes)
+            return new_class
         return class_
 
     @parameterized.expand(PROTOCOLS)
@@ -1187,7 +1201,7 @@ class TestMovingCoreToContrib(TestCase):
     @parameterized.expand(ALL)
     def test_is_subclass(self, parent_class_path, sub_class_path):
         with mock.patch("{}.__init__".format(parent_class_path)):
-            parent_class_path = self.get_class_from_path(parent_class_path)
+            parent_class_path = self.get_class_from_path(parent_class_path, parent=True)
             sub_class_path = self.get_class_from_path(sub_class_path)
             self.assert_is_subclass(sub_class_path, parent_class_path)
 

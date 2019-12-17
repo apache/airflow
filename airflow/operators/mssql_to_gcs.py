@@ -23,11 +23,11 @@ MsSQL to GCS operator.
 import decimal
 
 from airflow.hooks.mssql_hook import MsSqlHook
-from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator
+from airflow.operators.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class MsSqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
+class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     """Copy data from Microsoft SQL Server to Google Cloud Storage
     in JSON or CSV format.
 

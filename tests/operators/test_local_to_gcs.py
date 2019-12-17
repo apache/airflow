@@ -24,7 +24,7 @@ import unittest
 import mock
 
 from airflow import DAG
-from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator
+from airflow.operators.local_to_gcs import LocalFilesystemToGCSOperator
 
 
 class TestFileToGcsOperator(unittest.TestCase):
@@ -45,7 +45,7 @@ class TestFileToGcsOperator(unittest.TestCase):
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_init(self):
-        operator = FileToGoogleCloudStorageOperator(
+        operator = LocalFilesystemToGCSOperator(
             task_id='file_to_gcs_operator',
             dag=self.dag,
             **self._config
@@ -60,7 +60,7 @@ class TestFileToGcsOperator(unittest.TestCase):
                 autospec=True)
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value
-        operator = FileToGoogleCloudStorageOperator(
+        operator = LocalFilesystemToGCSOperator(
             task_id='gcs_to_file_sensor',
             dag=self.dag,
             **self._config

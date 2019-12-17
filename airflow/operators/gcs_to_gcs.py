@@ -30,13 +30,13 @@ from airflow.utils.decorators import apply_defaults
 WILDCARD = '*'
 
 
-class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
+class GCSToGCSOperator(BaseOperator):
     """
     Copies objects from a bucket to another, with renaming if requested.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageToGoogleCloudStorageOperator`
+        :ref:`howto/operator:GCSToGCSOperator`
 
     :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
@@ -87,7 +87,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     ``sales/sales-2017/january.avro`` in the ``data`` bucket to the file named
     ``copied_sales/2017/january-backup.avro`` in the ``data_backup`` bucket ::
 
-        copy_single_file = GoogleCloudStorageToGoogleCloudStorageOperator(
+        copy_single_file = GCSToGCSOperator(
             task_id='copy_single_file',
             source_bucket='data',
             source_object='sales/sales-2017/january.avro',
@@ -100,7 +100,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     folder (i.e. with names starting with that prefix) in ``data`` bucket to the
     ``copied_sales/2017`` folder in the ``data_backup`` bucket. ::
 
-        copy_files = GoogleCloudStorageToGoogleCloudStorageOperator(
+        copy_files = GCSToGCSOperator(
             task_id='copy_files',
             source_bucket='data',
             source_object='sales/sales-2017/*.avro',
@@ -114,7 +114,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     same folder in the ``data_backup`` bucket, deleting the original files in the
     process. ::
 
-        move_files = GoogleCloudStorageToGoogleCloudStorageOperator(
+        move_files = GCSToGCSOperator(
             task_id='move_files',
             source_bucket='data',
             source_object='sales/sales-2017/*.avro',
@@ -216,7 +216,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             hook.delete(self.source_bucket, source_object)
 
 
-class GoogleCloudStorageSynchronizeBuckets(BaseOperator):
+class GCSSynchronizeBuckets(BaseOperator):
     """
     Synchronizes the contents of the buckets or bucket's directories in the Google Cloud Services.
 
@@ -229,7 +229,7 @@ class GoogleCloudStorageSynchronizeBuckets(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageSynchronizeBuckets`
+        :ref:`howto/operator:GCSSynchronizeBuckets`
 
     :param source_bucket: The name of the bucket containing the source objects.
     :type source_bucket: str

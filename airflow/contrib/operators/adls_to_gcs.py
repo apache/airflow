@@ -20,10 +20,24 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.operators.adls_to_gcs import AdlsToGoogleCloudStorageOperator  # noqa
+from airflow.operators.adls_to_gcs import ADLSToGCSOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.adls_to_gcs`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class AdlsToGoogleCloudStorageOperator(ADLSToGCSOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.adls_to_gcs.ADLSToGCSOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.operators.adls_to_gcs.ADLSToGCSOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

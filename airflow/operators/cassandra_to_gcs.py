@@ -39,7 +39,7 @@ from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.utils.decorators import apply_defaults
 
 
-class CassandraToGoogleCloudStorageOperator(BaseOperator):
+class CassandraToGCSOperator(BaseOperator):
     """
     Copy data from Cassandra to Google Cloud Storage in JSON format
 
@@ -347,7 +347,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         """
         Check if type is a simple type.
         """
-        return type_.cassname in CassandraToGoogleCloudStorageOperator.CQL_TYPE_MAP
+        return type_.cassname in CassandraToGCSOperator.CQL_TYPE_MAP
 
     @staticmethod
     def is_array_type(type_: Any) -> bool:
@@ -369,7 +369,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         Converts type to equivalent BQ type.
         """
         if cls.is_simple_type(type_):
-            return CassandraToGoogleCloudStorageOperator.CQL_TYPE_MAP[type_.cassname]
+            return CassandraToGCSOperator.CQL_TYPE_MAP[type_.cassname]
         elif cls.is_record_type(type_):
             return 'RECORD'
         elif cls.is_array_type(type_):

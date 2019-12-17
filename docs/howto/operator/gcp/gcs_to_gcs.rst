@@ -59,13 +59,13 @@ In the next section they will be described.
 Operators
 ---------
 
-.. _howto/operator:GoogleCloudStorageToGoogleCloudStorageOperator:
+.. _howto/operator:GCSToGCSOperator:
 
-GoogleCloudStorageToGoogleCloudStorageOperator
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GCSToGCSOperator
+~~~~~~~~~~~~~~~~
 
 
-:class:`~airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator` allows you to copy
+:class:`~airflow.operators.gcs_to_gcs.GCSToGCSOperator` allows you to copy
 one or more files. The copying always takes place without taking into account the initial state of
 the destination bucket.
 
@@ -79,12 +79,12 @@ well as based on the file modification date.
 The way this operator works can be compared to the ``cp`` command.
 
 
-.. _howto/operator:GoogleCloudStorageSynchronizeBuckets:
+.. _howto/operator:GCSSynchronizeBuckets:
 
-GoogleCloudStorageSynchronizeBuckets
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GCSSynchronizeBuckets
+~~~~~~~~~~~~~~~~~~~~~
 
-The :class:`~airflow.operators.gcs_to_gcs.GoogleCloudStorageSynchronizeBuckets`
+The :class:`~airflow.operators.gcs_to_gcs.GCSSynchronizeBuckets`
 operator checks the initial state of the destination bucket, and then compares it with the source bucket.
 Based on this, it creates an operation plan that describes which objects should be deleted from
 the destination bucket, which should be overwritten, and which should be copied.

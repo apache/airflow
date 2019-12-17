@@ -32,7 +32,7 @@ from airflow.gcp.operators.bigquery import (
 )
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
-from airflow.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
+from airflow.operators.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.utils.dates import days_ago
 
 # 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d = CryptoKitties contract address
@@ -165,7 +165,7 @@ with models.DAG(
         destination_project_dataset_table="{}.copy_of_selected_data_from_external_table".format(DATASET_NAME),
     )
 
-    bigquery_to_gcs = BigQueryToCloudStorageOperator(
+    bigquery_to_gcs = BigQueryToGCSOperator(
         task_id="bigquery_to_gcs",
         source_project_dataset_table="{}.selected_data_from_external_table".format(DATASET_NAME),
         destination_cloud_storage_uris=["gs://{}/export-bigquery.csv".format(DATA_EXPORT_BUCKET_NAME)],

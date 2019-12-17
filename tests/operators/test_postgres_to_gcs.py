@@ -23,7 +23,7 @@ import pytest
 from mock import patch
 
 from airflow.hooks.postgres_hook import PostgresHook
-from airflow.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator
+from airflow.operators.postgres_to_gcs import PostgresToGCSOperator
 
 TABLES = {'postgres_to_gcs_operator', 'postgres_to_gcs_operator_empty'}
 
@@ -78,7 +78,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
     def test_init(self):
         """Test PostgresToGoogleCloudStorageOperator instance is properly initialized."""
-        op = PostgresToGoogleCloudStorageOperator(
+        op = PostgresToGCSOperator(
             task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
         self.assertEqual(op.task_id, TASK_ID)
         self.assertEqual(op.sql, SQL)
@@ -88,7 +88,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
     @patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_exec_success(self, gcs_hook_mock_class):
         """Test the execute function in case where the run is successful."""
-        op = PostgresToGoogleCloudStorageOperator(
+        op = PostgresToGCSOperator(
             task_id=TASK_ID,
             postgres_conn_id=POSTGRES_CONN_ID,
             sql=SQL,
@@ -128,7 +128,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
-        op = PostgresToGoogleCloudStorageOperator(
+        op = PostgresToGCSOperator(
             task_id=TASK_ID,
             sql=SQL,
             bucket=BUCKET,
@@ -149,7 +149,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
-        op = PostgresToGoogleCloudStorageOperator(
+        op = PostgresToGCSOperator(
             task_id=TASK_ID,
             sql=SQL,
             bucket=BUCKET,

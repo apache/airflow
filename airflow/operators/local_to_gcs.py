@@ -26,7 +26,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class FileToGoogleCloudStorageOperator(BaseOperator):
+class LocalFilesystemToGCSOperator(BaseOperator):
     """
     Uploads a file to Google Cloud Storage.
     Optionally can compress the file for upload.
