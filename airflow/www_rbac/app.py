@@ -30,7 +30,7 @@ from six.moves.urllib.parse import urlparse
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
-from airflow import settings
+from airflow import settings, version
 from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.www_rbac.static_config import configure_manifest_files
@@ -140,8 +140,14 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.XComModelView,
                                 "XComs",
                                 category="Admin")
+
+            if "dev" in version.version:
+                airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+            else:
+                airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
+
             appbuilder.add_link("Documentation",
-                                href='https://airflow.apache.org/',
+                                href=airflow_doc_site,
                                 category="Docs",
                                 category_icon="fa-cube")
             appbuilder.add_link("GitHub",
