@@ -78,7 +78,7 @@ class Resources(K8SModel):
         """Whether resource has requests"""
         return self.request_cpu is not None or \
             self.request_memory is not None or \
-            self.is_empty_resource_request is not None
+            self.request_ephemeral_storage is not None
 
     def to_k8s_client_obj(self) -> k8s.V1ResourceRequirements:
         """Converts to k8s client object"""
