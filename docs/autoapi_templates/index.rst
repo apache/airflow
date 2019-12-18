@@ -86,6 +86,8 @@ All operators are in the following packages:
 
   airflow/providers/google/marketing_platform/sensors/index
 
+  airflow/providers/microsoft/azure/operators/index
+
   airflow/providers/sftp/operators/index
 
   airflow/providers/sftp/sensors/index
@@ -120,6 +122,8 @@ All hooks are in the following packages:
   airflow/providers/google/cloud/hooks/index
 
   airflow/providers/apache/cassandra/hooks/index
+
+  airflow/providers/microsoft/azure/hooks/index
 
   airflow/providers/sftp/hooks/index
 
