@@ -251,7 +251,6 @@
 ./tests/providers/jira/hooks/test_jira.py
 ./tests/contrib/hooks/test_mongo_hook.py
 ./tests/contrib/hooks/test_openfaas_hook.py
-./tests/providers/snowflake/hooks/test_snowflake.py
 ./tests/contrib/hooks/test_spark_sql_hook.py
 ./tests/contrib/operators/test_azure_container_instances_operator.py
 ./tests/contrib/operators/test_azure_cosmos_insertdocument_operator.py
