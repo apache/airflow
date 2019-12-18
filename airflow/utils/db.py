@@ -382,6 +382,9 @@ def resetdb(rbac):
     Clear out the database
     """
     from airflow import models
+    # We need to add this model manually to get reset working well
+    # noinspection PyUnresolvedReferences
+    from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
     # noinspection PyUnresolvedReferences
     from airflow.jobs.base_job import BaseJob  # noqa: F401
 

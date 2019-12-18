@@ -29,9 +29,11 @@ from dateutil.relativedelta import relativedelta, FR
 
 from airflow import example_dags
 from airflow.contrib import example_dags as contrib_example_dags
-from airflow.serialization import SerializedBaseOperator, SerializedDAG
+from airflow.serialization.serialized_baseoperator import SerializedBaseOperator
+from airflow.serialization.serialized_dag import SerializedDAG
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator, Connection, DAG, DagBag
+from airflow.models import Connection, DAG, DagBag
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils.tests import CustomBaseOperator, GoogleLink

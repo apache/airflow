@@ -254,10 +254,10 @@ class BaseOperator(LoggingMixin):
     shallow_copy_attrs = ()  # type: Iterable[str]
 
     # Defines the operator level extra links
-    operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
+    operator_extra_links = ()  # type: Iterable['BaseOperatorLink']
 
-    # Set at end of file
-    _serialized_fields = frozenset()  # type: FrozenSet[str]
+    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
+    _serialized_fields = None  # type: Optional[FrozenSet[str]]
 
     _comps = {
         'task_id',
@@ -1089,13 +1089,16 @@ class BaseOperator(LoggingMixin):
         else:
             return None
 
-
-# pylint: disable=protected-access
-BaseOperator._serialized_fields = frozenset(
-    set(vars(BaseOperator(task_id='test')).keys()) - {
-        'inlets', 'outlets', '_upstream_task_ids', 'default_args'
-    } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
-)
+    @classmethod
+    def get_serialized_fields(cls):
+        """Stringified DAGs and operators contain exactly these fields."""
+        if not cls._serialized_fields:
+            cls._serialized_fields = frozenset(
+                set(vars(BaseOperator(task_id='test')).keys()) - {
+                    'inlets', 'outlets', '_upstream_task_ids', 'default_args'
+                } | {'_task_type', 'subdag', 'ui_color', 'ui_fgcolor', 'template_fields'}
+            )
+        return cls._serialized_fields
 
 
 class BaseOperatorLink:

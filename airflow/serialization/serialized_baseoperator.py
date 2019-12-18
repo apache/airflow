@@ -24,11 +24,11 @@ try:
 except ImportError:
     from funcsigs import signature  # type: ignore
 
-from airflow.serialization.serialization import Serialization  # pylint: disable=cyclic-import
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
+from airflow.serialization.base_serialization import BaseSerialization  # pylint: disable=cyclic-import
 
 
-class SerializedBaseOperator(BaseOperator, Serialization):
+class SerializedBaseOperator(BaseOperator, BaseSerialization):
     """A JSON serializable representation of operator.
 
     All operators are casted to SerializedBaseOperator after deserialization.
@@ -72,27 +72,10 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         # type: (BaseOperator) -> dict
         """Serializes operator into a JSON object.
         """
-        serialize_op = {}
-
-        # pylint: disable=protected-access
-        for k in op._serialized_fields:
-            # None is ignored in serialized form and is added back in deserialization.
-            v = getattr(op, k, None)
-            if cls._is_excluded(v, k, op):
-                continue
-
-            if k in cls._decorated_fields:
-                serialize_op[k] = cls._serialize(v)
-            else:
-                v = cls._serialize(v)
-                if isinstance(v, dict) and "__type" in v:
-                    v = v["__var"]
-                serialize_op[k] = v
-
+        serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         # Adds a new task_type field to record the original operator class.
         serialize_op['_task_type'] = op.__class__.__name__
         serialize_op['_task_module'] = op.__class__.__module__
-
         return serialize_op
 
     @classmethod
@@ -100,7 +83,7 @@ class SerializedBaseOperator(BaseOperator, Serialization):
         # type: (dict) -> BaseOperator
         """Deserializes an operator from a JSON object.
         """
-        from airflow.serialization import SerializedDAG
+        from airflow.serialization.serialized_dag import SerializedDAG
         from airflow.plugins_manager import operator_extra_links
 
         op = SerializedBaseOperator(task_id=encoded_op['task_id'])
@@ -126,14 +109,13 @@ class SerializedBaseOperator(BaseOperator, Serialization):
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
-            elif k in cls._decorated_fields or k not in op._serialized_fields:  # noqa: E501; # pylint: disable=protected-access
+            elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is
 
             setattr(op, k, v)
 
-        # pylint: disable=protected-access
-        for k in op._serialized_fields - set(encoded_op.keys()) - set(
+        for k in op.get_serialized_fields() - set(encoded_op.keys()) - set(
                 cls._CONSTRUCTOR_PARAMS.keys()):
             setattr(op, k, None)
 

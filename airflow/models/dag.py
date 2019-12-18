@@ -49,7 +49,6 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import STORE_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL
 from airflow.utils import timezone
 from airflow.utils.dag_processing import correct_maybe_zipped
@@ -205,7 +204,7 @@ class DAG(BaseDag, LoggingMixin):
         'last_loaded',
     }
 
-    _serialized_fields = frozenset()  # type: FrozenSet[str]
+    _serialized_fields = None  # type: Optional[FrozenSet[str]]
 
     def __init__(
         self,
@@ -1361,6 +1360,7 @@ class DAG(BaseDag, LoggingMixin):
         :type sync_time: datetime
         :return: None
         """
+        from airflow.models.serialized_dag import SerializedDagModel
 
         if owner is None:
             owner = self.owner
@@ -1517,6 +1517,18 @@ class DAG(BaseDag, LoggingMixin):
                 self._test_cycle_helper(visit_map, descendant_id)
 
         visit_map[task_id] = DagBag.CYCLE_DONE
+
+    @classmethod
+    def get_serialized_fields(cls):
+        """Stringified DAGs and operators contain exactly these fields."""
+        if not cls._serialized_fields:
+            cls._serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
+                'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
+                '_full_filepath', 'user_defined_filters', 'user_defined_macros',
+                '_schedule_interval', 'partial', '_old_context_manager_dags',
+                '_pickle_id', '_log', 'is_subdag', 'task_dict'
+            }
+        return cls._serialized_fields
 
 
 class DagModel(Base):
@@ -1708,14 +1720,3 @@ class DagModel(Base):
         except Exception:
             session.rollback()
             raise
-
-
-# Stringified DAGs and operators contain exactly these fields.
-
-# pylint: disable=protected-access
-DAG._serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
-    'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
-    '_full_filepath', 'user_defined_filters', 'user_defined_macros',
-    '_schedule_interval', 'partial', '_old_context_manager_dags',
-    '_pickle_id', '_log', 'is_subdag', 'task_dict'
-}
