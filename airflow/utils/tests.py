@@ -20,8 +20,7 @@
 import re
 import unittest
 
-from airflow.models import BaseOperator
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.utils.decorators import apply_defaults
 
 

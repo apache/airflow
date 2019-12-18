@@ -18,7 +18,7 @@
 # under the License.
 """Airflow models"""
 from airflow.models.base import Base, ID_LEN  # noqa: F401
-from airflow.models.baseoperator import BaseOperator  # noqa: F401
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink  # noqa: F401
 from airflow.models.connection import Connection  # noqa: F401
 from airflow.models.dag import DAG, DagModel  # noqa: F401
 from airflow.models.dagbag import DagBag  # noqa: F401
@@ -29,7 +29,6 @@ from airflow.models.kubernetes import KubeWorkerIdentifier, KubeResourceVersion 
 from airflow.models.log import Log  # noqa: F401
 from airflow.models.pool import Pool  # noqa: F401
 from airflow.models.taskfail import TaskFail  # noqa: F401
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 from airflow.models.skipmixin import SkipMixin  # noqa: F401
 from airflow.models.slamiss import SlaMiss  # noqa: F401
 from airflow.models.taskinstance import clear_task_instances, TaskInstance  # noqa: F401
