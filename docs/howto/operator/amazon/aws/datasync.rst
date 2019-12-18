@@ -200,10 +200,9 @@ This is the simplest scenario - just use the one DataSync Task that was found :)
 
  - More than one AWS DataSync Tasks found
 
-The operator will raise an Exception. To avoid this, you can set ``choose_task_strategy='random'``
-to randomly choose from candidate Tasks. This is the only strategy available at the moment.
-Alternatively you can override this operator and re-implement the ``choose_task`` method
-with your own algorithm.
+The operator will raise an Exception. To avoid this, you can set ``allow_random_task_choice=True``
+to randomly choose from candidate Tasks. Alternatively you can subclass this operator
+and re-implement the ``choose_task`` method with your own algorithm.
 
 TaskArn creation behaviour
 """""""""""""""""""""""""""
@@ -214,10 +213,9 @@ and use existing LocationArns rather than creating new ones. If multiple Locatio
 specied URIs then we need to choose one to use. In this scenario, the operator behaves similarly
 to how it chooses a single Task from many Tasks:
 
-The operator will raise an Exception. To avoid this, you can set ``choose_location_strategy='random'``
-to randomly choose from candidate Locations. This is the only strategy available at the moment.
-Alternatively you can override this operator and re-implement the ``choose_location`` method
-with your own algorithm to select a Location.
+The operator will raise an Exception. To avoid this, you can set ``allow_random_location_choice=True``
+to randomly choose from candidate Locations. Alternatively you can subclass this operator
+and re-implement the ``choose_location`` method with your own algorithm.
 
 
 Reference

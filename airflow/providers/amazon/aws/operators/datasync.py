@@ -53,10 +53,10 @@ class AWSDataSyncOperator(BaseOperator):
     :param str destination_location_uri: Destination location URI to search for.
         All DataSync Tasks with a LocationArn with this URI will be considered.
         Example: ``s3://airflow_bucket/stuff``
-    :param str choose_task_strategy: If multiple Tasks match, one must be chosen to
-        execute. If choose_task_strategy = 'random' then a random one is chosen.
-    :param str choose_location_strategy: If multiple Locations match, one must be chosen
-        when creating a task. If choose_location_strategy = 'random' then a random one is chosen.
+    :param bool allow_random_task_choice: If multiple Tasks match, one must be chosen to
+        execute. If allow_random_task_choice is True then a random one is chosen.
+    :param bool allow_random_location_choice: If multiple Locations match, one must be chosen
+        when creating a task. If allow_random_location_choice is True then a random one is chosen.
     :param dict create_task_kwargs: If no suitable TaskArn is identified,
         it will be created if ``create_task_kwargs`` is defined.
         ``create_task_kwargs`` is then used internally like this:
@@ -112,8 +112,8 @@ class AWSDataSyncOperator(BaseOperator):
         task_arn=None,
         source_location_uri=None,
         destination_location_uri=None,
-        choose_task_strategy=None,
-        choose_location_strategy=None,
+        allow_random_task_choice=False,
+        allow_random_location_choice=False,
         create_task_kwargs=None,
         create_source_location_kwargs=None,
         create_destination_location_kwargs=None,
@@ -133,8 +133,8 @@ class AWSDataSyncOperator(BaseOperator):
 
         self.source_location_uri = source_location_uri
         self.destination_location_uri = destination_location_uri
-        self.choose_task_strategy = choose_task_strategy
-        self.choose_location_strategy = choose_location_strategy
+        self.allow_random_task_choice = allow_random_task_choice
+        self.allow_random_location_choice = allow_random_location_choice
 
         self.create_task_kwargs = create_task_kwargs if create_task_kwargs else dict()
         self.create_source_location_kwargs = dict()
@@ -257,7 +257,7 @@ class AWSDataSyncOperator(BaseOperator):
             return None
         if len(task_arn_list) == 1:
             return task_arn_list[0]
-        if self.choose_task_strategy == 'random':
+        if self.allow_random_task_choice:
             # Items are unordered so we dont want to just take
             # the [0] one as it implies ordered items were received
             # from AWS and might lead to confusion. Rather explicitly
@@ -272,7 +272,7 @@ class AWSDataSyncOperator(BaseOperator):
             return None
         if len(location_arn_list) == 1:
             return location_arn_list[0]
-        if self.choose_location_strategy == 'random':
+        if self.allow_random_location_choice:
             # Items are unordered so we dont want to just take
             # the [0] one as it implies ordered items were received
             # from AWS and might lead to confusion. Rather explicitly
