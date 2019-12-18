@@ -930,8 +930,8 @@ These integrations allow you to perform various operations within various servic
 
    * - `Neo4j <https://neo4j.com/>`__
      - :doc:`How to use <howto/operator/neo4j>`
-     - :mod:`airflow.contrib.hooks.neo4j_hook`
-     - :mod:`airflow.contrib.operators.neo4j_operator`
+     - :mod:`airflow.providers.neo4j.hooks.neo4j_hook`
+     - :mod:`airflow.providers.neo4j.operators.neo4j_operator`
      -
 
    * - `Opsgenie <https://www.opsgenie.com/>`__

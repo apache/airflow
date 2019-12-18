@@ -23,8 +23,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 from neo4j import BoltStatementResult
 
-from airflow.contrib.hooks import neo4j_hook
 from airflow.models import Connection
+from airflow.providers.neo4j.hooks import neo4j_hook
 from airflow.utils import db
 
 

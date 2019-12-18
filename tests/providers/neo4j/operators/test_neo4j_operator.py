@@ -22,7 +22,7 @@ Test the functioning of the Neo4J Operator for Apache Airflow
 import unittest
 from unittest.mock import patch
 
-from airflow.contrib.operators import neo4j_operator
+from airflow.providers.neo4j.operators import neo4j_operator
 
 
 class TestNeo4JOperator(unittest.TestCase):
