@@ -52,4 +52,4 @@ class TestSnowflakeOperator(unittest.TestCase):
             sql=sql,
             dag=self.dag)
         operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                         ignore_ti_state=True)
+                     ignore_ti_state=True)
