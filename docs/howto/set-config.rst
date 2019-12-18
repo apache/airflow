@@ -58,11 +58,19 @@ The following config options support this ``_cmd`` version:
 * ``bind_password`` in ``[ldap]`` section
 * ``git_password`` in ``[kubernetes]`` section
 
+The ``_cmd`` config options can also be set using a corresponding environment variable
+the same way the usual config options can. For example: 
+
+.. code-block:: bash
+
+    export AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD=bash_command_to_run
+
 The idea behind this is to not store passwords on boxes in plain text files.
 
 The universal order of precedence for all configuration options is as follows:
 
 #. set as an environment variable
+#. set as a command environment variable
 #. set in ``airflow.cfg``
 #. command in ``airflow.cfg``
 #. Airflow's built in defaults

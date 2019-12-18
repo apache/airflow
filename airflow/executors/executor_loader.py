@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """All executors."""
+import importlib
 from typing import Optional
 
 from airflow.executors.base_executor import BaseExecutor
@@ -30,8 +31,17 @@ class ExecutorLoader:
     CELERY_EXECUTOR = "CeleryExecutor"
     DASK_EXECUTOR = "DaskExecutor"
     KUBERNETES_EXECUTOR = "KubernetesExecutor"
+    DEBUG_EXECUTOR = "DebugExecutor"
 
     _default_executor: Optional[BaseExecutor] = None
+    executors = {
+        LOCAL_EXECUTOR: 'airflow.executors.local_executor',
+        SEQUENTIAL_EXECUTOR: 'airflow.executors.sequential_executor',
+        CELERY_EXECUTOR: 'airflow.executors.celery_executor',
+        DASK_EXECUTOR: 'airflow.executors.dask_executor',
+        KUBERNETES_EXECUTOR: 'airflow.executors.kubernetes_executor',
+        DEBUG_EXECUTOR: 'airflow.executors.debug_executor'
+    }
 
     @classmethod
     def get_default_executor(cls) -> BaseExecutor:
@@ -50,28 +60,17 @@ class ExecutorLoader:
 
         return cls._default_executor
 
-    @staticmethod
-    def _get_executor(executor_name: str) -> BaseExecutor:
+    @classmethod
+    def _get_executor(cls, executor_name: str) -> BaseExecutor:
         """
         Creates a new instance of the named executor.
         In case the executor name is unknown in airflow,
         look for it in the plugins
         """
-        if executor_name == ExecutorLoader.LOCAL_EXECUTOR:
-            from airflow.executors.local_executor import LocalExecutor
-            return LocalExecutor()
-        elif executor_name == ExecutorLoader.SEQUENTIAL_EXECUTOR:
-            from airflow.executors.sequential_executor import SequentialExecutor
-            return SequentialExecutor()
-        elif executor_name == ExecutorLoader.CELERY_EXECUTOR:
-            from airflow.executors.celery_executor import CeleryExecutor
-            return CeleryExecutor()
-        elif executor_name == ExecutorLoader.DASK_EXECUTOR:
-            from airflow.executors.dask_executor import DaskExecutor
-            return DaskExecutor()
-        elif executor_name == ExecutorLoader.KUBERNETES_EXECUTOR:
-            from airflow.executors.kubernetes_executor import KubernetesExecutor
-            return KubernetesExecutor()
+        if executor_name in cls.executors:
+            executor_module = importlib.import_module(cls.executors[executor_name])
+            executor = getattr(executor_module, executor_name)
+            return executor()
         else:
             # Load plugins here for executors as at that time the plugins might not have been initialized yet
             # TODO: verify the above and remove two lines below in case plugins are always initialized first

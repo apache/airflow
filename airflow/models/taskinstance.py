@@ -160,6 +160,8 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+    # If adding new fields here then remember to add them to
+    # refresh_from_db() or they wont display in the UI correctly
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -443,14 +445,23 @@ class TaskInstance(Base, LoggingMixin):
         else:
             ti = qry.first()
         if ti:
-            self.state = ti.state
+            # Fields ordered per model definition
             self.start_date = ti.start_date
             self.end_date = ti.end_date
+            self.duration = ti.duration
+            self.state = ti.state
             # Get the raw value of try_number column, don't read through the
             # accessor here otherwise it will be incremented by one already.
             self.try_number = ti._try_number
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
+            self.unixname = ti.unixname
+            self.job_id = ti.job_id
+            self.pool = ti.pool
+            self.queue = ti.queue
+            self.priority_weight = ti.priority_weight
+            self.operator = ti.operator
+            self.queued_dttm = ti.queued_dttm
             self.pid = ti.pid
             if refresh_executor_config:
                 self.executor_config = ti.executor_config
@@ -870,6 +881,8 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
         """
+        from airflow.sensors.base_sensor_operator import BaseSensorOperator
+
         task = self.task
         self.pool = pool or task.pool
         self.test_mode = test_mode
@@ -885,6 +898,15 @@ class TaskInstance(Base, LoggingMixin):
                 context = self.get_template_context()
 
                 task_copy = copy.copy(task)
+
+                # Sensors in `poke` mode can block execution of DAGs when running
+                # with single process executor, thus we change the mode to`reschedule`
+                # to allow parallel task being scheduled and executed
+                if isinstance(task_copy, BaseSensorOperator) and \
+                        conf.get('core', 'executor') == "DebugExecutor":
+                    self.log.warning("DebugExecutor changes sensor mode to 'reschedule'.")
+                    task_copy.mode = 'reschedule'
+
                 self.task = task_copy
 
                 def signal_handler(signum, frame):
@@ -900,6 +922,13 @@ class TaskInstance(Base, LoggingMixin):
 
                 self.render_templates(context=context)
                 task_copy.pre_execute(context=context)
+
+                try:
+                    if task.on_execute_callback:
+                        task.on_execute_callback(context)
+                except Exception as e3:
+                    self.log.error("Failed when executing execute callback")
+                    self.log.exception(e3)
 
                 # If a timeout is specified for the task, make it fail
                 # if it goes beyond
@@ -1040,7 +1069,12 @@ class TaskInstance(Base, LoggingMixin):
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
-    def handle_failure(self, error, test_mode=False, context=None, session=None):
+    def handle_failure(self, error, test_mode=None, context=None, session=None):
+        if test_mode is None:
+            test_mode = self.test_mode
+        if context is None:
+            context = self.get_template_context()
+
         self.log.exception(error)
         task = self.task
         self.end_date = timezone.utcnow()
@@ -1167,33 +1201,55 @@ class TaskInstance(Base, LoggingMixin):
 
         class VariableAccessor:
             """
-            Wrapper around Variable. This way you can get variables in templates by using
-            {var.value.your_variable_name}.
+            Wrapper around Variable. This way you can get variables in
+            templates by using ``{{ var.value.variable_name }}`` or
+            ``{{ var.value.get('variable_name', 'fallback') }}``.
             """
             def __init__(self):
                 self.var = None
 
-            def __getattr__(self, item):
+            def __getattr__(
+                self,
+                item: str,
+            ):
                 self.var = Variable.get(item)
                 return self.var
 
             def __repr__(self):
                 return str(self.var)
 
+            @staticmethod
+            def get(
+                item: str,
+                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,
+            ):
+                return Variable.get(item, default_var=default_var)
+
         class VariableJsonAccessor:
             """
-            Wrapper around deserialized Variables. This way you can get variables
-            in templates by using {var.json.your_variable_name}.
+            Wrapper around Variable. This way you can get variables in
+            templates by using ``{{ var.json.variable_name }}`` or
+            ``{{ var.json.get('variable_name', {'fall': 'back'}) }}``.
             """
             def __init__(self):
                 self.var = None
 
-            def __getattr__(self, item):
+            def __getattr__(
+                self,
+                item: str,
+            ):
                 self.var = Variable.get(item, deserialize_json=True)
                 return self.var
 
             def __repr__(self):
                 return str(self.var)
+
+            @staticmethod
+            def get(
+                item: str,
+                default_var: Any = Variable._Variable__NO_DEFAULT_SENTINEL,
+            ):
+                return Variable.get(item, default_var=default_var, deserialize_json=True)
 
         return {
             'conf': conf,

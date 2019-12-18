@@ -195,6 +195,9 @@ class BaseOperator(Operator, LoggingMixin):
         objects to the task instance and is documented under the macros
         section of the API.
     :type on_failure_callback: callable
+    :param on_execute_callback: much like the ``on_failure_callback`` except
+        that it is executed right before the task is executed.
+    :type on_execute_callback: callable
     :param on_retry_callback: much like the ``on_failure_callback`` except
         that it is executed when retries occur.
     :type on_retry_callback: callable
@@ -274,6 +277,7 @@ class BaseOperator(Operator, LoggingMixin):
         'priority_weight',
         'sla',
         'execution_timeout',
+        'on_execute_callback',
         'on_failure_callback',
         'on_success_callback',
         'on_retry_callback',
@@ -307,6 +311,7 @@ class BaseOperator(Operator, LoggingMixin):
         pool: str = Pool.DEFAULT_POOL_NAME,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
+        on_execute_callback: Optional[Callable] = None,
         on_failure_callback: Optional[Callable] = None,
         on_success_callback: Optional[Callable] = None,
         on_retry_callback: Optional[Callable] = None,
@@ -374,6 +379,7 @@ class BaseOperator(Operator, LoggingMixin):
         self.pool = pool
         self.sla = sla
         self.execution_timeout = execution_timeout
+        self.on_execute_callback = on_execute_callback
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback

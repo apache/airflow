@@ -568,67 +568,6 @@ class TestCore(unittest.TestCase):
         t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_template_with_variable(self):
-        """
-        Test the availability of variables in templates
-        """
-        val = {
-            'test_value': 'a test value'
-        }
-        Variable.set("a_variable", val['test_value'])
-
-        def verify_templated_field(context):
-            self.assertEqual(context['ti'].task.some_templated_field,
-                             val['test_value'])
-
-        t = OperatorSubclass(
-            task_id='test_complex_template',
-            some_templated_field='{{ var.value.a_variable }}',
-            dag=self.dag)
-        t.execute = verify_templated_field
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_template_with_json_variable(self):
-        """
-        Test the availability of variables (serialized as JSON) in templates
-        """
-        val = {
-            'test_value': {'foo': 'bar', 'obj': {'v1': 'yes', 'v2': 'no'}}
-        }
-        Variable.set("a_variable", val['test_value'], serialize_json=True)
-
-        def verify_templated_field(context):
-            self.assertEqual(context['ti'].task.some_templated_field,
-                             val['test_value']['obj']['v2'])
-
-        t = OperatorSubclass(
-            task_id='test_complex_template',
-            some_templated_field='{{ var.json.a_variable.obj.v2 }}',
-            dag=self.dag)
-        t.execute = verify_templated_field
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_template_with_json_variable_as_value(self):
-        """
-        Test the availability of variables (serialized as JSON) in templates, but
-        accessed as a value
-        """
-        val = {
-            'test_value': {'foo': 'bar'}
-        }
-        Variable.set("a_variable", val['test_value'], serialize_json=True)
-
-        def verify_templated_field(context):
-            self.assertEqual(context['ti'].task.some_templated_field,
-                             '{\n  "foo": "bar"\n}')
-
-        t = OperatorSubclass(
-            task_id='test_complex_template',
-            some_templated_field='{{ var.value.a_variable }}',
-            dag=self.dag)
-        t.execute = verify_templated_field
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
     def test_template_non_bool(self):
         """
         Test templates can handle objects with no sense of truthiness

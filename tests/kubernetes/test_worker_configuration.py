@@ -438,6 +438,30 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertIn(password_env, pod.spec.init_containers[0].env,
                       'The password env for git credentials did not get into the init container')
 
+    def test_make_pod_git_sync_rev(self):
+        # Tests the pod created with git_sync_credentials_secret will get into the init container
+        self.kube_config.git_sync_rev = 'sampletag'
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.worker_fs_group = None
+        self.kube_config.git_dags_folder_mount_point = 'dags'
+        self.kube_config.git_sync_dest = 'repo'
+        self.kube_config.git_subpath = 'path'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+
+        rev_env = k8s.V1EnvVar(
+            name='GIT_SYNC_REV',
+            value=self.kube_config.git_sync_rev,
+        )
+
+        self.assertIn(rev_env, pod.spec.init_containers[0].env,
+                      'The git_sync_rev env did not get into the init container')
+
     def test_make_pod_git_sync_ssh_with_known_hosts(self):
         # Tests the pod created with git-sync SSH authentication option is correct with known hosts
         self.kube_config.airflow_configmap = 'airflow-configmap'
@@ -661,3 +685,19 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             'dag_id': 'override_dag_id',
             'my_kube_executor_label': 'kubernetes',
         }, labels)
+
+    def test_make_pod_with_image_pull_secrets(self):
+        # Tests the pod created with image_pull_secrets actually gets that in it's config
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.git_dags_folder_mount_point = 'dags'
+        self.kube_config.git_sync_dest = 'repo'
+        self.kube_config.git_subpath = 'path'
+        self.kube_config.image_pull_secrets = 'image_pull_secret1,image_pull_secret2'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+
+        self.assertEqual(2, len(pod.spec.image_pull_secrets))

@@ -20,10 +20,22 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.kms import GoogleCloudKMSHook  # noqa
+from airflow.gcp.hooks.kms import CloudKMSHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.kms`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GoogleCloudKMSHook(CloudKMSHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.kms.CloudKMSHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.gcp.hooks.kms.CloudKMSHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

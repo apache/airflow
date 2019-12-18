@@ -2642,12 +2642,14 @@ class TestSchedulerJob(unittest.TestCase):
             'no_dags.py',
             'test_invalid_cron.py',
             'test_zip_invalid_cron.zip',
+            'test_ignore_this.py',
         ]
-        for file_name in os.listdir(TEST_DAG_FOLDER):
-            if file_name.endswith('.py') or file_name.endswith('.zip'):
-                if file_name not in ignored_files:
-                    expected_files.add(
-                        '{}/{}'.format(TEST_DAG_FOLDER, file_name))
+        for root, dirs, files in os.walk(TEST_DAG_FOLDER):
+            for file_name in files:
+                if file_name.endswith('.py') or file_name.endswith('.zip'):
+                    if file_name not in ignored_files:
+                        expected_files.add(
+                            '{}/{}'.format(root, file_name))
         for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=False):
             detected_files.add(file_path)
         self.assertEqual(detected_files, expected_files)

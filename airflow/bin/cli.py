@@ -990,6 +990,12 @@ class CLIFactory:
                     '#rotating-encryption-keys.',
             'args': (),
         },
+        {
+            'name': 'config',
+            'func': lazy_load_command('airflow.cli.commands.config_command.show_config'),
+            'help': 'Show current application configuration.',
+            'args': (),
+        },
     )
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
     dag_subparsers = (

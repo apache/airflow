@@ -86,7 +86,7 @@ class BaseHook(LoggingMixin):
         conn = random.choice(list(cls.get_connections(conn_id)))
         if conn.host:
             log = LoggingMixin().log
-            log.info("Using connection to: %s", conn.debug_info())
+            log.info("Using connection to: %s", conn.log_info())
         return conn
 
     @classmethod

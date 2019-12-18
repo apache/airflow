@@ -24,7 +24,7 @@ from unittest import TestCase
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.operators.cloud_build import BuildProcessor, CloudBuildCreateBuildOperator
+from airflow.gcp.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
 from tests.compat import mock
 
 TEST_CREATE_BODY = {
@@ -111,11 +111,11 @@ class TestBuildProcessor(TestCase):
         self.assertEqual(body, expected_body)
 
 
-class TestGcpCloudBuildCreateBuildOperator(TestCase):
+class TestGcpCloudBuildCreateOperator(TestCase):
     @mock.patch("airflow.gcp.operators.cloud_build.CloudBuildHook")
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.create_build.return_value = TEST_CREATE_BODY
-        operator = CloudBuildCreateBuildOperator(
+        operator = CloudBuildCreateOperator(
             body=TEST_CREATE_BODY, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         result = operator.execute({})
@@ -124,7 +124,7 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
     @parameterized.expand([({},), (None,)])
     def test_missing_input(self, body):
         with self.assertRaisesRegex(AirflowException, "The required parameter 'body' is missing"):
-            CloudBuildCreateBuildOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
+            CloudBuildCreateOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
     @mock.patch("airflow.gcp.operators.cloud_build.CloudBuildHook")
     def test_storage_source_replace(self, hook_mock):
@@ -142,7 +142,7 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
             "images": ["gcr.io/$PROJECT_ID/docker-image"],
         }
 
-        operator = CloudBuildCreateBuildOperator(
+        operator = CloudBuildCreateOperator(
             body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         operator.execute({})
@@ -178,7 +178,7 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
             ],
             "images": ["gcr.io/$PROJECT_ID/docker-image"],
         }
-        operator = CloudBuildCreateBuildOperator(
+        operator = CloudBuildCreateOperator(
             body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         return_value = operator.execute({})
