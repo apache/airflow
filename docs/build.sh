@@ -133,7 +133,8 @@ else
 fi
 
 
-SUCCEED_LINE=$(make html |\
+SUCCEED_LINE=$(make html 2>&1|\
+    grep -v "^None:.*indent.*" |\
     tee /dev/tty |\
     grep 'build succeeded' |\
     head -1)
