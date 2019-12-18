@@ -22,7 +22,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook # noqa
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.snowflake.hooks.snowflake`.",

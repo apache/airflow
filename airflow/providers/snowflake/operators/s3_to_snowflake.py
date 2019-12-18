@@ -21,8 +21,8 @@
 This module contains AWS S3 to Snowflake operator.
 """
 
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.models import BaseOperator
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.utils.decorators import apply_defaults
 
 

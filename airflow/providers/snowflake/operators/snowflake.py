@@ -16,8 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.models import BaseOperator
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.utils.decorators import apply_defaults
 
 

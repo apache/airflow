@@ -21,7 +21,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator # noqa
+from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.snowflake.operators.snowflake`.",
