@@ -17,23 +17,16 @@
 
 
 
-Using Operators
-===============
+Amazon AWS Operators
+======================
 
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
-
-See the :ref:`Operators Concepts <concepts-operators>` documentation and the
-:doc:`Operators API Reference <../../_api/index>` for more
-information.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :glob:
 
-    bash
-    amazon/aws/index
-    dingding
-    gcp/index
-    kubernetes
-    papermill
-    python
+    *
+
+.. note::
+    You can learn how to use Amazon AWS integrations by analyzing the
+    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/amazon/aws/example_dags/>`_ of the particular example DAGs.
