@@ -104,4 +104,4 @@ def worker(args):
         worker.run(**options)
 
     if sub_proc:
-        sub_proc.kill()
+        sub_proc.terminate()
