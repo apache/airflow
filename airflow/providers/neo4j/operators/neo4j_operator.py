@@ -26,7 +26,7 @@ from os.path import isfile
 
 from neo4j import BoltStatementResult
 
-from airflow.contrib.hooks.neo4j_hook import Neo4JHook
+from airflow.providers.neo4j.hooks.neo4j_hook import Neo4JHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

@@ -24,7 +24,7 @@ http://airflow.readthedocs.org/en/latest/tutorial.html
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.contrib.operators.neo4j_operator import Neo4JOperator
+from airflow.providers.neo4j.operators.neo4j_operator import Neo4JOperator
 
 default_args = {
     "owner": "airflow",
