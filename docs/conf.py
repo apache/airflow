@@ -240,6 +240,7 @@ exclude_patterns = [
     '_api/serialized_baseoperator/index.rst',
     '_api/serialized_dag/index.rst',
     '_api/airflow/providers/jira',
+    '_api/airflow/providers/snowflake',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
