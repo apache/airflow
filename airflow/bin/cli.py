@@ -635,6 +635,18 @@ def rotate_fernet_key(args):
 
 
 @cli_utils.action_logging
+def show_config(args):
+    """Show current application configuration"""
+    config = conf.as_dict(display_sensitive=True, raw=True)
+
+    for section_key, parameters in sorted(config.items()):
+        print("[{}]".format(section_key))
+        for parameter_key, value in sorted(parameters.items()):
+            print("{}={}".format(parameter_key, value))
+        print()
+
+
+@cli_utils.action_logging
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
     s = textwrap.dedent("""\n
@@ -2233,6 +2245,11 @@ class CLIFactory(object):
             'help': 'Rotate all encrypted connection credentials and variables; see '
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
                     '#rotating-encryption-keys.',
+            'args': (),
+        },
+        {
+            'func': show_config,
+            'help': 'Show current application configuration.',
             'args': (),
         },
     )

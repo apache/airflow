@@ -21,6 +21,8 @@ import io
 
 import logging
 import os
+import textwrap
+
 from six import StringIO, PY2
 import sys
 
@@ -548,3 +550,25 @@ class TestWorkerServeLogs(unittest.TestCase):
                 mock_privil.return_value = 0
                 cli.worker(args)
                 mock_popen.assert_not_called()
+
+    @mock.patch("airflow.bin.cli.conf")
+    def test_cli_conf(self, mock_conf):
+        mock_conf.as_dict.return_value = {
+            "SECTION1": {"KEY1": "VAL1", "KEY2": "VAL2"},
+            "SECTION2": {"KEY3": "VAL3", "KEY4": "VAL4"},
+        }
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            cli.show_config(self.parser.parse_args(['show_config']))
+
+        stdout = temp_stdout.getvalue()
+        mock_conf.as_dict.assert_called_once_with(display_sensitive=True, raw=True)
+        ini_file = textwrap.dedent("""
+        [SECTION1]
+        KEY1=VAL1
+        KEY2=VAL2
+
+        [SECTION2]
+        KEY3=VAL3
+        KEY4=VAL4
+        """).strip()
+        self.assertIn(ini_file, stdout)
