@@ -27,6 +27,7 @@ from base64 import b64encode
 from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
+from typing import Dict
 
 from cryptography.fernet import Fernet
 from zope.deprecation import deprecated
@@ -342,7 +343,7 @@ class AirflowConfigParser(ConfigParser):
 
     def as_dict(
             self, display_source=False, display_sensitive=False, raw=False,
-            include_env=True, include_cmds=True):
+            include_env=True, include_cmds=True) -> Dict[str, Dict[str, str]]:
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
 
@@ -364,8 +365,11 @@ class AirflowConfigParser(ConfigParser):
             set (True, default), or should the _cmd options be left as the
             command to run (False)
         :type include_cmds: bool
+        :rtype: Dict[str, Dict[str, str]]
+        :return: Dictionary, where the key is the name of the section and the content is
+            the dictionary with the name of the parameter and its value.
         """
-        cfg = {}
+        cfg: Dict[str, Dict[str, str]] = {}
         configs = [
             ('default', self.airflow_defaults),
             ('airflow.cfg', self),
