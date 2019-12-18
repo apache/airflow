@@ -412,6 +412,10 @@ class BaseOperator(LoggingMixin):
         if dag:
             self.dag = dag
 
+        # subdag parameter is only set for SubDagOperator.
+        # Setting it to None by default as other Operators do not have that field
+        self.subdag = None   # type: Optional[DAG]
+
         self._log = logging.getLogger("airflow.task.operators")
 
         # lineage
