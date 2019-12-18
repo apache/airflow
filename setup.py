@@ -79,7 +79,7 @@ class CleanCommand(Command):
 
 class CompileAssets(Command):
     """
-    Compile and build the frontend assets using npm and webpack.
+    Compile and build the frontend assets using yarn and webpack.
     Registered as cmdclass in setup() so it can be called with ``python setup.py compile_assets``.
     """
 

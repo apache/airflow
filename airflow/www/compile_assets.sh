@@ -24,6 +24,6 @@ if [[ -d airflow/www/static/dist ]]; then
 fi
 
 cd airflow/www/
-npm install
-npm run build
+yarn install --frozen-lockfile
+yarn run build
 cd ../..
