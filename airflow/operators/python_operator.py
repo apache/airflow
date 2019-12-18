@@ -164,6 +164,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     def execute(self, context: Dict):
         branch = super().execute(context)
         self.skip_all_except(context['ti'], branch)
+        return branch
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):

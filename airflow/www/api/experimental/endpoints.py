@@ -30,6 +30,7 @@ from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
+from airflow.version import version
 from airflow.www.app import csrf
 
 _log = LoggingMixin().log
@@ -138,6 +139,12 @@ def dag_runs(dag_id):
 @requires_authentication
 def test():
     return jsonify(status='OK')
+
+
+@api_experimental.route('/info', methods=['GET'])
+@requires_authentication
+def info():
+    return jsonify(version=version)
 
 
 @api_experimental.route('/dags/<string:dag_id>/code', methods=['GET'])

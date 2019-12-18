@@ -39,7 +39,7 @@ CommandType = Union[str, List[str]]
 # needed to run the task.
 #
 # Tuple of: command, priority, queue name, SimpleTaskInstance
-QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], SimpleTaskInstance]
+QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], Union[SimpleTaskInstance, TaskInstance]]
 
 
 class BaseExecutor(LoggingMixin):
@@ -85,7 +85,7 @@ class BaseExecutor(LoggingMixin):
             ignore_task_deps: bool = False,
             ignore_ti_state: bool = False,
             pool: Optional[str] = None,
-            cfg_path: Optional[str] = None):
+            cfg_path: Optional[str] = None) -> None:
         """Queues task instance."""
         pool = pool or task_instance.pool
 

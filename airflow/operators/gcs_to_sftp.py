@@ -40,7 +40,7 @@ class GoogleCloudStorageToSFTPOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GoogleCloudStorageToSFTPOperator`
 
-    :param source_bucket: The source Google cloud storage bucket where the
+    :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
     :type source_bucket: str
     :param source_object: The source name of the object to copy in the Google cloud

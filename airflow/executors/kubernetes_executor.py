@@ -120,6 +120,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.git_sync_root = conf.get(self.kubernetes_section, 'git_sync_root')
         # Optionally, the name at which to publish the checked-out files under --root
         self.git_sync_dest = conf.get(self.kubernetes_section, 'git_sync_dest')
+        # Optionally, the tag or hash to checkout
+        self.git_sync_rev = conf.get(self.kubernetes_section, 'git_sync_rev')
         # Optionally, if git_dags_folder_mount_point is set the worker will use
         # {git_dags_folder_mount_point}/{git_sync_dest}/{git_subpath} as dags_folder
         self.git_dags_folder_mount_point = conf.get(self.kubernetes_section,
@@ -572,6 +574,27 @@ class AirflowKubernetesScheduler(LoggingMixin):
             return None
 
         with create_session() as session:
+            task = (
+                session
+                .query(TaskInstance)
+                .filter_by(task_id=task_id, dag_id=dag_id, execution_date=ex_time)
+                .one_or_none()
+            )
+            if task:
+                self.log.info(
+                    'Found matching task %s-%s (%s) with current state of %s',
+                    task.dag_id, task.task_id, task.execution_date, task.state
+                )
+                return (dag_id, task_id, ex_time, try_num)
+            else:
+                self.log.warning(
+                    'task_id/dag_id are not safe to use as Kubernetes labels. This can cause '
+                    'severe performance regressions. Please see '
+                    '<https://kubernetes.io/docs/concepts/overview/working-with-objects'
+                    '/labels/#syntax-and-character-set>. '
+                    'Given dag_id: %s, task_id: %s', task_id, dag_id
+                )
+
             tasks = (
                 session
                 .query(TaskInstance)

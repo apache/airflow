@@ -612,8 +612,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
 
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
-    point the operator to a Google cloud storage object name. The object in
-    Google cloud storage must be a JSON file with the schema fields in it.
+    point the operator to a Google Cloud Storage object name. The object in
+    Google Cloud Storage must be a JSON file with the schema fields in it.
     You can also create a table without schema.
 
     :param project_id: The project to create the table into. (templated)
@@ -789,12 +789,12 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
-    point the operator to a Google cloud storage object name. The object in
-    Google cloud storage must be a JSON file with the schema fields in it.
+    point the operator to a Google Cloud Storage object name. The object in
+    Google Cloud Storage must be a JSON file with the schema fields in it.
 
     :param bucket: The bucket to point the external table to. (templated)
     :type bucket: str
-    :param source_objects: List of Google cloud storage URIs to point
+    :param source_objects: List of Google Cloud Storage URIs to point
         table to. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type source_objects: list

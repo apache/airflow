@@ -266,7 +266,7 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
     def _upload_to_gcs(self, files_to_upload):
         """
         Upload all of the file splits (and optionally the schema .json file) to
-        Google cloud storage.
+        Google Cloud Storage.
         """
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,

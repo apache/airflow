@@ -22,8 +22,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from airflow import DAG
-from airflow.contrib.operators.jira_operator import JiraOperator
 from airflow.models import Connection
+from airflow.providers.jira.operators.jira import JiraOperator
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -59,7 +59,7 @@ class TestJiraOperator(unittest.TestCase):
                 host='https://localhost/jira/', port=443,
                 extra='{"verify": "False", "project": "AIRFLOW"}'))
 
-    @patch("airflow.contrib.hooks.jira_hook.JIRA",
+    @patch("airflow.providers.jira.hooks.jira.JIRA",
            autospec=True, return_value=jira_client_mock)
     def test_issue_search(self, jira_mock):
         jql_str = 'issuekey=TEST-1226'
@@ -79,7 +79,7 @@ class TestJiraOperator(unittest.TestCase):
         self.assertTrue(jira_mock.called)
         self.assertTrue(jira_mock.return_value.search_issues.called)
 
-    @patch("airflow.contrib.hooks.jira_hook.JIRA",
+    @patch("airflow.providers.jira.hooks.jira.JIRA",
            autospec=True, return_value=jira_client_mock)
     def test_update_issue(self, jira_mock):
         jira_mock.return_value.add_comment.return_value = True
