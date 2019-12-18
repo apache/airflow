@@ -22,7 +22,7 @@
 ./airflow/contrib/hooks/sagemaker_hook.py
 ./airflow/contrib/hooks/segment_hook.py
 ./airflow/contrib/hooks/slack_webhook_hook.py
-./airflow/contrib/hooks/snowflake_hook.py
+./airflow/providers/snowflake/hooks/snowflake.py
 ./airflow/contrib/hooks/spark_jdbc_hook.py
 ./airflow/contrib/hooks/spark_jdbc_script.py
 ./airflow/contrib/hooks/spark_sql_hook.py
@@ -65,7 +65,8 @@
 ./airflow/contrib/operators/segment_track_event_operator.py
 ./airflow/contrib/operators/sftp_to_s3_operator.py
 ./airflow/contrib/operators/slack_webhook_operator.py
-./airflow/contrib/operators/snowflake_operator.py
+./airflow/providers/snowflake/operators/snowflake.py
+./airflow/providers/snowflake/operators/s3_to_snowflake.py
 ./airflow/contrib/operators/spark_jdbc_operator.py
 ./airflow/contrib/operators/spark_sql_operator.py
 ./airflow/contrib/operators/spark_submit_operator.py
@@ -250,7 +251,7 @@
 ./tests/providers/jira/hooks/test_jira.py
 ./tests/contrib/hooks/test_mongo_hook.py
 ./tests/contrib/hooks/test_openfaas_hook.py
-./tests/contrib/hooks/test_snowflake_hook.py
+./tests/providers/snowflake/hooks/test_snowflake.py
 ./tests/contrib/hooks/test_spark_sql_hook.py
 ./tests/contrib/operators/test_azure_container_instances_operator.py
 ./tests/contrib/operators/test_azure_cosmos_insertdocument_operator.py
@@ -261,7 +262,8 @@
 ./tests/contrib/operators/test_s3_copy_object_operator.py
 ./tests/contrib/operators/test_s3_delete_objects_operator.py
 ./tests/contrib/operators/test_sftp_operator.py
-./tests/contrib/operators/test_snowflake_operator.py
+./tests/providers/snowflake/operators/test_snowflake.py
+./tests/providers/snowflake/operators/test_s3_to_snowflake.py
 ./tests/contrib/operators/test_ssh_operator.py
 ./tests/contrib/sensors/test_bash_sensor.py
 ./tests/contrib/sensors/test_emr_step_sensor.py

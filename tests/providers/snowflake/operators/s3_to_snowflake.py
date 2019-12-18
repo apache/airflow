@@ -19,13 +19,13 @@
 
 import unittest
 
-from airflow.contrib.operators.s3_to_snowflake_operator import S3ToSnowflakeTransfer
+from airflow.providers.snowflake.operators.s3_to_snowflake import S3ToSnowflakeTransfer
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 from tests.compat import mock
 
 
 class TestS3ToSnowflakeTransfer(unittest.TestCase):
-    @mock.patch("airflow.contrib.hooks.snowflake_hook.SnowflakeHook.run")
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
     def test_execute(self, mock_run):
         s3_keys = ['1.csv', '2.csv']
         table = 'table'
@@ -68,7 +68,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         assert mock_run.call_count == 1
         assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], copy_query)
 
-    @mock.patch("airflow.contrib.hooks.snowflake_hook.SnowflakeHook.run")
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
     def test_execute_with_columns(self, mock_run):
         s3_keys = ['1.csv', '2.csv']
         table = 'table'
