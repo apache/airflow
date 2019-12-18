@@ -19,8 +19,8 @@
 #
 """This module contains Azure Data Explorer operators"""
 
-from airflow.contrib.hooks.azure_data_explorer_hook import AzureDataExplorerHook
 from airflow.models import BaseOperator
+from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.utils.decorators import apply_defaults
 
 

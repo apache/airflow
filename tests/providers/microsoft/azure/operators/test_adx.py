@@ -20,9 +20,9 @@
 
 import unittest
 
-from airflow.contrib.hooks.azure_data_explorer_hook import AzureDataExplorerHook
-from airflow.contrib.operators.azure_data_explorer import AzureDataExplorerQueryOperator
 from airflow.models import DAG, TaskInstance
+from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
+from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.compat import mock

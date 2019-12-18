@@ -244,8 +244,8 @@ These integrations allow you to perform various operations within the Microsoft 
      -
 
    * - `Azure Data Explorer <https://azure.microsoft.com/en-us/services/data-explorer//>`__
-     - :mod:`airflow.contrib.hooks.azure_data_explorer_hook`
-     - :mod:`airflow.contrib.operators.azure_data_explorer`
+     - :mod:`airflow.providers.microsoft.azure.hooks.adx`
+     - :mod:`airflow.providers.microsoft.azure.operators.adx`
      -
 
    * - `Azure Files <https://azure.microsoft.com/en-us/services/storage/files/>`__
