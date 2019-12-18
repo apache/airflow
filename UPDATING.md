@@ -41,6 +41,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Remove serve_logs command from CLI
+
+The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
+and there is no need for it to be accessible from the CLI interface.
+
 ### Remove gcp_service_account_keys option in airflow.cfg file
 
 This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
@@ -184,7 +189,7 @@ in case they are called using positional parameters.
 
 Hooks involved:
 
-  * DataFlowHook
+  * DataflowHook
   * MLEngineHook
   * PubSubHook
 
@@ -323,7 +328,7 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook                                                         |airflow.gcp.hooks.cloud_build.CloudBuildHook                                                               |
 |airflow.contrib.hooks.gcp_compute_hook.GceHook                                                                    |airflow.gcp.hooks.compute.ComputeEngineHook                                                                |
 |airflow.contrib.hooks.gcp_container_hook.GKEClusterHook                                                           |airflow.gcp.hooks.kubernetes_engine.GKEClusterHook                                                         |
-|airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook                                                              |airflow.gcp.hooks.dataflow.DataFlowHook                                                                    |
+|airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook                                                              |airflow.gcp.hooks.dataflow.DataflowHook                                                                    |
 |airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook                                                              |airflow.gcp.hooks.dataproc.DataprocHook                                                                    |
 |airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook                                                                   |airflow.gcp.hooks.dlp.CloudDLPHook                                                                         |
 |airflow.contrib.hooks.gcp_function_hook.GcfHook                                                                   |airflow.gcp.hooks.functions.CloudFunctionsHook                                                             |
@@ -333,7 +338,6 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook                                                                  |airflow.providers.google.cloud.hooks.pubsub.PubSubHook                                                                        |
 |airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook                                                     |
 |airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook                                                           |airflow.gcp.hooks.spanner.SpannerHook                                                                      |
-|airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook                                                       |
 |airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook                                                           |airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook                                                           |
 |airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook                                                                   |airflow.gcp.hooks.cloud_sql.CloudSqlHook                                                                   |
 |airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook                                                               |airflow.gcp.hooks.tasks.CloudTasksHook                                                                     |
@@ -352,8 +356,8 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator                                      |airflow.gcp.operators.bigquery.BigQueryCreateEmptyTableOperator                                            |
 |airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator                                   |airflow.gcp.operators.bigquery.BigQueryCreateExternalTableOperator                                         |
 |airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator                                         |airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator                                               |
-|airflow.contrib.operators.bigquery_operator.BigQueryOperator                                                      |airflow.gcp.operators.bigquery.BigQueryOperator                                                            |
-|airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator                              |airflow.gcp.operators.bigquery.BigQueryTableDeleteOperator                                                 |
+|airflow.contrib.operators.bigquery_operator.BigQueryOperator                                                      |airflow.gcp.operators.bigquery.BigQueryExecuteQueryOperator                                                |
+|airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator                              |airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator                                                 |
 |airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator                                         |airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator                                          |
 |airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator                                          |airflow.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator                                           |
 |airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator                                      |airflow.operators.bigquery_to_mysql.BigQueryToMySqlOperator                                                |
@@ -434,8 +438,8 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator                         |airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseUpdateOperator                                   |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator                                 |airflow.gcp.operators.spanner.CloudSpannerInstanceDeleteOperator                                           |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator                                 |airflow.gcp.operators.spanner.CloudSpannerInstanceDeployOperator                                           |
-|airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator                      |airflow.gcp.operators.speech_to_text.GcpSpeechToTextRecognizeSpeechOperator                                |
-|airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator                           |airflow.gcp.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator                                     |
+|airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator                      |airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator
+|airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator                           |airflow.gcp.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator                                     |
 |airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator                               |airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobCreateOperator                   |
 |airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator                               |airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobDeleteOperator                   |
 |airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator                               |airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobUpdateOperator                   |
@@ -474,7 +478,7 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator                                     |airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator                                           |
 |airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                          |airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                           |
 |airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator                               |airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator                                |
-|airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator                                                |airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator                                                 |
+|airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator                                                |airflow.operators.gcs_to_s3.GCSToS3Operator                                                 |
 |airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator                                       |airflow.gcp.operators.mlengine.MLEngineBatchPredictionOperator                                             |
 |airflow.contrib.operators.mlengine_operator.MLEngineModelOperator                                                 |airflow.gcp.operators.mlengine.MLEngineModelOperator                                                       |
 |airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator                                              |airflow.gcp.operators.mlengine.MLEngineTrainingOperator                                                    |
@@ -488,7 +492,7 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator                                               |airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator                                                     |
 |airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator                                               |airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator                                                     |
 |airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                          |airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                           |
-|airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor                                                       |airflow.gcp.sensors.bigquery.BigQueryTableSensor                                                           |
+|airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor                                                       |airflow.gcp.sensors.bigquery.BigQueryTableExistenceSensor                                                  |
 |airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceWaitForJobStatusSensor                              |airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceWaitForJobStatusSensor                |
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor                                                 |airflow.gcp.sensors.gcs.GoogleCloudStorageObjectSensor                                                     |
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor                                          |airflow.gcp.sensors.gcs.GoogleCloudStorageObjectUpdatedSensor                                              |

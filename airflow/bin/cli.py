@@ -545,8 +545,8 @@ class CLIFactory:
         'user_import': Arg(
             ("import",),
             metavar="FILEPATH",
-            help="Import users from JSON file. Example format:" +
-                    textwrap.dedent('''
+            help="Import users from JSON file. Example format::\n" +
+                    textwrap.indent(textwrap.dedent('''
                     [
                         {
                             "email": "foo@bar.org",
@@ -555,7 +555,7 @@ class CLIFactory:
                             "roles": ["Public"],
                             "username": "jondoe"
                         }
-                    ]'''),
+                    ]'''), " " * 4),
         ),
         'user_export': Arg(
             ("export",),
@@ -853,11 +853,6 @@ class CLIFactory:
             'args': ('principal', 'keytab', 'pid',
                      'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
-            'name': 'serve_logs',
-            'func': lazy_load_command('airflow.cli.commands.serve_logs_command.serve_logs'),
-            'help': "Serve logs generate by worker",
-            'args': tuple(),
-        }, {
             'name': 'webserver',
             'func': lazy_load_command('airflow.cli.commands.webserver_command.webserver'),
             'help': "Start a Airflow webserver instance",
@@ -988,6 +983,12 @@ class CLIFactory:
             'help': 'Rotate all encrypted connection credentials and variables; see '
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
                     '#rotating-encryption-keys.',
+            'args': (),
+        },
+        {
+            'name': 'config',
+            'func': lazy_load_command('airflow.cli.commands.config_command.show_config'),
+            'help': 'Show current application configuration.',
             'args': (),
         },
     )

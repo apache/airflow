@@ -51,57 +51,59 @@ class TestCassandraToGCS(unittest.TestCase):
         operator.execute(None)
         mock_hook.return_value.get_conn.assert_called_once_with()
 
-        call_schema = call(test_bucket, schema, TMP_FILE_NAME, "application/json", gzip)
-        call_data = call(test_bucket, filename, TMP_FILE_NAME, "application/json", gzip)
+        call_schema = call(bucket_name=test_bucket, object_name=schema,
+                           filename=TMP_FILE_NAME, mime_type="application/json", gzip=gzip)
+        call_data = call(bucket_name=test_bucket, object_name=filename,
+                         filename=TMP_FILE_NAME, mime_type="application/json", gzip=gzip)
         mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
 
     def test_convert_value(self):
         op = CassandraToGoogleCloudStorageOperator
-        self.assertEqual(op.convert_value("None", None), None)
-        self.assertEqual(op.convert_value("int", 1), 1)
-        self.assertEqual(op.convert_value("float", 1.0), 1.0)
-        self.assertEqual(op.convert_value("str", "text"), "text")
-        self.assertEqual(op.convert_value("bool", True), True)
-        self.assertEqual(op.convert_value("dict", {"a": "b"}), {"a": "b"})
+        self.assertEqual(op.convert_value(None), None)
+        self.assertEqual(op.convert_value(1), 1)
+        self.assertEqual(op.convert_value(1.0), 1.0)
+        self.assertEqual(op.convert_value("text"), "text")
+        self.assertEqual(op.convert_value(True), True)
+        self.assertEqual(op.convert_value({"a": "b"}), {"a": "b"})
 
         from datetime import datetime
 
         now = datetime.now()
-        self.assertEqual(op.convert_value("datetime", now), str(now))
+        self.assertEqual(op.convert_value(now), str(now))
 
         from cassandra.util import Date
 
         date_str = "2018-01-01"
         date = Date(date_str)
-        self.assertEqual(op.convert_value("date", date), str(date_str))
+        self.assertEqual(op.convert_value(date), str(date_str))
 
         import uuid
         from base64 import b64encode
 
         test_uuid = uuid.uuid4()
         encoded_uuid = b64encode(test_uuid.bytes).decode("ascii")
-        self.assertEqual(op.convert_value("uuid", test_uuid), encoded_uuid)
+        self.assertEqual(op.convert_value(test_uuid), encoded_uuid)
 
-        b = b"abc"
-        encoded_b = b64encode(b).decode("ascii")
-        self.assertEqual(op.convert_value("binary", b), encoded_b)
+        byte_str = b"abc"
+        encoded_b = b64encode(byte_str).decode("ascii")
+        self.assertEqual(op.convert_value(byte_str), encoded_b)
 
         from decimal import Decimal
 
-        d = Decimal(1.0)
-        self.assertEqual(op.convert_value("decimal", d), float(d))
+        decimal = Decimal(1.0)
+        self.assertEqual(op.convert_value(decimal), float(decimal))
 
         from cassandra.util import Time
 
         time = Time(0)
-        self.assertEqual(op.convert_value("time", time), "00:00:00")
+        self.assertEqual(op.convert_value(time), "00:00:00")
 
         date_str_lst = ["2018-01-01", "2018-01-02", "2018-01-03"]
         date_lst = [Date(d) for d in date_str_lst]
-        self.assertEqual(op.convert_value("list", date_lst), date_str_lst)
+        self.assertEqual(op.convert_value(date_lst), date_str_lst)
 
         date_tpl = tuple(date_lst)
         self.assertEqual(
-            op.convert_value("tuple", date_tpl),
+            op.convert_value(date_tpl),
             {"field_0": "2018-01-01", "field_1": "2018-01-02", "field_2": "2018-01-03"},
         )

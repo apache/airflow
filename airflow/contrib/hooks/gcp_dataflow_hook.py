@@ -20,10 +20,21 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.dataflow import DEFAULT_DATAFLOW_LOCATION, DataFlowHook, DataflowJobStatus  # noqa
+from airflow.gcp.hooks.dataflow import DataflowHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.dataflow`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class DataFlowHook(DataflowHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.dataflow.DataflowHook`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.gcp.hooks.dataflow.DataflowHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

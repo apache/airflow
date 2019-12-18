@@ -140,7 +140,6 @@
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
 ./airflow/operators/bash_operator.py
-./airflow/operators/cassandra_to_gcs.py
 ./airflow/operators/check_operator.py
 ./airflow/operators/dagrun_operator.py
 ./airflow/operators/druid_check_operator.py
@@ -292,7 +291,6 @@
 ./tests/models/test_pool.py
 ./tests/models/test_taskinstance.py
 ./tests/operators/test_bash_operator.py
-./tests/operators/test_cassandra_to_gcs.py
 ./tests/operators/test_gcs_to_s3.py
 ./tests/operators/test_hive_operator.py
 ./tests/operators/test_operators.py

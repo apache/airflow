@@ -26,7 +26,9 @@ This example requires that your project contains Datastore instance.
 import os
 
 from airflow import models
-from airflow.gcp.operators.datastore import DatastoreExportOperator, DatastoreImportOperator
+from airflow.gcp.operators.datastore import (
+    CloudDatastoreExportEntitiesOperator, CloudDatastoreImportEntitiesOperator,
+)
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -39,7 +41,7 @@ with models.DAG(
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
 ) as dag:
-    export_task = DatastoreExportOperator(
+    export_task = CloudDatastoreExportEntitiesOperator(
         task_id="export_task",
         bucket=BUCKET,
         project_id=GCP_PROJECT_ID,
@@ -49,7 +51,7 @@ with models.DAG(
     bucket = "{{ task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[2] }}"
     file = "{{ '/'.join(task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[3:]) }}"
 
-    import_task = DatastoreImportOperator(
+    import_task = CloudDatastoreImportEntitiesOperator(
         task_id="import_task", bucket=bucket, file=file, project_id=GCP_PROJECT_ID
     )
 
