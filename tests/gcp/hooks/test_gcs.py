@@ -18,7 +18,6 @@
 # under the License.
 # pylint: disable=too-many-lines
 import copy
-import gzip as gz
 import io
 import os
 import tempfile
@@ -648,12 +647,16 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
             content_type='text/plain'
         )
 
+    @mock.patch(GCS_STRING.format('BytesIO'))
+    @mock.patch(GCS_STRING.format('gz.GzipFile'))
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_upload_data_str_gzip(self, mock_service):
+    def test_upload_data_str_gzip(self, mock_service, mock_gzip, mock_bytes_io):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
         encoding = 'utf-8'
 
+        gzip_ctx = mock_gzip.return_value.__enter__.return_value
+        data = mock_bytes_io.return_value.getvalue.return_value
         upload_method = mock_service.return_value.bucket.return_value\
             .blob.return_value.upload_from_string
 
@@ -662,23 +665,21 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
                              data=self.testdata_str,
                              gzip=True)
 
-        data = bytes(self.testdata_str, encoding)
-        out = io.BytesIO()
-        with gz.GzipFile(fileobj=out, mode="w") as f:
-            f.write(data)
-        data = out.getvalue()
+        byte_str = bytes(self.testdata_str, encoding)
+        mock_gzip.assert_called_once_with(fileobj=mock_bytes_io.return_value, mode="w")
+        gzip_ctx.write.assert_called_once_with(byte_str)
+        upload_method.assert_called_once_with(data, content_type='text/plain')
 
-        upload_method.assert_called_once_with(
-            data,
-            content_type='text/plain'
-        )
-
+    @mock.patch(GCS_STRING.format('BytesIO'))
+    @mock.patch(GCS_STRING.format('gz.GzipFile'))
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_upload_data_bytes_gzip(self, mock_service):
+    def test_upload_data_bytes_gzip(self, mock_service, mock_gzip, mock_bytes_io):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
-        upload_method = mock_service.return_value.bucket.return_value\
+        gzip_ctx = mock_gzip.return_value.__enter__.return_value
+        data = mock_bytes_io.return_value.getvalue.return_value
+        upload_method = mock_service.return_value.bucket.return_value \
             .blob.return_value.upload_from_string
 
         self.gcs_hook.upload(test_bucket,
@@ -686,16 +687,9 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
                              data=self.testdata_bytes,
                              gzip=True)
 
-        data = self.testdata_bytes
-        out = io.BytesIO()
-        with gz.GzipFile(fileobj=out, mode="w") as f:
-            f.write(data)
-        data = out.getvalue()
-
-        upload_method.assert_called_once_with(
-            data,
-            content_type='text/plain'
-        )
+        mock_gzip.assert_called_once_with(fileobj=mock_bytes_io.return_value, mode="w")
+        gzip_ctx.write.assert_called_once_with(self.testdata_bytes)
+        upload_method.assert_called_once_with(data, content_type='text/plain')
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_upload_exceptions(self, mock_service):

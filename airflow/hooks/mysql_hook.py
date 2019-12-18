@@ -117,6 +117,14 @@ class MySqlHook(DbApiHook):
         conn = MySQLdb.connect(**conn_config)
         return conn
 
+    def get_uri(self):
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        uri = super(MySqlHook, self).get_uri()
+        if conn.extra_dejson.get('charset', False):
+            charset = conn.extra_dejson["charset"]
+            return "{uri}?charset={charset}".format(uri=uri, charset=charset)
+        return uri
+
     def bulk_load(self, table, tmp_file):
         """
         Loads a tab-delimited file into a database table

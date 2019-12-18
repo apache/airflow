@@ -88,6 +88,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
         (datetime.datetime(1970, 1, 1, 1, 0), None, 3600),
         (decimal.Decimal(5), None, 5),
         (b"bytes", "BYTES", "Ynl0ZXM="),
+        (None, "BYTES", None)
     ])
     def test_convert_type(self, value, schema_type, expected):
         op = MySqlToGoogleCloudStorageOperator(

@@ -120,6 +120,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.git_sync_root = conf.get(self.kubernetes_section, 'git_sync_root')
         # Optionally, the name at which to publish the checked-out files under --root
         self.git_sync_dest = conf.get(self.kubernetes_section, 'git_sync_dest')
+        # Optionally, the tag or hash to checkout
+        self.git_sync_rev = conf.get(self.kubernetes_section, 'git_sync_rev')
         # Optionally, if git_dags_folder_mount_point is set the worker will use
         # {git_dags_folder_mount_point}/{git_sync_dest}/{git_subpath} as dags_folder
         self.git_dags_folder_mount_point = conf.get(self.kubernetes_section,
@@ -171,9 +173,6 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         # cluster has RBAC enabled, your workers may need service account permissions to
         # interact with cluster components.
         self.executor_namespace = conf.get(self.kubernetes_section, 'namespace')
-        # Task secrets managed by KubernetesExecutor.
-        self.gcp_service_account_keys = conf.get(self.kubernetes_section,
-                                                 'gcp_service_account_keys')
 
         # If the user is using the git-sync container to clone their repository via git,
         # allow them to specify repository, tag, and pod name for the init container.
@@ -575,6 +574,27 @@ class AirflowKubernetesScheduler(LoggingMixin):
             return None
 
         with create_session() as session:
+            task = (
+                session
+                .query(TaskInstance)
+                .filter_by(task_id=task_id, dag_id=dag_id, execution_date=ex_time)
+                .one_or_none()
+            )
+            if task:
+                self.log.info(
+                    'Found matching task %s-%s (%s) with current state of %s',
+                    task.dag_id, task.task_id, task.execution_date, task.state
+                )
+                return (dag_id, task_id, ex_time, try_num)
+            else:
+                self.log.warning(
+                    'task_id/dag_id are not safe to use as Kubernetes labels. This can cause '
+                    'severe performance regressions. Please see '
+                    '<https://kubernetes.io/docs/concepts/overview/working-with-objects'
+                    '/labels/#syntax-and-character-set>. '
+                    'Given dag_id: %s, task_id: %s', task_id, dag_id
+                )
+
             tasks = (
                 session
                 .query(TaskInstance)
@@ -723,17 +743,6 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     secret_name, e
                 )
                 raise
-
-        # For each GCP service account key, inject it as a secret in executor
-        # namespace with the specific secret name configured in the airflow.cfg.
-        # We let exceptions to pass through to users.
-        if self.kube_config.gcp_service_account_keys:
-            name_path_pair_list = [
-                {'name': account_spec.strip().split('=')[0],
-                 'path': account_spec.strip().split('=')[1]}
-                for account_spec in self.kube_config.gcp_service_account_keys.split(',')]
-            for service_account in name_path_pair_list:
-                _create_or_update_secret(service_account['name'], service_account['path'])
 
     def start(self) -> None:
         """Starts the executor"""

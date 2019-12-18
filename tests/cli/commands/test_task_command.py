@@ -212,13 +212,12 @@ class TestCliTasks(unittest.TestCase):
         dag = get_dag(args)
         reset(dag.dag_id)
 
-        with mock.patch('argparse.Namespace', args) as mock_args:
-            task_command.task_run(mock_args)
-            task = dag.get_task(task_id=args.task_id)
-            ti = TaskInstance(task, args.execution_date)
-            ti.refresh_from_db()
-            state = ti.current_state()
-            self.assertEqual(state, State.SUCCESS)
+        task_command.task_run(args)
+        task = dag.get_task(task_id=args.task_id)
+        ti = TaskInstance(task, args.execution_date)
+        ti.refresh_from_db()
+        state = ti.current_state()
+        self.assertEqual(state, State.SUCCESS)
 
 
 class TestCliTaskBackfill(unittest.TestCase):

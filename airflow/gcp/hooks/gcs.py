@@ -261,7 +261,7 @@ class GoogleCloudStorageHook(CloudBaseHook):
         """
         Checks for the existence of a file in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the object is.
+        :param bucket_name: The Google Cloud Storage bucket where the object is.
         :type bucket_name: str
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
@@ -276,7 +276,7 @@ class GoogleCloudStorageHook(CloudBaseHook):
         """
         Checks if an blob_name is updated in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the object is.
+        :param bucket_name: The Google Cloud Storage bucket where the object is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket.
@@ -374,7 +374,7 @@ class GoogleCloudStorageHook(CloudBaseHook):
         """
         Gets the size of a file in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the blob_name is.
+        :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google
             cloud storage bucket_name.
@@ -395,7 +395,7 @@ class GoogleCloudStorageHook(CloudBaseHook):
         """
         Gets the CRC32c checksum of an object in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the blob_name is.
+        :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket_name.
@@ -414,7 +414,7 @@ class GoogleCloudStorageHook(CloudBaseHook):
         """
         Gets the MD5 hash of an object in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the blob_name is.
+        :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket_name.

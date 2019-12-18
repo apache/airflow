@@ -177,7 +177,6 @@ data:
     logs_volume_host =
     in_cluster = True
     namespace = default
-    gcp_service_account_keys =
 
     # Example affinity and toleration definitions.
     affinity = {"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"NotIn","values":["4e5e6a99-e28a-450b-bba9-e0124853de9b"]}]}]}}}

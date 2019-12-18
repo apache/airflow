@@ -27,6 +27,7 @@ from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
+from airflow.version import version
 from airflow.www import app as application
 from tests.test_utils.db import clear_db_pools
 
@@ -65,6 +66,14 @@ class TestApiExperimental(TestBase):
         session.commit()
         session.close()
         super().tearDown()
+
+    def test_info(self):
+        url = '/api/experimental/info'
+
+        resp_raw = self.client.get(url)
+        resp = json.loads(resp_raw.data.decode('utf-8'))
+
+        self.assertEqual(version, resp['version'])
 
     def test_task_info(self):
         url_template = '/api/experimental/dags/{}/tasks/{}'

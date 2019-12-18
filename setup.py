@@ -350,7 +350,7 @@ webhdfs = [
     'hdfs[avro,dataframe,kerberos]>=2.0.4',
 ]
 winrm = [
-    'pywinrm==0.2.2',
+    'pywinrm~=0.4',
 ]
 zendesk = [
     'zdesk',
@@ -442,7 +442,7 @@ def do_setup():
         # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
         #####################################################################################################
         install_requires=[
-            'alembic>=1.0, <2.0',
+            'alembic>=1.2, <2.0',
             'argcomplete~=1.10',
             'attrs~=19.3',
             'cached_property~=1.5',
@@ -452,7 +452,7 @@ def do_setup():
             'cryptography>=0.9.3',
             'dill>=0.2.2, <0.4',
             'flask>=1.1.0, <2.0',
-            'flask-appbuilder>=1.12.5, <2.0.0',
+            'flask-appbuilder~=2.2',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',

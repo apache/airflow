@@ -34,13 +34,13 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
     """
     Checks for the existence of a file in Google Cloud Storage.
 
-    :param bucket: The Google cloud storage bucket where the object is.
+    :param bucket: The Google Cloud Storage bucket where the object is.
     :type bucket: str
     :param object: The name of the object to check in the Google cloud
         storage bucket.
     :type object: str
     :param google_cloud_conn_id: The connection ID to use when
-        connecting to Google cloud storage.
+        connecting to Google Cloud Storage.
     :type google_cloud_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -85,7 +85,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
     """
     Checks if an object is updated in Google Cloud Storage.
 
-    :param bucket: The Google cloud storage bucket where the object is.
+    :param bucket: The Google Cloud Storage bucket where the object is.
     :type bucket: str
     :param object: The name of the object to download in the Google cloud
         storage bucket.
@@ -95,7 +95,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
         as parameter.
     :type ts_func: function
     :param google_cloud_conn_id: The connection ID to use when
-        connecting to Google cloud storage.
+        connecting to Google Cloud Storage.
     :type google_cloud_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
@@ -137,13 +137,13 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
     fulfilled and the matching objects will be returned from the operator and passed
     through XCom for downstream tasks.
 
-    :param bucket: The Google cloud storage bucket where the object is.
+    :param bucket: The Google Cloud Storage bucket where the object is.
     :type bucket: str
     :param prefix: The name of the prefix to check in the Google cloud
         storage bucket.
     :type prefix: str
     :param google_cloud_conn_id: The connection ID to use when
-        connecting to Google cloud storage.
+        connecting to Google Cloud Storage.
     :type google_cloud_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -197,7 +197,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
     increase in the number of objects. Note, it is recommended to use reschedule
     mode if you expect this sensor to run for hours.
 
-    :param bucket: The Google cloud storage bucket where the objects are.
+    :param bucket: The Google Cloud Storage bucket where the objects are.
         expected.
     :type bucket: str
     :param prefix: The name of the prefix to check in the Google cloud
@@ -217,7 +217,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         when this happens. If false an error will be raised.
     :type allow_delete: bool
     :param google_cloud_conn_id: The connection ID to use when connecting
-        to Google cloud storage.
+        to Google Cloud Storage.
     :type google_cloud_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to work,
         the service account making the request must have domain-wide

@@ -439,7 +439,7 @@ class TestBackfillJob(unittest.TestCase):
             if len(running_task_instances) == default_pool_slots:
                 default_pool_task_slot_count_reached_at_least_once = True
 
-        self.assertEquals(8, num_running_task_instances)
+        self.assertEqual(8, num_running_task_instances)
         self.assertTrue(default_pool_task_slot_count_reached_at_least_once)
 
         times_dag_concurrency_limit_reached_in_debug = self._times_called_with(

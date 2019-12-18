@@ -125,7 +125,7 @@ def list_py_file_paths(directory: str,
             # We want patterns defined in a parent folder's .airflowignore to
             # apply to subdirs too
             for subdir in dirs:
-                patterns_by_dir[os.path.join(root, subdir)] = patterns
+                patterns_by_dir[os.path.join(root, subdir)] = patterns.copy()
 
             find_dag_file_paths(file_paths, files, patterns, root, safe_mode)
     if include_examples:

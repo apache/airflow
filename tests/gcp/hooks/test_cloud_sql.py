@@ -41,7 +41,9 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
                         new=mock_base_gcp_hook_default_project_id):
             self.cloudsql_hook = CloudSqlHook(api_version='v1', gcp_conn_id='test')
 
-    def test_instance_import_exception(self):
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
+    def test_instance_import_exception(self, mock_get_credentials):
         self.cloudsql_hook.get_conn = mock.Mock(
             side_effect=HttpError(resp={'status': '400'},
                                   content=b'Error content')
@@ -53,7 +55,9 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         err = cm.exception
         self.assertIn("Importing instance ", str(err))
 
-    def test_instance_export_exception(self):
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
+    def test_instance_export_exception(self, mock_get_credentials):
         self.cloudsql_hook.get_conn = mock.Mock(
             side_effect=HttpError(resp={'status': '400'},
                                   content=b'Error content')
@@ -65,9 +69,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         err = cm.exception
         self.assertIn("Exporting instance ", str(err))
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_instance_import(self, wait_for_operation_to_complete, get_conn):
+    def test_instance_import(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         import_method = get_conn.return_value.instances.return_value.import_
         execute_method = import_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -98,9 +104,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='new-project',
                                                                operation_name='operation_id')
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_instance_export(self, wait_for_operation_to_complete, get_conn):
+    def test_instance_export(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         export_method = get_conn.return_value.instances.return_value.export
         execute_method = export_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -131,9 +139,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(project_id='new-project',
                                                                operation_name='operation_id')
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_get_instance(self, wait_for_operation_to_complete, get_conn):
+    def test_get_instance(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         get_method = get_conn.return_value.instances.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "instance"}
@@ -162,9 +172,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_create_instance(self, wait_for_operation_to_complete, get_conn):
+    def test_create_instance(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         insert_method = get_conn.return_value.instances.return_value.insert
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -195,9 +207,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_patch_instance(self, wait_for_operation_to_complete, get_conn):
+    def test_patch_instance(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         patch_method = get_conn.return_value.instances.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -230,9 +244,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_delete_instance(self, wait_for_operation_to_complete, get_conn):
+    def test_delete_instance(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         delete_method = get_conn.return_value.instances.return_value.delete
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -263,9 +279,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_get_database(self, wait_for_operation_to_complete, get_conn):
+    def test_get_database(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         get_method = get_conn.return_value.databases.return_value.get
         execute_method = get_method.return_value.execute
         execute_method.return_value = {"name": "database"}
@@ -300,9 +318,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_not_called()
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_create_database(self, wait_for_operation_to_complete, get_conn):
+    def test_create_database(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         insert_method = get_conn.return_value.databases.return_value.insert
         execute_method = insert_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -335,9 +355,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_patch_database(self, wait_for_operation_to_complete, get_conn):
+    def test_patch_database(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         patch_method = get_conn.return_value.databases.return_value.patch
         execute_method = patch_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}
@@ -378,9 +400,11 @@ class TestGcpSqlHookDefaultProjectId(unittest.TestCase):
             operation_name='operation_id', project_id='new-project'
         )
 
+    @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._get_credentials_and_project_id',
+                return_value=(mock.MagicMock(), 'example-project'))
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook.get_conn')
     @mock.patch('airflow.gcp.hooks.cloud_sql.CloudSqlHook._wait_for_operation_to_complete')
-    def test_delete_database(self, wait_for_operation_to_complete, get_conn):
+    def test_delete_database(self, wait_for_operation_to_complete, get_conn, mock_get_credentials):
         delete_method = get_conn.return_value.databases.return_value.delete
         execute_method = delete_method.return_value.execute
         execute_method.return_value = {"name": "operation_id"}

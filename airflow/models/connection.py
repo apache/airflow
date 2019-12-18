@@ -18,7 +18,7 @@
 # under the License.
 
 import json
-from urllib.parse import parse_qsl, unquote, urlparse
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
 from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.ext.declarative import declared_attr
@@ -146,6 +146,41 @@ class Connection(Base, LoggingMixin):
         if uri_parts.query:
             self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
 
+    def get_uri(self) -> str:
+        uri = '{}://'.format(str(self.conn_type).lower().replace('_', '-'))
+
+        authority_block = ''
+        if self.login is not None:
+            authority_block += quote(self.login, safe='')
+
+        if self.password is not None:
+            authority_block += ':' + quote(self.password, safe='')
+
+        if authority_block > '':
+            authority_block += '@'
+
+            uri += authority_block
+
+        host_block = ''
+        if self.host:
+            host_block += quote(self.host, safe='')
+
+        if self.port:
+            if host_block > '':
+                host_block += ':{}'.format(self.port)
+            else:
+                host_block += '@:{}'.format(self.port)
+
+        if self.schema:
+            host_block += '/{}'.format(quote(self.schema, safe=''))
+
+        uri += host_block
+
+        if self.extra_dejson:
+            uri += '?{}'.format(urlencode(self.extra_dejson))
+
+        return uri
+
     def get_password(self):
         if self._password and self.is_encrypted:
             fernet = get_fernet()
@@ -241,7 +276,7 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.cloudant_hook import CloudantHook
             return CloudantHook(cloudant_conn_id=self.conn_id)
         elif self.conn_type == 'jira':
-            from airflow.contrib.hooks.jira_hook import JiraHook
+            from airflow.providers.jira.hooks.jira import JiraHook
             return JiraHook(jira_conn_id=self.conn_id)
         elif self.conn_type == 'redis':
             from airflow.contrib.hooks.redis_hook import RedisHook
@@ -274,6 +309,17 @@ class Connection(Base, LoggingMixin):
 
     def __repr__(self):
         return self.conn_id
+
+    def log_info(self):
+        return ("id: {}. Host: {}, Port: {}, Schema: {}, "
+                "Login: {}, Password: {}, extra: {}".
+                format(self.conn_id,
+                       self.host,
+                       self.port,
+                       self.schema,
+                       self.login,
+                       "XXXXXXXX" if self.password else None,
+                       "XXXXXXXX" if self.extra_dejson else None))
 
     def debug_info(self):
         return ("id: {}. Host: {}, Port: {}, Schema: {}, "
