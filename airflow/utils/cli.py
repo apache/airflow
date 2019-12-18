@@ -70,10 +70,11 @@ def action_logging(f):
             at 1st positional argument
         :param kwargs: A passthrough keyword argument
         """
-        assert args
-        assert isinstance(args[0], Namespace), \
-            "1st positional argument should be argparse.Namespace instance, " \
-            "but {}".format(args[0])
+        if not args:
+            raise ValueError("Args should be set")
+        if not isinstance(args[0], Namespace):
+            raise ValueError("1st positional argument should be argparse.Namespace instance,"
+                             f"but is {type(args[0])}")
         metrics = _build_metrics(f.__name__, args[0])
         cli_action_loggers.on_pre_execution(**metrics)
         try:
@@ -103,7 +104,9 @@ def _build_metrics(func_name, namespace):
     metrics = {'sub_command': func_name, 'start_datetime': datetime.utcnow(),
                'full_command': '{}'.format(list(sys.argv)), 'user': getpass.getuser()}
 
-    assert isinstance(namespace, Namespace)
+    if not isinstance(namespace, Namespace):
+        raise ValueError("namespace argument should be argparse.Namespace instance,"
+                         f"but is {type(namespace)}")
     tmp_dic = vars(namespace)
     metrics['dag_id'] = tmp_dic.get('dag_id')
     metrics['task_id'] = tmp_dic.get('task_id')

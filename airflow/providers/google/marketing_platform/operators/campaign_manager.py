@@ -27,7 +27,7 @@ from googleapiclient import http
 
 from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.utils.decorators import apply_defaults
 
@@ -163,7 +163,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     )
 
     @apply_defaults
-    def __init__(  # pylint:disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         profile_id: str,
         report_id: str,

@@ -43,7 +43,6 @@ class TestSendEmailSendGrid(unittest.TestCase):
                  'bcc': [{'email': 'foo-bcc@foo.com'}, {'email': 'bar-bcc@bar.com'}]}],
             'from': {'email': 'foo@bar.com'},
             'subject': 'sendgrid-send-email unit test',
-            'mail_settings': {},
         }
         self.personalization_custom_args = {'arg1': 'val1', 'arg2': 'val2'}
         self.categories = ['cat1', 'cat2']
@@ -51,7 +50,7 @@ class TestSendEmailSendGrid(unittest.TestCase):
         self.expected_mail_data_extras = copy.deepcopy(self.expected_mail_data)
         self.expected_mail_data_extras['personalizations'][0]['custom_args'] = (
             self.personalization_custom_args)
-        self.expected_mail_data_extras['categories'] = self.categories
+        self.expected_mail_data_extras['categories'] = ['cat2', 'cat1']
         self.expected_mail_data_extras['from'] = {
             'name': 'Foo',
             'email': 'foo@bar.com',

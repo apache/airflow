@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint:disable=too-many-lines
+# pylint: disable=too-many-lines
 
 import ast
 import unittest
@@ -74,7 +74,7 @@ class TestGceInstanceStart(unittest.TestCase):
         args = {
             'start_date': DEFAULT_DATE
         }
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
         op = GceInstanceStartOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
@@ -168,7 +168,7 @@ class TestGceInstanceStop(unittest.TestCase):
         args = {
             'start_date': DEFAULT_DATE
         }
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
         op = GceInstanceStopOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
@@ -272,7 +272,7 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
         args = {
             'start_date': DEFAULT_DATE
         }
-        self.dag = DAG(dag_id, default_args=args)  # pylint:disable=attribute-defined-outside-init
+        self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
         op = GceSetMachineTypeOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',

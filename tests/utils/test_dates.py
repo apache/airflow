@@ -52,3 +52,46 @@ class TestDates(unittest.TestCase):
             timezone.datetime(2017, 11, 5, 16, 18, 30, 989729),
             dates.parse_execution_date(execution_date_str_w_ms))
         self.assertRaises(ValueError, dates.parse_execution_date, bad_execution_date_str)
+
+
+class TestUtilsDatesDateRange(unittest.TestCase):
+
+    def test_no_delta(self):
+        self.assertEqual(dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3)),
+                         [])
+
+    def test_end_date_before_start_date(self):
+        with self.assertRaisesRegex(Exception, "Wait. start_date needs to be before end_date"):
+            dates.date_range(datetime(2016, 2, 1),
+                             datetime(2016, 1, 1),
+                             delta=timedelta(seconds=1))
+
+    def test_both_end_date_and_num_given(self):
+        with self.assertRaisesRegex(Exception, "Wait. Either specify end_date OR num"):
+            dates.date_range(datetime(2016, 1, 1),
+                             datetime(2016, 1, 3),
+                             num=2,
+                             delta=timedelta(seconds=1))
+
+    def test_invalid_delta(self):
+        exception_msg = "Wait. delta must be either datetime.timedelta or cron expression as str"
+        with self.assertRaisesRegex(Exception, exception_msg):
+            dates.date_range(datetime(2016, 1, 1),
+                             datetime(2016, 1, 3),
+                             delta=1)
+
+    def test_positive_num_given(self):
+        for num in range(1, 10):
+            result = dates.date_range(datetime(2016, 1, 1), num=num, delta=timedelta(1))
+            self.assertEqual(len(result), num)
+
+            for i in range(num):
+                self.assertTrue(timezone.is_localized(result[i]))
+
+    def test_negative_num_given(self):
+        for num in range(-1, -5, -10):
+            result = dates.date_range(datetime(2016, 1, 1), num=num, delta=timedelta(1))
+            self.assertEqual(len(result), -num)
+
+            for i in range(num):
+                self.assertTrue(timezone.is_localized(result[i]))

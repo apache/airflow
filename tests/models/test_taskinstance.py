@@ -33,7 +33,7 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule
+from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
@@ -869,7 +869,7 @@ class TestTaskInstance(unittest.TestCase):
         # Pull the values pushed by both tasks
         result = ti1.xcom_pull(
             task_ids=['test_xcom_1', 'test_xcom_2'], key='foo')
-        self.assertEqual(result, ('bar', 'baz'))
+        self.assertEqual(result, ['baz', 'bar'])
 
     def test_xcom_pull_after_success(self):
         """
@@ -1348,3 +1348,129 @@ class TestTaskInstance(unittest.TestCase):
         self.assertIsInstance(template_context["execution_date"], pendulum.datetime)
         self.assertIsInstance(template_context["next_execution_date"], pendulum.datetime)
         self.assertIsInstance(template_context["prev_execution_date"], pendulum.datetime)
+
+    @parameterized.expand(
+        [
+            ('{{ var.value.a_variable }}', 'a test value'),
+            ('{{ var.value.get("a_variable") }}', 'a test value'),
+            ('{{ var.value.get("a_variable", "unused_fallback") }}', 'a test value'),
+            ('{{ var.value.get("missing_variable", "fallback") }}', 'fallback'),
+        ]
+    )
+    def test_template_with_variable(self, content, expected_output):
+        """
+        Test the availability of variables in templates
+        """
+        Variable.set('a_variable', 'a test value')
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        result = task.render_template(content, context)
+        self.assertEqual(result, expected_output)
+
+    def test_template_with_variable_missing(self):
+        """
+        Test the availability of variables in templates
+        """
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        with self.assertRaises(KeyError):
+            task.render_template('{{ var.value.get("missing_variable") }}', context)
+
+    @parameterized.expand(
+        [
+            ('{{ var.value.a_variable }}', '{\n  "a": {\n    "test": "value"\n  }\n}'),
+            ('{{ var.json.a_variable["a"]["test"] }}', 'value'),
+            ('{{ var.json.get("a_variable")["a"]["test"] }}', 'value'),
+            ('{{ var.json.get("a_variable", {"a": {"test": "unused_fallback"}})["a"]["test"] }}', 'value'),
+            ('{{ var.json.get("missing_variable", {"a": {"test": "fallback"}})["a"]["test"] }}', 'fallback'),
+        ]
+    )
+    def test_template_with_json_variable(self, content, expected_output):
+        """
+        Test the availability of variables in templates
+        """
+        Variable.set('a_variable', {'a': {'test': 'value'}}, serialize_json=True)
+
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        result = task.render_template(content, context)
+        self.assertEqual(result, expected_output)
+
+    def test_template_with_json_variable_missing(self):
+        with DAG('test-dag', start_date=DEFAULT_DATE):
+            task = DummyOperator(task_id='op1')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+        with self.assertRaises(KeyError):
+            task.render_template('{{ var.json.get("missing_variable") }}', context)
+
+    def test_execute_callback(self):
+        called = False
+
+        def on_execute_callable(context):
+            nonlocal called
+            called = True
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_dagrun_execute_callback'
+            )
+
+        dag = DAG('test_execute_callbak', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task = DummyOperator(task_id='op', email='test@test.test',
+                             on_execute_callback=on_execute_callable,
+                             dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        assert called
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
+    def test_handle_failure(self):
+        from unittest import mock
+
+        start_date = timezone.datetime(2016, 6, 1)
+        dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)
+
+        with mock.MagicMock() as mock_on_failure_1, mock.MagicMock() as mock_on_retry_1:
+            task1 = DummyOperator(task_id="test_handle_failure_on_failure",
+                                  on_failure_callback=mock_on_failure_1,
+                                  on_retry_callback=mock_on_retry_1,
+                                  dag=dag)
+            ti1 = TI(task=task1, execution_date=start_date)
+            ti1.state = State.FAILED
+            ti1.handle_failure("test failure handling")
+
+        context_arg_1 = mock_on_failure_1.call_args[0][0]
+        assert context_arg_1 and "task_instance" in context_arg_1
+        mock_on_retry_1.assert_not_called()
+
+        with mock.MagicMock() as mock_on_failure_2, mock.MagicMock() as mock_on_retry_2:
+            task2 = DummyOperator(task_id="test_handle_failure_on_retry",
+                                  on_failure_callback=mock_on_failure_2,
+                                  on_retry_callback=mock_on_retry_2,
+                                  retries=1,
+                                  dag=dag)
+            ti2 = TI(task=task2, execution_date=start_date)
+            ti2.state = State.FAILED
+            ti2.handle_failure("test retry handling")
+
+        mock_on_failure_2.assert_not_called()
+
+        context_arg_2 = mock_on_retry_2.call_args[0][0]
+        assert context_arg_2 and "task_instance" in context_arg_2

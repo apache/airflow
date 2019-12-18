@@ -30,7 +30,7 @@ from urllib3.util.retry import Retry
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
 except Exception as e:  # pylint: disable=broad-except
-    if os.environ.get('KUBERNETES_VERSION'):
+    if os.environ.get('KUBERNETES_VERSION') and os.environ.get('ENV', 'kubernetes') == 'kubernetes':
         raise e
     else:
         raise unittest.SkipTest(

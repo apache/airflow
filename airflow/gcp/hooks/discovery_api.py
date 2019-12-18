@@ -24,10 +24,10 @@ from typing import Dict, Optional
 
 from googleapiclient.discovery import Resource, build
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class GoogleDiscoveryApiHook(GoogleCloudBaseHook):
+class GoogleDiscoveryApiHook(CloudBaseHook):
     """
     A hook to use the Google API Discovery Service.
 

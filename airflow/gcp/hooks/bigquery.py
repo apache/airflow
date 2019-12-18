@@ -37,12 +37,12 @@ from pandas_gbq.gbq import (
 )
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
+class BigQueryHook(CloudBaseHook, DbApiHook):
     """
     Interact with BigQuery. This hook uses the Google Cloud Platform
     connection.
@@ -1246,19 +1246,6 @@ class BigQueryBaseCursor(LoggingMixin):
                 "destinationEncryptionConfiguration"
             ] = encryption_configuration
 
-        # if following fields are not specified in src_fmt_configs,
-        # honor the top-level params for backward-compatibility
-        if 'skipLeadingRows' not in src_fmt_configs:
-            src_fmt_configs['skipLeadingRows'] = skip_leading_rows
-        if 'fieldDelimiter' not in src_fmt_configs:
-            src_fmt_configs['fieldDelimiter'] = field_delimiter
-        if 'ignoreUnknownValues' not in src_fmt_configs:
-            src_fmt_configs['ignoreUnknownValues'] = ignore_unknown_values
-        if quote_character is not None:
-            src_fmt_configs['quote'] = quote_character
-        if allow_quoted_newlines:
-            src_fmt_configs['allowQuotedNewlines'] = allow_quoted_newlines
-
         src_fmt_to_configs_mapping = {
             'CSV': [
                 'allowJaggedRows', 'allowQuotedNewlines', 'autodetect',
@@ -1699,7 +1686,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if not dataset_reference["datasetReference"].get("datasetId") and not dataset_id:
             raise ValueError(
-                "{} not provided datasetId. Impossible to create dataset")
+                "dataset_id not provided and datasetId not exist in the datasetReference. "
+                "Impossible to create dataset")
 
         dataset_required_params = [(dataset_id, "datasetId", ""),
                                    (project_id, "projectId", self.project_id)]
@@ -1845,6 +1833,69 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content))
 
         return datasets_list
+
+    @CloudBaseHook.catch_http_exception
+    def get_dataset_tables_list(self, dataset_id, project_id=None, table_prefix=None, max_results=None):
+        """
+        Method returns tables list of a BigQuery dataset. If table prefix is specified,
+        only tables beginning by it are returned.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :param table_prefix: Tables must begin by this prefix to be returned (case sensitive)
+        :type table_prefix: str
+        :param max_results: The maximum number of results to return in a single response page.
+            Leverage the page tokens to iterate through the entire collection.
+        :type max_results: int
+        :return: dataset_tables_list
+
+            Example of returned dataset_tables_list: ::
+
+                    [
+                       {
+                          "projectId": "your-project",
+                          "datasetId": "dataset",
+                          "tableId": "table1"
+                        },
+                        {
+                          "projectId": "your-project",
+                          "datasetId": "dataset",
+                          "tableId": "table2"
+                        }
+                    ]
+        """
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        optional_params = {}
+        if max_results:
+            optional_params['maxResults'] = max_results
+
+        request = self.service.tables().list(projectId=dataset_project_id,
+                                             datasetId=dataset_id,
+                                             **optional_params)
+        dataset_tables_list = []
+        while request is not None:
+            response = request.execute(num_retries=self.num_retries)
+
+            for table in response.get('tables', []):
+                table_ref = table.get('tableReference')
+                table_id = table_ref.get('tableId')
+                if table_id and (not table_prefix or table_id.startswith(table_prefix)):
+                    dataset_tables_list.append(table_ref)
+
+            request = self.service.tables().list_next(previous_request=request,
+                                                      previous_response=response)
+
+        self.log.info("%s tables found", len(dataset_tables_list))
+
+        return dataset_tables_list
 
     def patch_dataset(self, dataset_id: str, dataset_resource: str, project_id: Optional[str] = None) -> Dict:
         """
@@ -2069,6 +2120,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         """
         sql = _bind_parameters(operation,
                                parameters) if parameters else operation
+        self.flush_results()
         self.job_id = self.run_query(sql)
 
     def executemany(self, operation: str, seq_of_parameters: List) -> None:
@@ -2083,6 +2135,13 @@ class BigQueryCursor(BigQueryBaseCursor):
         """
         for parameters in seq_of_parameters:
             self.execute(operation, parameters)
+
+    def flush_results(self) -> None:
+        """ Flush results related cursor attributes. """
+        self.page_token = None
+        self.job_id = None
+        self.all_pages_loaded = False
+        self.buffer = []
 
     def fetchone(self) -> Union[List, None]:
         """ Fetch the next row of a query result set. """
@@ -2124,9 +2183,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
             else:
                 # Reset all state since we've exhausted the results.
-                self.page_token = None
-                self.job_id = None
-                self.page_token = None
+                self.flush_results()
                 return None
 
         return self.buffer.pop(0)

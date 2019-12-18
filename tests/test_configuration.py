@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,12 +23,17 @@ from collections import OrderedDict
 from unittest import mock
 
 from airflow import configuration
-from airflow.configuration import AirflowConfigParser, conf, parameterized_config
+from airflow.configuration import (
+    AirflowConfigParser, conf, expand_env_var, get_airflow_config, get_airflow_home, parameterized_config,
+)
+from tests.test_utils.reset_warning_registry import reset_warning_registry
 
 
 @unittest.mock.patch.dict('os.environ', {
     'AIRFLOW__TESTSECTION__TESTKEY': 'testvalue',
-    'AIRFLOW__TESTSECTION__TESTPERCENT': 'with%percent'
+    'AIRFLOW__TESTSECTION__TESTPERCENT': 'with%percent',
+    'AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD': 'echo -n "OK"',
+    'AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD': 'echo -n "NOT OK"'
 })
 class TestConf(unittest.TestCase):
 
@@ -42,13 +46,13 @@ class TestConf(unittest.TestCase):
             if 'AIRFLOW_HOME' in os.environ:
                 del os.environ['AIRFLOW_HOME']
             self.assertEqual(
-                configuration.get_airflow_home(),
-                configuration.expand_env_var('~/airflow'))
+                get_airflow_home(),
+                expand_env_var('~/airflow'))
 
     def test_airflow_home_override(self):
         with unittest.mock.patch.dict('os.environ', AIRFLOW_HOME='/path/to/airflow'):
             self.assertEqual(
-                configuration.get_airflow_home(),
+                get_airflow_home(),
                 '/path/to/airflow')
 
     def test_airflow_config_default(self):
@@ -56,13 +60,13 @@ class TestConf(unittest.TestCase):
             if 'AIRFLOW_CONFIG' in os.environ:
                 del os.environ['AIRFLOW_CONFIG']
             self.assertEqual(
-                configuration.get_airflow_config('/home/airflow'),
-                configuration.expand_env_var('/home/airflow/airflow.cfg'))
+                get_airflow_config('/home/airflow'),
+                expand_env_var('/home/airflow/airflow.cfg'))
 
     def test_airflow_config_override(self):
         with unittest.mock.patch.dict('os.environ', AIRFLOW_CONFIG='/path/to/airflow/airflow.cfg'):
             self.assertEqual(
-                configuration.get_airflow_config('/home//airflow'),
+                get_airflow_config('/home//airflow'),
                 '/path/to/airflow/airflow.cfg')
 
     def test_case_sensitivity(self):
@@ -404,14 +408,14 @@ AIRFLOW_HOME = /root/airflow
                 test_conf = make_config()
 
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+        with reset_warning_registry():
+            with warnings.catch_warnings(record=True) as w:
+                with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
+                    test_conf = make_config()
 
-        with warnings.catch_warnings(record=True) as w:
-            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
-                test_conf = make_config()
+                    self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
 
-                self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
-
-                self.assertListEqual([], w)
+                    self.assertListEqual([], w)
 
     def test_deprecated_funcs(self):
         for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
@@ -419,3 +423,21 @@ AIRFLOW_HOME = /root/airflow
             with mock.patch('airflow.configuration.{}'.format(func)):
                 with self.assertWarns(DeprecationWarning):
                     getattr(configuration, func)()
+
+    def test_command_from_env(self):
+        TEST_CMDENV_CONFIG = '''[testcmdenv]
+itsacommand = NOT OK
+notacommand = OK
+'''
+        test_cmdenv_conf = AirflowConfigParser()
+        test_cmdenv_conf.read_string(TEST_CMDENV_CONFIG)
+        test_cmdenv_conf.as_command_stdout.add(('testcmdenv', 'itsacommand'))
+        with unittest.mock.patch.dict('os.environ'):
+            # AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD maps to ('testcmdenv', 'itsacommand') in
+            # as_command_stdout and therefore should return 'OK' from the environment variable's
+            # echo command, and must not return 'NOT OK' from the configuration
+            self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'itsacommand'), 'OK')
+            # AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD maps to no entry in as_command_stdout and therefore
+            # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
+            # the environement variable's echo command
+            self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'notacommand'), 'OK')

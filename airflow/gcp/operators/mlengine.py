@@ -162,7 +162,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
+    def __init__(self,  # pylint: disable=too-many-arguments
                  job_id: str,
                  region: str,
                  data_format: str,
@@ -916,7 +916,7 @@ class MLEngineTrainingOperator(BaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
+    def __init__(self,  # pylint: disable=too-many-arguments
                  job_id: str,
                  package_uris: List[str],
                  training_python_module: str,

@@ -18,9 +18,9 @@
 # under the License.
 #
 import io
-import sys
 import unittest
 from argparse import Namespace
+from contextlib import redirect_stdout
 from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
@@ -122,16 +122,10 @@ class TestCliTasks(unittest.TestCase):
             execution_date=timezone.parse('2018-01-01')
         )
 
-        saved_stdout = sys.stdout
-        try:
-            sys.stdout = out = io.StringIO()
+        with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
-
-            output = out.getvalue()
-            # Check that prints, and log messages, are shown
-            self.assertIn("'example_python_operator__print_the_context__20180101'", output)
-        finally:
-            sys.stdout = saved_stdout
+        # Check that prints, and log messages, are shown
+        self.assertIn("'example_python_operator__print_the_context__20180101'", stdout.getvalue())
 
     @mock.patch("airflow.cli.commands.task_command.jobs.LocalTaskJob")
     def test_run_naive_taskinstance(self, mock_local_job):
@@ -218,13 +212,12 @@ class TestCliTasks(unittest.TestCase):
         dag = get_dag(args)
         reset(dag.dag_id)
 
-        with mock.patch('argparse.Namespace', args) as mock_args:
-            task_command.task_run(mock_args)
-            task = dag.get_task(task_id=args.task_id)
-            ti = TaskInstance(task, args.execution_date)
-            ti.refresh_from_db()
-            state = ti.current_state()
-            self.assertEqual(state, State.SUCCESS)
+        task_command.task_run(args)
+        task = dag.get_task(task_id=args.task_id)
+        ti = TaskInstance(task, args.execution_date)
+        ti.refresh_from_db()
+        state = ti.current_state()
+        self.assertEqual(state, State.SUCCESS)
 
 
 class TestCliTaskBackfill(unittest.TestCase):

@@ -29,7 +29,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_compute_hook.GceHook",
     ),
     (
-        "airflow.gcp.hooks.base.GoogleCloudBaseHook",
+        "airflow.gcp.hooks.base.CloudBaseHook",
         "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook",
     ),
     (
@@ -49,7 +49,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_function_hook.GcfHook",
     ),
     (
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook",
+        "airflow.gcp.hooks.kms.CloudKMSHook",
         "airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook",
     ),
     (
@@ -203,7 +203,7 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_build.CloudBuildCreateBuildOperator",
+        "airflow.gcp.operators.cloud_build.CloudBuildCreateOperator",
         "airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator",
     ),
     (
@@ -769,6 +769,10 @@ OPERATOR = [
     (
         "airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator",
         "airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator",
+    ),
+    (
+        "airflow.providers.amazon.aws.operators.batch.AwsBatchOperator",
+        "airflow.contrib.operators.awsbatch_operator.AWSBatchOperator",
     ),
     (
         "airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator",

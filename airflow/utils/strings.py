@@ -28,3 +28,10 @@ def get_random_string(length=8, choices=string.ascii_letters + string.digits):
     Generate random string
     '''
     return ''.join([choice(choices) for _ in range(length)])
+
+
+def to_boolean(astring):
+    '''
+    Convert a string to a boolean
+    '''
+    return astring.lower() in ['true', 't', 'y', 'yes', '1']

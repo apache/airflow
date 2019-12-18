@@ -35,11 +35,12 @@ from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
+from airflow.version import version as airflow_version
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
 except Exception as e:  # pylint: disable=broad-except
-    if os.environ.get('KUBERNETES_VERSION'):
+    if os.environ.get('KUBERNETES_VERSION') and os.environ.get('ENV', 'kubernetes') == 'kubernetes':
         raise e
     else:
         raise unittest.SkipTest(
@@ -61,7 +62,10 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 'namespace': 'default',
                 'name': ANY,
                 'annotations': {},
-                'labels': {'foo': 'bar'}
+                'labels': {
+                    'foo': 'bar', 'kubernetes_pod_operator': 'True',
+                    'airflow_version': airflow_version.replace('+', '-')
+                }
             },
             'spec': {
                 'affinity': {},
@@ -83,6 +87,7 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
+                'initContainers': [],
                 'nodeSelector': {},
                 'restartPolicy': 'Never',
                 'securityContext': {},
@@ -258,6 +263,25 @@ class TestKubernetesPodOperator(unittest.TestCase):
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         self.expected_pod['spec']['hostNetwork'] = True
         self.expected_pod['spec']['dnsPolicy'] = dns_policy
+        self.assertEqual(self.expected_pod, actual_pod)
+
+    def test_pod_schedulername(self):
+        scheduler_name = "default-scheduler"
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            schedulername=scheduler_name
+        )
+        k.execute(None)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['schedulerName'] = scheduler_name
         self.assertEqual(self.expected_pod, actual_pod)
 
     def test_pod_node_selectors(self):
@@ -636,6 +660,84 @@ class TestKubernetesPodOperator(unittest.TestCase):
                 name=secret_ref
             ))]
         )
+
+    def test_init_container(self):
+        # GIVEN
+        volume_mounts = [k8s.V1VolumeMount(
+            mount_path='/etc/foo',
+            name='test-volume',
+            sub_path=None,
+            read_only=True
+        )]
+
+        init_environments = [k8s.V1EnvVar(
+            name='key1',
+            value='value1'
+        ), k8s.V1EnvVar(
+            name='key2',
+            value='value2'
+        )]
+
+        init_container = k8s.V1Container(
+            name="init-container",
+            image="ubuntu:16.04",
+            env=init_environments,
+            volume_mounts=volume_mounts,
+            command=["bash", "-cx"],
+            args=["echo 10"]
+        )
+
+        volume_config = {
+            'persistentVolumeClaim':
+            {
+                'claimName': 'test-volume'
+            }
+        }
+        volume = Volume(name='test-volume', configs=volume_config)
+
+        expected_init_container = {
+            'name': 'init-container',
+            'image': 'ubuntu:16.04',
+            'command': ['bash', '-cx'],
+            'args': ['echo 10'],
+            'env': [{
+                'name': 'key1',
+                'value': 'value1'
+            }, {
+                'name': 'key2',
+                'value': 'value2'
+            }],
+            'volumeMounts': [{
+                'mountPath': '/etc/foo',
+                'name': 'test-volume',
+                'readOnly': True
+            }],
+        }
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            volumes=[volume],
+            init_containers=[init_container],
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+
+        k.execute(None)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['initContainers'] = [expected_init_container]
+        self.expected_pod['spec']['volumes'] = [{
+            'name': 'test-volume',
+            'persistentVolumeClaim': {
+                'claimName': 'test-volume'
+            }
+        }]
+        self.assertEqual(self.expected_pod, actual_pod)
 
 
 # pylint: enable=unused-argument

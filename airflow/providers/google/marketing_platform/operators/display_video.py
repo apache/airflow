@@ -27,7 +27,7 @@ from urllib.parse import urlparse
 
 from airflow import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.utils.decorators import apply_defaults
 

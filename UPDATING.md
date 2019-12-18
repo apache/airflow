@@ -41,6 +41,71 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Remove gcp_service_account_keys option in airflow.cfg file
+
+This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
+recommended service account keys for the Google Cloud Platform management method is
+[Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
+
+### BranchPythonOperator has a return value
+`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch, 
+where previously it returned None. Since it inherits from BaseOperator it will do an 
+`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making. 
+
+### Removal of airflow.AirflowMacroPlugin class
+
+The class was there in airflow package but it has not been used (apparently since 2015).
+It has been removed.
+
+### Changes to settings
+
+CONTEXT_MANAGER_DAG was removed from settings. It's role has been taken by `DagContext` in
+'airflow.models.dag'. One of the reasons was that settings should be rather static than store
+dynamic context from the DAG, but the main one is that moving the context out of settings allowed to
+untangle cyclic imports between DAG, BaseOperator, SerializedDAG, SerializedBaseOperator which was
+part of AIRFLOW-6010.
+
+#### Change default aws_conn_id in EMR operators
+
+The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous 
+versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new 
+changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is 
+solved.
+
+### Removal of redirect_stdout, redirect_stderr
+
+Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has 
+been deleted because it can be easily replaced by the standard library.
+The functions of the standard library are more flexible and can be used in larger cases.
+  
+The code below
+```python
+import logging
+
+from airflow.utils.log.logging_mixin import redirect_stderr, redirect_stdout
+
+logger = logging.getLogger("custom-logger")
+with redirect_stdout(logger, logging.INFO), redirect_stderr(logger, logging.WARN):
+    print("I love Airflow")
+```
+can be replaced by the following code:
+```python
+from contextlib import redirect_stdout, redirect_stderr
+import logging
+
+from airflow.utils.log.logging_mixin import StreamLogWriter
+
+logger = logging.getLogger("custom-logger")
+
+with redirect_stdout(StreamLogWriter(logger, logging.INFO)), \
+        redirect_stderr(StreamLogWriter(logger, logging.WARN)):
+    print("I Love Airflow")
+```
+
+### Removal of XCom.get_one()
+
+This one is supersede by `XCom.get_many().first()` which will return the same result.
+
 ### Changes to SQLSensor
 
 SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
@@ -83,6 +148,7 @@ Migrated are:
 | airflow.contrib.hooks.aws_sqs_hook.SQSHook                   | airflow.providers.amazon.aws.hooks.sqs.SQSHook        |
 | airflow.contrib.hooks.aws_sns_hook.AwsSnsHook                   | airflow.providers.amazon.aws.hooks.sns.AwsSnsHook        |
 | airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator | airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator |
+| airflow.contrib.operators.awsbatch.AWSBatchOperator | airflow.providers.amazon.aws.operators.batch.AwsBatchOperator |
 | airflow.contrib.operators.aws_sqs_publish_operator.SQSPublishOperator | airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator |
 | airflow.contrib.operators.aws_sns_publish_operator.SnsPublishOperator | airflow.providers.amazon.aws.operators.sns.SnsPublishOperator |
 | airflow.contrib.sensors.aws_athena_sensor.AthenaSensor       | airflow.providers.amazon.aws.sensors.athena.AthenaSensor        |
@@ -101,6 +167,14 @@ delete this option.
 
 The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
 As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
+
+### Changes in experimental API execution_date microseconds replacement
+
+The default behavior was to strip the microseconds (and milliseconds, etc) off of all dag runs triggered by
+by the experimental REST API.  The default behavior will change when an explicit execution_date is
+passed in the request body.  It will also now be possible to have the execution_date generated, but
+keep the microseconds by sending `replace_microseconds=false` in the request body.  The default
+behavior can be overridden by sending `replace_microseconds=true` along with an explicit execution_date
 
 ### Changes in Google Cloud Platform related hooks
 
@@ -253,7 +327,7 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook                                                              |airflow.gcp.hooks.dataproc.DataprocHook                                                                    |
 |airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook                                                                   |airflow.gcp.hooks.dlp.CloudDLPHook                                                                         |
 |airflow.contrib.hooks.gcp_function_hook.GcfHook                                                                   |airflow.gcp.hooks.functions.CloudFunctionsHook                                                             |
-|airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook                                                             |airflow.gcp.hooks.kms.GoogleCloudKMSHook                                                                   |
+|airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook                                                             |airflow.gcp.hooks.kms.CloudKMSHook                                                                   |
 |airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook                                                              |airflow.gcp.hooks.mlengine.MLEngineHook                                                                    |
 |airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook                                          |airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook                                                |
 |airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook                                                                  |airflow.providers.google.cloud.hooks.pubsub.PubSubHook                                                                        |
@@ -308,7 +382,7 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator                                       |airflow.gcp.operators.bigtable.BigtableTableCreateOperator                                                 |
 |airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator                                       |airflow.gcp.operators.bigtable.BigtableTableDeleteOperator                                                 |
 |airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor                             |airflow.gcp.sensors.bigtable.BigtableTableWaitForReplicationSensor                                         |
-|airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator                                  |airflow.gcp.operators.cloud_build.CloudBuildCreateBuildOperator                                            |
+|airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator                                  |airflow.gcp.operators.cloud_build.CloudBuildCreateOperator
 |airflow.contrib.operators.gcp_compute_operator.GceBaseOperator                                                    |airflow.gcp.operators.compute.GceBaseOperator                                                              |
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator                      |airflow.gcp.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator                                |
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator                                           |airflow.gcp.operators.compute.GceInstanceStartOperator                                                     |

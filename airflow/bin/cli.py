@@ -577,6 +577,11 @@ class CLIFactory:
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
+        'skip_serve_logs': Arg(
+            ("-s", "--skip_serve_logs"),
+            default=False,
+            help="Don't start the serve logs process along with the workers.",
+            action="store_true"),
     }
     subparsers = (
         {
@@ -596,7 +601,7 @@ class CLIFactory:
                             "search for all the dagruns with the given state. "
                             "If no_backfill option is given, it will filter out "
                             "all backfill dagruns for given dag id.",
-                    'args': ('dag_id', 'no_backfill', 'state'),
+                    'args': ('dag_id', 'no_backfill', 'state', 'output',),
                 },
                 {
                     'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
@@ -834,6 +839,12 @@ class CLIFactory:
                     'help': "Upgrade the metadata database to latest version",
                     'args': tuple(),
                 },
+                {
+                    'func': lazy_load_command('airflow.cli.commands.db_command.shell'),
+                    'name': 'shell',
+                    'help': "Runs a shell to access the database",
+                    'args': tuple(),
+                },
             ),
         }, {
             'name': 'kerberos',
@@ -865,7 +876,7 @@ class CLIFactory:
             'func': lazy_load_command('airflow.cli.commands.worker_command.worker'),
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
         }, {
             'name': 'flower',
             'func': lazy_load_command('airflow.cli.commands.flower_command.flower'),

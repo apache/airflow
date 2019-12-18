@@ -89,6 +89,10 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
         return record
 
     def format(self, record: LogRecord) -> str:
-        record = self._color_record_args(record)
-        record = self._color_record_traceback(record)
-        return super().format(record)
+        try:
+            record = self._color_record_args(record)
+            record = self._color_record_traceback(record)
+            return super().format(record)
+        except ValueError:  # I/O operation on closed file
+            from logging import Formatter
+            return Formatter().format(record)

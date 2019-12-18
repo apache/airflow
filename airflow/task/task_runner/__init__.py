@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# pylint:disable=missing-docstring
+# pylint: disable=missing-docstring
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
