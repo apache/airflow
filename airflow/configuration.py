@@ -27,7 +27,7 @@ from base64 import b64encode
 from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
-from typing import Dict
+from typing import Dict, Tuple
 
 from cryptography.fernet import Fernet
 from zope.deprecation import deprecated
@@ -81,15 +81,15 @@ def run_command(command):
     return output
 
 
-def _read_default_config_file(file_name: str) -> str:
+def _read_default_config_file(file_name: str) -> Tuple[str, str]:
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
-    with open(file_path, encoding='utf-8') as file:
-        return file.read()
+    with open(file_path, encoding='utf-8') as config_file:
+        return config_file.read(), file_path
 
 
-DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
-TEST_CONFIG = _read_default_config_file('default_test.cfg')
+DEFAULT_CONFIG, DEFAULT_CONFIG_FILE_PATH = _read_default_config_file('default_airflow.cfg')
+TEST_CONFIG, TEST_CONFIG_FILE_PATH = _read_default_config_file('default_test.cfg')
 
 
 class AirflowConfigParser(ConfigParser):
@@ -430,10 +430,13 @@ class AirflowConfigParser(ConfigParser):
         Note: this is not reversible.
         """
         # override any custom settings with defaults
+        log.info("Overriding settings with defaults from %s", DEFAULT_CONFIG_FILE_PATH)
         self.read_string(parameterized_config(DEFAULT_CONFIG))
         # then read test config
+        log.info("Reading default test configuration from %s", TEST_CONFIG_FILE_PATH)
         self.read_string(parameterized_config(TEST_CONFIG))
         # then read any "custom" test settings
+        log.info("Reading test configuration from %s", TEST_CONFIG_FILE)
         self.read(TEST_CONFIG_FILE)
 
     def _warn_deprecate(self, section, key, deprecated_name):
@@ -565,7 +568,7 @@ WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
 if not os.path.isfile(WEBSERVER_CONFIG):
     log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
-    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
+    DEFAULT_WEBSERVER_CONFIG, _ = _read_default_config_file('default_webserver_config.py')
     with open(WEBSERVER_CONFIG, 'w') as file:
         file.write(DEFAULT_WEBSERVER_CONFIG)
 

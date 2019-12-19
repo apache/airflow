@@ -28,7 +28,7 @@ import uuid
 from enum import Enum
 from typing import List, Optional
 
-from airflow.gcp.hooks.dataflow import DataFlowHook
+from airflow.gcp.hooks.dataflow import DataflowHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -47,7 +47,7 @@ class CheckJobRunning(Enum):
     WaitForRun = 3
 
 
-class DataFlowJavaOperator(BaseOperator):
+class DataflowCreateJavaJobOperator(BaseOperator):
     """
     Start a Java Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
@@ -199,7 +199,7 @@ class DataFlowJavaOperator(BaseOperator):
         self.check_if_running = check_if_running
 
     def execute(self, context):
-        hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
+        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
         dataflow_options = copy.copy(self.dataflow_default_options)
@@ -227,7 +227,7 @@ class DataFlowJavaOperator(BaseOperator):
             )
 
 
-class DataflowTemplateOperator(BaseOperator):
+class DataflowTemplatedJobStartOperator(BaseOperator):
     """
     Start a Templated Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
@@ -329,7 +329,7 @@ class DataflowTemplateOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context):
-        hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
+        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
 
@@ -341,7 +341,7 @@ class DataflowTemplateOperator(BaseOperator):
         )
 
 
-class DataFlowPythonOperator(BaseOperator):
+class DataflowCreatePythonJobOperator(BaseOperator):
     """
     Launching Cloud Dataflow jobs written in python. Note that both
     dataflow_default_options and options will be merged to specify pipeline
@@ -419,7 +419,7 @@ class DataFlowPythonOperator(BaseOperator):
         bucket_helper = GoogleCloudBucketHelper(
             self.gcp_conn_id, self.delegate_to)
         self.py_file = bucket_helper.google_cloud_to_local(self.py_file)
-        hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
+        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
         dataflow_options = self.dataflow_default_options.copy()

@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
-class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
+class GCSToS3Operator(GoogleCloudStorageListOperator):
     """
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 

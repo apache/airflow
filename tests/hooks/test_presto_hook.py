@@ -22,7 +22,7 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
-from requests.auth import HTTPBasicAuth
+from prestodb.transaction import IsolationLevel
 
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.models import Connection
@@ -47,12 +47,13 @@ class TestPrestoHookConn(unittest.TestCase):
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
-    @patch('airflow.hooks.presto_hook.presto.connect')
-    def test_get_conn(self, mock_connect):
+    @patch('airflow.hooks.presto_hook.prestodb.auth.BasicAuthentication')
+    @patch('airflow.hooks.presto_hook.prestodb.dbapi.connect')
+    def test_get_conn(self, mock_connect, mock_basic_auth):
         self.db_hook.get_conn()
-        mock_connect.assert_called_once_with(catalog='hive', host='host', port=None, protocol='http',
-                                             schema='hive', source='airflow', username='login',
-                                             requests_kwargs={'auth': HTTPBasicAuth('login', 'password')})
+        mock_connect.assert_called_once_with(catalog='hive', host='host', port=None, http_scheme='http',
+                                             schema='hive', source='airflow', user='login', isolation_level=0,
+                                             auth=mock_basic_auth('login', 'password'))
 
 
 class TestPrestoHook(unittest.TestCase):
@@ -71,6 +72,9 @@ class TestPrestoHook(unittest.TestCase):
             def get_conn(self):
                 return conn
 
+            def get_isolation_level(self):
+                return IsolationLevel.READ_COMMITTED
+
         self.db_hook = UnitTestPrestoHook()
 
     @patch('airflow.hooks.dbapi_hook.DbApiHook.insert_rows')
@@ -79,8 +83,9 @@ class TestPrestoHook(unittest.TestCase):
         rows = [("hello",),
                 ("world",)]
         target_fields = None
-        self.db_hook.insert_rows(table, rows, target_fields)
-        mock_insert_rows.assert_called_once_with(table, rows, None, 0)
+        commit_every = 10
+        self.db_hook.insert_rows(table, rows, target_fields, commit_every)
+        mock_insert_rows.assert_called_once_with(table, rows, None, 10)
 
     def test_get_first_record(self):
         statement = 'SQL'
