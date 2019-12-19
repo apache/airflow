@@ -571,7 +571,7 @@ OPERATOR = [
         "airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator",
+        "airflow.operators.gcs_to_s3.GCSToS3Operator",
         "airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator",
     ),
     (
