@@ -545,8 +545,8 @@ class CLIFactory:
         'user_import': Arg(
             ("import",),
             metavar="FILEPATH",
-            help="Import users from JSON file. Example format:" +
-                    textwrap.dedent('''
+            help="Import users from JSON file. Example format::\n" +
+                    textwrap.indent(textwrap.dedent('''
                     [
                         {
                             "email": "foo@bar.org",
@@ -555,7 +555,7 @@ class CLIFactory:
                             "roles": ["Public"],
                             "username": "jondoe"
                         }
-                    ]'''),
+                    ]'''), " " * 4),
         ),
         'user_export': Arg(
             ("export",),
