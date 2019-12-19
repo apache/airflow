@@ -35,12 +35,14 @@ jobs:
     - name: "Static checks"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_tests.sh
-      env: AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+      env: >-
+        AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+        PYTHON_VERSION=3.5
     - name: "Build documentation"
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
       env: >-
-        PYTHON_VERSION=3.6
+        PYTHON_VERSION=3.5
     - name: "Tests postgres python 3.6"
       env: >-
         BACKEND=postgres
