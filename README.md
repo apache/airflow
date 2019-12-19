@@ -413,6 +413,7 @@ Currently **officially** using Airflow:
 1. [Twine Labs](https://www.twinelabs.com/) [[@ivorpeles](https://github.com/ivorpeles)]
 1. [Twitter](https://www.twitter.com/) [[@aoen](https://github.com/aoen)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]
+1. [Udacity](https://www.udacity.com/) [[@dandikunited](https://github.com/DandikUnited), [@simon-uc](https://github.com/simon-uc)]
 1. [United Airlines](https://www.united.com/) [[@ilopezfr](https://github.com/ilopezfr)]
 1. [Upsight](https://www.upsight.com)
 1. [VeeR VR](https://veer.tv) [[@pishilong](https://github.com/pishilong)]
