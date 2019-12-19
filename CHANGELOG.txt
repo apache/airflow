@@ -80,7 +80,6 @@ Improvements
 - [AIRFLOW-5897] Allow setting -1 as pool slots value in webserver (#6550)
 - [AIRFLOW-5888] Use psycopg2-binary for postgres operations (#6533)
 - [AIRFLOW-5870] Allow -1 for pool size and optimise pool query (#6520)
-- [AIRFLOW-6297] Add Airflow website link to UI docs (#6849)
 
 Bug Fixes
 """""""""
@@ -134,8 +133,8 @@ Bug Fixes
 - [AIRFLOW-4488] Fix typo for non-RBAC UI in max_active_runs_per_dag (#6778)
 - [AIRFLOW-5942] Pin PyMSSQL to <3.0 (#6592)
 - [AIRFLOW-5451] SparkSubmitHook don't set default namespace (#6072)
-- [AIRFLOW-6269] Add show config command in CLI (#6840)
 - [AIRFLOW-6271] Printing log files read during load_test_config (#6842)
+- [AIRFLOW-6308] Unpin Kombu for Python 3
 
 Misc/Internal
 """""""""""""
