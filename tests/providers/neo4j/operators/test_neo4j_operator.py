@@ -41,8 +41,8 @@ class TestNeo4JOperator(unittest.TestCase):
                                                 soft_fail=True)
         assert operator is not None
 
-    @patch('airflow.contrib.hooks.neo4j_hook.Neo4JHook.run_query')
-    @patch('airflow.contrib.hooks.neo4j_hook.Neo4JHook.__init__', return_value=None)
+    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.run_query')
+    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.__init__', return_value=None)
     def test_execute(self, mock_hook_init, mock_hook_run_query):
         """
         Test that the execute() method will make the expected calls to the hook

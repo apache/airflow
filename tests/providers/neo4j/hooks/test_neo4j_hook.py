@@ -42,9 +42,9 @@ class TestNeo4JHook(unittest.TestCase):
         """
         self._hook = neo4j_hook.Neo4JHook(self._conn_id)
 
-    @patch('airflow.contrib.hooks.neo4j_hook.Neo4JHook.get_config')
-    @patch('airflow.contrib.hooks.neo4j_hook.Neo4JHook.get_driver')
-    @patch('airflow.contrib.hooks.neo4j_hook.Neo4JHook.get_session')
+    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_config')
+    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_driver')
+    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_session')
     def test_run_query_with_session(self, mock_get_session, mock_get_driver, mock_get_config):
         """
         Proves that the run_query() method makes calls to the supporting methods
