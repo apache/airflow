@@ -365,7 +365,10 @@ To install it on macOS:
 These commands install the libraries in a new ``node_modules/`` folder within
 ``www/``.
 
-Should you add or upgrade an node package, which involves running ``yarn add --dev``
+Should you add or upgrade an node package, you should run:
+ ``yarn add --dev <package>`` for packages needed in development
+ or
+ ``yarn add <package>`` for packages used by the code
 and push the newly generated ``package.json`` and ``yarn.lock`` file so that we
 get a reproducible build. See the `Yarn docs
 <https://yarnpkg.com/en/docs/cli/add#adding-dependencies->`_ for more info
