@@ -25,7 +25,8 @@ import os
 import airflow
 from airflow import models
 from airflow.gcp.operators.dataflow import (
-    CheckJobRunning, DataFlowJavaOperator, DataFlowPythonOperator, DataflowTemplateOperator,
+    CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
+    DataflowTemplatedJobStartOperator,
 )
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -50,7 +51,7 @@ with models.DAG(
 ) as dag:
 
     # [START howto_operator_start_java_job]
-    start_java_job = DataFlowJavaOperator(
+    start_java_job = DataflowCreateJavaJobOperator(
         task_id="start-java-job",
         jar=GCS_JAR,
         job_name='{{task.task_id}}22222255sss{{ macros.uuid.uuid4() }}',
@@ -64,7 +65,7 @@ with models.DAG(
     # [END howto_operator_start_java_job]
 
     # [START howto_operator_start_python_job]
-    start_python_job = DataFlowPythonOperator(
+    start_python_job = DataflowCreatePythonJobOperator(
         task_id="start-python-job",
         py_file='apache_beam.examples.wordcount',
         py_options=['-m'],
@@ -76,7 +77,7 @@ with models.DAG(
     )
     # [END howto_operator_start_python_job]
 
-    start_template_job = DataflowTemplateOperator(
+    start_template_job = DataflowTemplatedJobStartOperator(
         task_id="start-template-job",
         template='gs://dataflow-templates/latest/Word_Count',
         parameters={
