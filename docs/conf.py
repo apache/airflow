@@ -251,6 +251,7 @@ exclude_patterns = [
     '_api/airflow/providers/apache/spark/index.rst',
     '_api/airflow/providers/microsoft/index.rst',
     '_api/airflow/providers/microsoft/azure/index.rst',
+    '_api/airflow/providers/odbc/index.rst',
     '_api/airflow/providers/sftp/index.rst',
     '_api/enums/index.rst',
     '_api/json_schema/index.rst',

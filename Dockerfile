@@ -74,6 +74,8 @@ RUN curl -L https://deb.nodesource.com/setup_10.x | bash - \
            rsync \
            sasl2-bin \
            sudo \
+           unixodbc \
+           unixodbc-dev \
            yarn \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \

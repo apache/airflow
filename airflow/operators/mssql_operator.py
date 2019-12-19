@@ -18,14 +18,21 @@
 # under the License.
 from typing import Iterable, Mapping, Optional, Union
 
+from airflow import AirflowException
 from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import BaseOperator
+from airflow.providers.odbc.hooks.odbc import OdbcHook
 from airflow.utils.decorators import apply_defaults
 
 
 class MsSqlOperator(BaseOperator):
     """
     Executes sql code in a specific Microsoft SQL database
+
+    This operator may use one of two hooks, depending on the ``conn_type`` of the connection.
+
+    If conn_type is ``'odbc'``, then :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`
+    is used.  Otherwise, :py:class:`~airflow.hooks.mssql_hook.MsSqlHook` is used.
 
     :param sql: the sql code to be executed
     :type sql: str or string pointing to a template file with .sql
@@ -60,10 +67,26 @@ class MsSqlOperator(BaseOperator):
         self.parameters = parameters
         self.autocommit = autocommit
         self.database = database
+        self._hook = None
+
+    def get_hook(self):
+        """
+        Will retrieve hook as determined by Connection.
+
+        If conn_type is ``'odbc'``, will use
+        :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`.
+        Otherwise, :py:class:`~airflow.hooks.mssql_hook.MsSqlHook` will be used.
+        """
+        if not self._hook:
+            conn = MsSqlHook.get_connection(conn_id=self.mssql_conn_id)
+            try:
+                self._hook = conn.get_hook()  # type: Union[MsSqlHook, OdbcHook]
+                self._hook.schema = self.database
+            except AirflowException:
+                self._hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
+        return self._hook
 
     def execute(self, context):
         self.log.info('Executing: %s', self.sql)
-        hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id,
-                         schema=self.database)
-        hook.run(self.sql, autocommit=self.autocommit,
-                 parameters=self.parameters)
+        hook = self.get_hook()
+        hook.run(sql=self.sql, autocommit=self.autocommit, parameters=self.parameters)

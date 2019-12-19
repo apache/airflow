@@ -183,6 +183,8 @@ All hooks are in the following packages:
 
   airflow/providers/microsoft/azure/hooks/index
 
+  airflow/providers/odbc/hooks/index
+
   airflow/providers/sftp/hooks/index
 
 Executors
