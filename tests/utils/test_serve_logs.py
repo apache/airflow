@@ -19,6 +19,7 @@ import unittest
 from multiprocessing import Process
 from os.path import basename
 from tempfile import NamedTemporaryFile
+from time import sleep
 
 import requests
 
@@ -37,6 +38,7 @@ class TestServeLogs(unittest.TestCase):
             f.flush()
             sub_proc = Process(target=serve_logs)
             sub_proc.start()
+            sleep(1)
             log_url = f"http://localhost:{log_port}/log/{basename(f.name)}"
             self.assertEqual(LOG_DATA, requests.get(log_url).content.decode())
             sub_proc.terminate()
