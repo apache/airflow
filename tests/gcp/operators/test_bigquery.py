@@ -26,8 +26,9 @@ from airflow.exceptions import AirflowException
 from airflow.gcp.operators.bigquery import (
     BigQueryConsoleIndexableLink, BigQueryConsoleLink, BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator,
-    BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator, BigQueryOperator,
-    BigQueryPatchDatasetOperator, BigQueryTableDeleteOperator, BigQueryUpdateDatasetOperator,
+    BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator, BigQueryGetDataOperator,
+    BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator, BigQueryPatchDatasetOperator,
+    BigQueryUpdateDatasetOperator,
 )
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -245,7 +246,7 @@ class TestBigQueryOperator(unittest.TestCase):
     def test_execute(self, mock_hook):
         encryption_configuration = {'key': 'kk'}
 
-        operator = BigQueryOperator(
+        operator = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
             sql='Select * from test_table',
             destination_dataset_table=None,
@@ -295,7 +296,7 @@ class TestBigQueryOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute_list(self, mock_hook):
-        operator = BigQueryOperator(
+        operator = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
             sql=[
                 'Select * from test_table',
@@ -369,7 +370,7 @@ class TestBigQueryOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute_bad_type(self, mock_hook):
-        operator = BigQueryOperator(
+        operator = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
             sql=1,
             destination_dataset_table=None,
@@ -396,7 +397,7 @@ class TestBigQueryOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_defaults(self, mock_hook):
-        operator = BigQueryOperator(
+        operator = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
             sql='Select * from test_table',
             dag=self.dag,
@@ -435,7 +436,7 @@ class TestBigQueryOperator(unittest.TestCase):
 
     def test_bigquery_operator_extra_serialized_field_when_single_query(self):
         with self.dag:
-            BigQueryOperator(
+            BigQueryExecuteQueryOperator(
                 task_id=TASK_ID,
                 sql='SELECT * FROM test_table',
             )
@@ -472,7 +473,7 @@ class TestBigQueryOperator(unittest.TestCase):
 
     def test_bigquery_operator_extra_serialized_field_when_multiple_queries(self):
         with self.dag:
-            BigQueryOperator(
+            BigQueryExecuteQueryOperator(
                 task_id=TASK_ID,
                 sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
             )
@@ -522,7 +523,7 @@ class TestBigQueryOperator(unittest.TestCase):
     @provide_session
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_missing_job_id(self, mock_hook, session):
-        bigquery_task = BigQueryOperator(
+        bigquery_task = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
             dag=self.dag,
@@ -538,7 +539,7 @@ class TestBigQueryOperator(unittest.TestCase):
     @provide_session
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_single_query(self, mock_hook, session):
-        bigquery_task = BigQueryOperator(
+        bigquery_task = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
             sql='SELECT * FROM test_table',
             dag=self.dag,
@@ -567,7 +568,7 @@ class TestBigQueryOperator(unittest.TestCase):
     @provide_session
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_bigquery_operator_extra_link_when_multiple_query(self, mock_hook, session):
-        bigquery_task = BigQueryOperator(
+        bigquery_task = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
             sql=['SELECT * FROM test_table', 'SELECT * FROM test_table2'],
             dag=self.dag,
@@ -631,7 +632,7 @@ class TestBigQueryTableDeleteOperator(unittest.TestCase):
         ignore_if_missing = True
         deletion_dataset_table = '{}.{}'.format(TEST_DATASET, TEST_TABLE_ID)
 
-        operator = BigQueryTableDeleteOperator(
+        operator = BigQueryDeleteTableOperator(
             task_id=TASK_ID,
             deletion_dataset_table=deletion_dataset_table,
             ignore_if_missing=ignore_if_missing

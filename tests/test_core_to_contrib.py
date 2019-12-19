@@ -706,27 +706,11 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryCreateEmptyDatasetOperator",
-        "airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator",
-    ),
-    (
-        "airflow.gcp.operators.bigquery.BigQueryCreateEmptyTableOperator",
-        "airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator",
-    ),
-    (
-        "airflow.gcp.operators.bigquery.BigQueryCreateExternalTableOperator",
-        "airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator",
-    ),
-    (
-        "airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator",
-        "airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator",
-    ),
-    (
-        "airflow.gcp.operators.bigquery.BigQueryOperator",
+        "airflow.gcp.operators.bigquery.BigQueryExecuteQueryOperator",
         "airflow.contrib.operators.bigquery_operator.BigQueryOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryTableDeleteOperator",
+        "airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator",
         "airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator",
     ),
     (
@@ -799,7 +783,7 @@ SENSOR = [
         "airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor",
     ),
     (
-        "airflow.gcp.sensors.bigquery.BigQueryTableSensor",
+        "airflow.gcp.sensors.bigquery.BigQueryTableExistenceSensor",
         "airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor",
     ),
     (
