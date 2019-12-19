@@ -41,6 +41,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Remove serve_logs command from CLI
+
+The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
+and there is no need for it to be accessible from the CLI interface.
+
 ### Remove gcp_service_account_keys option in airflow.cfg file
 
 This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new

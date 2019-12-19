@@ -68,9 +68,7 @@ class TestWorkerServeLogs(unittest.TestCase):
         cls.parser = cli.CLIFactory.get_parser()
 
     def test_serve_logs_on_worker_start(self):
-        with patch('airflow.cli.commands.worker_command.subprocess.Popen') as mock_popen:
-            mock_popen.return_value.communicate.return_value = (b'output', b'error')
-            mock_popen.return_value.returncode = 0
+        with patch('airflow.cli.commands.worker_command.Process') as mock_popen:
             args = self.parser.parse_args(['worker', '-c', '-1'])
 
             with patch('celery.platforms.check_privileges') as mock_privil:
@@ -79,9 +77,7 @@ class TestWorkerServeLogs(unittest.TestCase):
                 mock_popen.assert_called()
 
     def test_skip_serve_logs_on_worker_start(self):
-        with patch('airflow.cli.commands.worker_command.subprocess.Popen') as mock_popen:
-            mock_popen.return_value.communicate.return_value = (b'output', b'error')
-            mock_popen.return_value.returncode = 0
+        with patch('airflow.cli.commands.worker_command.Process') as mock_popen:
             args = self.parser.parse_args(['worker', '-c', '-1', '-s'])
 
             with patch('celery.platforms.check_privileges') as mock_privil:
