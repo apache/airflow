@@ -853,11 +853,6 @@ class CLIFactory:
             'args': ('principal', 'keytab', 'pid',
                      'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
-            'name': 'serve_logs',
-            'func': lazy_load_command('airflow.cli.commands.serve_logs_command.serve_logs'),
-            'help': "Serve logs generate by worker",
-            'args': tuple(),
-        }, {
             'name': 'webserver',
             'func': lazy_load_command('airflow.cli.commands.webserver_command.webserver'),
             'help': "Start a Airflow webserver instance",
