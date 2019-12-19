@@ -50,6 +50,8 @@ RUN apt-get update \
 
 # Install basic apt dependencies
 RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
+    && curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - >/dev/null \
+    && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
            apt-utils \
@@ -73,6 +75,7 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
            rsync \
            sasl2-bin \
            sudo \
+           yarn \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -293,12 +296,11 @@ RUN \
 # Install NPM dependencies here. The NPM dependencies don't change that often and we already have pip
 # installed dependencies in case of CI optimised build, so it is ok to install NPM deps here
 # Rather than after setup.py is added.
-COPY airflow/www/package-lock.json ${AIRFLOW_SOURCES}/airflow/www/package-lock.json
-COPY airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/package.json
+COPY airflow/www/yarn.lock airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/www/
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 
-RUN npm ci
+RUN yarn install --frozen-lockfile
 
 WORKDIR ${AIRFLOW_SOURCES}
 
@@ -322,11 +324,11 @@ RUN pip install -e ".[${AIRFLOW_EXTRAS}]"
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 
-# Copy all www files here so that we can run npm building for production
+# Copy all www files here so that we can run yarn building for production
 COPY airflow/www/ ${AIRFLOW_SOURCES}/airflow/www/
 
 # Package NPM for production
-RUN npm run prod
+RUN yarn run prod
 
 COPY ./scripts/docker/entrypoint.sh /entrypoint.sh
 
