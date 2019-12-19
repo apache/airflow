@@ -23,7 +23,7 @@ import sqlalchemy
 
 import airflow
 from airflow.bin import cli
-from airflow.cli.commands import worker_command
+from airflow.cli.commands.run_command import worker_command
 from tests.compat import mock, patch
 from tests.test_utils.config import conf_vars
 
@@ -77,10 +77,10 @@ class TestWorkerServeLogs(unittest.TestCase):
                 mock_process.assert_called()
 
     def test_skip_serve_logs_on_worker_start(self):
-        with patch('airflow.cli.commands.worker_command.Process') as mock_popen:
+        with patch('airflow.cli.commands.worker_command.Process') as mock_process:
             args = self.parser.parse_args(['worker', '-c', '-1', '-s'])
 
             with patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
                 worker_command.worker(args)
-                mock_popen.assert_not_called()
+                mock_process.assert_not_called()

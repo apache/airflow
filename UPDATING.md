@@ -41,6 +41,21 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Simplification of CLI commands
+
+Some commands have been grouped to improve UX of CLI. New commands are available according to the following 
+table:
+
+| Old command               | New command                        |
+|---------------------------|------------------------------------|
+| airflow kerberos          | airflow run kerberos               |
+| airflow webserver         | airflow run webserver              |
+| airflow scheduler         | airflow run scheduler              |
+| airflow worker            | airflow run worker                 |
+| airflow flower            | airflow run flower                 |
+| airflow config            | airflow config show                |
+| airflow rotate_fernet_key | airflow config rotate_fernet_key   |
+
 ### Remove serve_logs command from CLI
 
 The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms

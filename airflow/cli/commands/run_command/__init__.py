@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,17 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Rotate Fernet key command"""
-from airflow.models import Connection, Variable
-from airflow.utils import cli as cli_utils, db
-
-
-@cli_utils.action_logging
-def rotate_fernet_key(args):
-    """Rotates all encrypted connection credentials and variables"""
-    with db.create_session() as session:
-        for conn in session.query(Connection).filter(
-                Connection.is_encrypted | Connection.is_extra_encrypted):
-            conn.rotate_fernet_key()
-        for var in session.query(Variable).filter(Variable.is_encrypted):
-            var.rotate_fernet_key()

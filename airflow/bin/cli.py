@@ -847,42 +847,44 @@ class CLIFactory:
                 },
             ),
         }, {
-            'name': 'kerberos',
-            'func': lazy_load_command('airflow.cli.commands.kerberos_command.kerberos'),
-            'help': "Start a kerberos ticket renewer",
-            'args': ('principal', 'keytab', 'pid',
-                     'daemon', 'stdout', 'stderr', 'log_file'),
-        }, {
-            'name': 'webserver',
-            'func': lazy_load_command('airflow.cli.commands.webserver_command.webserver'),
-            'help': "Start a Airflow webserver instance",
-            'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
-                     'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
-        }, {
-            'name': 'scheduler',
-            'func': lazy_load_command('airflow.cli.commands.scheduler_command.scheduler'),
-            'help': "Start a scheduler instance",
-            'args': ('dag_id_opt', 'subdir', 'num_runs',
-                     'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
-                     'log_file'),
-        }, {
-            'name': 'worker',
-            'func': lazy_load_command('airflow.cli.commands.worker_command.worker'),
-            'help': "Start a Celery worker node",
-            'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
-        }, {
-            'name': 'flower',
-            'func': lazy_load_command('airflow.cli.commands.flower_command.flower'),
-            'help': "Start a Celery Flower",
-            'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
-                     'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
-        }, {
-            'name': 'version',
-            'func': lazy_load_command('airflow.cli.commands.version_command.version'),
-            'help': "Show the version",
-            'args': tuple(),
+            'help': "Run application component",
+            'name': 'run',
+            'subcommands': (
+                {
+                    'name': 'kerberos',
+                    'func': lazy_load_command('airflow.cli.commands.run_command.kerberos_command.kerberos'),
+                    'help': "Start a kerberos ticket renewer",
+                    'args': ('principal', 'keytab', 'pid',
+                             'daemon', 'stdout', 'stderr', 'log_file'),
+                }, {
+                    'name': 'webserver',
+                    'func': lazy_load_command('airflow.cli.commands.run_command.webserver_command.webserver'),
+                    'help': "Start a Airflow webserver instance",
+                    'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
+                             'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
+                             'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
+                }, {
+                    'name': 'scheduler',
+                    'func': lazy_load_command('airflow.cli.commands.run_command.scheduler_command.scheduler'),
+                    'help': "Start a scheduler instance",
+                    'args': ('dag_id_opt', 'subdir', 'num_runs',
+                             'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
+                             'log_file'),
+                }, {
+                    'name': 'worker',
+                    'func': lazy_load_command('airflow.cli.commands.run_command.worker_command.worker'),
+                    'help': "Start a Celery worker node",
+                    'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
+                             'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
+                }, {
+                    'name': 'flower',
+                    'func': lazy_load_command('airflow.cli.commands.run_command.flower_command.flower'),
+                    'help': "Start a Celery Flower",
+                    'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
+                             'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr',
+                             'log_file'),
+                }
+            )
         }, {
             'help': "List/Add/Delete connections",
             'name': 'connections',
@@ -976,21 +978,30 @@ class CLIFactory:
             'func': lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
             'help': "Update permissions for existing roles and DAGs.",
             'args': tuple(),
-        },
-        {
-            'name': 'rotate_fernet_key',
-            'func': lazy_load_command('airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key'),
-            'help': 'Rotate all encrypted connection credentials and variables; see '
-                    'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
-                    '#rotating-encryption-keys.',
-            'args': (),
-        },
-        {
+        }, {
+            'help': 'Manage configuration',
             'name': 'config',
-            'func': lazy_load_command('airflow.cli.commands.config_command.show_config'),
-            'help': 'Show current application configuration.',
-            'args': (),
-        },
+            'subcommands': (
+                {
+                    'func': lazy_load_command('airflow.cli.commands.config_command.show_config'),
+                    'name': 'show',
+                    'help': 'Show current application configuration.',
+                    'args': (),
+                }, {
+                    'func': lazy_load_command('airflow.cli.commands.config_command.rotate_fernet_key'),
+                    'name': 'rotate_fernet_key',
+                    'help': 'Rotate all encrypted connection credentials and variables; see '
+                            'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
+                            '#rotating-encryption-keys.',
+                    'args': (),
+                },
+            ),
+        }, {
+            'name': 'version',
+            'func': lazy_load_command('airflow.cli.commands.version_command.version'),
+            'help': "Show the version",
+            'args': tuple(),
+        }
     )
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
     dag_subparsers = (
