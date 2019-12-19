@@ -132,6 +132,10 @@ def create_app(config=None, testing=False):
             airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
 
         admin.add_link(base.MenuLink(
+            name="Website",
+            url='https://airflow.apache.org',
+            category="Docs"))
+        admin.add_link(base.MenuLink(
             category='Docs', name='Documentation',
             url=airflow_doc_site))
         admin.add_link(
