@@ -3,6 +3,7 @@ Airflow 1.10.7
 
 New Features
 """"""""""""
+- [AIRFLOW-5088] [AIP-24] Persisting serialized DAG in DB for webserver scalability (#5992)
 - [AIRFLOW-6083] Adding ability to pass custom configuration to AWS Lambda client. (#6678)
 - [AIRFLOW-5117] Automatically refresh EKS API tokens when needed (#5731)
 - [AIRFLOW-5118] Add ability to specify optional components in DataprocClusterCreateOperator (#5821)
