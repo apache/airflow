@@ -299,6 +299,9 @@ pinot = [
 postgres = [
     'psycopg2-binary>=2.7.4',
 ]
+presto = [
+    'presto-python-client>=0.7.0,<0.8'
+]
 qds = [
     'qds-sdk>=1.10.4',
 ]
@@ -356,7 +359,8 @@ zendesk = [
 ]
 # End dependencies group
 
-all_dbs = cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql + pinot + postgres + vertica
+all_dbs = (cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql +
+           pinot + postgres + presto + vertica)
 
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
@@ -402,7 +406,7 @@ else:
     devel += ['unittest2']
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
-devel_hadoop = devel_minreq + hdfs + hive + kerberos + webhdfs
+devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel +
              doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
              kerberos + kubernetes + ldap + oracle + pagerduty + papermill +
@@ -538,6 +542,7 @@ def do_setup():
             'password': password,
             'pinot': pinot,
             'postgres': postgres,
+            'presto': presto,
             'qds': qds,
             'rabbitmq': rabbitmq,
             'redis': redis,
