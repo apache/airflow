@@ -314,20 +314,20 @@ development machine before continuing with migration.
     ~/airflow/airflow/migrations/versions/12341123_add_new_field_to_db.py
 
 
-node / npm Javascript Environment Setup
-================================================
+Node.js Environment Setup
+=========================
 
-``airflow/www/`` contains all npm-managed, front-end assets. Flask-Appbuilder
+``airflow/www/`` contains all yarn-managed, front-end assets. Flask-Appbuilder
 itself comes bundled with jQuery and bootstrap. While they may be phased out
-over time, these packages are currently not managed with npm.
+over time, these packages are currently not managed with yarn.
 
-Make sure you are using recent versions of node and npm. No problems have been
-found with node\>=8.11.3 and npm\>=6.1.3.
+Make sure you are using recent versions of node and yarn. No problems have been
+found with node\>=8.11.3 and yarn\>=1.19.1
 
-Installing npm and its packages
+Installing yarn and its packages
 -------------------------------
 
-Make sure npm is available in your environment.
+Make sure yarn is available in your environment.
 
 To install it on macOS:
 
@@ -336,22 +336,19 @@ To install it on macOS:
 .. code-block:: bash
 
     brew install node --without-npm
-    echo prefix=~/.npm-packages >> ~/.npmrc
-    curl -L https://www.npmjs.com/install.sh | sh
+    brew install yarn
+    yarn config set prefix ~/.yarn
 
 
-2.  Add ``~/.npm-packages/bin`` to your ``PATH`` so that commands you install
+2.  Add ``~/.yarn/bin`` to your ``PATH`` so that commands you install
     globally are usable.
 
 3.  Set up your ``.bashrc`` file and then ``source ~/.bashrc`` to reflect the
     change.
-    You can also follow  `general npm installation
-    instructions <https://docs.npmjs.com/downloading-and-installing-node-js-and-npm>`__.
-    For example:
 
 .. code-block:: bash
 
-    export PATH="$HOME/.npm-packages/bin:$PATH"
+    export PATH="$HOME/.yarn/bin:$PATH"
 
 4.  Install third party libraries defined in ``package.json`` by running the
     following commands within the ``airflow/www/`` directory:
@@ -361,20 +358,24 @@ To install it on macOS:
 
     # from the root of the repository, move to where our JS package.json lives
     cd airflow/www/
-    # run npm install to fetch all the dependencies
-    npm install
+    # run yarn install to fetch all the dependencies
+    yarn install
 
 
 These commands install the libraries in a new ``node_modules/`` folder within
 ``www/``.
 
-Should you add or upgrade an npm package, which involves changing
-``package.json``, you'll need to re-run ``npm install`` and push the newly generated
-``package-lock.json`` file so that we get a reproducible build.
+Should you add or upgrade an node package, you should run:
+ ``yarn add --dev <package>`` for packages needed in development
+ or
+ ``yarn add <package>`` for packages used by the code
+and push the newly generated ``package.json`` and ``yarn.lock`` file so that we
+get a reproducible build. See the `Yarn docs
+<https://yarnpkg.com/en/docs/cli/add#adding-dependencies->`_ for more info
 
 
-Generating Bundled Files with npm
----------------------------------
+Generating Bundled Files with yarn
+----------------------------------
 
 To parse and generate bundled files for Airflow, run either of the following
 commands:
@@ -382,10 +383,10 @@ commands:
 .. code-block:: bash
 
     # Compiles the production / optimized js & css
-    npm run prod
+    yarn run prod
 
     # Starts a web server that manages and updates your assets as you modify them
-    npm run dev
+    yarn run dev
 
 
 Javascript Style Guide
@@ -405,10 +406,10 @@ commands:
 .. code-block:: bash
 
     # Check JS code in .js and .html files, and report any errors/warnings
-    npm run lint
+    yarn run lint
 
     # Check JS code in .js and .html files, report any errors/warnings and fix them if possible
-    npm run lint:fix
+    yarn run lint:fix
 
 Contribution Workflow Example
 ==============================
