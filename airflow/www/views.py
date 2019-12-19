@@ -307,7 +307,7 @@ class Airflow(AirflowBaseView):
 
         # Filter by get parameters
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+            unquote(dag_id) for dag_id in request.args.getlist('dag_ids[]') if dag_id
         }
 
         if selected_dag_ids:
@@ -358,7 +358,7 @@ class Airflow(AirflowBaseView):
 
         # Filter by get parameters
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+            unquote(dag_id) for dag_id in request.args.getlist('dag_ids[]') if dag_id
         }
 
         if selected_dag_ids:
@@ -444,7 +444,7 @@ class Airflow(AirflowBaseView):
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+            unquote(dag_id) for dag_id in request.args.getlist('dag_ids[]') if dag_id
         }
 
         if selected_dag_ids:

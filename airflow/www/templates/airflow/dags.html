@@ -251,11 +251,11 @@
         return false;
       }
 
-      var encoded_dag_ids = [];
+      var dag_ids = [];
 
       $.each($("[id^=toggle]"), function(i, v) {
         var dag_id = $(v).attr('dag_id');
-        encoded_dag_ids.push(encodeURIComponent(dag_id));
+        dag_ids.push(dag_id);
 
         $(v).change (function() {
           if ($(v).prop('checked')) {
@@ -263,7 +263,7 @@
           } else {
             is_paused = 'false'
           }
-          url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
+          url = 'paused?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
           $.post(url);
         });
       });
@@ -322,7 +322,7 @@
           last_run = json[safe_dag_id].last_run;
           g = d3.select('div#last-run-' + safe_dag_id)
           g.selectAll('a')
-            .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" + last_run)
+            .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" + encodeURIComponent(last_run))
             .text(last_run);
           g.selectAll('span')
             .attr("data-original-title", "Start Date: " + last_run)
@@ -460,7 +460,7 @@
               })
               .on('click', function(d, i) {
                   if (d.count > 0)
-                    window.location = "{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
+                    window.location = "{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=" + encodeURIComponent(d.dag_id) + "&_flt_3_state=" + encodeURIComponent(d.state);
               })
               .on('mouseover', function(d, i) {
                 if (d.count > 0) {
@@ -492,12 +492,14 @@
         });
       }
 
-      if (encoded_dag_ids.length > 0) {
+      if (dag_ids.length > 0) {
         // dags on page fetch stats
         d3.json("{{ url_for('Airflow.blocked') }}", blockedHandler);
-        d3.json("{{ url_for('Airflow.last_dagruns') }}?dag_ids=" + (encoded_dag_ids.join(',')), lastDagRunsHandler);
-        d3.json("{{ url_for('Airflow.dag_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), dagStatsHandler);
-        d3.json("{{ url_for('Airflow.task_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), taskStatsHandler);
+        var encoded_dag_ids_param = dag_ids.map(d => "dag_ids[]=" + encodeURIComponent(d)).join("&")
+
+        d3.json("{{ url_for('Airflow.last_dagruns') }}?" + encoded_dag_ids_param, lastDagRunsHandler);
+        d3.json("{{ url_for('Airflow.dag_stats') }}?" + encoded_dag_ids_param, dagStatsHandler);
+        d3.json("{{ url_for('Airflow.task_stats') }}?" + encoded_dag_ids_param, taskStatsHandler);
       }
       else {
         // no dags, hide the loading gifs
