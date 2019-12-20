@@ -183,11 +183,8 @@ def configure_orm(disable_connection_pool=False):
         engine_args['max_overflow'] = max_overflow
 
     # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use
-    # us.
+    # to utf-8 so jobs & users with non-latin1 characters can still use us.
     engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
-    # For Python2 we get back a newstr and need a str
-    engine_args['encoding'] = engine_args['encoding'].__str__()
 
     if conf.has_option('core', 'sql_alchemy_connect_args'):
         connect_args = import_string(
