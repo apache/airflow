@@ -216,11 +216,11 @@ with models.DAG(
         dataset_id=DATASET_NAME
     )
 
-    delete_view = BigQueryTableDeleteOperator(
+    delete_view = BigQueryDeleteTableOperator(
         task_id="delete_view", deletion_dataset_table="{}.test_view".format(DATASET_NAME)
     )
 
-    delete_table = BigQueryTableDeleteOperator(
+    delete_table = BigQueryDeleteTableOperator(
         task_id="delete_table", deletion_dataset_table="{}.test_table".format(DATASET_NAME)
     )
 
