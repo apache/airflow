@@ -29,6 +29,7 @@ from airflow import AirflowException, models, settings
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
+from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
@@ -80,6 +81,47 @@ class TestLocalTaskJob(unittest.TestCase):
 
         check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
         self.assertTrue(all(check_result_2))
+
+    @patch('airflow.jobs.LocalTaskJob.heartbeat_callback', return_value=True)
+    def test_localtaskjob_invalid_return_code(self, heartbeat_callback):
+        dag = DAG(
+            'test_localtaskjob_invalid_return_code',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'airflow'})
+
+        task = BashOperator(
+            task_id='test_bash',
+            bash_command='exit 1',
+            dag=dag,
+            owner='airflow')
+        session = settings.Session()
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id="test",
+                               state=State.SUCCESS,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+        ti = dr.get_task_instance(task_id=task.task_id, session=session)
+        ti.state = State.RUNNING
+        ti.hostname = get_hostname()
+        ti.pid = 1
+        session.commit()
+
+        ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+        job1 = LocalTaskJob(task_instance=ti_run,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
+        with patch.object(BaseTaskRunner, 'start',
+                          return_value=None) as mock_method:
+            job1.run()
+            mock_method.assert_not_called()
+
+        ti = dr.get_task_instance(task_id=task.task_id, session=session)
+        self.assertEqual(ti.pid, 1)
+        self.assertEqual(ti.state, State.RUNNING)
+        self.assertTrue(ti, State.FAILED)
+        session.close()
 
     @patch('os.getpid')
     def test_localtaskjob_heartbeat(self, mock_pid):

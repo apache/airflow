@@ -122,3 +122,10 @@ class State:
             cls.UP_FOR_RETRY,
             cls.UP_FOR_RESCHEDULE
         ]
+
+    @classmethod
+    def unsuccessful(cls):
+        """
+        A list of states indicating that a task completed unsuccessfully.
+        """
+        return [cls.FAILED, cls.UP_FOR_RETRY]

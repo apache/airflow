@@ -138,6 +138,14 @@ class BaseJob(Base, LoggingMixin):
         """
         Will be called when an external kill command is received
         """
+        pass
+
+    def on_failure(self, e):
+        """
+        Will be called when an exception happens during _execute
+        default just raise exception again
+        """
+        raise
 
     def heartbeat_callback(self, session=None):
         pass
@@ -218,9 +226,9 @@ class BaseJob(Base, LoggingMixin):
             except SystemExit:
                 # In case of ^C or SIGTERM
                 self.state = State.SUCCESS
-            except Exception:
+            except Exception as e:
                 self.state = State.FAILED
-                raise
+                self.on_failure(e)
             finally:
                 self.end_date = timezone.utcnow()
                 session.merge(self)
