@@ -81,7 +81,7 @@ class FileTaskHandler(logging.Handler):
                                              task_id=ti.task_id,
                                              execution_date=ti.execution_date.isoformat(),
                                              try_number=try_number)
-    
+
     @provide_session
     def query_task_hostname(self, ti, try_number, session=None):
         """
