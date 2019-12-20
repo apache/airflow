@@ -54,7 +54,8 @@ class AWSAthenaHook(AwsHook):
             self.conn = self.get_client_type('athena')
         return self.conn
 
-    def run_query(self, query, query_context, result_configuration, client_request_token=None, workgroup='default'):
+    def run_query(self, query, query_context, result_configuration, client_request_token=None,
+                  workgroup='default'):
         """
         Run Presto query on athena with provided config and return submitted query_execution_id
 
