@@ -81,6 +81,38 @@ in the scheme part of URI, so it must be changed to a hyphen character
 (e.g. ``google-compute-platform`` if ``conn_type`` is ``google_compute_platform``).
 Query parameters are parsed to one-dimensional dict and then used to fill extra.
 
+Generating a connection URI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Building the URI for a connection can be tricky.  To make it easier, the
+:py:class:`~airflow.models.connection.Connection` class has a convenience method
+:py:meth:`~airflow.models.connection.Connection.get_uri`.  It can be used like so:
+
+.. code-block:: python
+
+    >>> import json
+    >>> from airflow.models.connection import Connection
+
+    >>> c = Connection(
+    >>>     conn_id='some_conn',
+    >>>     conn_type='mysql',
+    >>>     host='myhost.com',
+    >>>     login='myname',
+    >>>     password='mypassword',
+    >>>     extra=json.dumps(dict(this_param='some val', that_param='other val*')),
+    >>> )
+    >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.get_uri()}'")
+    AIRFLOW_CONN_SOME_CONN='mysql://myname:mypassword@myhost.com?this_param=some+val&that_param=other+val%2A'
+
+Additionally, if you have created a connection via the UI, and you need to switch to an environment variable,
+you can get the URI like so:
+
+.. code-block:: python
+
+    from airflow.hooks.base_hook import BaseHook
+
+    conn = BaseHook.get_connection('postgres_default')
+    print(f"AIRFLOW_CONN_{conn.conn_id.upper()}='{conn.get_uri()}'")
 
 .. _manage-connections-connection-types:
 
