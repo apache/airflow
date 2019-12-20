@@ -95,7 +95,9 @@ class LocalTaskJob(BaseJob):
                 # Monitor the task to see if it's done
                 return_code = self.task_runner.return_code()
                 if return_code is not None:
-                    if return_code != 0:
+                    # if this job is terminating, we should ignore the return
+                    # code here.
+                    if return_code != 0 and not self.terminating:
                         msg = ("LocalTaskJob process exited with non zero "
                                "status {}".format(return_code))
                         raise AirflowException(msg)
@@ -165,8 +167,12 @@ class LocalTaskJob(BaseJob):
                 "Taking the poison pill.",
                 ti.state
             )
+
             if ti.state == State.FAILED and ti.task.on_failure_callback:
                 context = ti.get_template_context()
                 ti.task.on_failure_callback(context)
-            self.task_runner.terminate()
+            # need to set self.terminating first to let the job know not to
+            # treat non zero return code as invalid.
             self.terminating = True
+            self.task_runner.terminate()
+

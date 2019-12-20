@@ -31,6 +31,7 @@ from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
