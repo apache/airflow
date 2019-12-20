@@ -94,7 +94,7 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
 
 
     default_args = {
-        'owner': 'Airflow',
+        'owner': 'airflow',
         'depends_on_past': False,
         'email': ['airflow@example.com'],
         'email_on_failure': False,

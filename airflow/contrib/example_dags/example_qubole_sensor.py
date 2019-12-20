@@ -33,7 +33,7 @@ from airflow.contrib.sensors.qubole_sensor import QuboleFileSensor, QubolePartit
 from airflow.utils import dates
 
 default_args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'depends_on_past': False,
     'start_date': dates.days_ago(2),
     'email': ['airflow@example.com'],

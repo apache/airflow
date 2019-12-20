@@ -30,7 +30,7 @@ from airflow.operators.python_operator import PythonOperator
 
 dag = DAG(
     dag_id="example_trigger_target_dag",
-    default_args={"start_date": airflow.utils.dates.days_ago(2), "owner": "Airflow"},
+    default_args={"start_date": airflow.utils.dates.days_ago(2), "owner": "airflow"},
     schedule_interval=None,
 )
 

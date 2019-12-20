@@ -40,7 +40,7 @@ works.
     FILE_CATEGORIES = ["CAT1", "CAT2", "CAT3"]
 
     args = {
-        'owner': 'Airflow',
+        'owner': 'airflow',
         'start_date': airflow.utils.dates.days_ago(2)
     }
 

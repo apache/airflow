@@ -38,7 +38,7 @@ from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 
 default_args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 

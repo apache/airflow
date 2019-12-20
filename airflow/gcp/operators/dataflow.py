@@ -55,7 +55,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
     **Example**: ::
 
         default_args = {
-            'owner': 'Airflow',
+            'owner': 'airflow',
             'depends_on_past': False,
             'start_date':
                 (2016, 8, 1),
