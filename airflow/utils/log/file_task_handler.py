@@ -22,12 +22,13 @@ import os
 from typing import Optional
 
 import requests
+import json
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.models import TaskInstance
 from airflow.utils.file import mkdirs
 from airflow.utils.helpers import parse_template_string
-
+from airflow.utils.db import provide_session
 
 class FileTaskHandler(logging.Handler):
     """
@@ -80,11 +81,11 @@ class FileTaskHandler(logging.Handler):
                                              task_id=ti.task_id,
                                              execution_date=ti.execution_date.isoformat(),
                                              try_number=try_number)
-    from airflow.utils.db import provide_session
+    
     @provide_session
     def query_task_hostname(self, ti, try_number, session=None):
         """
-        Get task log hostname by log table and  try_number
+        Get task log hostname by log table and try_number
 
         :param ti: task instance record
         :param try_number: current try_number to read log from
@@ -103,7 +104,6 @@ class FileTaskHandler(logging.Handler):
         ).order_by(models.Log.id).limit(1).offset(try_number - 1).first()
 
         if res_log is not None:
-            import json
             hostname = json.loads(res_log.extra)["host_name"]
         else:
             hostname = ti.hostname
