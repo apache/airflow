@@ -128,4 +128,4 @@ class State:
         """
         A list of states indicating that a task completed unsuccessfully.
         """
-        return [cls.FAILED, cls.UP_FOR_RETRY]
+        return [cls.FAILED, cls.UP_FOR_RETRY, cls.UP_FOR_RESCHEDULE]

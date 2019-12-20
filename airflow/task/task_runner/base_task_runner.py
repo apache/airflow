@@ -131,7 +131,7 @@ class BaseTaskRunner(LoggingMixin):
             env=os.environ.copy(),
             preexec_fn=os.setsid
         )
-        
+
         # Start daemon thread to read subprocess logging output
         log_reader = threading.Thread(
             target=self._read_task_logs,
