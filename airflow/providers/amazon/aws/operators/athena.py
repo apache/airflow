@@ -52,6 +52,7 @@ class AWSAthenaOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, query, database, output_location, aws_conn_id='aws_default', client_request_token=None,
+                 workgroup='default',
                  query_execution_context=None, result_configuration=None, sleep_time=30, max_tries=None,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -60,6 +61,7 @@ class AWSAthenaOperator(BaseOperator):
         self.output_location = output_location
         self.aws_conn_id = aws_conn_id
         self.client_request_token = client_request_token or str(uuid4())
+        self.workgroup = workgroup
         self.query_execution_context = query_execution_context or {}
         self.result_configuration = result_configuration or {}
         self.sleep_time = sleep_time
@@ -79,7 +81,8 @@ class AWSAthenaOperator(BaseOperator):
         self.query_execution_context['Database'] = self.database
         self.result_configuration['OutputLocation'] = self.output_location
         self.query_execution_id = self.hook.run_query(self.query, self.query_execution_context,
-                                                      self.result_configuration, self.client_request_token)
+                                                      self.result_configuration, self.client_request_token,
+                                                      self.workgroup)
         query_status = self.hook.poll_query_status(self.query_execution_id, self.max_tries)
 
         if query_status in AWSAthenaHook.FAILURE_STATES:
