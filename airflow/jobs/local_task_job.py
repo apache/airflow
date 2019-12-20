@@ -100,7 +100,7 @@ class LocalTaskJob(BaseJob):
                     if return_code != 0 and not self.terminating:
                         msg = ("LocalTaskJob process exited with non zero "
                                "status {}".format(return_code))
-                        raise AirflowException(msg)
+                        self.on_failure(AirflowException(msg))
                     self.log.info("Task exited with return code %s", return_code)
                     return
 
