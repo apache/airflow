@@ -175,4 +175,3 @@ class LocalTaskJob(BaseJob):
             # treat non zero return code as invalid.
             self.terminating = True
             self.task_runner.terminate()
-
