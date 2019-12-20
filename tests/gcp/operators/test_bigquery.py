@@ -47,6 +47,10 @@ TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'test-bigquery-operators'
+VIEW_DEFINITION = {
+    "query": "SELECT * FROM `{}.{}`".format(TEST_DATASET, TEST_TABLE_ID),
+    "useLegacySql": False
+}
 
 
 class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
@@ -70,6 +74,31 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 schema_fields=None,
                 time_partitioning={},
                 labels=None,
+                view=None,
+                encryption_configuration=None
+            )
+
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
+    def test_create_view(self, mock_hook):
+        operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
+                                                    dataset_id=TEST_DATASET,
+                                                    project_id=TEST_GCP_PROJECT_ID,
+                                                    table_id=TEST_TABLE_ID,
+                                                    view=VIEW_DEFINITION)
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .get_conn.return_value \
+            .cursor.return_value \
+            .create_empty_table \
+            .assert_called_once_with(
+                dataset_id=TEST_DATASET,
+                project_id=TEST_GCP_PROJECT_ID,
+                table_id=TEST_TABLE_ID,
+                schema_fields=None,
+                time_partitioning={},
+                labels=None,
+                view=VIEW_DEFINITION,
                 encryption_configuration=None
             )
 

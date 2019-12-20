@@ -196,6 +196,16 @@ with models.DAG(
         ],
     )
 
+    create_view = BigQueryCreateEmptyTableOperator(
+        task_id="create_view",
+        dataset_id=LOCATION_DATASET_NAME,
+        table_id="test_view",
+        view={
+            "query": "SELECT * FROM `{}.test_table`".format(DATASET_NAME),
+            "useLegacySql": False
+        }
+    )
+
     get_empty_dataset_tables = BigQueryGetDatasetTablesOperator(
         task_id="get_empty_dataset_tables",
         dataset_id=DATASET_NAME
@@ -204,6 +214,10 @@ with models.DAG(
     get_dataset_tables = BigQueryGetDatasetTablesOperator(
         task_id="get_dataset_tables",
         dataset_id=DATASET_NAME
+    )
+
+    delete_view = BigQueryDeleteTableOperator(
+        task_id="delete_view", deletion_dataset_table="{}.test_view".format(DATASET_NAME)
     )
 
     delete_table = BigQueryDeleteTableOperator(
@@ -246,5 +260,5 @@ with models.DAG(
     create_dataset >> create_external_table >> execute_query_external_table >> \
         copy_from_selected_data >> delete_dataset
     execute_query_external_table >> bigquery_to_gcs >> delete_dataset
-    create_table >> delete_table >> delete_dataset
+    create_table >> create_view >> delete_view >> delete_table >> delete_dataset
     create_dataset_with_location >> create_table_with_location >> delete_dataset_with_location
