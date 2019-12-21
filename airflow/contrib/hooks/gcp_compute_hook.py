@@ -20,8 +20,7 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.compute import ComputeEngineHook  # noqa
+from airflow.gcp.hooks.compute import ComputeEngineHook
 
 warnings.warn(
     "This module is deprecated. Please use airflow.gcp.hooks.compute`",
