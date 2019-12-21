@@ -995,13 +995,13 @@ class CLIFactory:
 
     dag_subparsers = (
         'show', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_runs')
-    subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore  
-    
+    subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
+
     for sp in subparsers:
         if 'subcommands' in sp:
-            for sub in sp['subcommands']:
-                subparsers_dict[sub.get('name') or sub['func'].__name] = sub
-    
+            for sub in sp.get('subcommands'):  # type: ignore
+                subparsers_dict[sub.get('name') or sub['func'].__name__] = sub
+
     @classmethod
     def get_parser(cls, dag_parser=False):
         """Creates and returns command line argument parser"""
