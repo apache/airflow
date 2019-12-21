@@ -1005,7 +1005,13 @@ class CLIFactory:
         })
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
     dag_subparsers = (
-        'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
+        'show', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_runs')
+    subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
+
+    for sp in subparsers:
+        if 'subcommands' in sp:
+            for sub in sp.get('subcommands'):  # type: ignore
+                subparsers_dict[sub.get('name') or sub['func'].__name__] = sub
 
     @classmethod
     def get_parser(cls, dag_parser=False):
