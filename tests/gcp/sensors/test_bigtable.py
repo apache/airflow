@@ -25,7 +25,7 @@ from google.cloud.bigtable.table import ClusterState
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.sensors.bigtable import BigtableTableWaitForReplicationSensor
+from airflow.gcp.sensors.bigtable import BigtableTableReplicationCompletedSensor
 from tests.compat import mock
 
 PROJECT_ID = 'test_project_id'
@@ -43,7 +43,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
     def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id,
                              mock_hook):
         with self.assertRaises(AirflowException) as e:
-            BigtableTableWaitForReplicationSensor(
+            BigtableTableReplicationCompletedSensor(
                 project_id=project_id,
                 instance_id=instance_id,
                 table_id=table_id,
@@ -58,7 +58,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
     def test_wait_no_instance(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
 
-        op = BigtableTableWaitForReplicationSensor(
+        op = BigtableTableReplicationCompletedSensor(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
@@ -74,7 +74,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         mock_hook.return_value.get_cluster_states_for_table.side_effect = mock.Mock(
             side_effect=google.api_core.exceptions.NotFound("Table not found."))
 
-        op = BigtableTableWaitForReplicationSensor(
+        op = BigtableTableReplicationCompletedSensor(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
@@ -90,7 +90,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         mock_hook.return_value.get_cluster_states_for_table.return_value = {
             "cl-id": ClusterState(0)
         }
-        op = BigtableTableWaitForReplicationSensor(
+        op = BigtableTableReplicationCompletedSensor(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
@@ -106,7 +106,7 @@ class BigtableWaitForTableReplicationTest(unittest.TestCase):
         mock_hook.return_value.get_cluster_states_for_table.return_value = {
             "cl-id": ClusterState(4)
         }
-        op = BigtableTableWaitForReplicationSensor(
+        op = BigtableTableReplicationCompletedSensor(
             project_id=PROJECT_ID,
             instance_id=INSTANCE_ID,
             table_id=TABLE_ID,
