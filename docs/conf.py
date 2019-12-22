@@ -130,7 +130,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'autoapi.extension',
     'exampleinclude',
-    'docroles'
+    'docroles',
+    'removemarktransform',
 ]
 
 autodoc_default_options = {
