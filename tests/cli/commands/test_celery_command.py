@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,7 +22,7 @@ import sqlalchemy
 
 import airflow
 from airflow.bin import cli
-from airflow.cli.commands import worker_command
+from airflow.cli.commands import celery_command
 from tests.compat import mock, patch
 from tests.test_utils.config import conf_vars
 
@@ -41,7 +40,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         mock_validate_session.return_value = False
         with self.assertRaises(SystemExit) as cm:
             # airflow.bin.cli.worker(mock_args)
-            worker_command.worker(mock_args)
+            celery_command.worker(mock_args)
         self.assertEqual(cm.exception.code, 1)
 
     @conf_vars({('core', 'worker_precheck'): 'False'})
@@ -73,7 +72,7 @@ class TestWorkerServeLogs(unittest.TestCase):
 
             with patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
-                worker_command.worker(args)
+                celery_command.worker(args)
                 mock_process.assert_called()
 
     def test_skip_serve_logs_on_worker_start(self):
@@ -82,5 +81,5 @@ class TestWorkerServeLogs(unittest.TestCase):
 
             with patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
-                worker_command.worker(args)
+                celery_command.worker(args)
                 mock_popen.assert_not_called()

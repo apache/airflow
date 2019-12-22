@@ -41,6 +41,15 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Simplification of CLI commands
+
+Some commands have been grouped to improve UX of CLI. New commands are available according to the following table:
+
+| Old command               | New command                        |
+|---------------------------|------------------------------------|
+| ``airflow worker``        | ``airflow celery worker``          |
+| ``airflow flower``        | ``airflow celery flower``          |
+
 ### Remove serve_logs command from CLI
 
 The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms

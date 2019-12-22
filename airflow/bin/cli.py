@@ -29,6 +29,7 @@ from tabulate import tabulate_formats
 
 from airflow import api, settings
 from airflow.configuration import conf
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.cli import alternative_conn_specs
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
@@ -37,7 +38,8 @@ api.load_auth()
 
 DAGS_FOLDER = settings.DAGS_FOLDER
 
-if "BUILDING_AIRFLOW_DOCS" in os.environ:
+BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
+if BUILD_DOCS:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
 
 
@@ -583,7 +585,7 @@ class CLIFactory:
             help="Don't start the serve logs process along with the workers",
             action="store_true"),
     }
-    subparsers = (
+    subparsers = [
         {
             'help': 'List and manage DAGs',
             'name': 'dags',
@@ -867,18 +869,6 @@ class CLIFactory:
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
         }, {
-            'name': 'worker',
-            'func': lazy_load_command('airflow.cli.commands.worker_command.worker'),
-            'help': "Start a Celery worker node",
-            'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
-        }, {
-            'name': 'flower',
-            'func': lazy_load_command('airflow.cli.commands.flower_command.flower'),
-            'help': "Start a Celery Flower",
-            'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
-                     'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
-        }, {
             'name': 'version',
             'func': lazy_load_command('airflow.cli.commands.version_command.version'),
             'help': "Show the version",
@@ -991,7 +981,28 @@ class CLIFactory:
             'help': 'Show current application configuration',
             'args': (),
         },
-    )
+    ]
+    if conf.get("core", "EXECUTOR") == ExecutorLoader.CELERY_EXECUTOR or BUILD_DOCS:
+        subparsers.append({
+            "help": "Start celery components",
+            "name": "celery",
+            "subcommands": (
+                {
+                    'name': 'worker',
+                    'func': lazy_load_command('airflow.cli.commands.celery_command.worker'),
+                    'help': "Start a Celery worker node",
+                    'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
+                             'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
+                }, {
+                    'name': 'flower',
+                    'func': lazy_load_command('airflow.cli.commands.celery_command.flower'),
+                    'help': "Start a Celery Flower",
+                    'args': (
+                        'flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
+                        'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+                },
+            )
+        })
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
     dag_subparsers = (
         'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
