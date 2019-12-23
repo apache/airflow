@@ -75,19 +75,20 @@ def breeze_test_helper(request):
     print(" AIRFLOW ".center(60, "="))
 
     # Setup test environment for breeze
-    home = os.getcwd()
-    airflow_home = os.environ.get("AIRFLOW_HOME") or home
-    os.environ["AIRFLOW_SOURCES"] = home
-    os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(home, "tests", "dags")
+    home = os.environ.get("HOME")
+    airflow_home = os.environ.get("AIRFLOW_HOME") or os.path.join(home, "airflow")
+    tests_directory = os.path.dirname(os.path.realpath(__file__))
+
+    os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
     os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
     os.environ["AWS_DEFAULT_REGION"] = (
         os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
     )
 
-    print(f"Airflow home {airflow_home}\nHome of the user: {home}")
+    print(f"Home of the user: {home}\nAirflow home {airflow_home}")
 
     # Initialize Airflow db if required
-    pid_file = os.path.join(home, ".airflow_db_initialised")
+    lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
     if request.config.option.db_init:
         print("Initializing the DB - forced with --with-db-init switch.")
         try:
@@ -95,7 +96,7 @@ def breeze_test_helper(request):
         except:  # pylint: disable=bare-except # noqa
             print("Skipping db initialization because database already exists.")
         db.resetdb()
-    elif not os.path.exists(pid_file):
+    elif not os.path.exists(lock_file):
         print(
             "Initializing the DB - first time after entering the container.\n"
             "You can force re-initialization the database by adding --with-db-init switch to run-tests."
@@ -106,7 +107,7 @@ def breeze_test_helper(request):
             print("Skipping db initialization because database already exists.")
         db.resetdb()
         # Create pid file
-        with open(pid_file, "w+"):
+        with open(lock_file, "w+"):
             pass
     else:
         print(

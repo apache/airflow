@@ -22,7 +22,7 @@ import unittest
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator
+from airflow.gcp.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 from tests.compat import ANY, Mock, PropertyMock, patch
 
 PROJECT_ID = "project-id"
@@ -44,7 +44,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
         mock_text_to_speech_hook.return_value.synthesize_speech.return_value = mocked_response
         mock_gcp_hook.return_value.upload.return_value = True
 
-        GcpTextToSpeechSynthesizeOperator(
+        CloudTextToSpeechSynthesizeOperator(
             project_id=PROJECT_ID,
             gcp_conn_id=GCP_CONN_ID,
             input_data=INPUT,
@@ -87,7 +87,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
         mock_gcp_hook,
     ):
         with self.assertRaises(AirflowException) as e:
-            GcpTextToSpeechSynthesizeOperator(
+            CloudTextToSpeechSynthesizeOperator(
                 project_id="project-id",
                 input_data=input_data,
                 voice=voice,

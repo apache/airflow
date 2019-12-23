@@ -150,6 +150,10 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             else:
                 airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
 
+            appbuilder.add_link("Website",
+                                href='https://airflow.apache.org',
+                                category="Docs",
+                                category_icon="fa-globe")
             appbuilder.add_link("Documentation",
                                 href=airflow_doc_site,
                                 category="Docs",

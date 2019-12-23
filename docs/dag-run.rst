@@ -30,24 +30,26 @@ a ``str``, or a ``datetime.timedelta`` object.
 
 Alternatively, you can also use one of these cron "presets":
 
-+--------------+----------------------------------------------------------------+---------------+
-| preset       | meaning                                                        | cron          |
-+==============+================================================================+===============+
-| ``None``     | Don't schedule, use for exclusively "externally triggered"     |               |
-|              | DAGs                                                           |               |
-+--------------+----------------------------------------------------------------+---------------+
-| ``@once``    | Schedule once and only once                                    |               |
-+--------------+----------------------------------------------------------------+---------------+
-| ``@hourly``  | Run once an hour at the beginning of the hour                  | ``0 * * * *`` |
-+--------------+----------------------------------------------------------------+---------------+
-| ``@daily``   | Run once a day at midnight                                     | ``0 0 * * *`` |
-+--------------+----------------------------------------------------------------+---------------+
-| ``@weekly``  | Run once a week at midnight on Sunday morning                  | ``0 0 * * 0`` |
-+--------------+----------------------------------------------------------------+---------------+
-| ``@monthly`` | Run once a month at midnight of the first day of the month     | ``0 0 1 * *`` |
-+--------------+----------------------------------------------------------------+---------------+
-| ``@yearly``  | Run once a year at midnight of January 1                       | ``0 0 1 1 *`` |
-+--------------+----------------------------------------------------------------+---------------+
++----------------+----------------------------------------------------------------+-----------------+
+| preset         | meaning                                                        | cron            |
++================+================================================================+=================+
+| ``None``       | Don't schedule, use for exclusively "externally triggered"     |                 |
+|                | DAGs                                                           |                 |
++----------------+----------------------------------------------------------------+-----------------+
+| ``@once``      | Schedule once and only once                                    |                 |
++----------------+----------------------------------------------------------------+-----------------+
+| ``@hourly``    | Run once an hour at the beginning of the hour                  | ``0 * * * *``   |
++----------------+----------------------------------------------------------------+-----------------+
+| ``@daily``     | Run once a day at midnight                                     | ``0 0 * * *``   |
++----------------+----------------------------------------------------------------+-----------------+
+| ``@weekly``    | Run once a week at midnight on Sunday morning                  | ``0 0 * * 0``   |
++----------------+----------------------------------------------------------------+-----------------+
+| ``@monthly``   | Run once a month at midnight of the first day of the month     | ``0 0 1 * *``   |
++----------------+----------------------------------------------------------------+-----------------+
+| ``@quarterly`` | Run once a quarter at midnight on the first day                | ``0 0 1 */3 *`` |
++----------------+----------------------------------------------------------------+-----------------+
+| ``@yearly``    | Run once a year at midnight of January 1                       | ``0 0 1 1 *``   |
++----------------+----------------------------------------------------------------+-----------------+
 
 Your DAG will be instantiated for each schedule along with a corresponding 
 DAG Run entry in the database backend.
@@ -94,7 +96,7 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
 
 
     default_args = {
-        'owner': 'Airflow',
+        'owner': 'airflow',
         'depends_on_past': False,
         'email': ['airflow@example.com'],
         'email_on_failure': False,

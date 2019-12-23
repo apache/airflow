@@ -44,7 +44,7 @@ import os
 import airflow
 from airflow import models
 from airflow.gcp.operators.compute import (
-    GceInstanceGroupManagerUpdateTemplateOperator, GceInstanceTemplateCopyOperator,
+    ComputeEngineCopyInstanceTemplateOperator, ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
 )
 
 # [START howto_operator_compute_igm_common_args]
@@ -102,7 +102,7 @@ with models.DAG(
     schedule_interval=None  # Override to match your needs
 ) as dag:
     # [START howto_operator_gce_igm_copy_template]
-    gce_instance_template_copy = GceInstanceTemplateCopyOperator(
+    gce_instance_template_copy = ComputeEngineCopyInstanceTemplateOperator(
         project_id=GCP_PROJECT_ID,
         resource_id=GCE_TEMPLATE_NAME,
         body_patch=GCE_INSTANCE_TEMPLATE_BODY_UPDATE,
@@ -111,7 +111,7 @@ with models.DAG(
     # [END howto_operator_gce_igm_copy_template]
     # Added to check for idempotence
     # [START howto_operator_gce_igm_copy_template_no_project_id]
-    gce_instance_template_copy2 = GceInstanceTemplateCopyOperator(
+    gce_instance_template_copy2 = ComputeEngineCopyInstanceTemplateOperator(
         resource_id=GCE_TEMPLATE_NAME,
         body_patch=GCE_INSTANCE_TEMPLATE_BODY_UPDATE,
         task_id='gcp_compute_igm_copy_template_task_2'
@@ -119,7 +119,7 @@ with models.DAG(
     # [END howto_operator_gce_igm_copy_template_no_project_id]
     # [START howto_operator_gce_igm_update_template]
     gce_instance_group_manager_update_template = \
-        GceInstanceGroupManagerUpdateTemplateOperator(
+        ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
             zone=GCE_ZONE,
@@ -132,7 +132,7 @@ with models.DAG(
     # Added to check for idempotence (and without UPDATE_POLICY)
     # [START howto_operator_gce_igm_update_template_no_project_id]
     gce_instance_group_manager_update_template2 = \
-        GceInstanceGroupManagerUpdateTemplateOperator(
+        ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
             zone=GCE_ZONE,
             source_template=SOURCE_TEMPLATE_URL,

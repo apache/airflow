@@ -17,8 +17,9 @@
 """Worker command"""
 import os
 import signal
-import subprocess
 import sys
+from multiprocessing import Process
+from typing import Optional
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
@@ -27,12 +28,14 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler
+from airflow.utils.serve_logs import serve_logs
 
 
-def _serve_logs(env, skip_serve_logs=False):
+def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
     """Starts serve_logs sub-process"""
     if skip_serve_logs is False:
-        sub_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+        sub_proc = Process(target=serve_logs)
+        sub_proc.start()
         return sub_proc
     return None
 
@@ -88,7 +91,7 @@ def worker(args):
             stderr=stderr,
         )
         with ctx:
-            sub_proc = _serve_logs(env, skip_serve_logs)
+            sub_proc = _serve_logs(skip_serve_logs)
             worker.run(**options)
 
         stdout.close()
@@ -97,8 +100,8 @@ def worker(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        sub_proc = _serve_logs(env, skip_serve_logs)
+        sub_proc = _serve_logs(skip_serve_logs)
         worker.run(**options)
 
     if sub_proc:
-        sub_proc.kill()
+        sub_proc.terminate()

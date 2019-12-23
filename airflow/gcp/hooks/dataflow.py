@@ -56,7 +56,7 @@ def _fallback_to_project_id_from_variables(func: Callable[..., RT]) -> Callable[
     :return: result of the function call
     """
     @functools.wraps(func)
-    def inner_wrapper(self: "DataFlowHook", *args, **kwargs) -> RT:
+    def inner_wrapper(self: "DataflowHook", *args, **kwargs) -> RT:
         if args:
             raise AirflowException(
                 "You must use keyword arguments in this methods rather than positional")
@@ -341,7 +341,7 @@ class _DataflowRunner(LoggingMixin):
         return job_id
 
 
-class DataFlowHook(CloudBaseHook):
+class DataflowHook(CloudBaseHook):
     """
     Hook for Google Dataflow.
 

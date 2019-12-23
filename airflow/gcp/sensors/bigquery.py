@@ -26,7 +26,7 @@ from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class BigQueryTableSensor(BaseSensorOperator):
+class BigQueryTableExistenceSensor(BaseSensorOperator):
     """
     Checks for the existence of a table in Google Bigquery.
 

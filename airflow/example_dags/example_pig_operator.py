@@ -24,7 +24,7 @@ from airflow.models import DAG
 from airflow.operators.pig_operator import PigOperator
 
 args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2),
 }
 

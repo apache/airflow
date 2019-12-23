@@ -37,7 +37,7 @@ from airflow import DAG
 from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
 
 default_args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'email': ['airflow@example.com'],
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(2)

@@ -357,9 +357,9 @@ Installing Dependencies for a Single Breeze Session
 ...................................................
 
 You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
-``npm install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
+``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
 quickly while you are in the container. However, these changes are not retained: they disappear once you
-exit the container (except for theh npm dependencies if your sources are mounted to the container).
+exit the container (except for theh node.js dependencies if your sources are mounted to the container).
 Therefore, if you want to retain a new dependency, follow the second option described below.
 
 Adding Dependencies Permanently

@@ -92,7 +92,7 @@ any of its operators. This makes it easy to apply a common parameter to many ope
 
     default_args = {
         'start_date': datetime(2016, 1, 1),
-        'owner': 'Airflow'
+        'owner': 'airflow'
     }
 
     dag = DAG('my_dag', default_args=default_args)
