@@ -109,7 +109,7 @@ class SimpleDag(BaseDag):
         return self._concurrency
 
     @property
-    def is_paused(self) -> bool:
+    def is_paused(self) -> bool:    # pylint: disable=invalid-overridden-method
         """
         :return: whether this DAG is paused or not
         :rtype: bool
@@ -117,7 +117,7 @@ class SimpleDag(BaseDag):
         return self._is_paused
 
     @property
-    def pickle_id(self) -> Optional[str]:
+    def pickle_id(self) -> Optional[str]:    # pylint: disable=invalid-overridden-method
         """
         :return: The pickle ID for this DAG, if it has one. Otherwise None.
         :rtype: unicode
@@ -635,6 +635,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         while True:
             loop_start_time = time.time()
 
+            # pylint: disable=no-else-break
             if self._signal_conn.poll(poll_time):
                 agent_signal = self._signal_conn.recv()
                 self.log.debug("Recived %s singal from DagFileProcessorAgent", agent_signal)
@@ -652,7 +653,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 # are told to (as that would open another connection to the
                 # SQLite DB which isn't a good practice
                 continue
-
+            # pylint: enable=no-else-break
             self._refresh_dag_dir()
             self._find_zombies()  # pylint: disable=no-value-for-parameter
 

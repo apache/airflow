@@ -241,7 +241,7 @@ class CeleryExecutor(BaseExecutor):
         :return: List of tuples from the queued_tasks according to the priority.
         """
         return sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
+            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
             key=lambda x: x[1][1],
             reverse=True)
 

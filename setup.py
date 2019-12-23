@@ -384,8 +384,7 @@ devel = [
     'parameterized',
     'paramiko',
     'pre-commit',
-    'pylint~=2.3.1',  # to be upgraded after fixing https://github.com/PyCQA/pylint/issues/3123
-                      # We should also disable checking docstring at the module level
+    'pylint~=2.4',
     'pysftp',
     'pytest',
     'pytest-cov',
