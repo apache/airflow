@@ -115,7 +115,8 @@ class TestHttpHook(unittest.TestCase):
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
         ):
-            resp = self.get_hook.run('v1/test', extra_options={'check_response': False})
+            resp = self.get_hook.run(
+                'v1/test', extra_options={'check_response': False})
             self.assertEqual(resp.text, '{"status":{"status": 404}}')
 
     @requests_mock.mock()
@@ -126,7 +127,8 @@ class TestHttpHook(unittest.TestCase):
         ):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
-            self.assertDictContainsSubset(json.loads(expected_conn.extra), conn.headers)
+            self.assertDictContainsSubset(
+                json.loads(expected_conn.extra), conn.headers)
             self.assertEqual(conn.headers.get('bareer'), 'test')
 
     @requests_mock.mock()
@@ -213,7 +215,8 @@ class TestHttpHook(unittest.TestCase):
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
         ):
-            resp = self.post_hook.run('v1/test', extra_options={'check_response': False})
+            resp = self.post_hook.run(
+                'v1/test', extra_options={'check_response': False})
             self.assertEqual(resp.status_code, 418)
 
     @mock.patch('airflow.hooks.http_hook.requests.Session')
@@ -333,6 +336,36 @@ class TestHttpHook(unittest.TestCase):
         hook = HttpHook()
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'http://')
+
+    @requests_mock.mock()
+    def test_post_json_request(self, mock_requests):
+        obj1 = {'a': 1, 'b': 'abc', 'c': [1, 2, {"d": 10}]}
+        obj2 = [1, 2, 3]
+
+        # Ensure that obj1 was encoded to JSON
+        def match_obj1(request):
+            return json.loads(request.text) == obj1
+
+        # Filters to catch posted JSON
+        mock_requests.post(
+            '//test:8080/v1/test',
+            status_code=200,
+            request_headers={'Content-Type': 'application/json'},
+            text='test_post_json_request',
+            additional_matcher=match_obj1
+        )
+
+        with mock.patch(
+            'airflow.hooks.base_hook.BaseHook.get_connection',
+            side_effect=get_airflow_connection
+        ):
+            # Send obj1 as JSON and verify it matched the mock
+            resp = self.post_hook.run('v1/test', json=obj1)
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp.text, 'test_post_json_request')
+        # Ensure that obj1 was what was sent
+        with self.assertRaises(requests_mock.exceptions.NoMockAddress):
+            resp = self.post_hook.run('v1/test', json=obj2)
 
 
 send_email_test = mock.Mock()

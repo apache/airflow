@@ -75,13 +75,14 @@ class HttpHook(BaseHook):
                 try:
                     session.headers.update(conn.extra_dejson)
                 except TypeError:
-                    self.log.warning('Connection to %s has invalid extra field.', conn.host)
+                    self.log.warning(
+                        'Connection to %s has invalid extra field.', conn.host)
         if headers:
             session.headers.update(headers)
 
         return session
 
-    def run(self, endpoint, data=None, headers=None, extra_options=None):
+    def run(self, endpoint, data=None, json=None, headers=None, extra_options=None):
         """
         Performs the request
 
@@ -89,6 +90,9 @@ class HttpHook(BaseHook):
         :type endpoint: str
         :param data: payload to be uploaded or request parameters
         :type data: dict
+        :param json: Python object which is encoded and posted as JSON. Usually
+          this is a dict but can be any JSON-encodable Python object.
+        :type json: dict
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
         :param extra_options: additional options to be used when executing the request
@@ -123,6 +127,7 @@ class HttpHook(BaseHook):
             req = requests.Request(self.method,
                                    url,
                                    data=data,
+                                   json=json,
                                    headers=headers)
 
         prepped_request = session.prepare_request(req)
@@ -142,7 +147,8 @@ class HttpHook(BaseHook):
         except requests.exceptions.HTTPError:
             self.log.error("HTTP error: %s", response.reason)
             self.log.error(response.text)
-            raise AirflowException(str(response.status_code) + ":" + response.reason)
+            raise AirflowException(
+                str(response.status_code) + ":" + response.reason)
 
     def run_and_check(self, session, prepped_request, extra_options):
         """
@@ -175,7 +181,8 @@ class HttpHook(BaseHook):
             return response
 
         except requests.exceptions.ConnectionError as ex:
-            self.log.warning(str(ex) + ' Tenacity will retry to execute the operation')
+            self.log.warning(
+                str(ex) + ' Tenacity will retry to execute the operation')
             raise ex
 
     def run_with_advanced_retry(self, _retry_args, *args, **kwargs):
