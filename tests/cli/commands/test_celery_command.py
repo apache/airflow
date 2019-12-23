@@ -68,7 +68,7 @@ class TestWorkerServeLogs(unittest.TestCase):
 
     def test_serve_logs_on_worker_start(self):
         with patch('airflow.cli.commands.celery_command.Process') as mock_process:
-            args = self.parser.parse_args(['worker', '-c', '-1'])
+            args = self.parser.parse_args(['celery', 'worker', '-c', '-1'])
 
             with patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
@@ -77,7 +77,7 @@ class TestWorkerServeLogs(unittest.TestCase):
 
     def test_skip_serve_logs_on_worker_start(self):
         with patch('airflow.cli.commands.celery_command.Process') as mock_popen:
-            args = self.parser.parse_args(['worker', '-c', '-1', '-s'])
+            args = self.parser.parse_args(['celery', 'worker', '-c', '-1', '-s'])
 
             with patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
