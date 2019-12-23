@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import importlib
 import unittest
 from argparse import Namespace
 
@@ -62,9 +63,15 @@ class TestWorkerPrecheck(unittest.TestCase):
 
 
 class TestWorkerServeLogs(unittest.TestCase):
+
     @classmethod
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
+        importlib.reload(cli)
         cls.parser = cli.CLIFactory.get_parser()
+
+    def tearDown(self):
+        importlib.reload(cli)
 
     def test_serve_logs_on_worker_start(self):
         with patch('airflow.cli.commands.celery_command.Process') as mock_process:
