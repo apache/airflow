@@ -170,6 +170,7 @@ disable=print-statement,
         fixme,  # There should be a good reason for adding a TODO
         pointless-statement,  # Is raised on the bitshift operator. Could be disabled only on /example_dags after https://github.com/PyCQA/pylint/projects/1.
         ungrouped-imports,  # Disabled to avoid conflict with isort import order rules, which is enabled in the project.
+        missing-module-docstring,
         import-outside-toplevel,    # We import outside toplevel to avoid cyclic imports
 
 # Enable the message, report, category or checker with the given id(s). You can
