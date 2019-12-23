@@ -136,7 +136,7 @@ class settings_context:
             handle.writelines(self.content)
         sys.path.append(self.settings_root)
         conf.set(
-            'core',
+            'logging',
             'logging_config_class',
             self.module
         )
@@ -145,7 +145,7 @@ class settings_context:
     def __exit__(self, *exc_info):
         # shutil.rmtree(self.settings_root)
         # Reset config
-        conf.set('core', 'logging_config_class', '')
+        conf.set('logging', 'logging_config_class', '')
         sys.path.remove(self.settings_root)
 
 
@@ -216,7 +216,7 @@ class TestLoggingSettings(unittest.TestCase):
     # When the key is not available in the configuration
     def test_when_the_config_key_does_not_exists(self):
         from airflow import logging_config
-        with conf_vars({('core', 'logging_config_class'): None}):
+        with conf_vars({('logging', 'logging_config_class'): None}):
             with patch.object(logging_config.log, 'debug') as mock_debug:
                 logging_config.configure_logging()
                 mock_debug.assert_any_call(
@@ -234,10 +234,10 @@ class TestLoggingSettings(unittest.TestCase):
 
     def test_1_9_config(self):
         from airflow.logging_config import configure_logging
-        with conf_vars({('core', 'task_log_reader'): 'file.task'}):
+        with conf_vars({('logging', 'task_log_reader'): 'file.task'}):
             with self.assertWarnsRegex(DeprecationWarning, r'file.task'):
                 configure_logging()
-            self.assertEqual(conf.get('core', 'task_log_reader'), 'task')
+            self.assertEqual(conf.get('logging', 'task_log_reader'), 'task')
 
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
@@ -247,9 +247,9 @@ class TestLoggingSettings(unittest.TestCase):
         from airflow.utils.log.wasb_task_handler import WasbTaskHandler
 
         with conf_vars({
-            ('core', 'remote_logging'): 'True',
-            ('core', 'remote_log_conn_id'): 'some_wasb',
-            ('core', 'remote_base_log_folder'): 'wasb://some-folder',
+            ('logging', 'remote_logging'): 'True',
+            ('logging', 'remote_log_conn_id'): 'some_wasb',
+            ('logging', 'remote_base_log_folder'): 'wasb://some-folder',
         }):
             importlib.reload(airflow_local_settings)
             configure_logging()

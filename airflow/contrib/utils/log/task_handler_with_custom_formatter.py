@@ -44,7 +44,7 @@ class TaskHandlerWithCustomFormatter(StreamHandler):
         """
         if ti.raw:
             return
-        prefix = conf.get('core', 'task_log_prefix_template')
+        prefix = conf.get('logging', 'task_log_prefix_template')
 
         rendered_prefix = ""
         if prefix:

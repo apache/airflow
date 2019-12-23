@@ -122,7 +122,7 @@ class settings_context:
             handle.writelines(self.content)
         sys.path.append(self.settings_root)
         conf.set(
-            'core',
+            'logging',
             'logging_config_class',
             self.module
         )
@@ -131,7 +131,7 @@ class settings_context:
     def __exit__(self, *exc_info):
         # shutil.rmtree(self.settings_root)
         # Reset config
-        conf.set('core', 'logging_config_class', '')
+        conf.set('logging', 'logging_config_class', '')
         sys.path.remove(self.settings_root)
 
 
@@ -352,7 +352,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
     def test_reload_module(self):
         """
-        Configure the context to have core.logging_config_class set to a fake logging
+        Configure the context to have logging.logging_config_class set to a fake logging
         class path, thus when reloading logging module the airflow.processor_manager
         logger should not be configured.
         """

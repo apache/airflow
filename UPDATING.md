@@ -41,6 +41,28 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Logging configuration has been moved to new section
+
+The following configurations have been moved from `[core]` to the new `[logging]` section.
+
+* `base_log_folder`
+* `remote_logging`
+* `remote_log_conn_id`
+* `remote_base_log_folder`
+* `encrypt_s3_logs`
+* `logging_level`
+* `fab_logging_level`
+* `logging_config_class`
+* `colored_console_log`
+* `colored_log_format`
+* `colored_formatter_class`
+* `log_format`
+* `simple_log_format`
+* `task_log_prefix_template`
+* `log_filename_template`
+* `log_processor_filename_template`
+* `dag_processor_manager_log_location`
+
 ### Simplification of CLI commands
 
 Some commands have been grouped to improve UX of CLI. New commands are available according to the following table:

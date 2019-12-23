@@ -352,8 +352,8 @@ AIRFLOW_HOME = /root/airflow
     def test_deprecated_options(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
-        conf.deprecated_options['celery'] = {
-            'worker_concurrency': 'celeryd_concurrency',
+        conf.deprecated_options = {
+            ('celery', 'worker_concurrency'): ('celery', 'celeryd_concurrency'),
         }
 
         # Remove it so we are sure we use the right setting
@@ -369,6 +369,30 @@ AIRFLOW_HOME = /root/airflow
             conf.remove_option('celery', 'celeryd_concurrency')
 
     @conf_vars({
+        ("celery", "worker_concurrency"): None,
+        ("celery", "celeryd_concurrency"): None,
+    })
+    def test_deprecated_options_with_new_section(self):
+        # Guarantee we have a deprecated setting, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        conf.deprecated_options = {
+            ('logging', 'logging_level'): ('core', 'logging_level'),
+        }
+
+        # Remove it so we are sure we use the right setting
+        conf.remove_option('core', 'logging_level')
+        conf.remove_option('logging', 'logging_level')
+
+        with self.assertWarns(DeprecationWarning):
+            with mock.patch.dict('os.environ', AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
+                self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
+
+        with self.assertWarns(DeprecationWarning):
+            conf.set('core', 'logging_level', 'VALUE')
+            self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
+            conf.remove_option('core', 'logging_level')
+
+    @conf_vars({
         ("celery", "result_backend"): None,
         ("celery", "celery_result_backend"): None,
         ("celery", "celery_result_backend_cmd"): None,
@@ -376,7 +400,7 @@ AIRFLOW_HOME = /root/airflow
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
-        conf.deprecated_options['celery'] = {'result_backend': 'celery_result_backend'}
+        conf.deprecated_options[('celery', "result_backend")] = ('celery', 'celery_result_backend')
         conf.as_command_stdout.add(('celery', 'celery_result_backend'))
 
         conf.remove_option('celery', 'result_backend')
