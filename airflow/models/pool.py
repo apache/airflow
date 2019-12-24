@@ -113,4 +113,4 @@ class Pool(Base):
         if self.slots == -1:
             return float('inf')
         else:
-            return self.slots - self.occupied_slots(session)
+            return self.slots - int(self.occupied_slots(session))
