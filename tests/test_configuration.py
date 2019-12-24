@@ -26,6 +26,7 @@ from airflow import configuration
 from airflow.configuration import (
     AirflowConfigParser, conf, expand_env_var, get_airflow_config, get_airflow_home, parameterized_config,
 )
+from tests.test_utils.config import conf_vars
 from tests.test_utils.reset_warning_registry import reset_warning_registry
 
 
@@ -344,6 +345,10 @@ AIRFLOW_HOME = /root/airflow
         self.assertTrue(isinstance(section_dict['_test_only_float'], float))
         self.assertTrue(isinstance(section_dict['_test_only_string'], str))
 
+    @conf_vars({
+        ("celery", "worker_concurrency"): None,
+        ("celery", "celeryd_concurrency"): None,
+    })
     def test_deprecated_options(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
@@ -363,6 +368,11 @@ AIRFLOW_HOME = /root/airflow
             self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             conf.remove_option('celery', 'celeryd_concurrency')
 
+    @conf_vars({
+        ("celery", "result_backend"): None,
+        ("celery", "celery_result_backend"): None,
+        ("celery", "celery_result_backend_cmd"): None,
+    })
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
