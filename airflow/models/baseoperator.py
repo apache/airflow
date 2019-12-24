@@ -376,6 +376,7 @@ class BaseOperator(LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
+        self.pool_capacity = pool_capacity
         self.sla = sla
         self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
