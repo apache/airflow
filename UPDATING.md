@@ -62,6 +62,7 @@ The following configurations have been moved from `[core]` to the new `[logging]
 * `log_filename_template`
 * `log_processor_filename_template`
 * `dag_processor_manager_log_location`
+* `task_log_reader`
 
 ### Simplification of CLI commands
 
