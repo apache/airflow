@@ -380,7 +380,7 @@ devel = [
     'ipdb',
     'jira',
     'mongomock',
-    'moto>=1.3.14',
+    'moto>=1.3.14,<2.0.0',
     'parameterized',
     'paramiko',
     'pre-commit',
