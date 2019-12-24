@@ -30,14 +30,14 @@ class TestPapermillOperator(unittest.TestCase):
         parameters = {"msg": "hello_world",
                       "train": 1}
 
-        po = PapermillOperator(
+        op = PapermillOperator(
             input_nb=in_nb, output_nb=out_nb, parameters=parameters,
             task_id="papermill_operator_test",
             dag=None
         )
 
-        po.pre_execute(context={})  # make sure to have the inlets
-        po.execute(context={})
+        op.pre_execute(context={})  # make sure to have the inlets
+        op.execute(context={})
 
         mock_papermill.execute_notebook.assert_called_once_with(
             in_nb,

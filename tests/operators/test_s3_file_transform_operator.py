@@ -52,10 +52,10 @@ class TestS3FileTransformOperator(unittest.TestCase):
     @mock.patch('subprocess.Popen')
     @mock.patch.object(S3FileTransformOperator, 'log')
     @mock_s3
-    def test_execute_with_transform_script(self, mock_log, mock_Popen):
+    def test_execute_with_transform_script(self, mock_log, mock_popen):
         process_output = [b"Foo", b"Bar", b"Baz"]
 
-        process = mock_Popen.return_value
+        process = mock_popen.return_value
         process.stdout.readline.side_effect = process_output
         process.wait.return_value = None
         process.returncode = 0
@@ -70,13 +70,13 @@ class TestS3FileTransformOperator(unittest.TestCase):
         conn.upload_fileobj(Bucket=bucket, Key=input_key, Fileobj=bio)
 
         s3_url = "s3://{0}/{1}"
-        t = S3FileTransformOperator(
+        op = S3FileTransformOperator(
             source_s3_key=s3_url.format(bucket, input_key),
             dest_s3_key=s3_url.format(bucket, output_key),
             transform_script=self.transform_script,
             replace=True,
             task_id="task_id")
-        t.execute(None)
+        op.execute(None)
 
         mock_log.info.assert_has_calls([
             mock.call(line.decode(sys.getdefaultencoding())) for line in process_output
@@ -84,8 +84,8 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
     @mock.patch('subprocess.Popen')
     @mock_s3
-    def test_execute_with_failing_transform_script(self, mock_Popen):
-        process = mock_Popen.return_value
+    def test_execute_with_failing_transform_script(self, mock_popen):
+        process = mock_popen.return_value
         process.stdout.readline.side_effect = []
         process.wait.return_value = None
         process.returncode = 42
@@ -100,7 +100,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
         conn.upload_fileobj(Bucket=bucket, Key=input_key, Fileobj=bio)
 
         s3_url = "s3://{0}/{1}"
-        t = S3FileTransformOperator(
+        op = S3FileTransformOperator(
             source_s3_key=s3_url.format(bucket, input_key),
             dest_s3_key=s3_url.format(bucket, output_key),
             transform_script=self.transform_script,
@@ -108,7 +108,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
             task_id="task_id")
 
         with self.assertRaises(AirflowException) as e:
-            t.execute(None)
+            op.execute(None)
 
         self.assertEqual('Transform script failed: 42', str(e.exception))
 
@@ -126,13 +126,13 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
         s3_url = "s3://{0}/{1}"
         select_expression = "SELECT * FROM S3Object s"
-        t = S3FileTransformOperator(
+        op = S3FileTransformOperator(
             source_s3_key=s3_url.format(bucket, input_key),
             dest_s3_key=s3_url.format(bucket, output_key),
             select_expression=select_expression,
             replace=True,
             task_id="task_id")
-        t.execute(None)
+        op.execute(None)
 
         mock_select_key.assert_called_once_with(
             key=s3_url.format(bucket, input_key),
