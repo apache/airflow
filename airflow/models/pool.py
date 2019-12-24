@@ -65,7 +65,8 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
         return (
             session
-            .query(func.count())
+            # .query(func.count())
+            .query(func.sum(TaskInstance.pool_capacity))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state.in_(STATES_TO_COUNT_AS_RUNNING))
             .scalar()
@@ -80,7 +81,8 @@ class Pool(Base):
 
         running = (
             session
-            .query(func.count())
+            # .query(func.count())
+            .query(func.sum(TaskInstance.pool_capacity))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.RUNNING)
             .scalar()
@@ -96,7 +98,8 @@ class Pool(Base):
 
         return (
             session
-            .query(func.count())
+            # .query(func.count())
+            .query(func.sum(TaskInstance.pool_capacity))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.QUEUED)
             .scalar()

@@ -306,6 +306,7 @@ class BaseOperator(LoggingMixin):
         weight_rule=WeightRule.DOWNSTREAM,  # type: str
         queue=conf.get('celery', 'default_queue'),  # type: str
         pool=Pool.DEFAULT_POOL_NAME,  # type: str
+        pool_capacity=1,
         sla=None,  # type: Optional[timedelta]
         execution_timeout=None,  # type: Optional[timedelta]
         on_failure_callback=None,  # type: Optional[Callable]
