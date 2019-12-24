@@ -152,7 +152,7 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 aws = [
-    'boto3>=1.7.0, <1.8.0',
+    'boto3~=1.10',
 ]
 azure_blob_storage = [
     'azure-storage>=0.34.0',
@@ -378,7 +378,7 @@ devel = [
     'jira',
     'mock;python_version<"3.3"',
     'mongomock',
-    'moto==1.3.5',
+    'moto>=1.3.14,<2.0.0',
     'parameterized',
     'paramiko',
     'pre-commit',
