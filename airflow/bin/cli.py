@@ -1010,7 +1010,12 @@ class CLIFactory:
     @classmethod
     def get_parser(cls, dag_parser=False):
         """Creates and returns command line argument parser"""
-        parser = argparse.ArgumentParser()
+        class DefaultHelpParser(argparse.ArgumentParser):
+            """Override argparse.ArgumentParser.error and use print_help instead of print_usage"""
+            def error(self, message):
+                self.print_help()
+                self.exit(2, '\n{} command error: {}, see help above.\n'.format(self.prog, message))
+        parser = DefaultHelpParser()
         subparsers = parser.add_subparsers(
             help='sub-command help', dest='subcommand')
         subparsers.required = True
