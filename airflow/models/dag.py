@@ -1281,9 +1281,10 @@ class DAG(BaseDag, LoggingMixin):
         Exposes a CLI specific to this DAG
         """
         from airflow.bin import cli
-        parser = cli.CLIFactory.get_parser()
+        parser = cli.get_dag_parser()
         args = parser.parse_args()
-        args.func(args, self)
+        args.dag_id = self.dag_id
+        args.func(args)
 
     @provide_session
     def create_dagrun(self,
