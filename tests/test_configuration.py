@@ -369,8 +369,8 @@ AIRFLOW_HOME = /root/airflow
             conf.remove_option('celery', 'celeryd_concurrency')
 
     @conf_vars({
-        ("celery", "worker_concurrency"): None,
-        ("celery", "celeryd_concurrency"): None,
+        ('logging', 'logging_level'): None,
+        ('core', 'logging_level'): None,
     })
     def test_deprecated_options_with_new_section(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
