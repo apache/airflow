@@ -54,7 +54,7 @@ class TestNamedHivePartitionSensor(unittest.TestCase):
                 ADD PARTITION({{ params.partition_by }}='{{ ds }}');
                 """
         self.hook = HiveMetastoreHook()
-        t = operators.hive_operator.HiveOperator(
+        op = operators.hive_operator.HiveOperator(
             task_id='HiveHook_' + str(random.randint(1, 10000)),
             params={
                 'database': self.database,
@@ -63,8 +63,8 @@ class TestNamedHivePartitionSensor(unittest.TestCase):
             },
             hive_cli_conn_id='hive_cli_default',
             hql=self.hql, dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-              ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
 
     def tearDown(self):
         hook = HiveMetastoreHook()
