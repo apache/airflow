@@ -64,7 +64,7 @@ class TestAwsHook(unittest.TestCase):
             ],
             AttributeDefinitions=[
                 {
-                    'AttributeName': 'name',
+                    'AttributeName': 'id',
                     'AttributeType': 'S'
                 }
             ],
@@ -95,7 +95,7 @@ class TestAwsHook(unittest.TestCase):
             ],
             AttributeDefinitions=[
                 {
-                    'AttributeName': 'name',
+                    'AttributeName': 'id',
                     'AttributeType': 'S'
                 }
             ],
