@@ -271,13 +271,6 @@
 ./tests/test_core.py
 ./tests/executors/test_celery_executor.py
 ./tests/executors/test_dask_executor.py
-./tests/hooks/test_docker_hook.py
-./tests/hooks/test_hive_hook.py
-./tests/hooks/test_http_hook.py
-./tests/hooks/test_oracle_hook.py
-./tests/hooks/test_pig_hook.py
-./tests/hooks/test_postgres_hook.py
-./tests/hooks/test_webhdfs_hook.py
 ./tests/jobs/test_backfill_job.py
 ./tests/jobs/test_base_job.py
 ./tests/jobs/test_scheduler_job.py
