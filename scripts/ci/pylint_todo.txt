@@ -317,14 +317,3 @@
 ./tests/test_utils/reset_warning_registry.py
 ./tests/ti_deps/deps/fake_models.py
 ./tests/ti_deps/deps/test_ready_to_reschedule_dep.py
-./tests/utils/log/test_es_task_handler.py
-./tests/utils/log/test_file_processor_handler.py
-./tests/utils/log/test_s3_task_handler.py
-./tests/utils/test_cli_util.py
-./tests/utils/test_compression.py
-./tests/utils/test_dag_processing.py
-./tests/utils/test_db.py
-./tests/utils/test_decorators.py
-./tests/utils/test_helpers.py
-./tests/utils/test_log_handlers.py
-./tests/utils/test_tests.py
