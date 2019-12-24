@@ -27,7 +27,7 @@ from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www.app import appbuilder
+from airflow.www.app import app, appbuilder
 
 EXISTING_ROLES = {
     'Admin',
@@ -415,7 +415,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         # for all the dag-level role, add the permission of the configurable BASE_ROLE
         # with the dag view to ab_permission_view
         all_roles = self.get_all_roles()
-        base_role_name = appbuilder.config.get('BASE_ROLE')
+        base_role_name = app.config.get('BASE_ROLE')
         base_role = self.find_role(base_role_name)
 
         dag_role = [role for role in all_roles if role.name not in EXISTING_ROLES]
