@@ -1,5 +1,5 @@
-Airflow 1.10.7
---------------
+Airflow 1.10.7, 2019-12-24
+--------------------------
 
 New Features
 """"""""""""
@@ -190,6 +190,7 @@ Doc only changes
 - [AIRFLOW-XXX] Fixed case problem with CONTRIBUTING.rst (#6329)
 - [AIRFLOW-XXX] Google Season of Docs updates to CONTRIBUTING doc (#6283)
 
+
 Airflow 1.10.6, 2019-10-28
 --------------------------
 
@@ -321,7 +322,7 @@ Misc/Internal
 - [AIRFLOW-5003] Making AWS Hooks pylint compatible (#5627)
 - [AIRFLOW-5580] Add base class for system test (#6229)
 
-Airflow 1.10.5, 2019-08-30
+Airflow 1.10.5, 2019-09-04
 --------------------------
 
 New Features
