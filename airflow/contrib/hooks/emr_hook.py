@@ -51,11 +51,12 @@ class EmrHook(AwsHook):
 
         if len(matching_clusters) == 1:
             cluster_id = matching_clusters[0]['Id']
-            self.log.info('Found cluster name = %s id = %s' % (emr_cluster_name, cluster_id))
+            self.log.info(f'Found cluster name = {emr_cluster_name} id = {cluster_id}')
             return cluster_id
         elif len(matching_clusters) > 1:
-            raise AirflowException('More than one cluster found for name = %s' % emr_cluster_name)
+            raise AirflowException(f'More than one cluster found for name {emr_cluster_name}')
         else:
+            self.log.info(f'No cluster found for name {emr_cluster_name}')
             return None
 
     def create_job_flow(self, job_flow_overrides):
