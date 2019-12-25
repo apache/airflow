@@ -97,7 +97,7 @@ SETTINGS_FILE_EMPTY = """
 SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
 
 
-class settings_context:
+class settings_context:  # pylint: disable=invalid-name
     """
     Sets a settings file and puts it in the Python classpath
 
@@ -105,23 +105,23 @@ class settings_context:
           The content of the settings file
     """
 
-    def __init__(self, content, dir=None, name='LOGGING_CONFIG'):
+    def __init__(self, content, directory=None, name='LOGGING_CONFIG'):
         self.content = content
         self.settings_root = tempfile.mkdtemp()
         filename = "{}.py".format(SETTINGS_DEFAULT_NAME)
 
-        if dir:
+        if directory:
             # Replace slashes by dots
-            self.module = dir.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
+            self.module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
 
             # Create the directory structure
-            dir_path = os.path.join(self.settings_root, dir)
+            dir_path = os.path.join(self.settings_root, directory)
             pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
             # Add the __init__ for the directories
             # This is required for Python 2.7
             basedir = self.settings_root
-            for part in dir.split('/'):
+            for part in directory.split('/'):
                 open(os.path.join(basedir, '__init__.py'), 'w').close()
                 basedir = os.path.join(basedir, part)
             open(os.path.join(basedir, '__init__.py'), 'w').close()
@@ -160,8 +160,10 @@ class TestLoggingSettings(unittest.TestCase):
         from airflow.logging_config import configure_logging
         from airflow.config_templates import airflow_local_settings
 
-        for m in [m for m in sys.modules if m not in self.old_modules]:
-            del sys.modules[m]
+        for mod in list(sys.modules):
+            if mod not in self.old_modules:
+                del sys.modules[mod]
+
         importlib.reload(airflow_local_settings)
         configure_logging()
 

@@ -200,7 +200,7 @@ class TestDagFileProcessor(unittest.TestCase):
             @mock.patch('airflow.models.DagBag', return_value=dagbag)
             @mock.patch('airflow.models.DagBag.collect_dags')
             @mock.patch('airflow.jobs.scheduler_job.SchedulerJob._change_state_for_tis_without_dagrun')
-            def do_schedule(mock_dagbag, mock_collect_dags, mock_change_state_for_tis_without_dagrun):
+            def do_schedule(mock_dagbag, mock_collect_dags, mock_change_state):
                 # Use a empty file since the above mock will return the
                 # expected DAGs. Also specify only a single file so that it doesn't
                 # try to schedule the above DAG repeatedly.
@@ -211,7 +211,7 @@ class TestDagFileProcessor(unittest.TestCase):
                 scheduler.heartrate = 0
                 scheduler.run()
 
-            do_schedule()
+            do_schedule()  # pylint: disable=no-value-for-parameter
             for ti in tis:
                 ti.refresh_from_db()
             self.assertEqual(len(executor.queued_tasks), 0)
@@ -332,7 +332,7 @@ class TestDagFileProcessor(unittest.TestCase):
 
         dag_file_processor.manage_slas(dag=dag, session=session)
 
-        self.assertTrue(1, len(mock_send_email.call_args_list))
+        self.assertTrue(len(mock_send_email.call_args_list), 1)
 
         send_email_to = mock_send_email.call_args_list[0][0][0]
         self.assertIn(email1, send_email_to)
@@ -760,11 +760,11 @@ class TestDagFileProcessor(unittest.TestCase):
                       catchup=catchup,
                       default_args=default_args)
 
-            t1 = DummyOperator(task_id='t1', dag=dag)
-            t2 = DummyOperator(task_id='t2', dag=dag)
-            t2.set_upstream(t1)
-            t3 = DummyOperator(task_id='t3', dag=dag)
-            t3.set_upstream(t2)
+            op1 = DummyOperator(task_id='t1', dag=dag)
+            op2 = DummyOperator(task_id='t2', dag=dag)
+            op2.set_upstream(op1)
+            op3 = DummyOperator(task_id='t3', dag=dag)
+            op3.set_upstream(op2)
 
             session = settings.Session()
             orm_dag = DagModel(dag_id=dag.dag_id)
@@ -1197,8 +1197,8 @@ class TestSchedulerJob(unittest.TestCase):
 
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_in_default_pool'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
-        t1 = DummyOperator(dag=dag, task_id='dummy1')
-        t2 = DummyOperator(dag=dag, task_id='dummy2')
+        op1 = DummyOperator(dag=dag, task_id='dummy1')
+        op2 = DummyOperator(dag=dag, task_id='dummy2')
         dagbag = self._make_simple_dag_bag([dag])
 
         executor = MockExecutor(do_update=True)
@@ -1207,8 +1207,8 @@ class TestSchedulerJob(unittest.TestCase):
         dr1 = dag_file_processor.create_dag_run(dag)
         dr2 = dag_file_processor.create_dag_run(dag)
 
-        ti1 = TI(task=t1, execution_date=dr1.execution_date)
-        ti2 = TI(task=t2, execution_date=dr2.execution_date)
+        ti1 = TI(task=op1, execution_date=dr1.execution_date)
+        ti2 = TI(task=op2, execution_date=dr2.execution_date)
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
 
@@ -1362,7 +1362,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(1, len(res))
         self.assertEqual(res[0].key, ti3.key)
 
-    def test_find_executable_task_instances_task_concurrency(self):
+    def test_find_executable_task_instances_task_concurrency(self):  # pylint: disable=too-many-statements
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_task_concurrency'
         task_id_1 = 'dummy'
         task_id_2 = 'dummy2'
@@ -1808,7 +1808,7 @@ class TestSchedulerJob(unittest.TestCase):
         test_executor = MockExecutor(do_update=False)
         scheduler_job.executor = test_executor
         scheduler_job._logger = mock_logger
-        scheduler_job._change_state_for_tasks_failed_to_execute()
+        scheduler_job._change_state_for_tasks_failed_to_execute()  # pylint: disable=no-value-for-parameter
         mock_logger.info.assert_not_called()
 
         # Tasks failed to execute with QUEUED state will be set to SCHEDULED state.
@@ -1818,10 +1818,10 @@ class TestSchedulerJob(unittest.TestCase):
         test_executor.queued_tasks[key] = 'value'
         ti = TI(task, DEFAULT_DATE)
         ti.state = State.QUEUED
-        session.merge(ti)
+        session.merge(ti)  # pylint: disable=no-value-for-parameter
         session.commit()
 
-        scheduler_job._change_state_for_tasks_failed_to_execute()
+        scheduler_job._change_state_for_tasks_failed_to_execute()  # pylint: disable=no-value-for-parameter
 
         ti.refresh_from_db()
         self.assertEqual(State.SCHEDULED, ti.state)
@@ -1834,7 +1834,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti)
         session.commit()
 
-        scheduler_job._change_state_for_tasks_failed_to_execute()
+        scheduler_job._change_state_for_tasks_failed_to_execute()  # pylint: disable=no-value-for-parameter
 
         ti.refresh_from_db()
         self.assertEqual(State.RUNNING, ti.state)
@@ -2168,8 +2168,8 @@ class TestSchedulerJob(unittest.TestCase):
         ti2s = tiq.filter(TI.task_id == 'dummy2').all()
         self.assertEqual(len(ti1s), 0)
         self.assertEqual(len(ti2s), 2)
-        for t in ti2s:
-            self.assertEqual(t.state, State.SUCCESS)
+        for task in ti2s:
+            self.assertEqual(task.state, State.SUCCESS)
 
     def test_scheduler_multiprocessing(self):
         """
@@ -2294,7 +2294,7 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler.heartrate = 0
             scheduler.run()
 
-        do_schedule()
+        do_schedule()  # pylint: disable=no-value-for-parameter
         with create_session() as session:
             ti = session.query(TI).filter(TI.dag_id == dag.dag_id,
                                           TI.task_id == dummy_task.task_id).first()
@@ -2302,7 +2302,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(State.SCHEDULED, ti.state)
 
         executor.do_update = True
-        do_schedule()
+        do_schedule()  # pylint: disable=no-value-for-parameter
         self.assertEqual(0, len(executor.queued_tasks))
         ti.refresh_from_db()
         self.assertEqual(State.SUCCESS, ti.state)
@@ -2352,7 +2352,7 @@ class TestSchedulerJob(unittest.TestCase):
             scheduler.heartrate = 0
             scheduler.run()
 
-        do_schedule()
+        do_schedule()  # pylint: disable=no-value-for-parameter
         with create_session() as session:
             ti = session.query(TI).filter(TI.dag_id == 'test_retry_still_in_executor',
                                           TI.task_id == 'test_retry_handling_op').first()
@@ -2384,7 +2384,7 @@ class TestSchedulerJob(unittest.TestCase):
             session.merge(ti)
 
         # do schedule
-        do_schedule()
+        do_schedule()  # pylint: disable=no-value-for-parameter
         # MockExecutor is not aware of the TI since we don't do update yet
         # and no trace of this TI will be left in the executor.
         self.assertFalse(executor.has_task(ti))
@@ -2392,7 +2392,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         # To verify that task does get re-queued.
         executor.do_update = True
-        do_schedule()
+        do_schedule()  # pylint: disable=no-value-for-parameter
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
@@ -2453,16 +2453,16 @@ class TestSchedulerJob(unittest.TestCase):
         six_hours_ago_to_the_hour = \
             (now - datetime.timedelta(hours=6)).replace(minute=0, second=0, microsecond=0)
 
-        START_DATE = six_hours_ago_to_the_hour
-        DAG_NAME1 = 'get_active_runs_test'
+        start_date = six_hours_ago_to_the_hour
+        dag_name1 = 'get_active_runs_test'
 
         default_args = {
             'owner': 'airflow',
             'depends_on_past': False,
-            'start_date': START_DATE
+            'start_date': start_date
 
         }
-        dag1 = DAG(DAG_NAME1,
+        dag1 = DAG(dag_name1,
                    schedule_interval='* * * * *',
                    max_active_runs=1,
                    default_args=default_args
@@ -2494,7 +2494,7 @@ class TestSchedulerJob(unittest.TestCase):
 
         try:
             running_date = running_dates[0]
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             running_date = 'Except'
 
         self.assertEqual(execution_date, running_date, 'Running Date must match Execution Date')
@@ -2644,7 +2644,7 @@ class TestSchedulerJob(unittest.TestCase):
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
         ]
-        for root, dirs, files in os.walk(TEST_DAG_FOLDER):
+        for root, _, files in os.walk(TEST_DAG_FOLDER):  # pylint: disable=too-many-nested-blocks
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
                     if file_name not in ignored_files:
@@ -2655,7 +2655,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(detected_files, expected_files)
 
         example_dag_folder = airflow.example_dags.__path__[0]
-        for root, _, files in os.walk(example_dag_folder):
+        for root, _, files in os.walk(example_dag_folder):  # pylint: disable=too-many-nested-blocks
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
                     if file_name not in ['__init__.py']:

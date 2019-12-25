@@ -345,8 +345,8 @@ class TestCore(unittest.TestCase):
         self.assertTrue(conf.get('core', 'unit_test_mode'))
 
     def test_pickling(self):
-        dp = self.dag.pickle()
-        self.assertEqual(dp.pickle.dag_id, self.dag.dag_id)
+        dag_pickle = self.dag.pickle()
+        self.assertEqual(dag_pickle.pickle.dag_id, self.dag.dag_id)
 
     def test_rich_comparison_ops(self):
 
@@ -362,8 +362,8 @@ class TestCore(unittest.TestCase):
         dag_subclass_diff_name = DAGsubclass(
             TEST_DAG_ID + '2', default_args=self.args)
 
-        for d in [dag_eq, dag_diff_name, dag_subclass, dag_subclass_diff_name]:
-            d.last_loaded = self.dag.last_loaded
+        for dag in [dag_eq, dag_diff_name, dag_subclass, dag_subclass_diff_name]:
+            dag.last_loaded = self.dag.last_loaded
 
         # test identity equality
         self.assertEqual(self.dag, self.dag)
@@ -377,8 +377,8 @@ class TestCore(unittest.TestCase):
         self.assertNotEqual(dag_subclass, self.dag)
 
         # a dag should equal an unpickled version of itself
-        d = pickle.dumps(self.dag)
-        self.assertEqual(pickle.loads(d), self.dag)
+        dump = pickle.dumps(self.dag)
+        self.assertEqual(pickle.loads(dump), self.dag)
 
         # dags are ordered based on dag_id no matter what the type is
         self.assertLess(self.dag, dag_diff_name)
@@ -398,27 +398,27 @@ class TestCore(unittest.TestCase):
 
         conn_id = "sqlite_default"
 
-        captainHook = BaseHook.get_hook(conn_id=conn_id)
-        captainHook.run("CREATE TABLE operator_test_table (a, b)")
-        captainHook.run("insert into operator_test_table values (1,2)")
+        captain_hook = BaseHook.get_hook(conn_id=conn_id)  # quite funny :D
+        captain_hook.run("CREATE TABLE operator_test_table (a, b)")
+        captain_hook.run("insert into operator_test_table values (1,2)")
 
-        t = CheckOperator(
+        op = CheckOperator(
             task_id='check',
             sql="select count(*) from operator_test_table",
             conn_id=conn_id,
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        t = ValueCheckOperator(
+        op = ValueCheckOperator(
             task_id='value_check',
             pass_value=95,
             tolerance=0.1,
             conn_id=conn_id,
             sql="SELECT 100",
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        captainHook.run("drop table operator_test_table")
+        captain_hook.run("drop table operator_test_table")
 
     def test_clear_api(self):
         task = self.dag_bash.tasks[0]
@@ -432,8 +432,7 @@ class TestCore(unittest.TestCase):
         """
         Tests that Operators reject illegal arguments
         """
-        msg = 'Invalid arguments were passed to BashOperator '
-        '(task_id: test_illegal_args).'
+        msg = 'Invalid arguments were passed to BashOperator (task_id: test_illegal_args).'
         with conf_vars({('operators', 'allow_illegal_arguments'): 'True'}):
             with self.assertWarns(PendingDeprecationWarning) as warning:
                 BashOperator(
@@ -460,31 +459,31 @@ class TestCore(unittest.TestCase):
             str(ctx.exception))
 
     def test_bash_operator(self):
-        t = BashOperator(
+        op = BashOperator(
             task_id='test_bash_operator',
             bash_command="echo success",
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_bash_operator_multi_byte_output(self):
-        t = BashOperator(
+        op = BashOperator(
             task_id='test_multi_byte_bash_operator',
             bash_command="echo \u2600",
             dag=self.dag,
             output_encoding='utf-8')
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_bash_operator_kill(self):
         import psutil
         sleep_time = "100%d" % os.getpid()
-        t = BashOperator(
+        op = BashOperator(
             task_id='test_bash_operator_kill',
             execution_timeout=timedelta(seconds=1),
             bash_command="/bin/bash -c 'sleep %s'" % sleep_time,
             dag=self.dag)
         self.assertRaises(
             exceptions.AirflowTaskTimeout,
-            t.run,
+            op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         sleep(2)
         pid = -1
@@ -504,41 +503,41 @@ class TestCore(unittest.TestCase):
             error = context.get('exception')
             test_case.assertIsInstance(error, AirflowException)
 
-        t = BashOperator(
+        op = BashOperator(
             task_id='check_on_failure_callback',
             bash_command="exit 1",
             dag=self.dag,
             on_failure_callback=check_failure)
         self.assertRaises(
             exceptions.AirflowException,
-            t.run,
+            op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         self.assertTrue(data['called'])
 
     def test_dryrun(self):
-        t = BashOperator(
+        op = BashOperator(
             task_id='test_dryrun',
             bash_command="echo success",
             dag=self.dag)
-        t.dry_run()
+        op.dry_run()
 
     def test_sqlite(self):
         import airflow.operators.sqlite_operator
-        t = airflow.operators.sqlite_operator.SqliteOperator(
+        op = airflow.operators.sqlite_operator.SqliteOperator(
             task_id='time_sqlite',
             sql="CREATE TABLE IF NOT EXISTS unitest (dummy VARCHAR(20))",
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_timeout(self):
-        t = PythonOperator(
+        op = PythonOperator(
             task_id='test_timeout',
             execution_timeout=timedelta(seconds=1),
             python_callable=lambda: sleep(5),
             dag=self.dag)
         self.assertRaises(
             exceptions.AirflowTaskTimeout,
-            t.run,
+            op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_python_op(self):
@@ -546,27 +545,27 @@ class TestCore(unittest.TestCase):
             if not templates_dict['ds'] == ds:
                 raise Exception("failure")
 
-        t = PythonOperator(
+        op = PythonOperator(
             task_id='test_py_op',
             python_callable=test_py_op,
             templates_dict={'ds': "{{ ds }}"},
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_complex_template(self):
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field['bar'][1],
                              context['ds'])
 
-        t = OperatorSubclass(
+        op = OperatorSubclass(
             task_id='test_complex_template',
             some_templated_field={
                 'foo': '123',
                 'bar': ['baz', '{{ ds }}']
             },
             dag=self.dag)
-        t.execute = verify_templated_field
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.execute = verify_templated_field
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_template_non_bool(self):
         """
@@ -574,17 +573,17 @@ class TestCore(unittest.TestCase):
         """
 
         class NonBoolObject:
-            def __len__(self):
+            def __len__(self):  # pylint: disable=invalid-length-returned
                 return NotImplemented
 
             def __bool__(self):
                 return NotImplemented
 
-        t = OperatorSubclass(
+        op = OperatorSubclass(
             task_id='test_bad_template_obj',
             some_templated_field=NonBoolObject(),
             dag=self.dag)
-        t.resolve_template_files()
+        op.resolve_template_files()
 
     def test_task_get_template(self):
         TI = TaskInstance
@@ -714,15 +713,15 @@ class TestCore(unittest.TestCase):
         self.assertTrue(conf.has_option("core", "FERNET_KEY"))
         self.assertFalse(conf.has_option("core", "FERNET_KEY_CMD"))
 
-        FERNET_KEY = conf.get('core', 'FERNET_KEY')
+        fernet_key = conf.get('core', 'FERNET_KEY')
 
         with conf_vars({('core', 'FERNET_KEY_CMD'): 'printf HELLO'}):
-            FALLBACK_FERNET_KEY = conf.get(
+            fallback_fernet_key = conf.get(
                 "core",
                 "FERNET_KEY"
             )
 
-        self.assertEqual(FERNET_KEY, FALLBACK_FERNET_KEY)
+        self.assertEqual(fernet_key, fallback_fernet_key)
 
     def test_config_throw_error_when_original_and_fallback_is_absent(self):
         self.assertTrue(conf.has_option("core", "FERNET_KEY"))
@@ -741,18 +740,18 @@ class TestCore(unittest.TestCase):
         value = "some value"
 
         with mock.patch.dict('os.environ', {key: value}):
-            FERNET_KEY = conf.get('core', 'FERNET_KEY')
+            fernet_key = conf.get('core', 'FERNET_KEY')
 
-        self.assertEqual(value, FERNET_KEY)
+        self.assertEqual(value, fernet_key)
 
     def test_config_override_original_when_empty_envvar_is_provided(self):
         key = "AIRFLOW__CORE__FERNET_KEY"
         value = ""
 
         with mock.patch.dict('os.environ', {key: value}):
-            FERNET_KEY = conf.get('core', 'FERNET_KEY')
+            fernet_key = conf.get('core', 'FERNET_KEY')
 
-        self.assertEqual(value, FERNET_KEY)
+        self.assertEqual(value, fernet_key)
 
     def test_round_time(self):
 
@@ -824,8 +823,8 @@ class TestCore(unittest.TestCase):
             task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
 
         # Running task instance asynchronously
-        p = multiprocessing.Process(target=job.run)
-        p.start()
+        proc = multiprocessing.Process(target=job.run)
+        proc.start()
         sleep(5)
         settings.engine.dispose()
         session = settings.Session()
@@ -842,7 +841,7 @@ class TestCore(unittest.TestCase):
         session.delete(ti)
         session.commit()
         # waiting for the async task to finish
-        p.join()
+        proc.join()
 
         # making sure that the task ended up as failed
         ti.refresh_from_db(session=session)
@@ -852,11 +851,11 @@ class TestCore(unittest.TestCase):
     def test_task_fail_duration(self):
         """If a task fails, the duration should be recorded in TaskFail"""
 
-        p = BashOperator(
+        op1 = BashOperator(
             task_id='pass_sleepy',
             bash_command='sleep 3',
             dag=self.dag)
-        f = BashOperator(
+        op2 = BashOperator(
             task_id='fail_sleepy',
             bash_command='sleep 5',
             execution_timeout=timedelta(seconds=3),
@@ -864,25 +863,25 @@ class TestCore(unittest.TestCase):
             dag=self.dag)
         session = settings.Session()
         try:
-            p.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:
+            op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        except Exception:  # pylint: disable=broad-except
             pass
         try:
-            f.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except Exception:
+            op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        except Exception:  # pylint: disable=broad-except
             pass
-        p_fails = session.query(TaskFail).filter_by(
+        op1_fails = session.query(TaskFail).filter_by(
             task_id='pass_sleepy',
             dag_id=self.dag.dag_id,
             execution_date=DEFAULT_DATE).all()
-        f_fails = session.query(TaskFail).filter_by(
+        op2_fails = session.query(TaskFail).filter_by(
             task_id='fail_sleepy',
             dag_id=self.dag.dag_id,
             execution_date=DEFAULT_DATE).all()
 
-        self.assertEqual(0, len(p_fails))
-        self.assertEqual(1, len(f_fails))
-        self.assertGreaterEqual(sum([f.duration for f in f_fails]), 3)
+        self.assertEqual(0, len(op1_fails))
+        self.assertEqual(1, len(op2_fails))
+        self.assertGreaterEqual(sum([f.duration for f in op2_fails]), 3)
 
     def test_run_command(self):
         write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
@@ -898,9 +897,9 @@ class TestCore(unittest.TestCase):
         TI = TaskInstance
 
         # Create the dagrun between two "scheduled" execution dates of the DAG
-        EXECUTION_DATE = DEFAULT_DATE + timedelta(days=2)
-        EXECUTION_DS = EXECUTION_DATE.strftime('%Y-%m-%d')
-        EXECUTION_DS_NODASH = EXECUTION_DS.replace('-', '')
+        execution_date = DEFAULT_DATE + timedelta(days=2)
+        execution_ds = execution_date.strftime('%Y-%m-%d')
+        execution_ds_nodash = execution_ds.replace('-', '')
 
         dag = DAG(
             TEST_DAG_ID,
@@ -909,22 +908,22 @@ class TestCore(unittest.TestCase):
             start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='test_externally_triggered_dag_context',
                              dag=dag)
-        dag.create_dagrun(run_id=DagRun.id_for_date(EXECUTION_DATE),
-                          execution_date=EXECUTION_DATE,
+        dag.create_dagrun(run_id=DagRun.id_for_date(execution_date),
+                          execution_date=execution_date,
                           state=State.RUNNING,
                           external_trigger=True)
         task.run(
-            start_date=EXECUTION_DATE, end_date=EXECUTION_DATE)
+            start_date=execution_date, end_date=execution_date)
 
-        ti = TI(task=task, execution_date=EXECUTION_DATE)
+        ti = TI(task=task, execution_date=execution_date)
         context = ti.get_template_context()
 
         # next_ds/prev_ds should be the execution date for manually triggered runs
-        self.assertEqual(context['next_ds'], EXECUTION_DS)
-        self.assertEqual(context['next_ds_nodash'], EXECUTION_DS_NODASH)
+        self.assertEqual(context['next_ds'], execution_ds)
+        self.assertEqual(context['next_ds_nodash'], execution_ds_nodash)
 
-        self.assertEqual(context['prev_ds'], EXECUTION_DS)
-        self.assertEqual(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
+        self.assertEqual(context['prev_ds'], execution_ds)
+        self.assertEqual(context['prev_ds_nodash'], execution_ds_nodash)
 
 
 class TestConnection(unittest.TestCase):
@@ -935,47 +934,47 @@ class TestConnection(unittest.TestCase):
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
     })
     def test_using_env_var(self):
-        c = SqliteHook.get_connection(conn_id='test_uri')
-        self.assertEqual('ec2.compute.com', c.host)
-        self.assertEqual('the_database', c.schema)
-        self.assertEqual('username', c.login)
-        self.assertEqual('password', c.password)
-        self.assertEqual(5432, c.port)
+        conn = SqliteHook.get_connection(conn_id='test_uri')
+        self.assertEqual('ec2.compute.com', conn.host)
+        self.assertEqual('the_database', conn.schema)
+        self.assertEqual('username', conn.login)
+        self.assertEqual('password', conn.password)
+        self.assertEqual(5432, conn.port)
 
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
     })
     def test_using_unix_socket_env_var(self):
-        c = SqliteHook.get_connection(conn_id='test_uri_no_creds')
-        self.assertEqual('ec2.compute.com', c.host)
-        self.assertEqual('the_database', c.schema)
-        self.assertIsNone(c.login)
-        self.assertIsNone(c.password)
-        self.assertIsNone(c.port)
+        conn = SqliteHook.get_connection(conn_id='test_uri_no_creds')
+        self.assertEqual('ec2.compute.com', conn.host)
+        self.assertEqual('the_database', conn.schema)
+        self.assertIsNone(conn.login)
+        self.assertIsNone(conn.password)
+        self.assertIsNone(conn.port)
 
     def test_param_setup(self):
-        c = Connection(conn_id='local_mysql', conn_type='mysql',
-                       host='localhost', login='airflow',
-                       password='airflow', schema='airflow')
-        self.assertEqual('localhost', c.host)
-        self.assertEqual('airflow', c.schema)
-        self.assertEqual('airflow', c.login)
-        self.assertEqual('airflow', c.password)
-        self.assertIsNone(c.port)
+        conn = Connection(conn_id='local_mysql', conn_type='mysql',
+                          host='localhost', login='airflow',
+                          password='airflow', schema='airflow')
+        self.assertEqual('localhost', conn.host)
+        self.assertEqual('airflow', conn.schema)
+        self.assertEqual('airflow', conn.login)
+        self.assertEqual('airflow', conn.password)
+        self.assertIsNone(conn.port)
 
     def test_env_var_priority(self):
-        c = SqliteHook.get_connection(conn_id='airflow_db')
-        self.assertNotEqual('ec2.compute.com', c.host)
+        conn = SqliteHook.get_connection(conn_id='airflow_db')
+        self.assertNotEqual('ec2.compute.com', conn.host)
 
         with mock.patch.dict('os.environ', {
             'AIRFLOW_CONN_AIRFLOW_DB': 'postgres://username:password@ec2.compute.com:5432/the_database',
         }):
-            c = SqliteHook.get_connection(conn_id='airflow_db')
-            self.assertEqual('ec2.compute.com', c.host)
-            self.assertEqual('the_database', c.schema)
-            self.assertEqual('username', c.login)
-            self.assertEqual('password', c.password)
-            self.assertEqual(5432, c.port)
+            conn = SqliteHook.get_connection(conn_id='airflow_db')
+            self.assertEqual('ec2.compute.com', conn.host)
+            self.assertEqual('the_database', conn.schema)
+            self.assertEqual('username', conn.login)
+            self.assertEqual('password', conn.password)
+            self.assertEqual(5432, conn.port)
 
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
