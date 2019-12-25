@@ -126,7 +126,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
 
         ti = self.mock_context['ti']
 
-        ti.xcom_push.assert_any_call(key='job_flow_id', value=expected_job_flow_id)
+        ti.xcom_push.assert_called_once_with(key='job_flow_id', value=expected_job_flow_id)
 
 
 if __name__ == '__main__':
