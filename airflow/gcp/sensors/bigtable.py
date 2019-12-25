@@ -31,7 +31,7 @@ from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidationMixin):
+class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValidationMixin):
     """
     Sensor that waits for Cloud Bigtable table to be fully replicated to its clusters.
     No exception will be raised if the instance or the table does not exist.
@@ -41,7 +41,7 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableTableWaitForReplicationSensor`
+        :ref:`howto/operator:BigtableTableReplicationCompletedSensor`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.

@@ -47,9 +47,8 @@ class TestSnowflakeOperator(unittest.TestCase):
             dummy VARCHAR(50)
         );
         """
-        t = SnowflakeOperator(
+        op = SnowflakeOperator(
             task_id='basic_snowflake',
             sql=sql,
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-              ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

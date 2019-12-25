@@ -20,7 +20,7 @@
 import unittest
 
 from airflow import AirflowException
-from airflow.gcp.operators.speech_to_text import GcpSpeechToTextRecognizeSpeechOperator
+from airflow.gcp.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 from tests.compat import Mock, patch
 
 PROJECT_ID = "project-id"
@@ -34,7 +34,7 @@ class TestCloudSql(unittest.TestCase):
     def test_recognize_speech_green_path(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
-        GcpSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
+        CloudSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
             project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, config=CONFIG, audio=AUDIO, task_id="id"
         ).execute(context={"task_instance": Mock()})
 
@@ -48,7 +48,7 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.return_value.recognize_speech.return_value = True
 
         with self.assertRaises(AirflowException) as e:
-            GcpSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
+            CloudSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
                 project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, audio=AUDIO, task_id="id"
             ).execute(context={"task_instance": Mock()})
 
@@ -61,7 +61,7 @@ class TestCloudSql(unittest.TestCase):
         mock_hook.return_value.recognize_speech.return_value = True
 
         with self.assertRaises(AirflowException) as e:
-            GcpSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
+            CloudSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
                 project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, config=CONFIG, task_id="id"
             ).execute(context={"task_instance": Mock()})
 

@@ -83,7 +83,7 @@ LOGGING_CONFIG = {
 SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
 
 
-class settings_context:
+class settings_context:  # pylint: disable=invalid-name
     """
     Sets a settings file and puts it in the Python classpath
 
@@ -91,23 +91,23 @@ class settings_context:
           The content of the settings file
     """
 
-    def __init__(self, content, dir=None, name='LOGGING_CONFIG'):
+    def __init__(self, content, directory=None, name='LOGGING_CONFIG'):
         self.content = content
         self.settings_root = tempfile.mkdtemp()
         filename = "{}.py".format(SETTINGS_DEFAULT_NAME)
 
-        if dir:
+        if directory:
             # Replace slashes by dots
-            self.module = dir.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
+            self.module = directory.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
 
             # Create the directory structure
-            dir_path = os.path.join(self.settings_root, dir)
+            dir_path = os.path.join(self.settings_root, directory)
             pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
             # Add the __init__ for the directories
             # This is required for Python 2.7
             basedir = self.settings_root
-            for part in dir.split('/'):
+            for part in directory.split('/'):
                 open(os.path.join(basedir, '__init__.py'), 'w').close()
                 basedir = os.path.join(basedir, part)
             open(os.path.join(basedir, '__init__.py'), 'w').close()
@@ -122,7 +122,7 @@ class settings_context:
             handle.writelines(self.content)
         sys.path.append(self.settings_root)
         conf.set(
-            'core',
+            'logging',
             'logging_config_class',
             self.module
         )
@@ -131,7 +131,7 @@ class settings_context:
     def __exit__(self, *exc_info):
         # shutil.rmtree(self.settings_root)
         # Reset config
-        conf.set('core', 'logging_config_class', '')
+        conf.set('logging', 'logging_config_class', '')
         sys.path.remove(self.settings_root)
 
 
@@ -197,18 +197,18 @@ class TestDagFileProcessorManager(unittest.TestCase):
             task = dag.get_task(task_id='run_this_first')
 
             ti = TI(task, DEFAULT_DATE, State.RUNNING)
-            lj = LJ(ti)
-            lj.state = State.SHUTDOWN
-            lj.id = 1
-            ti.job_id = lj.id
+            local_job = LJ(ti)
+            local_job.state = State.SHUTDOWN
+            local_job.id = 1
+            ti.job_id = local_job.id
 
-            session.add(lj)
+            session.add(local_job)
             session.add(ti)
             session.commit()
 
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
                 seconds=manager._zombie_threshold_secs + 1)
-            manager._find_zombies()
+            manager._find_zombies()  # pylint: disable=no-value-for-parameter
             zombies = manager._zombies
             self.assertEqual(1, len(zombies))
             self.assertIsInstance(zombies[0], SimpleTaskInstance)
@@ -233,12 +233,12 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 task = dag.get_task(task_id='run_this_last')
 
                 ti = TI(task, DEFAULT_DATE, State.RUNNING)
-                lj = LJ(ti)
-                lj.state = State.SHUTDOWN
-                lj.id = 1
-                ti.job_id = lj.id
+                local_job = LJ(ti)
+                local_job.state = State.SHUTDOWN
+                local_job.id = 1
+                ti.job_id = local_job.id
 
-                session.add(lj)
+                session.add(local_job)
                 session.add(ti)
                 session.commit()
                 fake_zombies = [SimpleTaskInstance(ti)]
@@ -297,8 +297,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 parsing_result.extend(processor_agent.harvest_simple_dags())
 
             self.assertEqual(len(fake_zombies), len(parsing_result))
-            self.assertEqual(set([zombie.key for zombie in fake_zombies]),
-                             set([result.key for result in parsing_result]))
+            self.assertEqual(set(zombie.key for zombie in fake_zombies),
+                             set(result.key for result in parsing_result))
 
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.kill")
@@ -347,12 +347,13 @@ class TestDagFileProcessorAgent(unittest.TestCase):
     def tearDown(self):
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
-        for m in [m for m in sys.modules if m not in self.old_modules]:
-            del sys.modules[m]
+        for mod in sys.modules:
+            if mod not in self.old_modules:
+                del sys.modules[mod]
 
     def test_reload_module(self):
         """
-        Configure the context to have core.logging_config_class set to a fake logging
+        Configure the context to have logging.logging_config_class set to a fake logging
         class path, thus when reloading logging module the airflow.processor_manager
         logger should not be configured.
         """
@@ -368,7 +369,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
 
-            log_file_loc = conf.get('core', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
+            log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
             try:
                 os.remove(log_file_loc)
             except OSError:
@@ -428,7 +429,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
 
-        log_file_loc = conf.get('core', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
+        log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
         try:
             os.remove(log_file_loc)
         except OSError:

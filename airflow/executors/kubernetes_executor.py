@@ -62,6 +62,7 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
     """Configuration for Kubernetes"""
     core_section = 'core'
     kubernetes_section = 'kubernetes'
+    logging_section = 'logging'
 
     def __init__(self):  # pylint: disable=too-many-statements
         configuration_dict = conf.as_dict(display_sensitive=True)
@@ -161,7 +162,7 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.logs_volume_host = conf.get(self.kubernetes_section, 'logs_volume_host')
 
         # This prop may optionally be set for PV Claims and is used to write logs
-        self.base_log_folder = conf.get(self.core_section, 'base_log_folder')
+        self.base_log_folder = conf.get(self.logging_section, 'base_log_folder')
 
         # The Kubernetes Namespace in which the Scheduler and Webserver reside. Note
         # that if your

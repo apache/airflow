@@ -794,7 +794,7 @@ class BaseOperator(Operator, LoggingMixin):
         if self.template_ext:  # pylint: disable=too-many-nested-blocks
             for field in self.template_fields:
                 content = getattr(self, field, None)
-                if content is None:
+                if content is None:  # pylint: disable=no-else-continue
                     continue
                 elif isinstance(content, str) and \
                         any([content.endswith(ext) for ext in self.template_ext]):

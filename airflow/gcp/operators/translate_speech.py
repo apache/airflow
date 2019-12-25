@@ -37,7 +37,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
 
     Note that it uses the first result from the recognition api response - the one with the highest confidence
     In order to see other possible results please use
-    :ref:`howto/operator:GcpSpeechToTextRecognizeSpeechOperator`
+    :ref:`howto/operator:CloudSpeechToTextRecognizeSpeechOperator`
     and
     :ref:`howto/operator:CloudTranslateTextOperator`
     separately

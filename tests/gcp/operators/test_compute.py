@@ -28,8 +28,9 @@ from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
 from airflow.gcp.operators.compute import (
-    GceInstanceGroupManagerUpdateTemplateOperator, GceInstanceStartOperator, GceInstanceStopOperator,
-    GceInstanceTemplateCopyOperator, GceSetMachineTypeOperator,
+    ComputeEngineCopyInstanceTemplateOperator, ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
+    ComputeEngineSetMachineTypeOperator, ComputeEngineStartInstanceOperator,
+    ComputeEngineStopInstanceOperator,
 )
 from airflow.models import DAG, TaskInstance
 from airflow.utils import timezone
@@ -52,7 +53,7 @@ class TestGceInstanceStart(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_instance_start(self, mock_hook):
         mock_hook.return_value.start_instance.return_value = True
-        op = GceInstanceStartOperator(
+        op = ComputeEngineStartInstanceOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=RESOURCE_ID,
@@ -75,7 +76,7 @@ class TestGceInstanceStart(unittest.TestCase):
             'start_date': DEFAULT_DATE
         }
         self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
-        op = GceInstanceStartOperator(
+        op = ComputeEngineStartInstanceOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
             resource_id='{{ dag.dag_id }}',
@@ -95,7 +96,7 @@ class TestGceInstanceStart(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_start_should_throw_ex_when_missing_project_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceInstanceStartOperator(
+            op = ComputeEngineStartInstanceOperator(
                 project_id="",
                 zone=GCE_ZONE,
                 resource_id=RESOURCE_ID,
@@ -108,7 +109,7 @@ class TestGceInstanceStart(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_start_should_not_throw_ex_when_project_id_none(self, _):
-        op = GceInstanceStartOperator(
+        op = ComputeEngineStartInstanceOperator(
             zone=GCE_ZONE,
             resource_id=RESOURCE_ID,
             task_id='id'
@@ -118,7 +119,7 @@ class TestGceInstanceStart(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_start_should_throw_ex_when_missing_zone(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceInstanceStartOperator(
+            op = ComputeEngineStartInstanceOperator(
                 project_id=GCP_PROJECT_ID,
                 zone="",
                 resource_id=RESOURCE_ID,
@@ -132,7 +133,7 @@ class TestGceInstanceStart(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_start_should_throw_ex_when_missing_resource_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceInstanceStartOperator(
+            op = ComputeEngineStartInstanceOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 resource_id="",
@@ -147,7 +148,7 @@ class TestGceInstanceStart(unittest.TestCase):
 class TestGceInstanceStop(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_instance_stop(self, mock_hook):
-        op = GceInstanceStopOperator(
+        op = ComputeEngineStopInstanceOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=RESOURCE_ID,
@@ -169,7 +170,7 @@ class TestGceInstanceStop(unittest.TestCase):
             'start_date': DEFAULT_DATE
         }
         self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
-        op = GceInstanceStopOperator(
+        op = ComputeEngineStopInstanceOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
             resource_id='{{ dag.dag_id }}',
@@ -189,7 +190,7 @@ class TestGceInstanceStop(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_stop_should_throw_ex_when_missing_project_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceInstanceStopOperator(
+            op = ComputeEngineStopInstanceOperator(
                 project_id="",
                 zone=GCE_ZONE,
                 resource_id=RESOURCE_ID,
@@ -202,7 +203,7 @@ class TestGceInstanceStop(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_stop_should_not_throw_ex_when_project_id_none(self, mock_hook):
-        op = GceInstanceStopOperator(
+        op = ComputeEngineStopInstanceOperator(
             zone=GCE_ZONE,
             resource_id=RESOURCE_ID,
             task_id='id'
@@ -217,7 +218,7 @@ class TestGceInstanceStop(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_stop_should_throw_ex_when_missing_zone(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceInstanceStopOperator(
+            op = ComputeEngineStopInstanceOperator(
                 project_id=GCP_PROJECT_ID,
                 zone="",
                 resource_id=RESOURCE_ID,
@@ -231,7 +232,7 @@ class TestGceInstanceStop(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_stop_should_throw_ex_when_missing_resource_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceInstanceStopOperator(
+            op = ComputeEngineStopInstanceOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 resource_id="",
@@ -247,7 +248,7 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_set_machine_type(self, mock_hook):
         mock_hook.return_value.set_machine_type.return_value = True
-        op = GceSetMachineTypeOperator(
+        op = ComputeEngineSetMachineTypeOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=RESOURCE_ID,
@@ -273,7 +274,7 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
             'start_date': DEFAULT_DATE
         }
         self.dag = DAG(dag_id, default_args=args)  # pylint: disable=attribute-defined-outside-init
-        op = GceSetMachineTypeOperator(
+        op = ComputeEngineSetMachineTypeOperator(
             project_id='{{ dag.dag_id }}',
             zone='{{ dag.dag_id }}',
             resource_id='{{ dag.dag_id }}',
@@ -294,7 +295,7 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_set_machine_type_should_throw_ex_when_missing_project_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceSetMachineTypeOperator(
+            op = ComputeEngineSetMachineTypeOperator(
                 project_id="",
                 zone=GCE_ZONE,
                 resource_id=RESOURCE_ID,
@@ -308,7 +309,7 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_set_machine_type_should_not_throw_ex_when_project_id_none(self, mock_hook):
-        op = GceSetMachineTypeOperator(
+        op = ComputeEngineSetMachineTypeOperator(
             zone=GCE_ZONE,
             resource_id=RESOURCE_ID,
             body=SET_MACHINE_TYPE_BODY,
@@ -327,7 +328,7 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_set_machine_type_should_throw_ex_when_missing_zone(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceSetMachineTypeOperator(
+            op = ComputeEngineSetMachineTypeOperator(
                 project_id=GCP_PROJECT_ID,
                 zone="",
                 resource_id=RESOURCE_ID,
@@ -342,7 +343,7 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_set_machine_type_should_throw_ex_when_missing_resource_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceSetMachineTypeOperator(
+            op = ComputeEngineSetMachineTypeOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 resource_id="",
@@ -357,7 +358,7 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_set_machine_type_should_throw_ex_when_missing_machine_type(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = GceSetMachineTypeOperator(
+            op = ComputeEngineSetMachineTypeOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 resource_id=RESOURCE_ID,
@@ -404,7 +405,7 @@ class TestGceInstanceSetMachineType(unittest.TestCase):
         _check_zone_operation_status.return_value = ast.literal_eval(
             self.MOCK_OP_RESPONSE)
         with self.assertRaises(AirflowException) as cm:
-            op = GceSetMachineTypeOperator(
+            op = ComputeEngineSetMachineTypeOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 resource_id=RESOURCE_ID,
@@ -524,7 +525,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             GCE_INSTANCE_TEMPLATE_BODY_GET,
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
-        op = GceInstanceTemplateCopyOperator(
+        op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             task_id='id',
@@ -547,7 +548,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             GCE_INSTANCE_TEMPLATE_BODY_GET,
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
-        op = GceInstanceTemplateCopyOperator(
+        op = ComputeEngineCopyInstanceTemplateOperator(
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             task_id='id',
             body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME}
@@ -567,7 +568,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
         mock_hook.return_value.get_instance_template.side_effect = [
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
-        op = GceInstanceTemplateCopyOperator(
+        op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             task_id='id',
@@ -586,7 +587,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             GCE_INSTANCE_TEMPLATE_BODY_GET,
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
-        op = GceInstanceTemplateCopyOperator(
+        op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
@@ -610,7 +611,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             GCE_INSTANCE_TEMPLATE_BODY_GET,
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
-        op = GceInstanceTemplateCopyOperator(
+        op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
@@ -638,7 +639,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             GCE_INSTANCE_TEMPLATE_BODY_GET,
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
-        op = GceInstanceTemplateCopyOperator(
+        op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             task_id='id',
@@ -668,7 +669,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             GCE_INSTANCE_TEMPLATE_BODY_GET,
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
-        op = GceInstanceTemplateCopyOperator(
+        op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             task_id='id',
@@ -698,7 +699,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             GCE_INSTANCE_TEMPLATE_BODY_GET,
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
-        op = GceInstanceTemplateCopyOperator(
+        op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             task_id='id',
@@ -751,7 +752,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             GCE_INSTANCE_TEMPLATE_BODY_GET,
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
-        op = GceInstanceTemplateCopyOperator(
+        op = ComputeEngineCopyInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_TEMPLATE_NAME,
             task_id='id',
@@ -813,7 +814,7 @@ class TestGceInstanceTemplateCopy(unittest.TestCase):
             GCE_INSTANCE_TEMPLATE_BODY_GET_NEW
         ]
         with self.assertRaises(AirflowException) as cm:
-            op = GceInstanceTemplateCopyOperator(
+            op = ComputeEngineCopyInstanceTemplateOperator(
                 project_id=GCP_PROJECT_ID,
                 resource_id=GCE_INSTANCE_TEMPLATE_NAME,
                 request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
@@ -932,7 +933,7 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
     def test_successful_instance_group_update(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
-        op = GceInstanceGroupManagerUpdateTemplateOperator(
+        op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -956,7 +957,7 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
     def test_successful_instance_group_update_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
-        op = GceInstanceGroupManagerUpdateTemplateOperator(
+        op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
             task_id='id',
@@ -981,7 +982,7 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
         del instance_group_manager_no_template['instanceTemplate']
         mock_hook.return_value.get_instance_group_manager.return_value = \
             instance_group_manager_no_template
-        op = GceInstanceGroupManagerUpdateTemplateOperator(
+        op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -1010,7 +1011,7 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
         del instance_group_manager_no_versions['versions']
         mock_hook.return_value.get_instance_group_manager.return_value = \
             instance_group_manager_no_versions
-        op = GceInstanceGroupManagerUpdateTemplateOperator(
+        op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -1037,7 +1038,7 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
     def test_successful_instance_group_update_with_update_policy(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
-        op = GceInstanceGroupManagerUpdateTemplateOperator(
+        op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -1065,7 +1066,7 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
     def test_successful_instance_group_update_with_request_id(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
-        op = GceInstanceGroupManagerUpdateTemplateOperator(
+        op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -1089,7 +1090,7 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
     @mock.patch('airflow.gcp.operators.compute.ComputeEngineHook')
     def test_try_to_use_api_v1(self, _):
         with self.assertRaises(AirflowException) as cm:
-            GceInstanceGroupManagerUpdateTemplateOperator(
+            ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
                 project_id=GCP_PROJECT_ID,
                 zone=GCE_ZONE,
                 resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -1105,7 +1106,7 @@ class TestGceInstanceGroupManagerUpdate(unittest.TestCase):
     def test_try_to_use_non_existing_template(self, mock_hook):
         mock_hook.return_value.get_instance_group_manager.return_value = \
             deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
-        op = GceInstanceGroupManagerUpdateTemplateOperator(
+        op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,

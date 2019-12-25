@@ -47,12 +47,12 @@ class TestS3CopyObjectOperator(unittest.TestCase):
         self.assertFalse('Contents' in conn.list_objects(Bucket=self.dest_bucket,
                                                          Prefix=self.dest_key))
 
-        t = S3CopyObjectOperator(task_id="test_task_s3_copy_object",
-                                 source_bucket_key=self.source_key,
-                                 source_bucket_name=self.source_bucket,
-                                 dest_bucket_key=self.dest_key,
-                                 dest_bucket_name=self.dest_bucket)
-        t.execute(None)
+        op = S3CopyObjectOperator(task_id="test_task_s3_copy_object",
+                                  source_bucket_key=self.source_key,
+                                  source_bucket_name=self.source_bucket,
+                                  dest_bucket_key=self.dest_key,
+                                  dest_bucket_name=self.dest_bucket)
+        op.execute(None)
 
         objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket,
                                                    Prefix=self.dest_key)
@@ -76,10 +76,10 @@ class TestS3CopyObjectOperator(unittest.TestCase):
 
         source_key_s3_url = "s3://{}/{}".format(self.source_bucket, self.source_key)
         dest_key_s3_url = "s3://{}/{}".format(self.dest_bucket, self.dest_key)
-        t = S3CopyObjectOperator(task_id="test_task_s3_copy_object",
-                                 source_bucket_key=source_key_s3_url,
-                                 dest_bucket_key=dest_key_s3_url)
-        t.execute(None)
+        op = S3CopyObjectOperator(task_id="test_task_s3_copy_object",
+                                  source_bucket_key=source_key_s3_url,
+                                  dest_bucket_key=dest_key_s3_url)
+        op.execute(None)
 
         objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket,
                                                    Prefix=self.dest_key)

@@ -746,7 +746,7 @@ class TestLogView(TestBase):
         with open(settings_file, 'w') as handle:
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
-        conf.set('core', 'logging_config_class', 'airflow_local_settings.LOGGING_CONFIG')
+        conf.set('logging', 'logging_config_class', 'airflow_local_settings.LOGGING_CONFIG')
 
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['WTF_CSRF_ENABLED'] = False
@@ -786,7 +786,7 @@ class TestLogView(TestBase):
 
         sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
-        conf.set('core', 'logging_config_class', '')
+        conf.set('logging', 'logging_config_class', '')
 
         self.logout()
         super().tearDown()

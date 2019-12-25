@@ -25,7 +25,7 @@ from airflow.operators import bash_operator
 from airflow.operators.gcs_to_bq import GoogleCloudStorageToBigQueryOperator
 
 args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 

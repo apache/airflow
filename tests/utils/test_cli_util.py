@@ -34,9 +34,9 @@ class TestCliUtil(unittest.TestCase):
     def test_metrics_build(self):
         func_name = 'test'
         exec_date = datetime.utcnow()
-        ns = Namespace(dag_id='foo', task_id='bar',
-                       subcommand='test', execution_date=exec_date)
-        metrics = cli._build_metrics(func_name, ns)
+        namespace = Namespace(dag_id='foo', task_id='bar',
+                              subcommand='test', execution_date=exec_date)
+        metrics = cli._build_metrics(func_name, namespace)
 
         expected = {'user': os.environ.get('USER'),
                     'sub_command': 'test',

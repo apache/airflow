@@ -29,6 +29,7 @@ from tabulate import tabulate_formats
 
 from airflow import api, settings
 from airflow.configuration import conf
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.cli import alternative_conn_specs
 from airflow.utils.module_loading import import_string
 from airflow.utils.timezone import parse as parsedate
@@ -37,7 +38,8 @@ api.load_auth()
 
 DAGS_FOLDER = settings.DAGS_FOLDER
 
-if "BUILDING_AIRFLOW_DOCS" in os.environ:
+BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
+if BUILD_DOCS:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
 
 
@@ -156,7 +158,7 @@ class CLIFactory:
             ("-x", "--donot_pickle"), (
                 "Do not attempt to pickle the DAG object to send over "
                 "to the workers, just tell the workers to run their version "
-                "of the code."),
+                "of the code"),
             "store_true"),
         'bf_ignore_dependencies': Arg(
             ("-i", "--ignore_dependencies"),
@@ -170,7 +172,7 @@ class CLIFactory:
             (
                 "Ignores depends_on_past dependencies for the first "
                 "set of tasks only (subsequent executions in the backfill "
-                "DO respect depends_on_past)."),
+                "DO respect depends_on_past)"),
             "store_true"),
         'pool': Arg(("--pool",), "Resource pool to use"),
         'delay_on_limit': Arg(
@@ -178,7 +180,7 @@ class CLIFactory:
             help=("Amount of time in seconds to wait when the limit "
                   "on maximum active dag runs (max_active_runs) has "
                   "been reached before trying to execute a dag run "
-                  "again."),
+                  "again"),
             type=float,
             default=1.0),
         'reset_dag_run': Arg(
@@ -270,11 +272,11 @@ class CLIFactory:
         'pool_import': Arg(
             ("file",),
             metavar="FILEPATH",
-            help="Import pool from JSON file"),
+            help="Import pools from JSON file"),
         'pool_export': Arg(
             ("file",),
             metavar="FILEPATH",
-            help="Export pool to JSON file"),
+            help="Export all pools to JSON file"),
         # variables
         'var': Arg(
             ("key",),
@@ -297,7 +299,7 @@ class CLIFactory:
             help="Import variables from JSON file"),
         'var_export': Arg(
             ("file",),
-            help="Export variables to JSON file"),
+            help="Export all variables to JSON file"),
         # kerberos
         'principal': Arg(
             ("principal",), "kerberos principal", nargs='?'),
@@ -392,12 +394,12 @@ class CLIFactory:
             ("-A", "--access_logfile"),
             default=conf.get('webserver', 'ACCESS_LOGFILE'),
             help="The logfile to store the webserver access log. Use '-' to print to "
-                 "stderr."),
+                 "stderr"),
         'error_logfile': Arg(
             ("-E", "--error_logfile"),
             default=conf.get('webserver', 'ERROR_LOGFILE'),
             help="The logfile to store the webserver error log. Use '-' to print to "
-                 "stderr."),
+                 "stderr"),
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'num_runs': Arg(
@@ -411,7 +413,7 @@ class CLIFactory:
             help=(
                 "Attempt to pickle the DAG object to send over "
                 "to the workers, instead of letting workers run their version "
-                "of the code."),
+                "of the code"),
             action="store_true"),
         'queues': Arg(
             ("-q", "--queues"),
@@ -425,7 +427,7 @@ class CLIFactory:
         'celery_hostname': Arg(
             ("-cn", "--celery_hostname"),
             help=("Set the hostname of celery worker "
-                  "if you have multiple workers on a single machine.")),
+                  "if you have multiple workers on a single machine")),
         # flower
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
         'flower_hostname': Arg(
@@ -518,7 +520,7 @@ class CLIFactory:
         'role': Arg(
             ('--role',),
             help='Role of the user. Existing roles include Admin, '
-                 'User, Op, Viewer, and Public.',
+                 'User, Op, Viewer, and Public',
             required=True,
             type=str,
         ),
@@ -560,7 +562,7 @@ class CLIFactory:
         'user_export': Arg(
             ("export",),
             metavar="FILEPATH",
-            help="Export users to JSON file"),
+            help="Export all users to JSON file"),
         # roles
         'create_role': Arg(
             ('-c', '--create'),
@@ -580,10 +582,10 @@ class CLIFactory:
         'skip_serve_logs': Arg(
             ("-s", "--skip_serve_logs"),
             default=False,
-            help="Don't start the serve logs process along with the workers.",
+            help="Don't start the serve logs process along with the workers",
             action="store_true"),
     }
-    subparsers = (
+    subparsers = [
         {
             'help': 'List and manage DAGs',
             'name': 'dags',
@@ -600,7 +602,7 @@ class CLIFactory:
                     'help': "List dag runs given a DAG id. If state option is given, it will only "
                             "search for all the dagruns with the given state. "
                             "If no_backfill option is given, it will filter out "
-                            "all backfill dagruns for given dag id.",
+                            "all backfill dagruns for given dag id",
                     'args': ('dag_id', 'no_backfill', 'state', 'output',),
                 },
                 {
@@ -618,7 +620,7 @@ class CLIFactory:
                 {
                     'func': lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
                     'name': 'next_execution',
-                    'help': "Get the next execution datetime of a DAG.",
+                    'help': "Get the next execution datetime of a DAG",
                     'args': ('dag_id', 'subdir'),
                 },
                 {
@@ -661,7 +663,7 @@ class CLIFactory:
                             "within the backfill date range. "
                             "If rerun_failed_tasks is used, backfill "
                             "will auto re-run the previous failed task instances"
-                            " within the backfill date range.",
+                            " within the backfill date range",
                     'args': (
                         'dag_id', 'task_regex', 'start_date', 'end_date',
                         'mark_success', 'local', 'donot_pickle', 'yes',
@@ -703,7 +705,7 @@ class CLIFactory:
                         "Returns the unmet dependencies for a task instance from the perspective "
                         "of the scheduler. In other words, why a task instance doesn't get "
                         "scheduled and then queued by the scheduler, and then run by an "
-                        "executor)."),
+                        "executor)"),
                     'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
                 },
                 {
@@ -727,7 +729,7 @@ class CLIFactory:
                     'name': 'test',
                     'help': (
                         "Test a task instance. This will run a task without checking for "
-                        "dependencies or recording its state in the database."),
+                        "dependencies or recording its state in the database"),
                     'args': (
                         'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
                         'task_params', 'post_mortem'),
@@ -764,13 +766,13 @@ class CLIFactory:
                 {
                     'func': lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
                     'name': 'import',
-                    'help': 'Import pool',
+                    'help': 'Import pools',
                     'args': ('pool_import', 'output',),
                 },
                 {
                     'func': lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
                     'name': 'export',
-                    'help': 'Export pool',
+                    'help': 'Export all pools',
                     'args': ('pool_export', 'output',),
                 },
             ),
@@ -811,7 +813,7 @@ class CLIFactory:
                 {
                     'func': lazy_load_command('airflow.cli.commands.variable_command.variables_export'),
                     'name': 'export',
-                    'help': 'Export variables',
+                    'help': 'Export all variables',
                     'args': ('var_export',),
                 },
             ),
@@ -853,11 +855,6 @@ class CLIFactory:
             'args': ('principal', 'keytab', 'pid',
                      'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
-            'name': 'serve_logs',
-            'func': lazy_load_command('airflow.cli.commands.serve_logs_command.serve_logs'),
-            'help': "Serve logs generate by worker",
-            'args': tuple(),
-        }, {
             'name': 'webserver',
             'func': lazy_load_command('airflow.cli.commands.webserver_command.webserver'),
             'help': "Start a Airflow webserver instance",
@@ -871,18 +868,6 @@ class CLIFactory:
             'args': ('dag_id_opt', 'subdir', 'num_runs',
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
-        }, {
-            'name': 'worker',
-            'func': lazy_load_command('airflow.cli.commands.worker_command.worker'),
-            'help': "Start a Celery worker node",
-            'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
-        }, {
-            'name': 'flower',
-            'func': lazy_load_command('airflow.cli.commands.flower_command.flower'),
-            'help': "Start a Celery Flower",
-            'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
-                     'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'name': 'version',
             'func': lazy_load_command('airflow.cli.commands.version_command.version'),
@@ -912,7 +897,7 @@ class CLIFactory:
                 },
             ),
         }, {
-            'help': "List/Create/Delete/Update users",
+            'help': "CRUD operations on users",
             'name': 'users',
             'subcommands': (
                 {
@@ -949,13 +934,13 @@ class CLIFactory:
                 {
                     'func': lazy_load_command('airflow.cli.commands.user_command.users_import'),
                     'name': 'import',
-                    'help': 'Import a user',
+                    'help': 'Import users',
                     'args': ('user_import',),
                 },
                 {
                     'func': lazy_load_command('airflow.cli.commands.user_command.users_export'),
                     'name': 'export',
-                    'help': 'Export a user',
+                    'help': 'Export all users',
                     'args': ('user_export',),
                 },
             ),
@@ -979,7 +964,7 @@ class CLIFactory:
         }, {
             'name': 'sync_perm',
             'func': lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),
-            'help': "Update permissions for existing roles and DAGs.",
+            'help': "Update permissions for existing roles and DAGs",
             'args': tuple(),
         },
         {
@@ -987,16 +972,37 @@ class CLIFactory:
             'func': lazy_load_command('airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key'),
             'help': 'Rotate all encrypted connection credentials and variables; see '
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
-                    '#rotating-encryption-keys.',
+                    '#rotating-encryption-keys',
             'args': (),
         },
         {
             'name': 'config',
             'func': lazy_load_command('airflow.cli.commands.config_command.show_config'),
-            'help': 'Show current application configuration.',
+            'help': 'Show current application configuration',
             'args': (),
         },
-    )
+    ]
+    if conf.get("core", "EXECUTOR") == ExecutorLoader.CELERY_EXECUTOR or BUILD_DOCS:
+        subparsers.append({
+            "help": "Start celery components",
+            "name": "celery",
+            "subcommands": (
+                {
+                    'name': 'worker',
+                    'func': lazy_load_command('airflow.cli.commands.celery_command.worker'),
+                    'help': "Start a Celery worker node",
+                    'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
+                             'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale', 'skip_serve_logs'),
+                }, {
+                    'name': 'flower',
+                    'func': lazy_load_command('airflow.cli.commands.celery_command.flower'),
+                    'help': "Start a Celery Flower",
+                    'args': (
+                        'flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
+                        'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+                },
+            )
+        })
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
     dag_subparsers = (
         'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
