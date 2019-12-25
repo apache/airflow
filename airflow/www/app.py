@@ -49,11 +49,11 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
             num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
-            x_for=conf.get("webserver", "PROXY_FIX_X_FOR", fallback=1),
-            x_proto=conf.get("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-            x_host=conf.get("webserver", "PROXY_FIX_X_HOST", fallback=1),
-            x_port=conf.get("webserver", "PROXY_FIX_X_PORT", fallback=1),
-            x_prefix=conf.get("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
+            x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
+            x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+            x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
+            x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
+            x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
