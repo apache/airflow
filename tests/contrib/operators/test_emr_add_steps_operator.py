@@ -107,23 +107,26 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     def test_init_with_cluster_name(self):
         expected_job_flow_id = 'j-1231231234'
 
-        self.emr_client_mock.get_cluster_id_by_name.return_value = expected_job_flow_id
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):
-            operator = EmrAddStepsOperator(
-                task_id='test_task',
-                job_flow_name='test_cluster',
-                cluster_states=['RUNNING', 'WAITING'],
-                aws_conn_id='aws_default',
-                dag=DAG('test_dag_id', default_args=self.args)
-            )
+            with patch('airflow.contrib.hooks.emr_hook.EmrHook.get_cluster_id_by_name') \
+                    as mock_get_cluster_id_by_name:
+                mock_get_cluster_id_by_name.return_value = expected_job_flow_id
 
-            operator.execute(self.mock_context)
+                operator = EmrAddStepsOperator(
+                    task_id='test_task',
+                    job_flow_name='test_cluster',
+                    cluster_states=['RUNNING', 'WAITING'],
+                    aws_conn_id='aws_default',
+                    dag=DAG('test_dag_id', default_args=self.args)
+                )
 
-            ti = self.mock_context['ti']
+                operator.execute(self.mock_context)
 
-            ti.xcom_push.assert_any_call(key='job_flow_id', value=expected_job_flow_id)
+        ti = self.mock_context['ti']
+
+        ti.xcom_push.assert_any_call(key='job_flow_id', value=expected_job_flow_id)
 
 
 if __name__ == '__main__':
