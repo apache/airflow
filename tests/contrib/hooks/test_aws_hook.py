@@ -39,7 +39,7 @@ class TestAwsHook(unittest.TestCase):
     @mock_emr
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
         client = boto3.client('emr', region_name='us-east-1')
-        if len(client.list_clusters()['Clusters']):
+        if client.list_clusters()['Clusters']:
             raise ValueError('AWS not properly mocked')
 
         hook = AwsHook(aws_conn_id='aws_default')
@@ -54,7 +54,7 @@ class TestAwsHook(unittest.TestCase):
         resource_from_hook = hook.get_resource_type('dynamodb')
 
         # this table needs to be created in production
-        table = resource_from_hook.create_table(
+        table = resource_from_hook.create_table(  # pylint: disable=no-member
             TableName='test_airflow',
             KeySchema=[
                 {
@@ -85,7 +85,7 @@ class TestAwsHook(unittest.TestCase):
         hook = AwsHook(aws_conn_id='aws_default')
         session_from_hook = hook.get_session()
         resource_from_session = session_from_hook.resource('dynamodb')
-        table = resource_from_session.create_table(
+        table = resource_from_session.create_table(  # pylint: disable=no-member
             TableName='test_airflow',
             KeySchema=[
                 {
@@ -148,7 +148,7 @@ class TestAwsHook(unittest.TestCase):
         credentials_from_hook = hook.get_credentials()
         self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
-        self.assertEquals(credentials_from_hook.token, 'session_token')
+        self.assertEqual(credentials_from_hook.token, 'session_token')
 
     @mock.patch.object(AwsHook, 'get_connection')
     def test_get_credentials_from_extra_without_token(self, mock_get_connection):

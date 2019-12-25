@@ -40,26 +40,26 @@ class TestPythonSensor(unittest.TestCase):
         self.dag = dag
 
     def test_python_sensor_true(self):
-        t = PythonSensor(
+        op = PythonSensor(
             task_id='python_sensor_check_true',
             python_callable=lambda: True,
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_python_sensor_false(self):
-        t = PythonSensor(
+        op = PythonSensor(
             task_id='python_sensor_check_false',
             timeout=0.01,
             poke_interval=0.01,
             python_callable=lambda: False,
             dag=self.dag)
         with self.assertRaises(AirflowSensorTimeout):
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_python_sensor_raise(self):
-        t = PythonSensor(
+        op = PythonSensor(
             task_id='python_sensor_check_raise',
             python_callable=lambda: 1 / 0,
             dag=self.dag)
         with self.assertRaises(ZeroDivisionError):
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

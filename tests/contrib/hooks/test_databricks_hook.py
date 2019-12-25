@@ -254,11 +254,11 @@ class TestDatabricksHook(unittest.TestCase):
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_submit_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
-        json = {
+        data = {
             'notebook_task': NOTEBOOK_TASK,
             'new_cluster': NEW_CLUSTER
         }
-        run_id = self.hook.submit_run(json)
+        run_id = self.hook.submit_run(data)
 
         self.assertEqual(run_id, '1')
         mock_requests.post.assert_called_once_with(
@@ -277,12 +277,12 @@ class TestDatabricksHook(unittest.TestCase):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
-        json = {
+        data = {
             'notebook_params': NOTEBOOK_PARAMS,
             'jar_params': JAR_PARAMS,
             'job_id': JOB_ID
         }
-        run_id = self.hook.run_now(json)
+        run_id = self.hook.run_now(data)
 
         self.assertEqual(run_id, '1')
 
@@ -412,11 +412,11 @@ class TestDatabricksHookToken(unittest.TestCase):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
-        json = {
+        data = {
             'notebook_task': NOTEBOOK_TASK,
             'new_cluster': NEW_CLUSTER
         }
-        run_id = self.hook.submit_run(json)
+        run_id = self.hook.submit_run(data)
 
         self.assertEqual(run_id, '1')
         args = mock_requests.post.call_args
