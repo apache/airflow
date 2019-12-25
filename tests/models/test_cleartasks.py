@@ -215,19 +215,19 @@ class TestClearTasks(unittest.TestCase):
     def test_operator_clear(self):
         dag = DAG('test_operator_clear', start_date=DEFAULT_DATE,
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
-        t1 = DummyOperator(task_id='bash_op', owner='test', dag=dag)
-        t2 = DummyOperator(task_id='dummy_op', owner='test', dag=dag, retries=1)
+        op1 = DummyOperator(task_id='bash_op', owner='test', dag=dag)
+        op2 = DummyOperator(task_id='dummy_op', owner='test', dag=dag, retries=1)
 
-        t2.set_upstream(t1)
+        op2.set_upstream(op1)
 
-        ti1 = TI(task=t1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
+        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
         ti2.run()
         # Dependency not met
         self.assertEqual(ti2.try_number, 1)
         self.assertEqual(ti2.max_tries, 1)
 
-        t2.clear(upstream=True)
+        op2.clear(upstream=True)
         ti1.run()
         ti2.run()
         self.assertEqual(ti1.try_number, 2)

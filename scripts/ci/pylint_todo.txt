@@ -284,12 +284,6 @@
 ./tests/lineage/backend/test_atlas.py
 ./tests/lineage/test_lineage.py
 ./tests/macros/test_hive.py
-./tests/models/test_cleartasks.py
-./tests/models/test_dag.py
-./tests/models/test_dagbag.py
-./tests/models/test_dagrun.py
-./tests/models/test_pool.py
-./tests/models/test_taskinstance.py
 ./tests/operators/test_bash_operator.py
 ./tests/operators/test_gcs_to_s3.py
 ./tests/operators/test_hive_operator.py
