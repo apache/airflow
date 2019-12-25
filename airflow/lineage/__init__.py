@@ -154,8 +154,6 @@ def prepare_lineage(func):
 
             self.inlets.extend(_inlets)
             self.inlets.extend(self._inlets)
-            self.inlets = [_render_object(i, context)
-                           for i in self.inlets if attr.has(i)]
 
         elif self._inlets:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")
@@ -165,8 +163,12 @@ def prepare_lineage(func):
 
         self.outlets.extend(self._outlets)
 
-        self.outlets = list(map(lambda i: _render_object(i, context),
-                            filter(attr.has, self.outlets)))
+        # render inlets and outlets
+        self.inlets = [_render_object(i, context)
+                       for i in self.inlets if attr.has(i)]
+
+        self.outlets = [_render_object(i, context)
+                        for i in self.outlets if attr.has(i)]
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
         return func(self, context, *args, **kwargs)

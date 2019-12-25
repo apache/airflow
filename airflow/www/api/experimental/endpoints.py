@@ -24,6 +24,7 @@ from airflow.api.common.experimental import delete_dag as delete, pool as pool_a
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
+from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
@@ -353,3 +354,33 @@ def delete_pool(name):
         return response
     else:
         return jsonify(pool.to_json())
+
+
+@csrf.exempt
+@api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>',
+                        methods=['GET'])
+@requires_authentication
+def get_lineage(dag_id: str, execution_date: str):
+    # Convert string datetime into actual datetime
+    try:
+        execution_date = timezone.parse(execution_date)
+    except ValueError:
+        error_message = (
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
+                execution_date))
+        _log.info(error_message)
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+
+        return response
+
+    try:
+        lineage = get_lineage_api(dag_id=dag_id, execution_date=execution_date)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error=f"{err}")
+        response.status_code = err.status_code
+        return response
+    else:
+        return jsonify(lineage)
