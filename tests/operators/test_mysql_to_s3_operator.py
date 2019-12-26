@@ -32,8 +32,8 @@ from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 class TestMySqlToS3Operator(unittest.TestCase):
 
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.hooks.mysql_hook.MySqlHook")
-    def test_execute(self, mock_run, mock_session,):
+    @mock.patch("airflow.hooks.mysql_hook.MySqlHook.run")
+    def test_execute(self, mock_hook, mock_session,):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
         mock_session.return_value = Session(access_key, secret_key)
@@ -52,7 +52,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
                           dag=None
                           ).execute(None)
 
-        df = mock_run.get_pandas_df(query)
+        df = mock_hook.get_pandas_df(query)
         for col in df:
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
@@ -67,5 +67,5 @@ class TestMySqlToS3Operator(unittest.TestCase):
                                    key=s3_key,
                                    bucket_name=s3_bucket)
 
-        assert mock_run.call_count == 1
-        assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], mock_session.load_file_obj)
+        assert mock_hook.call_count == 1
+        assertEqualIgnoreMultipleSpaces(self, mock_hook.call_args[0][0], mock_session.load_file_obj)
