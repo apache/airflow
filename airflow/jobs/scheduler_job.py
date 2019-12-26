@@ -691,7 +691,7 @@ class SchedulerJob(BaseJob):
                     run.execution_date
                 )
                 continue
-                
+
             if len(active_dag_runs) >= dag.max_active_runs:
                 self.log.info("Number of active dag runs reached max_active_run.")
                 break
