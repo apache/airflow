@@ -2972,6 +2972,18 @@ class TaskInstanceModelView(ModelViewOnly):
     def action_set_retry(self, ids):
         self.set_task_instance_state(ids, State.UP_FOR_RETRY)
 
+    @action('reset_priority', "Reset priority weight", None)
+    def action_reset_priority(self, ids):
+        self.set_task_instance_priority_weight(ids, 1)
+
+    @action('set_priority_medium', "Set priority_weight to 'medium'", None)
+    def action_set_priority_medium(self, ids):
+        self.set_task_instance_priority_weight(ids, 50)
+
+    @action('set_priority_high', "Set priority_weight to 'high'", None)
+    def action_set_priority_high(self, ids):
+        self.set_task_instance_priority_weight(ids, 100)
+
     @provide_session
     @action('clear',
             lazy_gettext('Clear'),
@@ -3035,6 +3047,28 @@ class TaskInstanceModelView(ModelViewOnly):
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")
             flash('Failed to set state', 'error')
+
+    @provide_session
+    def set_task_instance_priority_weight(self, ids, priority_weight, session=None):
+        try:
+            TI = models.TaskInstance
+            count = len(ids)
+            for id in ids:
+                task_id, dag_id, execution_date = iterdecode(id)
+                execution_date = parse_execution_date(execution_date)
+
+                ti = session.query(TI).filter(TI.task_id == task_id,
+                                              TI.dag_id == dag_id,
+                                              TI.execution_date == execution_date).one()
+                ti.priority_weight = priority_weight
+            session.commit()
+            flash(
+                "{count} task instances were set to '{priority_weight}'".format(**locals()))
+        except Exception as ex:
+            if not self.handle_view_exception(ex):
+                raise Exception("Ooops")
+            flash('Failed to set priority_weight', 'error')
+
 
     def get_one(self, id):
         """
