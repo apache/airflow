@@ -176,7 +176,7 @@ class TestDag(unittest.TestCase):
         self.assertTrue(self._occur_before('a_child', 'b_parent', topological_list))
         self.assertTrue(self._occur_before('b_child', 'b_parent', topological_list))
 
-    def test_dag_topological_sort(self):
+    def test_dag_topological_sort1(self):
         dag = DAG(
             'dag',
             start_date=DEFAULT_DATE,
@@ -205,6 +205,7 @@ class TestDag(unittest.TestCase):
         tasks.remove(topological_list[2])
         self.assertTrue(topological_list[3] == op1)
 
+    def test_dag_topological_sort2(self):
         dag = DAG(
             'dag',
             start_date=DEFAULT_DATE,
@@ -244,6 +245,7 @@ class TestDag(unittest.TestCase):
 
         self.assertTrue(topological_list[4] == op3)
 
+    def test_dag_topological_sort_dag_without_tasks(self):
         dag = DAG(
             'dag',
             start_date=DEFAULT_DATE,
@@ -318,8 +320,12 @@ class TestDag(unittest.TestCase):
                 calculated_weight = task.priority_weight_total
                 self.assertEqual(calculated_weight, correct_weight)
 
+    def test_dag_task_priority_weight_total_using_upstream(self):
         # Same test as above except use 'upstream' for weight calculation
         weight = 3
+        width = 5
+        depth = 5
+        pattern = re.compile('stage(\\d*).(\\d*)')
         with DAG('dag', start_date=DEFAULT_DATE,
                  default_args={'owner': 'owner1'}) as dag:
             pipeline = [
@@ -344,8 +350,11 @@ class TestDag(unittest.TestCase):
                 calculated_weight = task.priority_weight_total
                 self.assertEqual(calculated_weight, correct_weight)
 
+    def test_dag_task_priority_weight_total_using_absolute(self):
         # Same test as above except use 'absolute' for weight calculation
         weight = 10
+        width = 5
+        depth = 5
         with DAG('dag', start_date=DEFAULT_DATE,
                  default_args={'owner': 'owner1'}) as dag:
             pipeline = [
@@ -362,17 +371,14 @@ class TestDag(unittest.TestCase):
                         current_task.set_upstream(prev_task)
 
             for task in dag.task_dict.values():
-                match = pattern.match(task.task_id)
-                task_depth = int(match.group(1))
                 # the sum of each stages after this task + itself
                 correct_weight = weight
-
                 calculated_weight = task.priority_weight_total
                 self.assertEqual(calculated_weight, correct_weight)
 
+    def test_dag_task_invalid_weight_rule(self):
         # Test if we enter an invalid weight rule
-        with DAG('dag', start_date=DEFAULT_DATE,
-                 default_args={'owner': 'owner1'}) as dag:
+        with DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'}):
             with self.assertRaises(AirflowException):
                 DummyOperator(task_id='should_fail', weight_rule='no rule')
 
@@ -466,7 +472,6 @@ class TestDag(unittest.TestCase):
     def test_resolve_template_files_list(self):
 
         with NamedTemporaryFile(suffix='.template') as f:
-            f = NamedTemporaryFile(suffix='.template')
             f.write(b'{{ ds }}')
             f.flush()
             template_dir = os.path.dirname(f.name)
@@ -482,9 +487,7 @@ class TestDag(unittest.TestCase):
 
         self.assertEqual(task.test_field, ['{{ ds }}', 'some_string'])
 
-    def test_cycle(self):  # pylint: disable=too-many-statements
-        # TODO: split this into many single tests
-
+    def test_cycle_empty(self):
         # test empty
         dag = DAG(
             'dag',
@@ -493,6 +496,7 @@ class TestDag(unittest.TestCase):
 
         self.assertFalse(dag.test_cycle())
 
+    def test_cycle_single_task(self):
         # test single task
         dag = DAG(
             'dag',
@@ -500,10 +504,11 @@ class TestDag(unittest.TestCase):
             default_args={'owner': 'owner1'})
 
         with dag:
-            op1 = DummyOperator(task_id='A')
+            DummyOperator(task_id='A')
 
         self.assertFalse(dag.test_cycle())
 
+    def test_cycle_no_cycle(self):
         # test no cycle
         dag = DAG(
             'dag',
@@ -527,6 +532,7 @@ class TestDag(unittest.TestCase):
 
         self.assertFalse(dag.test_cycle())
 
+    def test_cycle_loop(self):
         # test self loop
         dag = DAG(
             'dag',
@@ -541,6 +547,7 @@ class TestDag(unittest.TestCase):
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
 
+    def test_cycle_downstream_loop(self):
         # test downstream self loop
         dag = DAG(
             'dag',
@@ -563,6 +570,7 @@ class TestDag(unittest.TestCase):
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
 
+    def test_cycle_large_loop(self):
         # large loop
         dag = DAG(
             'dag',
@@ -585,6 +593,7 @@ class TestDag(unittest.TestCase):
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
 
+    def test_cycle_arbitrary_loop(self):
         # test arbitrary loop
         dag = DAG(
             'dag',
@@ -597,15 +606,14 @@ class TestDag(unittest.TestCase):
             op1 = DummyOperator(task_id='A')
             op2 = DummyOperator(task_id='B')
             op3 = DummyOperator(task_id='C')
-            op4 = DummyOperator(task_id='D')
-            op5 = DummyOperator(task_id='E')
-            op6 = DummyOperator(task_id='F')
+            op4 = DummyOperator(task_id='E')
+            op5 = DummyOperator(task_id='F')
             op1.set_downstream(op2)
             op1.set_downstream(op3)
+            op4.set_downstream(op1)
+            op3.set_downstream(op5)
+            op2.set_downstream(op5)
             op5.set_downstream(op1)
-            op3.set_downstream(op6)
-            op2.set_downstream(op6)
-            op6.set_downstream(op1)
 
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
@@ -737,6 +745,7 @@ class TestDag(unittest.TestCase):
         self.assertTrue(orm_subdag.is_active)
         self.assertEqual(orm_subdag.safe_dag_id, 'dag__dot__subtask')
         self.assertEqual(orm_subdag.fileloc, orm_dag.fileloc)
+        session.close()
 
     @patch('airflow.models.dag.timezone.utcnow')
     def test_sync_to_db_default_view(self, mock_now):
@@ -763,6 +772,7 @@ class TestDag(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
         self.assertIsNotNone(orm_dag.default_view)
         self.assertEqual(orm_dag.get_default_view(), "graph")
+        session.close()
 
     @patch('airflow.models.dag.DagBag')
     def test_is_paused_subdag(self, mock_dag_bag):
@@ -814,23 +824,22 @@ class TestDag(unittest.TestCase):
         ).count()
 
         self.assertEqual(2, paused_dags)
+        session.close()
 
     def test_existing_dag_is_paused_upon_creation(self):
         dag = DAG(
-            'dag'
+            'dag_paused'
         )
-        session = settings.Session()
-        dag.sync_to_db(session=session)
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
-        self.assertFalse(orm_dag.is_paused)
+        dag.sync_to_db()
+        self.assertFalse(dag.is_paused)
+
         dag = DAG(
-            'dag',
+            'dag_paused',
             is_paused_upon_creation=True
         )
-        dag.sync_to_db(session=session)
-        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        dag.sync_to_db()
         # Since the dag existed before, it should not follow the pause flag upon creation
-        self.assertFalse(orm_dag.is_paused)
+        self.assertFalse(dag.is_paused)
 
     def test_new_dag_is_paused_upon_creation(self):
         dag = DAG(
@@ -843,6 +852,7 @@ class TestDag(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'new_nonexisting_dag').one()
         # Since the dag didn't exist before, it should follow the pause flag upon creation
         self.assertTrue(orm_dag.is_paused)
+        session.close()
 
     def test_dag_is_deactivated_upon_dagfile_deletion(self):
         dag_id = 'old_existing_dag'
@@ -867,6 +877,7 @@ class TestDag(unittest.TestCase):
 
         # CleanUp
         session.execute(DagModel.__table__.delete().where(DagModel.dag_id == dag_id))
+        session.close()
 
     def test_dag_naive_default_args_start_date_with_timezone(self):
         local_tz = pendulum.timezone('Europe/Zurich')
