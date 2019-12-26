@@ -19,10 +19,11 @@
 
 import unittest
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
-from tests.compat import mock
 
 try:
     from airflow.hooks.docker_hook import DockerHook

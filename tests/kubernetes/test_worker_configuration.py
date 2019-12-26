@@ -20,7 +20,8 @@ import unittest
 import uuid
 from datetime import datetime
 
-from tests.compat import mock
+import mock
+
 from tests.test_utils.config import conf_vars
 
 try:

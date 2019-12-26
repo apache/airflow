@@ -19,6 +19,7 @@
 
 import unittest
 
+import mock
 from cassandra.cluster import Cluster
 from cassandra.policies import (
     DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy,
@@ -28,7 +29,6 @@ from flaky import flaky
 from airflow.models import Connection
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.utils import db
-from tests.compat import mock, patch
 
 
 @flaky(max_runs=4, min_passes=1)
@@ -88,13 +88,13 @@ class TestCassandraHook(unittest.TestCase):
         # test WhiteListRoundRobinPolicy with args
         fake_addr_info = [['family', 'sockettype', 'proto',
                            'canonname', ('2606:2800:220:1:248:1893:25c8:1946', 80, 0, 0)]]
-        with patch('socket.getaddrinfo', return_value=fake_addr_info):
+        with mock.patch('socket.getaddrinfo', return_value=fake_addr_info):
             self._assert_get_lb_policy('WhiteListRoundRobinPolicy',
                                        {'hosts': ['host1', 'host2']},
                                        WhiteListRoundRobinPolicy)
 
         # test TokenAwarePolicy with args
-        with patch('socket.getaddrinfo', return_value=fake_addr_info):
+        with mock.patch('socket.getaddrinfo', return_value=fake_addr_info):
             self._assert_get_lb_policy(
                 'TokenAwarePolicy',
                 {'child_load_balancing_policy': 'WhiteListRoundRobinPolicy',

@@ -19,6 +19,7 @@
 import unittest
 from unittest.mock import patch
 
+import mock
 import requests
 
 from airflow import DAG
@@ -27,7 +28,6 @@ from airflow.models import TaskInstance
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor
 from airflow.utils.timezone import datetime
-from tests.compat import mock
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

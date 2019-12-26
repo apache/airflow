@@ -26,6 +26,7 @@ from argparse import Namespace
 from datetime import datetime, time, timedelta
 from unittest.mock import MagicMock
 
+import mock
 import pytz
 
 import airflow.bin.cli as cli
@@ -35,7 +36,6 @@ from airflow.models import DagModel
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
-from tests.compat import mock
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 

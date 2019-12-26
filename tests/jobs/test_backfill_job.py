@@ -25,6 +25,7 @@ import threading
 import unittest
 
 import sqlalchemy
+from mock import Mock, patch
 from parameterized import parameterized
 
 from airflow import AirflowException, settings
@@ -41,7 +42,6 @@ from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from tests.compat import Mock, patch
 from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_slots
 from tests.test_utils.mock_executor import MockExecutor
 

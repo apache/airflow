@@ -19,6 +19,7 @@
 
 import unittest
 
+import mock
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.vision_v1.types import Product, ProductSet, ReferenceImage
 
@@ -31,7 +32,6 @@ from airflow.providers.google.cloud.operators.vision import (
     CloudVisionProductSetUpdateOperator, CloudVisionProductUpdateOperator,
     CloudVisionReferenceImageCreateOperator, CloudVisionRemoveProductFromProductSetOperator,
 )
-from tests.compat import mock
 
 PRODUCTSET_TEST = ProductSet(display_name='Test Product Set')
 PRODUCTSET_ID_TEST = 'my-productset'

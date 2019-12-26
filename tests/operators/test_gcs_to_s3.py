@@ -19,9 +19,10 @@
 
 import unittest
 
+import mock
+
 from airflow.operators.gcs_to_s3 import GCSToS3Operator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from tests.compat import mock
 
 try:
     from moto import mock_s3

@@ -19,6 +19,7 @@
 import json
 import unittest
 
+import mock
 import requests
 import requests_mock
 import tenacity
@@ -26,7 +27,6 @@ import tenacity
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.models import Connection
-from tests.compat import mock
 
 
 def get_airflow_connection(unused_conn_id=None):

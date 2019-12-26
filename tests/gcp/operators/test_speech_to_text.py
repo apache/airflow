@@ -19,9 +19,10 @@
 
 import unittest
 
+from mock import Mock, patch
+
 from airflow import AirflowException
 from airflow.gcp.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
-from tests.compat import Mock, patch
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"

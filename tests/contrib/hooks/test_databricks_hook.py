@@ -22,6 +22,7 @@ import itertools
 import json
 import unittest
 
+import mock
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__
@@ -29,7 +30,6 @@ from airflow.contrib.hooks.databricks_hook import SUBMIT_RUN_ENDPOINT, Databrick
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
-from tests.compat import mock
 
 TASK_ID = 'databricks-operator'
 DEFAULT_CONN_ID = 'databricks_default'

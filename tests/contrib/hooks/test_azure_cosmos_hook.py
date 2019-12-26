@@ -24,11 +24,12 @@ import logging
 import unittest
 import uuid
 
+import mock
+
 from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
-from tests.compat import mock
 
 
 class TestAzureCosmosDbHook(unittest.TestCase):

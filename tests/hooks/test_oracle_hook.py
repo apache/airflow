@@ -21,11 +21,11 @@ import json
 import unittest
 from datetime import datetime
 
+import mock
 import numpy
 
 from airflow.hooks.oracle_hook import OracleHook
 from airflow.models import Connection
-from tests.compat import mock
 
 # pylint: disable=c-extension-no-member
 try:

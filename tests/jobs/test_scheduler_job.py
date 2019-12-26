@@ -25,8 +25,10 @@ import unittest
 from datetime import timedelta
 from tempfile import mkdtemp
 
+import mock
 import psutil
 import six
+from mock import MagicMock, Mock, patch
 from parameterized import parameterized
 
 import airflow.example_dags
@@ -44,7 +46,6 @@ from airflow.utils.dates import days_ago
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.state import State
-from tests.compat import MagicMock, Mock, mock, patch
 from tests.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import (
     clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,

@@ -28,9 +28,10 @@ from gzip import GzipFile
 from itertools import product
 from tempfile import NamedTemporaryFile, mkdtemp
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
-from tests.compat import mock
 
 try:
     import boto3

@@ -20,10 +20,10 @@
 import unittest
 
 import boto3
+import mock
 
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.models import Connection
-from tests.compat import mock
 
 try:
     from moto import mock_emr, mock_dynamodb2, mock_sts, mock_iam

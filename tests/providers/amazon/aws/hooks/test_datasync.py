@@ -20,10 +20,10 @@
 import unittest
 
 import boto3
+import mock
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import AWSDataSyncHook
-from tests.compat import mock
 
 
 def no_datasync(x):

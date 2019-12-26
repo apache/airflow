@@ -20,12 +20,13 @@
 
 import unittest
 
+import mock
+
 from airflow.gcp.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator, GoogleCloudBucketHelper,
 )
 from airflow.version import version
-from tests.compat import mock
 
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'

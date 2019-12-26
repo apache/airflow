@@ -18,11 +18,12 @@
 # under the License.
 import unittest
 
+import mock
+
 from airflow.gcp.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator, BigQueryDataTransferServiceStartTransferRunsOperator,
     BigQueryDeleteDataTransferConfigOperator,
 )
-from tests.compat import mock
 
 PROJECT_ID = "id"
 

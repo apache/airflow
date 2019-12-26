@@ -22,6 +22,8 @@ import multiprocessing
 import time
 import unittest
 
+from mock import patch
+
 from airflow import AirflowException, models, settings
 from airflow.configuration import conf
 from airflow.executors.sequential_executor import SequentialExecutor
@@ -32,7 +34,6 @@ from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
-from tests.compat import patch
 from tests.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_executor import MockExecutor

@@ -23,12 +23,12 @@ from google.cloud.language_v1.proto.language_service_pb2 import (
     AnalyzeEntitiesResponse, AnalyzeEntitySentimentResponse, AnalyzeSentimentResponse, ClassifyTextResponse,
     Document,
 )
+from mock import patch
 
 from airflow.providers.google.cloud.operators.natural_language import (
     CloudLanguageAnalyzeEntitiesOperator, CloudLanguageAnalyzeEntitySentimentOperator,
     CloudLanguageAnalyzeSentimentOperator, CloudLanguageClassifyTextOperator,
 )
-from tests.compat import patch
 
 DOCUMENT = Document(
     content="Airflow is a platform to programmatically author, schedule and monitor workflows."
