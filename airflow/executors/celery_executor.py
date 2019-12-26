@@ -17,8 +17,6 @@
 # under the License.
 """Celery executor."""
 import math
-import os
-import subprocess
 import time
 import traceback
 from multiprocessing import Pool, cpu_count
@@ -27,6 +25,7 @@ from typing import Any, List, Optional, Tuple, Union
 from celery import Celery, Task, states as celery_states
 from celery.result import AsyncResult
 
+from airflow.bin.cli import CLIFactory
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -63,13 +62,13 @@ def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
     log = LoggingMixin().log
     log.info("Executing command in Celery: %s", command_to_exec)
-    env = os.environ.copy()
     try:
-        subprocess.check_call(command_to_exec, stderr=subprocess.STDOUT,
-                              close_fds=True, env=env)
-    except subprocess.CalledProcessError as e:
-        log.exception('execute_command encountered a CalledProcessError')
-        log.error(e.output)
+        parser = CLIFactory.get_parser()
+        # drop "airflow"
+        command_to_exec = command_to_exec[1:]
+        args = parser.parse_args(command_to_exec)
+        args.func(args)
+    except:  # pylint: disable=bare-except # noqa: E722
         raise AirflowException('Celery command failed')
 
 

@@ -79,8 +79,8 @@ class TestCeleryExecutor(unittest.TestCase):
             executor.start()
 
             with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
-                success_command = ['true', 'some_parameter']
-                fail_command = ['false', 'some_parameter']
+                success_command = ["airflow", "version"]
+                fail_command = ["airflow", "invalid-command"]
                 execute_date = datetime.datetime.now()
 
                 cached_celery_backend = celery_executor.execute_command.backend
