@@ -43,7 +43,7 @@ class RunnableExecDateDepTest(unittest.TestCase):
             task_end_date=datetime(2016, 1, 3),
             execution_date=datetime(2016, 1, 2),
         )
-        self.assertTrue(RunnableExecDateDep().is_met(ti=ti))
+        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
 
     def test_exec_date_after_task_end_date(self):
         """
