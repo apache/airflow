@@ -32,7 +32,7 @@ from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 class TestMySqlToS3Operator(unittest.TestCase):
 
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.hooks.mysql_hook.MySqlHook.run")
+    @mock.patch("airflow.hooks.mysql_hook.MySqlHook")
     def test_execute(self, mock_run, mock_session,):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
