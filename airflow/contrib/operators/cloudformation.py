@@ -17,9 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains CloudFormationDeleteStackOperator.
+This module contains CloudFormation create/delete stack operators.
 """
-import inspect
 from typing import List
 
 from airflow.contrib.hooks.aws_cloudformation_hook import CloudFormationHook
@@ -27,40 +26,69 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class CloudFormationDeleteStackOperator(BaseOperator):
+class CloudFormationCreateStackOperator(BaseOperator):
     """
-    An operator that deletes a CloudFormation stack.
+    An operator that creates a CloudFormation stack.
 
+    :param params: parameters to be passed to CloudFormation. For possible arguments see:
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.create_stack
+    :type dict
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
-    :param kwargs: Additional arguments to be passed to CloudFormation. For possible arguments see:
-            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
     """
     template_fields: List[str] = []
     template_ext = ()
-    ui_color = '#1d472b'
+    ui_color = '#6b9659'
 
     @apply_defaults
     def __init__(
             self,
+            params,
             aws_conn_id='aws_default',
             *args, **kwargs):
-        # pylint: disable=no-member
-        self.operator_arguments = inspect.getfullargspec(super().__init__.__wrapped__)[0]
-        # pylint: enable=no-member
-        super_kwargs = {k: v for (k, v) in kwargs.items() if k in self.operator_arguments}
-        super().__init__(*args, **super_kwargs)
+        super().__init__(*args, **kwargs)
+        self.params = params
         self.aws_conn_id = aws_conn_id
-        self.kwargs = kwargs
 
     def execute(self, context):
-        args = {k: v for k, v in self.kwargs.items() if k not in self.operator_arguments}
-
-        self.log.info('Deleting CloudFormation stack: %s', args)
+        self.log.info('Creating CloudFormation stack: %s', self.params)
 
         cloudformation = CloudFormationHook(aws_conn_id=self.aws_conn_id).get_conn()
 
-        cloudformation.delete_stack(**args)
+        cloudformation.create_stack(**self.params)
+
+
+class CloudFormationDeleteStackOperator(BaseOperator):
+    """
+    An operator that deletes a CloudFormation stack.
+
+    :param params: parameters to be passed to CloudFormation. For possible arguments see:
+            https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
+    :type dict
+    :param aws_conn_id: aws connection to uses
+    :type aws_conn_id: str
+    """
+    template_fields: List[str] = []
+    template_ext = ()
+    ui_color = '#1d472b'
+    ui_fgcolor = '#FFF'
+
+    @apply_defaults
+    def __init__(
+            self,
+            params,
+            aws_conn_id='aws_default',
+            *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.params = params
+        self.aws_conn_id = aws_conn_id
+
+    def execute(self, context):
+        self.log.info('Deleting CloudFormation stack: %s', self.params)
+
+        cloudformation = CloudFormationHook(aws_conn_id=self.aws_conn_id).get_conn()
+
+        cloudformation.delete_stack(**self.params)
 
         waiter = cloudformation.get_waiter('stack_delete_complete')
-        waiter.wait(StackName=args['StackName'])
+        waiter.wait(StackName=self.params['StackName'])
