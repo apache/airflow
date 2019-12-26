@@ -34,6 +34,9 @@ from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
+import datetime
+import flask
+import flask_login
 
 app = None  # type: Any
 appbuilder = None  # type: Optional[AppBuilder]
@@ -228,6 +231,13 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 })
 
             return globals
+
+        @app.before_request
+        def before_request():
+            flask.session.permanent = True
+            app.permanent_session_lifetime = datetime.timedelta(minutes=60)
+            flask.session.modified = True
+            flask.g.user = flask_login.current_user
 
         @app.teardown_appcontext
         def shutdown_session(exception=None):  # pylint: disable=unused-variable
