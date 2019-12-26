@@ -331,6 +331,12 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.amazon.aws.operators.athena`
      - :mod:`airflow.providers.amazon.aws.sensors.athena`
 
+   * - `Amazon CloudFormation <https://aws.amazon.com/cloudformation/>`__
+     -
+     - :mod:`airflow.contrib.hooks.aws_cloudformation_hook`
+     - :mod:`airflow.contrib.operators.cloudformation`
+     - :mod:`airflow.contrib.sensors.cloudformation_sensor`
+
    * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__
      -
      - :mod:`airflow.contrib.hooks.aws_logs_hook`

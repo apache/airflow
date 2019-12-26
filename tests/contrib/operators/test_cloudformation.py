@@ -16,13 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 from unittest.mock import MagicMock, patch
 
 from airflow import DAG
-from airflow.contrib.operators.cloudformation import CloudFormationCreateStackOperator, \
-    CloudFormationDeleteStackOperator
+from airflow.contrib.operators.cloudformation import (
+    CloudFormationCreateStackOperator, CloudFormationDeleteStackOperator,
+)
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
