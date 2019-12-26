@@ -220,6 +220,7 @@ class BaseJob(Base, LoggingMixin):
                 self.state = State.SUCCESS
             except Exception:
                 self.state = State.FAILED
+                raise
             finally:
                 self.end_date = timezone.utcnow()
                 session.merge(self)
