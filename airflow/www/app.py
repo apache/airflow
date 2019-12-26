@@ -229,6 +229,11 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
             return globals
 
+        @app.after_request
+        def apply_caching(response):
+            response.headers["X-Frame-Options"] = "DENY"
+            return response
+
         @app.teardown_appcontext
         def shutdown_session(exception=None):  # pylint: disable=unused-variable
             settings.Session.remove()
