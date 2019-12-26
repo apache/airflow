@@ -684,7 +684,14 @@ class SchedulerJob(BaseJob):
         active_dag_runs = []
         for run in dag_runs:
             self.log.info("Examining DAG run %s", run)
-
+            # don't consider runs that are executed in the future
+            if run.execution_date > timezone.utcnow():
+                self.log.error(
+                    "Execution date is in future: %s",
+                    run.execution_date
+                )
+                continue
+                
             if len(active_dag_runs) >= dag.max_active_runs:
                 self.log.info("Number of active dag runs reached max_active_run.")
                 break

@@ -18,6 +18,7 @@
 # under the License.
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.utils import timezone
 from airflow.utils.db import provide_session
 
 
@@ -27,6 +28,14 @@ class RunnableExecDateDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
+        cur_date = timezone.utcnow()
+
+        if ti.execution_date > cur_date:
+            yield self._failing_status(
+                reason="Execution date {0} is in the future (the current "
+                       "date is {1}).".format(ti.execution_date.isoformat(),
+                                              cur_date.isoformat()))
+
         if ti.task.end_date and ti.execution_date > ti.task.end_date:
             yield self._failing_status(
                 reason="The execution date is {0} but this is after the task's end date "
