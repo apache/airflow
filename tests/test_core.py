@@ -26,21 +26,19 @@ from datetime import timedelta
 from time import sleep
 from unittest import mock
 
-import sqlalchemy
 from dateutil.relativedelta import relativedelta
 from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
-from airflow import DAG, exceptions, settings, utils
+from airflow import DAG, exceptions, settings
 from airflow.configuration import (
     DEFAULT_CONFIG, AirflowConfigException, conf, parameterized_config, run_command,
 )
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.scheduler_job import DagFileProcessor
-from airflow.models import Connection, DagBag, DagRun, TaskFail, TaskInstance, Variable
+from airflow.models import DagBag, DagRun, TaskFail, TaskInstance, Variable
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
@@ -924,93 +922,6 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(context['prev_ds'], execution_ds)
         self.assertEqual(context['prev_ds_nodash'], execution_ds_nodash)
-
-
-class TestConnection(unittest.TestCase):
-    def setUp(self):
-        utils.db.initdb()
-
-    @mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
-    })
-    def test_using_env_var(self):
-        conn = SqliteHook.get_connection(conn_id='test_uri')
-        self.assertEqual('ec2.compute.com', conn.host)
-        self.assertEqual('the_database', conn.schema)
-        self.assertEqual('username', conn.login)
-        self.assertEqual('password', conn.password)
-        self.assertEqual(5432, conn.port)
-
-    @mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
-    })
-    def test_using_unix_socket_env_var(self):
-        conn = SqliteHook.get_connection(conn_id='test_uri_no_creds')
-        self.assertEqual('ec2.compute.com', conn.host)
-        self.assertEqual('the_database', conn.schema)
-        self.assertIsNone(conn.login)
-        self.assertIsNone(conn.password)
-        self.assertIsNone(conn.port)
-
-    def test_param_setup(self):
-        conn = Connection(conn_id='local_mysql', conn_type='mysql',
-                          host='localhost', login='airflow',
-                          password='airflow', schema='airflow')
-        self.assertEqual('localhost', conn.host)
-        self.assertEqual('airflow', conn.schema)
-        self.assertEqual('airflow', conn.login)
-        self.assertEqual('airflow', conn.password)
-        self.assertIsNone(conn.port)
-
-    def test_env_var_priority(self):
-        conn = SqliteHook.get_connection(conn_id='airflow_db')
-        self.assertNotEqual('ec2.compute.com', conn.host)
-
-        with mock.patch.dict('os.environ', {
-            'AIRFLOW_CONN_AIRFLOW_DB': 'postgres://username:password@ec2.compute.com:5432/the_database',
-        }):
-            conn = SqliteHook.get_connection(conn_id='airflow_db')
-            self.assertEqual('ec2.compute.com', conn.host)
-            self.assertEqual('the_database', conn.schema)
-            self.assertEqual('username', conn.login)
-            self.assertEqual('password', conn.password)
-            self.assertEqual(5432, conn.port)
-
-    @mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
-        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
-    })
-    def test_dbapi_get_uri(self):
-        conn = BaseHook.get_connection(conn_id='test_uri')
-        hook = conn.get_hook()
-        self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', hook.get_uri())
-        conn2 = BaseHook.get_connection(conn_id='test_uri_no_creds')
-        hook2 = conn2.get_hook()
-        self.assertEqual('postgres://ec2.compute.com/the_database', hook2.get_uri())
-
-    @mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
-        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
-    })
-    def test_dbapi_get_sqlalchemy_engine(self):
-        conn = BaseHook.get_connection(conn_id='test_uri')
-        hook = conn.get_hook()
-        engine = hook.get_sqlalchemy_engine()
-        self.assertIsInstance(engine, sqlalchemy.engine.Engine)
-        self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', str(engine.url))
-
-    @mock.patch.dict('os.environ', {
-        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
-        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
-    })
-    def test_get_connections_env_var(self):
-        conns = SqliteHook.get_connections(conn_id='test_uri')
-        assert len(conns) == 1
-        assert conns[0].host == 'ec2.compute.com'
-        assert conns[0].schema == 'the_database'
-        assert conns[0].login == 'username'
-        assert conns[0].password == 'password'
-        assert conns[0].port == 5432
 
 
 if __name__ == '__main__':
