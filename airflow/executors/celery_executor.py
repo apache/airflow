@@ -59,7 +59,7 @@ app = Celery(
 
 
 @app.task
-def execute_command(command_to_exec: str) -> None:
+def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
     log = LoggingMixin().log
     log.info("Executing command in Celery: %s", command_to_exec)

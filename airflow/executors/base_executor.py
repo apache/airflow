@@ -30,9 +30,10 @@ PARALLELISM: int = conf.getint('core', 'PARALLELISM')
 
 NOT_STARTED_MESSAGE = "The executor should be started first!"
 
-# Command to execute - might be either string or list of strings
-# with the same semantics as subprocess.Popen
-CommandType = Union[str, List[str]]
+# Command to execute - list of strings
+# the first element is always "airflow".
+# It should be result of TaskInstance.generate_command method.q
+CommandType = List[str]
 
 
 # Task that is queued. It contains all the information that is
