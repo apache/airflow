@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.kubernetes import kube_client
 from airflow.utils.log.logging_mixin import LoggingMixin
-
+from airflow.configuration import conf
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
@@ -492,8 +492,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         while self._driver_status not in ["FINISHED", "UNKNOWN",
                                           "KILLED", "FAILED", "ERROR"]:
 
-            # Sleep for 1 second as we do not want to spam the cluster
-            time.sleep(1)
+            #Sleep for n seconds as we do not want to spam the cluster
+            _status_poll_interval = conf.getint('spark', 'STATUS_POLL_INTERVAL', fallback=1)
+            time.sleep(_status_poll_interval)
 
             self.log.debug("polling status of spark driver with id {}"
                            .format(self._driver_id))
