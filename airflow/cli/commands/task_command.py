@@ -34,55 +34,81 @@ from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 
 
-def _run(args, dag, ti):
-    if args.local:
-        run_job = jobs.LocalTaskJob(
-            task_instance=ti,
-            mark_success=args.mark_success,
-            pickle_id=args.pickle,
-            ignore_all_deps=args.ignore_all_dependencies,
-            ignore_depends_on_past=args.ignore_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            ignore_ti_state=args.force,
-            pool=args.pool)
-        run_job.run()
-    elif args.raw:
-        ti._run_raw_task(  # pylint: disable=protected-access
-            mark_success=args.mark_success,
-            job_id=args.job_id,
-            pool=args.pool,
-        )
-    else:
-        pickle_id = None
-        if args.ship_dag:
-            try:
-                # Running remotely, so pickling the DAG
-                with db.create_session() as session:
-                    pickle = DagPickle(dag)
-                    session.add(pickle)
-                    pickle_id = pickle.id
-                    # TODO: This should be written to a log
-                    print('Pickled dag {dag} as pickle_id: {pickle_id}'.format(
-                        dag=dag, pickle_id=pickle_id))
-            except Exception as e:
-                print('Could not pickle the DAG')
-                print(e)
-                raise e
+def _run_task_by_selected_method(args, dag, ti):
+    """
+    Runs the task in one of 3 modes
 
-        executor = ExecutorLoader.get_default_executor()
-        executor.start()
-        print("Sending to executor.")
-        executor.queue_task_instance(
-            ti,
-            mark_success=args.mark_success,
-            pickle_id=pickle_id,
-            ignore_all_deps=args.ignore_all_dependencies,
-            ignore_depends_on_past=args.ignore_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            ignore_ti_state=args.force,
-            pool=args.pool)
-        executor.heartbeat()
-        executor.end()
+    - using LocalTaskJob
+    - as raw task
+    - by executor
+    """
+    if args.local:
+        _run_task_by_local_task_job(args, ti)
+    elif args.raw:
+        _run_raw_task(args, ti)
+    else:
+        _run_task_by_executor(args, dag, ti)
+
+
+def _run_task_by_executor(args, dag, ti):
+    """
+    Sends the task to the executor for execution. This can result in the task being started by another host
+    if the executor implementation does
+    """
+    pickle_id = None
+    if args.ship_dag:
+        try:
+            # Running remotely, so pickling the DAG
+            with db.create_session() as session:
+                pickle = DagPickle(dag)
+                session.add(pickle)
+                pickle_id = pickle.id
+                # TODO: This should be written to a log
+                print('Pickled dag {dag} as pickle_id: {pickle_id}'.format(
+                    dag=dag, pickle_id=pickle_id))
+        except Exception as e:
+            print('Could not pickle the DAG')
+            print(e)
+            raise e
+    executor = ExecutorLoader.get_default_executor()
+    executor.start()
+    print("Sending to executor.")
+    executor.queue_task_instance(
+        ti,
+        mark_success=args.mark_success,
+        pickle_id=pickle_id,
+        ignore_all_deps=args.ignore_all_dependencies,
+        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_task_deps=args.ignore_dependencies,
+        ignore_ti_state=args.force,
+        pool=args.pool)
+    executor.heartbeat()
+    executor.end()
+
+
+def _run_raw_task(args, ti):
+    """Runs the main task handling code"""
+    ti._run_raw_task(  # pylint: disable=protected-access
+        mark_success=args.mark_success,
+        job_id=args.job_id,
+        pool=args.pool,
+    )
+
+
+def _run_task_by_local_task_job(args, ti):
+    """
+    Run LocalTaskJob, which monitors the raw task execution process
+    """
+    run_job = jobs.LocalTaskJob(
+        task_instance=ti,
+        mark_success=args.mark_success,
+        pickle_id=args.pickle,
+        ignore_all_deps=args.ignore_all_dependencies,
+        ignore_depends_on_past=args.ignore_depends_on_past,
+        ignore_task_deps=args.ignore_dependencies,
+        ignore_ti_state=args.force,
+        pool=args.pool)
+    run_job.run()
 
 
 @cli_utils.action_logging
@@ -127,11 +153,11 @@ def task_run(args, dag=None):
     print(f"Running {ti} on host {hostname}")
 
     if args.interactive:
-        _run(args, dag, ti)
+        _run_task_by_selected_method(args, dag, ti)
     else:
         with redirect_stdout(StreamLogWriter(ti.log, logging.INFO)), \
                 redirect_stderr(StreamLogWriter(ti.log, logging.WARN)):
-            _run(args, dag, ti)
+            _run_task_by_selected_method(args, dag, ti)
     logging.shutdown()
 
 
