@@ -199,6 +199,9 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(GCS_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
+
+        # If you use URI scheme, the parameter `wasb_container` is redundancy.
+        # URI Scheme format: wasb://<container_name>@<account_name>.blob.core.windows.net/<path>
         WASB_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
             'task': {
                 'class': 'airflow.utils.log.wasb_task_handler.WasbTaskHandler',

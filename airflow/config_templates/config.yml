@@ -378,7 +378,7 @@
       default: "{AIRFLOW_HOME}/logs"
     - name: remote_logging
       description: |
-        Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+        Airflow can store logs remotely in remote sources
         Set this to True if you want to enable remote logging.
       version_added: ~
       type: string
