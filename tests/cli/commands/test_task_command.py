@@ -209,7 +209,7 @@ class TestCliTasks(unittest.TestCase):
             interactive=True,
             execution_date=timezone.parse('2018-04-27T08:39:51.298439+00:00')
         )
-        dag = get_dag(args)
+        dag = get_dag(args.subdir, args.dag_id)
         reset(dag.dag_id)
 
         task_command.task_run(args)

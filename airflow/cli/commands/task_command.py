@@ -109,7 +109,7 @@ def task_run(args, dag=None):
     settings.configure_orm(disable_connection_pool=True)
 
     if not args.pickle and not dag:
-        dag = get_dag(args)
+        dag = get_dag(args.subdir, args.dag_id)
     elif not dag:
         with db.create_session() as session:
             print(f'Loading pickle id {args.pickle}')
@@ -148,7 +148,7 @@ def task_failed_deps(args):
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
     to have succeeded, but found 1 non-success(es).
     """
-    dag = get_dag(args)
+    dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
 
@@ -170,7 +170,7 @@ def task_state(args):
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args)
+    dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
     print(ti.current_state())
@@ -179,7 +179,7 @@ def task_state(args):
 @cli_utils.action_logging
 def task_list(args, dag=None):
     """Lists the tasks within a DAG at the command line"""
-    dag = dag or get_dag(args)
+    dag = dag or get_dag(args.subdir, args.dag_id)
     if args.tree:
         dag.tree_view()
     else:
@@ -202,7 +202,7 @@ def task_test(args, dag=None):
     if not already_has_stream_handler:
         logging.getLogger('airflow.task').propagate = True
 
-    dag = dag or get_dag(args)
+    dag = dag or get_dag(args.subdir, args.dag_id)
 
     task = dag.get_task(task_id=args.task_id)
     # Add CLI provided task_params to task.params
@@ -235,7 +235,7 @@ def task_test(args, dag=None):
 @cli_utils.action_logging
 def task_render(args):
     """Renders and displays templated fields for a given task"""
-    dag = get_dag(args)
+    dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
     ti.render_templates()
@@ -254,7 +254,7 @@ def task_clear(args):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
-    dags = get_dags(args)
+    dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)
 
     if args.task_regex:
         for idx, dag in enumerate(dags):

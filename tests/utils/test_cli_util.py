@@ -25,7 +25,6 @@ from contextlib import contextmanager
 from datetime import datetime
 
 from airflow import AirflowException, settings
-from airflow.bin.cli import CLIFactory
 from airflow.utils import cli, cli_action_loggers
 
 
@@ -77,15 +76,14 @@ class TestCliUtil(unittest.TestCase):
         self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
 
     def test_get_dags(self):
-        parser = CLIFactory.get_parser()
-        dags = cli.get_dags(parser.parse_args(['tasks', 'clear', 'example_subdag_operator', '--yes']))
+        dags = cli.get_dags(None, "example_subdag_operator")
         self.assertEqual(len(dags), 1)
 
-        dags = cli.get_dags(parser.parse_args(['tasks', 'clear', 'subdag', '-dx', '--yes']))
+        dags = cli.get_dags(None, "subdag", True)
         self.assertGreater(len(dags), 1)
 
         with self.assertRaises(AirflowException):
-            cli.get_dags(parser.parse_args(['tasks', 'clear', 'foobar', '-dx', '--yes']))
+            cli.get_dags(None, "foobar", True)
 
 
 @contextmanager
