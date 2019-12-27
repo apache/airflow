@@ -231,7 +231,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         @app.after_request
         def apply_caching(response):
-            response.headers["X-Frame-Options"] = "DENY"
+            _x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
+            if not _x_frame_enabled:
+                response.headers["X-Frame-Options"] = "DENY"
             return response
 
         @app.teardown_appcontext
