@@ -1233,9 +1233,9 @@ class CliTests(unittest.TestCase):
             ("\tSuccessfully added `conn_id`=new4 : " +
              "postgresql://airflow:airflow@host:5432/airflow"),
             ("\tSuccessfully added `conn_id`=new5 : " +
-             "hive_metastore://airflow:airflow@host:9083/airflow"),
+             "hive_metastore://airflow:******@host:9083/airflow"),
             ("\tSuccessfully added `conn_id`=new6 : " +
-             "google_cloud_platform://:@:")
+             "google_cloud_platform://:******@:")
         ])
 
         # Attempt to add duplicate
