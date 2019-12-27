@@ -31,8 +31,9 @@ from airflow.models import TaskInstance as TI
 from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
-from tests.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import clear_db_runs
+
+TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 

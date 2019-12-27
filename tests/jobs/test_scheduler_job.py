@@ -46,12 +46,12 @@ from airflow.utils.dates import days_ago
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.state import State
-from tests.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import (
     clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
 )
 from tests.test_utils.mock_executor import MockExecutor
 
+TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TRY_NUMBER = 1
 # Include the words "airflow" and "dag" in the file contents,

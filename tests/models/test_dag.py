@@ -21,31 +21,55 @@ import datetime
 import io
 import logging
 import os
+import pickle
 import re
 import unittest
 from contextlib import redirect_stdout
 from tempfile import NamedTemporaryFile
+from unittest import mock
 from unittest.mock import patch
 
 import pendulum
+from dateutil.relativedelta import relativedelta
+from pendulum import utcnow
 
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
-from airflow.models import DAG, DagModel, TaskInstance as TI
+from airflow.jobs.scheduler_job import DagFileProcessor
+from airflow.models import DAG, DagModel, DagRun, TaskFail, TaskInstance as TI
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.state import State
+from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 
 
 class TestDag(unittest.TestCase):
 
-    def _occur_before(self, a, b, list_):
+    @staticmethod
+    def _clean_up(dag_id: str):
+        if os.environ.get('KUBERNETES_VERSION') is not None:
+            return
+        with create_session() as session:
+            session.query(DagRun).filter(
+                DagRun.dag_id == dag_id).delete(
+                synchronize_session=False)
+            session.query(TI).filter(
+                TI.dag_id == dag_id).delete(
+                synchronize_session=False)
+            session.query(TaskFail).filter(
+                TaskFail.dag_id == dag_id).delete(
+                synchronize_session=False)
+
+    @staticmethod
+    def _occur_before(a, b, list_):
         """
         Assert that a occurs before b in the list.
         """
@@ -992,3 +1016,287 @@ class TestDag(unittest.TestCase):
 
         sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
         self.assertEqual(id(sub_dag.task_dict['t1'].downstream_list[0].dag), id(sub_dag))
+
+    def test_schedule_dag_no_previous_runs(self):
+        """
+        Tests scheduling a dag with no previous runs
+        """
+        dag_id = "test_schedule_dag_no_previous_runs"
+        dag = DAG(dag_id=dag_id)
+        dag.add_task(BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime_tz(2015, 1, 2, 0, 0)))
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_run = dag_file_processor.create_dag_run(dag)
+        self.assertIsNotNone(dag_run)
+        self.assertEqual(dag.dag_id, dag_run.dag_id)
+        self.assertIsNotNone(dag_run.run_id)
+        self.assertNotEqual('', dag_run.run_id)
+        self.assertEqual(
+            datetime_tz(2015, 1, 2, 0, 0),
+            dag_run.execution_date,
+            msg='dag_run.execution_date did not match expectation: {0}'
+            .format(dag_run.execution_date)
+        )
+        self.assertEqual(State.RUNNING, dag_run.state)
+        self.assertFalse(dag_run.external_trigger)
+        dag.clear()
+        self._clean_up(dag_id)
+
+    def test_schedule_dag_relativedelta(self):
+        """
+        Tests scheduling a dag with a relativedelta schedule_interval
+        """
+        dag_id = "test_schedule_dag_relativedelta"
+        delta = relativedelta(hours=+1)
+        dag = DAG(dag_id=dag_id,
+                  schedule_interval=delta)
+        dag.add_task(BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime_tz(2015, 1, 2, 0, 0)))
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_run = dag_file_processor.create_dag_run(dag)
+        self.assertIsNotNone(dag_run)
+        self.assertEqual(dag.dag_id, dag_run.dag_id)
+        self.assertIsNotNone(dag_run.run_id)
+        self.assertNotEqual('', dag_run.run_id)
+        self.assertEqual(
+            datetime_tz(2015, 1, 2, 0, 0),
+            dag_run.execution_date,
+            msg='dag_run.execution_date did not match expectation: {0}'
+            .format(dag_run.execution_date)
+        )
+        self.assertEqual(State.RUNNING, dag_run.state)
+        self.assertFalse(dag_run.external_trigger)
+        dag_run2 = dag_file_processor.create_dag_run(dag)
+        self.assertIsNotNone(dag_run2)
+        self.assertEqual(dag.dag_id, dag_run2.dag_id)
+        self.assertIsNotNone(dag_run2.run_id)
+        self.assertNotEqual('', dag_run2.run_id)
+        self.assertEqual(
+            datetime_tz(2015, 1, 2, 0, 0) + delta,
+            dag_run2.execution_date,
+            msg='dag_run2.execution_date did not match expectation: {0}'
+            .format(dag_run2.execution_date)
+        )
+        self.assertEqual(State.RUNNING, dag_run2.state)
+        self.assertFalse(dag_run2.external_trigger)
+        dag.clear()
+        self._clean_up(dag_id)
+
+    def test_schedule_dag_fake_scheduled_previous(self):
+        """
+        Test scheduling a dag where there is a prior DagRun
+        which has the same run_id as the next run should have
+        """
+        delta = datetime.timedelta(hours=1)
+        dag_id = "test_schedule_dag_fake_scheduled_previous"
+        dag = DAG(dag_id=dag_id,
+                  schedule_interval=delta,
+                  start_date=DEFAULT_DATE)
+        dag.add_task(BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=DEFAULT_DATE))
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag.create_dagrun(run_id=DagRun.id_for_date(DEFAULT_DATE),
+                          execution_date=DEFAULT_DATE,
+                          state=State.SUCCESS,
+                          external_trigger=True)
+        dag_run = dag_file_processor.create_dag_run(dag)
+        self.assertIsNotNone(dag_run)
+        self.assertEqual(dag.dag_id, dag_run.dag_id)
+        self.assertIsNotNone(dag_run.run_id)
+        self.assertNotEqual('', dag_run.run_id)
+        self.assertEqual(
+            DEFAULT_DATE + delta,
+            dag_run.execution_date,
+            msg='dag_run.execution_date did not match expectation: {0}'
+            .format(dag_run.execution_date)
+        )
+        self.assertEqual(State.RUNNING, dag_run.state)
+        self.assertFalse(dag_run.external_trigger)
+        self._clean_up(dag_id)
+
+    def test_schedule_dag_once(self):
+        """
+        Tests scheduling a dag scheduled for @once - should be scheduled the first time
+        it is called, and not scheduled the second.
+        """
+        dag_id = "test_schedule_dag_once"
+        dag = DAG(dag_id=dag_id)
+        dag.schedule_interval = '@once'
+        dag.add_task(BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime_tz(2015, 1, 2, 0, 0)))
+        dag_run = DagFileProcessor(dag_ids=[], log=mock.MagicMock()).create_dag_run(dag)
+        dag_run2 = DagFileProcessor(dag_ids=[], log=mock.MagicMock()).create_dag_run(dag)
+
+        self.assertIsNotNone(dag_run)
+        self.assertIsNone(dag_run2)
+        dag.clear()
+        self._clean_up(dag_id)
+
+    def test_fractional_seconds(self):
+        """
+        Tests if fractional seconds are stored in the database
+        """
+        dag_id = "test_fractional_seconds"
+        dag = DAG(dag_id=dag_id)
+        dag.schedule_interval = '@once'
+        dag.add_task(BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime_tz(2015, 1, 2, 0, 0)))
+
+        start_date = timezone.utcnow()
+
+        run = dag.create_dagrun(
+            run_id='test_' + start_date.isoformat(),
+            execution_date=start_date,
+            start_date=start_date,
+            state=State.RUNNING,
+            external_trigger=False
+        )
+
+        run.refresh_from_db()
+
+        self.assertEqual(start_date, run.execution_date,
+                         "dag run execution_date loses precision")
+        self.assertEqual(start_date, run.start_date,
+                         "dag run start_date loses precision ")
+        self._clean_up(dag_id)
+
+    def test_schedule_dag_start_end_dates(self):
+        """
+        Tests that an attempt to schedule a task after the Dag's end_date
+        does not succeed.
+        """
+        delta = datetime.timedelta(hours=1)
+        runs = 3
+        start_date = DEFAULT_DATE
+        end_date = start_date + (runs - 1) * delta
+        dag_id = "test_schedule_dag_start_end_dates"
+        dag = DAG(dag_id=dag_id,
+                  start_date=start_date,
+                  end_date=end_date,
+                  schedule_interval=delta)
+        dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        # Create and schedule the dag runs
+        dag_runs = []
+        for _ in range(runs):
+            dag_runs.append(dag_file_processor.create_dag_run(dag))
+
+        additional_dag_run = dag_file_processor.create_dag_run(dag)
+
+        for dag_run in dag_runs:
+            self.assertIsNotNone(dag_run)
+
+        self.assertIsNone(additional_dag_run)
+        self._clean_up(dag_id)
+
+    def test_schedule_dag_no_end_date_up_to_today_only(self):
+        """
+        Tests that a Dag created without an end_date can only be scheduled up
+        to and including the current datetime.
+
+        For example, if today is 2016-01-01 and we are scheduling from a
+        start_date of 2015-01-01, only jobs up to, but not including
+        2016-01-01 should be scheduled.
+        """
+        session = settings.Session()
+        delta = datetime.timedelta(days=1)
+        now = utcnow()
+        start_date = now.subtract(weeks=1)
+
+        runs = (now - start_date).days
+        dag_id = "test_schedule_dag_no_end_date_up_to_today_only"
+        dag = DAG(dag_id=dag_id,
+                  start_date=start_date,
+                  schedule_interval=delta)
+        dag.add_task(BaseOperator(task_id='faketastic', owner='Also fake'))
+
+        dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+        dag_runs = []
+        for _ in range(runs):
+            dag_run = dag_file_processor.create_dag_run(dag)
+            dag_runs.append(dag_run)
+
+            # Mark the DagRun as complete
+            dag_run.state = State.SUCCESS
+            session.merge(dag_run)
+            session.commit()
+
+        # Attempt to schedule an additional dag run (for 2016-01-01)
+        additional_dag_run = dag_file_processor.create_dag_run(dag)
+
+        for dag_run in dag_runs:
+            self.assertIsNotNone(dag_run)
+
+        self.assertIsNone(additional_dag_run)
+        self._clean_up(dag_id)
+
+    def test_pickling(self):
+        test_dag_id = 'test_pickling'
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        dag = DAG(test_dag_id, default_args=args)
+        dag_pickle = dag.pickle()
+        self.assertEqual(dag_pickle.pickle.dag_id, dag.dag_id)
+
+    def test_rich_comparison_ops(self):
+        test_dag_id = 'test_rich_comparison_ops'
+
+        class DAGsubclass(DAG):
+            pass
+
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        dag = DAG(test_dag_id, default_args=args)
+
+        dag_eq = DAG(test_dag_id, default_args=args)
+
+        dag_diff_load_time = DAG(test_dag_id, default_args=args)
+        dag_diff_name = DAG(test_dag_id + '_neq', default_args=args)
+
+        dag_subclass = DAGsubclass(test_dag_id, default_args=args)
+        dag_subclass_diff_name = DAGsubclass(
+            test_dag_id + '2', default_args=args)
+
+        for dag_ in [dag_eq, dag_diff_name, dag_subclass, dag_subclass_diff_name]:
+            dag_.last_loaded = dag.last_loaded
+
+        # test identity equality
+        self.assertEqual(dag, dag)
+
+        # test dag (in)equality based on _comps
+        self.assertEqual(dag_eq, dag)
+        self.assertNotEqual(dag_diff_name, dag)
+        self.assertNotEqual(dag_diff_load_time, dag)
+
+        # test dag inequality based on type even if _comps happen to match
+        self.assertNotEqual(dag_subclass, dag)
+
+        # a dag should equal an unpickled version of itself
+        dump = pickle.dumps(dag)
+        self.assertEqual(pickle.loads(dump), dag)
+
+        # dags are ordered based on dag_id no matter what the type is
+        self.assertLess(dag, dag_diff_name)
+        self.assertGreater(dag, dag_diff_load_time)
+        self.assertLess(dag, dag_subclass_diff_name)
+
+        # greater than should have been created automatically by functools
+        self.assertGreater(dag_diff_name, dag)
+
+        # hashes are non-random and match equality
+        self.assertEqual(hash(dag), hash(dag))
+        self.assertEqual(hash(dag_eq), hash(dag))
+        self.assertNotEqual(hash(dag_diff_name), hash(dag))
+        self.assertNotEqual(hash(dag_subclass), hash(dag))
