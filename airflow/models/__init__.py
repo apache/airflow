@@ -24,8 +24,7 @@ from airflow.models.dag import DAG, DagModel  # noqa: F401
 from airflow.models.dagbag import DagBag  # noqa: F401
 from airflow.models.dagpickle import DagPickle  # noqa: F401
 from airflow.models.dagrun import DagRun  # noqa: F401
-from airflow.models.errors import ImportError  # noqa: F401, pylint:disable=redefined-builtin
-from airflow.models.kubernetes import KubeWorkerIdentifier, KubeResourceVersion  # noqa: F401
+from airflow.models.errors import ImportError  # noqa: F401, pylint: disable=redefined-builtin
 from airflow.models.log import Log  # noqa: F401
 from airflow.models.pool import Pool  # noqa: F401
 from airflow.models.taskfail import TaskFail  # noqa: F401
@@ -36,7 +35,12 @@ from airflow.models.taskreschedule import TaskReschedule  # noqa: F401
 from airflow.models.variable import Variable  # noqa: F401
 from airflow.models.xcom import XCom, XCOM_RETURN_KEY  # noqa: F401
 
-# Classes that are remove in 2.0
+try:
+    from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier  # noqa: F401
+except ImportError:
+    pass
+
+# Classes that are removed in 2.0
 from airflow.models.knownevent import KnownEvent, KnownEventType  # noqa: F401
 from airflow.models.user import User  # noqa: F401
 from airflow.models.chart import Chart  # noqa: F401
