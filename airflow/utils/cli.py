@@ -36,8 +36,9 @@ from datetime import datetime
 from typing import Optional
 
 from airflow import AirflowException, settings
-from airflow.models import DagBag, Log
+from airflow.models import DagBag, DagPickle, Log
 from airflow.utils import cli_action_loggers
+from airflow.utils.db import provide_session
 
 
 def action_logging(f):
@@ -158,6 +159,16 @@ def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
             'dag_id could not be found with regex: {}. Either the dag did not exist '
             'or it failed to parse.'.format(dag_id))
     return matched_dags
+
+
+@provide_session
+def get_dag_by_pickle(pickle_id, session=None):
+    """Fetch DAG from the database using pickling"""
+    dag_pickle = session.query(DagPickle).filter(DagPickle.id == pickle_id).first()
+    if not dag_pickle:
+        raise AirflowException("Who hid the pickle!? [missing pickle]")
+    pickle_dag = dag_pickle.pickle
+    return pickle_dag
 
 
 alternative_conn_specs = ['conn_type', 'conn_host',

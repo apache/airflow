@@ -24,12 +24,12 @@ import os
 import textwrap
 from contextlib import redirect_stderr, redirect_stdout
 
-from airflow import DAG, AirflowException, conf, jobs, settings
+from airflow import DAG, conf, jobs, settings
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import cli as cli_utils, db
-from airflow.utils.cli import get_dag, get_dags
+from airflow.utils.cli import get_dag, get_dag_by_pickle, get_dags
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 
@@ -111,12 +111,8 @@ def task_run(args, dag=None):
     if not args.pickle and not dag:
         dag = get_dag(args.subdir, args.dag_id)
     elif not dag:
-        with db.create_session() as session:
-            print(f'Loading pickle id {args.pickle}')
-            dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
-            if not dag_pickle:
-                raise AirflowException("Who hid the pickle!? [missing pickle]")
-            dag = dag_pickle.pickle
+        print(f'Loading pickle id {args.pickle}')
+        dag = get_dag_by_pickle(args.pickle)
 
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
