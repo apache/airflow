@@ -17,65 +17,37 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 import unittest
 
 from mock import patch
 
-from flaky import flaky
-
-from airflow import DAG
 from airflow.contrib.sensors.cassandra_record_sensor import CassandraRecordSensor
 from airflow.contrib.sensors.cassandra_table_sensor import CassandraTableSensor
-from airflow.utils import timezone
 
 
-DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-
-
-@flaky(max_runs=4, min_passes=1)
 class TestCassandraRecordSensor(unittest.TestCase):
-
-    def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
-        self.dag = DAG('test_dag_id', default_args=args)
-        self.sensor = CassandraRecordSensor(
+    @patch("airflow.contrib.sensors.cassandra_record_sensor.CassandraHook")
+    def test_poke(self, mock_hook):
+        sensor = CassandraRecordSensor(
             task_id='test_task',
             cassandra_conn_id='cassandra_default',
-            dag=self.dag,
             table='t',
             keys={'foo': 'bar'}
         )
-
-    @patch("airflow.contrib.hooks.cassandra_hook.CassandraHook.record_exists")
-    def test_poke(self, mock_record_exists):
-        self.sensor.poke(None)
-        mock_record_exists.assert_called_once_with('t', {'foo': 'bar'})
+        sensor.poke(None)
+        mock_hook.return_value.record_exists.assert_called_once_with('t', {'foo': 'bar'})
 
 
-@flaky(max_runs=4, min_passes=1)
 class TestCassandraTableSensor(unittest.TestCase):
-
-    def setUp(self):
-        args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
-        self.dag = DAG('test_dag_id', default_args=args)
-        self.sensor = CassandraTableSensor(
+    @patch("airflow.contrib.sensors.cassandra_table_sensor.CassandraHook")
+    def test_poke(self, mock_hook):
+        sensor = CassandraTableSensor(
             task_id='test_task',
             cassandra_conn_id='cassandra_default',
-            dag=self.dag,
             table='t',
         )
-
-    @patch("airflow.contrib.hooks.cassandra_hook.CassandraHook.table_exists")
-    def test_poke(self, mock_table_exists):
-        self.sensor.poke(None)
-        mock_table_exists.assert_called_once_with('t')
+        sensor.poke(None)
+        mock_hook.return_value.table_exists.assert_called_once_with('t')
 
 
 if __name__ == '__main__':
