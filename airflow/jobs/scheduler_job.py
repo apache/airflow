@@ -715,7 +715,8 @@ class DagFileProcessor(LoggingMixin):
                             schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
-            self.manage_slas(dag)
+            if conf.getboolean('core', 'CHECK_SLAS'):
+                self.manage_slas(dag)
 
     def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]):
         """
