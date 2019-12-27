@@ -494,7 +494,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                           "KILLED", "FAILED", "ERROR"]:
 
             # Sleep for n seconds as we do not want to spam the cluster
-            _status_poll_interval = conf.getint('spark', 'STATUS_POLL_INTERVAL', fallback=1)
+            _status_poll_interval = conf.getint('core', 'SPARK_STATUS_POLL_INTERVAL', fallback=1)
             time.sleep(_status_poll_interval)
 
             self.log.debug("polling status of spark driver with id {}"
