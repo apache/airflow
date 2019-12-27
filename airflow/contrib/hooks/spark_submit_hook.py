@@ -217,6 +217,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return connection_cmd
 
+    def _mask_cmd(self, connection_cmd):
+        # Mask any password related fields in application args with key value pair
+        # where key contains password (case insensitive), e.g. HivePassword='abc'
+        connection_cmd_masked = re.sub(
+            r"(\S*?(?:secret|password)\S*?\s*=\s*')[^']*(?=')",
+            r'\1******', ' '.join(connection_cmd), flags=re.I)
+
+        return connection_cmd_masked
+
     def _build_spark_submit_command(self, application):
         """
         Construct the spark-submit command to execute.
@@ -302,7 +311,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._application_args:
             connection_cmd += self._application_args
 
-        self.log.info("Spark-Submit cmd: %s", connection_cmd)
+        self.log.info("Spark-Submit cmd: %s", self._mask_cmd(connection_cmd))
 
         return connection_cmd
 
@@ -359,7 +368,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
             raise AirflowException(
                 "Cannot execute: {}. Error code is: {}.".format(
-                    spark_submit_cmd, returncode
+                    self._mask_cmd(spark_submit_cmd), returncode
                 )
             )
 
