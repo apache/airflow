@@ -24,7 +24,8 @@ from unittest import mock
 
 from airflow import configuration
 from airflow.configuration import (
-    AirflowConfigParser, conf, expand_env_var, get_airflow_config, get_airflow_home, parameterized_config,
+    DEFAULT_CONFIG, AirflowConfigException, AirflowConfigParser, conf, expand_env_var, get_airflow_config,
+    get_airflow_home, parameterized_config, run_command,
 )
 from tests.test_utils.config import conf_vars
 from tests.test_utils.reset_warning_registry import reset_warning_registry
@@ -475,3 +476,74 @@ notacommand = OK
             # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
             # the environement variable's echo command
             self.assertEqual(test_cmdenv_conf.get('testcmdenv', 'notacommand'), 'OK')
+
+    def test_parameterized_config_gen(self):
+
+        cfg = parameterized_config(DEFAULT_CONFIG)
+
+        # making sure some basic building blocks are present:
+        self.assertIn("[core]", cfg)
+        self.assertIn("dags_folder", cfg)
+        self.assertIn("sql_alchemy_conn", cfg)
+        self.assertIn("fernet_key", cfg)
+
+        # making sure replacement actually happened
+        self.assertNotIn("{AIRFLOW_HOME}", cfg)
+        self.assertNotIn("{FERNET_KEY}", cfg)
+
+    def test_config_use_original_when_original_and_fallback_are_present(self):
+        self.assertTrue(conf.has_option("core", "FERNET_KEY"))
+        self.assertFalse(conf.has_option("core", "FERNET_KEY_CMD"))
+
+        fernet_key = conf.get('core', 'FERNET_KEY')
+
+        with conf_vars({('core', 'FERNET_KEY_CMD'): 'printf HELLO'}):
+            fallback_fernet_key = conf.get(
+                "core",
+                "FERNET_KEY"
+            )
+
+        self.assertEqual(fernet_key, fallback_fernet_key)
+
+    def test_config_throw_error_when_original_and_fallback_is_absent(self):
+        self.assertTrue(conf.has_option("core", "FERNET_KEY"))
+        self.assertFalse(conf.has_option("core", "FERNET_KEY_CMD"))
+
+        with conf_vars({('core', 'fernet_key'): None}):
+            with self.assertRaises(AirflowConfigException) as cm:
+                conf.get("core", "FERNET_KEY")
+
+        exception = str(cm.exception)
+        message = "section/key [core/fernet_key] not found in config"
+        self.assertEqual(message, exception)
+
+    def test_config_override_original_when_non_empty_envvar_is_provided(self):
+        key = "AIRFLOW__CORE__FERNET_KEY"
+        value = "some value"
+
+        with mock.patch.dict('os.environ', {key: value}):
+            fernet_key = conf.get('core', 'FERNET_KEY')
+
+        self.assertEqual(value, fernet_key)
+
+    def test_config_override_original_when_empty_envvar_is_provided(self):
+        key = "AIRFLOW__CORE__FERNET_KEY"
+        value = "some value"
+
+        with mock.patch.dict('os.environ', {key: value}):
+            fernet_key = conf.get('core', 'FERNET_KEY')
+
+        self.assertEqual(value, fernet_key)
+
+    def test_run_command(self):
+        write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
+
+        cmd = 'import sys; {0}; sys.stdout.flush()'.format(write)
+
+        self.assertEqual(run_command("python -c '{0}'".format(cmd)), '\u1000foo')
+
+        self.assertEqual(run_command('echo "foo bar"'), 'foo bar\n')
+        self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
+
+    def test_confirm_unittest_mod(self):
+        self.assertTrue(conf.get('core', 'unit_test_mode'))

@@ -31,9 +31,6 @@ from numpy.testing import assert_array_almost_equal
 from pendulum import utcnow
 
 from airflow import DAG, exceptions, settings
-from airflow.configuration import (
-    DEFAULT_CONFIG, AirflowConfigException, conf, parameterized_config, run_command,
-)
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.jobs.local_task_job import LocalTaskJob
@@ -339,9 +336,6 @@ class TestCore(unittest.TestCase):
 
         self.assertIsNone(additional_dag_run)
 
-    def test_confirm_unittest_mod(self):
-        self.assertTrue(conf.get('core', 'unit_test_mode'))
-
     def test_pickling(self):
         dag_pickle = self.dag.pickle()
         self.assertEqual(dag_pickle.pickle.dag_id, self.dag.dag_id)
@@ -627,64 +621,6 @@ class TestCore(unittest.TestCase):
         ti.dag = self.dag_bash
         ti.run(ignore_ti_state=True)
 
-    def test_parameterized_config_gen(self):
-
-        cfg = parameterized_config(DEFAULT_CONFIG)
-
-        # making sure some basic building blocks are present:
-        self.assertIn("[core]", cfg)
-        self.assertIn("dags_folder", cfg)
-        self.assertIn("sql_alchemy_conn", cfg)
-        self.assertIn("fernet_key", cfg)
-
-        # making sure replacement actually happened
-        self.assertNotIn("{AIRFLOW_HOME}", cfg)
-        self.assertNotIn("{FERNET_KEY}", cfg)
-
-    def test_config_use_original_when_original_and_fallback_are_present(self):
-        self.assertTrue(conf.has_option("core", "FERNET_KEY"))
-        self.assertFalse(conf.has_option("core", "FERNET_KEY_CMD"))
-
-        fernet_key = conf.get('core', 'FERNET_KEY')
-
-        with conf_vars({('core', 'FERNET_KEY_CMD'): 'printf HELLO'}):
-            fallback_fernet_key = conf.get(
-                "core",
-                "FERNET_KEY"
-            )
-
-        self.assertEqual(fernet_key, fallback_fernet_key)
-
-    def test_config_throw_error_when_original_and_fallback_is_absent(self):
-        self.assertTrue(conf.has_option("core", "FERNET_KEY"))
-        self.assertFalse(conf.has_option("core", "FERNET_KEY_CMD"))
-
-        with conf_vars({('core', 'fernet_key'): None}):
-            with self.assertRaises(AirflowConfigException) as cm:
-                conf.get("core", "FERNET_KEY")
-
-        exception = str(cm.exception)
-        message = "section/key [core/fernet_key] not found in config"
-        self.assertEqual(message, exception)
-
-    def test_config_override_original_when_non_empty_envvar_is_provided(self):
-        key = "AIRFLOW__CORE__FERNET_KEY"
-        value = "some value"
-
-        with mock.patch.dict('os.environ', {key: value}):
-            fernet_key = conf.get('core', 'FERNET_KEY')
-
-        self.assertEqual(value, fernet_key)
-
-    def test_config_override_original_when_empty_envvar_is_provided(self):
-        key = "AIRFLOW__CORE__FERNET_KEY"
-        value = ""
-
-        with mock.patch.dict('os.environ', {key: value}):
-            fernet_key = conf.get('core', 'FERNET_KEY')
-
-        self.assertEqual(value, fernet_key)
-
     def test_round_time(self):
 
         rt1 = round_time(datetime(2015, 1, 1, 6), timedelta(days=1))
@@ -814,16 +750,6 @@ class TestCore(unittest.TestCase):
         self.assertEqual(0, len(op1_fails))
         self.assertEqual(1, len(op2_fails))
         self.assertGreaterEqual(sum([f.duration for f in op2_fails]), 3)
-
-    def test_run_command(self):
-        write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
-
-        cmd = 'import sys; {0}; sys.stdout.flush()'.format(write)
-
-        self.assertEqual(run_command("python -c '{0}'".format(cmd)), '\u1000foo')
-
-        self.assertEqual(run_command('echo "foo bar"'), 'foo bar\n')
-        self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
 
     def test_externally_triggered_dagrun(self):
         TI = TaskInstance
