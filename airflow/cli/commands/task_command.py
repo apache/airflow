@@ -24,7 +24,7 @@ import os
 import textwrap
 from contextlib import redirect_stderr, redirect_stdout
 
-from airflow import DAG, conf, jobs, settings
+from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
@@ -88,8 +88,6 @@ def _run(args, dag, ti):
 @cli_utils.action_logging
 def task_run(args, dag=None):
     """Runs a single task instance"""
-    if dag:
-        args.dag_id = dag.dag_id
 
     # Load custom airflow config
     if args.cfg_path:
@@ -108,11 +106,16 @@ def task_run(args, dag=None):
     # processing hundreds of simultaneous tasks.
     settings.configure_orm(disable_connection_pool=True)
 
-    if not args.pickle and not dag:
-        dag = get_dag(args.subdir, args.dag_id)
-    elif not dag:
-        print(f'Loading pickle id {args.pickle}')
+    if dag and args.pickle:
+        raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")
+    elif args.pickle:
+        print(f'Loading pickle id: {args.pickle}')
         dag = get_dag_by_pickle(args.pickle)
+    elif not dag:
+        dag = get_dag(args.subdir, args.dag_id)
+    else:
+        # Use DAG from parameter
+        pass
 
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
