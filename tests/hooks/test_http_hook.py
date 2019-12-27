@@ -20,6 +20,7 @@ import json
 import unittest
 
 import mock
+import pytest
 import requests
 import requests_mock
 import tenacity
@@ -115,8 +116,7 @@ class TestHttpHook(unittest.TestCase):
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
         ):
-            resp = self.get_hook.run(
-                'v1/test', extra_options={'check_response': False})
+            resp = self.get_hook.run('v1/test', extra_options={'check_response': False})
             self.assertEqual(resp.text, '{"status":{"status": 404}}')
 
     @requests_mock.mock()
@@ -127,8 +127,7 @@ class TestHttpHook(unittest.TestCase):
         ):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
-            self.assertDictContainsSubset(
-                json.loads(expected_conn.extra), conn.headers)
+            self.assertDictContainsSubset(json.loads(expected_conn.extra), conn.headers)
             self.assertEqual(conn.headers.get('bareer'), 'test')
 
     @requests_mock.mock()
@@ -215,8 +214,7 @@ class TestHttpHook(unittest.TestCase):
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
         ):
-            resp = self.post_hook.run(
-                'v1/test', extra_options={'check_response': False})
+            resp = self.post_hook.run('v1/test', extra_options={'check_response': False})
             self.assertEqual(resp.status_code, 418)
 
     @mock.patch('airflow.hooks.http_hook.requests.Session')
@@ -361,10 +359,12 @@ class TestHttpHook(unittest.TestCase):
         ):
             # Send obj1 as JSON and verify it matched the mock
             resp = self.post_hook.run('v1/test', json=obj1)
-            self.assertEqual(resp.status_code, 200)
-            self.assertEqual(resp.text, 'test_post_json_request')
-        # Ensure that obj1 was what was sent
-        with self.assertRaises(requests_mock.exceptions.NoMockAddress):
+            assert resp.status_code == 200
+            assert resp.text == 'test_post_json_request'
+
+        # Ensure that obj1 was correctly encoded, and hit the match_obj1 filter
+        # By posting obj2 we cause an appropriate exception
+        with pytest.raises(requests_mock.exceptions.NoMockAddress):
             resp = self.post_hook.run('v1/test', json=obj2)
 
 
