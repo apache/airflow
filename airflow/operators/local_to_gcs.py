@@ -82,7 +82,7 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
 
     def execute(self, context):
         """
-        Uploads the file to Google cloud storage
+        Uploads the file to Google Cloud Storage
         """
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,

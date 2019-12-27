@@ -19,9 +19,10 @@
 
 import unittest
 
+from mock import Mock, patch
+
 from airflow import AirflowException
-from airflow.gcp.operators.speech_to_text import GcpSpeechToTextRecognizeSpeechOperator
-from tests.compat import Mock, patch
+from airflow.gcp.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
@@ -30,11 +31,11 @@ AUDIO = {"uri": "gs://bucket/object"}
 
 
 class TestCloudSql(unittest.TestCase):
-    @patch("airflow.gcp.operators.speech_to_text.GCPSpeechToTextHook")
+    @patch("airflow.gcp.operators.speech_to_text.CloudSpeechToTextHook")
     def test_recognize_speech_green_path(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
-        GcpSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
+        CloudSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
             project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, config=CONFIG, audio=AUDIO, task_id="id"
         ).execute(context={"task_instance": Mock()})
 
@@ -43,12 +44,12 @@ class TestCloudSql(unittest.TestCase):
             config=CONFIG, audio=AUDIO, retry=None, timeout=None
         )
 
-    @patch("airflow.gcp.operators.speech_to_text.GCPSpeechToTextHook")
+    @patch("airflow.gcp.operators.speech_to_text.CloudSpeechToTextHook")
     def test_missing_config(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
         with self.assertRaises(AirflowException) as e:
-            GcpSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
+            CloudSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
                 project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, audio=AUDIO, task_id="id"
             ).execute(context={"task_instance": Mock()})
 
@@ -56,12 +57,12 @@ class TestCloudSql(unittest.TestCase):
         self.assertIn("config", str(err))
         mock_hook.assert_not_called()
 
-    @patch("airflow.gcp.operators.speech_to_text.GCPSpeechToTextHook")
+    @patch("airflow.gcp.operators.speech_to_text.CloudSpeechToTextHook")
     def test_missing_audio(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
         with self.assertRaises(AirflowException) as e:
-            GcpSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
+            CloudSpeechToTextRecognizeSpeechOperator(  # pylint: disable=no-value-for-parameter
                 project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, config=CONFIG, task_id="id"
             ).execute(context={"task_instance": Mock()})
 

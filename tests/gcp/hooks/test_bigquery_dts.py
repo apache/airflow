@@ -20,13 +20,13 @@
 import unittest
 from copy import deepcopy
 
+import mock
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from google.protobuf.json_format import ParseDict
 
 from airflow.gcp.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.version import version
-from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"
@@ -57,12 +57,10 @@ TRANSFER_CONFIG_ID = "id1234"
 class BigQueryDataTransferHookTestCase(unittest.TestCase):
     def setUp(self) -> None:
         with mock.patch(
-            "airflow.gcp.hooks.bigquery_dts.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.bigquery_dts.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
-            self.hook = BiqQueryDataTransferServiceHook(  # type: ignore
-                gcp_conn_id=None
-            )
+            self.hook = BiqQueryDataTransferServiceHook()
             self.hook._get_credentials = mock.MagicMock(  # type: ignore
                 return_value=CREDENTIALS
             )

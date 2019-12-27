@@ -16,66 +16,48 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
+
 
 from tests.gcp.operators.test_compute_system_helper import GCPComputeTestHelper
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_COMPUTE_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_COMPUTE_KEY), SKIP_TEST_WARNING)
-class GcpComputeExampleDagsSystemTest(TestDagGcpSystem):
-
+@skip_gcp_system(GCP_COMPUTE_KEY, require_local_executor=True)
+class GcpComputeExampleDagsSystemTest(SystemTest):
+    helper = GCPComputeTestHelper()
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_instance()
         self.helper.create_instance()
-        self.gcp_authenticator.gcp_revoke_authentication()
 
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_instance()
-        self.gcp_authenticator.gcp_revoke_authentication()
         super().tearDown()
 
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name,
-            dag_id='example_gcp_compute',
-            gcp_key=GCP_COMPUTE_KEY)
-        self.helper = GCPComputeTestHelper()
-
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def test_run_example_dag_compute(self):
-        self._run_dag()
+        self.run_dag('example_gcp_compute', GCP_DAG_FOLDER)
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_COMPUTE_KEY), SKIP_TEST_WARNING)
-class GcpComputeIgmExampleDagsSystemTest(TestDagGcpSystem):
+@skip_gcp_system(GCP_COMPUTE_KEY, require_local_executor=True)
+class GcpComputeIgmExampleDagsSystemTest(SystemTest):
+    helper = GCPComputeTestHelper()
 
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.delete_instance_group_and_template(silent=True)
-            self.helper.create_instance_group_and_template()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.delete_instance_group_and_template(silent=True)
+        self.helper.create_instance_group_and_template()
 
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.delete_instance_group_and_template()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.delete_instance_group_and_template()
         super().tearDown()
 
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name,
-            dag_id='example_gcp_compute_igm',
-            gcp_key=GCP_COMPUTE_KEY)
-        self.helper = GCPComputeTestHelper()
-
+    @provide_gcp_context(GCP_COMPUTE_KEY)
     def test_run_example_dag_compute_igm(self):
-        self._run_dag()
+        self.run_dag('example_gcp_compute_igm', GCP_DAG_FOLDER)

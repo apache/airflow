@@ -29,6 +29,7 @@ manifest = dict()  # type: Dict[str, str]
 def configure_manifest_files(app):
     """
     Loads the manifest file and register the `url_for_asset_` template tag.
+
     :param app:
     :return:
     """

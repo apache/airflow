@@ -19,13 +19,14 @@
 
 import unittest
 
+import mock
+
 from airflow.gcp.operators.gcs import (
     GcsFileTransformOperator, GoogleCloudStorageBucketCreateAclEntryOperator,
     GoogleCloudStorageCreateBucketOperator, GoogleCloudStorageDeleteOperator,
     GoogleCloudStorageDownloadOperator, GoogleCloudStorageListOperator,
     GoogleCloudStorageObjectCreateAclEntryOperator,
 )
-from tests.compat import mock
 
 TASK_ID = 'test-gcs-operator'
 TEST_BUCKET = 'test-bucket'

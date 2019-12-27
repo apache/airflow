@@ -21,18 +21,19 @@
 import unittest
 from collections import namedtuple
 
+import mock
 from azure.mgmt.containerinstance.models import ContainerState, Event
 
 from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
 from airflow.exceptions import AirflowException
-from tests.compat import mock
 
 
-def make_mock_cg(container_state, events=[]):
+def make_mock_cg(container_state, events=None):
     """
     Make a mock Container Group as the underlying azure Models have read-only attributes
     See https://docs.microsoft.com/en-us/rest/api/container-instances/containergroups
     """
+    events = events or []
     instance_view_dict = {"current_state": container_state,
                           "events": events}
     instance_view = namedtuple("InstanceView",
@@ -103,6 +104,45 @@ class TestACIOperator(unittest.TestCase):
                                               task_id='task')
         with self.assertRaises(AirflowException):
             aci.execute(None)
+
+        self.assertEqual(aci_mock.return_value.delete.call_count, 1)
+
+    @mock.patch("airflow.contrib.operators."
+                "azure_container_instances_operator.AzureContainerInstanceHook")
+    def test_execute_with_tags(self, aci_mock):
+        expected_c_state = ContainerState(state='Terminated', exit_code=0, detail_status='test')
+        expected_cg = make_mock_cg(expected_c_state)
+        tags = {"testKey": "testValue"}
+
+        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(ci_conn_id=None,
+                                              registry_conn_id=None,
+                                              resource_group='resource-group',
+                                              name='container-name',
+                                              image='container-image',
+                                              region='region',
+                                              task_id='task',
+                                              tags=tags)
+        aci.execute(None)
+
+        self.assertEqual(aci_mock.return_value.create_or_update.call_count, 1)
+        (called_rg, called_cn, called_cg), _ = \
+            aci_mock.return_value.create_or_update.call_args
+
+        self.assertEqual(called_rg, 'resource-group')
+        self.assertEqual(called_cn, 'container-name')
+
+        self.assertEqual(called_cg.location, 'region')
+        self.assertEqual(called_cg.image_registry_credentials, None)
+        self.assertEqual(called_cg.restart_policy, 'Never')
+        self.assertEqual(called_cg.os_type, 'Linux')
+        self.assertEqual(called_cg.tags, tags)
+
+        called_cg_container = called_cg.containers[0]
+        self.assertEqual(called_cg_container.name, 'container-name')
+        self.assertEqual(called_cg_container.image, 'container-image')
 
         self.assertEqual(aci_mock.return_value.delete.call_count, 1)
 

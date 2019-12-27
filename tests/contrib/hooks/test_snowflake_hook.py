@@ -57,8 +57,8 @@ class TestSnowflakeHook(unittest.TestCase):
 
         self.db_hook = UnitTestSnowflakeHook()
 
-        self.nonEncryptedPrivateKey = "/tmp/test_key.pem"
-        self.encryptedPrivateKey = "/tmp/test_key.p8"
+        self.non_encrypted_private_key = "/tmp/test_key.pem"
+        self.encrypted_private_key = "/tmp/test_key.p8"
 
         # Write some temporary private keys. First is not encrypted, second is with a passphrase.
         key = rsa.generate_private_key(
@@ -70,7 +70,7 @@ class TestSnowflakeHook(unittest.TestCase):
                                         serialization.PrivateFormat.PKCS8,
                                         serialization.NoEncryption())
 
-        with open(self.nonEncryptedPrivateKey, "wb") as file:
+        with open(self.non_encrypted_private_key, "wb") as file:
             file.write(private_key)
 
         key = rsa.generate_private_key(
@@ -83,12 +83,12 @@ class TestSnowflakeHook(unittest.TestCase):
                                         encryption_algorithm=serialization.BestAvailableEncryption(
                                             self.conn.password.encode()))
 
-        with open(self.encryptedPrivateKey, "wb") as file:
+        with open(self.encrypted_private_key, "wb") as file:
             file.write(private_key)
 
     def tearDown(self):
-        os.remove(self.encryptedPrivateKey)
-        os.remove(self.nonEncryptedPrivateKey)
+        os.remove(self.encrypted_private_key)
+        os.remove(self.non_encrypted_private_key)
 
     def test_get_uri(self):
         uri_shouldbe = 'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role'
@@ -114,7 +114,7 @@ class TestSnowflakeHook(unittest.TestCase):
                                   'warehouse': 'af_wh',
                                   'region': 'af_region',
                                   'role': 'af_role',
-                                  'private_key_file': self.encryptedPrivateKey}
+                                  'private_key_file': self.encrypted_private_key}
 
         params = self.db_hook._get_conn_params()
         self.assertTrue('private_key' in params)
@@ -125,7 +125,7 @@ class TestSnowflakeHook(unittest.TestCase):
                                   'warehouse': 'af_wh',
                                   'region': 'af_region',
                                   'role': 'af_role',
-                                  'private_key_file': self.nonEncryptedPrivateKey}
+                                  'private_key_file': self.non_encrypted_private_key}
 
         self.conn.password = ''
         params = self.db_hook._get_conn_params()

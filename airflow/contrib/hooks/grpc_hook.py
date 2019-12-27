@@ -33,22 +33,21 @@ from airflow.hooks.base_hook import BaseHook
 class GrpcHook(BaseHook):
     """
     General interaction with gRPC servers.
+
+    :param grpc_conn_id: The connection ID to use when fetching connection info.
+    :type grpc_conn_id: str
+    :param interceptors: a list of gRPC interceptor objects which would be applied
+        to the connected gRPC channel. None by default.
+    :type interceptors: a list of gRPC interceptors based on or extends the four
+        official gRPC interceptors, eg, UnaryUnaryClientInterceptor,
+        UnaryStreamClientInterceptor, StreamUnaryClientInterceptor,
+        StreamStreamClientInterceptor.
+    :param custom_connection_func: The customized connection function to return gRPC channel.
+    :type custom_connection_func: python callable objects that accept the connection as
+        its only arg. Could be partial or lambda.
     """
 
     def __init__(self, grpc_conn_id, interceptors=None, custom_connection_func=None):
-        """
-        :param grpc_conn_id: The connection ID to use when fetching connection info.
-        :type grpc_conn_id: str
-        :param interceptors: a list of gRPC interceptor objects which would be applied
-            to the connected gRPC channel. None by default.
-        :type interceptors: a list of gRPC interceptors based on or extends the four
-            official gRPC interceptors, eg, UnaryUnaryClientInterceptor,
-            UnaryStreamClientInterceptor, StreamUnaryClientInterceptor,
-            StreamStreamClientInterceptor.
-        ::param custom_connection_func: The customized connection function to return gRPC channel.
-        :type custom_connection_func: python callable objects that accept the connection as
-            its only arg. Could be partial or lambda.
-        """
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
         self.extras = self.conn.extra_dejson

@@ -18,7 +18,7 @@
 
 
 
-.. image:: img/pin_large.png
+.. image:: ../airflow/www/static/pin_large.png
     :width: 100
 
 Apache Airflow Documentation
@@ -84,6 +84,7 @@ Content
     concepts
     scheduler
     executor/index
+    dag-run
     plugins
     security
     timezone
@@ -93,7 +94,9 @@ Content
     errors
     kubernetes
     lineage
+    dag-serialization
     changelog
+    best-practices
     faq
     privacy_notice
 

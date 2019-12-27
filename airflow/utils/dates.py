@@ -29,6 +29,7 @@ cron_presets = {
     '@daily': '0 0 * * *',
     '@weekly': '0 0 * * 0',
     '@monthly': '0 0 1 * *',
+    '@quarterly': '0 0 1 */3 *',
     '@yearly': '0 0 1 1 *',
 }
 
@@ -59,6 +60,8 @@ def date_range(start_date, end_date=None, num=None, delta=None):
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
     :type num: int
+    :param delta: step length. It can be datetime.timedelta or cron expression as string
+    :type delta: datetime.timedelta or str
     """
     if not delta:
         return []
@@ -71,15 +74,20 @@ def date_range(start_date, end_date=None, num=None, delta=None):
 
     delta_iscron = False
     tz = start_date.tzinfo
+
     if isinstance(delta, str):
         delta_iscron = True
-        start_date = timezone.make_naive(start_date, tz)
+        if timezone.is_localized(start_date):
+            start_date = timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
+    else:
+        raise Exception("Wait. delta must be either datetime.timedelta or cron expression as str")
+
     dates = []
     if end_date:
-        if timezone.is_naive(start_date):
+        if timezone.is_naive(start_date) and not timezone.is_naive(end_date):
             end_date = timezone.make_naive(end_date, tz)
         while start_date <= end_date:
             if timezone.is_naive(start_date):
@@ -216,11 +224,11 @@ def scale_time_units(time_seconds_arr, unit):
     Convert an array of time durations in seconds to the specified time unit.
     """
     if unit == 'minutes':
-        return list(map(lambda x: x * 1.0 / 60, time_seconds_arr))
+        return list(map(lambda x: x / 60, time_seconds_arr))
     elif unit == 'hours':
-        return list(map(lambda x: x * 1.0 / (60 * 60), time_seconds_arr))
+        return list(map(lambda x: x / (60 * 60), time_seconds_arr))
     elif unit == 'days':
-        return list(map(lambda x: x * 1.0 / (24 * 60 * 60), time_seconds_arr))
+        return list(map(lambda x: x / (24 * 60 * 60), time_seconds_arr))
     return time_seconds_arr
 
 

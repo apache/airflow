@@ -27,6 +27,7 @@ from airflow import models
 from airflow.gcp.operators.kubernetes_engine import (
     GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
 )
+from airflow.operators.bash_operator import BashOperator
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_LOCATION = os.environ.get("GCP_GKE_LOCATION", "europe-north1-a")
@@ -58,6 +59,23 @@ with models.DAG(
         name="test-pod",
     )
 
+    pod_task_xcom = GKEPodOperator(
+        task_id="pod_task_xcom",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        do_xcom_push=True,
+        namespace="default",
+        image="alpine",
+        cmds=["sh", "-c", 'mkdir -p /airflow/xcom/;echo \'[1,2,3,4]\' > /airflow/xcom/return.json'],
+        name="test-pod-xcom",
+    )
+
+    pod_task_xcom_result = BashOperator(
+        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom')[0] }}\"",
+        task_id="pod_task_xcom_result",
+    )
+
     delete_cluster = GKEClusterDeleteOperator(
         task_id="delete_cluster",
         name=CLUSTER_NAME,
@@ -66,3 +84,5 @@ with models.DAG(
     )
 
     create_cluster >> pod_task >> delete_cluster
+    create_cluster >> pod_task_xcom >> delete_cluster
+    pod_task_xcom >> pod_task_xcom_result

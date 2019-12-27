@@ -21,8 +21,9 @@ import unittest
 from base64 import b64decode, b64encode
 from collections import namedtuple
 
-from airflow.gcp.hooks.kms import GoogleCloudKMSHook
-from tests.compat import mock
+import mock
+
+from airflow.gcp.hooks.kms import CloudKMSHook
 
 Response = namedtuple("Response", ["plaintext", "ciphertext"])
 
@@ -49,19 +50,19 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
     pass
 
 
-class TestGoogleCloudKMSHook(unittest.TestCase):
+class TestCloudKMSHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
             new=mock_init,
         ):
-            self.kms_hook = GoogleCloudKMSHook(gcp_conn_id="test")
+            self.kms_hook = CloudKMSHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook.client_info",
+        "airflow.gcp.hooks.kms.CloudKMSHook.client_info",
         new_callable=mock.PropertyMock,
     )
-    @mock.patch("airflow.gcp.hooks.kms.GoogleCloudKMSHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook._get_credentials")
     @mock.patch("airflow.gcp.hooks.kms.KeyManagementServiceClient")
     def test_kms_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.kms_hook.get_conn()
@@ -72,11 +73,9 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.kms_hook._conn, result)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn",
-        **{"return_value.encrypt.return_value": RESPONSE}
-    )
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook.get_conn")
     def test_encrypt(self, mock_get_conn):
+        mock_get_conn.return_value.encrypt.return_value = RESPONSE
         result = self.kms_hook.encrypt(TEST_KEY_ID, PLAINTEXT)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.encrypt.assert_called_once_with(
@@ -89,11 +88,9 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         )
         self.assertEqual(PLAINTEXT_b64, result)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn",
-        **{"return_value.encrypt.return_value": RESPONSE}
-    )
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook.get_conn")
     def test_encrypt_with_auth_data(self, mock_get_conn):
+        mock_get_conn.return_value.encrypt.return_value = RESPONSE
         result = self.kms_hook.encrypt(TEST_KEY_ID, PLAINTEXT, AUTH_DATA)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.encrypt.assert_called_once_with(
@@ -106,11 +103,9 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         )
         self.assertEqual(PLAINTEXT_b64, result)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn",
-        **{"return_value.decrypt.return_value": RESPONSE}
-    )
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook.get_conn")
     def test_decrypt(self, mock_get_conn):
+        mock_get_conn.return_value.decrypt.return_value = RESPONSE
         result = self.kms_hook.decrypt(TEST_KEY_ID, CIPHERTEXT_b64)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.decrypt.assert_called_once_with(
@@ -123,11 +118,9 @@ class TestGoogleCloudKMSHook(unittest.TestCase):
         )
         self.assertEqual(PLAINTEXT, result)
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.kms.GoogleCloudKMSHook.get_conn",
-        **{"return_value.decrypt.return_value": RESPONSE}
-    )
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook.get_conn")
     def test_decrypt_with_auth_data(self, mock_get_conn):
+        mock_get_conn.return_value.decrypt.return_value = RESPONSE
         result = self.kms_hook.decrypt(TEST_KEY_ID, CIPHERTEXT_b64, AUTH_DATA)
         mock_get_conn.assert_called_once_with()
         mock_get_conn.return_value.decrypt.assert_called_once_with(

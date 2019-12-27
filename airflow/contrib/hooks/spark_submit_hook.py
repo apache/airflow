@@ -24,8 +24,12 @@ import time
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.kubernetes import kube_client
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+try:
+    from airflow.kubernetes import kube_client
+except ImportError:
+    pass
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -217,16 +221,26 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return connection_cmd
 
+    def _mask_cmd(self, connection_cmd):
+        # Mask any password related fields in application args with key value pair
+        # where key contains password (case insensitive), e.g. HivePassword='abc'
+        connection_cmd_masked = re.sub(
+            r"(\S*?(?:secret|password)\S*?\s*=\s*')[^']*(?=')",
+            r'\1******', ' '.join(connection_cmd), flags=re.I)
+
+        return connection_cmd_masked
+
     def _build_spark_submit_command(self, application):
         """
         Construct the spark-submit command to execute.
+
         :param application: command to append to the spark-submit command
         :type application: str
         :return: full command to be executed
         """
         connection_cmd = self._get_spark_binary_path()
 
-        # The url ot the spark master
+        # The url of the spark master
         connection_cmd += ["--master", self._connection['master']]
 
         if self._conf:
@@ -235,6 +249,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
+                # Allow dynamic setting of hadoop/yarn configuration environments
+                self._env = self._env_vars
             else:
                 tmpl = "spark.kubernetes.driverEnv.{}={}"
             for key in self._env_vars:
@@ -299,7 +315,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._application_args:
             connection_cmd += self._application_args
 
-        self.log.info("Spark-Submit cmd: %s", connection_cmd)
+        self.log.info("Spark-Submit cmd: %s", self._mask_cmd(connection_cmd))
 
         return connection_cmd
 
@@ -348,7 +364,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                            universal_newlines=True,
                                            **kwargs)
 
-        self._process_spark_submit_log(iter(self._submit_sp.stdout.readline, ''))
+        self._process_spark_submit_log(iter(self._submit_sp.stdout))
         returncode = self._submit_sp.wait()
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
@@ -356,7 +372,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
             raise AirflowException(
                 "Cannot execute: {}. Error code is: {}.".format(
-                    spark_submit_cmd, returncode
+                    self._mask_cmd(spark_submit_cmd), returncode
                 )
             )
 
@@ -438,6 +454,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         :param itr: An iterator which iterates over the input of the subprocess
         """
+        driver_found = False
         # Consume the iterator
         for line in itr:
             line = line.strip()
@@ -446,8 +463,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if "driverState" in line:
                 self._driver_status = line.split(' : ')[1] \
                     .replace(',', '').replace('\"', '').strip()
+                driver_found = True
 
             self.log.debug("spark driver status log: {}".format(line))
+
+        if not driver_found:
+            self._driver_status = "UNKNOWN"
 
     def _start_driver_status_tracking(self):
         """
@@ -502,7 +523,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                               bufsize=-1,
                                               universal_newlines=True)
 
-            self._process_spark_status_log(iter(status_process.stdout.readline, ''))
+            self._process_spark_status_log(iter(status_process.stdout))
             returncode = status_process.wait()
 
             if returncode:

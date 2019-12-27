@@ -155,13 +155,13 @@ class BuildProcessor:
         return source_dict
 
 
-class CloudBuildCreateBuildOperator(BaseOperator):
+class CloudBuildCreateOperator(BaseOperator):
     """
     Starts a build with the specified configuration.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudBuildCreateBuildOperator`
+        :ref:`howto/operator:CloudBuildCreateOperator`
 
     :param body: The request body.
         See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build

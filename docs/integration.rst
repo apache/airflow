@@ -26,7 +26,7 @@ Airflow has a mechanism that allows you to expand its functionality and integrat
 * :doc:`Metrics (statsd) </metrics>`
 * :doc:`Authentication backends </security>`
 * :doc:`Logging </howto/write-logs>`
-* :doc:`Trakcing systems </howto/tracking-user-activity>`
+* :doc:`Tracking systems </howto/tracking-user-activity>`
 
 It also has integration with :doc:`Sentry <errors>` service for error tracking. Other applications can also integrate using
 the :doc:`REST API <rest-api-ref>`.

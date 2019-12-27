@@ -291,7 +291,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         self,
         location: str,
         project_id: Optional[str] = None,
-        results_filter=None,
+        results_filter: Optional[str] = None,
         page_size: Optional[int] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,

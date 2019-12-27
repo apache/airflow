@@ -22,9 +22,9 @@ import string
 import unittest
 from datetime import datetime
 
+import mock
 from urllib3 import HTTPResponse
 
-from tests.compat import mock
 from tests.test_utils.config import conf_vars
 
 try:
@@ -137,6 +137,32 @@ class TestKubeConfig(unittest.TestCase):
         annotations = KubeConfig().kube_annotations
         self.assertIsNone(annotations)
 
+    @conf_vars({
+        ('kubernetes', 'git_repo'): 'foo',
+        ('kubernetes', 'git_branch'): 'foo',
+        ('kubernetes', 'git_dags_folder_mount_point'): 'foo',
+        ('kubernetes', 'git_sync_run_as_user'): '0',
+    })
+    def test_kube_config_git_sync_run_as_user_root(self):
+        self.assertEqual(KubeConfig().git_sync_run_as_user, 0)
+
+    @conf_vars({
+        ('kubernetes', 'git_repo'): 'foo',
+        ('kubernetes', 'git_branch'): 'foo',
+        ('kubernetes', 'git_dags_folder_mount_point'): 'foo',
+    })
+    def test_kube_config_git_sync_run_as_user_not_present(self):
+        self.assertEqual(KubeConfig().git_sync_run_as_user, 65533)
+
+    @conf_vars({
+        ('kubernetes', 'git_repo'): 'foo',
+        ('kubernetes', 'git_branch'): 'foo',
+        ('kubernetes', 'git_dags_folder_mount_point'): 'foo',
+        ('kubernetes', 'git_sync_run_as_user'): '',
+    })
+    def test_kube_config_git_sync_run_as_user_empty_string(self):
+        self.assertEqual(KubeConfig().git_sync_run_as_user, '')
+
 
 class TestKubernetesExecutor(unittest.TestCase):
     """
@@ -173,7 +199,9 @@ class TestKubernetesExecutor(unittest.TestCase):
         # Execute a task while the Api Throws errors
         try_number = 1
         kubernetes_executor.execute_async(key=('dag', 'task', datetime.utcnow(), try_number),
-                                          command='command', executor_config={})
+                                          queue=None,
+                                          command='command',
+                                          executor_config={})
         kubernetes_executor.sync()
         kubernetes_executor.sync()
 

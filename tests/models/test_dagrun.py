@@ -56,9 +56,9 @@ class TestDagRun(unittest.TestCase):
 
         if task_states is not None:
             session = settings.Session()
-            for task_id, state in task_states.items():
+            for task_id, task_state in task_states.items():
                 ti = dag_run.get_task_instance(task_id)
-                ti.set_state(state, session)
+                ti.set_state(task_state, session)
             session.close()
 
         return dag_run

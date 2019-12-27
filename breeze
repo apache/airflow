@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,6 +19,8 @@
 
 # Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
+
+export BREEZE=true
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -59,7 +62,7 @@ SEPARATOR_WIDTH="$(tput cols)"
 CMDNAME="$(basename -- "$0")"
 
 # Update short and long options in the breeze-complete script
-# This way autocomplete will work automagically with all options
+# This way autocomplete will work automatically with all options
 # shellcheck source=breeze-complete
 . "${MY_DIR}/breeze-complete"
 
@@ -104,10 +107,7 @@ export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
 # For local builds we fix file permissions only for setup-related files
 export AIRFLOW_FIX_PERMISSIONS=${AIRFLOW_FIX_PERMISSIONS:="setup"}
 
-# Skip building slim image locally - we only need full CI image
-export AIRFLOW_CONTAINER_SKIP_CI_SLIM_IMAGE="true"
-
-# Skip building full CI image locally - we only need slim image
+# Skip building full CI image locally
 export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
 
 # Branch name of the base image used (usually master or v1-10-test or v1-10-stable)
@@ -334,9 +334,9 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 -t, --test-target <TARGET>
         Run the specified unit test target. There might be multiple
         targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
-        as additional options passed to nosetest. For example:
+        as additional options passed to pytest. For example:
 
-        '${0} --test-target tests.core -- --logging-level=DEBUG'
+        '${0} --test-target tests/test_core.py -- --logging-level=DEBUG'
 
 -x, --execute-command <COMMAND>
         Run chosen command instead of entering the environment. The command is run using
@@ -681,7 +681,7 @@ echo
 CMDNAME="$(basename -- "$0")"
 
 # Cleans up the answer that was given last time, whether to force/
-cleanup_last_force_answer
+forget_last_answer
 
 export ENV="${ENV:=$(read_from_file ENV)}"
 export BACKEND="${BACKEND:=$(read_from_file BACKEND)}"
@@ -782,7 +782,7 @@ fi
 if [[ ${INITIALIZE_LOCAL_VIRTUALENV} == "true" ]]; then
    # Check if we are in virtualenv
    set +e
-   echo -e "import sys\nif not hasattr(sys,'real_prefix'):\n  sys.exit(1)" | "python${PYTHON_VERSION}"
+   echo -e "import sys\nif not hasattr(sys,'base_prefix'):\n  sys.exit(1)" | "python${PYTHON_VERSION}"
    RES=$?
    set -e
    if [[ ${RES} != "0" ]]; then
@@ -900,16 +900,10 @@ EOF
 fi
 
 MAIN_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose.yml
-KUBERNETES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose-kubernetes.yml
 BACKEND_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose-${BACKEND}.yml
 LOCAL_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose-local.yml
 
 COMPOSE_FILE=${MAIN_DOCKER_COMPOSE_FILE}:${BACKEND_DOCKER_COMPOSE_FILE}
-
-if [[ "${ENV}" == "kubernetes" ]]; then
-    COMPOSE_FILE=${COMPOSE_FILE}:${KUBERNETES_DOCKER_COMPOSE_FILE}
-fi
-
 
 if [[ "${SKIP_MOUNTING_LOCAL_SOURCES}" != "true" ]]; then
     COMPOSE_FILE=${COMPOSE_FILE}:${LOCAL_DOCKER_COMPOSE_FILE}
@@ -940,8 +934,6 @@ prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_TEST_FILE}" "${DC_RUN_COMMAND
 prepare_command_file "${BUILD_CACHE_DIR}/${LAST_DC_FILE}" '"' "false"
 
 rebuild_ci_image_if_needed
-rebuild_ci_slim_image_if_needed
-rebuild_checklicence_image_if_needed
 
 export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
 ${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
@@ -949,7 +941,7 @@ ${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYT
 printf '=%.0s' $(seq "${SEPARATOR_WIDTH}")
 
 if [[ "${TEST_TARGET}" == "." ]]; then
-    TEST_TARGET=""
+    TEST_TARGET="tests/"
 fi
 
 print_badge

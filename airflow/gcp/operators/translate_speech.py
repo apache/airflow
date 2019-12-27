@@ -25,7 +25,7 @@ from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 from google.protobuf.json_format import MessageToDict
 
 from airflow import AirflowException
-from airflow.gcp.hooks.speech_to_text import GCPSpeechToTextHook
+from airflow.gcp.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.gcp.hooks.translate import CloudTranslateHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -37,7 +37,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
 
     Note that it uses the first result from the recognition api response - the one with the highest confidence
     In order to see other possible results please use
-    :ref:`howto/operator:GcpSpeechToTextRecognizeSpeechOperator`
+    :ref:`howto/operator:CloudSpeechToTextRecognizeSpeechOperator`
     and
     :ref:`howto/operator:CloudTranslateTextOperator`
     separately
@@ -112,7 +112,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
         source_language: str,
         model: str,
         project_id: Optional[str] = None,
-        gcp_conn_id='google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
         *args,
         **kwargs
     ) -> None:
@@ -127,7 +127,7 @@ class GcpTranslateSpeechOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        speech_to_text_hook = GCPSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
+        speech_to_text_hook = CloudSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
         translate_hook = CloudTranslateHook(gcp_conn_id=self.gcp_conn_id)
 
         recognize_result = speech_to_text_hook.recognize_speech(

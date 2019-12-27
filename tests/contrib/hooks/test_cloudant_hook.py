@@ -18,10 +18,11 @@
 # under the License.
 import unittest
 
+from mock import patch
+
 from airflow.contrib.hooks.cloudant_hook import CloudantHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from tests.compat import patch
 
 
 class TestCloudantHook(unittest.TestCase):

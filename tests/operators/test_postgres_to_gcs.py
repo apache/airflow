@@ -19,9 +19,10 @@
 
 import unittest
 
+from mock import patch
+
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator
-from tests.compat import patch
 
 TABLES = {'postgres_to_gcs_operator', 'postgres_to_gcs_operator_empty'}
 

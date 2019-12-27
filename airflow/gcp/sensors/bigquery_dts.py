@@ -75,7 +75,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         expected_statuses: Union[Set[str], str] = 'SUCCEEDED',
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         request_timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
         *args,

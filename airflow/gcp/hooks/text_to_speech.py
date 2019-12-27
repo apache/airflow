@@ -27,10 +27,10 @@ from google.cloud.texttospeech_v1.types import (
     AudioConfig, SynthesisInput, SynthesizeSpeechResponse, VoiceSelectionParams,
 )
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class GCPTextToSpeechHook(GoogleCloudBaseHook):
+class CloudTextToSpeechHook(CloudBaseHook):
     """
     Hook for Google Cloud Text to Speech API.
 
@@ -64,12 +64,13 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
 
         return self._client
 
+    @CloudBaseHook.quota_retry()
     def synthesize_speech(
         self,
         input_data: Union[Dict, SynthesisInput],
         voice: Union[Dict, VoiceSelectionParams],
         audio_config: Union[Dict, AudioConfig],
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None
     ) -> SynthesizeSpeechResponse:
         """
@@ -84,15 +85,15 @@ class GCPTextToSpeechHook(GoogleCloudBaseHook):
         :param audio_config: configuration of the synthesized audio. See more:
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.AudioConfig
         :type audio_config: dict or google.cloud.texttospeech_v1.types.AudioConfig
-        :return: SynthesizeSpeechResponse See more:
-            https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.SynthesizeSpeechResponse
-        :rtype: object
         :param retry: (Optional) A retry object used to retry requests. If None is specified,
                 requests will not be retried.
         :type retry: google.api_core.retry.Retry
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request to complete.
             Note that if retry is specified, the timeout applies to each individual attempt.
         :type timeout: float
+        :return: SynthesizeSpeechResponse See more:
+            https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.SynthesizeSpeechResponse
+        :rtype: object
         """
         client = self.get_conn()
         self.log.info("Synthesizing input: %s", input_data)

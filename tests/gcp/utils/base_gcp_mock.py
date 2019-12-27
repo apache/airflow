@@ -24,7 +24,7 @@ from airflow.models import Connection
 GCP_PROJECT_ID_HOOK_UNIT_TEST = 'example-project'
 
 
-def mock_base_gcp_hook_default_project_id(self, gcp_conn_id, delegate_to=None):
+def mock_base_gcp_hook_default_project_id(self, gcp_conn_id='google_cloud_default', delegate_to=None):
     self.extras = {
         'extra__google_cloud_platform__project': GCP_PROJECT_ID_HOOK_UNIT_TEST
     }
@@ -34,7 +34,7 @@ def mock_base_gcp_hook_default_project_id(self, gcp_conn_id, delegate_to=None):
     self._conn = None
 
 
-def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id, delegate_to=None):
+def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id='google_cloud_default', delegate_to=None):
     self.extras = {}
     self._conn = gcp_conn_id
     self.delegate_to = delegate_to

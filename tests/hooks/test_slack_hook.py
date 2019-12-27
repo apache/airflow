@@ -19,9 +19,10 @@
 
 import unittest
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.slack_hook import SlackHook
-from tests.compat import mock
 
 
 class TestSlackHook(unittest.TestCase):

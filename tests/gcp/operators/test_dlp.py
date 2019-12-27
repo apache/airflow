@@ -24,6 +24,8 @@ This module contains various unit tests for GCP DLP Operators
 
 import unittest
 
+import mock
+
 from airflow.gcp.operators.dlp import (
     CloudDLPCancelDLPJobOperator, CloudDLPCreateDeidentifyTemplateOperator, CloudDLPCreateDLPJobOperator,
     CloudDLPCreateInspectTemplateOperator, CloudDLPCreateJobTriggerOperator,
@@ -38,7 +40,6 @@ from airflow.gcp.operators.dlp import (
     CloudDLPUpdateDeidentifyTemplateOperator, CloudDLPUpdateInspectTemplateOperator,
     CloudDLPUpdateJobTriggerOperator, CloudDLPUpdateStoredInfoTypeOperator,
 )
-from tests.compat import mock
 
 GCP_CONN_ID = "google_cloud_default"
 ORGANIZATION_ID = "test-org"

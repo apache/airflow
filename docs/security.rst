@@ -233,7 +233,7 @@ use it, simply update the connection details with, for example:
 
     { "use_beeline": true, "principal": "hive/_HOST@EXAMPLE.COM"}
 
-Adjust the principal to your settings. The _HOST part will be replaced by the fully qualified domain name of
+Adjust the principal to your settings. The ``_HOST`` part will be replaced by the fully qualified domain name of
 the server.
 
 You can specify if you would like to use the dag owner as the user for the connection or the user specified in the login
@@ -306,16 +306,16 @@ backend. In order to setup an application:
 4. Click 'Register new application'
 5. Fill in the required information (the 'Authorization callback URL' must be fully qualified e.g. http://airflow.example.com/example/ghe_oauth/callback)
 6. Click 'Register application'
-7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example
+7. Copy 'Client ID', 'Client Secret', and your callback route to your ``airflow.cfg`` according to the above example
 
 Using GHE Authentication with github.com
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is possible to use GHE authentication with github.com:
 
-1. `Create an Oauth App <https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/>`_
+1. `Create an OAuth App <https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/>`_
 2. Copy 'Client ID', 'Client Secret' to your airflow.cfg according to the above example
-3. Set ``host = github.com`` and ``oauth_callback_route = /oauth/callback`` in airflow.cfg
+3. Set ``host = github.com`` and ``oauth_callback_route = /oauth/callback`` in ``airflow.cfg``
 
 Google Authentication
 '''''''''''''''''''''
@@ -354,7 +354,7 @@ backend. In order to setup an application:
 4. Choose 'Web application'
 5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualified e.g. http://airflow.example.com/oauth2callback)
 6. Click 'Create'
-7. Copy 'Client ID', 'Client Secret', and your redirect URI to your airflow.cfg according to the above example
+7. Copy 'Client ID', 'Client Secret', and your redirect URI to your ``airflow.cfg`` according to the above example
 
 SSL
 ---
@@ -516,3 +516,50 @@ DAG Level Role
 ``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
 is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
 allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
+
+
+.. _security/fernet:
+
+Securing Connections
+--------------------
+
+Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt passwords in the connection
+configuration. It guarantees that a password encrypted using it cannot be manipulated or read without the key.
+Fernet is an implementation of symmetric (also known as “secret key”) authenticated cryptography.
+
+The first time Airflow is started, the ``airflow.cfg`` file is generated with the default configuration and the unique Fernet
+key. The key is saved to option ``fernet_key`` of section ``[core]``.
+
+You can also configure a fernet key using environment variables. This will overwrite the value from the
+`airflow.cfg` file
+
+    .. code-block:: bash
+
+      # Note the double underscores
+      export AIRFLOW__CORE__FERNET_KEY=your_fernet_key
+
+Generating fernet key
+'''''''''''''''''''''
+
+If you need to generate a new fernet key you can use the following code snippet.
+
+    .. code-block:: python
+
+      from cryptography.fernet import Fernet
+      fernet_key= Fernet.generate_key()
+      print(fernet_key.decode()) # your fernet_key, keep it in secured place!
+
+
+Rotating encryption keys
+''''''''''''''''''''''''
+
+Once connection credentials and variables have been encrypted using a fernet
+key, changing the key will cause decryption of existing credentials to fail. To
+rotate the fernet key without invalidating existing encrypted values, prepend
+the new key to the ``fernet_key`` setting, run
+``airflow rotate_fernet_key``, and then drop the original key from
+``fernet_keys``:
+
+#. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``
+#. Run ``airflow rotate_fernet_key`` to re-encrypt existing credentials with the new fernet key
+#. Set ``fernet_key`` to ``new_fernet_key``

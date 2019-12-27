@@ -19,9 +19,11 @@
 
 import unittest
 
+import mock
+from mock import PropertyMock
+
 from airflow import AirflowException
-from airflow.gcp.hooks.functions import GcfHook
-from tests.compat import PropertyMock, mock
+from airflow.gcp.hooks.functions import CloudFunctionsHook
 from tests.gcp.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, get_open_mock, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
@@ -34,11 +36,11 @@ GCF_FUNCTION = 'function'
 class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.CloudBaseHook.__init__',
                         new=mock_base_gcp_hook_no_default_project_id):
-            self.gcf_function_hook_no_project_id = GcfHook(gcp_conn_id='test', api_version='v1')
+            self.gcf_function_hook_no_project_id = CloudFunctionsHook(gcp_conn_id='test', api_version='v1')
 
-    @mock.patch("airflow.gcp.hooks.functions.GcfHook._authorize")
+    @mock.patch("airflow.gcp.hooks.functions.CloudFunctionsHook._authorize")
     @mock.patch("airflow.gcp.hooks.functions.build")
     def test_gcf_client_creation(self, mock_build, mock_authorize):
         result = self.gcf_function_hook_no_project_id.get_conn()
@@ -49,12 +51,12 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
         self.assertEqual(self.gcf_function_hook_no_project_id._conn, result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook._wait_for_operation_to_complete')
     def test_create_new_function_missing_project_id(
         self, wait_for_operation_to_complete, get_conn, mock_project_id
     ):
@@ -74,8 +76,8 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
         self.assertIn("The project id must be passed", str(err))
         wait_for_operation_to_complete.assert_not_called()
 
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook._wait_for_operation_to_complete')
     def test_create_new_function_overridden_project_id(self, wait_for_operation_to_complete, get_conn):
         create_method = get_conn.return_value.projects.return_value.locations. \
             return_value.functions.return_value.create
@@ -94,12 +96,12 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
     @mock.patch('requests.put')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
     def test_upload_function_zip_missing_project_id(
         self, get_conn, requests_put, mock_project_id
     ):
@@ -122,7 +124,7 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
                 self.assertIn("The project id must be passed", str(err))
 
     @mock.patch('requests.put')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
         mck, open_module = get_open_mock()
         with mock.patch('{}.open'.format(open_module), mck):
@@ -150,11 +152,11 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
 
 class TestFunctionHookDefaultProjectId(unittest.TestCase):
     def setUp(self):
-        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.CloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
-            self.gcf_function_hook = GcfHook(gcp_conn_id='test', api_version='v1')
+            self.gcf_function_hook = CloudFunctionsHook(gcp_conn_id='test', api_version='v1')
 
-    @mock.patch("airflow.gcp.hooks.functions.GcfHook._authorize")
+    @mock.patch("airflow.gcp.hooks.functions.CloudFunctionsHook._authorize")
     @mock.patch("airflow.gcp.hooks.functions.build")
     def test_gcf_client_creation(self, mock_build, mock_authorize):
         result = self.gcf_function_hook.get_conn()
@@ -165,12 +167,12 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         self.assertEqual(self.gcf_function_hook._conn, result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook._wait_for_operation_to_complete')
     def test_create_new_function(self, wait_for_operation_to_complete, get_conn, mock_project_id):
         create_method = get_conn.return_value.projects.return_value.locations.\
             return_value.functions.return_value.create
@@ -187,8 +189,8 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
 
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook._wait_for_operation_to_complete')
     def test_create_new_function_override_project_id(self, wait_for_operation_to_complete, get_conn):
         create_method = get_conn.return_value.projects.return_value.locations. \
             return_value.functions.return_value.create
@@ -206,7 +208,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
 
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
     def test_get_function(self, get_conn):
         get_method = get_conn.return_value.projects.return_value.locations. \
             return_value.functions.return_value.get
@@ -220,8 +222,8 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         get_method.assert_called_once_with(name='function')
         execute_method.assert_called_once_with(num_retries=5)
 
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook._wait_for_operation_to_complete')
     def test_delete_function(self, wait_for_operation_to_complete, get_conn):
         delete_method = get_conn.return_value.projects.return_value.locations. \
             return_value.functions.return_value.delete
@@ -235,8 +237,8 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         delete_method.assert_called_once_with(name='function')
         execute_method.assert_called_once_with(num_retries=5)
 
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook._wait_for_operation_to_complete')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook._wait_for_operation_to_complete')
     def test_update_function(self, wait_for_operation_to_complete, get_conn):
         patch_method = get_conn.return_value.projects.return_value.locations. \
             return_value.functions.return_value.patch
@@ -258,12 +260,12 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         wait_for_operation_to_complete.assert_called_once_with(operation_name='operation_id')
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
     @mock.patch('requests.put')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
     def test_upload_function_zip(self, get_conn, requests_put, mock_project_id):
         mck, open_module = get_open_mock()
         with mock.patch('{}.open'.format(open_module), mck):
@@ -288,7 +290,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
             )
 
     @mock.patch('requests.put')
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
         mck, open_module = get_open_mock()
         with mock.patch('{}.open'.format(open_module), mck):
@@ -313,7 +315,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
                 url='http://uploadHere'
             )
 
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
     def test_call_function(self, mock_get_conn):
         payload = {'executionId': 'wh41ppcyoa6l', 'result': 'Hello World!'}
         call = mock_get_conn.return_value.projects.return_value.\
@@ -338,7 +340,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
         call.assert_called_once_with(body=input_data, name=name)
         self.assertDictEqual(result, payload)
 
-    @mock.patch('airflow.gcp.hooks.functions.GcfHook.get_conn')
+    @mock.patch('airflow.gcp.hooks.functions.CloudFunctionsHook.get_conn')
     def test_call_function_error(self, mock_get_conn):
         payload = {'error': 'Something very bad'}
         call = mock_get_conn.return_value.projects.return_value. \

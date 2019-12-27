@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.vision`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.vision`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.vision import (  # noqa
+from airflow.providers.google.cloud.operators.vision import (  # noqa
     CloudVisionAddProductToProductSetOperator, CloudVisionAnnotateImageOperator,
     CloudVisionDetectDocumentTextOperator, CloudVisionDetectImageLabelsOperator,
     CloudVisionDetectImageSafeSearchOperator, CloudVisionDetectTextOperator, CloudVisionProductCreateOperator,
@@ -34,6 +34,6 @@ from airflow.gcp.operators.vision import (  # noqa
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.vision`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.vision`.",
     DeprecationWarning, stacklevel=2
 )

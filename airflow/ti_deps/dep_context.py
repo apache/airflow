@@ -25,6 +25,7 @@ from airflow.ti_deps.deps.exec_date_after_start_date_dep import ExecDateAfterSta
 from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
+from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.utils.state import State
 
@@ -121,6 +122,7 @@ BACKFILL_QUEUEABLE_STATES = {
 SCHEDULED_DEPS = {
     RunnableExecDateDep(),
     ValidStateDep(SCHEDULEABLE_STATES),
+    TaskNotRunningDep(),
 }
 
 # Dependencies that if met, task instance should be re-queued.
@@ -137,12 +139,14 @@ RUNNING_DEPS = {
     DagTISlotsAvailableDep(),
     TaskConcurrencyDep(),
     PoolSlotsAvailableDep(),
+    TaskNotRunningDep(),
 }
 
 BACKFILL_QUEUED_DEPS = {
     RunnableExecDateDep(),
     ValidStateDep(BACKFILL_QUEUEABLE_STATES),
     DagrunRunningDep(),
+    TaskNotRunningDep(),
 }
 
 # TODO(aoen): SCHEDULER_QUEUED_DEPS is not coupled to actual scheduling/execution
@@ -169,4 +173,5 @@ SCHEDULER_QUEUED_DEPS = {
     DagrunIdDep(),
     DagUnpausedDep(),
     ExecDateAfterStartDateDep(),
+    TaskNotRunningDep(),
 }

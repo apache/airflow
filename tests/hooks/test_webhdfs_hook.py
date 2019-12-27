@@ -95,3 +95,11 @@ class TestWebHDFSHook(unittest.TestCase):
             overwrite=True,
             n_threads=1
         )
+
+    def test_simple_init(self):
+        hook = WebHDFSHook()
+        self.assertIsNone(hook.proxy_user)
+
+    def test_init_proxy_user(self):
+        hook = WebHDFSHook(proxy_user='someone')
+        self.assertEqual('someone', hook.proxy_user)

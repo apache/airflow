@@ -16,12 +16,4 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
-def _integrate_plugins():
-    """Integrate plugins to the context"""
-    import sys
-    from airflow.plugins_manager import operators_modules
-    for operators_module in operators_modules:
-        sys.modules[operators_module.__name__] = operators_module
-        globals()[operators_module._name] = operators_module
+"""Operators."""

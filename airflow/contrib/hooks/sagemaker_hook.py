@@ -28,7 +28,7 @@ from botocore.exceptions import ClientError
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
 from airflow.exceptions import AirflowException
-from airflow.hooks.S3_hook import S3Hook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils import timezone
 
 
@@ -210,8 +210,9 @@ class SageMakerHook(AwsHook):
         :type training_config: dict
         :return: None
         """
-        for channel in training_config['InputDataConfig']:
-            self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
+        if "InputDataConfig" in training_config:
+            for channel in training_config['InputDataConfig']:
+                self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
     def check_tuning_config(self, tuning_config):
         """

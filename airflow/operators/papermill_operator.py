@@ -16,18 +16,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict
+from typing import Dict, Optional
 
+import attr
 import papermill as pm
 
-from airflow.lineage.datasets import DataSet
+from airflow.lineage.entities import File
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class NoteBook(DataSet):
-    type_name = "jupyter_notebook"
-    attributes = ['location', 'parameters']
+@attr.s(auto_attribs=True)
+class NoteBook(File):
+    type_hint: Optional[str] = "jupyter_notebook"
+    parameters: Dict = {}
+
+    meta_schema: str = __name__ + '.NoteBook'
 
 
 class PapermillOperator(BaseOperator):
@@ -49,14 +53,12 @@ class PapermillOperator(BaseOperator):
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.inlets.append(NoteBook(qualified_name=input_nb,
-                                    location=input_nb,
+        self.inlets.append(NoteBook(url=input_nb,
                                     parameters=parameters))
-        self.outlets.append(NoteBook(qualified_name=output_nb,
-                                     location=output_nb))
+        self.outlets.append(NoteBook(url=output_nb))
 
     def execute(self, context):
         for i in range(len(self.inlets)):
-            pm.execute_notebook(self.inlets[i].location, self.outlets[i].location,
+            pm.execute_notebook(self.inlets[i].url, self.outlets[i].url,
                                 parameters=self.inlets[i].parameters,
                                 progress_bar=False, report_mode=True)

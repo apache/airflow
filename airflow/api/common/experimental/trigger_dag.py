@@ -54,7 +54,8 @@ def _trigger_dag(
 
     execution_date = execution_date if execution_date else timezone.utcnow()
 
-    assert timezone.is_localized(execution_date)
+    if not timezone.is_localized(execution_date):
+        raise ValueError("The execution_date should be localized")
 
     if replace_microseconds:
         execution_date = execution_date.replace(microsecond=0)
@@ -76,8 +77,8 @@ def _trigger_dag(
         else:
             run_conf = json.loads(conf)
 
-    triggers = list()
-    dags_to_trigger = list()
+    triggers = []
+    dags_to_trigger = []
     dags_to_trigger.append(dag)
     while dags_to_trigger:
         dag = dags_to_trigger.pop()
