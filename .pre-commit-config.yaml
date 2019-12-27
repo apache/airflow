@@ -226,7 +226,7 @@ repos:
                 ^\sdef\s*\S*\(.*\):\s*\-\>\s*\S*.*  # Matches -> return value syntax from Python3
             )$
         files: \.py$
-        exclude: ^airflow/_vendor
+        exclude: ^airflow/_vendor|^dev/
         pass_filenames: true
       - id: check-providers-package
         language: pygrep
@@ -244,6 +244,7 @@ repos:
         language: system
         entry: python2.7 -m py_compile
         files: \.py$
+        exclude: ^dev/
         pass_filenames: true
         require_serial: true
       - id: pydevd
@@ -270,11 +271,12 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^airflow/_vendor/.*$
+        exclude: ^airflow/_vendor/.*$|^dev/
         pass_filenames: true
       - id: flake8
         name: Run flake8
         language: system
         entry: "./scripts/ci/pre_commit_flake8.sh"
         files: \.py$
+        exclude: ^dev/
         pass_filenames: true
