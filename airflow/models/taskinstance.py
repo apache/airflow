@@ -1114,9 +1114,23 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 self.state = State.FAILED
                 if task.retries:
-                    self.log.info('All retries failed; marking task as FAILED')
+                    self.log.info(
+                        'All retries failed; marking task as FAILED.'
+                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                        self.dag_id,
+                        self.task_id,
+                        self.execution_date.strftime('%Y%m%dT%H%M%S'),
+                        self.start_date.strftime('%Y%m%dT%H%M%S'),
+                        self.end_date.strftime('%Y%m%dT%H%M%S'))
                 else:
-                    self.log.info('Marking task as FAILED.')
+                    self.log.info(
+                        'Marking task as FAILED.'
+                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                        self.dag_id,
+                        self.task_id,
+                        self.execution_date.strftime('%Y%m%dT%H%M%S'),
+                        self.start_date.strftime('%Y%m%dT%H%M%S'),
+                        self.end_date.strftime('%Y%m%dT%H%M%S'))
                 if task.email_on_failure and task.email:
                     self.email_alert(error)
         except Exception as e2:
