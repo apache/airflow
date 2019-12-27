@@ -33,7 +33,9 @@ from urllib.parse import quote, unquote
 import lazy_object_proxy
 import markdown
 import sqlalchemy as sqla
-from flask import Markup, Response, flash, jsonify, make_response, redirect, render_template, request, url_for
+from flask import (
+    Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request, url_for,
+)
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
