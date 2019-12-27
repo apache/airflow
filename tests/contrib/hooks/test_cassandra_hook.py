@@ -39,7 +39,7 @@ def cassandra_is_not_up():
 
 
 @unittest.skipIf(cassandra_is_not_up(), "Cassandra is not up.")
-class CassandraHookTest(unittest.TestCase):
+class TestCassandraHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(
