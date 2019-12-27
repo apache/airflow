@@ -145,7 +145,7 @@ class TestApiExperimental(TestBase):
         response = json.loads(response.data.decode('utf-8'))
         dagbag = DagBag()
         dag = dagbag.get_dag('example_bash_operator')
-        dag_run = dag.get_dagrun(parse_datetime(response['execution_date']))
+        dag_run = dag.get_dagrun(response_execution_date)
         dag_run_id = dag_run.run_id
         self.assertEqual(run_id, dag_run_id)
         self.assertEqual(dag_run_id, response['run_id'])
