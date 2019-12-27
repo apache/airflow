@@ -280,6 +280,7 @@ intersphinx_mapping = {
     'google-cloud-bigtable': ('https://googleapis.dev/python/bigtable/latest', None),
     'google-cloud-container': ('https://googleapis.dev/python/container/latest', None),
     'google-cloud-core': ('https://googleapis.dev/python/google-cloud-core/latest', None),
+    'google-cloud-datacatalog': ('https://googleapis.dev/python/datacatalog/latest', None),
     'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest', None),
     'google-cloud-dlp': ('https://googleapis.dev/python/dlp/latest', None),
     'google-cloud-kms': ('https://googleapis.dev/python/cloudkms/latest', None),
