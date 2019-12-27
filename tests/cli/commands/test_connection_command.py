@@ -170,7 +170,7 @@ class TestCliAddConnections(unittest.TestCase):
                     "--conn_port=9083",
                     "--conn_schema=airflow",
                 ],
-                "\tSuccessfully added `conn_id`=new5 : hive_metastore://airflow:airflow@host:9083/airflow",
+                "\tSuccessfully added `conn_id`=new5 : hive_metastore://airflow:******@host:9083/airflow",
                 {
                     "conn_id": "new5",
                     "conn_type": "hive_metastore",
