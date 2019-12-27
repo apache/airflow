@@ -16,38 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.cassandra_hook import CassandraHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
 
+"""This module is deprecated. Please use `airflow.providers.apache.cassandra.sensors.table`."""
 
-class CassandraTableSensor(BaseSensorOperator):
-    """
-    Checks for the existence of a table in a Cassandra cluster.
+import warnings
 
-    For example, if you want to wait for a table called 't' to be created
-    in a keyspace 'k', instantiate it as follows:
+# pylint: disable=unused-import
+from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor  # noqa
 
-    >>> cassandra_sensor = CassandraTableSensor(table="k.t",
-    ...                                         cassandra_conn_id="cassandra_default",
-    ...                                         task_id="cassandra_sensor")
-
-    :param table: Target Cassandra table.
-        Use dot notation to target a specific keyspace.
-    :type table: str
-    :param cassandra_conn_id: The connection ID to use
-        when connecting to Cassandra cluster
-    :type cassandra_conn_id: str
-    """
-    template_fields = ('table',)
-
-    @apply_defaults
-    def __init__(self, table, cassandra_conn_id, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.cassandra_conn_id = cassandra_conn_id
-        self.table = table
-
-    def poke(self, context):
-        self.log.info('Sensor check existence of table: %s', self.table)
-        hook = CassandraHook(self.cassandra_conn_id)
-        return hook.table_exists(self.table)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.apache.cassandra.sensors.table`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

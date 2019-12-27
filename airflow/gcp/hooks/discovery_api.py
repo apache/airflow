@@ -20,12 +20,14 @@
 """
 This module allows you to connect to the Google Discovery API Service and query it.
 """
-from googleapiclient.discovery import build
+from typing import Dict, Optional
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from googleapiclient.discovery import Resource, build
+
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class GoogleDiscoveryApiHook(GoogleCloudBaseHook):
+class GoogleDiscoveryApiHook(CloudBaseHook):
     """
     A hook to use the Google API Discovery Service.
 
@@ -41,9 +43,15 @@ class GoogleDiscoveryApiHook(GoogleCloudBaseHook):
         domain-wide delegation enabled.
     :type delegate_to: str
     """
-    _conn = None
+    _conn = None  # type: Optional[Resource]
 
-    def __init__(self, api_service_name, api_version, gcp_conn_id='google_cloud_default', delegate_to=None):
+    def __init__(
+        self,
+        api_service_name: str,
+        api_version: str,
+        gcp_conn_id='google_cloud_default',
+        delegate_to: Optional[str] = None
+    ) -> None:
         super(GoogleDiscoveryApiHook, self).__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self.api_service_name = api_service_name
         self.api_version = api_version
@@ -67,7 +75,7 @@ class GoogleDiscoveryApiHook(GoogleCloudBaseHook):
             )
         return self._conn
 
-    def query(self, endpoint, data, paginate=False, num_retries=0):
+    def query(self, endpoint: str, data: Dict, paginate: bool = False, num_retries: int = 0) -> Dict:
         """
         Creates a dynamic API call to any Google API registered in Google's API Client Library
         and queries it.

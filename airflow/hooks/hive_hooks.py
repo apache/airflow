@@ -433,7 +433,7 @@ class HiveCliHook(BaseHook):
             if field_dict is None:
                 raise ValueError("Must provide a field dict when creating a table")
             fields = ",\n    ".join(
-                [k + ' ' + v for k, v in field_dict.items()])
+                ['`{k}` {v}'.format(k=k.strip('`'), v=v) for k, v in field_dict.items()])
             hql += "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n".format(
                 table=table, fields=fields)
             if partition:
@@ -447,9 +447,9 @@ class HiveCliHook(BaseHook):
                 tprops = ", ".join(
                     ["'{0}'='{1}'".format(k, v) for k, v in tblproperties.items()])
                 hql += "TBLPROPERTIES({tprops})\n".format(tprops=tprops)
-        hql += ";"
-        self.log.info(hql)
-        self.run_cli(hql)
+            hql += ";"
+            self.log.info(hql)
+            self.run_cli(hql)
         hql = "LOAD DATA LOCAL INPATH '{filepath}' ".format(filepath=filepath)
         if overwrite:
             hql += "OVERWRITE "

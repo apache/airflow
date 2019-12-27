@@ -23,11 +23,12 @@ import json
 import unittest
 from collections import namedtuple
 
+import mock
+
 from airflow import AirflowException
 from airflow.contrib.hooks.wasb_hook import WasbHook
 from airflow.models import Connection
 from airflow.utils import db
-from tests.compat import mock
 
 
 class TestWasbHook(unittest.TestCase):

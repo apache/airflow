@@ -31,6 +31,7 @@ information.
     :maxdepth: 2
 
     bash
+    amazon/aws/index
     dingding
     gcp/index
     kubernetes

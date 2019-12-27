@@ -27,6 +27,7 @@ from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
+from airflow.version import version
 from airflow.www import app as application
 from tests.test_utils.db import clear_db_pools
 
@@ -58,9 +59,6 @@ class TestApiExperimental(TestBase):
         for dag in dagbag.dags.values():
             dag.sync_to_db()
 
-    def setUp(self):
-        super().setUp()
-
     def tearDown(self):
         session = Session()
         session.query(DagRun).delete()
@@ -68,6 +66,14 @@ class TestApiExperimental(TestBase):
         session.commit()
         session.close()
         super().tearDown()
+
+    def test_info(self):
+        url = '/api/experimental/info'
+
+        resp_raw = self.client.get(url)
+        resp = json.loads(resp_raw.data.decode('utf-8'))
+
+        self.assertEqual(version, resp['version'])
 
     def test_task_info(self):
         url_template = '/api/experimental/dags/{}/tasks/{}'
@@ -132,6 +138,9 @@ class TestApiExperimental(TestBase):
         )
 
         self.assertEqual(200, response.status_code)
+        response_execution_date = parse_datetime(json.loads(response.data.decode('utf-8'))['execution_date'])
+        self.assertEqual(0, response_execution_date.microsecond)
+
         # Check execution_date is correct
         response = json.loads(response.data.decode('utf-8'))
         dagbag = DagBag()
@@ -141,6 +150,7 @@ class TestApiExperimental(TestBase):
         self.assertEqual(run_id, dag_run_id)
         self.assertEqual(dag_run_id, response['run_id'])
 
+        # Test error for nonexistent dag
         response = self.client.post(
             url_template.format('does_not_exist_dag'),
             data=json.dumps({}),
@@ -151,14 +161,10 @@ class TestApiExperimental(TestBase):
     def test_trigger_dag_for_date(self):
         url_template = '/api/experimental/dags/{}/dag_runs'
         dag_id = 'example_bash_operator'
-        hour_from_now = utcnow() + timedelta(hours=1)
-        execution_date = datetime(hour_from_now.year,
-                                  hour_from_now.month,
-                                  hour_from_now.day,
-                                  hour_from_now.hour)
+        execution_date = utcnow() + timedelta(hours=1)
         datetime_string = execution_date.isoformat()
 
-        # Test Correct execution
+        # Test correct execution with execution date
         response = self.client.post(
             url_template.format(dag_id),
             data=json.dumps({'execution_date': datetime_string}),
@@ -174,10 +180,27 @@ class TestApiExperimental(TestBase):
                         'Dag Run not found for execution date {}'
                         .format(execution_date))
 
+        # Test correct execution with execution date and microseconds replaced
+        response = self.client.post(
+            url_template.format(dag_id),
+            data=json.dumps({'execution_date': datetime_string, 'replace_microseconds': 'true'}),
+            content_type="application/json"
+        )
+        self.assertEqual(200, response.status_code)
+        response_execution_date = parse_datetime(json.loads(response.data.decode('utf-8'))['execution_date'])
+        self.assertEqual(0, response_execution_date.microsecond)
+
+        dagbag = DagBag()
+        dag = dagbag.get_dag(dag_id)
+        dag_run = dag.get_dagrun(response_execution_date)
+        self.assertTrue(dag_run,
+                        'Dag Run not found for execution date {}'
+                        .format(execution_date))
+
         # Test error for nonexistent dag
         response = self.client.post(
             url_template.format('does_not_exist_dag'),
-            data=json.dumps({'execution_date': execution_date.isoformat()}),
+            data=json.dumps({'execution_date': datetime_string}),
             content_type="application/json"
         )
         self.assertEqual(404, response.status_code)
@@ -310,9 +333,6 @@ class TestPoolApiExperimental(TestBase):
             self.pools.append(pool)
         self.session.commit()
         self.pool = self.pools[-1]
-
-    def tearDown(self):
-        super().tearDown()
 
     def _get_pool_count(self):
         response = self.client.get('/api/experimental/pools')

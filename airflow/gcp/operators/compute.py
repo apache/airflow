@@ -27,14 +27,14 @@ from googleapiclient.errors import HttpError
 from json_merge_patch import merge
 
 from airflow import AirflowException
-from airflow.gcp.hooks.compute import GceHook
+from airflow.gcp.hooks.compute import ComputeEngineHook
 from airflow.gcp.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GceBaseOperator(BaseOperator):
+class ComputeEngineBaseOperator(BaseOperator):
     """
     Abstract base operator for Google Compute Engine operators to inherit from.
     """
@@ -67,13 +67,13 @@ class GceBaseOperator(BaseOperator):
         pass
 
 
-class GceInstanceStartOperator(GceBaseOperator):
+class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
     """
     Starts an instance in Google Compute Engine.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceInstanceStartOperator`
+        :ref:`howto/operator:ComputeEngineStartInstanceOperator`
 
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
@@ -109,19 +109,19 @@ class GceInstanceStartOperator(GceBaseOperator):
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         return hook.start_instance(zone=self.zone,
                                    resource_id=self.resource_id,
                                    project_id=self.project_id)
 
 
-class GceInstanceStopOperator(GceBaseOperator):
+class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
     """
     Stops an instance in Google Compute Engine.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceInstanceStopOperator`
+        :ref:`howto/operator:ComputeEngineStopInstanceOperator`
 
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
@@ -157,7 +157,7 @@ class GceInstanceStopOperator(GceBaseOperator):
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         hook.stop_instance(zone=self.zone,
                            resource_id=self.resource_id,
                            project_id=self.project_id)
@@ -168,14 +168,14 @@ SET_MACHINE_TYPE_VALIDATION_SPECIFICATION = [
 ]
 
 
-class GceSetMachineTypeOperator(GceBaseOperator):
+class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     """
     Changes the machine type for a stopped instance to the machine type specified in
         the request.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceSetMachineTypeOperator`
+        :ref:`howto/operator:ComputeEngineSetMachineTypeOperator`
 
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
@@ -226,7 +226,7 @@ class GceSetMachineTypeOperator(GceBaseOperator):
             self._field_validator.validate(self.body)
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_all_body_fields()
         return hook.set_machine_type(zone=self.zone,
                                      resource_id=self.resource_id,
@@ -282,13 +282,13 @@ GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE = [
 ]
 
 
-class GceInstanceTemplateCopyOperator(GceBaseOperator):
+class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     """
     Copies the instance template, applying specified changes.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceInstanceTemplateCopyOperator`
+        :ref:`howto/operator:ComputeEngineCopyInstanceTemplateOperator`
 
     :param resource_id: Name of the Instance Template
     :type resource_id: str
@@ -329,7 +329,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
                  resource_id: str,
                  body_patch: dict,
                  project_id: Optional[str] = None,
-                 request_id=None,
+                 request_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version: str = 'v1',
                  validate_body: bool = True,
@@ -355,7 +355,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
             self._field_validator.validate(self.body_patch)
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_all_body_fields()
         try:
             # Idempotence check (sort of) - we want to check if the new template
@@ -391,7 +391,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
                                           project_id=self.project_id)
 
 
-class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
+class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseOperator):
     """
     Patches the Instance Group Manager, replacing source template URL with the
     destination one. API V1 does not have update/patch operations for Instance
@@ -399,7 +399,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GceInstanceGroupManagerUpdateTemplateOperator`
+        :ref:`howto/operator:ComputeEngineInstanceGroupUpdateManagerTemplateOperator`
 
     :param resource_id: Name of the Instance Group Manager
     :type resource_id: str
@@ -441,8 +441,8 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
                  source_template: str,
                  destination_template: str,
                  project_id: Optional[str] = None,
-                 update_policy=None,
-                 request_id=None,
+                 update_policy: Optional[Dict[str, Any]] = None,
+                 request_id: Optional[str] = None,
                  gcp_conn_id: str = 'google_cloud_default',
                  api_version='beta',
                  *args, **kwargs) -> None:
@@ -466,7 +466,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
             self._change_performed = True
 
     def execute(self, context):
-        hook = GceHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         old_instance_group_manager = hook.get_instance_group_manager(
             zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
         patch_body = {}

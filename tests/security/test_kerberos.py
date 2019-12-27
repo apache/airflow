@@ -44,7 +44,7 @@ class TestKerberos(unittest.TestCase):
         """
         We expect no result, but a successful run. No more TypeError
         """
-        self.assertIsNone(renew_from_kt(principal=self.args.principal,
+        self.assertIsNone(renew_from_kt(principal=self.args.principal,  # pylint: disable=no-member
                                         keytab=self.args.keytab))
 
     def test_args_from_cli(self):
@@ -54,8 +54,8 @@ class TestKerberos(unittest.TestCase):
         self.args.keytab = "test_keytab"
 
         with conf_vars({('kerberos', 'keytab'): ''}):
-            with self.assertRaises(SystemExit) as se:
-                renew_from_kt(principal=self.args.principal,
+            with self.assertRaises(SystemExit) as err:
+                renew_from_kt(principal=self.args.principal,  # pylint: disable=no-member
                               keytab=self.args.keytab)
 
                 with self.assertLogs(LoggingMixin().log) as log:
@@ -64,4 +64,4 @@ class TestKerberos(unittest.TestCase):
                         'airflow@LUPUS.GRIDDYNAMICS.NET in keytab FILE:{} '
                         '(unknown enctype)'.format(self.args.keytab), log.output)
 
-                self.assertEqual(se.exception.code, 1)
+                self.assertEqual(err.exception.code, 1)

@@ -55,6 +55,9 @@ The function accepts time in two formats:
 If you want to create a job transfer that copies data from AWS S3 then you must have a connection configured. Information about configuration for AWS is available: :doc:`../../connection/aws`
 The selected connection for AWS can be indicated by the parameter ``aws_conn_id``.
 
+For parameter definition, take a look at
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobCreateOperator`.
+
 Arguments
 """""""""
 
@@ -106,6 +109,9 @@ GcpTransferServiceJobDeleteOperator
 
 Deletes a transfer job.
 
+For parameter definition, take a look at
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobDeleteOperator`.
+
 Arguments
 """""""""
 
@@ -146,6 +152,9 @@ GcpTransferServiceJobUpdateOperator
 -----------------------------------
 
 Updates a transfer job.
+
+For parameter definition, take a look at
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobUpdateOperator`.
 
 Arguments
 """""""""
@@ -193,6 +202,9 @@ GcpTransferServiceOperationCancelOperator
 
 Gets a transfer operation. The result is returned to XCOM.
 
+For parameter definition, take a look at
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationCancelOperator`.
+
 Arguments
 """""""""
 
@@ -235,6 +247,9 @@ GcpTransferServiceOperationGetOperator
 
 Gets a transfer operation. The result is returned to XCOM.
 
+For parameter definition, take a look at
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationGetOperator`.
+
 Arguments
 """""""""
 
@@ -275,6 +290,9 @@ GcpTransferServiceOperationsListOperator
 ----------------------------------------
 
 List a transfer operations. The result is returned to XCOM.
+
+For parameter definition, take a look at
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationsListOperator`.
 
 Arguments
 """""""""
@@ -317,6 +335,9 @@ GcpTransferServiceOperationPauseOperator
 
 Pauses a transfer operations.
 
+For parameter definition, take a look at
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationPauseOperator`.
+
 Arguments
 """""""""
 
@@ -358,6 +379,9 @@ GcpTransferServiceOperationResumeOperator
 
 Resumes a transfer operations.
 
+For parameter definition, take a look at
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationResumeOperator`.
+
 Arguments
 """""""""
 
@@ -392,11 +416,15 @@ More information
 See `Google Cloud Transfer Service - Method: transferOperations.resume
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations/resume>`_
 
+.. _howto/operator:GCPTransferServiceWaitForJobStatusSensor:
 
 GCPTransferServiceWaitForJobStatusSensor
 ----------------------------------------
 
 Waits for at least one operation belonging to the job to have the expected status.
+
+For parameter definition, take a look at
+:class:`~airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceWaitForJobStatusSensor`.
 
 Arguments
 """""""""

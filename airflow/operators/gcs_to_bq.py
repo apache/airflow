@@ -32,12 +32,12 @@ from airflow.utils.decorators import apply_defaults
 # pylint: disable=too-many-instance-attributes
 class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     """
-    Loads files from Google cloud storage into BigQuery.
+    Loads files from Google Cloud Storage into BigQuery.
 
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
-    point the operator to a Google cloud storage object name. The object in
-    Google cloud storage must be a JSON file with the schema fields in it.
+    point the operator to a Google Cloud Storage object name. The object in
+    Google Cloud Storage must be a JSON file with the schema fields in it.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -45,7 +45,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
 
     :param bucket: The bucket to load from. (templated)
     :type bucket: str
-    :param source_objects: List of Google cloud storage URIs to load from. (templated)
+    :param source_objects: List of Google Cloud Storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type source_objects: list[str]
     :param destination_project_dataset_table: The dotted
@@ -97,6 +97,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         invalid error is returned in the job result. Only applicable to CSV, ignored
         for other formats.
     :type allow_jagged_rows: bool
+    :param encoding: The character encoding of the data. See:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).csvOptions.encoding
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
     :param max_id_key: If set, the name of a column in the BigQuery table
         that's to be loaded. This will be used to select the MAX value from
         BigQuery after the load occurs. The results will be returned by the
@@ -144,6 +147,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
             }
     :type encryption_configuration: dict
+    :param location: [Optional] The geographic location of the job. Required except for US and EU.
+        See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table')
@@ -169,6 +175,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  ignore_unknown_values=False,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
+                 encoding="UTF-8",
                  max_id_key=None,
                  bigquery_conn_id='google_cloud_default',
                  google_cloud_storage_conn_id='google_cloud_default',
@@ -180,6 +187,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  cluster_fields=None,
                  autodetect=True,
                  encryption_configuration=None,
+                 location=None,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -208,6 +216,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.allow_quoted_newlines = allow_quoted_newlines
         self.allow_jagged_rows = allow_jagged_rows
         self.external_table = external_table
+        self.encoding = encoding
 
         self.max_id_key = max_id_key
         self.bigquery_conn_id = bigquery_conn_id
@@ -220,10 +229,12 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.cluster_fields = cluster_fields
         self.autodetect = autodetect
         self.encryption_configuration = encryption_configuration
+        self.location = location
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               location=self.location)
 
         if not self.schema_fields:
             if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
@@ -261,6 +272,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
+                encoding=self.encoding,
                 src_fmt_configs=self.src_fmt_configs,
                 encryption_configuration=self.encryption_configuration
             )
@@ -280,6 +292,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
+                encoding=self.encoding,
                 schema_update_options=self.schema_update_options,
                 src_fmt_configs=self.src_fmt_configs,
                 time_partitioning=self.time_partitioning,

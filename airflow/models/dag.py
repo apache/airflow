@@ -24,37 +24,35 @@ import pickle
 import re
 import sys
 import traceback
-import warnings
 from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Type, Union
+from typing import Callable, Dict, FrozenSet, Iterable, List, Optional, Type, Union
 
 import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Boolean, Column, Integer, String, Text, func, or_
+from sqlalchemy import Boolean, Column, Index, Integer, String, Text, func, or_
 
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowDagCycleException, AirflowException
-from airflow.executors import LocalExecutor, get_default_executor
+from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
 from airflow.models.base import ID_LEN, Base
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.settings import MIN_SERIALIZED_DAG_UPDATE_INTERVAL, STORE_SERIALIZED_DAGS
 from airflow.utils import timezone
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
+from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
-
-if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator  # Avoid circular dependency
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -184,7 +182,6 @@ class DAG(BaseDag, LoggingMixin):
 
     :type jinja_environment_kwargs: dict
     """
-
     _comps = {
         'dag_id',
         'task_ids',
@@ -195,6 +192,8 @@ class DAG(BaseDag, LoggingMixin):
         'template_searchpath',
         'last_loaded',
     }
+
+    __serialized_fields: Optional[FrozenSet[str]] = None
 
     def __init__(
         self,
@@ -245,7 +244,7 @@ class DAG(BaseDag, LoggingMixin):
         self._description = description
         # set file location to caller source path
         self.fileloc = sys._getframe().f_back.f_code.co_filename
-        self.task_dict = dict()  # type: Dict[str, BaseOperator]
+        self.task_dict: Dict[str, BaseOperator] = dict()
 
         # set timezone from start_date
         if start_date and start_date.tzinfo:
@@ -307,7 +306,6 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
         self.doc_md = doc_md
 
-        self._old_context_manager_dags = []  # type: Iterable[DAG]
         self._access_control = access_control
         self.is_paused_upon_creation = is_paused_upon_creation
 
@@ -347,14 +345,12 @@ class DAG(BaseDag, LoggingMixin):
         return hash(tuple(hash_components))
 
     # Context Manager -----------------------------------------------
-
     def __enter__(self):
-        self._old_context_manager_dags.append(settings.CONTEXT_MANAGER_DAG)
-        settings.CONTEXT_MANAGER_DAG = self
+        DagContext.push_context_managed_dag(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        settings.CONTEXT_MANAGER_DAG = self._old_context_manager_dags.pop()
+        DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
 
@@ -657,15 +653,16 @@ class DAG(BaseDag, LoggingMixin):
         :param session:
         :return: number greater than 0 for active dag runs
         """
+        # .count() is inefficient
         query = (session
-                 .query(DagRun)
+                 .query(func.count())
                  .filter(DagRun.dag_id == self.dag_id)
                  .filter(DagRun.state == State.RUNNING))
 
         if external_trigger is not None:
             query = query.filter(DagRun.external_trigger == external_trigger)
 
-        return query.count()
+        return query.scalar()
 
     @provide_session
     def get_dagrun(self, execution_date, session=None):
@@ -730,7 +727,8 @@ class DAG(BaseDag, LoggingMixin):
         for task in self.tasks:
             if (isinstance(task, SubDagOperator) or
                     # TODO remove in Airflow 2.0
-                    type(task).__name__ == 'SubDagOperator'):
+                    type(task).__name__ == 'SubDagOperator' or
+                    task.task_type == 'SubDagOperator'):
                 subdag_lst.append(task.subdag)
                 subdag_lst += task.subdag.subdags
         return subdag_lst
@@ -806,12 +804,12 @@ class DAG(BaseDag, LoggingMixin):
         return tis
 
     @property
-    def roots(self) -> List["BaseOperator"]:
+    def roots(self) -> List[BaseOperator]:
         """Return nodes with no parents. These are first to execute and are called roots or root nodes."""
         return [task for task in self.tasks if not task.upstream_list]
 
     @property
-    def leaves(self) -> List["BaseOperator"]:
+    def leaves(self) -> List[BaseOperator]:
         """Return nodes with no children. These are last to execute and are called leaves or leaf nodes."""
         return [task for task in self.tasks if not task.downstream_list]
 
@@ -1089,13 +1087,13 @@ class DAG(BaseDag, LoggingMixin):
 
         # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag while copying the task
-        dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): t.dag})
+        dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): dag})
                          for t in regex_match + also_include}
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # made the cut
-            t._upstream_task_ids = t._upstream_task_ids.intersection(dag.task_dict.keys())
-            t._downstream_task_ids = t._downstream_task_ids.intersection(
+            t._upstream_task_ids = t.upstream_task_ids.intersection(dag.task_dict.keys())
+            t._downstream_task_ids = t.downstream_task_ids.intersection(
                 dag.task_dict.keys())
 
         if len(dag.tasks) < len(self.tasks):
@@ -1182,14 +1180,9 @@ class DAG(BaseDag, LoggingMixin):
         elif task.end_date and self.end_date:
             task.end_date = min(task.end_date, self.end_date)
 
-        if task.task_id in self.task_dict:
-            # TODO: raise an error in Airflow 2.0
-            warnings.warn(
-                'The requested task could not be added to the DAG because a '
-                'task with task_id {} is already in the DAG. Starting in '
-                'Airflow 2.0, trying to overwrite a task will raise an '
-                'exception.'.format(task.task_id),
-                category=PendingDeprecationWarning)
+        if task.task_id in self.task_dict and self.task_dict[task.task_id] != task:
+            raise DuplicateTaskIdFound(
+                "Task id '{}' has already been added to the DAG".format(task.task_id))
         else:
             self.task_dict[task.task_id] = task
             task.dag = self
@@ -1260,9 +1253,11 @@ class DAG(BaseDag, LoggingMixin):
         """
         from airflow.jobs import BackfillJob
         if not executor and local:
+            from airflow.executors.local_executor import LocalExecutor
             executor = LocalExecutor()
         elif not executor:
-            executor = get_default_executor()
+            from airflow.executors.executor_loader import ExecutorLoader
+            executor = ExecutorLoader.get_default_executor()
         job = BackfillJob(
             self,
             start_date=start_date,
@@ -1303,7 +1298,7 @@ class DAG(BaseDag, LoggingMixin):
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
 
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime
@@ -1352,6 +1347,7 @@ class DAG(BaseDag, LoggingMixin):
         :type sync_time: datetime
         :return: None
         """
+        from airflow.models.serialized_dag import SerializedDagModel
 
         if owner is None:
             owner = self.owner
@@ -1365,8 +1361,13 @@ class DAG(BaseDag, LoggingMixin):
             if self.is_paused_upon_creation is not None:
                 orm_dag.is_paused = self.is_paused_upon_creation
             self.log.info("Creating ORM DAG for %s", self.dag_id)
-        orm_dag.fileloc = self.parent_dag.fileloc if self.is_subdag else self.fileloc
-        orm_dag.is_subdag = self.is_subdag
+        if self.is_subdag:
+            orm_dag.is_subdag = True
+            orm_dag.fileloc = self.parent_dag.fileloc
+            orm_dag.root_dag_id = self.parent_dag.dag_id
+        else:
+            orm_dag.is_subdag = False
+            orm_dag.fileloc = self.fileloc
         orm_dag.owners = owner
         orm_dag.is_active = True
         orm_dag.last_scheduler_run = sync_time
@@ -1378,6 +1379,16 @@ class DAG(BaseDag, LoggingMixin):
 
         for subdag in self.subdags:
             subdag.sync_to_db(owner=owner, sync_time=sync_time, session=session)
+
+        # Write DAGs to serialized_dag table in DB.
+        # subdags are not written into serialized_dag, because they are not displayed
+        # in the DAG list on UI. They are included in the serialized parent DAG.
+        if STORE_SERIALIZED_DAGS and not self.is_subdag:
+            SerializedDagModel.write_dag(
+                self,
+                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                session=session
+            )
 
     @staticmethod
     @provide_session
@@ -1494,6 +1505,18 @@ class DAG(BaseDag, LoggingMixin):
 
         visit_map[task_id] = DagBag.CYCLE_DONE
 
+    @classmethod
+    def get_serialized_fields(cls):
+        """Stringified DAGs and operators contain exactly these fields."""
+        if not cls.__serialized_fields:
+            cls.__serialized_fields = frozenset(vars(DAG(dag_id='test')).keys()) - {
+                'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
+                '_full_filepath', 'user_defined_filters', 'user_defined_macros',
+                '_schedule_interval', 'partial', '_old_context_manager_dags',
+                '_pickle_id', '_log', 'is_subdag', 'task_dict'
+            }
+        return cls.__serialized_fields
+
 
 class DagModel(Base):
 
@@ -1502,6 +1525,7 @@ class DagModel(Base):
     These items are stored in the database for state related information
     """
     dag_id = Column(String(ID_LEN), primary_key=True)
+    root_dag_id = Column(String(ID_LEN))
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = conf\
@@ -1537,6 +1561,10 @@ class DagModel(Base):
     # Schedule interval
     schedule_interval = Column(Interval)
 
+    __table_args__ = (
+        Index('idx_root_dag_id', root_dag_id, unique=False),
+    )
+
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
 
@@ -1569,8 +1597,19 @@ class DagModel(Base):
     def safe_dag_id(self):
         return self.dag_id.replace('.', '__dot__')
 
-    def get_dag(self):
-        return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+    def get_dag(self, store_serialized_dags=False):
+        """Creates a dagbag to load and return a DAG.
+
+        Calling it from UI should set store_serialized_dags = STORE_SERIALIZED_DAGS.
+        There may be a delay for scheduler to write serialized DAG into database,
+        loads from file in this case.
+        FIXME: remove it when webserver does not access to DAG folder in future.
+        """
+        dag = DagBag(
+            dag_folder=self.fileloc, store_serialized_dags=store_serialized_dags).get_dag(self.dag_id)
+        if store_serialized_dags and dag is None:
+            dag = self.get_dag()
+        return dag
 
     @provide_session
     def create_dagrun(self,
@@ -1585,7 +1624,7 @@ class DagModel(Base):
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
 
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime.datetime
@@ -1611,17 +1650,22 @@ class DagModel(Base):
     def set_is_paused(self,
                       is_paused: bool,
                       including_subdags: bool = True,
+                      store_serialized_dags: bool = False,
                       session=None) -> None:
         """
         Pause/Un-pause a DAG.
 
         :param is_paused: Is the DAG paused
         :param including_subdags: whether to include the DAG's subdags
+        :param store_serialized_dags: whether to serialize DAGs & store it in DB
         :param session: session
         """
         dag_ids = [self.dag_id]  # type: List[str]
         if including_subdags:
-            subdags = self.get_dag().subdags
+            dag = self.get_dag(store_serialized_dags)
+            if dag is None:
+                raise DagNotFound("Dag id {} not found".format(self.dag_id))
+            subdags = dag.subdags
             dag_ids.extend([subdag.dag_id for subdag in subdags])
         dag_models = session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).all()
         try:
@@ -1631,3 +1675,78 @@ class DagModel(Base):
         except Exception:
             session.rollback()
             raise
+
+    @classmethod
+    @provide_session
+    def deactivate_deleted_dags(cls, alive_dag_filelocs: List[str], session=None):
+        """
+        Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
+        Additionally change ``is_active=False`` to ``True`` if the DAG file exists.
+
+        :param alive_dag_filelocs: file paths of alive DAGs
+        :param session: ORM Session
+        """
+        log = LoggingMixin().log
+        log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ",
+                  cls.__tablename__)
+
+        dag_models = session.query(cls).all()
+        try:
+            for dag_model in dag_models:
+                if dag_model.fileloc is not None:
+                    if correct_maybe_zipped(dag_model.fileloc) not in alive_dag_filelocs:
+                        dag_model.is_active = False
+                    else:
+                        # If is_active is set as False and the DAG File still exists
+                        # Change is_active=True
+                        if not dag_model.is_active:
+                            dag_model.is_active = True
+                else:
+                    continue
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+
+
+class DagContext:
+    """
+    DAG context is used to keep the current DAG when DAG is used as ContextManager.
+
+    You can use DAG as context:
+
+    .. code-block:: python
+
+        with DAG(
+            dag_id='example_dag',
+            default_args=default_args,
+            schedule_interval='0 0 * * *',
+            dagrun_timeout=timedelta(minutes=60)
+        ) as dag:
+
+    If you do this the context stores the DAG and whenever new task is created, it will use
+    such stored DAG as the parent DAG.
+
+    """
+
+    _context_managed_dag: Optional[DAG] = None
+    _previous_context_managed_dags: List[DAG] = []
+
+    @classmethod
+    def push_context_managed_dag(cls, dag: DAG):
+        if cls._context_managed_dag:
+            cls._previous_context_managed_dags.append(cls._context_managed_dag)
+        cls._context_managed_dag = dag
+
+    @classmethod
+    def pop_context_managed_dag(cls) -> Optional[DAG]:
+        old_dag = cls._context_managed_dag
+        if cls._previous_context_managed_dags:
+            cls._context_managed_dag = cls._previous_context_managed_dags.pop()
+        else:
+            cls._context_managed_dag = None
+        return old_dag
+
+    @classmethod
+    def get_current_dag(cls) -> Optional[DAG]:
+        return cls._context_managed_dag

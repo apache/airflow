@@ -25,6 +25,7 @@ from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version as airflow_version
 
 
 class WorkerConfiguration(LoggingMixin):
@@ -64,6 +65,9 @@ class WorkerConfiguration(LoggingMixin):
         ), k8s.V1EnvVar(
             name='GIT_SYNC_DEST',
             value=self.kube_config.git_sync_dest
+        ), k8s.V1EnvVar(
+            name='GIT_SYNC_REV',
+            value=self.kube_config.git_sync_rev
         ), k8s.V1EnvVar(
             name='GIT_SYNC_DEPTH',
             value='1'
@@ -154,7 +158,7 @@ class WorkerConfiguration(LoggingMixin):
 
         if self.kube_config.git_sync_run_as_user != "":
             init_containers.security_context = k8s.V1SecurityContext(
-                run_as_user=self.kube_config.git_sync_run_as_user or 65533
+                run_as_user=self.kube_config.git_sync_run_as_user
             )  # git-sync user
 
         return [init_containers]
@@ -219,13 +223,6 @@ class WorkerConfiguration(LoggingMixin):
                 )
 
         return worker_secrets
-
-    def _get_image_pull_secrets(self) -> List[k8s.V1LocalObjectReference]:
-        """Extracts any image pull secrets for fetching container(s)"""
-        if not self.kube_config.image_pull_secrets:
-            return []
-        pull_secrets = self.kube_config.image_pull_secrets.split(',')
-        return list(map(k8s.V1LocalObjectReference, pull_secrets))
 
     def _get_security_context(self) -> k8s.V1PodSecurityContext:
         """Defines the security context"""
@@ -369,12 +366,15 @@ class WorkerConfiguration(LoggingMixin):
             name=pod_id,
             image=self.kube_config.kube_image,
             image_pull_policy=self.kube_config.kube_image_pull_policy,
+            image_pull_secrets=self.kube_config.image_pull_secrets,
             labels={
                 'airflow-worker': worker_uuid,
                 'dag_id': dag_id,
                 'task_id': task_id,
                 'execution_date': execution_date,
                 'try_number': str(try_number),
+                'airflow_version': airflow_version.replace('+', '-'),
+                'kubernetes_executor': 'True',
             },
             cmds=airflow_command,
             volumes=self._get_volumes(),

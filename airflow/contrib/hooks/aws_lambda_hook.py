@@ -17,56 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS Lambda hook
-"""
-from airflow.contrib.hooks.aws_hook import AwsHook
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.lambda_function`."""
 
+import warnings
 
-class AwsLambdaHook(AwsHook):
-    """
-    Interact with AWS Lambda
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.hooks.lambda_function import AwsLambdaHook  # noqa
 
-    :param function_name: AWS Lambda Function Name
-    :type function_name: str
-    :param region_name: AWS Region Name (example: us-west-2)
-    :type region_name: str
-    :param log_type: Tail Invocation Request
-    :type log_type: str
-    :param qualifier: AWS Lambda Function Version or Alias Name
-    :type qualifier: str
-    :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
-    :type invocation_type: str
-    """
-
-    def __init__(self, function_name, region_name=None,
-                 log_type='None', qualifier='$LATEST',
-                 invocation_type='RequestResponse', *args, **kwargs):
-        self.function_name = function_name
-        self.region_name = region_name
-        self.log_type = log_type
-        self.invocation_type = invocation_type
-        self.qualifier = qualifier
-        self.conn = None
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        self.conn = self.get_client_type('lambda', self.region_name)
-        return self.conn
-
-    def invoke_lambda(self, payload):
-        """
-        Invoke Lambda Function
-        """
-
-        awslambda_conn = self.get_conn()
-
-        response = awslambda_conn.invoke(
-            FunctionName=self.function_name,
-            InvocationType=self.invocation_type,
-            LogType=self.log_type,
-            Payload=payload,
-            Qualifier=self.qualifier
-        )
-
-        return response
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.lambda_function`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

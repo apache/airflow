@@ -52,7 +52,7 @@ Variable                                Description
 ``{{ ts_nodash_with_tz }}``             same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
 ``{{ execution_date }}``                the execution_date (`pendulum.Pendulum`_)
 ``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
-``{{ prev_execution_date_success }}``   execution date from prior succesful dag run (if available) (`pendulum.Pendulum`_)
+``{{ prev_execution_date_success }}``   execution date from prior successful dag run (if available) (`pendulum.Pendulum`_)
 ``{{ prev_start_date_success }}``       start date from prior successful dag run (if available) (`pendulum.Pendulum`_)
 ``{{ next_execution_date }}``           the next execution date (`pendulum.Pendulum`_)
 ``{{ dag }}``                           the DAG object
@@ -88,7 +88,12 @@ attributes and methods.
 The ``var`` template variable allows you to access variables defined in Airflow's
 UI. You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
-``{{ var.json.my_dict_var.key1 }}``
+``{{ var.json.my_dict_var.key1 }}``.
+
+It is also possible to fetch a variable by string if needed with
+``{{ var.value.get('my.var', 'fallback') }}`` or
+``{{ var.json.get('my.dict.var', {'key1': 'val1'}) }}``. Defaults can be
+supplied in case the variable does not exist.
 
 Macros
 ------

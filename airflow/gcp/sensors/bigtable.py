@@ -19,6 +19,7 @@
 """
 This module contains Google Cloud Bigtable sensor.
 """
+from typing import Optional
 
 import google.api_core.exceptions
 from google.cloud.bigtable.table import ClusterState
@@ -30,7 +31,7 @@ from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidationMixin):
+class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValidationMixin):
     """
     Sensor that waits for Cloud Bigtable table to be fully replicated to its clusters.
     No exception will be raised if the instance or the table does not exist.
@@ -40,7 +41,7 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableTableWaitForReplicationSensor`
+        :ref:`howto/operator:BigtableTableReplicationCompletedSensor`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
@@ -53,12 +54,15 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
     template_fields = ['project_id', 'instance_id', 'table_id']
 
     @apply_defaults
-    def __init__(self,
-                 instance_id,
-                 table_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+    def __init__(
+        self,
+        instance_id: str,
+        table_id: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        *args,
+        **kwargs
+    ) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id

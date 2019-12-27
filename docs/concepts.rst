@@ -80,6 +80,8 @@ Sometimes this can be put to good use. For example, a common pattern with
 ``SubDagOperator`` is to define the subdag inside a function so that Airflow
 doesn't try to load it as a standalone DAG.
 
+.. _default-args:
+
 Default Arguments
 -----------------
 
@@ -90,7 +92,7 @@ any of its operators. This makes it easy to apply a common parameter to many ope
 
     default_args = {
         'start_date': datetime(2016, 1, 1),
-        'owner': 'Airflow'
+        'owner': 'airflow'
     }
 
     dag = DAG('my_dag', default_args=default_args)
@@ -122,14 +124,14 @@ actually gets done.
 An operator describes a single task in a workflow. Operators are usually (but
 not always) atomic, meaning they can stand on their own and don't need to share
 resources with any other operators. The DAG will make sure that operators run in
-the correct certain order; other than those dependencies, operators generally
+the correct order; other than those dependencies, operators generally
 run independently. In fact, they may run on two completely different machines.
 
 This is a subtle but very important point: in general, if two operators need to
 share information, like a filename or small amount of data, you should consider
 combining them into a single operator. If it absolutely can't be avoided,
 Airflow does have a feature for operator cross-communication called XCom that is
-described elsewhere in this document.
+described in the section :ref:`XComs <concepts:xcom>`
 
 Airflow provides operators for many common tasks, including:
 
@@ -275,9 +277,9 @@ Relationship Helper
 ``chain`` and ``cross_downstream`` function provide easier ways to set relationships
 between operators in specific situation.
 
-When setting relationships between two list of operators and wish all up list
-operators as upstream to all down list operators, we have to split one list
-manually using bitshift composition.
+When setting a relationship between two lists, 
+if we want all operators in one list to be upstream to all operators in the other,
+we cannot use a single bitshift composition. Instead we have to split one of the lists:
 
 .. code:: python
 
@@ -361,14 +363,19 @@ A task goes through various stages from start to completion. In the Airflow UI
 (graph and tree views), these stages are displayed by a color representing each
 stage:
 
-.. image:: img/task_lifecycle.png
+.. image:: img/task_stages.png
+
+The complete lifecycle of the task looks like this:
+
+.. image:: img/task_lifecycle_diagram.png
 
 The happy flow consists of the following stages:
 
-1. no status (scheduler created empty task instance)
-2. queued (scheduler placed a task to run on the queue)
-3. running (worker picked up a task and is now running it)
-4. success (task completed)
+1. No status (scheduler created empty task instance)
+2. Scheduled (scheduler determined task instance needs to run)
+3. Queued (scheduler sent task to executor to run on the queue)
+4. Running (worker picked up a task and is now running it)
+5. Success (task completed)
 
 There is also visual difference between scheduled and manually triggered
 DAGs/tasks:
@@ -566,6 +573,7 @@ of what this may look like:
 Note that XComs are similar to `Variables`_, but are specifically designed
 for inter-task communication rather than global settings.
 
+.. _concepts:variables:
 
 Variables
 =========
@@ -825,6 +833,8 @@ For example a ``html_content_template`` file could look like this:
   Host: {{ti.hostname}}<br>
   Log file: {{ti.log_filepath}}<br>
   Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
+
+.. _concepts/trigger_rule:
 
 Trigger Rules
 =============
@@ -1233,8 +1243,8 @@ For example, you can prepare a ``.airflowignore`` file with contents
     tenant_[\d]
 
 
-Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
-"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
+``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your ``DAG_FOLDER`` would be ignored
 (If a directory's name matches any of the patterns, this directory and all its subfolders
 would not be scanned by Airflow at all. This improves efficiency of DAG finding).
 

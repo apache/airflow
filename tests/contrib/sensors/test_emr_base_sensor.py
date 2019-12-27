@@ -51,8 +51,6 @@ class TestEmrBaseSensor(unittest.TestCase):
         operator = EmrBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_test'
         )
 
         operator.execute(None)
@@ -76,8 +74,6 @@ class TestEmrBaseSensor(unittest.TestCase):
         operator = EmrBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_test'
         )
 
         self.assertEqual(operator.poke(None), False)
@@ -101,8 +97,6 @@ class TestEmrBaseSensor(unittest.TestCase):
         operator = EmrBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_test'
         )
 
         self.assertEqual(operator.poke(None), False)
@@ -137,8 +131,6 @@ class TestEmrBaseSensor(unittest.TestCase):
         operator = EmrBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
-            job_flow_id='j-8989898989',
-            aws_conn_id='aws_test'
         )
 
         with self.assertRaises(AirflowException) as context:

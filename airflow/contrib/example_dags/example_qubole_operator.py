@@ -38,7 +38,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
 
 default_args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(2),
     'email': ['airflow@example.com'],
@@ -87,7 +87,7 @@ with DAG(
         task_id='hive_s3_location',
         command_type="hivecmd",
         script_location="s3n://public-qubole/qbol-library/scripts/show_table.hql",
-        notfiy=True,
+        notify=True,
         tags=['tag1', 'tag2'],
         # If the script at s3 location has any qubole specific macros to be replaced
         # macros='[{"date": "{{ ds }}"}, {"name" : "abc"}]',

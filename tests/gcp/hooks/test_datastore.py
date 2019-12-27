@@ -21,9 +21,10 @@
 import unittest
 from unittest.mock import call, patch
 
+import mock
+
 from airflow import AirflowException
 from airflow.gcp.hooks.datastore import DatastoreHook
-from tests.compat import mock
 
 GCP_PROJECT_ID = "test"
 
@@ -34,7 +35,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
 
 class TestDatastoreHook(unittest.TestCase):
     def setUp(self):
-        with patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__', new=mock_init):
+        with patch('airflow.gcp.hooks.base.CloudBaseHook.__init__', new=mock_init):
             self.datastore_hook = DatastoreHook()
 
     @patch('airflow.gcp.hooks.datastore.DatastoreHook._authorize')

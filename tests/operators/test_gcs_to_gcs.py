@@ -20,11 +20,12 @@
 import unittest
 from datetime import datetime
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.operators.gcs_to_gcs import (
     WILDCARD, GoogleCloudStorageSynchronizeBuckets, GoogleCloudStorageToGoogleCloudStorageOperator,
 )
-from tests.compat import mock, patch
 
 TASK_ID = 'test-gcs-to-gcs-operator'
 TEST_BUCKET = 'test-bucket'
@@ -289,7 +290,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         total_wildcards = operator.source_object.count(WILDCARD)
 
         error_msg = "Only one wildcard '[*]' is allowed in source_object parameter. " \
-                    "Found {}".format(total_wildcards, SOURCE_OBJECT_MULTIPLE_WILDCARDS)
+                    "Found {}".format(total_wildcards)
 
         with self.assertRaisesRegex(AirflowException, error_msg):
             operator.execute(None)
@@ -303,7 +304,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             destination_bucket=None,
             destination_object=DESTINATION_OBJECT_PREFIX)
 
-        with patch.object(operator.log, 'warning') as mock_warn:
+        with mock.patch.object(operator.log, 'warning') as mock_warn:
             operator.execute(None)
             mock_warn.assert_called_once_with(
                 'destination_bucket is None. Defaulting it to source_bucket (%s)',

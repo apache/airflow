@@ -64,11 +64,13 @@ class TaskReschedule(Base):
 
     @staticmethod
     @provide_session
-    def find_for_task_instance(task_instance, session):
+    def find_for_task_instance(task_instance, session=None):
         """
         Returns all task reschedules for the task instance and try number,
         in ascending order.
 
+        :param session: the database session object
+        :type session: sqlalchemy.orm.session.Session
         :param task_instance: the task instance to find task reschedules for
         :type task_instance: airflow.models.TaskInstance
         """

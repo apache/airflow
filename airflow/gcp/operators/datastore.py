@@ -29,7 +29,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class DatastoreExportOperator(BaseOperator):
+class CloudDatastoreExportEntitiesOperator(BaseOperator):
     """
     Export entities from Google Cloud Datastore to Cloud Storage
 
@@ -63,7 +63,7 @@ class DatastoreExportOperator(BaseOperator):
     template_fields = ['bucket', 'namespace', 'entity_filter', 'labels']
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
+    def __init__(self,  # pylint: disable=too-many-arguments
                  bucket: str,
                  namespace: Optional[str] = None,
                  datastore_conn_id: str = 'google_cloud_default',
@@ -116,7 +116,7 @@ class DatastoreExportOperator(BaseOperator):
         return result
 
 
-class DatastoreImportOperator(BaseOperator):
+class CloudDatastoreImportEntitiesOperator(BaseOperator):
     """
     Import entities from Cloud Storage to Google Cloud Datastore
 

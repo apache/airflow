@@ -17,32 +17,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 
 from tests.gcp.operators.test_speech_system_helper import GCPTextToSpeechTestHelper
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
-class GCPTextToSpeechExampleDagSystemTest(TestDagGcpSystem):
+@skip_gcp_system(GCP_GCS_KEY, require_local_executor=True)
+class GCPTextToSpeechExampleDagSystemTest(SystemTest):
+    helper = GCPTextToSpeechTestHelper()
+
+    @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.create_target_bucket()
-        self.gcp_authenticator.gcp_revoke_authentication()
 
+    @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_target_bucket()
-        self.gcp_authenticator.gcp_revoke_authentication()
         super().tearDown()
 
-    def __init__(self, method_name="runTest"):
-        super().__init__(
-            method_name, dag_id="example_gcp_speech", gcp_key=GCP_GCS_KEY
-        )
-        self.helper = GCPTextToSpeechTestHelper()
-
+    @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag_gcp_text_to_speech(self):
-        self._run_dag()
+        self.run_dag("example_gcp_speech", GCP_DAG_FOLDER)

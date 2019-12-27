@@ -38,6 +38,12 @@ from typing import Dict
 
 import airflow
 
+try:
+    import sphinx_airflow_theme  # pylint: disable=unused-import
+    airflow_theme_is_available = True
+except ImportError:
+    airflow_theme_is_available = False
+
 autodoc_mock_imports = [
     'MySQLdb',
     'adal',
@@ -115,12 +121,14 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
+    'sphinx.ext.graphviz',
     'sphinxarg.ext',
     'sphinxcontrib.httpdomain',
     'sphinx.ext.intersphinx',
     'autoapi.extension',
     'exampleinclude',
-    'docroles'
+    'docroles',
+    'removemarktransform',
 ]
 
 autodoc_default_options = {
@@ -173,6 +181,8 @@ exclude_patterns = [
     '_api/airflow/_vendor',
     '_api/airflow/api',
     '_api/airflow/bin',
+    '_api/airflow/cli',
+    '_api/airflow/cli/command',
     '_api/airflow/config_templates',
     '_api/airflow/configuration',
     '_api/airflow/contrib/auth',
@@ -188,12 +198,13 @@ exclude_patterns = [
     '_api/airflow/index.rst',
     '_api/airflow/jobs',
     '_api/airflow/lineage',
-    '_api/airflow/typing',
+    '_api/airflow/typing_compat',
     '_api/airflow/logging_config',
     '_api/airflow/macros',
     '_api/airflow/migrations',
     '_api/airflow/plugins_manager',
     '_api/airflow/security',
+    '_api/airflow/serialization',
     '_api/airflow/settings',
     '_api/airflow/sentry',
     '_api/airflow/stats',
@@ -207,6 +218,29 @@ exclude_patterns = [
     '_api/airflow/gcp/index.rst',
     '_api/airflow/gcp/example_dags',
     '_api/airflow/gcp/utils',
+    '_api/airflow/providers/index.rst',
+    '_api/airflow/providers/amazon/index.rst',
+    '_api/airflow/providers/amazon/aws/index.rst',
+    '_api/airflow/providers/amazon/aws/example_dags',
+    '_api/airflow/providers/google/index.rst',
+    '_api/airflow/providers/google/cloud/index.rst',
+    '_api/airflow/providers/google/cloud/example_dags',
+    '_api/airflow/providers/google/marketing_platform/index.rst',
+    '_api/airflow/providers/google/marketing_platform/example_dags',
+    '_api/airflow/providers/google/cloud/index.rst',
+    '_api/airflow/providers/google/cloud/example_dags',
+    '_api/airflow/providers/amazon/index.rst',
+    '_api/airflow/providers/amazon/aws/index.rst',
+    '_api/airflow/providers/amazon/aws/example_dags',
+    '_api/airflow/providers/apache/index.rst',
+    '_api/airflow/providers/apache/cassandra/index.rst',
+    '_api/airflow/providers/sftp/index.rst',
+    '_api/enums/index.rst',
+    '_api/json_schema/index.rst',
+    '_api/base_serialization/index.rst',
+    '_api/serialized_baseoperator/index.rst',
+    '_api/serialized_dag/index.rst',
+    '_api/airflow/providers/jira',
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
@@ -274,16 +308,13 @@ intersphinx_mapping = {
 # a list of builtin themes.
 html_theme = 'sphinx_rtd_theme'
 
+if airflow_theme_is_available:
+    html_theme = 'sphinx_airflow_theme'
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 # html_theme_options = {}
-
-# Add any paths that contain custom themes here, relative to this directory.
-# html_theme_path = []
-import sphinx_rtd_theme  # isort:skip pylint: disable=wrong-import-position,wrong-import-order
-
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -296,20 +327,23 @@ html_short_title = ""
 # of the sidebar.
 # html_logo = None
 
-# The name of an image file (within the static path) to use as favicon of the
-# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
-# pixels large.
-# html_favicon = None
+html_favicon = "../airflow/www/static/pin_32.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['_static']
+html_static_path = ['static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation.
 # html_extra_path = []
+
+# A list of JavaScript filename. The entry must be a filename string or a
+# tuple containing the filename string and the attributes dictionary. The
+# filename must be relative to the html_static_path, or a full URI with
+# scheme like http://example.org/script.js.
+html_js_files = ['jira-links.js']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -320,7 +354,14 @@ html_short_title = ""
 # html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-# html_sidebars = {}
+if airflow_theme_is_available:
+    html_sidebars = {
+        '**': [
+            'version-selector.html',
+            'searchbox.html',
+            'globaltoc.html',
+        ]
+    }
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -468,3 +509,29 @@ autoapi_root = '_api'
 
 # -- Options for example include ------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
+
+# -- Additional HTML Context variable
+html_context = {
+    # Google Analytics ID.
+    # For more information look at:
+    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/layout.html#L222-L232
+    'theme_analytics_id': 'UA-140539454-1',
+    # Variables used to build a button for editing the source code
+    #
+    # The path is created according to the following template:
+    #
+    # https://{{ github_host|default("github.com") }}/{{ github_user }}/{{ github_repo }}/
+    # {{ theme_vcs_pageview_mode|default("blob") }}/{{ github_version }}{{ conf_py_path }}
+    # {{ pagename }}{{ suffix }}
+    #
+    # More information:
+    # https://github.com/readthedocs/readthedocs.org/blob/master/readthedocs/doc_builder/templates/doc_builder/conf.py.tmpl#L100-L103
+    # https://github.com/readthedocs/sphinx_rtd_theme/blob/master/sphinx_rtd_theme/breadcrumbs.html#L45
+    #
+    'theme_vcs_pageview_mode': 'edit',
+    'conf_py_path': '/docs/',
+    'github_user': 'apache',
+    'github_repo': 'airflow',
+    'github_version': os.environ.get('GITHUB_TREE', None),
+    'display_github': os.environ.get('GITHUB_TREE', None) is not None,
+}

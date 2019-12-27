@@ -22,10 +22,7 @@ import argparse
 import os
 
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-from tests.gcp.utils.base_gcp_system_test_case import RetrieveVariables
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY, GcpAuthenticator
-
-retrieve_variables = RetrieveVariables()
 
 SERVICE_EMAIL_FORMAT = "project-%s@storage-transfer-service.iam.gserviceaccount.com"
 

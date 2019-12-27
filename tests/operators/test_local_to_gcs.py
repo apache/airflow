@@ -21,9 +21,10 @@
 import datetime
 import unittest
 
+import mock
+
 from airflow import DAG
 from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator
-from tests.compat import mock
 
 
 class TestFileToGcsOperator(unittest.TestCase):

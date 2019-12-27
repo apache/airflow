@@ -23,25 +23,13 @@ import shutil
 import tempfile
 import unittest
 
-from airflow import DAG, models
+from airflow import DAG
 from airflow.contrib.sensors.file_sensor import FileSensor
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.settings import Session
 from airflow.utils.timezone import datetime
 
-TEST_DAG_ID = 'unit_tests'
+TEST_DAG_ID = 'unit_tests_file_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)
-
-
-def reset(dag_id=TEST_DAG_ID):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
-
-
-reset()
 
 
 class TestFileSensor(unittest.TestCase):
@@ -71,10 +59,10 @@ class TestFileSensor(unittest.TestCase):
                      ignore_ti_state=True)
 
     def test_file_in_nonexistent_dir(self):
-        dir = tempfile.mkdtemp()
+        temp_dir = tempfile.mkdtemp()
         task = FileSensor(
             task_id="test",
-            filepath=dir[1:] + "/file",
+            filepath=temp_dir[1:] + "/file",
             fs_conn_id='fs_default',
             dag=self.dag,
             timeout=0,
@@ -86,13 +74,13 @@ class TestFileSensor(unittest.TestCase):
                 task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                          ignore_ti_state=True)
         finally:
-            shutil.rmtree(dir)
+            shutil.rmtree(temp_dir)
 
     def test_empty_dir(self):
-        dir = tempfile.mkdtemp()
+        temp_dir = tempfile.mkdtemp()
         task = FileSensor(
             task_id="test",
-            filepath=dir[1:],
+            filepath=temp_dir[1:],
             fs_conn_id='fs_default',
             dag=self.dag,
             timeout=0,
@@ -104,13 +92,13 @@ class TestFileSensor(unittest.TestCase):
                 task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                          ignore_ti_state=True)
         finally:
-            shutil.rmtree(dir)
+            shutil.rmtree(temp_dir)
 
     def test_file_in_dir(self):
-        dir = tempfile.mkdtemp()
+        temp_dir = tempfile.mkdtemp()
         task = FileSensor(
             task_id="test",
-            filepath=dir[1:],
+            filepath=temp_dir[1:],
             fs_conn_id='fs_default',
             dag=self.dag,
             timeout=0,
@@ -118,11 +106,11 @@ class TestFileSensor(unittest.TestCase):
         task._hook = self.hook
         try:
             # `touch` the dir
-            open(dir + "/file", "a").close()
+            open(temp_dir + "/file", "a").close()
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                      ignore_ti_state=True)
         finally:
-            shutil.rmtree(dir)
+            shutil.rmtree(temp_dir)
 
     def test_default_fs_conn_id(self):
         with tempfile.NamedTemporaryFile() as tmp:
@@ -153,13 +141,13 @@ class TestFileSensor(unittest.TestCase):
 
     def test_subdirectory_not_empty(self):
         suffix = '.txt'
-        dir_ = tempfile.mkdtemp()
-        subdir = tempfile.mkdtemp(dir=dir_)
+        temp_dir = tempfile.mkdtemp()
+        subdir = tempfile.mkdtemp(dir=temp_dir)
 
         with tempfile.NamedTemporaryFile(suffix=suffix, dir=subdir):
             task = FileSensor(
                 task_id='test',
-                filepath=dir_,
+                filepath=temp_dir,
                 fs_conn_id='fs_default',
                 dag=self.dag,
                 timeout=0,
@@ -167,14 +155,14 @@ class TestFileSensor(unittest.TestCase):
             task._hook = self.hook
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                      ignore_ti_state=True)
-        shutil.rmtree(dir_)
+        shutil.rmtree(temp_dir)
 
     def test_subdirectory_empty(self):
-        dir_ = tempfile.mkdtemp()
-        tempfile.mkdtemp(dir=dir_)
+        temp_dir = tempfile.mkdtemp()
+        tempfile.mkdtemp(dir=temp_dir)
         task = FileSensor(
             task_id='test',
-            filepath=dir_,
+            filepath=temp_dir,
             fs_conn_id='fs_default',
             dag=self.dag,
             timeout=0,
@@ -185,7 +173,7 @@ class TestFileSensor(unittest.TestCase):
         with self.assertRaises(AirflowSensorTimeout):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                      ignore_ti_state=True)
-            shutil.rmtree(dir_)
+            shutil.rmtree(temp_dir)
 
 
 if __name__ == '__main__':

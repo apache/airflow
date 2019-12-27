@@ -29,10 +29,10 @@ from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, Output
 from google.protobuf.json_format import ParseDict
 
 from airflow import AirflowException, version
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class CloudMemorystoreHook(GoogleCloudBaseHook):
+class CloudMemorystoreHook(CloudBaseHook):
     """
     Hook for Google Cloud Memorystore APIs.
 
@@ -81,14 +81,14 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         instance.labels.update({key: val})
         return instance
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_instance(
         self,
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -157,13 +157,13 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         self.log.info("Instance created.")
         return client.get_instance(name=instance_name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_instance(
         self,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -199,14 +199,14 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         result.result()
         self.log.info("Instance deleted: %s", name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def export_instance(
         self,
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -245,14 +245,14 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         result.result()
         self.log.info("Instance exported: %s", name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def failover_instance(
         self,
         location: str,
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -294,13 +294,13 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         result.result()
         self.log.info("Instance failovered: %s", name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def get_instance(
         self,
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -329,14 +329,14 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         self.log.info("Fetched Instance: %s", name)
         return result
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def import_instance(
         self,
         location: str,
         instance: str,
         input_config: Union[Dict, InputConfig],
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -376,13 +376,13 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         result.result()
         self.log.info("Instance imported: %s", name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def list_instances(
         self,
         location: str,
         page_size: int,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
@@ -419,7 +419,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         self.log.info("Fetched instances")
         return result
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def update_instance(
         self,
         update_mask: Union[Dict, FieldMask],
@@ -427,7 +427,7 @@ class CloudMemorystoreHook(GoogleCloudBaseHook):
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
         metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):

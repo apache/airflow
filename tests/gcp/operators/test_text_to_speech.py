@@ -19,11 +19,11 @@
 
 import unittest
 
+from mock import ANY, Mock, PropertyMock, patch
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator
-from tests.compat import ANY, Mock, PropertyMock, patch
+from airflow.gcp.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
@@ -36,7 +36,7 @@ TARGET_FILENAME = "target_filename"
 
 class TestGcpTextToSpeech(unittest.TestCase):
     @patch("airflow.gcp.operators.text_to_speech.GoogleCloudStorageHook")
-    @patch("airflow.gcp.operators.text_to_speech.GCPTextToSpeechHook")
+    @patch("airflow.gcp.operators.text_to_speech.CloudTextToSpeechHook")
     def test_synthesize_text_green_path(self, mock_text_to_speech_hook, mock_gcp_hook):
         mocked_response = Mock()
         type(mocked_response).audio_content = PropertyMock(return_value=b"audio")
@@ -44,7 +44,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
         mock_text_to_speech_hook.return_value.synthesize_speech.return_value = mocked_response
         mock_gcp_hook.return_value.upload.return_value = True
 
-        GcpTextToSpeechSynthesizeOperator(
+        CloudTextToSpeechSynthesizeOperator(
             project_id=PROJECT_ID,
             gcp_conn_id=GCP_CONN_ID,
             input_data=INPUT,
@@ -74,7 +74,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
         ]
     )
     @patch("airflow.gcp.operators.text_to_speech.GoogleCloudStorageHook")
-    @patch("airflow.gcp.operators.text_to_speech.GCPTextToSpeechHook")
+    @patch("airflow.gcp.operators.text_to_speech.CloudTextToSpeechHook")
     def test_missing_arguments(
         self,
         missing_arg,
@@ -87,7 +87,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
         mock_gcp_hook,
     ):
         with self.assertRaises(AirflowException) as e:
-            GcpTextToSpeechSynthesizeOperator(
+            CloudTextToSpeechSynthesizeOperator(
                 project_id="project-id",
                 input_data=input_data,
                 voice=voice,

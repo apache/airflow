@@ -16,19 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# pylint: disable=too-many-lines
 """
 This module contains Google BigQuery operators.
 """
-# pylint:disable=too-many-lines
 
 import json
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, SupportsAbs, Union
+from typing import Any, Dict, FrozenSet, Iterable, List, Optional, SupportsAbs, Union
+
+import attr
+from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 from airflow.utils.decorators import apply_defaults
@@ -305,10 +309,14 @@ class BigQueryGetDataOperator(BaseOperator):
                                         max_results=self.max_results,
                                         selected_fields=self.selected_fields)
 
-        self.log.info('Total Extracted rows: %s', response['totalRows'])
-        rows = response['rows']
+        total_rows = int(response['totalRows'])
+        self.log.info('Total Extracted rows: %s', total_rows)
 
         table_data = []
+        if total_rows == 0:
+            return table_data
+
+        rows = response['rows']
         for dict_row in rows:
             single_row = []
             for fields in dict_row['f']:
@@ -330,14 +338,13 @@ class BigQueryConsoleLink(BaseOperatorLink):
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ''
 
 
+@attr.s(auto_attribs=True)
 class BigQueryConsoleIndexableLink(BaseOperatorLink):
     """
     Helper class for constructing BigQuery link.
     """
 
-    def __init__(self, index) -> None:
-        super().__init__()
-        self.index = index
+    index: int = attr.ib()
 
     @property
     def name(self) -> str:
@@ -355,9 +362,10 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
 
 # pylint: disable=too-many-instance-attributes
-class BigQueryOperator(BaseOperator):
+class BigQueryExecuteQueryOperator(BaseOperator):
     """
-    Executes BigQuery SQL queries in a specific BigQuery database
+    Executes BigQuery SQL queries in a specific BigQuery database.
+    This operator does not assert idempotency.
 
     :param sql: the sql code to be executed (templated)
     :type sql: Can receive a str representing a sql statement,
@@ -450,6 +458,9 @@ class BigQueryOperator(BaseOperator):
     template_fields = ('sql', 'destination_dataset_table', 'labels')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
+
+    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
+    __serialized_fields: Optional[FrozenSet[str]] = None
 
     @property
     def operator_extra_links(self):
@@ -586,6 +597,13 @@ class BigQueryOperator(BaseOperator):
             self.log.info('Cancelling running query')
             self.bq_cursor.cancel_query()
 
+    @classmethod
+    def get_serialized_fields(cls):
+        """Serialized BigQueryOperator contain exactly these fields."""
+        if not cls.__serialized_fields:
+            cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"sql"})
+        return cls.__serialized_fields
+
 
 class BigQueryCreateEmptyTableOperator(BaseOperator):
     """
@@ -594,8 +612,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
 
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
-    point the operator to a Google cloud storage object name. The object in
-    Google cloud storage must be a JSON file with the schema fields in it.
+    point the operator to a Google Cloud Storage object name. The object in
+    Google Cloud Storage must be a JSON file with the schema fields in it.
     You can also create a table without schema.
 
     :param project_id: The project to create the table into. (templated)
@@ -675,6 +693,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 google_cloud_storage_conn_id='airflow-conn-id'
             )
     :type labels: dict
+    :param view: [Optional] A dictionary containing definition for the view.
+        If set, it will create a view instead of a table:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
+    :type view: dict
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
 
@@ -686,7 +708,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'project_id',
-                       'gcs_schema_object', 'labels')
+                       'gcs_schema_object', 'labels', 'view')
     ui_color = '#f0eee4'
 
     # pylint: disable=too-many-arguments
@@ -702,6 +724,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  google_cloud_storage_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
+                 view: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
                  location: Optional[str] = None,
                  *args, **kwargs) -> None:
@@ -717,6 +740,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
+        self.view = view
         self.encryption_configuration = encryption_configuration
         self.location = location
 
@@ -741,15 +765,27 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
-        cursor.create_empty_table(
-            project_id=self.project_id,
-            dataset_id=self.dataset_id,
-            table_id=self.table_id,
-            schema_fields=schema_fields,
-            time_partitioning=self.time_partitioning,
-            labels=self.labels,
-            encryption_configuration=self.encryption_configuration
-        )
+        try:
+            self.log.info('Creating Table %s:%s.%s',
+                          self.project_id, self.dataset_id, self.table_id)
+            cursor.create_empty_table(
+                project_id=self.project_id,
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+                schema_fields=schema_fields,
+                time_partitioning=self.time_partitioning,
+                labels=self.labels,
+                view=self.view,
+                encryption_configuration=self.encryption_configuration
+            )
+            self.log.info('Table created successfully: %s:%s.%s',
+                          self.project_id, self.dataset_id, self.table_id)
+        except HttpError as err:
+            if err.resp.status != 409:
+                raise
+            else:
+                self.log.info('Table %s:%s.%s already exists.', self.project_id,
+                              self.dataset_id, self.table_id)
 
 
 # pylint: disable=too-many-instance-attributes
@@ -760,12 +796,12 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
     The schema to be used for the BigQuery table may be specified in one of
     two ways. You may either directly pass the schema fields in, or you may
-    point the operator to a Google cloud storage object name. The object in
-    Google cloud storage must be a JSON file with the schema fields in it.
+    point the operator to a Google Cloud Storage object name. The object in
+    Google Cloud Storage must be a JSON file with the schema fields in it.
 
     :param bucket: The bucket to point the external table to. (templated)
     :type bucket: str
-    :param source_objects: List of Google cloud storage URIs to point
+    :param source_objects: List of Google Cloud Storage URIs to point
         table to. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type source_objects: list
@@ -912,22 +948,26 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
-        cursor.create_external_table(
-            external_project_dataset_table=self.destination_project_dataset_table,
-            schema_fields=schema_fields,
-            source_uris=source_uris,
-            source_format=self.source_format,
-            compression=self.compression,
-            skip_leading_rows=self.skip_leading_rows,
-            field_delimiter=self.field_delimiter,
-            max_bad_records=self.max_bad_records,
-            quote_character=self.quote_character,
-            allow_quoted_newlines=self.allow_quoted_newlines,
-            allow_jagged_rows=self.allow_jagged_rows,
-            src_fmt_configs=self.src_fmt_configs,
-            labels=self.labels,
-            encryption_configuration=self.encryption_configuration
-        )
+        try:
+            cursor.create_external_table(
+                external_project_dataset_table=self.destination_project_dataset_table,
+                schema_fields=schema_fields,
+                source_uris=source_uris,
+                source_format=self.source_format,
+                compression=self.compression,
+                skip_leading_rows=self.skip_leading_rows,
+                field_delimiter=self.field_delimiter,
+                max_bad_records=self.max_bad_records,
+                quote_character=self.quote_character,
+                allow_quoted_newlines=self.allow_quoted_newlines,
+                allow_jagged_rows=self.allow_jagged_rows,
+                src_fmt_configs=self.src_fmt_configs,
+                labels=self.labels,
+                encryption_configuration=self.encryption_configuration
+            )
+        except HttpError as err:
+            if err.resp.status != 409:
+                raise
 
 
 class BigQueryDeleteDatasetOperator(BaseOperator):
@@ -1078,11 +1118,18 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
-        cursor.create_empty_dataset(
-            project_id=self.project_id,
-            dataset_id=self.dataset_id,
-            dataset_reference=self.dataset_reference,
-            location=self.location)
+        try:
+            self.log.info('Creating Dataset: %s in project: %s ', self.dataset_id, self.project_id)
+            cursor.create_empty_dataset(
+                project_id=self.project_id,
+                dataset_id=self.dataset_id,
+                dataset_reference=self.dataset_reference,
+                location=self.location)
+            self.log.info('Dataset created successfully.')
+        except HttpError as err:
+            if err.resp.status != 409:
+                raise
+            self.log.info('Dataset %s already exists.', self.dataset_id)
 
 
 class BigQueryGetDatasetOperator(BaseOperator):
@@ -1296,7 +1343,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
             project_id=self.project_id)
 
 
-class BigQueryTableDeleteOperator(BaseOperator):
+class BigQueryDeleteTableOperator(BaseOperator):
     """
     Deletes BigQuery tables
 

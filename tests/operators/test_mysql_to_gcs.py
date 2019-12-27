@@ -21,11 +21,11 @@ import datetime
 import decimal
 import unittest
 
+import mock
 from _mysql_exceptions import ProgrammingError
 from parameterized import parameterized
 
 from airflow.operators.mysql_to_gcs import MySqlToGoogleCloudStorageOperator
-from tests.compat import mock
 
 TASK_ID = 'test-mysql-to-gcs'
 MYSQL_CONN_ID = 'mysql_conn_test'
@@ -88,6 +88,7 @@ class TestMySqlToGoogleCloudStorageOperator(unittest.TestCase):
         (datetime.datetime(1970, 1, 1, 1, 0), None, 3600),
         (decimal.Decimal(5), None, 5),
         (b"bytes", "BYTES", "Ynl0ZXM="),
+        (None, "BYTES", None)
     ])
     def test_convert_type(self, value, schema_type, expected):
         op = MySqlToGoogleCloudStorageOperator(

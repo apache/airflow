@@ -29,7 +29,7 @@ from airflow.models import DAG
 from airflow.operators.papermill_operator import PapermillOperator
 
 default_args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 

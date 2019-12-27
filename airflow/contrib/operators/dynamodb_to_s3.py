@@ -32,8 +32,8 @@ from uuid import uuid4
 from boto.compat import json  # type: ignore
 
 from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
-from airflow.hooks.S3_hook import S3Hook
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 
 def _convert_item_to_json_bytes(item):

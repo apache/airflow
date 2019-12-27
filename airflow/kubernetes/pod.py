@@ -40,6 +40,8 @@ class Resources(K8SModel):
     :param limit_gpu: Limits for GPU used
     :type limit_gpu: int
     """
+    __slots__ = ('request_memory', 'request_cpu', 'limit_memory', 'limit_cpu', 'limit_gpu')
+
     def __init__(
             self,
             request_memory=None,
@@ -82,6 +84,8 @@ class Resources(K8SModel):
 
 class Port(K8SModel):
     """POD port"""
+    __slots__ = ('name', 'container_port')
+
     def __init__(
             self,
             name=None,

@@ -17,48 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-This module contains AWS SNS hook
-"""
-import json
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sns`."""
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.hooks.sns import AwsSnsHook  # noqa
 
-class AwsSnsHook(AwsHook):
-    """
-    Interact with Amazon Simple Notification Service.
-    """
-
-    def __init__(self, *args, **kwargs):
-        self.conn = None
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        """
-        Get an SNS connection
-        """
-        self.conn = self.get_client_type('sns')
-        return self.conn
-
-    def publish_to_target(self, target_arn, message):
-        """
-        Publish a message to a topic or an endpoint.
-
-        :param target_arn: either a TopicArn or an EndpointArn
-        :type target_arn: str
-        :param message: the default message you want to send
-        :param message: str
-        """
-
-        conn = self.get_conn()
-
-        messages = {
-            'default': message
-        }
-
-        return conn.publish(
-            TargetArn=target_arn,
-            Message=json.dumps(messages),
-            MessageStructure='json'
-        )
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.sns`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

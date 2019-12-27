@@ -21,6 +21,7 @@ import copy
 import logging
 import os
 import unittest
+import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
 
@@ -61,6 +62,12 @@ def build_recording_function(calls_collection):
     return recording_function
 
 
+@unittest.mock.patch('os.environ', {
+    'AIRFLOW_CTX_DAG_ID': None,
+    'AIRFLOW_CTX_TASK_ID': None,
+    'AIRFLOW_CTX_EXECUTION_DATE': None,
+    'AIRFLOW_CTX_DAG_RUN_ID': None
+})
 class TestPythonOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -88,10 +95,6 @@ class TestPythonOperator(unittest.TestCase):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
-
-        for var in TI_CONTEXT_ENV_VARS:
-            if var in os.environ:
-                del os.environ[var]
 
     def do_run(self):
         self.run = True
@@ -243,11 +246,10 @@ class TestPythonOperator(unittest.TestCase):
             external_trigger=False,
         )
 
-        t = PythonOperator(task_id='hive_in_python_op',
-                           dag=self.dag,
-                           python_callable=self._env_var_check_callback
-                           )
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        op = PythonOperator(task_id='hive_in_python_op',
+                            dag=self.dag,
+                            python_callable=self._env_var_check_callback)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_conflicting_kwargs(self):
         self.dag.create_dagrun(
@@ -259,7 +261,7 @@ class TestPythonOperator(unittest.TestCase):
         )
 
         # dag is not allowed since it is a reserved keyword
-        def fn(dag):
+        def func(dag):
             # An ValueError should be triggered since we're using dag as a
             # reserved keyword
             raise RuntimeError("Should not be triggered, dag: {}".format(dag))
@@ -267,7 +269,7 @@ class TestPythonOperator(unittest.TestCase):
         python_operator = PythonOperator(
             task_id='python_operator',
             op_args=[1],
-            python_callable=fn,
+            python_callable=func,
             dag=self.dag
         )
 
@@ -284,14 +286,14 @@ class TestPythonOperator(unittest.TestCase):
             external_trigger=False,
         )
 
-        def fn(custom, dag):
+        def func(custom, dag):
             self.assertEqual(1, custom, "custom should be 1")
             self.assertIsNotNone(dag, "dag should be set")
 
         python_operator = PythonOperator(
             task_id='python_operator',
             op_kwargs={'custom': 1},
-            python_callable=fn,
+            python_callable=func,
             dag=self.dag
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -305,14 +307,14 @@ class TestPythonOperator(unittest.TestCase):
             external_trigger=False,
         )
 
-        def fn(**context):
+        def func(**context):
             # check if context is being set
             self.assertGreater(len(context), 0, "Context has not been injected")
 
         python_operator = PythonOperator(
             task_id='python_operator',
             op_kwargs={'custom': 1},
-            python_callable=fn,
+            python_callable=func,
             dag=self.dag
         )
         python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -336,6 +338,7 @@ class TestBranchOperator(unittest.TestCase):
 
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_3 = None
 
     def tearDown(self):
         super().tearDown()
@@ -346,14 +349,14 @@ class TestBranchOperator(unittest.TestCase):
 
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: 'branch_1')
-        self.branch_1.set_upstream(self.branch_op)
-        self.branch_2.set_upstream(self.branch_op)
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
         self.dag.clear()
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
             tis = session.query(TI).filter(
@@ -374,16 +377,16 @@ class TestBranchOperator(unittest.TestCase):
 
     def test_branch_list_without_dag_run(self):
         """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: ['branch_1', 'branch_2'])
-        self.branch_1.set_upstream(self.branch_op)
-        self.branch_2.set_upstream(self.branch_op)
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: ['branch_1', 'branch_2'])
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
         self.branch_3 = DummyOperator(task_id='branch_3', dag=self.dag)
-        self.branch_3.set_upstream(self.branch_op)
+        self.branch_3.set_upstream(branch_op)
         self.dag.clear()
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
             tis = session.query(TI).filter(
@@ -405,12 +408,12 @@ class TestBranchOperator(unittest.TestCase):
                     raise Exception
 
     def test_with_dag_run(self):
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: 'branch_1')
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
 
-        self.branch_1.set_upstream(self.branch_op)
-        self.branch_2.set_upstream(self.branch_op)
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
@@ -420,7 +423,7 @@ class TestBranchOperator(unittest.TestCase):
             state=State.RUNNING
         )
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = dr.get_task_instances()
         for ti in tis:
@@ -434,12 +437,12 @@ class TestBranchOperator(unittest.TestCase):
                 raise Exception
 
     def test_with_skip_in_branch_downstream_dependencies(self):
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: 'branch_1')
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
 
-        self.branch_op >> self.branch_1 >> self.branch_2
-        self.branch_op >> self.branch_2
+        branch_op >> self.branch_1 >> self.branch_2
+        branch_op >> self.branch_2
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
@@ -449,7 +452,7 @@ class TestBranchOperator(unittest.TestCase):
             state=State.RUNNING
         )
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = dr.get_task_instances()
         for ti in tis:
@@ -463,12 +466,12 @@ class TestBranchOperator(unittest.TestCase):
                 raise Exception
 
     def test_with_skip_in_branch_downstream_dependencies2(self):
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: 'branch_2')
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_2')
 
-        self.branch_op >> self.branch_1 >> self.branch_2
-        self.branch_op >> self.branch_2
+        branch_op >> self.branch_1 >> self.branch_2
+        branch_op >> self.branch_2
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
@@ -478,7 +481,7 @@ class TestBranchOperator(unittest.TestCase):
             state=State.RUNNING
         )
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = dr.get_task_instances()
         for ti in tis:
@@ -490,6 +493,30 @@ class TestBranchOperator(unittest.TestCase):
                 self.assertEqual(ti.state, State.NONE)
             else:
                 raise Exception
+
+    def test_xcom_push(self):
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
+
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(
+                    ti.xcom_pull(task_ids='make_choice'), 'branch_1')
 
 
 class TestShortCircuitOperator(unittest.TestCase):

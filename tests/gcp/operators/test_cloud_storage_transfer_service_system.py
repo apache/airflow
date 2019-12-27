@@ -16,32 +16,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 
 from tests.gcp.operators.test_cloud_storage_transfer_service_system_helper import GCPTransferTestHelper
-from tests.gcp.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_TRANSFER_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_GCS_TRANSFER_KEY), SKIP_TEST_WARNING)
-class GcpTransferExampleDagsSystemTest(TestDagGcpSystem):
+@skip_gcp_system(GCP_GCS_TRANSFER_KEY, require_local_executor=True)
+class GcpTransferExampleDagsSystemTest(SystemTest):
+    helper = GCPTransferTestHelper()
+
+    @provide_gcp_context(GCP_GCS_TRANSFER_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.create_gcs_buckets()
-        self.gcp_authenticator.gcp_revoke_authentication()
 
+    @provide_gcp_context(GCP_GCS_TRANSFER_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
         self.helper.delete_gcs_buckets()
-        self.gcp_authenticator.gcp_revoke_authentication()
         super().tearDown()
 
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name, dag_id='example_gcp_transfer', gcp_key=GCP_GCS_TRANSFER_KEY
-        )
-        self.helper = GCPTransferTestHelper()
-
+    @provide_gcp_context(GCP_GCS_TRANSFER_KEY)
     def test_run_example_dag_compute(self):
-        self._run_dag()
+        self.run_dag('example_gcp_transfer', GCP_DAG_FOLDER)
