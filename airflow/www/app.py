@@ -17,11 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import datetime
 import logging
 import socket
 from typing import Any, Optional
 from urllib.parse import urlparse
 
+import flask
+import flask_login
 from flask import Flask
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
@@ -34,9 +37,6 @@ from airflow.configuration import conf
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
-import datetime
-import flask
-import flask_login
 
 app = None  # type: Any
 appbuilder = None  # type: Optional[AppBuilder]
