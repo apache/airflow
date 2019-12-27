@@ -1322,7 +1322,7 @@ def connections(args):
                                  urlunparse((args.conn_type,
                                             '{login}:{password}@{host}:{port}'
                                              .format(login=args.conn_login or '',
-                                                     password=args.conn_password or '',
+                                                     password='******' or '',
                                                      host=args.conn_host or '',
                                                      port=args.conn_port or ''),
                                              args.conn_schema or '', '', '', '')))
