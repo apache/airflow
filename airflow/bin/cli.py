@@ -23,11 +23,11 @@ import argparse
 import os
 import textwrap
 from argparse import RawTextHelpFormatter
-from typing import Callable
+from typing import Callable, List
 
 from tabulate import tabulate_formats
 
-from airflow import api, settings
+from airflow import AirflowException, api, settings
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.cli import alternative_conn_specs
@@ -1063,3 +1063,26 @@ class CLIFactory:
 def get_parser():
     """Calls static method inside factory which creates argument parser"""
     return CLIFactory.get_parser()
+
+
+def exec_airflow_command(command_to_exec: List[str]):
+    """
+    Execute command using CLI.
+
+    The command is run in the current process and thread.
+
+    :param command_to_exec: list of program arguments. The first element should contain the "airflow" element.
+    :type command_to_exec List[str]
+    """
+    parser = CLIFactory.get_parser()
+
+    if not command_to_exec:
+        raise AirflowException("You should specify the program argument using `command_to_exec` parameter.")
+
+    if command_to_exec[0] != "airflow":
+        raise AirflowException('The first element must be equal to "airflow".')
+
+    # drop "airflow"
+    command_to_exec = command_to_exec[1:]
+    args = parser.parse_args(command_to_exec)
+    args.func(args)

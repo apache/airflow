@@ -25,7 +25,7 @@ from typing import Any, List, Optional, Tuple, Union
 from celery import Celery, Task, states as celery_states
 from celery.result import AsyncResult
 
-from airflow.bin.cli import CLIFactory
+from airflow.bin.cli import exec_airflow_command
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -63,11 +63,7 @@ def execute_command(command_to_exec: CommandType) -> None:
     log = LoggingMixin().log
     log.info("Executing command in Celery: %s", command_to_exec)
     try:
-        parser = CLIFactory.get_parser()
-        # drop "airflow"
-        command_to_exec = command_to_exec[1:]
-        args = parser.parse_args(command_to_exec)
-        args.func(args)
+        exec_airflow_command(command_to_exec)
     except:  # pylint: disable=bare-except # noqa: E722
         raise AirflowException('Celery command failed')
 
