@@ -27,6 +27,7 @@ from airflow.hooks.oracle_hook import OracleHook
 from airflow.models import Connection
 from tests.compat import mock
 
+# pylint: disable=c-extension-no-member
 try:
     import cx_Oracle
 except ImportError:
@@ -125,15 +126,15 @@ class TestOracleHookConn(unittest.TestCase):
             'syskmt': cx_Oracle.SYSKMT,
         }
         first = True
-        for m in mode:
-            self.connection.extra = json.dumps({'mode': m})
+        for mod in mode:
+            self.connection.extra = json.dumps({'mode': mod})
             self.db_hook.get_conn()
             if first:
                 assert mock_connect.call_count == 1
                 first = False
             args, kwargs = mock_connect.call_args
             self.assertEqual(args, ())
-            self.assertEqual(kwargs['mode'], mode.get(m))
+            self.assertEqual(kwargs['mode'], mode.get(mod))
 
     @mock.patch('airflow.hooks.oracle_hook.cx_Oracle.connect')
     def test_get_conn_threaded(self, mock_connect):
@@ -161,15 +162,15 @@ class TestOracleHookConn(unittest.TestCase):
             'default': cx_Oracle.ATTR_PURITY_DEFAULT
         }
         first = True
-        for p in purity:
-            self.connection.extra = json.dumps({'purity': p})
+        for pur in purity:
+            self.connection.extra = json.dumps({'purity': pur})
             self.db_hook.get_conn()
             if first:
                 assert mock_connect.call_count == 1
                 first = False
             args, kwargs = mock_connect.call_args
             self.assertEqual(args, ())
-            self.assertEqual(kwargs['purity'], purity.get(p))
+            self.assertEqual(kwargs['purity'], purity.get(pur))
 
 
 @unittest.skipIf(cx_Oracle is None, 'cx_Oracle package not present')

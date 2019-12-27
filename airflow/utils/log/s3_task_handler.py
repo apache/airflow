@@ -41,7 +41,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
             return S3Hook(remote_conn_id)
@@ -168,7 +168,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 log,
                 key=remote_log_location,
                 replace=True,
-                encrypt=conf.getboolean('core', 'ENCRYPT_S3_LOGS'),
+                encrypt=conf.getboolean('logging', 'ENCRYPT_S3_LOGS'),
             )
         except Exception:
             self.log.exception('Could not write logs to %s', remote_log_location)

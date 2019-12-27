@@ -192,7 +192,6 @@ class TestBackfillJob(unittest.TestCase):
             ("run_this_last", DEFAULT_DATE),
             ("run_this_last", end_date),
         ]
-        self.maxDiff = None
         self.assertListEqual(
             [((dag.dag_id, task_id, when, 1), State.SUCCESS)
              for (task_id, when) in expected_execution_order],
@@ -264,7 +263,6 @@ class TestBackfillJob(unittest.TestCase):
         for doing this. For example, a dag that sleeps forever, or does not have a
         schedule won't work here since you simply can't backfill them.
         """
-        self.maxDiff = None
         dag = self.dagbag.get_dag(dag_id)
 
         logger.info('*** Running example DAG: %s', dag.dag_id)
@@ -288,17 +286,17 @@ class TestBackfillJob(unittest.TestCase):
 
         executor = MockExecutor()
 
-        conf = json.loads("""{"key": "value"}""")
+        conf_ = json.loads("""{"key": "value"}""")
         job = BackfillJob(dag=dag,
                           executor=executor,
                           start_date=DEFAULT_DATE,
                           end_date=DEFAULT_DATE + datetime.timedelta(days=2),
-                          conf=conf)
+                          conf=conf_)
         job.run()
 
         dr = DagRun.find(dag_id='test_backfill_conf')
 
-        self.assertEqual(conf, dr[0].conf)
+        self.assertEqual(conf_, dr[0].conf)
 
     @patch('airflow.jobs.backfill_job.BackfillJob.log')
     def test_backfill_respect_task_concurrency_limit(self, mock_log):
@@ -319,7 +317,7 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
 
-        self.assertTrue(0 < len(executor.history))
+        self.assertGreater(len(executor.history), 0)
 
         task_concurrency_limit_reached_at_least_once = False
 
@@ -369,7 +367,7 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
 
-        self.assertTrue(0 < len(executor.history))
+        self.assertGreater(len(executor.history), 0)
 
         concurrency_limit_reached_at_least_once = False
 
@@ -421,7 +419,7 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
 
-        self.assertTrue(0 < len(executor.history))
+        self.assertGreater(len(executor.history), 0)
 
         default_pool_task_slot_count_reached_at_least_once = False
 
@@ -511,7 +509,7 @@ class TestBackfillJob(unittest.TestCase):
 
         job.run()
 
-        self.assertTrue(0 < len(executor.history))
+        self.assertGreater(len(executor.history), 0)
 
         pool_was_full_at_least_once = False
         num_running_task_instances = 0
@@ -630,11 +628,11 @@ class TestBackfillJob(unittest.TestCase):
             schedule_interval='@daily')
 
         with dag:
-            t1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
-                               dag=dag)
-            t2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
-                               dag=dag)
-            t1.set_upstream(t2)
+            op1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
+                                dag=dag)
+            op2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
+                                dag=dag)
+            op1.set_upstream(op2)
 
         dag.clear()
         executor = MockExecutor()
@@ -728,32 +726,31 @@ class TestBackfillJob(unittest.TestCase):
                           )
         job.run()
 
-        d0 = DEFAULT_DATE
-        d1 = d0 + datetime.timedelta(days=1)
-        d2 = d1 + datetime.timedelta(days=1)
+        date0 = DEFAULT_DATE
+        date1 = date0 + datetime.timedelta(days=1)
+        date2 = date1 + datetime.timedelta(days=1)
 
         # test executor history keeps a list
         history = executor.history
 
-        self.maxDiff = None
         self.assertListEqual(
             # key[0] is dag id, key[3] is try_number, we don't care about either of those here
             [sorted([item[-1].key[1:3] for item in batch]) for batch in history],
             [
                 [
-                    ('leave1', d0),
-                    ('leave1', d1),
-                    ('leave1', d2),
-                    ('leave2', d0),
-                    ('leave2', d1),
-                    ('leave2', d2)
+                    ('leave1', date0),
+                    ('leave1', date1),
+                    ('leave1', date2),
+                    ('leave2', date0),
+                    ('leave2', date1),
+                    ('leave2', date2)
                 ],
-                [('upstream_level_1', d0), ('upstream_level_1', d1),
-                 ('upstream_level_1', d2)],
-                [('upstream_level_2', d0), ('upstream_level_2', d1),
-                 ('upstream_level_2', d2)],
-                [('upstream_level_3', d0), ('upstream_level_3', d1),
-                 ('upstream_level_3', d2)],
+                [('upstream_level_1', date0), ('upstream_level_1', date1),
+                 ('upstream_level_1', date2)],
+                [('upstream_level_2', date0), ('upstream_level_2', date1),
+                 ('upstream_level_2', date2)],
+                [('upstream_level_3', date0), ('upstream_level_3', date1),
+                 ('upstream_level_3', date2)],
             ]
         )
 

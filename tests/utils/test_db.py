@@ -37,8 +37,8 @@ class TestDb(unittest.TestCase):
             all_meta_data._add_table(table_name, table.schema, table)
 
         # create diff between database schema and SQLAlchemy model
-        mc = MigrationContext.configure(engine.connect())
-        diff = compare_metadata(mc, all_meta_data)
+        mctx = MigrationContext.configure(engine.connect())
+        diff = compare_metadata(mctx, all_meta_data)
 
         # known diffs to ignore
         ignores = [

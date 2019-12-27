@@ -45,10 +45,10 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         self.assertEqual(len(objects_in_dest_bucket['Contents']), 1)
         self.assertEqual(objects_in_dest_bucket['Contents'][0]['Key'], key)
 
-        t = S3DeleteObjectsOperator(task_id="test_task_s3_delete_single_object",
-                                    bucket=bucket,
-                                    keys=key)
-        t.execute(None)
+        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_single_object",
+                                     bucket=bucket,
+                                     keys=key)
+        op.execute(None)
 
         # There should be no object found in the bucket created earlier
         self.assertFalse('Contents' in conn.list_objects(Bucket=bucket,
@@ -75,10 +75,10 @@ class TestS3DeleteObjectsOperator(unittest.TestCase):
         self.assertEqual(sorted([x['Key'] for x in objects_in_dest_bucket['Contents']]),
                          sorted(keys))
 
-        t = S3DeleteObjectsOperator(task_id="test_task_s3_delete_multiple_objects",
-                                    bucket=bucket,
-                                    keys=keys)
-        t.execute(None)
+        op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_multiple_objects",
+                                     bucket=bucket,
+                                     keys=keys)
+        op.execute(None)
 
         # There should be no object found in the bucket created earlier
         self.assertFalse('Contents' in conn.list_objects(Bucket=bucket,

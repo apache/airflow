@@ -34,7 +34,13 @@ def no_datasync(x):
 
 try:
     from moto import mock_datasync
+    from moto.datasync.models import DataSyncBackend
+    # ToDo: Remove after the moto>1.3.14 is released and contains following commit:
+    # https://github.com/spulec/moto/commit/5cfbe2bb3d24886f2b33bb4480c60b26961226fc
+    if "create_task" not in dir(DataSyncBackend) or "delete_task" not in dir(DataSyncBackend):
+        mock_datasync = no_datasync
 except ImportError:
+    # flake8: noqa: F811
     mock_datasync = no_datasync
 
 TEST_DAG_ID = "unit_tests"

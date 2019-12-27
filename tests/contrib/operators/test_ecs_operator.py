@@ -259,16 +259,16 @@ class TestECSOperator(unittest.TestCase):
                 'stoppedReason': 'Host EC2 (instance i-1234567890abcdef) terminated.',
                 "containers": [
                     {
-                        "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",  # noqa: E501
+                        "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",  # noqa: E501 # pylint: disable=line-too-long
                         "lastStatus": "RUNNING",
                         "name": "wordpress",
-                        "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55"  # noqa: E501
+                        "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55"  # noqa: E501 # pylint: disable=line-too-long
                     }
                 ],
                 "desiredStatus": "STOPPED",
                 "lastStatus": "STOPPED",
-                "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501
-                "taskDefinitionArn": "arn:aws:ecs:us-east-1:012345678910:task-definition/hello_world:11"  # noqa: E501
+                "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",  # noqa: E501 # pylint: disable=line-too-long
+                "taskDefinitionArn": "arn:aws:ecs:us-east-1:012345678910:task-definition/hello_world:11"  # noqa: E501 # pylint: disable=line-too-long
 
             }]
         }

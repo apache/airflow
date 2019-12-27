@@ -64,8 +64,8 @@ LOGGING_LEVEL = logging.INFO
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
-LOG_FORMAT = conf.get('core', 'log_format')
-SIMPLE_LOG_FORMAT = conf.get('core', 'simple_log_format')
+LOG_FORMAT = conf.get('logging', 'log_format')
+SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 
 SQL_ALCHEMY_CONN: Optional[str] = None
 DAGS_FOLDER: Optional[str] = None

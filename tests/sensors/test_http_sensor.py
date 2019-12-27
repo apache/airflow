@@ -51,7 +51,7 @@ class TestHttpSensor(unittest.TestCase):
         response.status_code = 200
         mock_session_send.return_value = response
 
-        def resp_check(resp):
+        def resp_check(_):
             raise AirflowException('AirflowException raised here!')
 
         task = HttpSensor(
@@ -100,7 +100,7 @@ class TestHttpSensor(unittest.TestCase):
         response.status_code = 200
         mock_session_send.return_value = response
 
-        def resp_check(resp, execution_date):
+        def resp_check(_, execution_date):
             if execution_date == DEFAULT_DATE:
                 return True
             raise AirflowException('AirflowException raised here!')
@@ -191,18 +191,18 @@ class TestHttpOpSensor(unittest.TestCase):
 
     @mock.patch('requests.Session', FakeSession)
     def test_get(self):
-        t = SimpleHttpOperator(
+        op = SimpleHttpOperator(
             task_id='get_op',
             method='GET',
             endpoint='/search',
             data={"client": "ubuntu", "q": "airflow"},
             headers={},
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch('requests.Session', FakeSession)
     def test_get_response_check(self):
-        t = SimpleHttpOperator(
+        op = SimpleHttpOperator(
             task_id='get_op',
             method='GET',
             endpoint='/search',
@@ -210,7 +210,7 @@ class TestHttpOpSensor(unittest.TestCase):
             response_check=lambda response: ("apache/airflow" in response.text),
             headers={},
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch('requests.Session', FakeSession)
     def test_sensor(self):

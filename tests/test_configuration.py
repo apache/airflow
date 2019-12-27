@@ -26,6 +26,7 @@ from airflow import configuration
 from airflow.configuration import (
     AirflowConfigParser, conf, expand_env_var, get_airflow_config, get_airflow_home, parameterized_config,
 )
+from tests.test_utils.config import conf_vars
 from tests.test_utils.reset_warning_registry import reset_warning_registry
 
 
@@ -147,13 +148,13 @@ class TestConf(unittest.TestCase):
         self.assertNotIn('testsection', cfg_dict)
 
     def test_command_precedence(self):
-        TEST_CONFIG = '''[test]
+        test_config = '''[test]
 key1 = hello
 key2_cmd = printf cmd_result
 key3 = airflow
 key4_cmd = printf key4_result
 '''
-        TEST_CONFIG_DEFAULT = '''[test]
+        test_config_default = '''[test]
 key1 = awesome
 key2 = airflow
 
@@ -162,8 +163,8 @@ key6 = value6
 '''
 
         test_conf = AirflowConfigParser(
-            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
-        test_conf.read_string(TEST_CONFIG)
+            default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
         test_conf.as_command_stdout = test_conf.as_command_stdout | {
             ('test', 'key2'),
             ('test', 'key4'),
@@ -200,7 +201,7 @@ key6 = value6
 
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
-        TEST_CONFIG = """
+        test_config = """
 [type_validation]
 key1 = non_bool_value
 
@@ -217,7 +218,7 @@ key7 = 0
 [inline-comment]
 key8 = true #123
 """
-        test_conf = AirflowConfigParser(default_config=TEST_CONFIG)
+        test_conf = AirflowConfigParser(default_config=test_config)
         with self.assertRaises(ValueError):
             test_conf.getboolean('type_validation', 'key1')
         self.assertTrue(isinstance(test_conf.getboolean('true', 'key3'), bool))
@@ -231,14 +232,14 @@ key8 = true #123
 
     def test_getint(self):
         """Test AirflowConfigParser.getint"""
-        TEST_CONFIG = """
+        test_config = """
 [invalid]
 key1 = str
 
 [valid]
 key2 = 1
 """
-        test_conf = AirflowConfigParser(default_config=TEST_CONFIG)
+        test_conf = AirflowConfigParser(default_config=test_config)
         with self.assertRaises(ValueError):
             test_conf.getint('invalid', 'key1')
         self.assertTrue(isinstance(test_conf.getint('valid', 'key2'), int))
@@ -246,42 +247,42 @@ key2 = 1
 
     def test_getfloat(self):
         """Test AirflowConfigParser.getfloat"""
-        TEST_CONFIG = """
+        test_config = """
 [invalid]
 key1 = str
 
 [valid]
 key2 = 1.23
 """
-        test_conf = AirflowConfigParser(default_config=TEST_CONFIG)
+        test_conf = AirflowConfigParser(default_config=test_config)
         with self.assertRaises(ValueError):
             test_conf.getfloat('invalid', 'key1')
         self.assertTrue(isinstance(test_conf.getfloat('valid', 'key2'), float))
         self.assertEqual(1.23, test_conf.getfloat('valid', 'key2'))
 
     def test_has_option(self):
-        TEST_CONFIG = '''[test]
+        test_config = '''[test]
 key1 = value1
 '''
         test_conf = AirflowConfigParser()
-        test_conf.read_string(TEST_CONFIG)
+        test_conf.read_string(test_config)
         self.assertTrue(test_conf.has_option('test', 'key1'))
         self.assertFalse(test_conf.has_option('test', 'key_not_exists'))
         self.assertFalse(test_conf.has_option('section_not_exists', 'key1'))
 
     def test_remove_option(self):
-        TEST_CONFIG = '''[test]
+        test_config = '''[test]
 key1 = hello
 key2 = airflow
 '''
-        TEST_CONFIG_DEFAULT = '''[test]
+        test_config_default = '''[test]
 key1 = awesome
 key2 = airflow
 '''
 
         test_conf = AirflowConfigParser(
-            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
-        test_conf.read_string(TEST_CONFIG)
+            default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
 
         self.assertEqual('hello', test_conf.get('test', 'key1'))
         test_conf.remove_option('test', 'key1', remove_default=False)
@@ -291,11 +292,11 @@ key2 = airflow
         self.assertFalse(test_conf.has_option('test', 'key2'))
 
     def test_getsection(self):
-        TEST_CONFIG = '''
+        test_config = '''
 [test]
 key1 = hello
 '''
-        TEST_CONFIG_DEFAULT = '''
+        test_config_default = '''
 [test]
 key1 = awesome
 key2 = airflow
@@ -304,8 +305,8 @@ key2 = airflow
 key3 = value3
 '''
         test_conf = AirflowConfigParser(
-            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
-        test_conf.read_string(TEST_CONFIG)
+            default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
 
         self.assertEqual(
             OrderedDict([('key1', 'hello'), ('key2', 'airflow')]),
@@ -320,17 +321,17 @@ key3 = value3
         )
 
     def test_kubernetes_environment_variables_section(self):
-        TEST_CONFIG = '''
+        test_config = '''
 [kubernetes_environment_variables]
 key1 = hello
 AIRFLOW_HOME = /root/airflow
 '''
-        TEST_CONFIG_DEFAULT = '''
+        test_config_default = '''
 [kubernetes_environment_variables]
 '''
         test_conf = AirflowConfigParser(
-            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
-        test_conf.read_string(TEST_CONFIG)
+            default_config=parameterized_config(test_config_default))
+        test_conf.read_string(test_config)
 
         self.assertEqual(
             OrderedDict([('key1', 'hello'), ('AIRFLOW_HOME', '/root/airflow')]),
@@ -344,11 +345,15 @@ AIRFLOW_HOME = /root/airflow
         self.assertTrue(isinstance(section_dict['_test_only_float'], float))
         self.assertTrue(isinstance(section_dict['_test_only_string'], str))
 
+    @conf_vars({
+        ("celery", "worker_concurrency"): None,
+        ("celery", "celeryd_concurrency"): None,
+    })
     def test_deprecated_options(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
-        conf.deprecated_options['celery'] = {
-            'worker_concurrency': 'celeryd_concurrency',
+        conf.deprecated_options = {
+            ('celery', 'worker_concurrency'): ('celery', 'celeryd_concurrency'),
         }
 
         # Remove it so we are sure we use the right setting
@@ -363,10 +368,39 @@ AIRFLOW_HOME = /root/airflow
             self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             conf.remove_option('celery', 'celeryd_concurrency')
 
+    @conf_vars({
+        ('logging', 'logging_level'): None,
+        ('core', 'logging_level'): None,
+    })
+    def test_deprecated_options_with_new_section(self):
+        # Guarantee we have a deprecated setting, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        conf.deprecated_options = {
+            ('logging', 'logging_level'): ('core', 'logging_level'),
+        }
+
+        # Remove it so we are sure we use the right setting
+        conf.remove_option('core', 'logging_level')
+        conf.remove_option('logging', 'logging_level')
+
+        with self.assertWarns(DeprecationWarning):
+            with mock.patch.dict('os.environ', AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
+                self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
+
+        with self.assertWarns(DeprecationWarning):
+            conf.set('core', 'logging_level', 'VALUE')
+            self.assertEqual(conf.get('logging', 'logging_level'), "VALUE")
+            conf.remove_option('core', 'logging_level')
+
+    @conf_vars({
+        ("celery", "result_backend"): None,
+        ("celery", "celery_result_backend"): None,
+        ("celery", "celery_result_backend_cmd"): None,
+    })
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
-        conf.deprecated_options['celery'] = {'result_backend': 'celery_result_backend'}
+        conf.deprecated_options[('celery', "result_backend")] = ('celery', 'celery_result_backend')
         conf.as_command_stdout.add(('celery', 'celery_result_backend'))
 
         conf.remove_option('celery', 'result_backend')
@@ -409,13 +443,13 @@ AIRFLOW_HOME = /root/airflow
 
                 self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
         with reset_warning_registry():
-            with warnings.catch_warnings(record=True) as w:
+            with warnings.catch_warnings(record=True) as warning:
                 with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
                     test_conf = make_config()
 
                     self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
 
-                    self.assertListEqual([], w)
+                    self.assertListEqual([], warning)
 
     def test_deprecated_funcs(self):
         for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
@@ -425,12 +459,12 @@ AIRFLOW_HOME = /root/airflow
                     getattr(configuration, func)()
 
     def test_command_from_env(self):
-        TEST_CMDENV_CONFIG = '''[testcmdenv]
+        test_cmdenv_config = '''[testcmdenv]
 itsacommand = NOT OK
 notacommand = OK
 '''
         test_cmdenv_conf = AirflowConfigParser()
-        test_cmdenv_conf.read_string(TEST_CMDENV_CONFIG)
+        test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.as_command_stdout.add(('testcmdenv', 'itsacommand'))
         with unittest.mock.patch.dict('os.environ'):
             # AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD maps to ('testcmdenv', 'itsacommand') in

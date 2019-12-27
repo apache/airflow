@@ -157,7 +157,7 @@ class BaseExecutor(LoggingMixin):
         :param open_slots: Number of open slots
         """
         sorted_queue = sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
+            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
             key=lambda x: x[1][1],
             reverse=True)
         for _ in range(min((open_slots, len(self.queued_tasks)))):

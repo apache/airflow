@@ -56,7 +56,7 @@ class TestDag(unittest.TestCase):
                 a_index = i
             if e.task_id == b:
                 b_index = i
-        return 0 <= a_index and 0 <= b_index and a_index < b_index
+        return 0 <= a_index < b_index
 
     def test_params_not_passed_is_empty_dict(self):
         """
@@ -302,11 +302,11 @@ class TestDag(unittest.TestCase):
                     task_id='stage{}.{}'.format(i, j), priority_weight=weight)
                     for j in range(0, width)] for i in range(0, depth)
             ]
-            for d, stage in enumerate(pipeline):
-                if d == 0:
+            for i, stage in enumerate(pipeline):
+                if i == 0:
                     continue
                 for current_task in stage:
-                    for prev_task in pipeline[d - 1]:
+                    for prev_task in pipeline[i - 1]:
                         current_task.set_upstream(prev_task)
 
             for task in dag.task_dict.values():
@@ -328,11 +328,11 @@ class TestDag(unittest.TestCase):
                     weight_rule=WeightRule.UPSTREAM)
                     for j in range(0, width)] for i in range(0, depth)
             ]
-            for d, stage in enumerate(pipeline):
-                if d == 0:
+            for i, stage in enumerate(pipeline):
+                if i == 0:
                     continue
                 for current_task in stage:
-                    for prev_task in pipeline[d - 1]:
+                    for prev_task in pipeline[i - 1]:
                         current_task.set_upstream(prev_task)
 
             for task in dag.task_dict.values():
@@ -354,11 +354,11 @@ class TestDag(unittest.TestCase):
                     weight_rule=WeightRule.ABSOLUTE)
                     for j in range(0, width)] for i in range(0, depth)
             ]
-            for d, stage in enumerate(pipeline):
-                if d == 0:
+            for i, stage in enumerate(pipeline):
+                if i == 0:
                     continue
                 for current_task in stage:
-                    for prev_task in pipeline[d - 1]:
+                    for prev_task in pipeline[i - 1]:
                         current_task.set_upstream(prev_task)
 
             for task in dag.task_dict.values():
@@ -482,7 +482,9 @@ class TestDag(unittest.TestCase):
 
         self.assertEqual(task.test_field, ['{{ ds }}', 'some_string'])
 
-    def test_cycle(self):
+    def test_cycle(self):  # pylint: disable=too-many-statements
+        # TODO: split this into many single tests
+
         # test empty
         dag = DAG(
             'dag',
@@ -498,7 +500,7 @@ class TestDag(unittest.TestCase):
             default_args={'owner': 'owner1'})
 
         with dag:
-            opA = DummyOperator(task_id='A')
+            op1 = DummyOperator(task_id='A')
 
         self.assertFalse(dag.test_cycle())
 
@@ -512,16 +514,16 @@ class TestDag(unittest.TestCase):
         #      B -> D
         # E -> F
         with dag:
-            opA = DummyOperator(task_id='A')
-            opB = DummyOperator(task_id='B')
-            opC = DummyOperator(task_id='C')
-            opD = DummyOperator(task_id='D')
-            opE = DummyOperator(task_id='E')
-            opF = DummyOperator(task_id='F')
-            opA.set_downstream(opB)
-            opB.set_downstream(opC)
-            opB.set_downstream(opD)
-            opE.set_downstream(opF)
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op3 = DummyOperator(task_id='C')
+            op4 = DummyOperator(task_id='D')
+            op5 = DummyOperator(task_id='E')
+            op6 = DummyOperator(task_id='F')
+            op1.set_downstream(op2)
+            op2.set_downstream(op3)
+            op2.set_downstream(op4)
+            op5.set_downstream(op6)
 
         self.assertFalse(dag.test_cycle())
 
@@ -533,8 +535,8 @@ class TestDag(unittest.TestCase):
 
         # A -> A
         with dag:
-            opA = DummyOperator(task_id='A')
-            opA.set_downstream(opA)
+            op1 = DummyOperator(task_id='A')
+            op1.set_downstream(op1)
 
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
@@ -547,16 +549,16 @@ class TestDag(unittest.TestCase):
 
         # A -> B -> C -> D -> E -> E
         with dag:
-            opA = DummyOperator(task_id='A')
-            opB = DummyOperator(task_id='B')
-            opC = DummyOperator(task_id='C')
-            opD = DummyOperator(task_id='D')
-            opE = DummyOperator(task_id='E')
-            opA.set_downstream(opB)
-            opB.set_downstream(opC)
-            opC.set_downstream(opD)
-            opD.set_downstream(opE)
-            opE.set_downstream(opE)
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op3 = DummyOperator(task_id='C')
+            op4 = DummyOperator(task_id='D')
+            op5 = DummyOperator(task_id='E')
+            op1.set_downstream(op2)
+            op2.set_downstream(op3)
+            op3.set_downstream(op4)
+            op4.set_downstream(op5)
+            op5.set_downstream(op5)
 
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
@@ -569,16 +571,16 @@ class TestDag(unittest.TestCase):
 
         # A -> B -> C -> D -> E -> A
         with dag:
-            opA = DummyOperator(task_id='A')
-            opB = DummyOperator(task_id='B')
-            opC = DummyOperator(task_id='C')
-            opD = DummyOperator(task_id='D')
-            opE = DummyOperator(task_id='E')
-            opA.set_downstream(opB)
-            opB.set_downstream(opC)
-            opC.set_downstream(opD)
-            opD.set_downstream(opE)
-            opE.set_downstream(opA)
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op3 = DummyOperator(task_id='C')
+            op4 = DummyOperator(task_id='D')
+            op5 = DummyOperator(task_id='E')
+            op1.set_downstream(op2)
+            op2.set_downstream(op3)
+            op3.set_downstream(op4)
+            op4.set_downstream(op5)
+            op5.set_downstream(op1)
 
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
@@ -592,18 +594,18 @@ class TestDag(unittest.TestCase):
         # E-> A -> B -> F -> A
         #       -> C -> F
         with dag:
-            opA = DummyOperator(task_id='A')
-            opB = DummyOperator(task_id='B')
-            opC = DummyOperator(task_id='C')
-            opD = DummyOperator(task_id='D')
-            opE = DummyOperator(task_id='E')
-            opF = DummyOperator(task_id='F')
-            opA.set_downstream(opB)
-            opA.set_downstream(opC)
-            opE.set_downstream(opA)
-            opC.set_downstream(opF)
-            opB.set_downstream(opF)
-            opF.set_downstream(opA)
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op3 = DummyOperator(task_id='C')
+            op4 = DummyOperator(task_id='D')
+            op5 = DummyOperator(task_id='E')
+            op6 = DummyOperator(task_id='F')
+            op1.set_downstream(op2)
+            op1.set_downstream(op3)
+            op5.set_downstream(op1)
+            op3.set_downstream(op6)
+            op2.set_downstream(op6)
+            op6.set_downstream(op1)
 
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
@@ -638,7 +640,7 @@ class TestDag(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-10-28T02:55:00+02:00")
         self.assertEqual(prev, utc)
 
-    def test_following_previous_schedule_daily_dag_CEST_to_CET(self):
+    def test_following_previous_schedule_daily_dag_cest_to_cet(self):
         """
         Make sure DST transitions are properly observed
         """
@@ -668,7 +670,7 @@ class TestDag(unittest.TestCase):
         self.assertEqual(prev_local.isoformat(), "2018-10-27T03:00:00+02:00")
         self.assertEqual(prev.isoformat(), "2018-10-27T01:00:00+00:00")
 
-    def test_following_previous_schedule_daily_dag_CET_to_CEST(self):
+    def test_following_previous_schedule_daily_dag_cet_to_cest(self):
         """
         Make sure DST transitions are properly observed
         """
@@ -879,34 +881,34 @@ class TestDag(unittest.TestCase):
     def test_roots(self):
         """Verify if dag.roots returns the root tasks of a DAG."""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            t1 = DummyOperator(task_id="t1")
-            t2 = DummyOperator(task_id="t2")
-            t3 = DummyOperator(task_id="t3")
-            t4 = DummyOperator(task_id="t4")
-            t5 = DummyOperator(task_id="t5")
-            [t1, t2] >> t3 >> [t4, t5]
+            op1 = DummyOperator(task_id="t1")
+            op2 = DummyOperator(task_id="t2")
+            op3 = DummyOperator(task_id="t3")
+            op4 = DummyOperator(task_id="t4")
+            op5 = DummyOperator(task_id="t5")
+            [op1, op2] >> op3 >> [op4, op5]
 
-            self.assertCountEqual(dag.roots, [t1, t2])
+            self.assertCountEqual(dag.roots, [op1, op2])
 
     def test_leaves(self):
         """Verify if dag.leaves returns the leaf tasks of a DAG."""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            t1 = DummyOperator(task_id="t1")
-            t2 = DummyOperator(task_id="t2")
-            t3 = DummyOperator(task_id="t3")
-            t4 = DummyOperator(task_id="t4")
-            t5 = DummyOperator(task_id="t5")
-            [t1, t2] >> t3 >> [t4, t5]
+            op1 = DummyOperator(task_id="t1")
+            op2 = DummyOperator(task_id="t2")
+            op3 = DummyOperator(task_id="t3")
+            op4 = DummyOperator(task_id="t4")
+            op5 = DummyOperator(task_id="t5")
+            [op1, op2] >> op3 >> [op4, op5]
 
-            self.assertCountEqual(dag.leaves, [t4, t5])
+            self.assertCountEqual(dag.leaves, [op4, op5])
 
     def test_tree_view(self):
         """Verify correctness of dag.tree_view()."""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            t1 = DummyOperator(task_id="t1")
-            t2 = DummyOperator(task_id="t2")
-            t3 = DummyOperator(task_id="t3")
-            t1 >> t2 >> t3
+            op1 = DummyOperator(task_id="t1")
+            op2 = DummyOperator(task_id="t2")
+            op3 = DummyOperator(task_id="t3")
+            op1 >> op2 >> op3
 
             with redirect_stdout(io.StringIO()) as stdout:
                 dag.tree_view()
@@ -923,19 +925,19 @@ class TestDag(unittest.TestCase):
             DuplicateTaskIdFound, "Task id 't1' has already been added to the DAG"
         ):
             with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-                t1 = DummyOperator(task_id="t1")
-                t2 = BashOperator(task_id="t1", bash_command="sleep 1")
-                t1 >> t2
+                op1 = DummyOperator(task_id="t1")
+                op2 = BashOperator(task_id="t1", bash_command="sleep 1")
+                op1 >> op2
 
-        self.assertEqual(dag.task_dict, {t1.task_id: t1})
+        self.assertEqual(dag.task_dict, {op1.task_id: op1})
 
         # Also verify that DAGs with duplicate task_ids don't raise errors
         with DAG("test_dag_1", start_date=DEFAULT_DATE) as dag1:
-            t3 = DummyOperator(task_id="t3")
-            t4 = BashOperator(task_id="t4", bash_command="sleep 1")
-            t3 >> t4
+            op3 = DummyOperator(task_id="t3")
+            op4 = BashOperator(task_id="t4", bash_command="sleep 1")
+            op3 >> op4
 
-        self.assertEqual(dag1.task_dict, {t3.task_id: t3, t4.task_id: t4})
+        self.assertEqual(dag1.task_dict, {op3.task_id: op3, op4.task_id: op4})
 
     def test_duplicate_task_ids_not_allowed_without_dag_context_manager(self):
         """Verify tasks with Duplicate task_id raises error"""
@@ -943,39 +945,39 @@ class TestDag(unittest.TestCase):
             DuplicateTaskIdFound, "Task id 't1' has already been added to the DAG"
         ):
             dag = DAG("test_dag", start_date=DEFAULT_DATE)
-            t1 = DummyOperator(task_id="t1", dag=dag)
-            t2 = BashOperator(task_id="t1", bash_command="sleep 1", dag=dag)
-            t1 >> t2
+            op1 = DummyOperator(task_id="t1", dag=dag)
+            op2 = BashOperator(task_id="t1", bash_command="sleep 1", dag=dag)
+            op1 >> op2
 
-        self.assertEqual(dag.task_dict, {t1.task_id: t1})
+        self.assertEqual(dag.task_dict, {op1.task_id: op1})
 
         # Also verify that DAGs with duplicate task_ids don't raise errors
         dag1 = DAG("test_dag_1", start_date=DEFAULT_DATE)
-        t3 = DummyOperator(task_id="t3", dag=dag1)
-        t4 = DummyOperator(task_id="t4", dag=dag1)
-        t3 >> t4
+        op3 = DummyOperator(task_id="t3", dag=dag1)
+        op4 = DummyOperator(task_id="t4", dag=dag1)
+        op3 >> op4
 
-        self.assertEqual(dag1.task_dict, {t3.task_id: t3, t4.task_id: t4})
+        self.assertEqual(dag1.task_dict, {op3.task_id: op3, op4.task_id: op4})
 
     def test_duplicate_task_ids_for_same_task_is_allowed(self):
         """Verify that same tasks with Duplicate task_id do not raise error"""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            t1 = t2 = DummyOperator(task_id="t1")
-            t3 = DummyOperator(task_id="t3")
-            t1 >> t3
-            t2 >> t3
+            op1 = op2 = DummyOperator(task_id="t1")
+            op3 = DummyOperator(task_id="t3")
+            op1 >> op3
+            op2 >> op3
 
-        self.assertEqual(t1, t2)
-        self.assertEqual(dag.task_dict, {t1.task_id: t1, t3.task_id: t3})
-        self.assertEqual(dag.task_dict, {t2.task_id: t2, t3.task_id: t3})
+        self.assertEqual(op1, op2)
+        self.assertEqual(dag.task_dict, {op1.task_id: op1, op3.task_id: op3})
+        self.assertEqual(dag.task_dict, {op2.task_id: op2, op3.task_id: op3})
 
     def test_sub_dag_updates_all_references_while_deepcopy(self):
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            t1 = DummyOperator(task_id='t1')
-            t2 = DummyOperator(task_id='t2')
-            t3 = DummyOperator(task_id='t3')
-            t1 >> t2
-            t2 >> t3
+            op1 = DummyOperator(task_id='t1')
+            op2 = DummyOperator(task_id='t2')
+            op3 = DummyOperator(task_id='t3')
+            op1 >> op2
+            op2 >> op3
 
         sub_dag = dag.sub_dag('t2', include_upstream=True, include_downstream=False)
         self.assertEqual(id(sub_dag.task_dict['t1'].downstream_list[0].dag), id(sub_dag))

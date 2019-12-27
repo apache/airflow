@@ -68,7 +68,7 @@ class TestHiveEnvironment(unittest.TestCase):
         ADD PARTITION({{ params.partition_by }}='{{ ds }}');
         """
         self.hook = HiveMetastoreHook()
-        t = HiveOperator(
+        op = HiveOperator(
             task_id='HiveHook_' + str(random.randint(1, 10000)),
             params={
                 'database': self.database,
@@ -77,8 +77,8 @@ class TestHiveEnvironment(unittest.TestCase):
             },
             hive_cli_conn_id='hive_cli_default',
             hql=self.hql, dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-              ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
 
     def tearDown(self):
         hook = HiveMetastoreHook()
@@ -199,8 +199,8 @@ class TestHiveCliHook(unittest.TestCase):
     @mock.patch('pandas.DataFrame.to_csv')
     def test_load_df_with_optional_parameters(self, mock_to_csv, mock_load_file):
         hook = HiveCliHook()
-        b = (True, False)
-        for create, recreate in itertools.product(b, b):
+        bools = (True, False)
+        for create, recreate in itertools.product(bools, bools):
             mock_load_file.reset_mock()
             hook.load_df(df=pd.DataFrame({"c": range(0, 10)}),
                          table="t",
@@ -214,18 +214,18 @@ class TestHiveCliHook(unittest.TestCase):
 
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
     def test_load_df_with_data_types(self, mock_run_cli):
-        d = OrderedDict()
-        d['b'] = [True]
-        d['i'] = [-1]
-        d['t'] = [1]
-        d['f'] = [0.0]
-        d['c'] = ['c']
-        d['M'] = [datetime.datetime(2018, 1, 1)]
-        d['O'] = [object()]
-        d['S'] = [b'STRING']
-        d['U'] = ['STRING']
-        d['V'] = [None]
-        df = pd.DataFrame(d)
+        ord_dict = OrderedDict()
+        ord_dict['b'] = [True]
+        ord_dict['i'] = [-1]
+        ord_dict['t'] = [1]
+        ord_dict['f'] = [0.0]
+        ord_dict['c'] = ['c']
+        ord_dict['M'] = [datetime.datetime(2018, 1, 1)]
+        ord_dict['O'] = [object()]
+        ord_dict['S'] = [b'STRING']
+        ord_dict['U'] = ['STRING']
+        ord_dict['V'] = [None]
+        df = pd.DataFrame(ord_dict)
 
         hook = HiveCliHook()
         hook.load_df(df, 't')
@@ -412,7 +412,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         self.columns = ['{}.a'.format(self.table),
                         '{}.b'.format(self.table)]
         self.hook = HiveMetastoreHook()
-        t = HiveOperator(
+        op = HiveOperator(
             task_id='HiveHook_' + str(random.randint(1, 10000)),
             params={
                 'database': self.database,
@@ -421,8 +421,8 @@ class TestHiveServer2Hook(unittest.TestCase):
             },
             hive_cli_conn_id='hive_cli_default',
             hql=self.hql, dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-              ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
 
     def tearDown(self):
         hook = HiveMetastoreHook()

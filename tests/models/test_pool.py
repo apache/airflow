@@ -46,10 +46,10 @@ class TestPool(unittest.TestCase):
         dag = DAG(
             dag_id='test_open_slots',
             start_date=DEFAULT_DATE, )
-        t1 = DummyOperator(task_id='dummy1', dag=dag, pool='test_pool')
-        t2 = DummyOperator(task_id='dummy2', dag=dag, pool='test_pool')
-        ti1 = TI(task=t1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='dummy1', dag=dag, pool='test_pool')
+        op2 = DummyOperator(task_id='dummy2', dag=dag, pool='test_pool')
+        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 
@@ -60,20 +60,20 @@ class TestPool(unittest.TestCase):
         session.commit()
         session.close()
 
-        self.assertEqual(3, pool.open_slots())
-        self.assertEqual(1, pool.used_slots())
-        self.assertEqual(1, pool.queued_slots())
-        self.assertEqual(2, pool.occupied_slots())
+        self.assertEqual(3, pool.open_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(1, pool.used_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(1, pool.queued_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(2, pool.occupied_slots())  # pylint: disable=no-value-for-parameter
 
     def test_infinite_slots(self):
         pool = Pool(pool='test_pool', slots=-1)
         dag = DAG(
             dag_id='test_infinite_slots',
             start_date=DEFAULT_DATE, )
-        t1 = DummyOperator(task_id='dummy1', dag=dag, pool='test_pool')
-        t2 = DummyOperator(task_id='dummy2', dag=dag, pool='test_pool')
-        ti1 = TI(task=t1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='dummy1', dag=dag, pool='test_pool')
+        op2 = DummyOperator(task_id='dummy2', dag=dag, pool='test_pool')
+        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 
@@ -84,10 +84,10 @@ class TestPool(unittest.TestCase):
         session.commit()
         session.close()
 
-        self.assertEqual(float('inf'), pool.open_slots())
-        self.assertEqual(1, pool.used_slots())
-        self.assertEqual(1, pool.queued_slots())
-        self.assertEqual(2, pool.occupied_slots())
+        self.assertEqual(float('inf'), pool.open_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(1, pool.used_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(1, pool.queued_slots())  # pylint: disable=no-value-for-parameter
+        self.assertEqual(2, pool.occupied_slots())  # pylint: disable=no-value-for-parameter
 
     def test_default_pool_open_slots(self):
         set_default_pool_slots(5)
@@ -96,10 +96,10 @@ class TestPool(unittest.TestCase):
         dag = DAG(
             dag_id='test_default_pool_open_slots',
             start_date=DEFAULT_DATE, )
-        t1 = DummyOperator(task_id='dummy1', dag=dag)
-        t2 = DummyOperator(task_id='dummy2', dag=dag)
-        ti1 = TI(task=t1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='dummy1', dag=dag)
+        op2 = DummyOperator(task_id='dummy2', dag=dag)
+        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
 

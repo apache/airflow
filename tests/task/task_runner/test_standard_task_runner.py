@@ -178,10 +178,10 @@ class TestStandardTaskRunner(unittest.TestCase):
 
     @staticmethod
     def _procs_in_pgroup(pgid):
-        for p in psutil.process_iter(attrs=['pid', 'name']):
+        for proc in psutil.process_iter(attrs=['pid', 'name']):
             try:
-                if os.getpgid(p.pid) == pgid and p.pid != 0:
-                    yield p
+                if os.getpgid(proc.pid) == pgid and proc.pid != 0:
+                    yield proc
             except OSError:
                 pass
 

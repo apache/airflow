@@ -36,12 +36,12 @@ class TestBaseJob(unittest.TestCase):
             'polymorphic_identity': 'TestJob'
         }
 
-        def __init__(self, cb, **kwargs):
-            self.cb = cb
+        def __init__(self, func, **kwargs):
+            self.func = func
             super().__init__(**kwargs)
 
         def _execute(self):
-            return self.cb()
+            return self.func()
 
     def test_state_success(self):
         job = self.TestJob(lambda: True)

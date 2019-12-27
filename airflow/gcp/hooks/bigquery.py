@@ -2207,8 +2207,7 @@ class BigQueryCursor(BigQueryBaseCursor):
             one = self.fetchone()
             if one is None:
                 break
-            else:
-                result.append(one)
+            result.append(one)
         return result
 
     def fetchall(self) -> List[List]:
@@ -2221,8 +2220,7 @@ class BigQueryCursor(BigQueryBaseCursor):
             one = self.fetchone()
             if one is None:
                 break
-            else:
-                result.append(one)
+            result.append(one)
         return result
 
     def get_arraysize(self) -> int:

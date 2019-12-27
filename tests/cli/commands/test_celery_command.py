@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import importlib
 import unittest
 from argparse import Namespace
 
@@ -23,7 +23,7 @@ import sqlalchemy
 
 import airflow
 from airflow.bin import cli
-from airflow.cli.commands import worker_command
+from airflow.cli.commands import celery_command
 from tests.compat import mock, patch
 from tests.test_utils.config import conf_vars
 
@@ -41,7 +41,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         mock_validate_session.return_value = False
         with self.assertRaises(SystemExit) as cm:
             # airflow.bin.cli.worker(mock_args)
-            worker_command.worker(mock_args)
+            celery_command.worker(mock_args)
         self.assertEqual(cm.exception.code, 1)
 
     @conf_vars({('core', 'worker_precheck'): 'False'})
@@ -63,24 +63,30 @@ class TestWorkerPrecheck(unittest.TestCase):
 
 
 class TestWorkerServeLogs(unittest.TestCase):
+
     @classmethod
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
+        importlib.reload(cli)
         cls.parser = cli.CLIFactory.get_parser()
 
+    def tearDown(self):
+        importlib.reload(cli)
+
     def test_serve_logs_on_worker_start(self):
-        with patch('airflow.cli.commands.worker_command.Process') as mock_process:
-            args = self.parser.parse_args(['worker', '-c', '-1'])
+        with patch('airflow.cli.commands.celery_command.Process') as mock_process:
+            args = self.parser.parse_args(['celery', 'worker', '-c', '-1'])
 
             with patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
-                worker_command.worker(args)
+                celery_command.worker(args)
                 mock_process.assert_called()
 
     def test_skip_serve_logs_on_worker_start(self):
-        with patch('airflow.cli.commands.worker_command.Process') as mock_popen:
-            args = self.parser.parse_args(['worker', '-c', '-1', '-s'])
+        with patch('airflow.cli.commands.celery_command.Process') as mock_popen:
+            args = self.parser.parse_args(['celery', 'worker', '-c', '-1', '-s'])
 
             with patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
-                worker_command.worker(args)
+                celery_command.worker(args)
                 mock_popen.assert_not_called()
