@@ -234,10 +234,12 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
         @app.before_request
         def before_request():
-            flask.session.permanent = True
-            app.permanent_session_lifetime = datetime.timedelta(minutes=60)
-            flask.session.modified = True
-            flask.g.user = flask_login.current_user
+            _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
+            if _force_log_out_after > 0:
+                flask.session.permanent = True
+                app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
+                flask.session.modified = True
+                flask.g.user = flask_login.current_user
 
         @app.teardown_appcontext
         def shutdown_session(exception=None):  # pylint: disable=unused-variable
