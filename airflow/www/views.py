@@ -3055,20 +3055,56 @@ class TaskInstanceModelView(ModelViewOnly):
             count = len(ids)
             for id in ids:
                 task_id, dag_id, execution_date = iterdecode(id)
+                dag = dagbag.get_dag(dag_id)
                 execution_date = parse_execution_date(execution_date)
 
-                ti = session.query(TI).filter(TI.task_id == task_id,
-                                              TI.dag_id == dag_id,
-                                              TI.execution_date == execution_date).one()
-                ti.priority_weight = priority_weight
+                task_order = list(dag.topological_sort())
+                task_order.reverse()
+
+                leaf_tasks = dag.leaves
+                # dictionary to hold the original priority weights for task
+                task_priority_weights = {}
+                for task in task_order:
+                    if task.task_id == task_id or priority_weight == 1:
+                        ti_to_be_modified = session.query(TI).filter(TI.task_id == task.task_id,
+                                                                     TI.dag_id == dag_id,
+                                                                     TI.execution_date == execution_date).one()
+                        ti_to_be_modified.priority_weight = priority_weight
+                        task.priority_weight = priority_weight
+                    if priority_weight == 1:
+                        task_priority_weights[task.task_id] = priority_weight
+                    else:
+                        task_priority_weights[task.task_id] = task.priority_weight
+
+                    # leaf task, don't change priority
+                    if task.task_id not in [task.task_id for task in leaf_tasks]:
+                        new_priority_weight, _ = self.get_task_priority_weight(task, task_priority_weights,  [])
+                        ti_to_be_modified = session.query(TI).filter(TI.task_id == task.task_id,
+                                                                     TI.dag_id == dag_id,
+                                                                     TI.execution_date == execution_date).one()
+                        ti_to_be_modified.priority_weight = new_priority_weight + task_priority_weights[task.task_id]
+
             session.commit()
             flash(
-                "{count} task instances were set to '{priority_weight}'".format(**locals()))
+                "{count} task instances/dags were set to priority weight '{priority_weight}'".format(**locals()))
         except Exception as ex:
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")
             flash('Failed to set priority_weight', 'error')
 
+    # find the task priority in downstream mode
+    # only downstream is supported
+    def get_task_priority_weight(self, task, task_priority_weights, tasks_traversed):
+        new_priority_weight = 0
+        for downstream_task in task.downstream_list:
+            if downstream_task.task_id in tasks_traversed:
+                continue
+            tasks_traversed.append(downstream_task.task_id)
+            new_priority_weight += task_priority_weights[downstream_task.task_id]
+            sub_priority_weight, tasks_traversed = \
+                self.get_task_priority_weight(downstream_task, task_priority_weights, tasks_traversed)
+            new_priority_weight += sub_priority_weight
+        return new_priority_weight, tasks_traversed
 
     def get_one(self, id):
         """
