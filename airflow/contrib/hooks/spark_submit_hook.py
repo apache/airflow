@@ -24,8 +24,12 @@ import time
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.kubernetes import kube_client
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+try:
+    from airflow.kubernetes import kube_client
+except ImportError:
+    pass
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):

@@ -25,7 +25,6 @@ from airflow.models.dagbag import DagBag  # noqa: F401
 from airflow.models.dagpickle import DagPickle  # noqa: F401
 from airflow.models.dagrun import DagRun  # noqa: F401
 from airflow.models.errors import ImportError  # noqa: F401, pylint: disable=redefined-builtin
-from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier  # noqa: F401
 from airflow.models.log import Log  # noqa: F401
 from airflow.models.pool import Pool  # noqa: F401
 from airflow.models.skipmixin import SkipMixin  # noqa: F401
@@ -35,6 +34,11 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances  # no
 from airflow.models.taskreschedule import TaskReschedule  # noqa: F401
 from airflow.models.variable import Variable  # noqa: F401
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom  # noqa: F401
+
+try:
+    from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier  # noqa: F401
+except ImportError:
+    pass
 
 # Load SQLAlchemy models during package initialization
 # Must be loaded after loading DAG model.
