@@ -1193,7 +1193,7 @@ class DagFileProcessorManager(LoggingMixin):
         simple_dags = []
         for file_path, processor in finished_processors.items():
             if processor.result is None:
-                self.log.warning(
+                self.log.error(
                     "Processor for %s exited with return code %s.",
                     processor.file_path, processor.exit_code
                 )
