@@ -25,23 +25,25 @@ import numpy as np
 # Dates and JSON encoding/decoding
 
 
-class AirflowJsonEncoder(json.JSONEncoder):
+def default(obj):
+    """
+    Convert dates and numpy objects in a json serializable format.
+    """
+    if isinstance(obj, datetime):
+        return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
+    elif isinstance(obj, date):
+        return obj.strftime('%Y-%m-%d')
+    elif isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16,
+                          np.int32, np.int64, np.uint8, np.uint16,
+                          np.uint32, np.uint64)):
+        return int(obj)
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64,
+                          np.complex_, np.complex64, np.complex128)):
+        return float(obj)
 
-    def default(self, obj):
-        # convert dates and numpy objects in a json serializable format
-        if isinstance(obj, datetime):
-            return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
-        elif isinstance(obj, date):
-            return obj.strftime('%Y-%m-%d')
-        elif type(obj) in (np.int_, np.intc, np.intp, np.int8, np.int16,
-                           np.int32, np.int64, np.uint8, np.uint16,
-                           np.uint32, np.uint64):
-            return int(obj)
-        elif type(obj) in (np.bool_,):
-            return bool(obj)
-        elif type(obj) in (np.float_, np.float16, np.float32, np.float64,
-                           np.complex_, np.complex64, np.complex128):
-            return float(obj)
+    return TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")
 
-        # Let the base class default method raise the TypeError
-        return json.JSONEncoder.default(self, obj)
+
+AirflowJsonEncoder = json.JSONEncoder(default=default)
