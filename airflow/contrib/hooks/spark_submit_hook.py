@@ -218,8 +218,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return connection_cmd
 
     def _mask_cmd(self, connection_cmd):
-        # Mask any password related fields in application args with key value pair where key contains password (case insensitive), e.g. HivePassword='abc'
-        connection_cmd_masked = re.sub(r"(\S*?(?:secret|password)\S*?\s*=\s*')[^']*(?=')", r'\1******', ' '.join(connection_cmd), flags=re.I)
+        # Mask any password related fields in application args with key value pair
+        # where key contains password (case insensitive), e.g. HivePassword='abc'
+        connection_cmd_masked = re.sub(
+            r"(\S*?(?:secret|password)\S*?\s*=\s*')[^']*(?=')",
+            r'\1******', ' '.join(connection_cmd), flags=re.I)
 
         return connection_cmd_masked
 
