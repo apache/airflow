@@ -277,7 +277,7 @@ Relationship Helper
 ``chain`` and ``cross_downstream`` function provide easier ways to set relationships
 between operators in specific situation.
 
-When setting a relationship between two lists, 
+When setting a relationship between two lists,
 if we want all operators in one list to be upstream to all operators in the other,
 we cannot use a single bitshift composition. Instead we have to split one of the lists:
 
