@@ -32,8 +32,8 @@ from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
 from airflow import models
-from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import create_session, provide_session
 
 LOGIN_MANAGER = flask_login.LoginManager()
 LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below

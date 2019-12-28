@@ -39,7 +39,7 @@ from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.test_utils.db import clear_db_pools, clear_db_runs, set_default_pool_slots

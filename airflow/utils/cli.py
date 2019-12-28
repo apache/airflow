@@ -38,7 +38,7 @@ from typing import Optional
 from airflow import AirflowException, settings
 from airflow.models import DagBag, DagPickle, Log
 from airflow.utils import cli_action_loggers
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 def action_logging(f):

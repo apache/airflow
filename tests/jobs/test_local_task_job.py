@@ -31,8 +31,8 @@ from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.db import create_session
 from airflow.utils.net import get_hostname
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_executor import MockExecutor

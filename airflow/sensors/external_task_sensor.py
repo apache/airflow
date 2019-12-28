@@ -24,8 +24,8 @@ from sqlalchemy import func
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 

@@ -28,10 +28,11 @@ from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
-from airflow.utils import cli as cli_utils, db
+from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_pickle, get_dags
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
+from airflow.utils.session import create_session
 
 
 def _run_task_by_selected_method(args, dag, ti):
@@ -59,7 +60,7 @@ def _run_task_by_executor(args, dag, ti):
     if args.ship_dag:
         try:
             # Running remotely, so pickling the DAG
-            with db.create_session() as session:
+            with create_session() as session:
                 pickle = DagPickle(dag)
                 session.add(pickle)
                 pickle_id = pickle.id

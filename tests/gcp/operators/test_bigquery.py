@@ -35,7 +35,7 @@ from airflow.gcp.operators.bigquery import (
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import Session
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 TASK_ID = 'test-bq-generic-operator'
 TEST_DATASET = 'test-dataset'

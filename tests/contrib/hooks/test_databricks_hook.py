@@ -29,7 +29,7 @@ from airflow import __version__
 from airflow.contrib.hooks.databricks_hook import SUBMIT_RUN_ENDPOINT, DatabricksHook, RunState
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.utils import db
+from airflow.utils.session import provide_session
 
 TASK_ID = 'databricks-operator'
 DEFAULT_CONN_ID = 'databricks_default'
@@ -154,7 +154,7 @@ class TestDatabricksHook(unittest.TestCase):
     Tests for DatabricksHook.
     """
 
-    @db.provide_session
+    @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection) \
             .filter(Connection.conn_id == DEFAULT_CONN_ID) \
@@ -395,7 +395,7 @@ class TestDatabricksHookToken(unittest.TestCase):
     Tests for DatabricksHook when auth is done with token.
     """
 
-    @db.provide_session
+    @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection) \
             .filter(Connection.conn_id == DEFAULT_CONN_ID) \

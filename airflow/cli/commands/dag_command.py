@@ -29,9 +29,10 @@ from tabulate import tabulate
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.utils import cli as cli_utils, db
+from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
+from airflow.utils.session import create_session
 
 
 def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt="fancy_grid"):
@@ -266,7 +267,7 @@ def dag_list_jobs(args, dag=None):
     if args.state:
         queries.append(jobs.BaseJob.state == args.state)
 
-    with db.create_session() as session:
+    with create_session() as session:
         all_jobs = (session
                     .query(jobs.BaseJob)
                     .filter(*queries)

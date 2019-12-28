@@ -30,8 +30,8 @@ from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 

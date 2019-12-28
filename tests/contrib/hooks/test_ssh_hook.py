@@ -27,7 +27,7 @@ import paramiko
 from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.models import Connection
 from airflow.utils import db
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 
 HELLO_SERVER_CMD = """
 import socket, sys

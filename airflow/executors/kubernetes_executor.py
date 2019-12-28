@@ -41,8 +41,8 @@ from airflow.kubernetes.pod_launcher import PodLauncher
 from airflow.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
 from airflow.models.taskinstance import TaskInstanceKeyType
-from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 
 MAX_POD_ID_LEN = 253

@@ -43,8 +43,8 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.dag_processing import SimpleDag, SimpleDagBag
 from airflow.utils.dates import days_ago
-from airflow.utils.db import create_session, provide_session
 from airflow.utils.file import list_py_file_paths
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from tests.test_utils.db import (
     clear_db_dags, clear_db_errors, clear_db_pools, clear_db_runs, clear_db_sla_miss, set_default_pool_slots,
