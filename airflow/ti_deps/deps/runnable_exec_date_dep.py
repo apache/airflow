@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.configuration import conf
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
@@ -31,10 +32,17 @@ class RunnableExecDateDep(BaseTIDep):
         cur_date = timezone.utcnow()
 
         if ti.execution_date > cur_date:
-            yield self._failing_status(
-                reason="Execution date {0} is in the future (the current "
-                       "date is {1}).".format(ti.execution_date.isoformat(),
-                                              cur_date.isoformat()))
+            if conf.getboolean(
+                    'scheduler',
+                    'USE_JOB_SCHEDULE',
+                    fallback=True) or not conf.getboolean(
+                    'scheduler',
+                    'RUN_FUTURE_EXEC_DATES',
+                    fallback=False):
+                yield self._failing_status(
+                    reason="Execution date {0} is in the future (the current "
+                           "date is {1}).".format(ti.execution_date.isoformat(),
+                                                  cur_date.isoformat()))
 
         if ti.task.end_date and ti.execution_date > ti.task.end_date:
             yield self._failing_status(
