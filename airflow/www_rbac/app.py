@@ -228,6 +228,23 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         def shutdown_session(exception=None):
             settings.Session.remove()
 
+        @app.before_request
+        def before_request():
+            _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
+            if _force_log_out_after > 0:
+                flask.session.permanent = True
+                app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
+                flask.session.modified = True
+                flask.g.user = flask_login.current_user
+
+        @app.after_request
+        def apply_caching(response):
+            _x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
+            if not _x_frame_enabled:
+                response.headers["X-Frame-Options"] = "DENY"
+            return response
+
+
     return app, appbuilder
 
 
