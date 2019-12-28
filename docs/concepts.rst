@@ -271,8 +271,12 @@ and equivalent to:
     op1.set_downstream([op2, op3])
 
 
-Relationship Helper
---------------------
+Relationship Builders
+---------------------
+
+*Moved in Airflow 2.0*
+
+In Airflow 2.0 those two methods moved from ``airflow.utils.helpers`` to ``airflow.models.baseoperator``.
 
 ``chain`` and ``cross_downstream`` function provide easier ways to set relationships
 between operators in specific situation.
