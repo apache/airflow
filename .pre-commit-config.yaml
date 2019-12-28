@@ -149,6 +149,7 @@ repos:
       - id: mixed-line-ending
       - id: check-executables-have-shebangs
       - id: check-xml
+      - id: trailing-whitespace
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.4.2
     hooks:
