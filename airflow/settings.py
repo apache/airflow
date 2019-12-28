@@ -35,9 +35,13 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
-from airflow.contrib.kubernetes.pod import Pod
 from airflow.logging_config import configure_logging
 from airflow.utils.sqlalchemy import setup_event_handlers
+
+try:
+    from airflow.contrib.kubernetes.pod import Pod
+except ImportError:
+    pass
 
 log = logging.getLogger(__name__)
 
