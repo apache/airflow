@@ -1271,7 +1271,8 @@ class SchedulerJob(BaseJob):
                         schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
-            self.manage_slas(dag)
+            if conf.getboolean('core', 'CHECK_SLAS', fallback=True):
+                self.manage_slas(dag)
 
     @provide_session
     def _process_executor_events(self, simple_dag_bag, session=None):
