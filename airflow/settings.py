@@ -387,7 +387,6 @@ def initialize():
 
 
 # Const stuff
-
 KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
