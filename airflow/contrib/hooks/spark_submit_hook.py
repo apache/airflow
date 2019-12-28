@@ -141,7 +141,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._proxy_user = proxy_user
         self._name = name
         self._num_executors = num_executors
-        self._status_poll_interval = status_poll_interval
+        self._status_poll_interval = status_poll_interval or 1
         self._application_args = application_args
         self._env_vars = env_vars
         self._verbose = verbose
@@ -497,10 +497,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                                           "KILLED", "FAILED", "ERROR"]:
 
             # Sleep for n seconds as we do not want to spam the cluster
-            if self._status_poll_interval:
-                time.sleep(int(self._status_poll_interval))
-            else:
-                time.sleep(1)
+            time.sleep(self._status_poll_interval)
 
             self.log.debug("polling status of spark driver with id {}"
                            .format(self._driver_id))
