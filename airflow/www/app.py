@@ -183,6 +183,15 @@ def create_app(config=None, testing=False):
                 'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             }
 
+        @app.before_request
+        def before_request():
+            _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
+            if _force_log_out_after > 0:
+                flask.session.permanent = True
+                app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
+                flask.session.modified = True
+                flask.g.user = flask_login.current_user
+
         @app.teardown_appcontext
         def shutdown_session(exception=None):
             settings.Session.remove()
