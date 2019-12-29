@@ -108,7 +108,7 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()
 
             task_instance = MagicMock()
-            settings.test_policy(task_instance)
+            settings.test_policy(task_instance)  # pylint: disable=no-member
 
             assert task_instance.run_as_user == "myself"
 
@@ -132,7 +132,7 @@ class TestLocalSettings(unittest.TestCase):
             settings.import_local_settings()
 
             task_instance = MagicMock()
-            settings.test_policy(task_instance)
+            settings.test_policy(task_instance)  # pylint: disable=no-member
 
             assert task_instance.run_as_user == "myself"
 

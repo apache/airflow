@@ -67,7 +67,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def close(self):
         """
-        Close and upload local log file to remote storage S3.
+        Close and upload local log file to remote storage GCS.
         """
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already

@@ -21,6 +21,8 @@
 import copy
 import unittest
 
+import mock
+from mock import MagicMock
 from parameterized import parameterized
 
 from airflow import AirflowException
@@ -28,7 +30,6 @@ from airflow.gcp.hooks.dataflow import (
     DataflowHook, DataflowJobStatus, DataflowJobType, _DataflowJobsController, _DataflowRunner,
     _fallback_to_project_id_from_variables,
 )
-from tests.compat import MagicMock, mock
 
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'

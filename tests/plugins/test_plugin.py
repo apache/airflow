@@ -63,7 +63,7 @@ class PluginTestAppBuilderBaseView(AppBuilderBaseView):
 
     @expose("/")
     def test(self):
-        return self.render("test_plugin/test.html", content="Hello galaxy!")
+        return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
 
 v_appbuilder_view = PluginTestAppBuilderBaseView()

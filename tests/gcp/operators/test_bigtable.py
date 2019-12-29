@@ -21,6 +21,7 @@ import unittest
 from typing import Dict, List
 
 import google.api_core.exceptions
+import mock
 from google.cloud.bigtable.column_family import MaxVersionsGCRule
 from google.cloud.bigtable.instance import Instance
 from parameterized import parameterized
@@ -30,7 +31,6 @@ from airflow.gcp.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
     BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
 )
-from tests.compat import mock
 
 PROJECT_ID = 'test_project_id'
 INSTANCE_ID = 'test-instance-id'

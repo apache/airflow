@@ -19,15 +19,15 @@ import importlib
 import unittest
 from argparse import Namespace
 
+import mock
 import sqlalchemy
 
 import airflow
 from airflow.bin import cli
 from airflow.cli.commands import celery_command
-from tests.compat import mock, patch
 from tests.test_utils.config import conf_vars
 
-patch('airflow.utils.cli.action_logging', lambda x: x).start()
+mock.patch('airflow.utils.cli.action_logging', lambda x: x).start()
 mock_args = Namespace(queues=1, concurrency=1)
 
 
@@ -74,19 +74,19 @@ class TestWorkerServeLogs(unittest.TestCase):
         importlib.reload(cli)
 
     def test_serve_logs_on_worker_start(self):
-        with patch('airflow.cli.commands.celery_command.Process') as mock_process:
+        with mock.patch('airflow.cli.commands.celery_command.Process') as mock_process:
             args = self.parser.parse_args(['celery', 'worker', '-c', '-1'])
 
-            with patch('celery.platforms.check_privileges') as mock_privil:
+            with mock.patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
                 celery_command.worker(args)
                 mock_process.assert_called()
 
     def test_skip_serve_logs_on_worker_start(self):
-        with patch('airflow.cli.commands.celery_command.Process') as mock_popen:
+        with mock.patch('airflow.cli.commands.celery_command.Process') as mock_popen:
             args = self.parser.parse_args(['celery', 'worker', '-c', '-1', '-s'])
 
-            with patch('celery.platforms.check_privileges') as mock_privil:
+            with mock.patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
                 celery_command.worker(args)
                 mock_popen.assert_not_called()

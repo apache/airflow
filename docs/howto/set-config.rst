@@ -59,7 +59,7 @@ The following config options support this ``_cmd`` version:
 * ``git_password`` in ``[kubernetes]`` section
 
 The ``_cmd`` config options can also be set using a corresponding environment variable
-the same way the usual config options can. For example: 
+the same way the usual config options can. For example:
 
 .. code-block:: bash
 

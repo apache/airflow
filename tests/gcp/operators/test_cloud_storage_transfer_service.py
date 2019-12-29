@@ -22,6 +22,7 @@ from copy import deepcopy
 from datetime import date, time
 from typing import Dict
 
+import mock
 from botocore.credentials import Credentials
 from freezegun import freeze_time
 from parameterized import parameterized
@@ -42,7 +43,6 @@ from airflow.gcp.operators.cloud_storage_transfer_service import (
 )
 from airflow.models import DAG, TaskInstance
 from airflow.utils import timezone
-from tests.compat import mock
 
 try:
     import boto3

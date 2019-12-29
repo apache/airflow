@@ -85,9 +85,9 @@ recommended service account keys for the Google Cloud Platform management method
 [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
 
 ### BranchPythonOperator has a return value
-`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch, 
-where previously it returned None. Since it inherits from BaseOperator it will do an 
-`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making. 
+`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch,
+where previously it returned None. Since it inherits from BaseOperator it will do an
+`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making.
 
 ### Removal of airflow.AirflowMacroPlugin class
 
@@ -104,17 +104,17 @@ part of AIRFLOW-6010.
 
 #### Change default aws_conn_id in EMR operators
 
-The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous 
-versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new 
-changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is 
+The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
+versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
+changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
 solved.
 
 ### Removal of redirect_stdout, redirect_stderr
 
-Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has 
+Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has
 been deleted because it can be easily replaced by the standard library.
 The functions of the standard library are more flexible and can be used in larger cases.
-  
+
 The code below
 ```python
 import logging
@@ -147,8 +147,8 @@ This one is supersede by `XCom.get_many().first()` which will return the same re
 
 SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
 
-It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That 
-changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success 
+It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That
+changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success
 criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
 behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
 
@@ -166,9 +166,9 @@ result = self.render_template(self.myattr, context)  # Post-1.10.6 call
 ```
 
 ### Idempotency in BigQuery operators
-Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`. 
-But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table` 
-methods of `BigQueryHook`. 
+Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`.
+But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table`
+methods of `BigQueryHook`.
 
 ### Migration of AWS components
 
@@ -240,8 +240,8 @@ However, this requires that your operating system has ``libffi-dev`` installed.
 In the `PubSubPublishOperator` and `PubSubHook.publsh` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
 
 Due to the normalization of the parameters within GCP operators and hooks a parameters like `project` or `topic_project`
-are deprecated and will be substituted by parameter `project_id`. 
-In `PubSubHook.create_subscription` hook method in the parameter `subscription_project` is replaced by `subscription_project_id`. 
+are deprecated and will be substituted by parameter `project_id`.
+In `PubSubHook.create_subscription` hook method in the parameter `subscription_project` is replaced by `subscription_project_id`.
 Template fields are updated accordingly and old ones may not work.
 
 It is required now to pass key-word only arguments to `PubSub` hook.
@@ -297,8 +297,8 @@ Detailed information about connection management is available:
 
 ### Normalize gcp_conn_id for Google Cloud Platform
 
-Previously not all hooks and operators related to Google Cloud Platform use 
-`gcp_conn_id` as parameter for GCP connection. There is currently one parameter 
+Previously not all hooks and operators related to Google Cloud Platform use
+`gcp_conn_id` as parameter for GCP connection. There is currently one parameter
 which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_conn_id``,
 ``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
 
@@ -331,8 +331,8 @@ Following components were affected by normalization:
 
 ### Changes to propagating Kubernetes worker annotations
 
-`kubernetes_annotations` configuration section has been removed. 
-A new key `worker_annotations` has been added to existing `kubernetes` section instead. 
+`kubernetes_annotations` configuration section has been removed.
+A new key `worker_annotations` has been added to existing `kubernetes` section instead.
 That is to remove restriction on the character set for k8s annotation keys.
 All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
 ```
@@ -348,8 +348,8 @@ worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" 
 
 ### Changes to import paths and names of GCP operators and hooks
 
-According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths) 
-operators related to Google Cloud Platform has been moved from contrib to core. 
+According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+operators related to Google Cloud Platform has been moved from contrib to core.
 The following table shows changes in import paths.
 
 |                                                     Old path                                                     |                                                 New path                                                  |

@@ -20,6 +20,7 @@
 import unittest
 from datetime import datetime
 
+import mock
 from qds_sdk.commands import HiveCommand
 
 from airflow.contrib.hooks.qubole_check_hook import QuboleCheckHook
@@ -27,7 +28,6 @@ from airflow.contrib.hooks.qubole_hook import QuboleHook
 from airflow.contrib.operators.qubole_check_operator import QuboleValueCheckOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from tests.compat import mock
 
 
 class TestQuboleValueCheckOperator(unittest.TestCase):

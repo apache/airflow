@@ -21,6 +21,8 @@ import unittest
 from datetime import datetime
 from unittest.mock import MagicMock
 
+import mock
+
 from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.gcp.operators.bigquery import (
@@ -33,8 +35,7 @@ from airflow.gcp.operators.bigquery import (
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import Session
-from airflow.utils.db import provide_session
-from tests.compat import mock
+from airflow.utils.session import provide_session
 
 TASK_ID = 'test-bq-generic-operator'
 TEST_DATASET = 'test-dataset'

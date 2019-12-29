@@ -25,7 +25,7 @@ from unittest import mock
 
 # leave this it is used by the test worker
 # noinspection PyUnresolvedReferences
-import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=ungrouped-imports
+import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=unused-import
 from celery import Celery, states as celery_states
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop

@@ -149,6 +149,7 @@ repos:
       - id: mixed-line-ending
       - id: check-executables-have-shebangs
       - id: check-xml
+      - id: trailing-whitespace
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.4.2
     hooks:
@@ -224,6 +225,12 @@ repos:
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
           ^airflow/contrib/.*$
+      - id: provide-create-sessions
+        language: pygrep
+        name: Make sure provide_session and create_session are imported from airflow.utils.session
+        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
+        files: \.py$
+        pass_filenames: true
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator is imported from airflow.models outside of core

@@ -28,7 +28,7 @@ Pods on Kubernetes. It works with any type of executor.
 .. code:: python
 
     import kubernetes.client.models as k8s
-    
+
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
     from airflow.contrib.kubernetes.secret import Secret
     from airflow.contrib.kubernetes.volume import Volume

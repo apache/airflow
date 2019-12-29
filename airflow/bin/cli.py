@@ -585,269 +585,353 @@ class CLIFactory:
             help="Don't start the serve logs process along with the workers",
             action="store_true"),
     }
+    DAGS_SUBCOMMANDS = (
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
+            'name': 'list',
+            'help': "List all the DAGs",
+            'args': ('subdir', 'report'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
+            'name': 'list_runs',
+            'help': "List dag runs given a DAG id. If state option is given, it will only "
+                    "search for all the dagruns with the given state. "
+                    "If no_backfill option is given, it will filter out "
+                    "all backfill dagruns for given dag id",
+            'args': ('dag_id', 'no_backfill', 'state', 'output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
+            'name': 'list_jobs',
+            'help': "List the jobs",
+            'args': ('dag_id_opt', 'state', 'limit', 'output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_state'),
+            'name': 'state',
+            'help': "Get the status of a dag run",
+            'args': ('dag_id', 'execution_date', 'subdir'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
+            'name': 'next_execution',
+            'help': "Get the next execution datetime of a DAG",
+            'args': ('dag_id', 'subdir'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_pause'),
+            'name': 'pause',
+            'help': 'Pause a DAG',
+            'args': ('dag_id', 'subdir'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_unpause'),
+            'name': 'unpause',
+            'help': 'Resume a paused DAG',
+            'args': ('dag_id', 'subdir'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_trigger'),
+            'name': 'trigger',
+            'help': 'Trigger a DAG run',
+            'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_delete'),
+            'name': 'delete',
+            'help': "Delete all DB records related to the specified DAG",
+            'args': ('dag_id', 'yes'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_show'),
+            'name': 'show',
+            'help': "Displays DAG's tasks with their dependencies",
+            'args': ('dag_id', 'subdir', 'save', 'imgcat',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.dag_command.dag_backfill'),
+            'name': 'backfill',
+            'help': "Run subsections of a DAG for a specified date range. "
+                    "If reset_dag_run option is used,"
+                    " backfill will first prompt users whether airflow "
+                    "should clear all the previous dag_run and task_instances "
+                    "within the backfill date range. "
+                    "If rerun_failed_tasks is used, backfill "
+                    "will auto re-run the previous failed task instances"
+                    " within the backfill date range",
+            'args': (
+                'dag_id', 'task_regex', 'start_date', 'end_date',
+                'mark_success', 'local', 'donot_pickle', 'yes',
+                'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
+                'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
+                'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
+            ),
+        },
+    )
+    TASKS_COMMANDS = (
+        {
+            'func': lazy_load_command('airflow.cli.commands.task_command.task_list'),
+            'name': 'list',
+            'help': "List the tasks within a DAG",
+            'args': ('dag_id', 'tree', 'subdir'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.task_command.task_clear'),
+            'name': 'clear',
+            'help': "Clear a set of task instance, as if they never ran",
+            'args': (
+                'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
+                'upstream', 'downstream', 'yes', 'only_failed',
+                'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.task_command.task_state'),
+            'name': 'state',
+            'help': "Get the status of a task instance",
+            'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.task_command.task_failed_deps'),
+            'name': 'failed_deps',
+            'help': (
+                "Returns the unmet dependencies for a task instance from the perspective "
+                "of the scheduler. In other words, why a task instance doesn't get "
+                "scheduled and then queued by the scheduler, and then run by an "
+                "executor)"),
+            'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.task_command.task_render'),
+            'name': 'render',
+            'help': "Render a task instance's template(s)",
+            'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.task_command.task_run'),
+            'name': 'run',
+            'help': "Run a single task instance",
+            'args': (
+                'dag_id', 'task_id', 'execution_date', 'subdir',
+                'mark_success', 'force', 'pool', 'cfg_path',
+                'local', 'raw', 'ignore_all_dependencies', 'ignore_dependencies',
+                'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id', 'interactive',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.task_command.task_test'),
+            'name': 'test',
+            'help': (
+                "Test a task instance. This will run a task without checking for "
+                "dependencies or recording its state in the database"),
+            'args': (
+                'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
+                'task_params', 'post_mortem'),
+        },
+    )
+    POOLS_COMMANDS = (
+        {
+            'func': lazy_load_command('airflow.cli.commands.pool_command.pool_list'),
+            'name': 'list',
+            'help': 'List pools',
+            'args': ('output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.pool_command.pool_get'),
+            'name': 'get',
+            'help': 'Get pool size',
+            'args': ('pool_name', 'output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.pool_command.pool_set'),
+            'name': 'set',
+            'help': 'Configure pool',
+            'args': ('pool_name', 'pool_slots', 'pool_description', 'output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.pool_command.pool_delete'),
+            'name': 'delete',
+            'help': 'Delete pool',
+            'args': ('pool_name', 'output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
+            'name': 'import',
+            'help': 'Import pools',
+            'args': ('pool_import', 'output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
+            'name': 'export',
+            'help': 'Export all pools',
+            'args': ('pool_export', 'output',),
+        },
+    )
+    VARIABLES_COMMANDS = (
+        {
+            'func': lazy_load_command('airflow.cli.commands.variable_command.variables_list'),
+            'name': 'list',
+            'help': 'List variables',
+            'args': (),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
+            'name': 'get',
+            'help': 'Get variable',
+            'args': ('var', 'json', 'default'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.variable_command.variables_set'),
+            'name': 'set',
+            'help': 'Set variable',
+            'args': ('var', 'var_value', 'json'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.variable_command.variables_delete'),
+            'name': 'delete',
+            'help': 'Delete variable',
+            'args': ('var',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.variable_command.variables_import'),
+            'name': 'import',
+            'help': 'Import variables',
+            'args': ('var_import',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.variable_command.variables_export'),
+            'name': 'export',
+            'help': 'Export all variables',
+            'args': ('var_export',),
+        },
+    )
+    DB_COMMANDS = (
+        {
+            'func': lazy_load_command('airflow.cli.commands.db_command.initdb'),
+            'name': 'init',
+            'help': "Initialize the metadata database",
+            'args': (),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.db_command.resetdb'),
+            'name': 'reset',
+            'help': "Burn down and rebuild the metadata database",
+            'args': ('yes',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
+            'name': 'upgrade',
+            'help': "Upgrade the metadata database to latest version",
+            'args': tuple(),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.db_command.shell'),
+            'name': 'shell',
+            'help': "Runs a shell to access the database",
+            'args': tuple(),
+        },
+    )
+    CONNECTIONS_COMMANDS = (
+        {
+            'func': lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
+            'name': 'list',
+            'help': 'List connections',
+            'args': ('output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.connection_command.connections_add'),
+            'name': 'add',
+            'help': 'Add a connection',
+            'args': ('conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
+            'name': 'delete',
+            'help': 'Delete a connection',
+            'args': ('conn_id',),
+        },
+    )
+    USERS_COMMANDSS = (
+        {
+            'func': lazy_load_command('airflow.cli.commands.user_command.users_list'),
+            'name': 'list',
+            'help': 'List users',
+            'args': ('output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.user_command.users_create'),
+            'name': 'create',
+            'help': 'Create a user',
+            'args': ('role', 'username', 'email', 'firstname', 'lastname', 'password',
+                     'use_random_password')
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.user_command.users_delete'),
+            'name': 'delete',
+            'help': 'Delete a user',
+            'args': ('username',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.user_command.add_role'),
+            'name': 'add_role',
+            'help': 'Add role to a user',
+            'args': ('username_optional', 'email_optional', 'role'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.user_command.remove_role'),
+            'name': 'remove_role',
+            'help': 'Remove role from a user',
+            'args': ('username_optional', 'email_optional', 'role'),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.user_command.users_import'),
+            'name': 'import',
+            'help': 'Import users',
+            'args': ('user_import',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.user_command.users_export'),
+            'name': 'export',
+            'help': 'Export all users',
+            'args': ('user_export',),
+        },
+    )
+    ROLES_COMMANDS = (
+        {
+            'func': lazy_load_command('airflow.cli.commands.role_command.roles_list'),
+            'name': 'list',
+            'help': 'List roles',
+            'args': ('output',),
+        },
+        {
+            'func': lazy_load_command('airflow.cli.commands.role_command.roles_create'),
+            'name': 'create',
+            'help': 'Create role',
+            'args': ('roles',),
+        },
+    )
     subparsers = [
         {
             'help': 'List and manage DAGs',
             'name': 'dags',
-            'subcommands': (
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_dags'),
-                    'name': 'list',
-                    'help': "List all the DAGs",
-                    'args': ('subdir', 'report'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_dag_runs'),
-                    'name': 'list_runs',
-                    'help': "List dag runs given a DAG id. If state option is given, it will only "
-                            "search for all the dagruns with the given state. "
-                            "If no_backfill option is given, it will filter out "
-                            "all backfill dagruns for given dag id",
-                    'args': ('dag_id', 'no_backfill', 'state', 'output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_list_jobs'),
-                    'name': 'list_jobs',
-                    'help': "List the jobs",
-                    'args': ('dag_id_opt', 'state', 'limit', 'output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_state'),
-                    'name': 'state',
-                    'help': "Get the status of a dag run",
-                    'args': ('dag_id', 'execution_date', 'subdir'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_next_execution'),
-                    'name': 'next_execution',
-                    'help': "Get the next execution datetime of a DAG",
-                    'args': ('dag_id', 'subdir'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_pause'),
-                    'name': 'pause',
-                    'help': 'Pause a DAG',
-                    'args': ('dag_id', 'subdir'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_unpause'),
-                    'name': 'unpause',
-                    'help': 'Resume a paused DAG',
-                    'args': ('dag_id', 'subdir'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_trigger'),
-                    'name': 'trigger',
-                    'help': 'Trigger a DAG run',
-                    'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_delete'),
-                    'name': 'delete',
-                    'help': "Delete all DB records related to the specified DAG",
-                    'args': ('dag_id', 'yes'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_show'),
-                    'name': 'show',
-                    'help': "Displays DAG's tasks with their dependencies",
-                    'args': ('dag_id', 'subdir', 'save', 'imgcat',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.dag_command.dag_backfill'),
-                    'name': 'backfill',
-                    'help': "Run subsections of a DAG for a specified date range. "
-                            "If reset_dag_run option is used,"
-                            " backfill will first prompt users whether airflow "
-                            "should clear all the previous dag_run and task_instances "
-                            "within the backfill date range. "
-                            "If rerun_failed_tasks is used, backfill "
-                            "will auto re-run the previous failed task instances"
-                            " within the backfill date range",
-                    'args': (
-                        'dag_id', 'task_regex', 'start_date', 'end_date',
-                        'mark_success', 'local', 'donot_pickle', 'yes',
-                        'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
-                        'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
-                        'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
-                    ),
-                },
-            ),
+            'subcommands': DAGS_SUBCOMMANDS,
         }, {
             'help': 'List and manage tasks',
             'name': 'tasks',
-            'subcommands': (
-                {
-                    'func': lazy_load_command('airflow.cli.commands.task_command.task_list'),
-                    'name': 'list',
-                    'help': "List the tasks within a DAG",
-                    'args': ('dag_id', 'tree', 'subdir'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.task_command.task_clear'),
-                    'name': 'clear',
-                    'help': "Clear a set of task instance, as if they never ran",
-                    'args': (
-                        'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
-                        'upstream', 'downstream', 'yes', 'only_failed',
-                        'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.task_command.task_state'),
-                    'name': 'state',
-                    'help': "Get the status of a task instance",
-                    'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.task_command.task_failed_deps'),
-                    'name': 'failed_deps',
-                    'help': (
-                        "Returns the unmet dependencies for a task instance from the perspective "
-                        "of the scheduler. In other words, why a task instance doesn't get "
-                        "scheduled and then queued by the scheduler, and then run by an "
-                        "executor)"),
-                    'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.task_command.task_render'),
-                    'name': 'render',
-                    'help': "Render a task instance's template(s)",
-                    'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.task_command.task_run'),
-                    'name': 'run',
-                    'help': "Run a single task instance",
-                    'args': (
-                        'dag_id', 'task_id', 'execution_date', 'subdir',
-                        'mark_success', 'force', 'pool', 'cfg_path',
-                        'local', 'raw', 'ignore_all_dependencies', 'ignore_dependencies',
-                        'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id', 'interactive',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.task_command.task_test'),
-                    'name': 'test',
-                    'help': (
-                        "Test a task instance. This will run a task without checking for "
-                        "dependencies or recording its state in the database"),
-                    'args': (
-                        'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
-                        'task_params', 'post_mortem'),
-                },
-            ),
+            'subcommands': TASKS_COMMANDS,
         }, {
             'help': "CRUD operations on pools",
             'name': 'pools',
-            'subcommands': (
-                {
-                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_list'),
-                    'name': 'list',
-                    'help': 'List pools',
-                    'args': ('output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_get'),
-                    'name': 'get',
-                    'help': 'Get pool size',
-                    'args': ('pool_name', 'output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_set'),
-                    'name': 'set',
-                    'help': 'Configure pool',
-                    'args': ('pool_name', 'pool_slots', 'pool_description', 'output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_delete'),
-                    'name': 'delete',
-                    'help': 'Delete pool',
-                    'args': ('pool_name', 'output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_import'),
-                    'name': 'import',
-                    'help': 'Import pools',
-                    'args': ('pool_import', 'output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.pool_command.pool_export'),
-                    'name': 'export',
-                    'help': 'Export all pools',
-                    'args': ('pool_export', 'output',),
-                },
-            ),
+            'subcommands': POOLS_COMMANDS,
         }, {
             'help': "CRUD operations on variables",
             'name': 'variables',
-            'subcommands': (
-                {
-                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_list'),
-                    'name': 'list',
-                    'help': 'List variables',
-                    'args': (),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_get'),
-                    'name': 'get',
-                    'help': 'Get variable',
-                    'args': ('var', 'json', 'default'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_set'),
-                    'name': 'set',
-                    'help': 'Set variable',
-                    'args': ('var', 'var_value', 'json'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_delete'),
-                    'name': 'delete',
-                    'help': 'Delete variable',
-                    'args': ('var',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_import'),
-                    'name': 'import',
-                    'help': 'Import variables',
-                    'args': ('var_import',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.variable_command.variables_export'),
-                    'name': 'export',
-                    'help': 'Export all variables',
-                    'args': ('var_export',),
-                },
-            ),
+            'subcommands': VARIABLES_COMMANDS,
             "args": ('set', 'get', 'json', 'default',
                      'var_import', 'var_export', 'var_delete'),
         }, {
             'help': "Database operations",
             'name': 'db',
-            'subcommands': (
-                {
-                    'func': lazy_load_command('airflow.cli.commands.db_command.initdb'),
-                    'name': 'init',
-                    'help': "Initialize the metadata database",
-                    'args': (),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.db_command.resetdb'),
-                    'name': 'reset',
-                    'help': "Burn down and rebuild the metadata database",
-                    'args': ('yes',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
-                    'name': 'upgrade',
-                    'help': "Upgrade the metadata database to latest version",
-                    'args': tuple(),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.db_command.shell'),
-                    'name': 'shell',
-                    'help': "Runs a shell to access the database",
-                    'args': tuple(),
-                },
-            ),
+            'subcommands': DB_COMMANDS,
         }, {
             'name': 'kerberos',
             'func': lazy_load_command('airflow.cli.commands.kerberos_command.kerberos'),
@@ -876,91 +960,15 @@ class CLIFactory:
         }, {
             'help': "List/Add/Delete connections",
             'name': 'connections',
-            'subcommands': (
-                {
-                    'func': lazy_load_command('airflow.cli.commands.connection_command.connections_list'),
-                    'name': 'list',
-                    'help': 'List connections',
-                    'args': ('output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.connection_command.connections_add'),
-                    'name': 'add',
-                    'help': 'Add a connection',
-                    'args': ('conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.connection_command.connections_delete'),
-                    'name': 'delete',
-                    'help': 'Delete a connection',
-                    'args': ('conn_id',),
-                },
-            ),
+            'subcommands': CONNECTIONS_COMMANDS,
         }, {
             'help': "CRUD operations on users",
             'name': 'users',
-            'subcommands': (
-                {
-                    'func': lazy_load_command('airflow.cli.commands.user_command.users_list'),
-                    'name': 'list',
-                    'help': 'List users',
-                    'args': ('output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.user_command.users_create'),
-                    'name': 'create',
-                    'help': 'Create a user',
-                    'args': ('role', 'username', 'email', 'firstname', 'lastname', 'password',
-                             'use_random_password')
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.user_command.users_delete'),
-                    'name': 'delete',
-                    'help': 'Delete a user',
-                    'args': ('username',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.user_command.add_role'),
-                    'name': 'add_role',
-                    'help': 'Add role to a user',
-                    'args': ('username_optional', 'email_optional', 'role'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.user_command.remove_role'),
-                    'name': 'remove_role',
-                    'help': 'Remove role from a user',
-                    'args': ('username_optional', 'email_optional', 'role'),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.user_command.users_import'),
-                    'name': 'import',
-                    'help': 'Import users',
-                    'args': ('user_import',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.user_command.users_export'),
-                    'name': 'export',
-                    'help': 'Export all users',
-                    'args': ('user_export',),
-                },
-            ),
+            'subcommands': USERS_COMMANDSS,
         }, {
             'help': 'Create/List roles',
             'name': 'roles',
-            'subcommands': (
-                {
-                    'func': lazy_load_command('airflow.cli.commands.role_command.roles_list'),
-                    'name': 'list',
-                    'help': 'List roles',
-                    'args': ('output',),
-                },
-                {
-                    'func': lazy_load_command('airflow.cli.commands.role_command.roles_create'),
-                    'name': 'create',
-                    'help': 'Create role',
-                    'args': ('roles',),
-                },
-            ),
+            'subcommands': ROLES_COMMANDS,
         }, {
             'name': 'sync_perm',
             'func': lazy_load_command('airflow.cli.commands.sync_perm_command.sync_perm'),

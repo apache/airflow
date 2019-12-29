@@ -33,7 +33,9 @@ from urllib.parse import quote, unquote
 import lazy_object_proxy
 import markdown
 import sqlalchemy as sqla
-from flask import Markup, Response, flash, jsonify, make_response, redirect, render_template, request, url_for
+from flask import (
+    Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request, url_for,
+)
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
@@ -56,8 +58,8 @@ from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.www import utils as wwwutils
 from airflow.www.app import app, appbuilder
@@ -287,7 +289,7 @@ class Airflow(AirflowBaseView):
             num_dag_to=min(end, num_of_all_dags),
             num_of_all_dags=num_of_all_dags,
             paging=wwwutils.generate_pages(current_page, num_of_pages,
-                                           search=arg_search_query,
+                                           search=escape(arg_search_query) if arg_search_query else None,
                                            showPaused=not hide_paused),
             auto_complete_data=auto_complete_data,
             num_runs=num_runs)

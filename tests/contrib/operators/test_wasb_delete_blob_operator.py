@@ -21,9 +21,10 @@
 import datetime
 import unittest
 
+import mock
+
 from airflow import DAG
 from airflow.contrib.operators.wasb_delete_blob_operator import WasbDeleteBlobOperator
-from tests.compat import mock
 
 
 class TestWasbDeleteBlobOperator(unittest.TestCase):

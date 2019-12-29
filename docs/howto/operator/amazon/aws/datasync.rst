@@ -28,17 +28,17 @@ AWS DataSync Operator
 Overview
 --------
 
-Two example_dags are provided which showcase the 
-:class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator` 
-in action. 
+Two example_dags are provided which showcase the
+:class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator`
+in action.
 
  - example_datasync_1.py
  - example_datasync_2.py
 
-Both examples use the :class:`~airflow.providers.amazon.aws.hooks.datasync.AWSDataSyncHook` 
+Both examples use the :class:`~airflow.providers.amazon.aws.hooks.datasync.AWSDataSyncHook`
 to create a boto3 DataSync client. This hook in turn uses the :class:`~airflow.contrib.hooks.aws_hook.AwsHook`
 
-Note this guide differentiates between an *Airflow task* (identified by a task_id on Airflow), 
+Note this guide differentiates between an *Airflow task* (identified by a task_id on Airflow),
 and an *AWS DataSync Task* (identified by a TaskArn on AWS).
 
 example_datasync_1.py
@@ -77,9 +77,9 @@ TaskArn by specifying the ``task_arn`` parameter. This is useful when you know t
     :start-after: [START howto_operator_datasync_1_1]
     :end-before: [END howto_operator_datasync_1_1]
 
-Alternatively, the operator can search in AWS DataSync for a Task based on 
-``source_location_uri`` and ``destination_location_uri``. For example, your 
-``source_location_uri`` might point to your on-premises SMB / NFS share, and your 
+Alternatively, the operator can search in AWS DataSync for a Task based on
+``source_location_uri`` and ``destination_location_uri``. For example, your
+``source_location_uri`` might point to your on-premises SMB / NFS share, and your
 ``destination_location_uri`` might be an S3 bucket.
 
 In AWS, DataSync Tasks are linked to source and destination Locations. A location has a LocationURI and
@@ -97,7 +97,7 @@ To perform a search based on the Location URIs, define the task as follows
 
 Note: The above configuration assumes there is always exactly one DataSync TaskArn in AWS that matches.
 It will fail if either there were no matching TaskArns or if there were more than one matching TaskArn
-defined already in AWS DataSync. You may want to add additional logic to handle other cases 
+defined already in AWS DataSync. You may want to add additional logic to handle other cases
 - see example_datasync_2 and the `Operator behaviour`_ section.
 
 example_datasync_2.py
@@ -106,7 +106,7 @@ example_datasync_2.py
 Purpose
 """""""
 
-Show how DataSync Tasks and Locations can be automatically created, deleted and updated using the 
+Show how DataSync Tasks and Locations can be automatically created, deleted and updated using the
 :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator`.
 
 Find and update a DataSync Task, or create one if it doesn't exist. Update the Task, then execute it.
@@ -125,7 +125,7 @@ This example relies on the following variables, which can be passed via OS envir
 Get, Create, Update, Run and Delete DataSync Tasks
 """"""""""""""""""""""""""""""""""""""""""""""""""
 
-The :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator` is used 
+The :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator` is used
 as before but with some extra arguments.
 
 Most of the arguments (``CREATE_*_KWARGS``) provide a way for the operator to automatically create a Task
@@ -144,7 +144,7 @@ Otherwise the behaviour is very similar to the first examples above. We want to 
 based on some criteria (specified task_arn or source and dest URIs) and execute it. In this example,
 the main differences are that we provide a way to create Tasks/Locations if none are found.
 
-Also, because we specified ``delete_task_after_execution=True``, the TaskArn will be deleted 
+Also, because we specified ``delete_task_after_execution=True``, the TaskArn will be deleted
 from AWS DataSync after it completes successfully.
 
 Operator behaviour
@@ -154,11 +154,11 @@ DataSync Task execution behaviour
 """""""""""""""""""""""""""""""""
 
 Once the :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator` has identified
-the correct TaskArn to run (either because you specified it, or because it was found), it will then be 
+the correct TaskArn to run (either because you specified it, or because it was found), it will then be
 executed. Whenever an AWS DataSync Task is executed it creates an AWS DataSync TaskExecution, identified
-by a TaskExecutionArn. 
+by a TaskExecutionArn.
 
-The TaskExecutionArn will be monitored until completion (success / failure), and its status will be 
+The TaskExecutionArn will be monitored until completion (success / failure), and its status will be
 periodically written to the Airflow task log.
 
 After completion, the TaskExecution description is retrieved from AWS and dumped to the Airflow task log
@@ -177,10 +177,10 @@ TaskArn selection behaviour
 """""""""""""""""""""""""""
 
 The :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator`
-may find 0, 1, or many AWS DataSync Tasks with a matching ``source_location_uri`` and 
+may find 0, 1, or many AWS DataSync Tasks with a matching ``source_location_uri`` and
 ``destination_location_uri``. The operator must decide what to do in each of these scenarios.
 
-To override the default behaviour, simply create an operator which inherits 
+To override the default behaviour, simply create an operator which inherits
 :class:`~airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator`
 and re-implement the ``choose_task`` and ``choose_location`` methods
 to suit your use case.

@@ -20,7 +20,7 @@
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
 
 from airflow.models.base import ID_LEN, Base
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 

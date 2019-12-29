@@ -19,8 +19,9 @@
 
 import unittest
 
+import mock
+
 from airflow.hooks.pig_hook import PigCliHook
-from tests.compat import mock
 
 
 class TestPigCliHook(unittest.TestCase):

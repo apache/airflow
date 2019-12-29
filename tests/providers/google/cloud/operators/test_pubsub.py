@@ -19,11 +19,12 @@
 
 import unittest
 
+import mock
+
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
     PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
 )
-from tests.compat import mock
 
 TASK_ID = 'test-task-id'
 TEST_PROJECT = 'test-project'

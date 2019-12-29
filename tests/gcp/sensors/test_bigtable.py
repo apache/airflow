@@ -20,13 +20,13 @@
 import unittest
 
 import google.api_core.exceptions
+import mock
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState
 from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.gcp.sensors.bigtable import BigtableTableReplicationCompletedSensor
-from tests.compat import mock
 
 PROJECT_ID = 'test_project_id'
 INSTANCE_ID = 'test-instance-id'

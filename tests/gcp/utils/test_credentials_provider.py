@@ -21,13 +21,13 @@ import unittest
 from io import StringIO
 from uuid import uuid4
 
+import mock
 from google.auth.environment_vars import CREDENTIALS
 
 from airflow.gcp.utils.credentials_provider import (
     AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, build_gcp_conn, provide_gcp_conn_and_credentials,
     provide_gcp_connection, provide_gcp_credentials, temporary_environment_variable,
 )
-from tests.compat import mock
 
 ENV_VALUE = "test_env"
 TEMP_VARIABLE = "temp_variable"

@@ -19,11 +19,11 @@
 
 import unittest
 
+from mock import ANY, Mock, PropertyMock, patch
 from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.gcp.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
-from tests.compat import ANY, Mock, PropertyMock, patch
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"

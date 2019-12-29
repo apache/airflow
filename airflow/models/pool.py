@@ -21,7 +21,7 @@ from sqlalchemy import Column, Integer, String, Text, func
 
 from airflow.models.base import Base
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 

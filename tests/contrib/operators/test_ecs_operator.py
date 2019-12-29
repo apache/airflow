@@ -22,11 +22,11 @@ import sys
 import unittest
 from copy import deepcopy
 
+import mock
 from parameterized import parameterized
 
 from airflow.contrib.operators.ecs_operator import ECSOperator
 from airflow.exceptions import AirflowException
-from tests.compat import mock
 
 RESPONSE_WITHOUT_FAILURES = {
     "failures": [],

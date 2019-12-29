@@ -19,7 +19,7 @@
 
 from typing import NamedTuple
 
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 class BaseTIDep:
