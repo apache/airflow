@@ -116,3 +116,20 @@ class State:
             cls.UP_FOR_RETRY,
             cls.UP_FOR_RESCHEDULE
         ]
+
+    @classmethod
+    def unfinished_or_removed(cls):
+        """
+        A list of states indicating that a task either has not completed
+        a run or has not even started or has been removed.
+        """
+        return [
+            cls.NONE,
+            cls.SCHEDULED,
+            cls.QUEUED,
+            cls.RUNNING,
+            cls.SHUTDOWN,
+            cls.UP_FOR_RETRY,
+            cls.UP_FOR_RESCHEDULE,
+            cls.REMOVED
+        ]

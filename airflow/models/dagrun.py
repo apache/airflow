@@ -25,6 +25,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
@@ -311,32 +312,41 @@ class DagRun(Base, LoggingMixin):
 
         leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
 
-        # if all roots finished and at least one failed, the run failed
-        if not unfinished_tasks and any(
-            leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
-        ):
-            self.log.info('Marking run %s failed', self)
-            self.set_state(State.FAILED)
-            dag.handle_callback(self, success=False, reason='task_failure',
-                                session=session)
+        if conf.getboolean('scheduler', 'REMOVED_TASKS_LEAD_TO_DAGRUN_FAILURE', fallback=False):
+            unfinished_tasks = self.get_task_instances(
+                state=State.unfinished_or_removed(),
+                session=session
+            )
 
-        # if all leafs succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished_tasks and all(
-            leaf_ti.state in {State.SUCCESS, State.SKIPPED} for leaf_ti in leaf_tis
-        ):
-            self.log.info('Marking run %s successful', self)
-            self.set_state(State.SUCCESS)
-            dag.handle_callback(self, success=True, reason='success', session=session)
+        if len(tis) == len(dag.active_tasks):
+            # if all roots finished and at least one failed, the run failed
+            if not unfinished_tasks and any(
+                leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
+            ):
+                self.log.info('Marking run %s failed', self)
+                self.set_state(State.FAILED)
+                dag.handle_callback(self, success=False, reason='task_failure',
+                                    session=session)
 
-        # if *all tasks* are deadlocked, the run failed
-        elif (unfinished_tasks and none_depends_on_past and
-              none_task_concurrency and no_dependencies_met):
-            self.log.info('Deadlock; marking run %s failed', self)
-            self.set_state(State.FAILED)
-            dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
-                                session=session)
+            # if all leafs succeeded and no unfinished tasks, the run succeeded
+            elif not unfinished_tasks and all(
+                leaf_ti.state in {State.SUCCESS, State.SKIPPED} for leaf_ti in leaf_tis
+            ):
+                self.log.info('Marking run %s successful', self)
+                self.set_state(State.SUCCESS)
+                dag.handle_callback(self, success=True, reason='success', session=session)
 
-        # finally, if the roots aren't done, the dag is still running
+            # if *all tasks* are deadlocked, the run failed
+            elif (unfinished_tasks and none_depends_on_past and
+                  none_task_concurrency and no_dependencies_met):
+                self.log.info('Deadlock; marking run %s failed', self)
+                self.set_state(State.FAILED)
+                dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
+                                    session=session)
+
+            # finally, if the roots aren't done, the dag is still running
+            else:
+                self.set_state(State.RUNNING)
         else:
             self.set_state(State.RUNNING)
 
