@@ -51,7 +51,7 @@ class EmrHook(AwsHook):
 
         if len(matching_clusters) == 1:
             cluster_id = matching_clusters[0]['Id']
-            self.log.info(f'Found cluster name = {emr_cluster_name} id = {cluster_id}')
+            self.log.info('Found cluster name = %s id = %s', emr_cluster_name, cluster_id)
             return cluster_id
         elif len(matching_clusters) > 1:
             raise AirflowException(f'More than one cluster found for name {emr_cluster_name}')
