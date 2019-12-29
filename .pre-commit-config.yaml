@@ -213,7 +213,7 @@ repos:
         files: \.py$
       - id: base-operator
         language: pygrep
-        name: Make sure BaseOperator is imported from airflow.models.baseoperator in core
+        name: Make sure BaseOperator[Link] is imported from airflow.models.baseoperator in core
         entry: "from airflow\\.models import.* BaseOperator"
         files: \.py$
         pass_filenames: true
@@ -233,7 +233,7 @@ repos:
         pass_filenames: true
       - id: base-operator
         language: pygrep
-        name: Make sure BaseOperator is imported from airflow.models outside of core
+        name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
         entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
         pass_filenames: true
         files: >

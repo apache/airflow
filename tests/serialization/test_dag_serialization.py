@@ -36,7 +36,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.utils.tests import CustomOperator, CustomOpLink, GoogleLink
+from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 
 serialized_simple_dag_ground_truth = {
     "__version": 1,

@@ -1865,8 +1865,8 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        from airflow.utils.tests import (
-            Dummy2TestOperator, Dummy3TestOperator)
+        from tests.test_utils.mock_operators import Dummy3TestOperator
+        from tests.test_utils.mock_operators import Dummy2TestOperator
         super().setUp()
         self.endpoint = "extra_links"
         self.default_date = datetime(2017, 1, 1)
