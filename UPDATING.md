@@ -41,6 +41,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Change python3 as Dataflow Hooks/Operators default interpreter
+
+Now the `py_interpreter` argument for DataFlow Hooks/Operators has been changed from python2 to python3.
+
 ### Logging configuration has been moved to new section
 
 The following configurations have been moved from `[core]` to the new `[logging]` section.

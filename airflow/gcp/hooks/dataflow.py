@@ -487,7 +487,7 @@ class DataflowHook(CloudBaseHook):
         py_options: List[str],
         project_id: Optional[str] = None,
         append_job_name: bool = True,
-        py_interpreter: str = "python2"
+        py_interpreter: str = "python3"
     ):
         """
         Starts Dataflow job.
@@ -505,7 +505,7 @@ class DataflowHook(CloudBaseHook):
         :param project_id: Optional, the GCP project ID in which to start a job.
             If set to None or missing, the default project_id from the GCP connection is used.
         :param py_interpreter: Python version of the beam pipeline.
-            If None, this defaults to the python2.
+            If None, this defaults to the python3.
             To track python versions supported by beam and related
             issues check: https://issues.apache.org/jira/browse/BEAM-1251
         :type py_interpreter: str

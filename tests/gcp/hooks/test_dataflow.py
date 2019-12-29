@@ -80,7 +80,7 @@ TEST_PROJECT = 'test-project'
 TEST_JOB_NAME = 'test-job-name'
 TEST_JOB_ID = 'test-job-id'
 TEST_LOCATION = 'us-central1'
-DEFAULT_PY_INTERPRETER = 'python2'
+DEFAULT_PY_INTERPRETER = 'python3'
 
 
 class TestFallbackToVariables(unittest.TestCase):
@@ -175,7 +175,7 @@ class TestDataflowHook(unittest.TestCase):
         self.dataflow_hook.start_python_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS)
-        expected_cmd = ["python2", '-m', PY_FILE,
+        expected_cmd = ["python3", '-m', PY_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
@@ -185,7 +185,7 @@ class TestDataflowHook(unittest.TestCase):
                              sorted(expected_cmd))
 
     @parameterized.expand([
-        ('default_to_python2', "python2"),
+        ('default_to_python3', 'python3'),
         ('major_version_2', 'python2'),
         ('major_version_3', 'python3'),
         ('minor_version', 'python3.6')
