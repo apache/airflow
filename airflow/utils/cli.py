@@ -36,7 +36,7 @@ from datetime import datetime
 from typing import Optional
 
 from airflow import AirflowException, settings
-from airflow.models import DagBag, DagPickle, Log
+from airflow.models import DagBag, DagModel, DagPickle, Log
 from airflow.utils import cli_action_loggers
 from airflow.utils.session import provide_session
 
@@ -132,10 +132,22 @@ def process_subdir(subdir: Optional[str]):
     """Expands path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
     if subdir:
         if not settings.DAGS_FOLDER:
-            raise ValueError("DAGS_FOLDER variable in settings should be fil.")
+            raise ValueError("DAGS_FOLDER variable in settings should be filled.")
         subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
     return subdir
+
+
+def get_dag_by_file_location(dag_id: str):
+    """Returns DAG of a given dag_id by looking up file location"""
+    # Benefit is that logging from other dags in dagbag will not appear
+    dag_model = DagModel.get_current(dag_id)
+    if dag_model is None:
+        raise AirflowException(
+            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
+            'parse.'.format(dag_id))
+    dagbag = DagBag(dag_folder=dag_model.fileloc)
+    return dagbag.dags[dag_id]
 
 
 def get_dag(subdir: Optional[str], dag_id: str):

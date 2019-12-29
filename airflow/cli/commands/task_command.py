@@ -29,7 +29,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_dag, get_dag_by_pickle, get_dags
+from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -280,14 +280,19 @@ def task_clear(args):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
-    dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)
 
-    if args.task_regex:
-        for idx, dag in enumerate(dags):
-            dags[idx] = dag.sub_dag(
-                task_regex=args.task_regex,
-                include_downstream=args.downstream,
-                include_upstream=args.upstream)
+    if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:
+        dags = get_dag_by_file_location(args.dag_id)
+    else:
+        # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
+        dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)
+
+        if args.task_regex:
+            for idx, dag in enumerate(dags):
+                dags[idx] = dag.sub_dag(
+                    task_regex=args.task_regex,
+                    include_downstream=args.downstream,
+                    include_upstream=args.upstream)
 
     DAG.clear_dags(
         dags,
