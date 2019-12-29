@@ -82,6 +82,7 @@ class BashOperator(BaseOperator):
         self.output_encoding = output_encoding
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
+        self.sub_process = None
 
     def execute(self, context):
         """
@@ -114,7 +115,8 @@ class BashOperator(BaseOperator):
                 os.setsid()
 
             self.log.info('Running command: %s', self.bash_command)
-            sub_process = Popen(
+
+            self.sub_process = Popen(
                 ['bash', "-c", self.bash_command],
                 stdout=PIPE,
                 stderr=STDOUT,
@@ -122,23 +124,22 @@ class BashOperator(BaseOperator):
                 env=env,
                 preexec_fn=pre_exec)
 
-            self.sub_process = sub_process
-
             self.log.info('Output:')
             line = ''
-            for raw_line in iter(sub_process.stdout.readline, b''):
+            for raw_line in iter(self.sub_process.stdout.readline, b''):
                 line = raw_line.decode(self.output_encoding).rstrip()
                 self.log.info("%s", line)
 
-            sub_process.wait()
+            self.sub_process.wait()
 
-            self.log.info('Command exited with return code %s', sub_process.returncode)
+            self.log.info('Command exited with return code %s', self.sub_process.returncode)
 
-            if sub_process.returncode != 0:
+            if self.sub_process.returncode != 0:
                 raise AirflowException('Bash command failed. The command returned a non-zero exit code.')
 
         return line
 
     def on_kill(self):
         self.log.info('Sending SIGTERM signal to bash process group')
-        os.killpg(os.getpgid(self.sub_process.pid), signal.SIGTERM)
+        if self.sub_process and hasattr(self.sub_process, 'pid'):
+            os.killpg(os.getpgid(self.sub_process.pid), signal.SIGTERM)
