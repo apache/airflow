@@ -437,6 +437,7 @@ class Airflow(AirflowBaseView):
             if selected_dag_ids:
                 RunningTI = RunningTI.filter(TI.dag_id.in_(filter_dag_ids))
 
+            RunningTI = RunningTI.subquery('running_ti')
             qry = (
                 session.query(RunningTI.c.dag_id, RunningTI.c.state, sqla.func.count())
                        .group_by(RunningTI.c.dag_id, RunningTI.c.state)
