@@ -179,8 +179,13 @@ def create_app(config=None, testing=False):
         @app.context_processor
         def jinja_globals():
             return {
-                'hostname': get_hostname(),
-                'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
+                'hostname': get_hostname() if conf.getboolean(
+                    'webserver',
+                    'EXPOSE_HOSTNAME',
+                    fallback=True) else 'redact',
+                'navbar_color': conf.get(
+                    'webserver',
+                    'NAVBAR_COLOR'),
             }
 
         @app.before_request
