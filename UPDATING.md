@@ -57,6 +57,16 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Remove airflow.utils.file.TemporaryDirectory
+
+Since Airflow dropped support for Python < 3.5 there's no need to have this custom
+implementation of `TemporaryDirectory` because the same functionality is provided by
+`tempfile.TemporaryDirectory`.
+
+Now users instead of `import from airflow.utils.files import TemporaryDirectory` should
+do `from tempfile import TemporaryDirectory`. Both context managers provide the same
+interface, thus no additional changes should be required.
+
 ### Change python3 as Dataflow Hooks/Operators default interpreter
 
 Now the `py_interpreter` argument for DataFlow Hooks/Operators has been changed from python2 to python3.
