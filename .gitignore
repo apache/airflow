@@ -106,6 +106,7 @@ celerybeat-schedule
 
 # dotenv
 .env
+.autoenv.zsh
 
 # virtualenv
 .venv*
