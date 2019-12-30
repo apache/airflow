@@ -43,7 +43,7 @@ Here are a few imperative requirements for your workers:
   Chef, Puppet, Ansible, or whatever you use to configure machines in your
   environment. If all your boxes have a common mount point, having your
   pipelines files shared there should work as well
-
+- Plugins are only loaded at startup, so after making changes to plugins you must restart workers.
 
 To kick off a worker, you need to setup Airflow and kick off the worker
 subcommand
