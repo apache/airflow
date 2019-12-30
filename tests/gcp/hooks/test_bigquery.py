@@ -23,6 +23,7 @@ from unittest import mock
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
+from airflow import AirflowException
 from airflow.gcp.hooks import bigquery as hook
 from airflow.gcp.hooks.bigquery import (
     _api_resource_configs_duplication_check, _cleanse_time_partitioning, _validate_src_fmt_configs,
@@ -732,6 +733,22 @@ class TestTableOperations(unittest.TestCase):
             tableId=TABLE_ID,
             body=body
         )
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_patch_table_on_exception(self, mock_get_service, mock_get_creds_and_proj_id):
+        mock_service = mock_get_service.return_value
+        method = mock_service.tables.return_value.patch
+        resp = type('', (object,), {"status": 500, "reason": "Bad request"})()
+        method.return_value.execute.side_effect = HttpError(
+            resp=resp, content=b'Bad request')
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        with self.assertRaisesRegex(AirflowException, "Bad request"):
+            cursor.patch_table(DATASET_ID, TABLE_ID)
 
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
