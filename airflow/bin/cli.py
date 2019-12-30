@@ -1076,9 +1076,6 @@ def exec_airflow_command(command_to_exec: List[str]):
     """
     parser = CLIFactory.get_parser()
 
-    if not command_to_exec:
-        raise AirflowException("You should specify the program argument using `command_to_exec` parameter.")
-
     if command_to_exec[0] != "airflow":
         raise AirflowException('The first element must be equal to "airflow".')
 
