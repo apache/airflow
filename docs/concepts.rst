@@ -808,10 +808,11 @@ object to be invoked when the SLA is not met.
 If you don't want to check SLAs, you can disable globally (all the DAGs) by
 setting ``check_slas=False`` under ``[core]`` section in ``airflow.cfg`` file:
 
-```ini
-[core]
-check_slas = False
-```
+.. code-block:: ini
+
+  [core]
+  check_slas = False
+
 
 Email Configuration
 -------------------
