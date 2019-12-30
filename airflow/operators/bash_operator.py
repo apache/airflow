@@ -72,6 +72,7 @@ class BashOperator(BaseOperator):
         self.env = env
         self.xcom_push_flag = xcom_push
         self.output_encoding = output_encoding
+        self.sub_process = None
 
     def execute(self, context):
         """
@@ -113,26 +114,24 @@ class BashOperator(BaseOperator):
                     os.setsid()
 
                 self.log.info("Running command: %s", self.bash_command)
-                sp = Popen(
+                self.sub_process = Popen(
                     ['bash', fname],
                     stdout=PIPE, stderr=STDOUT,
                     cwd=tmp_dir, env=env,
                     preexec_fn=pre_exec)
 
-                self.sp = sp
-
                 self.log.info("Output:")
                 line = ''
-                for line in iter(sp.stdout.readline, b''):
+                for line in iter(self.sub_process.stdout.readline, b''):
                     line = line.decode(self.output_encoding).rstrip()
                     self.log.info(line)
-                sp.wait()
+                self.sub_process.wait()
                 self.log.info(
                     "Command exited with return code %s",
-                    sp.returncode
+                    self.sub_process.returncode
                 )
 
-                if sp.returncode:
+                if self.sub_process.returncode:
                     raise AirflowException("Bash command failed")
 
         if self.xcom_push_flag:
@@ -140,4 +139,5 @@ class BashOperator(BaseOperator):
 
     def on_kill(self):
         self.log.info('Sending SIGTERM signal to bash process group')
-        os.killpg(os.getpgid(self.sp.pid), signal.SIGTERM)
+        if self.sub_process and hasattr(self.sub_process, 'pid'):
+            os.killpg(os.getpgid(self.sub_process.pid), signal.SIGTERM)
