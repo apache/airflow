@@ -109,7 +109,7 @@ Number of Retries
 
         * ``extra__google_cloud_platform__project`` - Project Id
         * ``extra__google_cloud_platform__key_path`` - Keyfile Path
-        * ``extra__google_cloud_platform__key_dict`` - Keyfile JSON
+        * ``extra__google_cloud_platform__keyfile_dict`` - Keyfile JSON
         * ``extra__google_cloud_platform__scope`` - Scopes
         * ``extra__google_cloud_platform__num_retries`` - Number of Retries
 
