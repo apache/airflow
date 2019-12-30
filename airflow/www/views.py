@@ -3086,8 +3086,8 @@ class TaskInstanceModelView(ModelViewOnly):
                             .filter(TI.task_id == task.task_id,
                                     TI.dag_id == dag_id,
                                     TI.execution_date == execution_date).one()
-                        ti_to_be_modified.priority_weight = new_priority_weight + \
-                                                            task_priority_weights[task.task_id]
+                        ti_to_be_modified.priority_weight = \
+                            new_priority_weight + task_priority_weights[task.task_id]
 
             session.commit()
             flash(
