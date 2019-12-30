@@ -367,6 +367,106 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Query parameters are not allowed when using legacy SQL"):
             cursor.run_query('query', use_legacy_sql=True, query_params=params)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_run_query_without_sql_fails(
+        self, mock_get_service, mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        with self.assertRaisesRegex(
+            TypeError,
+            r"`BigQueryBaseCursor.run_query` missing 1 required positional argument: `sql`"
+        ):
+            cursor.run_query(sql=None)
+
+    @parameterized.expand([
+        (['ALLOW_FIELD_ADDITION'], 'WRITE_APPEND'),
+        (['ALLOW_FIELD_RELAXATION'], 'WRITE_APPEND'),
+        (['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'], 'WRITE_APPEND'),
+        (['ALLOW_FIELD_ADDITION'], 'WRITE_TRUNCATE'),
+        (['ALLOW_FIELD_RELAXATION'], 'WRITE_TRUNCATE'),
+        (['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'], 'WRITE_TRUNCATE'),
+    ])
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_run_query_schema_update_options(
+        self,
+        schema_update_options,
+        write_disposition,
+        run_with_config,
+        mock_get_service,
+        mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.run_query(
+            sql='query',
+            destination_dataset_table='my_dataset.my_table',
+            schema_update_options=schema_update_options,
+            write_disposition=write_disposition
+        )
+        args, kwargs = run_with_config.call_args
+        self.assertEqual(
+            args[0]['query']['schemaUpdateOptions'],
+            schema_update_options
+        )
+        self.assertEqual(
+            args[0]['query']['writeDisposition'],
+            write_disposition
+        )
+
+    @parameterized.expand([
+        (
+            ['INCORRECT_OPTION'],
+            None,
+            r"\['INCORRECT_OPTION'\] contains invalid schema update options\. "
+            r"Please only use one or more of the following options: "
+            r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]"
+        ),
+        (
+            ['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION', 'INCORRECT_OPTION'],
+            None,
+            r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION', 'INCORRECT_OPTION'\] contains invalid "
+            r"schema update options\. Please only use one or more of the following options: "
+            r"\['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]"
+        ),
+        (
+            ['ALLOW_FIELD_ADDITION'],
+            None,
+            r"schema_update_options is only allowed if write_disposition is "
+            r"'WRITE_APPEND' or 'WRITE_TRUNCATE'"),
+    ])
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_run_query_schema_update_options_incorrect(
+        self,
+        schema_update_options,
+        write_disposition,
+        expected_regex,
+        mock_get_service,
+        mock_get_creds_and_proj_id
+    ):
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        with self.assertRaisesRegex(ValueError, expected_regex):
+            cursor.run_query(
+                sql='query',
+                destination_dataset_table='my_dataset.my_table',
+                schema_update_options=schema_update_options,
+                write_disposition=write_disposition
+            )
+
     @parameterized.expand([(True,), (False,)])
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
