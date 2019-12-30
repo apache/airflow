@@ -70,7 +70,7 @@ class Pool(Base):
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state.in_(STATES_TO_COUNT_AS_RUNNING))
             .scalar()
-        )
+        ) or 0
 
     @provide_session
     def used_slots(self, session):
@@ -86,7 +86,7 @@ class Pool(Base):
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.RUNNING)
             .scalar()
-        )
+        ) or 0
         return running
 
     @provide_session
@@ -103,7 +103,7 @@ class Pool(Base):
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.QUEUED)
             .scalar()
-        )
+        ) or 0
 
     @provide_session
     def open_slots(self, session):
