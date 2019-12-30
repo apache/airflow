@@ -72,36 +72,19 @@ In the above example, Airflow will try to use ``S3Hook('MyS3Conn')``.
 Writing Logs to Azure Blob Storage
 ----------------------------------
 
-Airflow can be configured to read and write task logs in Azure Blob Storage.
-
 Follow the steps below to enable Azure Blob Storage logging:
 
-#. Airflow's logging system requires a custom ``.py`` file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
-#. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
-#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in ``Step 2``.
-#. Customize the following portions of the template:
+.. code-block:: ini
 
-    .. code-block:: ini
+    [core]
+    # Airflow can store logs remotely in Azure Blob Storage. Users must supply a remote
+    # location URL (starting with either 'wasb://...') and an Airflow connection
+    # id that provides access to the storage location.
+    remote_logging = True
+    remote_base_log_folder = wasb://container-name@account-name.blob.core.windows.net/path/to/logs
+    remote_log_conn_id = MyWasbConn
 
-        # wasb buckets should start with "wasb" just to help Airflow select correct handler
-        REMOTE_BASE_LOG_FOLDER = 'wasb-<whatever you want here>'
-
-        # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
-        LOGGING_CONFIG = ...
-
-
-#. Make sure a Azure Blob Storage (Wasb) connection hook has been defined in Airflow. The hook should have read and write access to the Azure Blob Storage bucket defined above in ``REMOTE_BASE_LOG_FOLDER``.
-
-#. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
-
-    .. code-block:: bash
-
-        remote_logging = True
-        logging_config_class = log_config.LOGGING_CONFIG
-        remote_log_conn_id = <name of the Azure Blob Storage connection>
-
-#. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
-#. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
+#. Make sure a Azure Blob Storage (Wasb) connection hook has been defined in Airflow. The hook should have read and write access to the Azure Blob Storage container defined above in ``REMOTE_BASE_LOG_FOLDER``.
 
 .. _write-logs-gcp:
 
@@ -115,8 +98,9 @@ example:
 
 .. code-block:: ini
 
+
     [core]
-    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Airflow can store logs remotely in AWS S3, Azure Blob Storage, Google Cloud Storage or Elasticsearch.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional
     # configuration requirements.
@@ -155,7 +139,7 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
 .. code-block:: ini
 
     [core]
-    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Airflow can store logs remotely in AWS S3, Azure Blob Storage, Google Cloud Storage or Elasticsearch.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional
     # configuration requirements.
@@ -172,7 +156,7 @@ To output task logs to stdout in JSON format, the following config could be used
 .. code-block:: ini
 
     [core]
-    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Airflow can store logs remotely in AWS S3, Azure Blob Storage, Google Cloud Storage or Elasticsearch.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional
     # configuration requirements.
@@ -190,12 +174,12 @@ To output task logs to stdout in JSON format, the following config could be used
 Writing Logs to Elasticsearch over TLS
 ----------------------------------------
 
-To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, adding a custom self-signed cert, etc.) use the ``elasticsearch_configs`` setting in your ``airfow.cfg``
+To add custom configurations to Elasticsearch (e.g. turning on ``ssl_verify``, adding a custom self-signed cert, etc.) use the ``elasticsearch_configs`` setting in your ``airfow.cfg``
 
 .. code-block:: ini
 
     [core]
-    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Airflow can store logs remotely in AWS S3, Azure Blob Storage, Google Cloud Storage or Elasticsearch.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional
     # configuration requirements.
@@ -205,3 +189,48 @@ To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, a
     use_ssl=True
     verify_certs=True
     ca_certs=/path/to/CA_certs
+
+.. _customize-write-logs-configuration:
+
+Customize Logging Configuration
+----------------------------------------
+
+Airflow can be configured to override default logging behaviors and add custom logging handlers.
+
+Follow the steps below to customize default logging behaviors:
+
+#. Airflow's logging system requires a custom ``.py`` file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
+#. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
+#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in ``Step 2``.
+#. Customize the following portions of the template:
+
+    .. code-block:: ini
+
+        # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
+        LOGGING_CONFIG = ...
+
+#. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
+
+    .. code-block:: bash
+
+        remote_logging = True
+        logging_config_class = log_config.LOGGING_CONFIG
+        remote_log_conn_id = <name of the Remote Logging System connection>
+
+To add custom logging handler. You must implement a log task handler and add related parameters to above template.
+The configuration may look like:
+
+    .. code-block:: ini
+
+        elif REMOTE_BASE_LOG_FOLDER.startswith('smb://'):
+            SMB_REMOTE_HANDLERS = {
+                'task': {
+                    'class': 'airflow.utils.log.smb_task_handler.SmbTaskHandler',
+                    'formatter': 'airflow',
+                    'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+                    'smb_log_folder': REMOTE_BASE_LOG_FOLDER,
+                    'filename_template': FILENAME_TEMPLATE,
+                },
+            }
+
+        LOGGING_CONFIG['handlers'].update(SMB_REMOTE_HANDLERS)

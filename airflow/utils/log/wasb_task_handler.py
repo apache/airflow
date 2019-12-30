@@ -18,6 +18,7 @@
 # under the License.
 import os
 import shutil
+from urllib.parse import urlparse
 
 from cached_property import cached_property
 
@@ -25,7 +26,6 @@ from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from azure.common import AzureHttpError
-
 
 class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     """
@@ -129,7 +129,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         :return: True if location exists else False
         """
         try:
-            return self.hook.check_for_blob(self.wasb_container, remote_log_location)
+            container_name, blob = self.parse_wasb_url(remote_log_location)
+            return self.hook.check_for_blob(container_name, blob)
         except Exception:
             pass
         return False
@@ -146,7 +147,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         :type return_error: bool
         """
         try:
-            return self.hook.read_file(self.wasb_container, remote_log_location)
+            container_name, blob = self.parse_wasb_url(remote_log_location)
+            return self.hook.read_file(container_name, blob)
         except AzureHttpError:
             msg = 'Could not read logs from {}'.format(remote_log_location)
             self.log.exception(msg)
@@ -172,11 +174,26 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             log = '\n'.join([old_log, log]) if old_log else log
 
         try:
+            container_name, blob = self.parse_wasb_url(remote_log_location)
             self.hook.load_string(
                 log,
-                self.wasb_container,
-                remote_log_location,
+                container_name,
+                blob,
             )
         except AzureHttpError:
             self.log.exception('Could not write logs to %s',
                                remote_log_location)
+
+    def parse_wasb_url(self, wasburl):
+        """
+        Given a Azure Blob Storage URL (wasb://<container_name>@<account_name>.blob.core.windows.net/<blob>), returns a
+        tuple containing the corresponding container_name and blob.
+        """
+        parsed_url = urlparse(wasburl)
+
+        blob = parsed_url.path.strip('/')
+        if parsed_url.username:
+            container_name = parsed_url.username
+            return container_name, blob
+        else:
+            return self.wasb_container, blob
