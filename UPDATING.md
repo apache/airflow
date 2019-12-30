@@ -41,6 +41,21 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+<!--
+
+I'm glad you want to write a new note. Make sure it contains the following information:
+
+- [ ] Previous behaviors
+- [ ] New behaviors
+- [ ] If possible, a simple example of how to migrate. This may include a simple code example.
+- [ ] If possible, the benefit for the user after migration e.g. "we want to make these changes to unify class names."
+- [ ] If possible, the reason for the change, which adds more context to that interested, e.g. reference for Airflow Improvment Proposal.
+
+More tips can be found in the guide:
+https://developers.google.com/style/inclusive-documentation
+
+-->
+
 ### Change python3 as Dataflow Hooks/Operators default interpreter
 
 Now the `py_interpreter` argument for DataFlow Hooks/Operators has been changed from python2 to python3.
