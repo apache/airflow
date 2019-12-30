@@ -43,7 +43,8 @@ assists users migrating to a new version.
 
 <!--
 
-I'm glad you want to write a new note. Make sure it contains the following information:
+I'm glad you want to write a new note. Remember that this note is intended for users. 
+Make sure it contains the following information:
 
 - [ ] Previous behaviors
 - [ ] New behaviors
