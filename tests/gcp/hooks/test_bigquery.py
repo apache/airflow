@@ -218,7 +218,87 @@ class TestBigQueryHookSourceFormat(unittest.TestCase):
             )
 
 
-class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
+class TestBigQueryCreateExternalTable(unittest.TestCase):
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_create_external_table_with_kms(self, mock_get_service, mock_project_id):
+        location = "US"
+        external_project_dataset_table = "{}.{}.{}".format(
+            PROJECT_ID, DATASET_ID, TABLE_ID
+        )
+        source_uris = ['test_data.csv']
+        source_format = 'CSV'
+        autodetect = False
+        compression = 'NONE'
+        ignore_unknown_values = False
+        max_bad_records = 10
+        skip_leading_rows = 1
+        field_delimiter = ','
+        quote_character = None
+        allow_quoted_newlines = False
+        allow_jagged_rows = False
+        encoding = "UTF-8"
+        labels = {'label1': 'test1', 'label2': 'test2'}
+        schema_fields = [
+            {"name": "id", "type": "STRING", "mode": "REQUIRED"}
+        ]
+
+        mock_service = mock_get_service.return_value
+        method = mock_service.tables.return_value.insert
+        bq_hook = hook.BigQueryHook(location=location)
+        cursor = bq_hook.get_cursor()
+
+        cursor.create_external_table(
+            external_project_dataset_table=external_project_dataset_table,
+            source_uris=source_uris,
+            source_format=source_format,
+            autodetect=autodetect,
+            compression=compression,
+            ignore_unknown_values=ignore_unknown_values,
+            max_bad_records=max_bad_records,
+            skip_leading_rows=skip_leading_rows,
+            field_delimiter=field_delimiter,
+            quote_character=quote_character,
+            allow_jagged_rows=allow_jagged_rows,
+            encoding=encoding,
+            allow_quoted_newlines=allow_quoted_newlines,
+            labels=labels,
+            schema_fields=schema_fields,
+        )
+
+        body = {
+            'externalDataConfiguration': {
+                'autodetect': autodetect,
+                'sourceFormat': source_format,
+                'sourceUris': source_uris,
+                'compression': compression,
+                'ignoreUnknownValues': ignore_unknown_values,
+                'schema': {'fields': schema_fields},
+                'maxBadRecords': max_bad_records,
+                'csvOptions': {
+                    'skipLeadingRows': skip_leading_rows,
+                    'fieldDelimiter': field_delimiter,
+                    'quote': quote_character,
+                    'allowQuotedNewlines': allow_quoted_newlines,
+                    'allowJaggedRows': allow_jagged_rows,
+                    'encoding': encoding
+                }
+            },
+            'tableReference': {
+                'projectId': PROJECT_ID,
+                'datasetId': DATASET_ID,
+                'tableId': TABLE_ID,
+            },
+            'location': location,
+            'labels': labels,
+        }
+        method.assert_called_once_with(
+            projectId=PROJECT_ID, datasetId=DATASET_ID, body=body
+        )
+
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
@@ -237,6 +317,26 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
                 schema_fields='test_schema.json',
                 source_uris=['test_data.json'],
                 source_format='json'
+            )
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_invalid_compression(self, mock_get_service, mock_get_creds_and_proj_id):
+        with self.assertRaisesRegex(
+            Exception,
+            r"RAR is not a valid compression format. "
+            r"Please use one of the following types: \['NONE', 'GZIP'\]"
+        ):
+            bq_hook = hook.BigQueryHook()
+            cursor = bq_hook.get_cursor()
+            cursor.create_external_table(
+                external_project_dataset_table='test.test',
+                schema_fields='test_schema.json',
+                source_uris=['test_data.json'],
+                compression="RAR"
             )
 
 
