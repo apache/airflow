@@ -20,7 +20,6 @@ import json
 import unittest
 
 import mock
-import pytest
 import requests
 import requests_mock
 import tenacity
@@ -338,13 +337,19 @@ class TestHttpHook(unittest.TestCase):
     @requests_mock.mock()
     def test_post_json_request(self, mock_requests):
         obj1 = {'a': 1, 'b': 'abc', 'c': [1, 2, {"d": 10}]}
-        obj2 = [1, 2, 3]
 
         # Ensure that obj1 was encoded to JSON
         def match_obj1(request):
-            return json.loads(request.text) == obj1
+            return request.json() == obj1
 
         # Filters to catch posted JSON
+        mock_requests.get(
+            '//test:8080/v1/test',
+            status_code=200,
+            request_headers={'Content-Type': 'application/json'},
+            text='test_post_json_request',
+            additional_matcher=match_obj1
+        )
         mock_requests.post(
             '//test:8080/v1/test',
             status_code=200,
@@ -358,14 +363,13 @@ class TestHttpHook(unittest.TestCase):
             side_effect=get_airflow_connection
         ):
             # Send obj1 as JSON and verify it matched the mock
-            resp = self.post_hook.run('v1/test', json=obj1)
+            resp = self.get_hook.run('v1/test', json=obj1)
             assert resp.status_code == 200
             assert resp.text == 'test_post_json_request'
 
-        # Ensure that obj1 was correctly encoded, and hit the match_obj1 filter
-        # By posting obj2 we cause an appropriate exception
-        with pytest.raises(requests_mock.exceptions.NoMockAddress):
-            resp = self.post_hook.run('v1/test', json=obj2)
+            resp = self.post_hook.run('v1/test', json=obj1)
+            assert resp.status_code == 200
+            assert resp.text == 'test_post_json_request'
 
 
 send_email_test = mock.Mock()

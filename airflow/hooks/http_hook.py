@@ -81,23 +81,22 @@ class HttpHook(BaseHook):
 
         return session
 
-    def run(self, endpoint, data=None, json=None, headers=None, extra_options=None):
-        """
+    def run(self, endpoint, data=None, headers=None, extra_options=None, **request_kwargs):
+        r"""
         Performs the request
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :type endpoint: str
         :param data: payload to be uploaded or request parameters
         :type data: dict
-        :param json: Python object which is JSON encoded and POSTed using requests(json=json),
-            if method=POST. Usually this is a dict but can be any JSON-encodable Python object.
-        :type json: dict
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
         :param extra_options: additional options to be used when executing the request
             i.e. {'check_response': False} to avoid checking raising exceptions on non
             2XX or 3XX status codes
         :type extra_options: dict
+        :param  \**request_kwargs: Additional kwargs to pass when creating a request.
+            For example, ``run(json=obj)`` is passed as ``requests.Request(json=obj)``
         """
         extra_options = extra_options or {}
 
@@ -115,19 +114,21 @@ class HttpHook(BaseHook):
             req = requests.Request(self.method,
                                    url,
                                    params=data,
-                                   headers=headers)
+                                   headers=headers,
+                                   **request_kwargs)
         elif self.method == 'HEAD':
             # HEAD doesn't use params
             req = requests.Request(self.method,
                                    url,
-                                   headers=headers)
+                                   headers=headers,
+                                   **request_kwargs)
         else:
             # Others use data
             req = requests.Request(self.method,
                                    url,
                                    data=data,
-                                   json=json,
-                                   headers=headers)
+                                   headers=headers,
+                                   **request_kwargs)
 
         prepped_request = session.prepare_request(req)
         self.log.info("Sending '%s' to url: %s", self.method, url)

@@ -119,8 +119,7 @@ class TestSlackWebhookHook(unittest.TestCase):
             self.expected_method,
             self.expected_url,
             headers=mock.ANY,
-            data=mock.ANY,
-            json=mock.ANY
+            data=mock.ANY
         )
         mock_request.reset_mock()
 
@@ -136,8 +135,7 @@ class TestSlackWebhookHook(unittest.TestCase):
             self.expected_method,
             self.expected_url,
             headers=mock.ANY,
-            data=mock.ANY,
-            json=mock.ANY
+            data=mock.ANY
         )
         mock_request.reset_mock()
 
@@ -154,8 +152,7 @@ class TestSlackWebhookHook(unittest.TestCase):
             self.expected_method,
             self.expected_url,
             headers=mock.ANY,
-            data=mock.ANY,
-            json=mock.ANY
+            data=mock.ANY
         )
         mock_request.reset_mock()
 
