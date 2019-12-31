@@ -35,7 +35,7 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('task_instance', sa.Column('pool_capacity', sa.Integer))
+    op.add_column('task_instance', sa.Column('pool_capacity', sa.Integer, default=1))
 
 
 def downgrade():
