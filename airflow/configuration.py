@@ -137,6 +137,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
+        ('celery', 'flower_basic_auth'),
         ('celery', 'result_backend'),
         # Todo: remove this in Airflow 1.11
         ('celery', 'celery_result_backend'),
