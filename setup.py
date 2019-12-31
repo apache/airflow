@@ -298,7 +298,7 @@ pinot = [
     'pinotdb==0.1.1',
 ]
 postgres = [
-    'psycopg2-binary>=2.7.4',
+    'psycopg2>=2.7.4',
 ]
 qds = [
     'qds-sdk>=1.10.4',
