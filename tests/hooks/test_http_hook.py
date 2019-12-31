@@ -23,6 +23,7 @@ import mock
 import requests
 import requests_mock
 import tenacity
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
@@ -334,27 +335,20 @@ class TestHttpHook(unittest.TestCase):
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'http://')
 
+    @parameterized.expand([
+        'GET',
+        'POST',
+    ])
     @requests_mock.mock()
-    def test_post_json_request(self, mock_requests):
+    def test_json_request(self, method, mock_requests):
         obj1 = {'a': 1, 'b': 'abc', 'c': [1, 2, {"d": 10}]}
 
-        # Ensure that obj1 was encoded to JSON
         def match_obj1(request):
             return request.json() == obj1
 
-        # Filters to catch posted JSON
-        mock_requests.get(
-            '//test:8080/v1/test',
-            status_code=200,
-            request_headers={'Content-Type': 'application/json'},
-            text='test_post_json_request',
-            additional_matcher=match_obj1
-        )
-        mock_requests.post(
-            '//test:8080/v1/test',
-            status_code=200,
-            request_headers={'Content-Type': 'application/json'},
-            text='test_post_json_request',
+        mock_requests.request(
+            method=method,
+            url='//test:8080/v1/test',
             additional_matcher=match_obj1
         )
 
@@ -362,14 +356,8 @@ class TestHttpHook(unittest.TestCase):
             'airflow.hooks.base_hook.BaseHook.get_connection',
             side_effect=get_airflow_connection
         ):
-            # Send obj1 as JSON and verify it matched the mock
-            resp = self.get_hook.run('v1/test', json=obj1)
-            assert resp.status_code == 200
-            assert resp.text == 'test_post_json_request'
-
-            resp = self.post_hook.run('v1/test', json=obj1)
-            assert resp.status_code == 200
-            assert resp.text == 'test_post_json_request'
+            # will raise NoMockAddress exception if obj1 != request.json()
+            HttpHook(method=method).run('v1/test', json=obj1)
 
 
 send_email_test = mock.Mock()
