@@ -86,6 +86,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type name: str
     :param num_executors: Number of executors to launch
     :type num_executors: int
+    :param status_poll_interval: Seconds to wait between polls of driver status in cluster mode
+    :type status_poll_interval: int
     :param application_args: Arguments for the application being submitted
     :type application_args: list
     :param env_vars: Environment variables for spark-submit. It
@@ -118,6 +120,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  proxy_user=None,
                  name='default-name',
                  num_executors=None,
+                 status_poll_interval=None,
                  application_args=None,
                  env_vars=None,
                  verbose=False,
@@ -142,6 +145,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._proxy_user = proxy_user
         self._name = name
         self._num_executors = num_executors
+        self._status_poll_interval = status_poll_interval or 1
         self._application_args = application_args
         self._env_vars = env_vars
         self._verbose = verbose
@@ -533,8 +537,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         while self._driver_status not in ["FINISHED", "UNKNOWN",
                                           "KILLED", "FAILED", "ERROR"]:
 
-            # Sleep for 1 second as we do not want to spam the cluster
-            time.sleep(1)
+            # Sleep for n seconds as we do not want to spam the cluster
+            time.sleep(self._status_poll_interval)
 
             self.log.debug("polling status of spark driver with id {}"
                            .format(self._driver_id))
