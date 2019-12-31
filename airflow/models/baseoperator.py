@@ -174,6 +174,8 @@ class BaseOperator(Operator, LoggingMixin):
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
     :type pool: str
+    :param pool_capacity: the number of pool slots this task should use
+    :type pool_capacity: int
     :param sla: time by which the job is expected to succeed. Note that
         this represents the ``timedelta`` after the period is closed. For
         example if you set an SLA of 1 hour, the scheduler would send an email
