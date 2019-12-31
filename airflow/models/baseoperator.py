@@ -309,6 +309,7 @@ class BaseOperator(Operator, LoggingMixin):
         weight_rule: str = WeightRule.DOWNSTREAM,
         queue: str = conf.get('celery', 'default_queue'),
         pool: str = Pool.DEFAULT_POOL_NAME,
+        pool_capacity: int = 1,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
         on_execute_callback: Optional[Callable] = None,
@@ -377,6 +378,7 @@ class BaseOperator(Operator, LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
+        self.pool_capacity = pool_capacity
         self.sla = sla
         self.execution_timeout = execution_timeout
         self.on_execute_callback = on_execute_callback
