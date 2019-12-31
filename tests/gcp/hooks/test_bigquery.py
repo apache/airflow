@@ -567,6 +567,38 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         except ValueError:
             self.fail("run_load() raised ValueError unexpectedly!")
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
+    def test_run_extract(self, run_with_config, mock_get_service, mock_project_id):
+        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
+        destination_cloud_storage_uris = ["gs://bucket/file.csv"]
+        expected_configuration = {
+            "extract": {
+                "sourceTable": {
+                    "projectId": PROJECT_ID,
+                    "datasetId": DATASET_ID,
+                    "tableId": TABLE_ID,
+                },
+                "compression": "NONE",
+                "destinationUris": destination_cloud_storage_uris,
+                "destinationFormat": "CSV",
+                "fieldDelimiter": ",",
+                "printHeader": True,
+            }
+        }
+
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.run_extract(
+            source_project_dataset_table=source_project_dataset_table,
+            destination_cloud_storage_uris=destination_cloud_storage_uris
+        )
+        run_with_config.assert_called_once_with(expected_configuration)
+
 
 class TestTableDataOperations(unittest.TestCase):
     @mock.patch(
