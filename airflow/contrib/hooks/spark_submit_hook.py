@@ -330,18 +330,41 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         :return: full command to be executed
         """
-        connection_cmd = self._get_spark_binary_path()
+        curl_max_wait_time = 30
+        spark_host = self._connection['master']
+        if spark_host.endswith(':6066'):
+            spark_host = spark_host.replace("spark://", "http://")
+            connection_cmd = [
+                "/usr/bin/curl",
+                "--max-time",
+                str(curl_max_wait_time),
+                "{host}/v1/submissions/status/{submission_id}".format(
+                    host=spark_host,
+                    submission_id=self._driver_id)]
+            self.log.info(connection_cmd)
 
-        # The url ot the spark master
-        connection_cmd += ["--master", self._connection['master']]
+            # The driver id so we can poll for its status
+            if self._driver_id:
+                pass
+            else:
+                raise AirflowException(
+                    "Invalid status: attempted to poll driver " +
+                    "status but no driver id is known. Giving up.")
 
-        # The driver id so we can poll for its status
-        if self._driver_id:
-            connection_cmd += ["--status", self._driver_id]
         else:
-            raise AirflowException(
-                "Invalid status: attempted to poll driver " +
-                "status but no driver id is known. Giving up.")
+
+            connection_cmd = self._get_spark_binary_path()
+
+            # The url to the spark master
+            connection_cmd += ["--master", self._connection['master']]
+
+            # The driver id so we can poll for its status
+            if self._driver_id:
+                connection_cmd += ["--status", self._driver_id]
+            else:
+                raise AirflowException(
+                    "Invalid status: attempted to poll driver " +
+                    "status but no driver id is known. Giving up.")
 
         self.log.debug("Poll driver status cmd: %s", connection_cmd)
 
@@ -556,7 +579,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         else:
             connection_cmd = [self._connection['spark_binary']]
 
-        # The url ot the spark master
+        # The url to the spark master
         connection_cmd += ["--master", self._connection['master']]
 
         # The actual kill command
