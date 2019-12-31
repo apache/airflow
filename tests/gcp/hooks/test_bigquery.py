@@ -638,6 +638,52 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             startIndex=5
         )
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_run_table_delete(self, mock_get_service, mock_project_id):
+        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
+        method = mock_get_service.return_value.tables.return_value.delete
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.run_table_delete(source_project_dataset_table)
+        method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_run_table_delete_ignore_if_missing_fails(self, mock_get_service, mock_project_id):
+        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
+        method = mock_get_service.return_value.tables.return_value.delete
+        resp = type('', (object,), {"status": 404, })()
+        method.return_value.execute.side_effect = HttpError(
+            resp=resp, content=b'Address not found')
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        with self.assertRaisesRegex(Exception, r"Table deletion failed\. Table does not exist\."):
+            cursor.run_table_delete(source_project_dataset_table)
+        method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_run_table_delete_ignore_if_missing_pass(self, mock_get_service, mock_project_id):
+        source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
+        method = mock_get_service.return_value.tables.return_value.delete
+        resp = type('', (object,), {"status": 404, })()
+        method.return_value.execute.side_effect = HttpError(
+            resp=resp, content=b'Address not found')
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.run_table_delete(source_project_dataset_table, ignore_if_missing=True)
+        method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
+
 
 class TestTableDataOperations(unittest.TestCase):
     @mock.patch(
