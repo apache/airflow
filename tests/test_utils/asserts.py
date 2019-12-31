@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,23 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime
-from time import sleep
 
-from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
-
-DEFAULT_DATE = datetime(2016, 1, 1)
-
-args = {
-    'owner': 'airflow',
-    'start_date': DEFAULT_DATE,
-}
+import re
 
 
-dag = DAG(dag_id='test_mark_success', default_args=args)
-task = PythonOperator(
-    task_id='task1',
-    python_callable=lambda x: sleep(x),  # pylint: disable=W0108
-    op_args=[600],
-    dag=dag)
+def assert_equal_ignore_multiple_spaces(case, first, second, msg=None):
+    def _trim(s):
+        return re.sub(r"\s+", " ", s.strip())
+    return case.assertEqual(_trim(first), _trim(second), msg)

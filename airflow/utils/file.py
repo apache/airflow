@@ -17,30 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import errno
 import os
 import re
-import shutil
 import zipfile
-from contextlib import contextmanager
-from tempfile import mkdtemp
 from typing import Dict, List, Optional, Pattern
 
 from airflow import LoggingMixin, conf
 
 
-@contextmanager
-def TemporaryDirectory(suffix='', prefix=None, dir=None):
-    name = mkdtemp(suffix=suffix, prefix=prefix, dir=dir)
-    try:
-        yield name
-    finally:
-        try:
-            shutil.rmtree(name)
-        except OSError as e:
-            # ENOENT - no such file or directory
-            if e.errno != errno.ENOENT:
-                raise e
+def TemporaryDirectory(*args, **kwargs):
+    import warnings
+    from tempfile import TemporaryDirectory as TmpDir
+    warnings.warn(
+        "This function is deprecated. Please use `tempfile.TemporaryDirectory`",
+        DeprecationWarning, stacklevel=2
+    )
+    return TmpDir(*args, **kwargs)
 
 
 def mkdirs(path, mode):

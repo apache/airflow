@@ -35,9 +35,12 @@ class TestLineage(unittest.TestCase):
             start_date=DEFAULT_DATE
         )
 
-        file1 = File("/tmp/does_not_exist_1")
-        file2 = File("/tmp/does_not_exist_2")
-        file3 = File("/tmp/does_not_exist_3")
+        f1s = "/tmp/does_not_exist_1-{}"
+        f2s = "/tmp/does_not_exist_2-{}"
+        f3s = "/tmp/does_not_exist_3"
+        file1 = File(f1s.format("{{ execution_date }}"))
+        file2 = File(f2s.format("{{ execution_date }}"))
+        file3 = File(f3s)
 
         with dag:
             op1 = DummyOperator(task_id='leave1',
@@ -58,19 +61,24 @@ class TestLineage(unittest.TestCase):
 
         dag.clear()
 
-        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE)}
-        ctx2 = {"ti": TI(task=op2, execution_date=DEFAULT_DATE)}
-        ctx3 = {"ti": TI(task=op3, execution_date=DEFAULT_DATE)}
-        ctx5 = {"ti": TI(task=op5, execution_date=DEFAULT_DATE)}
+        # execution_date is set in the context in order to avoid creating task instances
+        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE),
+                "execution_date": DEFAULT_DATE}
+        ctx2 = {"ti": TI(task=op2, execution_date=DEFAULT_DATE),
+                "execution_date": DEFAULT_DATE}
+        ctx3 = {"ti": TI(task=op3, execution_date=DEFAULT_DATE),
+                "execution_date": DEFAULT_DATE}
+        ctx5 = {"ti": TI(task=op5, execution_date=DEFAULT_DATE),
+                "execution_date": DEFAULT_DATE}
 
         # prepare with manual inlets and outlets
         op1.pre_execute(ctx1)
 
         self.assertEqual(len(op1.inlets), 1)
-        self.assertEqual(op1.inlets[0], file1)
+        self.assertEqual(op1.inlets[0].url, f1s.format(DEFAULT_DATE))
 
         self.assertEqual(len(op1.outlets), 1)
-        self.assertEqual(op1.outlets[0], file2)
+        self.assertEqual(op1.outlets[0].url, f2s.format(DEFAULT_DATE))
 
         # post process with no backend
         op1.post_execute(ctx1)
@@ -81,7 +89,8 @@ class TestLineage(unittest.TestCase):
 
         op3.pre_execute(ctx3)
         self.assertEqual(len(op3.inlets), 1)
-        self.assertEqual(op3.inlets[0].url, file2.url)
+        self.assertEqual(op3.inlets[0].url, f2s.format(DEFAULT_DATE))
+        self.assertEqual(op3.outlets[0], file3)
         op3.post_execute(ctx3)
 
         # skip 4

@@ -805,6 +805,15 @@ In addition to sending alerts to the addresses specified in a task's ``email`` p
 the ``sla_miss_callback`` specifies an additional ``Callable``
 object to be invoked when the SLA is not met.
 
+If you don't want to check SLAs, you can disable globally (all the DAGs) by
+setting ``check_slas=False`` under ``[core]`` section in ``airflow.cfg`` file:
+
+.. code-block:: ini
+
+  [core]
+  check_slas = False
+
+
 Email Configuration
 -------------------
 

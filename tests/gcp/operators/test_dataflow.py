@@ -36,7 +36,7 @@ PARAMETERS = {
     'output': 'gs://test/output/my_output'
 }
 PY_FILE = 'gs://my-bucket/my-object.py'
-PY_INTERPRETER = 'python2'
+PY_INTERPRETER = 'python3'
 JAR_FILE = 'example/test.jar'
 JOB_CLASS = 'com.test.NotMain'
 PY_OPTIONS = ['-m']

@@ -136,7 +136,10 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 @app.errorhandler(404)
 def circles(error):
     return render_template(
-        'airflow/circles.html', hostname=socket.getfqdn()), 404
+        'airflow/circles.html', hostname=socket.getfqdn() if conf.getboolean(
+            'webserver',
+            'EXPOSE_HOSTNAME',
+            fallback=True) else 'redact'), 404
 
 
 @app.errorhandler(500)
@@ -144,9 +147,15 @@ def show_traceback(error):
     from airflow.utils import asciiart as ascii_
     return render_template(
         'airflow/traceback.html',
-        hostname=socket.getfqdn(),
+        hostname=socket.getfqdn() if conf.getboolean(
+            'webserver',
+            'EXPOSE_HOSTNAME',
+            fallback=True) else 'redact',
         nukular=ascii_.nukular,
-        info=traceback.format_exc()), 500
+        info=traceback.format_exc() if conf.getboolean(
+            'webserver',
+            'EXPOSE_STACKTRACE',
+            fallback=True) else 'Error! Please contact server admin'), 500
 
 
 class AirflowBaseView(BaseView):

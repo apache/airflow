@@ -57,18 +57,13 @@ def build_recording_function(calls_collection):
     Then using this custom function recording custom Call objects for further testing
     (replacing Mock.assert_called_with assertion method)
     """
-    def recording_function(*args):
-        calls_collection.append(Call(*args))
+    def recording_function(*args, **kwargs):
+        calls_collection.append(Call(*args, **kwargs))
     return recording_function
 
 
-@unittest.mock.patch('os.environ', {
-    'AIRFLOW_CTX_DAG_ID': None,
-    'AIRFLOW_CTX_TASK_ID': None,
-    'AIRFLOW_CTX_EXECUTION_DATE': None,
-    'AIRFLOW_CTX_DAG_RUN_ID': None
-})
-class TestPythonOperator(unittest.TestCase):
+class TestPythonBase(unittest.TestCase):
+    """Base test class for TestPythonOperator and TestPythonSensor classes"""
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -83,8 +78,7 @@ class TestPythonOperator(unittest.TestCase):
             'test_dag',
             default_args={
                 'owner': 'airflow',
-                'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL)
+                'start_date': DEFAULT_DATE})
         self.addCleanup(self.dag.clear)
         self.clear_run()
         self.addCleanup(self.clear_run)
@@ -96,11 +90,38 @@ class TestPythonOperator(unittest.TestCase):
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-    def do_run(self):
-        self.run = True
-
     def clear_run(self):
         self.run = False
+
+    def _assert_calls_equal(self, first, second):
+        self.assertIsInstance(first, Call)
+        self.assertIsInstance(second, Call)
+        self.assertTupleEqual(first.args, second.args)
+        # eliminate context (conf, dag_run, task_instance, etc.)
+        test_args = ["an_int", "a_date", "a_templated_string"]
+        first.kwargs = {
+            key: value
+            for (key, value) in first.kwargs.items()
+            if key in test_args
+        }
+        second.kwargs = {
+            key: value
+            for (key, value) in second.kwargs.items()
+            if key in test_args
+        }
+        self.assertDictEqual(first.kwargs, second.kwargs)
+
+
+@unittest.mock.patch('os.environ', {
+    'AIRFLOW_CTX_DAG_ID': None,
+    'AIRFLOW_CTX_TASK_ID': None,
+    'AIRFLOW_CTX_EXECUTION_DATE': None,
+    'AIRFLOW_CTX_DAG_RUN_ID': None
+})
+class TestPythonOperator(TestPythonBase):
+
+    def do_run(self):
+        self.run = True
 
     def is_run(self):
         return self.run
@@ -130,11 +151,6 @@ class TestPythonOperator(unittest.TestCase):
                 python_callable=not_callable,
                 task_id='python_operator',
                 dag=self.dag)
-
-    def _assert_calls_equal(self, first, second):
-        self.assertIsInstance(first, Call)
-        self.assertIsInstance(second, Call)
-        self.assertTupleEqual(first.args, second.args)
 
     def test_python_callable_arguments_are_templatized(self):
         """Test PythonOperator op_args are templatized"""

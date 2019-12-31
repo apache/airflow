@@ -101,6 +101,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
+        ('celery', 'flower_basic_auth'),
         ('celery', 'result_backend'),
         ('atlas', 'password'),
         ('smtp', 'smtp_password'),
