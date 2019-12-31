@@ -599,6 +599,45 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         )
         run_with_config.assert_called_once_with(expected_configuration)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_get_tabledata_default_parameters(self, mock_get_service, mock_project_id):
+        method = mock_get_service.return_value.tabledata.return_value.list
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.get_tabledata(DATASET_ID, TABLE_ID)
+        method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_get_tabledata_optional_parameters(self, mock_get_service, mock_project_id):
+        method = mock_get_service.return_value.tabledata.return_value.list
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.get_tabledata(
+            DATASET_ID,
+            TABLE_ID,
+            max_results=10,
+            selected_fields=["field_1", "field_2"],
+            page_token="page123",
+            start_index=5
+        )
+        method.assert_called_once_with(
+            projectId=PROJECT_ID,
+            datasetId=DATASET_ID,
+            tableId=TABLE_ID,
+            maxResults=10,
+            selectedFields=['field_1', 'field_2'],
+            pageToken='page123',
+            startIndex=5
+        )
+
 
 class TestTableDataOperations(unittest.TestCase):
     @mock.patch(
