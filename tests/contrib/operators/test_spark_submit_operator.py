@@ -54,6 +54,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'proxy_user': 'sample_user',
         'name': '{{ task_instance.task_id }}',
         'num_executors': 10,
+        'status_poll_interval': 30,
         'verbose': True,
         'application': 'test_application.py',
         'driver_memory': '3g',
@@ -106,6 +107,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
             'proxy_user': 'sample_user',
             'name': '{{ task_instance.task_id }}',
             'num_executors': 10,
+            'status_poll_interval': 30,
             'verbose': True,
             'application': 'test_application.py',
             'driver_memory': '3g',
@@ -140,6 +142,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['proxy_user'], operator._proxy_user)
         self.assertEqual(expected_dict['name'], operator._name)
         self.assertEqual(expected_dict['num_executors'], operator._num_executors)
+        self.assertEqual(expected_dict['status_poll_interval'], operator._status_poll_interval)
         self.assertEqual(expected_dict['verbose'], operator._verbose)
         self.assertEqual(expected_dict['java_class'], operator._java_class)
         self.assertEqual(expected_dict['driver_memory'], operator._driver_memory)
