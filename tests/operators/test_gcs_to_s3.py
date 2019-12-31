@@ -19,9 +19,10 @@
 
 import unittest
 
-from airflow.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator
+import mock
+
+from airflow.operators.gcs_to_s3 import GCSToS3Operator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from tests.compat import mock
 
 try:
     from moto import mock_s3
@@ -36,7 +37,7 @@ S3_BUCKET = 's3://bucket/'
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 
-class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
+class TestGCSToS3Operator(unittest.TestCase):
 
     # Test1: incremental behaviour (just some files missing)
     @mock_s3
@@ -47,18 +48,18 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=False)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=False)
         # create dest bucket
         hook = S3Hook(aws_conn_id=None)
-        b = hook.get_bucket('bucket')
-        b.create()
-        b.put_object(Key=MOCK_FILES[0], Body=b'testing')
+        bucket = hook.get_bucket('bucket')
+        bucket.create()
+        bucket.put_object(Key=MOCK_FILES[0], Body=b'testing')
 
         # we expect all except first file in MOCK_FILES to be uploaded
         # and all the MOCK_FILES to be present at the S3 bucket
@@ -77,18 +78,19 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=False)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=False)
         # create dest bucket with all the files
         hook = S3Hook(aws_conn_id=None)
-        b = hook.get_bucket('bucket')
-        b.create()
-        [b.put_object(Key=MOCK_FILE, Body=b'testing') for MOCK_FILE in MOCK_FILES]
+        bucket = hook.get_bucket('bucket')
+        bucket.create()
+        for mock_file in MOCK_FILES:
+            bucket.put_object(Key=mock_file, Body=b'testing')
 
         # we expect nothing to be uploaded
         # and all the MOCK_FILES to be present at the S3 bucket
@@ -107,17 +109,17 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=False)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=False)
         # create dest bucket without files
         hook = S3Hook(aws_conn_id=None)
-        b = hook.get_bucket('bucket')
-        b.create()
+        bucket = hook.get_bucket('bucket')
+        bucket.create()
 
         # we expect all MOCK_FILES to be uploaded
         # and all MOCK_FILES to be present at the S3 bucket
@@ -136,18 +138,19 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=True)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=True)
         # create dest bucket with all the files
         hook = S3Hook(aws_conn_id=None)
-        b = hook.get_bucket('bucket')
-        b.create()
-        [b.put_object(Key=MOCK_FILE, Body=b'testing') for MOCK_FILE in MOCK_FILES]
+        bucket = hook.get_bucket('bucket')
+        bucket.create()
+        for mock_file in MOCK_FILES:
+            bucket.put_object(Key=mock_file, Body=b'testing')
 
         # we expect all MOCK_FILES to be uploaded and replace the existing ones
         # and all MOCK_FILES to be present at the S3 bucket
@@ -166,18 +169,19 @@ class TestGoogleCloudStorageToS3Operator(unittest.TestCase):
         mock_hook.return_value.download.return_value = b"testing"
         mock_hook2.return_value.list.return_value = MOCK_FILES
 
-        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
-                                                  bucket=GCS_BUCKET,
-                                                  prefix=PREFIX,
-                                                  delimiter=DELIMITER,
-                                                  dest_aws_conn_id=None,
-                                                  dest_s3_key=S3_BUCKET,
-                                                  replace=True)
+        operator = GCSToS3Operator(task_id=TASK_ID,
+                                   bucket=GCS_BUCKET,
+                                   prefix=PREFIX,
+                                   delimiter=DELIMITER,
+                                   dest_aws_conn_id=None,
+                                   dest_s3_key=S3_BUCKET,
+                                   replace=True)
         # create dest bucket with just two files (the first two files in MOCK_FILES)
         hook = S3Hook(aws_conn_id=None)
-        b = hook.get_bucket('bucket')
-        b.create()
-        [b.put_object(Key=MOCK_FILE, Body=b'testing') for MOCK_FILE in MOCK_FILES[:2]]
+        bucket = hook.get_bucket('bucket')
+        bucket.create()
+        for mock_file in MOCK_FILES[:2]:
+            bucket.put_object(Key=mock_file, Body=b'testing')
 
         # we expect all the MOCK_FILES to be uploaded and replace the existing ones
         # and all MOCK_FILES to be present at the S3 bucket

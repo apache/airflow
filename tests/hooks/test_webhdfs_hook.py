@@ -97,9 +97,9 @@ class TestWebHDFSHook(unittest.TestCase):
         )
 
     def test_simple_init(self):
-        c = WebHDFSHook()
-        self.assertIsNone(c.proxy_user)
+        hook = WebHDFSHook()
+        self.assertIsNone(hook.proxy_user)
 
     def test_init_proxy_user(self):
-        c = WebHDFSHook(proxy_user='someone')
-        self.assertEqual('someone', c.proxy_user)
+        hook = WebHDFSHook(proxy_user='someone')
+        self.assertEqual('someone', hook.proxy_user)

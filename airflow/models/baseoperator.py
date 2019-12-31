@@ -47,11 +47,11 @@ from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_resources import Resources
+from airflow.utils.session import provide_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -794,7 +794,7 @@ class BaseOperator(Operator, LoggingMixin):
         if self.template_ext:  # pylint: disable=too-many-nested-blocks
             for field in self.template_fields:
                 content = getattr(self, field, None)
-                if content is None:
+                if content is None:  # pylint: disable=no-else-continue
                     continue
                 elif isinstance(content, str) and \
                         any([content.endswith(ext) for ext in self.template_ext]):

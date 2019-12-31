@@ -22,10 +22,10 @@ import sys
 import unittest
 
 import botocore.exceptions
+import mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.batch import AwsBatchOperator
-from tests.compat import mock
 
 JOB_NAME = "51455483-c62c-48ac-9b88-53a6a725baa3"
 JOB_ID = "8ba9d676-4108-4474-9dca-8bbac1da9b19"

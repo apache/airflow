@@ -25,7 +25,7 @@ from airflow import example_dags as example_dags_module
 from airflow.models import DagBag
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils import db
+from airflow.utils.session import create_session
 
 
 # To move it to a shared module.
@@ -36,7 +36,7 @@ def make_example_dags(module):
 
 
 def clear_db_serialized_dags():
-    with db.create_session() as session:
+    with create_session() as session:
         session.query(SDM).delete()
 
 
@@ -63,7 +63,7 @@ class SerializedDagModelTest(unittest.TestCase):
         """DAGs can be written into database."""
         example_dags = self._write_example_dags()
 
-        with db.create_session() as session:
+        with create_session() as session:
             for dag in example_dags.values():
                 self.assertTrue(SDM.has_dag(dag.dag_id))
                 result = session.query(

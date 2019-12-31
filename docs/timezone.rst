@@ -77,7 +77,7 @@ words if you have a default time zone setting of ``Europe/Amsterdam`` and create
 
     default_args=dict(
         start_date=datetime(2016, 1, 1),
-        owner='Airflow'
+        owner='airflow'
     )
 
     dag = DAG('my_dag', default_args=default_args)
@@ -122,7 +122,7 @@ using ``pendulum``.
 
     default_args=dict(
         start_date=datetime(2016, 1, 1, tzinfo=local_tz),
-        owner='Airflow'
+        owner='airflow'
     )
 
     dag = DAG('my_tz_dag', default_args=default_args)

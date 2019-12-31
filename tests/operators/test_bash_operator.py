@@ -45,7 +45,7 @@ class TestBashOperator(unittest.TestCase):
         now = datetime.utcnow()
         now = now.replace(tzinfo=timezone.utc)
 
-        self.dag = DAG(
+        dag = DAG(
             dag_id='bash_op_test', default_args={
                 'owner': 'airflow',
                 'retries': 100,
@@ -54,7 +54,7 @@ class TestBashOperator(unittest.TestCase):
             schedule_interval='@daily',
             dagrun_timeout=timedelta(minutes=60))
 
-        self.dag.create_dagrun(
+        dag.create_dagrun(
             run_id='manual__' + DEFAULT_DATE.isoformat(),
             execution_date=DEFAULT_DATE,
             start_date=now,
@@ -65,7 +65,7 @@ class TestBashOperator(unittest.TestCase):
         with NamedTemporaryFile() as tmp_file:
             task = BashOperator(
                 task_id='echo_env_vars',
-                dag=self.dag,
+                dag=dag,
                 bash_command='echo $AIRFLOW_HOME>> {0};'
                              'echo $PYTHONPATH>> {0};'
                              'echo $AIRFLOW_CTX_DAG_ID >> {0};'

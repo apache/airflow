@@ -19,6 +19,7 @@
 
 import unittest
 
+import mock
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.exceptions import NotFound
 from googleapiclient.errors import HttpError
@@ -26,7 +27,6 @@ from parameterized import parameterized
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubHook
 from airflow.version import version
-from tests.compat import mock
 
 BASE_STRING = 'airflow.gcp.hooks.base.{}'
 PUBSUB_STRING = 'airflow.providers.google.cloud.hooks.pubsub.{}'

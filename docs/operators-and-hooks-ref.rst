@@ -296,51 +296,61 @@ These integrations allow you to perform various operations within the Amazon Web
    :header-rows: 1
 
    * - Service name
+     - Guide
      - Hook
      - Operators
      - Sensors
 
    * - `AWS Batch <https://aws.amazon.com/batch/>`__
      -
+     -
      - :mod:`airflow.providers.amazon.aws.operators.batch`
      -
 
    * - `AWS DataSync <https://aws.amazon.com/datasync/>`__
+     - :doc:`How to use <howto/operator/amazon/aws/datasync>`
      - :mod:`airflow.providers.amazon.aws.hooks.datasync`
      - :mod:`airflow.providers.amazon.aws.operators.datasync`
      -
 
    * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
+     -
      - :mod:`airflow.contrib.hooks.aws_glue_catalog_hook`
      -
      - :mod:`airflow.contrib.sensors.aws_glue_catalog_partition_sensor`
 
    * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.lambda_function`
      -
      -
 
    * - `Amazon Athena <https://aws.amazon.com/athena/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.athena`
      - :mod:`airflow.providers.amazon.aws.operators.athena`
      - :mod:`airflow.providers.amazon.aws.sensors.athena`
 
    * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__
+     -
      - :mod:`airflow.contrib.hooks.aws_logs_hook`
      -
      -
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
+     -
      - :mod:`airflow.contrib.hooks.aws_dynamodb_hook`
      -
      -
 
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
      -
+     -
      - :mod:`airflow.contrib.operators.ecs_operator`
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
+     -
      - :mod:`airflow.contrib.hooks.emr_hook`
      - :mod:`airflow.contrib.operators.emr_add_steps_operator`,
        :mod:`airflow.contrib.operators.emr_create_job_flow_operator`,
@@ -350,16 +360,19 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.contrib.sensors.emr_step_sensor`
 
    * - `Amazon Kinesis Data Firehose <https://aws.amazon.com/kinesis/data-firehose/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.kinesis`
      -
      -
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.redshift`
      -
      - :mod:`airflow.providers.amazon.aws.sensors.redshift`
 
    * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
+     -
      - :mod:`airflow.contrib.hooks.sagemaker_hook`
      - :mod:`airflow.contrib.operators.sagemaker_base_operator`,
        :mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`,
@@ -375,16 +388,19 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.sns`
      - :mod:`airflow.providers.amazon.aws.operators.sns`
      -
 
    * - `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sns/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.sqs`
      - :mod:`airflow.providers.amazon.aws.operators.sqs`
      - :mod:`airflow.providers.amazon.aws.sensors.sqs`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.s3`
      - :mod:`airflow.operators.s3_file_transform_operator`,
        :mod:`airflow.contrib.operators.s3_copy_object_operator`,
@@ -416,7 +432,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
    * - `Amazon DataSync <https://aws.amazon.com/datasync/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/datasync>`
      - :mod:`airflow.providers.amazon.aws.operators.datasync`
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__

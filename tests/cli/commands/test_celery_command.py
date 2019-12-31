@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,18 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import importlib
 import unittest
 from argparse import Namespace
 
+import mock
 import sqlalchemy
 
 import airflow
 from airflow.bin import cli
-from airflow.cli.commands import worker_command
-from tests.compat import mock, patch
+from airflow.cli.commands import celery_command
 from tests.test_utils.config import conf_vars
 
-patch('airflow.utils.cli.action_logging', lambda x: x).start()
+mock.patch('airflow.utils.cli.action_logging', lambda x: x).start()
 mock_args = Namespace(queues=1, concurrency=1)
 
 
@@ -41,7 +41,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         mock_validate_session.return_value = False
         with self.assertRaises(SystemExit) as cm:
             # airflow.bin.cli.worker(mock_args)
-            worker_command.worker(mock_args)
+            celery_command.worker(mock_args)
         self.assertEqual(cm.exception.code, 1)
 
     @conf_vars({('core', 'worker_precheck'): 'False'})
@@ -63,28 +63,30 @@ class TestWorkerPrecheck(unittest.TestCase):
 
 
 class TestWorkerServeLogs(unittest.TestCase):
+
     @classmethod
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     def setUpClass(cls):
+        importlib.reload(cli)
         cls.parser = cli.CLIFactory.get_parser()
 
-    def test_serve_logs_on_worker_start(self):
-        with patch('airflow.cli.commands.worker_command.subprocess.Popen') as mock_popen:
-            mock_popen.return_value.communicate.return_value = (b'output', b'error')
-            mock_popen.return_value.returncode = 0
-            args = self.parser.parse_args(['worker', '-c', '-1'])
+    def tearDown(self):
+        importlib.reload(cli)
 
-            with patch('celery.platforms.check_privileges') as mock_privil:
+    def test_serve_logs_on_worker_start(self):
+        with mock.patch('airflow.cli.commands.celery_command.Process') as mock_process:
+            args = self.parser.parse_args(['celery', 'worker', '-c', '-1'])
+
+            with mock.patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
-                worker_command.worker(args)
-                mock_popen.assert_called()
+                celery_command.worker(args)
+                mock_process.assert_called()
 
     def test_skip_serve_logs_on_worker_start(self):
-        with patch('airflow.cli.commands.worker_command.subprocess.Popen') as mock_popen:
-            mock_popen.return_value.communicate.return_value = (b'output', b'error')
-            mock_popen.return_value.returncode = 0
-            args = self.parser.parse_args(['worker', '-c', '-1', '-s'])
+        with mock.patch('airflow.cli.commands.celery_command.Process') as mock_popen:
+            args = self.parser.parse_args(['celery', 'worker', '-c', '-1', '-s'])
 
-            with patch('celery.platforms.check_privileges') as mock_privil:
+            with mock.patch('celery.platforms.check_privileges') as mock_privil:
                 mock_privil.return_value = 0
-                worker_command.worker(args)
+                celery_command.worker(args)
                 mock_popen.assert_not_called()

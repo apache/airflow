@@ -26,7 +26,7 @@ from airflow import DAG
 from airflow.contrib.operators.dingding_operator import DingdingOperator
 
 args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'retries': 3,
     'start_date': airflow.utils.dates.days_ago(2)
 }

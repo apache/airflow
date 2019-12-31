@@ -33,7 +33,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook",
     ),
     (
-        "airflow.gcp.hooks.dataflow.DataFlowHook",
+        "airflow.gcp.hooks.dataflow.DataflowHook",
         "airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook",
     ),
     (
@@ -159,23 +159,23 @@ OPERATOR = [
         "airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.gcp.operators.dataflow.DataFlowJavaOperator",
+        "airflow.gcp.operators.dataflow.DataflowCreateJavaJobOperator",
         "airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator",
     ),
     (
-        "airflow.gcp.operators.dataflow.DataFlowPythonOperator",
+        "airflow.gcp.operators.dataflow.DataflowCreatePythonJobOperator",
         "airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator",
     ),
     (
-        "airflow.gcp.operators.dataflow.DataflowTemplateOperator",
+        "airflow.gcp.operators.dataflow.DataflowTemplatedJobStartOperator",
         "airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.datastore.DatastoreExportOperator",
+        "airflow.gcp.operators.datastore.CloudDatastoreExportEntitiesOperator",
         "airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator",
     ),
     (
-        "airflow.gcp.operators.datastore.DatastoreImportOperator",
+        "airflow.gcp.operators.datastore.CloudDatastoreImportEntitiesOperator",
         "airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator",
     ),
     (
@@ -183,23 +183,23 @@ OPERATOR = [
         "airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableClusterUpdateOperator",
+        "airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableInstanceCreateOperator",
+        "airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableInstanceDeleteOperator",
+        "airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableTableCreateOperator",
+        "airflow.gcp.operators.bigtable.BigtableCreateTableOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableTableDeleteOperator",
+        "airflow.gcp.operators.bigtable.BigtableDeleteTableOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator",
     ),
     (
@@ -207,28 +207,28 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator",
     ),
     (
-        "airflow.gcp.operators.compute.GceBaseOperator",
+        "airflow.gcp.operators.compute.ComputeEngineBaseOperator",
         "airflow.contrib.operators.gcp_compute_operator.GceBaseOperator",
     ),
     (
-        "airflow.gcp.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator",
+        "airflow.gcp.operators.compute.ComputeEngineInstanceGroupUpdateManagerTemplateOperator",
         "airflow.contrib.operators.gcp_compute_operator."
         "GceInstanceGroupManagerUpdateTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.compute.GceInstanceStartOperator",
+        "airflow.gcp.operators.compute.ComputeEngineStartInstanceOperator",
         "airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator",
     ),
     (
-        "airflow.gcp.operators.compute.GceInstanceStopOperator",
+        "airflow.gcp.operators.compute.ComputeEngineStopInstanceOperator",
         "airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator",
     ),
     (
-        "airflow.gcp.operators.compute.GceInstanceTemplateCopyOperator",
+        "airflow.gcp.operators.compute.ComputeEngineCopyInstanceTemplateOperator",
         "airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator",
     ),
     (
-        "airflow.gcp.operators.compute.GceSetMachineTypeOperator",
+        "airflow.gcp.operators.compute.ComputeEngineSetMachineTypeOperator",
         "airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator",
     ),
     (
@@ -416,12 +416,11 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator",
     ),
     (
-        "airflow.gcp.operators.speech_to_text.GcpSpeechToTextRecognizeSpeechOperator",
-        "airflow.contrib.operators.gcp_speech_to_text_operator."
-        "GcpSpeechToTextRecognizeSpeechOperator",
+        "airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator",
+        "airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator",
     ),
     (
-        "airflow.gcp.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator",
+        "airflow.gcp.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator",
         "airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator",
     ),
     (
@@ -572,7 +571,7 @@ OPERATOR = [
         "airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator",
+        "airflow.operators.gcs_to_s3.GCSToS3Operator",
         "airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator",
     ),
     (
@@ -707,27 +706,11 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryCreateEmptyDatasetOperator",
-        "airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator",
-    ),
-    (
-        "airflow.gcp.operators.bigquery.BigQueryCreateEmptyTableOperator",
-        "airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator",
-    ),
-    (
-        "airflow.gcp.operators.bigquery.BigQueryCreateExternalTableOperator",
-        "airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator",
-    ),
-    (
-        "airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator",
-        "airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator",
-    ),
-    (
-        "airflow.gcp.operators.bigquery.BigQueryOperator",
+        "airflow.gcp.operators.bigquery.BigQueryExecuteQueryOperator",
         "airflow.contrib.operators.bigquery_operator.BigQueryOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryTableDeleteOperator",
+        "airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator",
         "airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator",
     ),
     (
@@ -785,7 +768,7 @@ OPERATOR = [
 ]
 SENSOR = [
     (
-        "airflow.gcp.sensors.bigtable.BigtableTableWaitForReplicationSensor",
+        "airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor",
         "airflow.contrib.operators.gcp_bigtable_operator."
         "BigtableTableWaitForReplicationSensor",
     ),
@@ -800,7 +783,7 @@ SENSOR = [
         "airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor",
     ),
     (
-        "airflow.gcp.sensors.bigquery.BigQueryTableSensor",
+        "airflow.gcp.sensors.bigquery.BigQueryTableExistenceSensor",
         "airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor",
     ),
     (

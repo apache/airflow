@@ -23,8 +23,9 @@ import os
 import tempfile
 import unittest
 
+import mock
+
 from airflow.contrib.utils.sendgrid import send_email
-from tests.compat import mock
 
 
 class TestSendEmailSendGrid(unittest.TestCase):

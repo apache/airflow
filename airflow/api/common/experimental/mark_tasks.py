@@ -28,7 +28,7 @@ from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 

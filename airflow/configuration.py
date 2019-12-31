@@ -27,6 +27,7 @@ from base64 import b64encode
 from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
+from typing import Dict, Tuple
 
 from cryptography.fernet import Fernet
 from zope.deprecation import deprecated
@@ -80,15 +81,15 @@ def run_command(command):
     return output
 
 
-def _read_default_config_file(file_name: str) -> str:
+def _read_default_config_file(file_name: str) -> Tuple[str, str]:
     templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
     file_path = os.path.join(templates_dir, file_name)
-    with open(file_path, encoding='utf-8') as file:
-        return file.read()
+    with open(file_path, encoding='utf-8') as config_file:
+        return config_file.read(), file_path
 
 
-DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
-TEST_CONFIG = _read_default_config_file('default_test.cfg')
+DEFAULT_CONFIG, DEFAULT_CONFIG_FILE_PATH = _read_default_config_file('default_airflow.cfg')
+TEST_CONFIG, TEST_CONFIG_FILE_PATH = _read_default_config_file('default_test.cfg')
 
 
 class AirflowConfigParser(ConfigParser):
@@ -107,19 +108,35 @@ class AirflowConfigParser(ConfigParser):
         ('kubernetes', 'git_password'),
     }
 
-    # A two-level mapping of (section -> new_name -> old_name). When reading
-    # new_name, the old_name will be checked to see if it exists. If it does a
-    # DeprecationWarning will be issued and the old name will be used instead
+    # A mapping of (new option -> old option). where option is a tuple of section name and key.
+    # When reading new option, the old option will be checked to see if it exists. If it does a
+    # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options = {
-        'elasticsearch': {
-            'host': 'elasticsearch_host',
-            'log_id_template': 'elasticsearch_log_id_template',
-            'end_of_log_mark': 'elasticsearch_end_of_log_mark',
-            'frontend': 'elasticsearch_frontend',
-            'write_stdout': 'elasticsearch_write_stdout',
-            'json_format': 'elasticsearch_json_format',
-            'json_fields': 'elasticsearch_json_fields'
-        }
+        ('elasticsearch', 'host'): ('elasticsearch', 'elasticsearch_host'),
+        ('elasticsearch', 'log_id_template'): ('elasticsearch', 'elasticsearch_log_id_template'),
+        ('elasticsearch', 'end_of_log_mark'): ('elasticsearch', 'elasticsearch_end_of_log_mark'),
+        ('elasticsearch', 'frontend'): ('elasticsearch', 'elasticsearch_frontend'),
+        ('elasticsearch', 'write_stdout'): ('elasticsearch', 'elasticsearch_write_stdout'),
+        ('elasticsearch', 'json_format'): ('elasticsearch', 'elasticsearch_json_format'),
+        ('elasticsearch', 'json_fields'): ('elasticsearch', 'elasticsearch_json_fields'),
+        ('logging', 'base_log_folder'): ('core', 'base_log_folder'),
+        ('logging', 'remote_logging'): ('core', 'remote_logging'),
+        ('logging', 'remote_log_conn_id'): ('core', 'remote_log_conn_id'),
+        ('logging', 'remote_base_log_folder'): ('core', 'remote_base_log_folder'),
+        ('logging', 'encrypt_s3_logs'): ('core', 'encrypt_s3_logs'),
+        ('logging', 'logging_level'): ('core', 'logging_level'),
+        ('logging', 'fab_logging_level'): ('core', 'fab_logging_level'),
+        ('logging', 'logging_config_class'): ('core', 'logging_config_class'),
+        ('logging', 'colored_console_log'): ('core', 'colored_console_log'),
+        ('logging', 'colored_log_format'): ('core', 'colored_log_format'),
+        ('logging', 'colored_formatter_class'): ('core', 'colored_formatter_class'),
+        ('logging', 'log_format'): ('core', 'log_format'),
+        ('logging', 'simple_log_format'): ('core', 'simple_log_format'),
+        ('logging', 'task_log_prefix_template'): ('core', 'task_log_prefix_template'),
+        ('logging', 'log_filename_template'): ('core', 'log_filename_template'),
+        ('logging', 'log_processor_filename_template'): ('core', 'log_processor_filename_template'),
+        ('logging', 'dag_processor_manager_log_location'): ('core', 'dag_processor_manager_log_location'),
+        ('logging', 'task_log_reader'): ('core', 'task_log_reader'),
     }
 
     # A mapping of old default values that we want to change and warn the user
@@ -203,16 +220,16 @@ class AirflowConfigParser(ConfigParser):
         section = str(section).lower()
         key = str(key).lower()
 
-        deprecated_name = self.deprecated_options.get(section, {}).get(key, None)
+        deprecated_section, deprecated_key = self.deprecated_options.get((section, key), (None, None))
 
         # first check environment variables
         option = self._get_env_var_option(section, key)
         if option is not None:
             return option
-        if deprecated_name:
-            option = self._get_env_var_option(section, deprecated_name)
+        if deprecated_section:
+            option = self._get_env_var_option(deprecated_section, deprecated_key)
             if option is not None:
-                self._warn_deprecate(section, key, deprecated_name)
+                self._warn_deprecate(section, key, deprecated_section, deprecated_key)
                 return option
 
         # ...then the config file
@@ -221,12 +238,12 @@ class AirflowConfigParser(ConfigParser):
             # separate the config from default config.
             return expand_env_var(
                 super().get(section, key, **kwargs))
-        if deprecated_name:
-            if super().has_option(section, deprecated_name):
-                self._warn_deprecate(section, key, deprecated_name)
+        if deprecated_section:
+            if super().has_option(deprecated_section, deprecated_key):
+                self._warn_deprecate(section, key, deprecated_section, deprecated_key)
                 return expand_env_var(super().get(
-                    section,
-                    deprecated_name,
+                    deprecated_section,
+                    deprecated_key,
                     **kwargs
                 ))
 
@@ -234,10 +251,10 @@ class AirflowConfigParser(ConfigParser):
         option = self._get_cmd_option(section, key)
         if option:
             return option
-        if deprecated_name:
-            option = self._get_cmd_option(section, deprecated_name)
+        if deprecated_section:
+            option = self._get_cmd_option(deprecated_section, deprecated_key)
             if option:
-                self._warn_deprecate(section, key, deprecated_name)
+                self._warn_deprecate(section, key, deprecated_section, deprecated_key)
                 return option
 
         # ...then the default config
@@ -342,7 +359,7 @@ class AirflowConfigParser(ConfigParser):
 
     def as_dict(
             self, display_source=False, display_sensitive=False, raw=False,
-            include_env=True, include_cmds=True):
+            include_env=True, include_cmds=True) -> Dict[str, Dict[str, str]]:
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
 
@@ -364,8 +381,11 @@ class AirflowConfigParser(ConfigParser):
             set (True, default), or should the _cmd options be left as the
             command to run (False)
         :type include_cmds: bool
+        :rtype: Dict[str, Dict[str, str]]
+        :return: Dictionary, where the key is the name of the section and the content is
+            the dictionary with the name of the parameter and its value.
         """
-        cfg = {}
+        cfg: Dict[str, Dict[str, str]] = {}
         configs = [
             ('default', self.airflow_defaults),
             ('airflow.cfg', self),
@@ -426,23 +446,39 @@ class AirflowConfigParser(ConfigParser):
         Note: this is not reversible.
         """
         # override any custom settings with defaults
+        log.info("Overriding settings with defaults from %s", DEFAULT_CONFIG_FILE_PATH)
         self.read_string(parameterized_config(DEFAULT_CONFIG))
         # then read test config
+        log.info("Reading default test configuration from %s", TEST_CONFIG_FILE_PATH)
         self.read_string(parameterized_config(TEST_CONFIG))
         # then read any "custom" test settings
+        log.info("Reading test configuration from %s", TEST_CONFIG_FILE)
         self.read(TEST_CONFIG_FILE)
 
-    def _warn_deprecate(self, section, key, deprecated_name):
-        warnings.warn(
-            'The {old} option in [{section}] has been renamed to {new} - the old '
-            'setting has been used, but please update your config.'.format(
-                old=deprecated_name,
-                new=key,
-                section=section,
-            ),
-            DeprecationWarning,
-            stacklevel=3,
-        )
+    def _warn_deprecate(self, section, key, deprecated_section, deprecated_name):
+        if section == deprecated_section:
+            warnings.warn(
+                'The {old} option in [{section}] has been renamed to {new} - the old '
+                'setting has been used, but please update your config.'.format(
+                    old=deprecated_name,
+                    new=key,
+                    section=section,
+                ),
+                DeprecationWarning,
+                stacklevel=3,
+            )
+        else:
+            warnings.warn(
+                'The {old_key} option in [{old_section}] has been moved to the {new_key} option in '
+                '[{new_section}] - the old setting has been used, but please update your config.'.format(
+                    old_section=deprecated_section,
+                    old_key=deprecated_name,
+                    new_key=key,
+                    new_section=section,
+                ),
+                DeprecationWarning,
+                stacklevel=3,
+            )
 
 
 def get_airflow_home():
@@ -561,7 +597,7 @@ WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
 if not os.path.isfile(WEBSERVER_CONFIG):
     log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
-    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
+    DEFAULT_WEBSERVER_CONFIG, _ = _read_default_config_file('default_webserver_config.py')
     with open(WEBSERVER_CONFIG, 'w') as file:
         file.write(DEFAULT_WEBSERVER_CONFIG)
 

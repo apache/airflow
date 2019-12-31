@@ -21,18 +21,19 @@
 import unittest
 from collections import namedtuple
 
+import mock
 from azure.mgmt.containerinstance.models import ContainerState, Event
 
 from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
 from airflow.exceptions import AirflowException
-from tests.compat import mock
 
 
-def make_mock_cg(container_state, events=[]):
+def make_mock_cg(container_state, events=None):
     """
     Make a mock Container Group as the underlying azure Models have read-only attributes
     See https://docs.microsoft.com/en-us/rest/api/container-instances/containergroups
     """
+    events = events or []
     instance_view_dict = {"current_state": container_state,
                           "events": events}
     instance_view = namedtuple("InstanceView",

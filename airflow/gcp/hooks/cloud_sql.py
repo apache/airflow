@@ -51,7 +51,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import Connection
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 UNIX_PATH_MAX = 108
 

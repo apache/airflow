@@ -25,12 +25,12 @@ import unittest
 from datetime import datetime
 
 import dateutil
+import mock
 from google.cloud import exceptions, storage
 
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks import gcs
 from airflow.version import version
-from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 BASE_STRING = 'airflow.gcp.hooks.base.{}'

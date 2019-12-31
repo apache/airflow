@@ -22,6 +22,7 @@ import os
 import random
 import re
 import string
+import sys
 
 from tabulate import tabulate
 
@@ -162,7 +163,7 @@ def users_import(args):
     json_file = getattr(args, 'import')
     if not os.path.exists(json_file):
         print("File '{}' does not exist")
-        exit(1)
+        sys.exit(1)
 
     users_list = None  # pylint: disable=redefined-outer-name
     try:
@@ -170,7 +171,7 @@ def users_import(args):
             users_list = json.loads(file.read())
     except ValueError as e:
         print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
-        exit(1)
+        sys.exit(1)
 
     users_created, users_updated = _import_users(users_list)
     if users_created:
@@ -194,7 +195,7 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
             if not role:
                 valid_roles = appbuilder.sm.get_all_roles()
                 print("Error: '{}' is not a valid role. Valid roles are: {}".format(rolename, valid_roles))
-                exit(1)
+                sys.exit(1)
             else:
                 roles.append(role)
 
@@ -204,7 +205,7 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
             if not user.get(field):
                 print("Error: '{}' is a required field, but was not "
                       "specified".format(field))
-                exit(1)
+                sys.exit(1)
 
         existing_user = appbuilder.sm.find_user(email=user['email'])
         if existing_user:
@@ -217,7 +218,7 @@ def _import_users(users_list):  # pylint: disable=redefined-outer-name
                 print("Error: Changing the username is not allowed - "
                       "please delete and recreate the user with "
                       "email '{}'".format(user['email']))
-                exit(1)
+                sys.exit(1)
 
             appbuilder.sm.update_user(existing_user)
             users_updated.append(user['email'])

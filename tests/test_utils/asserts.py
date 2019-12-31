@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock  # noqa: F401
+import re
 
-patch = mock.patch
-Mock = mock.Mock
-MagicMock = mock.MagicMock
-PropertyMock = mock.PropertyMock
-ANY = mock.ANY
+
+def assert_equal_ignore_multiple_spaces(case, first, second, msg=None):
+    def _trim(s):
+        return re.sub(r"\s+", " ", s.strip())
+    return case.assertEqual(_trim(first), _trim(second), msg)

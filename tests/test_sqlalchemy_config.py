@@ -19,10 +19,10 @@
 
 import unittest
 
+from mock import patch
 from sqlalchemy.pool import NullPool
 
 from airflow import settings
-from tests.compat import patch
 from tests.test_utils.config import conf_vars
 
 SQL_ALCHEMY_CONNECT_ARGS = {

@@ -33,7 +33,9 @@ from urllib.parse import quote, unquote
 import lazy_object_proxy
 import markdown
 import sqlalchemy as sqla
-from flask import Markup, Response, flash, jsonify, make_response, redirect, render_template, request, url_for
+from flask import (
+    Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request, url_for,
+)
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
@@ -56,8 +58,8 @@ from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.www import utils as wwwutils
 from airflow.www.app import app, appbuilder
@@ -134,7 +136,10 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 @app.errorhandler(404)
 def circles(error):
     return render_template(
-        'airflow/circles.html', hostname=socket.getfqdn()), 404
+        'airflow/circles.html', hostname=socket.getfqdn() if conf.getboolean(
+            'webserver',
+            'EXPOSE_HOSTNAME',
+            fallback=True) else 'redact'), 404
 
 
 @app.errorhandler(500)
@@ -142,9 +147,15 @@ def show_traceback(error):
     from airflow.utils import asciiart as ascii_
     return render_template(
         'airflow/traceback.html',
-        hostname=socket.getfqdn(),
+        hostname=socket.getfqdn() if conf.getboolean(
+            'webserver',
+            'EXPOSE_HOSTNAME',
+            fallback=True) else 'redact',
         nukular=ascii_.nukular,
-        info=traceback.format_exc()), 500
+        info=traceback.format_exc() if conf.getboolean(
+            'webserver',
+            'EXPOSE_STACKTRACE',
+            fallback=True) else 'Error! Please contact server admin'), 500
 
 
 class AirflowBaseView(BaseView):
@@ -287,7 +298,7 @@ class Airflow(AirflowBaseView):
             num_dag_to=min(end, num_of_all_dags),
             num_of_all_dags=num_of_all_dags,
             paging=wwwutils.generate_pages(current_page, num_of_pages,
-                                           search=arg_search_query,
+                                           search=escape(arg_search_query) if arg_search_query else None,
                                            showPaused=not hide_paused),
             auto_complete_data=auto_complete_data,
             num_runs=num_runs)
@@ -599,7 +610,7 @@ class Airflow(AirflowBaseView):
             return response
 
         logger = logging.getLogger('airflow.task')
-        task_log_reader = conf.get('core', 'task_log_reader')
+        task_log_reader = conf.get('logging', 'task_log_reader')
         handler = next((handler for handler in logger.handlers
                         if handler.name == task_log_reader), None)
 
@@ -627,7 +638,7 @@ class Airflow(AirflowBaseView):
                 message = logs[0] if try_number is not None else logs
                 return jsonify(message=message, metadata=metadata)
 
-            filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
+            filename_template = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
             attachment_filename = render_log_filename(
                 ti=ti,
                 try_number="all" if try_number is None else try_number,

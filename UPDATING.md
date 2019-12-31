@@ -41,6 +41,63 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+<!--
+
+I'm glad you want to write a new note. Remember that this note is intended for users.
+Make sure it contains the following information:
+
+- [ ] Previous behaviors
+- [ ] New behaviors
+- [ ] If possible, a simple example of how to migrate. This may include a simple code example.
+- [ ] If possible, the benefit for the user after migration e.g. "we want to make these changes to unify class names."
+- [ ] If possible, the reason for the change, which adds more context to that interested, e.g. reference for Airflow Improvment Proposal.
+
+More tips can be found in the guide:
+https://developers.google.com/style/inclusive-documentation
+
+-->
+
+### Change python3 as Dataflow Hooks/Operators default interpreter
+
+Now the `py_interpreter` argument for DataFlow Hooks/Operators has been changed from python2 to python3.
+
+### Logging configuration has been moved to new section
+
+The following configurations have been moved from `[core]` to the new `[logging]` section.
+
+* `base_log_folder`
+* `remote_logging`
+* `remote_log_conn_id`
+* `remote_base_log_folder`
+* `encrypt_s3_logs`
+* `logging_level`
+* `fab_logging_level`
+* `logging_config_class`
+* `colored_console_log`
+* `colored_log_format`
+* `colored_formatter_class`
+* `log_format`
+* `simple_log_format`
+* `task_log_prefix_template`
+* `log_filename_template`
+* `log_processor_filename_template`
+* `dag_processor_manager_log_location`
+* `task_log_reader`
+
+### Simplification of CLI commands
+
+Some commands have been grouped to improve UX of CLI. New commands are available according to the following table:
+
+| Old command               | New command                        |
+|---------------------------|------------------------------------|
+| ``airflow worker``        | ``airflow celery worker``          |
+| ``airflow flower``        | ``airflow celery flower``          |
+
+### Remove serve_logs command from CLI
+
+The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
+and there is no need for it to be accessible from the CLI interface.
+
 ### Remove gcp_service_account_keys option in airflow.cfg file
 
 This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new
@@ -48,9 +105,9 @@ recommended service account keys for the Google Cloud Platform management method
 [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
 
 ### BranchPythonOperator has a return value
-`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch, 
-where previously it returned None. Since it inherits from BaseOperator it will do an 
-`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making. 
+`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch,
+where previously it returned None. Since it inherits from BaseOperator it will do an
+`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making.
 
 ### Removal of airflow.AirflowMacroPlugin class
 
@@ -67,17 +124,17 @@ part of AIRFLOW-6010.
 
 #### Change default aws_conn_id in EMR operators
 
-The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous 
-versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new 
-changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is 
+The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
+versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
+changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
 solved.
 
 ### Removal of redirect_stdout, redirect_stderr
 
-Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has 
+Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has
 been deleted because it can be easily replaced by the standard library.
 The functions of the standard library are more flexible and can be used in larger cases.
-  
+
 The code below
 ```python
 import logging
@@ -110,8 +167,8 @@ This one is supersede by `XCom.get_many().first()` which will return the same re
 
 SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
 
-It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That 
-changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success 
+It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That
+changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success
 criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
 behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
 
@@ -129,9 +186,9 @@ result = self.render_template(self.myattr, context)  # Post-1.10.6 call
 ```
 
 ### Idempotency in BigQuery operators
-Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`. 
-But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table` 
-methods of `BigQueryHook`. 
+Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`.
+But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table`
+methods of `BigQueryHook`.
 
 ### Migration of AWS components
 
@@ -184,7 +241,7 @@ in case they are called using positional parameters.
 
 Hooks involved:
 
-  * DataFlowHook
+  * DataflowHook
   * MLEngineHook
   * PubSubHook
 
@@ -203,8 +260,8 @@ However, this requires that your operating system has ``libffi-dev`` installed.
 In the `PubSubPublishOperator` and `PubSubHook.publsh` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
 
 Due to the normalization of the parameters within GCP operators and hooks a parameters like `project` or `topic_project`
-are deprecated and will be substituted by parameter `project_id`. 
-In `PubSubHook.create_subscription` hook method in the parameter `subscription_project` is replaced by `subscription_project_id`. 
+are deprecated and will be substituted by parameter `project_id`.
+In `PubSubHook.create_subscription` hook method in the parameter `subscription_project` is replaced by `subscription_project_id`.
 Template fields are updated accordingly and old ones may not work.
 
 It is required now to pass key-word only arguments to `PubSub` hook.
@@ -260,8 +317,8 @@ Detailed information about connection management is available:
 
 ### Normalize gcp_conn_id for Google Cloud Platform
 
-Previously not all hooks and operators related to Google Cloud Platform use 
-`gcp_conn_id` as parameter for GCP connection. There is currently one parameter 
+Previously not all hooks and operators related to Google Cloud Platform use
+`gcp_conn_id` as parameter for GCP connection. There is currently one parameter
 which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_conn_id``,
 ``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
 
@@ -294,8 +351,8 @@ Following components were affected by normalization:
 
 ### Changes to propagating Kubernetes worker annotations
 
-`kubernetes_annotations` configuration section has been removed. 
-A new key `worker_annotations` has been added to existing `kubernetes` section instead. 
+`kubernetes_annotations` configuration section has been removed.
+A new key `worker_annotations` has been added to existing `kubernetes` section instead.
 That is to remove restriction on the character set for k8s annotation keys.
 All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
 ```
@@ -311,8 +368,8 @@ worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" 
 
 ### Changes to import paths and names of GCP operators and hooks
 
-According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths) 
-operators related to Google Cloud Platform has been moved from contrib to core. 
+According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+operators related to Google Cloud Platform has been moved from contrib to core.
 The following table shows changes in import paths.
 
 |                                                     Old path                                                     |                                                 New path                                                  |
@@ -323,7 +380,7 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook                                                         |airflow.gcp.hooks.cloud_build.CloudBuildHook                                                               |
 |airflow.contrib.hooks.gcp_compute_hook.GceHook                                                                    |airflow.gcp.hooks.compute.ComputeEngineHook                                                                |
 |airflow.contrib.hooks.gcp_container_hook.GKEClusterHook                                                           |airflow.gcp.hooks.kubernetes_engine.GKEClusterHook                                                         |
-|airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook                                                              |airflow.gcp.hooks.dataflow.DataFlowHook                                                                    |
+|airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook                                                              |airflow.gcp.hooks.dataflow.DataflowHook                                                                    |
 |airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook                                                              |airflow.gcp.hooks.dataproc.DataprocHook                                                                    |
 |airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook                                                                   |airflow.gcp.hooks.dlp.CloudDLPHook                                                                         |
 |airflow.contrib.hooks.gcp_function_hook.GcfHook                                                                   |airflow.gcp.hooks.functions.CloudFunctionsHook                                                             |
@@ -333,7 +390,6 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook                                                                  |airflow.providers.google.cloud.hooks.pubsub.PubSubHook                                                                        |
 |airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook                                                     |
 |airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook                                                           |airflow.gcp.hooks.spanner.SpannerHook                                                                      |
-|airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.gcp.hooks.speech_to_text.GCPSpeechToTextHook                                                       |
 |airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook                                                           |airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook                                                           |
 |airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook                                                                   |airflow.gcp.hooks.cloud_sql.CloudSqlHook                                                                   |
 |airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook                                                               |airflow.gcp.hooks.tasks.CloudTasksHook                                                                     |
@@ -352,8 +408,8 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator                                      |airflow.gcp.operators.bigquery.BigQueryCreateEmptyTableOperator                                            |
 |airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator                                   |airflow.gcp.operators.bigquery.BigQueryCreateExternalTableOperator                                         |
 |airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator                                         |airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator                                               |
-|airflow.contrib.operators.bigquery_operator.BigQueryOperator                                                      |airflow.gcp.operators.bigquery.BigQueryOperator                                                            |
-|airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator                              |airflow.gcp.operators.bigquery.BigQueryTableDeleteOperator                                                 |
+|airflow.contrib.operators.bigquery_operator.BigQueryOperator                                                      |airflow.gcp.operators.bigquery.BigQueryExecuteQueryOperator                                                |
+|airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator                              |airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator                                                 |
 |airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator                                         |airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator                                          |
 |airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator                                          |airflow.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator                                           |
 |airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator                                      |airflow.operators.bigquery_to_mysql.BigQueryToMySqlOperator                                                |
@@ -376,12 +432,12 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator                                       |airflow.gcp.operators.datastore.DatastoreExportOperator                                                    |
 |airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator                                       |airflow.gcp.operators.datastore.DatastoreImportOperator                                                    |
 |airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator                                            |airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator                                            |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator                                     |airflow.gcp.operators.bigtable.BigtableClusterUpdateOperator                                               |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator                                    |airflow.gcp.operators.bigtable.BigtableInstanceCreateOperator                                              |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator                                    |airflow.gcp.operators.bigtable.BigtableInstanceDeleteOperator                                              |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator                                       |airflow.gcp.operators.bigtable.BigtableTableCreateOperator                                                 |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator                                       |airflow.gcp.operators.bigtable.BigtableTableDeleteOperator                                                 |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor                             |airflow.gcp.sensors.bigtable.BigtableTableWaitForReplicationSensor                                         |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator                                     |airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator                                               |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator                                    |airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator                                              |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator                                    |airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator                                              |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator                                       |airflow.gcp.operators.bigtable.BigtableCreateTableOperator                                                 |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator                                       |airflow.gcp.operators.bigtable.BigtableDeleteTableOperator                                                 |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor                             |airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor                                         |
 |airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator                                  |airflow.gcp.operators.cloud_build.CloudBuildCreateOperator
 |airflow.contrib.operators.gcp_compute_operator.GceBaseOperator                                                    |airflow.gcp.operators.compute.GceBaseOperator                                                              |
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator                      |airflow.gcp.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator                                |
@@ -434,8 +490,8 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator                         |airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseUpdateOperator                                   |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator                                 |airflow.gcp.operators.spanner.CloudSpannerInstanceDeleteOperator                                           |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator                                 |airflow.gcp.operators.spanner.CloudSpannerInstanceDeployOperator                                           |
-|airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator                      |airflow.gcp.operators.speech_to_text.GcpSpeechToTextRecognizeSpeechOperator                                |
-|airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator                           |airflow.gcp.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator                                     |
+|airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator                      |airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator
+|airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator                           |airflow.gcp.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator                                     |
 |airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator                               |airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobCreateOperator                   |
 |airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator                               |airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobDeleteOperator                   |
 |airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator                               |airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobUpdateOperator                   |
@@ -474,7 +530,7 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator                                     |airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator                                           |
 |airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                          |airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                           |
 |airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator                               |airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator                                |
-|airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator                                                |airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator                                                 |
+|airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator                                                |airflow.operators.gcs_to_s3.GCSToS3Operator                                                 |
 |airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator                                       |airflow.gcp.operators.mlengine.MLEngineBatchPredictionOperator                                             |
 |airflow.contrib.operators.mlengine_operator.MLEngineModelOperator                                                 |airflow.gcp.operators.mlengine.MLEngineModelOperator                                                       |
 |airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator                                              |airflow.gcp.operators.mlengine.MLEngineTrainingOperator                                                    |
@@ -488,7 +544,7 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator                                               |airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator                                                     |
 |airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator                                               |airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator                                                     |
 |airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                          |airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                           |
-|airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor                                                       |airflow.gcp.sensors.bigquery.BigQueryTableSensor                                                           |
+|airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor                                                       |airflow.gcp.sensors.bigquery.BigQueryTableExistenceSensor                                                  |
 |airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceWaitForJobStatusSensor                              |airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceWaitForJobStatusSensor                |
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor                                                 |airflow.gcp.sensors.gcs.GoogleCloudStorageObjectSensor                                                     |
 |airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor                                          |airflow.gcp.sensors.gcs.GoogleCloudStorageObjectUpdatedSensor                                              |

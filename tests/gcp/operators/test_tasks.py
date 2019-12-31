@@ -19,6 +19,7 @@
 
 import unittest
 
+import mock
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.gcp.operators.tasks import (
@@ -28,7 +29,6 @@ from airflow.gcp.operators.tasks import (
     CloudTasksTaskDeleteOperator, CloudTasksTaskGetOperator, CloudTasksTaskRunOperator,
     CloudTasksTasksListOperator,
 )
-from tests.compat import mock
 
 GCP_CONN_ID = "google_cloud_default"
 PROJECT_ID = "test-project"

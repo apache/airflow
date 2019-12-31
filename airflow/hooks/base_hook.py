@@ -23,8 +23,8 @@ from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 

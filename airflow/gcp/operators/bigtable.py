@@ -44,7 +44,7 @@ class BigtableValidationMixin:
                 raise AirflowException('Empty parameter: {}'.format(attr_name))
 
 
-class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
+class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
     Creates a new Cloud Bigtable instance.
     If the Cloud Bigtable instance with the given ID exists, the operator does not
@@ -56,7 +56,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableInstanceCreateOperator`
+        :ref:`howto/operator:BigtableCreateInstanceOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to create.
@@ -161,7 +161,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
+class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
     Deletes the Cloud Bigtable instance, including its clusters and all related tables.
 
@@ -170,7 +170,7 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableInstanceDeleteOperator`
+        :ref:`howto/operator:BigtableDeleteInstanceOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to delete.
@@ -211,7 +211,7 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
+class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
     """
     Creates the table in the Cloud Bigtable instance.
 
@@ -220,7 +220,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableTableCreateOperator`
+        :ref:`howto/operator:BigtableCreateTableOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance that will
@@ -307,7 +307,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
                           self.table_id)
 
 
-class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
+class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
     """
     Deletes the Cloud Bigtable table.
 
@@ -316,7 +316,7 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableTableDeleteOperator`
+        :ref:`howto/operator:BigtableDeleteTableOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
@@ -372,7 +372,7 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
+class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
     """
     Updates a Cloud Bigtable cluster.
 
@@ -382,7 +382,7 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableClusterUpdateOperator`
+        :ref:`howto/operator:BigtableUpdateClusterOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.

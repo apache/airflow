@@ -20,8 +20,9 @@
 import logging
 import unittest
 
+import mock
+
 from airflow.exceptions import AirflowException
-from tests.compat import mock
 
 try:
     from airflow.operators.docker_operator import DockerOperator

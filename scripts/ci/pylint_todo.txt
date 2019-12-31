@@ -141,7 +141,6 @@
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
 ./airflow/operators/bash_operator.py
-./airflow/operators/cassandra_to_gcs.py
 ./airflow/operators/check_operator.py
 ./airflow/operators/dagrun_operator.py
 ./airflow/operators/druid_check_operator.py

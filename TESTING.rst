@@ -43,6 +43,19 @@ Airflow Unit Tests
 
 All tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_ .
 
+Writing unit tests
+------------------
+
+There are a few guidelines that you should follow when writing unit tests:
+
+* Standard unit tests that do not require integrations with external systems should mock all communication
+* All our tests are run with pytest make sure you set your IDE/runners (see below) to use pytest by default
+* For new tests we should use standard "asserts" of python and pytest decorators/context managers for testing
+  rather than unittest ones. Look at `Pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
+* We use parameterized framework for tests that have variations in parameters
+* We plann to convert all unittests to standard "asserts" semi-automatically but this will be done later
+  in Airflow 2.0 development phase. That will include setUp/tearDown/context managers and decorators
+
 Running Unit Tests from IDE
 ---------------------------
 

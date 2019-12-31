@@ -20,7 +20,7 @@
 """This module defines dep for pool slots availability"""
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 STATES_TO_COUNT_AS_RUNNING = [State.RUNNING, State.QUEUED]

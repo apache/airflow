@@ -35,10 +35,10 @@ from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
 

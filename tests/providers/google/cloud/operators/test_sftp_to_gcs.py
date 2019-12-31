@@ -21,9 +21,10 @@
 import os
 import unittest
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.sftp_to_gcs import SFTPToGoogleCloudStorageOperator
-from tests.compat import mock
 
 TASK_ID = "test-gcs-to-sftp-operator"
 GCP_CONN_ID = "GCP_CONN_ID"

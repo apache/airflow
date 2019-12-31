@@ -27,31 +27,30 @@ from airflow.utils.file import mkdirs
 # in this file instead of from airflow.cfg. Currently
 # there are other log format and level configurations in
 # settings.py and cli.py. Please see AIRFLOW-1455.
-LOG_LEVEL: str = conf.get('core', 'LOGGING_LEVEL').upper()
+LOG_LEVEL: str = conf.get('logging', 'LOGGING_LEVEL').upper()
 
 
 # Flask appbuilder's info level log is very verbose,
 # so it's set to 'WARN' by default.
-FAB_LOG_LEVEL: str = conf.get('core', 'FAB_LOGGING_LEVEL').upper()
+FAB_LOG_LEVEL: str = conf.get('logging', 'FAB_LOGGING_LEVEL').upper()
 
-LOG_FORMAT: str = conf.get('core', 'LOG_FORMAT')
+LOG_FORMAT: str = conf.get('logging', 'LOG_FORMAT')
 
-COLORED_LOG_FORMAT: str = conf.get('core', 'COLORED_LOG_FORMAT')
+COLORED_LOG_FORMAT: str = conf.get('logging', 'COLORED_LOG_FORMAT')
 
-COLORED_LOG: bool = conf.getboolean('core', 'COLORED_CONSOLE_LOG')
+COLORED_LOG: bool = conf.getboolean('logging', 'COLORED_CONSOLE_LOG')
 
-COLORED_FORMATTER_CLASS: str = conf.get('core', 'COLORED_FORMATTER_CLASS')
+COLORED_FORMATTER_CLASS: str = conf.get('logging', 'COLORED_FORMATTER_CLASS')
 
-BASE_LOG_FOLDER: str = conf.get('core', 'BASE_LOG_FOLDER')
+BASE_LOG_FOLDER: str = conf.get('logging', 'BASE_LOG_FOLDER')
 
 PROCESSOR_LOG_FOLDER: str = conf.get('scheduler', 'CHILD_PROCESS_LOG_DIRECTORY')
 
-DAG_PROCESSOR_MANAGER_LOG_LOCATION: str = \
-    conf.get('core', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
+DAG_PROCESSOR_MANAGER_LOG_LOCATION: str = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
 
-FILENAME_TEMPLATE: str = conf.get('core', 'LOG_FILENAME_TEMPLATE')
+FILENAME_TEMPLATE: str = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
 
-PROCESSOR_FILENAME_TEMPLATE: str = conf.get('core', 'LOG_PROCESSOR_FILENAME_TEMPLATE')
+PROCESSOR_FILENAME_TEMPLATE: str = conf.get('logging', 'LOG_PROCESSOR_FILENAME_TEMPLATE')
 
 DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
     'version': 1,
@@ -147,7 +146,7 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
 # Remote logging #
 ##################
 
-REMOTE_LOGGING: bool = conf.getboolean('core', 'remote_logging')
+REMOTE_LOGGING: bool = conf.getboolean('logging', 'remote_logging')
 
 if REMOTE_LOGGING:
 
@@ -158,7 +157,7 @@ if REMOTE_LOGGING:
     # GCS buckets should start with "gs://"
     # WASB buckets should start with "wasb"
     # just to help Airflow select correct handler
-    REMOTE_BASE_LOG_FOLDER: str = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
+    REMOTE_BASE_LOG_FOLDER: str = conf.get('logging', 'REMOTE_BASE_LOG_FOLDER')
 
     if REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
         S3_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {

@@ -35,18 +35,18 @@ class TestLineage(unittest.TestCase):
             start_date=DEFAULT_DATE
         )
 
-        f1 = File("/tmp/does_not_exist_1")
-        f2 = File("/tmp/does_not_exist_2")
-        f3 = File("/tmp/does_not_exist_3")
+        file1 = File("/tmp/does_not_exist_1")
+        file2 = File("/tmp/does_not_exist_2")
+        file3 = File("/tmp/does_not_exist_3")
 
         with dag:
             op1 = DummyOperator(task_id='leave1',
-                                inlets=f1,
-                                outlets=[f2, ])
+                                inlets=file1,
+                                outlets=[file2, ])
             op2 = DummyOperator(task_id='leave2')
             op3 = DummyOperator(task_id='upstream_level_1',
                                 inlets=AUTO,
-                                outlets=f3)
+                                outlets=file3)
             op4 = DummyOperator(task_id='upstream_level_2')
             op5 = DummyOperator(task_id='upstream_level_3',
                                 inlets=["leave1", "upstream_level_1"])
@@ -67,10 +67,10 @@ class TestLineage(unittest.TestCase):
         op1.pre_execute(ctx1)
 
         self.assertEqual(len(op1.inlets), 1)
-        self.assertEqual(op1.inlets[0], f1)
+        self.assertEqual(op1.inlets[0], file1)
 
         self.assertEqual(len(op1.outlets), 1)
-        self.assertEqual(op1.outlets[0], f2)
+        self.assertEqual(op1.outlets[0], file2)
 
         # post process with no backend
         op1.post_execute(ctx1)
@@ -81,7 +81,7 @@ class TestLineage(unittest.TestCase):
 
         op3.pre_execute(ctx3)
         self.assertEqual(len(op3.inlets), 1)
-        self.assertEqual(op3.inlets[0].url, f2.url)
+        self.assertEqual(op3.inlets[0].url, file2.url)
         op3.post_execute(ctx3)
 
         # skip 4

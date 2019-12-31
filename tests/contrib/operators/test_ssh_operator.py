@@ -52,21 +52,21 @@ class TestSSHOperator(unittest.TestCase):
         self.dag = dag
 
     def test_hook_created_correctly(self):
-        TIMEOUT = 20
-        SSH_ID = "ssh_default"
+        timeout = 20
+        ssh_id = "ssh_default"
         task = SSHOperator(
             task_id="test",
             command=COMMAND,
             dag=self.dag,
-            timeout=TIMEOUT,
+            timeout=timeout,
             ssh_conn_id="ssh_default"
         )
         self.assertIsNotNone(task)
 
         task.execute(None)
 
-        self.assertEqual(TIMEOUT, task.ssh_hook.timeout)
-        self.assertEqual(SSH_ID, task.ssh_hook.ssh_conn_id)
+        self.assertEqual(timeout, task.ssh_hook.timeout)
+        self.assertEqual(ssh_id, task.ssh_hook.ssh_conn_id)
 
     @conf_vars({('core', 'enable_xcom_pickling'): 'False'})
     def test_json_command_execution(self):
@@ -164,7 +164,7 @@ class TestSSHOperator(unittest.TestCase):
         )
         try:
             task_1.execute(None)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         self.assertEqual(task_1.ssh_hook.ssh_conn_id, TEST_CONN_ID)
 
@@ -177,7 +177,7 @@ class TestSSHOperator(unittest.TestCase):
         )
         try:
             task_2.execute(None)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         self.assertEqual(task_2.ssh_hook.ssh_conn_id, TEST_CONN_ID)
 
@@ -192,7 +192,7 @@ class TestSSHOperator(unittest.TestCase):
         )
         try:
             task_3.execute(None)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         self.assertEqual(task_3.ssh_hook.ssh_conn_id, self.hook.ssh_conn_id)
 
@@ -213,7 +213,7 @@ class TestSSHOperator(unittest.TestCase):
         )
         try:
             task.execute(None)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         self.assertEqual(task.get_pty, get_pty_out)
 

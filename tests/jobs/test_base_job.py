@@ -21,13 +21,13 @@
 import datetime
 import unittest
 
+from mock import Mock, patch
 from sqlalchemy.exc import OperationalError
 
 from airflow.jobs import BaseJob
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.compat import Mock, patch
 
 
 class TestBaseJob(unittest.TestCase):
@@ -36,12 +36,12 @@ class TestBaseJob(unittest.TestCase):
             'polymorphic_identity': 'TestJob'
         }
 
-        def __init__(self, cb, **kwargs):
-            self.cb = cb
+        def __init__(self, func, **kwargs):
+            self.func = func
             super().__init__(**kwargs)
 
         def _execute(self):
-            return self.cb()
+            return self.func()
 
     def test_state_success(self):
         job = self.TestJob(lambda: True)

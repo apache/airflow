@@ -51,11 +51,11 @@ from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNING_DEPS, DepContext
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
@@ -366,7 +366,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def log_filepath(self):
         iso = self.execution_date.isoformat()
-        log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
+        log = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
         return ("{log}/{dag_id}/{task_id}/{iso}.log".format(
             log=log, dag_id=self.dag_id, task_id=self.task_id, iso=iso))
 
@@ -1104,9 +1104,23 @@ class TaskInstance(Base, LoggingMixin):
             else:
                 self.state = State.FAILED
                 if task.retries:
-                    self.log.info('All retries failed; marking task as FAILED')
+                    self.log.info(
+                        'All retries failed; marking task as FAILED.'
+                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                        self.dag_id,
+                        self.task_id,
+                        self.execution_date.strftime('%Y%m%dT%H%M%S'),
+                        self.start_date.strftime('%Y%m%dT%H%M%S'),
+                        self.end_date.strftime('%Y%m%dT%H%M%S'))
                 else:
-                    self.log.info('Marking task as FAILED.')
+                    self.log.info(
+                        'Marking task as FAILED.'
+                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                        self.dag_id,
+                        self.task_id,
+                        self.execution_date.strftime('%Y%m%dT%H%M%S'),
+                        self.start_date.strftime('%Y%m%dT%H%M%S'),
+                        self.end_date.strftime('%Y%m%dT%H%M%S'))
                 if task.email_on_failure and task.email:
                     self.email_alert(error)
         except Exception as e2:

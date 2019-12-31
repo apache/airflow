@@ -25,7 +25,7 @@ import pendulum
 from flask import after_this_request, flash, g, redirect, request, url_for
 
 from airflow.models import Log
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 
 
 def action_logging(f):

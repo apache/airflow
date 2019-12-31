@@ -32,8 +32,8 @@ from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.security import utils
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 # pylint: disable=c-extension-no-member
 LOGIN_MANAGER = flask_login.LoginManager()

@@ -29,6 +29,7 @@ cron_presets = {
     '@daily': '0 0 * * *',
     '@weekly': '0 0 * * 0',
     '@monthly': '0 0 1 * *',
+    '@quarterly': '0 0 1 */3 *',
     '@yearly': '0 0 1 1 *',
 }
 
