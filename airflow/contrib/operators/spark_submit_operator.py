@@ -76,7 +76,8 @@ class SparkSubmitOperator(BaseOperator):
     :type name: str
     :param num_executors: Number of executors to launch
     :type num_executors: int
-    :param status_poll_interval: Seconds to wait between polls of driver status in cluster mode
+    :param status_poll_interval: Seconds to wait between polls of driver status in cluster
+        mode (Default: 1)
     :type status_poll_interval: int
     :param application_args: Arguments for the application being submitted (templated)
     :type application_args: list
@@ -116,7 +117,7 @@ class SparkSubmitOperator(BaseOperator):
                  proxy_user=None,
                  name='airflow-spark',
                  num_executors=None,
-                 status_poll_interval=None,
+                 status_poll_interval=1,
                  application_args=None,
                  env_vars=None,
                  verbose=False,
