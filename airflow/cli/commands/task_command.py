@@ -43,6 +43,11 @@ def _run_task_by_selected_method(args, dag, ti):
     - as raw task
     - by executor
     """
+    if args.local and args.raw:
+        raise AirflowException(
+            "Option --raw and --local are mutually exclusive. "
+            "Please remove one option to execute the command."
+        )
     if args.local:
         _run_task_by_local_task_job(args, ti)
     elif args.raw:
@@ -87,15 +92,6 @@ def _run_task_by_executor(args, dag, ti):
     executor.end()
 
 
-def _run_raw_task(args, ti):
-    """Runs the main task handling code"""
-    ti._run_raw_task(  # pylint: disable=protected-access
-        mark_success=args.mark_success,
-        job_id=args.job_id,
-        pool=args.pool,
-    )
-
-
 def _run_task_by_local_task_job(args, ti):
     """
     Run LocalTaskJob, which monitors the raw task execution process
@@ -110,6 +106,31 @@ def _run_task_by_local_task_job(args, ti):
         ignore_ti_state=args.force,
         pool=args.pool)
     run_job.run()
+
+
+RAW_TASK_UNSUPPORTED_OPTION = [
+    "ignore_all_dependencies", "ignore_depends_on_past", "ignore_dependencies", "force"
+]
+
+
+def _run_raw_task(args, ti):
+    """Runs the main task handling code"""
+    unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
+
+    if unsupported_options:
+        raise AirflowException(
+            "Option --raw does not work with some of the other options on this command. You "
+            "can't use --raw option and the following options: {}. You provided the option {}. "
+            "Delete it to execute the command".format(
+                ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION),
+                ", ".join(f"--{o}" for o in unsupported_options),
+            )
+        )
+    ti._run_raw_task(  # pylint: disable=protected-access
+        mark_success=args.mark_success,
+        job_id=args.job_id,
+        pool=args.pool,
+    )
 
 
 @cli_utils.action_logging
