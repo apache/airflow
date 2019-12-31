@@ -65,11 +65,11 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
         return (
             session
-            .query(func.count())
+            .query(func.sum(TaskInstance.pool_capacity))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state.in_(STATES_TO_COUNT_AS_RUNNING))
             .scalar()
-        )
+        ) or 0
 
     @provide_session
     def used_slots(self, session):
@@ -80,11 +80,11 @@ class Pool(Base):
 
         running = (
             session
-            .query(func.count())
+            .query(func.sum(TaskInstance.pool_capacity))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.RUNNING)
             .scalar()
-        )
+        ) or 0
         return running
 
     @provide_session
@@ -96,11 +96,11 @@ class Pool(Base):
 
         return (
             session
-            .query(func.count())
+            .query(func.sum(TaskInstance.pool_capacity))
             .filter(TaskInstance.pool == self.pool)
             .filter(TaskInstance.state == State.QUEUED)
             .scalar()
-        )
+        ) or 0
 
     @provide_session
     def open_slots(self, session):
