@@ -45,9 +45,6 @@ mergeable:
           - must_include:
               regex: (\https\:\/\/issues\.apache\.org\/jira\/browse\/AIRFLOW\-\d{1,4})
               message: Link to the Jira Issue
-      - do: approvals
-        min:
-          count: 1
       # If package.json is updated, so should yarn.lock
       - do: dependent
         changed:
