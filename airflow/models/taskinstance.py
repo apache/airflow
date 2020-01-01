@@ -964,6 +964,7 @@ class TaskInstance(Base, LoggingMixin):
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
         except AirflowSkipException as e:
+            # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
             if e.args:
                 self.log.info(e)
