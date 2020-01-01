@@ -281,7 +281,6 @@ mysql = [
 ]
 neo4j = [
     'neo4j>=1.7.5',
-    'neobolt>=1.7.15'
 ]
 oracle = [
     'cx_Oracle>=5.1.2',
