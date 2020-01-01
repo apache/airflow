@@ -261,7 +261,7 @@ for p in plugins:
     if p.stat_name_handler:
         stat_name_handlers.append(p.stat_name_handler)
     global_operator_extra_links.extend(p.global_operator_extra_links)
-    operator_extra_links.extend([ope for ope in p.operator_extra_links])
+    operator_extra_links.extend(list(p.operator_extra_links))
 
     registered_operator_link_classes.update({
         "{}.{}".format(link.__class__.__module__,

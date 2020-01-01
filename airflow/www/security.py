@@ -25,8 +25,8 @@ from sqlalchemy import and_, or_
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.www.app import appbuilder
 
 EXISTING_ROLES = {

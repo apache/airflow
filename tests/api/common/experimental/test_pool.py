@@ -23,7 +23,7 @@ from airflow import models
 from airflow.api.common.experimental import pool as pool_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_pools
 
 

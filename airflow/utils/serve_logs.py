@@ -30,7 +30,7 @@ def serve_logs():
 
     @flask_app.route('/log/<path:filename>')
     def serve_logs_view(filename):  # pylint: disable=unused-variable
-        log_directory = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
+        log_directory = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
         return flask.send_from_directory(
             log_directory,
             filename,

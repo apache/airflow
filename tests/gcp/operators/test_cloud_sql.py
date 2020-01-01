@@ -22,6 +22,7 @@
 import os
 import unittest
 
+import mock
 from parameterized import parameterized
 
 from airflow import AirflowException
@@ -32,7 +33,6 @@ from airflow.gcp.operators.cloud_sql import (
     CloudSqlInstancePatchOperator, CloudSqlQueryOperator,
 )
 from airflow.models import Connection
-from tests.compat import mock
 
 PROJECT_ID = os.environ.get('PROJECT_ID', 'project-id')
 INSTANCE_NAME = os.environ.get('INSTANCE_NAME', 'test-name')

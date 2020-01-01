@@ -92,7 +92,7 @@ any of its operators. This makes it easy to apply a common parameter to many ope
 
     default_args = {
         'start_date': datetime(2016, 1, 1),
-        'owner': 'Airflow'
+        'owner': 'airflow'
     }
 
     dag = DAG('my_dag', default_args=default_args)
@@ -271,13 +271,17 @@ and equivalent to:
     op1.set_downstream([op2, op3])
 
 
-Relationship Helper
---------------------
+Relationship Builders
+---------------------
+
+*Moved in Airflow 2.0*
+
+In Airflow 2.0 those two methods moved from ``airflow.utils.helpers`` to ``airflow.models.baseoperator``.
 
 ``chain`` and ``cross_downstream`` function provide easier ways to set relationships
 between operators in specific situation.
 
-When setting a relationship between two lists, 
+When setting a relationship between two lists,
 if we want all operators in one list to be upstream to all operators in the other,
 we cannot use a single bitshift composition. Instead we have to split one of the lists:
 
@@ -804,6 +808,15 @@ SLAs can be configured for scheduled tasks by using the ``sla`` parameter.
 In addition to sending alerts to the addresses specified in a task's ``email`` parameter,
 the ``sla_miss_callback`` specifies an additional ``Callable``
 object to be invoked when the SLA is not met.
+
+If you don't want to check SLAs, you can disable globally (all the DAGs) by
+setting ``check_slas=False`` under ``[core]`` section in ``airflow.cfg`` file:
+
+.. code-block:: ini
+
+  [core]
+  check_slas = False
+
 
 Email Configuration
 -------------------

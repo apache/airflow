@@ -20,6 +20,7 @@
 import copy
 import unittest
 
+import mock
 from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
 
 from airflow.gcp.operators.automl import (
@@ -28,7 +29,6 @@ from airflow.gcp.operators.automl import (
     AutoMLListDatasetOperator, AutoMLPredictOperator, AutoMLTablesListColumnSpecsOperator,
     AutoMLTablesListTableSpecsOperator, AutoMLTablesUpdateDatasetOperator, AutoMLTrainModelOperator,
 )
-from tests.compat import mock
 
 CREDENTIALS = "test-creds"
 TASK_ID = "test-automl-hook"

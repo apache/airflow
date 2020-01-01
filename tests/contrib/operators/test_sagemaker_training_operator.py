@@ -19,10 +19,11 @@
 
 import unittest
 
+import mock
+
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.contrib.operators.sagemaker_training_operator import SageMakerTrainingOperator
 from airflow.exceptions import AirflowException
-from tests.compat import mock
 
 role = 'arn:aws:iam:role/test-role'
 

@@ -19,8 +19,9 @@
 
 import unittest
 
+import mock
+
 from airflow.contrib.operators.s3_to_gcs_operator import S3ToGoogleCloudStorageOperator
-from tests.compat import mock
 
 TASK_ID = 'test-s3-gcs-operator'
 S3_BUCKET = 'test-bucket'

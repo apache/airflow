@@ -21,8 +21,9 @@ import unittest
 from base64 import b64decode, b64encode
 from collections import namedtuple
 
+import mock
+
 from airflow.gcp.hooks.kms import CloudKMSHook
-from tests.compat import mock
 
 Response = namedtuple("Response", ["plaintext", "ciphertext"])
 

@@ -22,9 +22,9 @@ import string
 import unittest
 from datetime import datetime
 
+import mock
 from urllib3 import HTTPResponse
 
-from tests.compat import mock
 from tests.test_utils.config import conf_vars
 
 try:

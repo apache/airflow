@@ -95,6 +95,10 @@ To generate a local version:
     ./build.sh
     ./start_doc_server.sh
 
+.. note::
+    The docs build script ``build.sh`` requires bash 4.0 or greater.
+    If you are building on mac, you can install latest version of bash with homebrew.
+
 
 Pull Request Guidelines
 =======================

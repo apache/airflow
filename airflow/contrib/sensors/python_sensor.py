@@ -47,7 +47,7 @@ class PythonSensor(BaseSensorOperator):
     :type templates_dict: dict of str
     """
 
-    template_fields = ('templates_dict',)
+    template_fields = ('templates_dict', 'op_args', 'op_kwargs')
 
     @apply_defaults
     def __init__(

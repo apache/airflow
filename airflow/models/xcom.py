@@ -28,9 +28,9 @@ from sqlalchemy.orm import Query, Session, reconstructor
 from airflow.configuration import conf
 from airflow.models.base import ID_LEN, Base
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 # MAX XCOM Size is 48KB

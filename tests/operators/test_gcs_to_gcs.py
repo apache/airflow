@@ -20,11 +20,12 @@
 import unittest
 from datetime import datetime
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.operators.gcs_to_gcs import (
     WILDCARD, GoogleCloudStorageSynchronizeBuckets, GoogleCloudStorageToGoogleCloudStorageOperator,
 )
-from tests.compat import mock, patch
 
 TASK_ID = 'test-gcs-to-gcs-operator'
 TEST_BUCKET = 'test-bucket'
@@ -303,7 +304,7 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
             destination_bucket=None,
             destination_object=DESTINATION_OBJECT_PREFIX)
 
-        with patch.object(operator.log, 'warning') as mock_warn:
+        with mock.patch.object(operator.log, 'warning') as mock_warn:
             operator.execute(None)
             mock_warn.assert_called_once_with(
                 'destination_bucket is None. Defaulting it to source_bucket (%s)',

@@ -27,7 +27,7 @@ from parameterized import parameterized
 
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp_hook import SFTPHook
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 TMP_PATH = '/tmp'
 TMP_DIR_FOR_TESTS = 'tests_sftp_hook_dir'

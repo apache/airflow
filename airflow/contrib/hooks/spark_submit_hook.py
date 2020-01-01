@@ -24,8 +24,12 @@ import time
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.kubernetes import kube_client
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+try:
+    from airflow.kubernetes import kube_client
+except ImportError:
+    pass
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -82,6 +86,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type name: str
     :param num_executors: Number of executors to launch
     :type num_executors: int
+    :param status_poll_interval: Seconds to wait between polls of driver status in cluster
+        mode (Default: 1)
+    :type status_poll_interval: int
     :param application_args: Arguments for the application being submitted
     :type application_args: list
     :param env_vars: Environment variables for spark-submit. It
@@ -114,6 +121,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  proxy_user=None,
                  name='default-name',
                  num_executors=None,
+                 status_poll_interval=1,
                  application_args=None,
                  env_vars=None,
                  verbose=False,
@@ -138,6 +146,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._proxy_user = proxy_user
         self._name = name
         self._num_executors = num_executors
+        self._status_poll_interval = status_poll_interval
         self._application_args = application_args
         self._env_vars = env_vars
         self._verbose = verbose
@@ -216,6 +225,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd = [self._connection['spark_binary']]
 
         return connection_cmd
+
+    def _mask_cmd(self, connection_cmd):
+        # Mask any password related fields in application args with key value pair
+        # where key contains password (case insensitive), e.g. HivePassword='abc'
+        connection_cmd_masked = re.sub(
+            r"(\S*?(?:secret|password)\S*?\s*=\s*')[^']*(?=')",
+            r'\1******', ' '.join(connection_cmd), flags=re.I)
+
+        return connection_cmd_masked
 
     def _build_spark_submit_command(self, application):
         """
@@ -302,7 +320,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._application_args:
             connection_cmd += self._application_args
 
-        self.log.info("Spark-Submit cmd: %s", connection_cmd)
+        self.log.info("Spark-Submit cmd: %s", self._mask_cmd(connection_cmd))
 
         return connection_cmd
 
@@ -312,18 +330,41 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         :return: full command to be executed
         """
-        connection_cmd = self._get_spark_binary_path()
+        curl_max_wait_time = 30
+        spark_host = self._connection['master']
+        if spark_host.endswith(':6066'):
+            spark_host = spark_host.replace("spark://", "http://")
+            connection_cmd = [
+                "/usr/bin/curl",
+                "--max-time",
+                str(curl_max_wait_time),
+                "{host}/v1/submissions/status/{submission_id}".format(
+                    host=spark_host,
+                    submission_id=self._driver_id)]
+            self.log.info(connection_cmd)
 
-        # The url ot the spark master
-        connection_cmd += ["--master", self._connection['master']]
+            # The driver id so we can poll for its status
+            if self._driver_id:
+                pass
+            else:
+                raise AirflowException(
+                    "Invalid status: attempted to poll driver " +
+                    "status but no driver id is known. Giving up.")
 
-        # The driver id so we can poll for its status
-        if self._driver_id:
-            connection_cmd += ["--status", self._driver_id]
         else:
-            raise AirflowException(
-                "Invalid status: attempted to poll driver " +
-                "status but no driver id is known. Giving up.")
+
+            connection_cmd = self._get_spark_binary_path()
+
+            # The url to the spark master
+            connection_cmd += ["--master", self._connection['master']]
+
+            # The driver id so we can poll for its status
+            if self._driver_id:
+                connection_cmd += ["--status", self._driver_id]
+            else:
+                raise AirflowException(
+                    "Invalid status: attempted to poll driver " +
+                    "status but no driver id is known. Giving up.")
 
         self.log.debug("Poll driver status cmd: %s", connection_cmd)
 
@@ -359,7 +400,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if returncode or (self._is_kubernetes and self._spark_exit_code != 0):
             raise AirflowException(
                 "Cannot execute: {}. Error code is: {}.".format(
-                    spark_submit_cmd, returncode
+                    self._mask_cmd(spark_submit_cmd), returncode
                 )
             )
 
@@ -441,6 +482,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         :param itr: An iterator which iterates over the input of the subprocess
         """
+        driver_found = False
         # Consume the iterator
         for line in itr:
             line = line.strip()
@@ -449,8 +491,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if "driverState" in line:
                 self._driver_status = line.split(' : ')[1] \
                     .replace(',', '').replace('\"', '').strip()
+                driver_found = True
 
             self.log.debug("spark driver status log: {}".format(line))
+
+        if not driver_found:
+            self._driver_status = "UNKNOWN"
 
     def _start_driver_status_tracking(self):
         """
@@ -492,8 +538,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         while self._driver_status not in ["FINISHED", "UNKNOWN",
                                           "KILLED", "FAILED", "ERROR"]:
 
-            # Sleep for 1 second as we do not want to spam the cluster
-            time.sleep(1)
+            # Sleep for n seconds as we do not want to spam the cluster
+            time.sleep(self._status_poll_interval)
 
             self.log.debug("polling status of spark driver with id {}"
                            .format(self._driver_id))
@@ -533,7 +579,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         else:
             connection_cmd = [self._connection['spark_binary']]
 
-        # The url ot the spark master
+        # The url to the spark master
         connection_cmd += ["--master", self._connection['master']]
 
         # The actual kill command

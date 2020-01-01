@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,11 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+---
+# Configuration for https://github.com/apps/ci-reporter
 
-from unittest import mock  # noqa: F401
-
-patch = mock.patch
-Mock = mock.Mock
-MagicMock = mock.MagicMock
-PropertyMock = mock.PropertyMock
-ANY = mock.ANY
+# Set to false to create a new comment instead of updating the app's first one
+updateComment: false

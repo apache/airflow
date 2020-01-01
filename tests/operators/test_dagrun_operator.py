@@ -25,7 +25,7 @@ from unittest import TestCase
 from airflow.models import DAG, DagModel, DagRun, Log, TaskInstance
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 TEST_DAG_ID = "testdag"

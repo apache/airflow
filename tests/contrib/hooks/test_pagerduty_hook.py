@@ -23,13 +23,13 @@ from unittest import mock
 
 from airflow.contrib.hooks.pagerduty_hook import PagerdutyHook
 from airflow.models import Connection
-from airflow.utils import db
+from airflow.utils.session import provide_session
 
 DEFAULT_CONN_ID = "pagerduty_default"
 
 
 class TestPagerdutyHook(unittest.TestCase):
-    @db.provide_session
+    @provide_session
     def setUp(self, session=None):
         session.add(Connection(
             conn_id=DEFAULT_CONN_ID,
@@ -38,7 +38,7 @@ class TestPagerdutyHook(unittest.TestCase):
         ))
         session.commit()
 
-    @db.provide_session
+    @provide_session
     def test_without_routing_key_extra(self, session):
         session.add(Connection(
             conn_id="pagerduty_no_extra",

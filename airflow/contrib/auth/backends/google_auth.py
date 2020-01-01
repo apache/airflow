@@ -25,8 +25,8 @@ from flask_oauthlib.client import OAuth
 
 from airflow import models
 from airflow.configuration import conf
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 log = LoggingMixin().log
 

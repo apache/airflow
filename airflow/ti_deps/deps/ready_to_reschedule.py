@@ -20,7 +20,7 @@
 from airflow.models import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 

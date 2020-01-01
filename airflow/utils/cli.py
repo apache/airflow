@@ -33,10 +33,12 @@ import threading
 import traceback
 from argparse import Namespace
 from datetime import datetime
+from typing import Optional
 
 from airflow import AirflowException, settings
-from airflow.models import DagBag, Log
+from airflow.models import DagBag, DagModel, DagPickle, Log
 from airflow.utils import cli_action_loggers
+from airflow.utils.session import provide_session
 
 
 def action_logging(f):
@@ -126,36 +128,59 @@ def _build_metrics(func_name, namespace):
     return metrics
 
 
-def process_subdir(subdir):
+def process_subdir(subdir: Optional[str]):
     """Expands path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
     if subdir:
+        if not settings.DAGS_FOLDER:
+            raise ValueError("DAGS_FOLDER variable in settings should be filled.")
         subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
     return subdir
 
 
-def get_dag(args):
-    """Returns DAG of a given dag_id"""
-    dagbag = DagBag(process_subdir(args.subdir))
-    if args.dag_id not in dagbag.dags:
+def get_dag_by_file_location(dag_id: str):
+    """Returns DAG of a given dag_id by looking up file location"""
+    # Benefit is that logging from other dags in dagbag will not appear
+    dag_model = DagModel.get_current(dag_id)
+    if dag_model is None:
         raise AirflowException(
             'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(args.dag_id))
-    return dagbag.dags[args.dag_id]
+            'parse.'.format(dag_id))
+    dagbag = DagBag(dag_folder=dag_model.fileloc)
+    return dagbag.dags[dag_id]
 
 
-def get_dags(args):
+def get_dag(subdir: Optional[str], dag_id: str):
+    """Returns DAG of a given dag_id"""
+    dagbag = DagBag(process_subdir(subdir))
+    if dag_id not in dagbag.dags:
+        raise AirflowException(
+            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
+            'parse.'.format(dag_id))
+    return dagbag.dags[dag_id]
+
+
+def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     """Returns DAG(s) matching a given regex or dag_id"""
-    if not args.dag_regex:
-        return [get_dag(args)]
-    dagbag = DagBag(process_subdir(args.subdir))
-    matched_dags = [dag for dag in dagbag.dags.values() if re.search(
-        args.dag_id, dag.dag_id)]
+    if not use_regex:
+        return [get_dag(subdir, dag_id)]
+    dagbag = DagBag(process_subdir(subdir))
+    matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
             'dag_id could not be found with regex: {}. Either the dag did not exist '
-            'or it failed to parse.'.format(args.dag_id))
+            'or it failed to parse.'.format(dag_id))
     return matched_dags
+
+
+@provide_session
+def get_dag_by_pickle(pickle_id, session=None):
+    """Fetch DAG from the database using pickling"""
+    dag_pickle = session.query(DagPickle).filter(DagPickle.id == pickle_id).first()
+    if not dag_pickle:
+        raise AirflowException("Who hid the pickle!? [missing pickle]")
+    pickle_dag = dag_pickle.pickle
+    return pickle_dag
 
 
 alternative_conn_specs = ['conn_type', 'conn_host',

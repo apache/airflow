@@ -154,7 +154,7 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 aws = [
-    'boto3>=1.7.0, <1.8.0',
+    'boto3~=1.10',
 ]
 azure = [
     'azure-cosmos>=3.0.1',
@@ -384,12 +384,11 @@ devel = [
     'ipdb',
     'jira',
     'mongomock',
-    'moto==1.3.5',
+    'moto>=1.3.14,<2.0.0',
     'parameterized',
     'paramiko',
     'pre-commit',
-    'pylint~=2.3.1',  # to be upgraded after fixing https://github.com/PyCQA/pylint/issues/3123
-                      # We should also disable checking docstring at the module level
+    'pylint~=2.4',
     'pysftp',
     'pytest',
     'pytest-cov',
@@ -473,7 +472,6 @@ def do_setup():
             'jsonschema~=3.0',
             'lazy_object_proxy~=1.3',
             'markdown>=2.5.2, <3.0',
-            'marshmallow-sqlalchemy>=0.16.1, <0.19.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
             'psutil>=4.2.0, <6.0.0',

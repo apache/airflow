@@ -27,7 +27,7 @@ from airflow.contrib.operators.emr_create_job_flow_operator import EmrCreateJobF
 from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor
 
 DEFAULT_ARGS = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(2),
     'email': ['airflow@example.com'],

@@ -21,11 +21,11 @@
 from copy import deepcopy
 from unittest import TestCase
 
+import mock
 from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.gcp.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
-from tests.compat import mock
 
 TEST_CREATE_BODY = {
     "source": {"storageSource": {"bucket": "cloud-build-examples", "object": "node-docker-example.tar.gz"}},

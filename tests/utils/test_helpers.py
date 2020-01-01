@@ -28,7 +28,6 @@ from datetime import datetime
 import psutil
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers
@@ -116,15 +115,14 @@ class TestHelpers(unittest.TestCase):
 
     def test_chunks(self):
         with self.assertRaises(ValueError):
-            [i for i in helpers.chunks([1, 2, 3], 0)]
+            list(helpers.chunks([1, 2, 3], 0))
 
         with self.assertRaises(ValueError):
-            [i for i in helpers.chunks([1, 2, 3], -3)]
+            list(helpers.chunks([1, 2, 3], -3))
 
-        self.assertEqual([i for i in helpers.chunks([], 5)], [])
-        self.assertEqual([i for i in helpers.chunks([1], 1)], [[1]])
-        self.assertEqual([i for i in helpers.chunks([1, 2, 3], 2)],
-                         [[1, 2], [3]])
+        self.assertEqual(list(helpers.chunks([], 5)), [])
+        self.assertEqual(list(helpers.chunks([1], 1)), [[1]])
+        self.assertEqual(list(helpers.chunks([1, 2, 3], 2)), [[1, 2], [3]])
 
     def test_reduce_in_chunks(self):
         self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + [y],
@@ -173,38 +171,6 @@ class TestHelpers(unittest.TestCase):
         test_str = 'test_str'
         as_tup = helpers.as_tuple(test_str)
         self.assertTupleEqual((test_str,), as_tup)
-
-    def test_cross_downstream(self):
-        """Test if all dependencies between tasks are all set correctly."""
-        dag = DAG(dag_id="test_dag", start_date=datetime.now())
-        start_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(1, 4)]
-        end_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(4, 7)]
-        helpers.cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
-
-        for start_task in start_tasks:
-            self.assertCountEqual(start_task.get_direct_relatives(upstream=False), end_tasks)
-
-    def test_chain(self):
-        dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [t1, t2, t3, t4, t5, t6] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 7)]
-        helpers.chain(t1, [t2, t3], [t4, t5], t6)
-
-        self.assertCountEqual([t2, t3], t1.get_direct_relatives(upstream=False))
-        self.assertEqual([t4], t2.get_direct_relatives(upstream=False))
-        self.assertEqual([t5], t3.get_direct_relatives(upstream=False))
-        self.assertCountEqual([t4, t5], t6.get_direct_relatives(upstream=True))
-
-    def test_chain_not_support_type(self):
-        dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [t1, t2] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 3)]
-        with self.assertRaises(TypeError):
-            helpers.chain([t1, t2], 1)
-
-    def test_chain_different_length_iterable(self):
-        dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [t1, t2, t3, t4, t5] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 6)]
-        with self.assertRaises(AirflowException):
-            helpers.chain([t1, t2], [t3, t4, t5])
 
     def test_convert_camel_to_snake(self):
         self.assertEqual(helpers.convert_camel_to_snake('LocalTaskJob'), 'local_task_job')

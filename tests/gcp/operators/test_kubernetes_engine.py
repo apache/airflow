@@ -20,7 +20,9 @@ import json
 import os
 import unittest
 
+import mock
 from google.auth.environment_vars import CREDENTIALS
+from mock import PropertyMock
 from parameterized import parameterized
 
 from airflow import AirflowException
@@ -29,7 +31,6 @@ from airflow.gcp.operators.kubernetes_engine import (
     GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
 )
 from airflow.models import Connection
-from tests.compat import PropertyMock, mock
 
 TEST_GCP_PROJECT_ID = 'test-id'
 PROJECT_LOCATION = 'test-location'

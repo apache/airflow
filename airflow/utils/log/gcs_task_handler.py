@@ -44,7 +44,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
             return GoogleCloudStorageHook(
@@ -67,7 +67,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def close(self):
         """
-        Close and upload local log file to remote storage S3.
+        Close and upload local log file to remote storage GCS.
         """
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already

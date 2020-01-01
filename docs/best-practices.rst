@@ -20,7 +20,7 @@ Best Practices
 
 Running Airflow in production is seamless. It comes bundled with all the plugins and configs
 necessary to run most of the DAGs. However, you can come across certain pitfalls, which can cause occasional errors.
-Let's take a look at what you need to do at various stages to avoid these pitfalls, starting from writing the DAG 
+Let's take a look at what you need to do at various stages to avoid these pitfalls, starting from writing the DAG
 to the actual deployment in the production environment.
 
 
@@ -40,12 +40,12 @@ Some of the ways you can avoid producing a different result -
 
 * Do not use INSERT during a task re-run, an INSERT statement might lead to duplicate rows in your database.
   Replace it with UPSERT.
-* Read and write in a specific partition. Never read the latest available data in a task. 
-  Someone may update the input data between re-runs, which results in different outputs. 
-  A better way is to read the input data from a specific partition. You can use ``execution_date`` as a partition. 
+* Read and write in a specific partition. Never read the latest available data in a task.
+  Someone may update the input data between re-runs, which results in different outputs.
+  A better way is to read the input data from a specific partition. You can use ``execution_date`` as a partition.
   You should follow this partitioning method while writing data in S3/HDFS, as well.
-* The python datetime ``now()`` function gives the current datetime object. 
-  This function should never be used inside a task, especially to do the critical computation, as it leads to different outcomes on each run. 
+* The python datetime ``now()`` function gives the current datetime object.
+  This function should never be used inside a task, especially to do the critical computation, as it leads to different outcomes on each run.
   It's fine to use it, for example, to generate a temporary log.
 
 .. tip::
@@ -57,30 +57,30 @@ Some of the ways you can avoid producing a different result -
 Deleting a task
 ----------------
 
-Never delete a task from a DAG. In case of deletion, the historical information of the task disappears from the Airflow UI. 
+Never delete a task from a DAG. In case of deletion, the historical information of the task disappears from the Airflow UI.
 It is advised to create a new DAG in case the tasks need to be deleted.
 
 
 Communication
 --------------
 
-Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`. 
+Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`.
 Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
-In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`, 
+In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`,
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in DAG.
 
-If possible, use ``XCom`` to communicate small messages between tasks and a good way of passing larger data between tasks is to use a remote storage such as S3/HDFS. 
+If possible, use ``XCom`` to communicate small messages between tasks and a good way of passing larger data between tasks is to use a remote storage such as S3/HDFS.
 For example, if we have a task that stores processed data in S3 that task can push the S3 path for the output data in ``Xcom``,
 and the downstream tasks can pull the path from XCom and use it to read the data.
 
-The tasks should also not store any authentication parameters such as passwords or token inside them. 
+The tasks should also not store any authentication parameters such as passwords or token inside them.
 Where at all possible, use :ref:`Connections <concepts-connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
 
 Variables
 ---------
 
-You should avoid usage of Variables outside an operator's ``execute()`` method or Jinja templates if possible, 
+You should avoid usage of Variables outside an operator's ``execute()`` method or Jinja templates if possible,
 as Variables create a connection to metadata DB of Airflow to fetch the value, which can slow down parsing and place extra load on the DB.
 
 Airflow parses all the DAGs in the background at a specific period.
@@ -121,7 +121,7 @@ No additional code needs to be written by the user to run this test.
 
  python your-dag-file.py
 
-Running the above command without any error ensures your DAG does not contain any uninstalled dependency, syntax errors, etc. 
+Running the above command without any error ensures your DAG does not contain any uninstalled dependency, syntax errors, etc.
 
 You can look into :ref:`Testing a DAG <testing>` for details on how to test individual operators.
 
@@ -149,7 +149,7 @@ Unit tests ensure that there is no incorrect code in your DAG. You can write a u
         self.assertEqual(len(dag.tasks), 1)
 
 **Unit test a DAG structure:**
-This is an example test want to verify the structure of a code-generated DAG against a dict object 
+This is an example test want to verify the structure of a code-generated DAG against a dict object
 
 .. code::
 
@@ -163,12 +163,12 @@ This is an example test want to verify the structure of a code-generated DAG aga
              self.assertEqual(task.downstream_task_ids, set(downstream_list),
                               msg="unexpected downstream link in {}".format(task_id))
      def test_dag(self):
-         self.assertDagDictEqual({   
-           "DummyInstruction_0": ["DummyInstruction_1"],   
-           "DummyInstruction_1": ["DummyInstruction_2"],   
-           "DummyInstruction_2": ["DummyInstruction_3"],   
-           "DummyInstruction_3": []   
-         },dag)   
+         self.assertDagDictEqual({
+           "DummyInstruction_0": ["DummyInstruction_1"],
+           "DummyInstruction_1": ["DummyInstruction_2"],
+           "DummyInstruction_2": ["DummyInstruction_3"],
+           "DummyInstruction_3": []
+         },dag)
 
 **Unit test for custom operator:**
 
@@ -179,7 +179,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
  DEFAULT_DATE = '2019-10-03'
  TEST_DAG_ID = 'test_my_custom_operator'
- 
+
  class MyCustomOperatorTest(unittest.TestCase):
     def setUp(self):
         self.dag = DAG(TEST_DAG_ID, schedule_interval='@daily', default_args={'start_date' : DEFAULT_DATE})
@@ -199,7 +199,7 @@ Self-Checks
 ------------
 
 You can also implement checks in a DAG to make sure the tasks are producing the results as expected.
-As an example, if you have a task that pushes data to S3, you can implement a check in the next task. For example, the check could 
+As an example, if you have a task that pushes data to S3, you can implement a check in the next task. For example, the check could
 make sure that the partition is created in S3 and perform some simple checks to see if the data is correct or not.
 
 
@@ -230,7 +230,7 @@ You can use environment variables  to parameterize the DAG.
 .. code::
 
  import os
- 
+
  dest = os.environ.get(
     "MY_DAG_DEST_PATH",
     "s3://default-target/path/"
@@ -239,7 +239,7 @@ You can use environment variables  to parameterize the DAG.
 Deployment in Production
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 Once you have completed all the mentioned checks, it is time to deploy your DAG in production.
-To do this, first, you need to make sure that the Airflow is itself production-ready. 
+To do this, first, you need to make sure that the Airflow is itself production-ready.
 Let's see what precautions you need to take.
 
 
@@ -247,8 +247,8 @@ Database backend
 ----------------
 
 Airflow comes with an ``SQLite`` backend by default. It allows the user to run Airflow without any external database.
-However, such a setup is meant to be for testing purposes only. Running the default setup can lead to data loss in multiple scenarios. 
-If you want to run Airflow in production, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgreSQL or MySQL. 
+However, such a setup is meant to be for testing purposes only. Running the default setup can lead to data loss in multiple scenarios.
+If you want to run Airflow in production, make sure you :doc:`configure the backend <howto/initialize-database>` to be an external database such as PostgreSQL or MySQL.
 
 You can change the backend using the following config
 
@@ -268,7 +268,7 @@ Once that is done, you can run -
 ``upgrade`` keeps track of migrations already applies, so it's safe to run as often as you need.
 
 .. note::
- 
+
  Do not use ``airflow db init`` as it can create a lot of default connection, charts, etc. which are not required in production DB.
 
 
@@ -276,8 +276,8 @@ Multi-Node Cluster
 -------------------
 
 Airflow uses :class:`airflow.executors.sequential_executor.SequentialExecutor` by default. However, by its nature, the user is limited to executing at most
-one task at a time. ``Sequential Executor`` also pauses the scheduler when it runs a task, hence not recommended in a production setup. 
-You should use :class:`Local executor <airflow.executors.local_executor.LocalExecutor>` for a single machine. 
+one task at a time. ``Sequential Executor`` also pauses the scheduler when it runs a task, hence not recommended in a production setup.
+You should use :class:`Local executor <airflow.executors.local_executor.LocalExecutor>` for a single machine.
 For multi-node setup, you should use :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`.
 
 
@@ -289,7 +289,7 @@ any other mechanism to sync DAGs and configs across your nodes, e.g., checkout D
 Logging
 --------
 
-If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system (DFS) such as ``S3`` and ``GCS``, or external services such as 
+If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system (DFS) such as ``S3`` and ``GCS``, or external services such as
 Stackdriver Logging, Elasticsearch or Amazon CloudWatch.
 This way, the logs are available even after the node goes down or gets replaced. See :doc:`howto/write-logs` for configurations.
 
@@ -315,4 +315,3 @@ Some configurations such as Airflow Backend connection URI can be derived from b
 .. code::
 
  sql_alchemy_conn_cmd = bash_command_to_run
-    

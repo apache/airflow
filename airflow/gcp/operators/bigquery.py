@@ -693,6 +693,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 google_cloud_storage_conn_id='airflow-conn-id'
             )
     :type labels: dict
+    :param view: [Optional] A dictionary containing definition for the view.
+        If set, it will create a view instead of a table:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
+    :type view: dict
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
 
@@ -704,7 +708,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'project_id',
-                       'gcs_schema_object', 'labels')
+                       'gcs_schema_object', 'labels', 'view')
     ui_color = '#f0eee4'
 
     # pylint: disable=too-many-arguments
@@ -720,6 +724,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  google_cloud_storage_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  labels: Optional[Dict] = None,
+                 view: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
                  location: Optional[str] = None,
                  *args, **kwargs) -> None:
@@ -735,6 +740,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
+        self.view = view
         self.encryption_configuration = encryption_configuration
         self.location = location
 
@@ -769,6 +775,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 schema_fields=schema_fields,
                 time_partitioning=self.time_partitioning,
                 labels=self.labels,
+                view=self.view,
                 encryption_configuration=self.encryption_configuration
             )
             self.log.info('Table created successfully: %s:%s.%s',

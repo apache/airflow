@@ -49,7 +49,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dep_context import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
@@ -746,7 +746,7 @@ class TestLogView(TestBase):
         with open(settings_file, 'w') as handle:
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
-        conf.set('core', 'logging_config_class', 'airflow_local_settings.LOGGING_CONFIG')
+        conf.set('logging', 'logging_config_class', 'airflow_local_settings.LOGGING_CONFIG')
 
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['WTF_CSRF_ENABLED'] = False
@@ -786,7 +786,7 @@ class TestLogView(TestBase):
 
         sys.path.remove(self.settings_folder)
         shutil.rmtree(self.settings_folder)
-        conf.set('core', 'logging_config_class', '')
+        conf.set('logging', 'logging_config_class', '')
 
         self.logout()
         super().tearDown()
@@ -1865,8 +1865,8 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        from airflow.utils.tests import (
-            Dummy2TestOperator, Dummy3TestOperator)
+        from tests.test_utils.mock_operators import Dummy3TestOperator
+        from tests.test_utils.mock_operators import Dummy2TestOperator
         super().setUp()
         self.endpoint = "extra_links"
         self.default_date = datetime(2017, 1, 1)

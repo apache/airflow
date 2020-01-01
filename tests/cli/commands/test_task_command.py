@@ -25,7 +25,9 @@ from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
-from airflow import models
+from parameterized import parameterized
+
+from airflow import AirflowException, models
 from airflow.bin import cli
 from airflow.cli.commands import task_command
 from airflow.models import DagBag, TaskInstance
@@ -179,6 +181,34 @@ class TestCliTasks(unittest.TestCase):
             'tasks', 'run', 'example_bash_operator', 'runme_0', '-l',
             DEFAULT_DATE.isoformat()]))
 
+    @parameterized.expand(
+        [
+            ("--ignore_all_dependencies", ),
+            ("--ignore_depends_on_past", ),
+            ("--ignore_dependencies",),
+            ("--force",),
+        ],
+
+    )
+    def test_cli_run_invalid_raw_option(self, option: str):
+        with self.assertRaisesRegex(
+            AirflowException,
+            "Option --raw does not work with some of the other options on this command."
+        ):
+            task_command.task_run(self.parser.parse_args([  # type: ignore
+                'tasks', 'run', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat(), '--raw', option
+            ]))
+
+    def test_cli_run_mutually_exclusive(self):
+        with self.assertRaisesRegex(
+            AirflowException,
+            "Option --raw and --local are mutually exclusive."
+        ):
+            task_command.task_run(self.parser.parse_args([  # type: ignore
+                'tasks', 'run', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat(), '--raw',
+                '--local'
+            ]))
+
     def test_task_state(self):
         task_command.task_state(self.parser.parse_args([
             'tasks', 'state', 'example_bash_operator', 'runme_0',
@@ -209,7 +239,7 @@ class TestCliTasks(unittest.TestCase):
             interactive=True,
             execution_date=timezone.parse('2018-04-27T08:39:51.298439+00:00')
         )
-        dag = get_dag(args)
+        dag = get_dag(args.subdir, args.dag_id)
         reset(dag.dag_id)
 
         task_command.task_run(args)

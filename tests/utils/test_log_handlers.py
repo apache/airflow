@@ -26,9 +26,9 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
-from airflow.utils.db import create_session
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import set_context
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
@@ -39,7 +39,7 @@ FILE_TASK_HANDLER = 'task'
 
 class TestFileTaskLogHandler(unittest.TestCase):
 
-    def cleanUp(self):
+    def clean_up(self):
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TaskInstance).delete()
@@ -48,11 +48,11 @@ class TestFileTaskLogHandler(unittest.TestCase):
         super().setUp()
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
-        self.cleanUp()
+        self.clean_up()
         # We use file task handler by default.
 
     def tearDown(self):
-        self.cleanUp()
+        self.clean_up()
         super().tearDown()
 
     def test_default_task_logging_setup(self):

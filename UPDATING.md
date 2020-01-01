@@ -41,6 +41,96 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+<!--
+
+I'm glad you want to write a new note. Remember that this note is intended for users.
+Make sure it contains the following information:
+
+- [ ] Previous behaviors
+- [ ] New behaviors
+- [ ] If possible, a simple example of how to migrate. This may include a simple code example.
+- [ ] If possible, the benefit for the user after migration e.g. "we want to make these changes to unify class names."
+- [ ] If possible, the reason for the change, which adds more context to that interested, e.g. reference for Airflow Improvment Proposal.
+
+More tips can be found in the guide:
+https://developers.google.com/style/inclusive-documentation
+
+-->
+
+### Remove airflow.utils.file.TemporaryDirectory
+
+Since Airflow dropped support for Python < 3.5 there's no need to have this custom
+implementation of `TemporaryDirectory` because the same functionality is provided by
+`tempfile.TemporaryDirectory`.
+
+Now users instead of `import from airflow.utils.files import TemporaryDirectory` should
+do `from tempfile import TemporaryDirectory`. Both context managers provide the same
+interface, thus no additional changes should be required.
+
+### Chain and cross_downstream moved from helpers to BaseOperator
+
+The `chain` and `cross_downstream` methods are now moved to airflow.models.baseoperator module from
+`airflow.utils.helpers` module.
+
+The baseoperator module seems to be a better choice to keep
+closely coupled methods together. Helpers module is supposed to contain standalone helper methods
+that can be imported by all classes.
+
+The `chain` method and `cross_downstream` method both use BaseOperator. If any other package imports
+any classes or functions from helpers module, then it automatically has an
+implicit dependency to BaseOperator. That can often lead to cyclic dependencies.
+
+More information in [AIFLOW-6392](https://issues.apache.org/jira/browse/AIRFLOW-6392)
+
+In Airflow <2.0 you imported those two methods like this:
+
+```python
+from airflow.utils.helpers import chain
+from airflow.utils.helpers import cross_downstream
+```
+
+In Airflow 2.0 it should be changed to:
+```python
+from airflow.models.baseoperator import chain
+from airflow.models.baseoperator import cross_downstream
+```
+
+### Change python3 as Dataflow Hooks/Operators default interpreter
+
+Now the `py_interpreter` argument for DataFlow Hooks/Operators has been changed from python2 to python3.
+
+### Logging configuration has been moved to new section
+
+The following configurations have been moved from `[core]` to the new `[logging]` section.
+
+* `base_log_folder`
+* `remote_logging`
+* `remote_log_conn_id`
+* `remote_base_log_folder`
+* `encrypt_s3_logs`
+* `logging_level`
+* `fab_logging_level`
+* `logging_config_class`
+* `colored_console_log`
+* `colored_log_format`
+* `colored_formatter_class`
+* `log_format`
+* `simple_log_format`
+* `task_log_prefix_template`
+* `log_filename_template`
+* `log_processor_filename_template`
+* `dag_processor_manager_log_location`
+* `task_log_reader`
+
+### Simplification of CLI commands
+
+Some commands have been grouped to improve UX of CLI. New commands are available according to the following table:
+
+| Old command               | New command                        |
+|---------------------------|------------------------------------|
+| ``airflow worker``        | ``airflow celery worker``          |
+| ``airflow flower``        | ``airflow celery flower``          |
+
 ### Remove serve_logs command from CLI
 
 The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
@@ -53,9 +143,9 @@ recommended service account keys for the Google Cloud Platform management method
 [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
 
 ### BranchPythonOperator has a return value
-`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch, 
-where previously it returned None. Since it inherits from BaseOperator it will do an 
-`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making. 
+`BranchPythonOperator` will now return a value equal to the `task_id` of the chosen branch,
+where previously it returned None. Since it inherits from BaseOperator it will do an
+`xcom_push` of this value if `do_xcom_push=True`. This is useful for downstream decision-making.
 
 ### Removal of airflow.AirflowMacroPlugin class
 
@@ -72,17 +162,17 @@ part of AIRFLOW-6010.
 
 #### Change default aws_conn_id in EMR operators
 
-The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous 
-versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new 
-changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is 
+The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous
+versions. This was leading to EmrStepSensor not being able to find their corresponding emr cluster. With the new
+changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is
 solved.
 
 ### Removal of redirect_stdout, redirect_stderr
 
-Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has 
+Function `redirect_stderr` and `redirect_stdout` from `airflow.utils.log.logging_mixin` module has
 been deleted because it can be easily replaced by the standard library.
 The functions of the standard library are more flexible and can be used in larger cases.
-  
+
 The code below
 ```python
 import logging
@@ -115,8 +205,8 @@ This one is supersede by `XCom.get_many().first()` which will return the same re
 
 SQLSensor now consistent with python `bool()` function and the `allow_null` parameter has been removed.
 
-It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That 
-changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success 
+It will resolve after receiving any value  that is casted to `True` with python `bool(value)`. That
+changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been treated as success
 criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
 behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
 
@@ -134,9 +224,9 @@ result = self.render_template(self.myattr, context)  # Post-1.10.6 call
 ```
 
 ### Idempotency in BigQuery operators
-Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`. 
-But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table` 
-methods of `BigQueryHook`. 
+Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`.
+But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table`
+methods of `BigQueryHook`.
 
 ### Migration of AWS components
 
@@ -208,8 +298,8 @@ However, this requires that your operating system has ``libffi-dev`` installed.
 In the `PubSubPublishOperator` and `PubSubHook.publsh` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
 
 Due to the normalization of the parameters within GCP operators and hooks a parameters like `project` or `topic_project`
-are deprecated and will be substituted by parameter `project_id`. 
-In `PubSubHook.create_subscription` hook method in the parameter `subscription_project` is replaced by `subscription_project_id`. 
+are deprecated and will be substituted by parameter `project_id`.
+In `PubSubHook.create_subscription` hook method in the parameter `subscription_project` is replaced by `subscription_project_id`.
 Template fields are updated accordingly and old ones may not work.
 
 It is required now to pass key-word only arguments to `PubSub` hook.
@@ -265,8 +355,8 @@ Detailed information about connection management is available:
 
 ### Normalize gcp_conn_id for Google Cloud Platform
 
-Previously not all hooks and operators related to Google Cloud Platform use 
-`gcp_conn_id` as parameter for GCP connection. There is currently one parameter 
+Previously not all hooks and operators related to Google Cloud Platform use
+`gcp_conn_id` as parameter for GCP connection. There is currently one parameter
 which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_conn_id``,
 ``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
 
@@ -299,8 +389,8 @@ Following components were affected by normalization:
 
 ### Changes to propagating Kubernetes worker annotations
 
-`kubernetes_annotations` configuration section has been removed. 
-A new key `worker_annotations` has been added to existing `kubernetes` section instead. 
+`kubernetes_annotations` configuration section has been removed.
+A new key `worker_annotations` has been added to existing `kubernetes` section instead.
 That is to remove restriction on the character set for k8s annotation keys.
 All key/value pairs from `kubernetes_annotations` should now go to `worker_annotations` as a json. I.e. instead of e.g.
 ```
@@ -316,8 +406,8 @@ worker_annotations = { "annotation_key" : "annotation_value", "annotation_key2" 
 
 ### Changes to import paths and names of GCP operators and hooks
 
-According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths) 
-operators related to Google Cloud Platform has been moved from contrib to core. 
+According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths)
+operators related to Google Cloud Platform has been moved from contrib to core.
 The following table shows changes in import paths.
 
 |                                                     Old path                                                     |                                                 New path                                                  |
@@ -380,12 +470,12 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator                                       |airflow.gcp.operators.datastore.DatastoreExportOperator                                                    |
 |airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator                                       |airflow.gcp.operators.datastore.DatastoreImportOperator                                                    |
 |airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator                                            |airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator                                            |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator                                     |airflow.gcp.operators.bigtable.BigtableClusterUpdateOperator                                               |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator                                    |airflow.gcp.operators.bigtable.BigtableInstanceCreateOperator                                              |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator                                    |airflow.gcp.operators.bigtable.BigtableInstanceDeleteOperator                                              |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator                                       |airflow.gcp.operators.bigtable.BigtableTableCreateOperator                                                 |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator                                       |airflow.gcp.operators.bigtable.BigtableTableDeleteOperator                                                 |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor                             |airflow.gcp.sensors.bigtable.BigtableTableWaitForReplicationSensor                                         |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator                                     |airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator                                               |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator                                    |airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator                                              |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator                                    |airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator                                              |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator                                       |airflow.gcp.operators.bigtable.BigtableCreateTableOperator                                                 |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator                                       |airflow.gcp.operators.bigtable.BigtableDeleteTableOperator                                                 |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor                             |airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor                                         |
 |airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator                                  |airflow.gcp.operators.cloud_build.CloudBuildCreateOperator
 |airflow.contrib.operators.gcp_compute_operator.GceBaseOperator                                                    |airflow.gcp.operators.compute.GceBaseOperator                                                              |
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator                      |airflow.gcp.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator                                |
@@ -404,18 +494,18 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateStoredInfoTypeOperator                                   |airflow.gcp.operators.dlp.CloudDLPCreateStoredInfoTypeOperator                                             |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeidentifyContentOperator                                      |airflow.gcp.operators.dlp.CloudDLPDeidentifyContentOperator                                                |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDeidentifyTemplateOperator                               |airflow.gcp.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator                                         |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDlpJobOperator                                           |airflow.gcp.operators.dlp.CloudDLPDeleteDlpJobOperator                                                     |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDlpJobOperator                                           |airflow.gcp.operators.dlp.CloudDLPDeleteDLPJobOperator                                                     |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteInspectTemplateOperator                                  |airflow.gcp.operators.dlp.CloudDLPDeleteInspectTemplateOperator                                            |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteJobTriggerOperator                                       |airflow.gcp.operators.dlp.CloudDLPDeleteJobTriggerOperator                                                 |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteStoredInfoTypeOperator                                   |airflow.gcp.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator                                             |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDeidentifyTemplateOperator                                  |airflow.gcp.operators.dlp.CloudDLPGetDeidentifyTemplateOperator                                            |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDlpJobOperator                                              |airflow.gcp.operators.dlp.CloudDLPGetDlpJobOperator                                                        |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDlpJobOperator                                              |airflow.gcp.operators.dlp.CloudDLPGetDLPJobOperator                                                        |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetInspectTemplateOperator                                     |airflow.gcp.operators.dlp.CloudDLPGetInspectTemplateOperator                                               |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetJobTripperOperator                                          |airflow.gcp.operators.dlp.CloudDLPGetJobTripperOperator                                                    |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetJobTripperOperator                                          |airflow.gcp.operators.dlp.CloudDLPGetJobTriggerOperator                                                    |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetStoredInfoTypeOperator                                      |airflow.gcp.operators.dlp.CloudDLPGetStoredInfoTypeOperator                                                |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPInspectContentOperator                                         |airflow.gcp.operators.dlp.CloudDLPInspectContentOperator                                                   |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDeidentifyTemplatesOperator                                |airflow.gcp.operators.dlp.CloudDLPListDeidentifyTemplatesOperator                                          |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDlpJobsOperator                                            |airflow.gcp.operators.dlp.CloudDLPListDlpJobsOperator                                                      |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDlpJobsOperator                                            |airflow.gcp.operators.dlp.CloudDLPListDLPJobsOperator                                                      |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInfoTypesOperator                                          |airflow.gcp.operators.dlp.CloudDLPListInfoTypesOperator                                                    |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInspectTemplatesOperator                                   |airflow.gcp.operators.dlp.CloudDLPListInspectTemplatesOperator                                             |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPListJobTriggersOperator                                        |airflow.gcp.operators.dlp.CloudDLPListJobTriggersOperator                                                  |
@@ -428,10 +518,10 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateStoredInfoTypeOperator                                   |airflow.gcp.operators.dlp.CloudDLPUpdateStoredInfoTypeOperator                                             |
 |airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator                                         |airflow.gcp.operators.functions.GcfFunctionDeleteOperator                                                  |
 |airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator                                         |airflow.gcp.operators.functions.GcfFunctionDeployOperator                                                  |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitiesOperator                      |airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitiesOperator                                |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitySentimentOperator               |airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeEntitySentimentOperator                         |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentimentOperator                     |airflow.providers.google.cloud.operators.natural_language.CloudLanguageAnalyzeSentimentOperator                               |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator                         |airflow.providers.google.cloud.operators.natural_language.CloudLanguageClassifyTextOperator                                   |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageAnalyzeEntitiesOperator               |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator      |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageAnalyzeEntitySentimentOperator        |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitySentimentOperator|
+|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageAnalyzeSentimentOperator              |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator      |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageClassifyTextOperator                  |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageClassifyTextOperator          |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator                         |airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeleteOperator                                   |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator                         |airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeployOperator                                   |
 |airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator                          |airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseQueryOperator                                    |

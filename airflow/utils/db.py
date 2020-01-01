@@ -17,62 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import contextlib
 import os
-from functools import wraps
 
-from airflow import settings
+from airflow import models, settings
 from airflow.configuration import conf
+from airflow.jobs.base_job import BaseJob  # noqa: F401
+from airflow.models import Connection
+from airflow.models.pool import Pool
+# We need to add this model manually to get reset working well
+from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import create_session, provide_session  # noqa
 
 log = LoggingMixin().log
 
 
-@contextlib.contextmanager
-def create_session():
-    """
-    Contextmanager that will create and teardown a session.
-    """
-    session = settings.Session()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
-
-
-def provide_session(func):
-    """
-    Function decorator that provides a session if it isn't provided.
-    If you want to reuse a session or run the function as part of a
-    database transaction, you pass it to the function, if not this wrapper
-    will create one and close it for you.
-    """
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        arg_session = 'session'
-
-        func_params = func.__code__.co_varnames
-        session_in_args = arg_session in func_params and \
-            func_params.index(arg_session) < len(args)
-        session_in_kwargs = arg_session in kwargs
-
-        if session_in_kwargs or session_in_args:
-            return func(*args, **kwargs)
-        else:
-            with create_session() as session:
-                kwargs[arg_session] = session
-                return func(*args, **kwargs)
-
-    return wrapper
-
-
 @provide_session
 def merge_conn(conn, session=None):
-    from airflow.models import Connection
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
         session.commit()
@@ -80,7 +41,6 @@ def merge_conn(conn, session=None):
 
 @provide_session
 def add_default_pool_if_not_exists(session=None):
-    from airflow.models.pool import Pool
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
@@ -94,8 +54,6 @@ def add_default_pool_if_not_exists(session=None):
 
 @provide_session
 def create_default_connections(session=None):
-    from airflow.models import Connection
-
     merge_conn(
         Connection(
             conn_id="airflow_db", conn_type="mysql", host="mysql", login="root", password="", schema="airflow"
@@ -320,7 +278,6 @@ def create_default_connections(session=None):
 
 
 def initdb():
-    from airflow import models
     upgradedb()
 
     create_default_connections()
@@ -357,12 +314,6 @@ def resetdb():
     """
     Clear out the database
     """
-    from airflow import models
-    # We need to add this model manually to get reset working well
-    # noinspection PyUnresolvedReferences
-    from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
-    # noinspection PyUnresolvedReferences
-    from airflow.jobs.base_job import BaseJob  # noqa: F401
     # alembic adds significant import time, so we import it lazily
     # noinspection PyUnresolvedReferences
     from alembic.migration import MigrationContext
