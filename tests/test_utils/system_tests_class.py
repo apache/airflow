@@ -16,6 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import argparse
+import inspect
 import os
 from contextlib import ContextDecorator
 from shutil import move
@@ -137,3 +139,29 @@ class SystemTest(TestCase, LoggingMixin):
         self.log.info("Attempting to run DAG: %s", dag_id)
         dag.clear(reset_dag_runs=True)
         dag.run(ignore_first_depends_on_past=True, verbose=True)
+
+    def cli(self):
+        parser = argparse.ArgumentParser(description="Create and delete repo and bucket for system tests.")
+
+        actions = {
+            name: func
+            for name, func in inspect.getmembers(type(self), predicate=inspect.isfunction)
+            if (
+                not name.startswith("_") and
+                len(inspect.signature(func).parameters) == 1 and
+                name != "cli"
+            )
+        }
+
+        for name, _ in inspect.getmembers(TestCase, predicate=inspect.isfunction):
+            if name in actions:
+                del actions[name]
+
+        parser.add_argument(
+            "action",
+            nargs='+',
+            choices=actions.keys(),
+            type=lambda d: getattr(self, d)
+        )
+        args = parser.parse_args()
+        args.action()
