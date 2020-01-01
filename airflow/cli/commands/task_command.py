@@ -232,7 +232,7 @@ def task_states_for_dag_run(args):
     if len(tis) == 0:
         raise AirflowException("dag run does not exist.")
     for ti in tis:
-        print("dag={0},exec_date={1},task={2}, state={3}, start_date={4}, end_date={5}".format(
+        print("dag={0}, exec_date={1}, task={2}, state={3}, start_date={4}, end_date={5}".format(
             ti.dag_id, ti.execution_date, ti.task_id, ti.state, ti.start_date, ti.end_date))
 
 
