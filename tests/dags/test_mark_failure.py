@@ -16,18 +16,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from unittest import TestCase
+
 from datetime import datetime
 
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
-from tests.core import TEST_DATA
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 
 def check_failure(context):
-    context
-    TEST_DATA['called'] = True
+    TestCase.assertEqual(
+        context['dag_run'].dag_id,
+        'test_mark_failure'
+    )
 
 
 args = {
@@ -35,7 +38,7 @@ args = {
     'start_date': DEFAULT_DATE,
 }
 
-dag = DAG(dag_id='test_mark_success', default_args=args)
+dag = DAG(dag_id='test_mark_failure', default_args=args)
 
 task = BashOperator(
     task_id='task1',

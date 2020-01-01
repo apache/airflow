@@ -34,9 +34,6 @@ from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.compat import patch
-from tests.core import TEST_DAG_FOLDER, TEST_DATA
-from tests.executors.test_executor import TestExecutor
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_executor import MockExecutor
 
@@ -334,5 +331,3 @@ class TestLocalTaskJob(unittest.TestCase):
         job1.heartbeat_callback()
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
-        self.assertTrue(TEST_DATA['called'])
-
