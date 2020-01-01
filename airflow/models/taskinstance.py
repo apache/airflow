@@ -975,9 +975,9 @@ class TaskInstance(Base, LoggingMixin):
                     'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
                     self.dag_id,
                     self.task_id,
-                    self.execution_date.strftime('%Y%m%dT%H%M%S'),
-                    self.start_date.strftime('%Y%m%dT%H%M%S'),
-                    self.end_date.strftime('%Y%m%dT%H%M%S'))
+                    self.execution_date.strftime('%Y%m%dT%H%M%S') if self.execution_date else '',
+                    self.start_date.strftime('%Y%m%dT%H%M%S') if self.start_date else '',
+                    self.end_date.strftime('%Y%m%dT%H%M%S') if self.end_date else '')
             except NameError:
                 pass
         except AirflowRescheduleException as reschedule_exception:
@@ -1012,9 +1012,9 @@ class TaskInstance(Base, LoggingMixin):
             'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
             self.dag_id,
             self.task_id,
-            self.execution_date.strftime('%Y%m%dT%H%M%S'),
-            self.start_date.strftime('%Y%m%dT%H%M%S'),
-            self.end_date.strftime('%Y%m%dT%H%M%S'))
+            self.execution_date.strftime('%Y%m%dT%H%M%S') if self.execution_date else '',
+            self.start_date.strftime('%Y%m%dT%H%M%S') if self.start_date else '',
+            self.end_date.strftime('%Y%m%dT%H%M%S') if self.end_date else '')
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
