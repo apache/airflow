@@ -75,17 +75,16 @@ class Neo4JHook(BaseHook):
             auth=config['credentials']
         )
 
-    @staticmethod
-    def get_session(driver: Driver) -> Session:
+    def get_conn(self) -> Session:
         """
-        Get a neo4j.session from the driver.
+        Handle the process of getting the connection details, the driver and starting a session
 
-        :param driver Neo4J Driver (established connection to a server)
-        :type driver: neo4j.Driver
         :return: Neo4J session which may contain many transactions
         :rtype: neo4j.Session
         """
-        return driver.session()
+        neo4j_config: dict = self.get_config(self.n4j_conn_id)
+        neo4j_driver: Driver = self.get_driver(neo4j_config)
+        return neo4j_driver.session()
 
     def run_query(self, cypher_query: str, parameters=None) -> BoltStatementResult:
         """
@@ -98,9 +97,7 @@ class Neo4JHook(BaseHook):
         :return: Result of query execution (nodes & relationships)
         :rtype: neo4j.BoltStatementResult see https://neo4j.com/docs/api/python-driver/current/results.html
         """
-        neo4j_config: dict = Neo4JHook.get_config(self.n4j_conn_id)
-        neo4j_driver: Driver = Neo4JHook.get_driver(neo4j_config)
-        neo4j_session: Session = Neo4JHook.get_session(neo4j_driver)
+        neo4j_session: Session = self.get_conn()
 
         with neo4j_session as session:
             self.log.info("Executing query: {}".format(cypher_query))
