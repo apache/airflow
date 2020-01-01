@@ -246,6 +246,13 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 flask.session.modified = True
                 flask.g.user = flask_login.current_user
 
+        @app.after_request
+        def apply_caching(response):
+            _x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
+            if not _x_frame_enabled:
+                response.headers["X-Frame-Options"] = "DENY"
+            return response
+
         @app.teardown_appcontext
         def shutdown_session(exception=None):  # pylint: disable=unused-variable
             settings.Session.remove()
