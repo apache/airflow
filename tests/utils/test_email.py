@@ -101,7 +101,7 @@ class TestEmailSmtp(unittest.TestCase):
     def setUp(self):
         conf.set('smtp', 'SMTP_SSL', 'False')
 
-    @mock.patch('airflow.utils.email.send_MIME_email')
+    @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp(self, mock_send_mime):
         attachment = tempfile.NamedTemporaryFile()
         attachment.write(b'attachment')
@@ -120,7 +120,7 @@ class TestEmailSmtp(unittest.TestCase):
         mimeapp = MIMEApplication('attachment')
         self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
 
-    @mock.patch('airflow.utils.email.send_MIME_email')
+    @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_smtp_with_multibyte_content(self, mock_send_mime):
         utils.email.send_email_smtp('to', 'subject', '🔥', mime_charset='utf-8')
         self.assertTrue(mock_send_mime.called)
@@ -129,7 +129,7 @@ class TestEmailSmtp(unittest.TestCase):
         mimetext = MIMEText('🔥', 'mixed', 'utf-8')
         self.assertEqual(mimetext.get_payload(), msg.get_payload()[0].get_payload())
 
-    @mock.patch('airflow.utils.email.send_MIME_email')
+    @mock.patch('airflow.utils.email.send_mime_email')
     def test_send_bcc_smtp(self, mock_send_mime):
         attachment = tempfile.NamedTemporaryFile()
         attachment.write(b'attachment')

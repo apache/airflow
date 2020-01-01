@@ -25,25 +25,31 @@ import numpy as np
 # Dates and JSON encoding/decoding
 
 
-def default(obj):
+class AirflowJsonEncoder(json.JSONEncoder):
     """
-    Convert dates and numpy objects in a json serializable format.
+    Custom Airflow json encoder implementation.
     """
-    if isinstance(obj, datetime):
-        return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
-    elif isinstance(obj, date):
-        return obj.strftime('%Y-%m-%d')
-    elif isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16,
-                          np.int32, np.int64, np.uint8, np.uint16,
-                          np.uint32, np.uint64)):
-        return int(obj)
-    elif isinstance(obj, np.bool_):
-        return bool(obj)
-    elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64,
-                          np.complex_, np.complex64, np.complex128)):
-        return float(obj)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.default = self._default
 
-    return TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")
+    @staticmethod
+    def _default(obj):
+        """
+        Convert dates and numpy objects in a json serializable format.
+        """
+        if isinstance(obj, datetime):
+            return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
+        elif isinstance(obj, date):
+            return obj.strftime('%Y-%m-%d')
+        elif isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16,
+                              np.int32, np.int64, np.uint8, np.uint16,
+                              np.uint32, np.uint64)):
+            return int(obj)
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64,
+                              np.complex_, np.complex64, np.complex128)):
+            return float(obj)
 
-
-AirflowJsonEncoder = json.JSONEncoder(default=default)
+        raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")

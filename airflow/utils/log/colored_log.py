@@ -19,7 +19,6 @@
 """
 Class responsible for colouring logs based on log level.
 """
-
 import re
 import sys
 from logging import LogRecord
