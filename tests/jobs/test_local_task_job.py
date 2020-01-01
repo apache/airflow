@@ -328,6 +328,6 @@ class TestLocalTaskJob(unittest.TestCase):
         session.merge(ti)
         session.commit()
 
-        job1.heartbeat_callback()
+        job1.heartbeat_callback(session)
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
