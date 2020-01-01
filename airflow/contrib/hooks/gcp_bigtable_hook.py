@@ -25,5 +25,5 @@ from airflow.gcp.hooks.bigtable import BigtableHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.bigtable`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

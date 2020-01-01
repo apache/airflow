@@ -25,6 +25,7 @@ Create Date: 2019-08-01 15:19:57.585620
 """
 
 from collections import defaultdict
+
 from alembic import op
 from sqlalchemy.dialects import mssql
 
@@ -243,11 +244,12 @@ def get_table_constraints(conn, table_name):
 def reorder_columns(columns):
     """
     Reorder the columns for creating constraint, preserve primary key ordering
-    ['task_id', 'dag_id', 'execution_date']
+    ``['task_id', 'dag_id', 'execution_date']``
+
     :param columns: columns retrieved from DB related to constraint
     :return: ordered column
     """
-    ordered_columns = list()
+    ordered_columns = []
     for column in ['task_id', 'dag_id', 'execution_date']:
         if column in columns:
             ordered_columns.append(column)
@@ -262,6 +264,7 @@ def reorder_columns(columns):
 def drop_constraint(operator, constraint_dict):
     """
     Drop a primary key or unique constraint
+
     :param operator: batch_alter_table for the table
     :param constraint_dict: a dictionary of ((constraint name, constraint type), column name) of table
     """
@@ -282,6 +285,7 @@ def drop_constraint(operator, constraint_dict):
 def create_constraint(operator, constraint_dict):
     """
     Create a primary key or unique constraint
+
     :param operator: batch_alter_table for the table
     :param constraint_dict: a dictionary of ((constraint name, constraint type), column name) of table
     """

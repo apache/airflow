@@ -17,11 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from alembic import context
 from logging.config import fileConfig
 
-from airflow import settings
-from airflow import models
+from alembic import context
+
+from airflow import models, settings
+from airflow.models.serialized_dag import SerializedDagModel  # noqa
+
+
+def include_object(_, name, type_, *args):
+    """Filter objects for autogenerating revisions"""
+    # Ignore _anything_ to do with Flask AppBuilder's tables
+    if type_ == "table" and name.startswith("ab_"):
+        return False
+    else:
+        return True
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -58,8 +69,11 @@ def run_migrations_offline():
 
     """
     context.configure(
-        url=settings.SQL_ALCHEMY_CONN, target_metadata=target_metadata,
-        literal_binds=True, compare_type=COMPARE_TYPE)
+        url=settings.SQL_ALCHEMY_CONN,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        compare_type=COMPARE_TYPE,
+        render_as_batch=True)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -80,6 +94,8 @@ def run_migrations_online():
             transaction_per_migration=True,
             target_metadata=target_metadata,
             compare_type=COMPARE_TYPE,
+            include_object=include_object,
+            render_as_batch=True
         )
 
         with context.begin_transaction():

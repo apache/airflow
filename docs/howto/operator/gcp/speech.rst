@@ -20,6 +20,11 @@
 Google Cloud Text to Speech Operators
 =====================================
 
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
 .. _howto/operator:GcpTextToSpeechSynthesizeOperator:
 
 GcpTextToSpeechSynthesizeOperator
@@ -78,15 +83,15 @@ Templating
 Google Cloud Speech to Text Operators
 =====================================
 
-.. _howto/operator:GcpSpeechToTextRecognizeSpeechOperator:
+.. _howto/operator:CloudSpeechToTextRecognizeSpeechOperator:
 
-GcpSpeechToTextRecognizeSpeechOperator
---------------------------------------
+CloudSpeechToTextRecognizeSpeechOperator
+----------------------------------------
 
 Recognizes speech in audio input and returns text.
 
 For parameter definition, take a look at
-:class:`airflow.gcp.operators.speech_to_text.GcpSpeechToTextRecognizeSpeechOperator`
+:class:`airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`
 
 Arguments
 """""""""
@@ -125,3 +130,11 @@ Templating
     :dedent: 4
     :start-after: [START gcp_speech_to_text_synthesize_template_fields]
     :end-before: [END gcp_speech_to_text_synthesize_template_fields]
+
+Reference
+---------
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/speech/>`__
+* `Product Documentation <https://cloud.google.com/speech/>`__

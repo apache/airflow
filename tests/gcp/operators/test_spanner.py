@@ -18,18 +18,15 @@
 # under the License.
 import unittest
 
+import mock
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.operators.spanner import \
-    CloudSpannerInstanceDeployOperator, \
-    CloudSpannerInstanceDeleteOperator, \
-    CloudSpannerInstanceDatabaseQueryOperator, \
-    CloudSpannerInstanceDatabaseDeployOperator, \
-    CloudSpannerInstanceDatabaseDeleteOperator, \
-    CloudSpannerInstanceDatabaseUpdateOperator
-from tests.compat import mock
-
+from airflow.gcp.operators.spanner import (
+    CloudSpannerInstanceDatabaseDeleteOperator, CloudSpannerInstanceDatabaseDeployOperator,
+    CloudSpannerInstanceDatabaseQueryOperator, CloudSpannerInstanceDatabaseUpdateOperator,
+    CloudSpannerInstanceDeleteOperator, CloudSpannerInstanceDeployOperator,
+)
 
 PROJECT_ID = 'project-id'
 INSTANCE_ID = 'instance-id'
@@ -45,7 +42,7 @@ DDL_STATEMENTS = [CREATE_QUERY, CREATE_QUERY_2]
 
 
 class TestCloudSpanner(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_create(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
         op = CloudSpannerInstanceDeployOperator(
@@ -68,7 +65,7 @@ class TestCloudSpanner(unittest.TestCase):
         mock_hook.return_value.update_instance.assert_not_called()
         self.assertIsNone(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_create_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
         op = CloudSpannerInstanceDeployOperator(
@@ -90,7 +87,7 @@ class TestCloudSpanner(unittest.TestCase):
         mock_hook.return_value.update_instance.assert_not_called()
         self.assertIsNone(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_update(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"name": INSTANCE_ID}
         op = CloudSpannerInstanceDeployOperator(
@@ -113,7 +110,7 @@ class TestCloudSpanner(unittest.TestCase):
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_update_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"name": INSTANCE_ID}
         op = CloudSpannerInstanceDeployOperator(
@@ -135,7 +132,7 @@ class TestCloudSpanner(unittest.TestCase):
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_create_aborts_and_succeeds_if_instance_exists(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"name": INSTANCE_ID}
         op = CloudSpannerInstanceDeployOperator(
@@ -155,7 +152,7 @@ class TestCloudSpanner(unittest.TestCase):
         ("", INSTANCE_ID, "project_id"),
         (PROJECT_ID, "", "instance_id"),
     ])
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_create_ex_if_param_missing(self, project_id, instance_id,
                                                  exp_msg, mock_hook):
         with self.assertRaises(AirflowException) as cm:
@@ -171,7 +168,7 @@ class TestCloudSpanner(unittest.TestCase):
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_delete(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"name": INSTANCE_ID}
         op = CloudSpannerInstanceDeleteOperator(
@@ -186,7 +183,7 @@ class TestCloudSpanner(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_delete_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"name": INSTANCE_ID}
         op = CloudSpannerInstanceDeleteOperator(
@@ -201,7 +198,7 @@ class TestCloudSpanner(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_delete_aborts_and_succeeds_if_instance_does_not_exist(self,
                                                                             mock_hook):
         mock_hook.return_value.get_instance.return_value = None
@@ -219,7 +216,7 @@ class TestCloudSpanner(unittest.TestCase):
         ("", INSTANCE_ID, "project_id"),
         (PROJECT_ID, "", "instance_id"),
     ])
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_delete_ex_if_param_missing(self, project_id, instance_id, exp_msg,
                                                  mock_hook):
         with self.assertRaises(AirflowException) as cm:
@@ -232,7 +229,7 @@ class TestCloudSpanner(unittest.TestCase):
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_query(self, mock_hook):
         mock_hook.return_value.execute_sql.return_value = None
         op = CloudSpannerInstanceDatabaseQueryOperator(
@@ -251,7 +248,7 @@ class TestCloudSpanner(unittest.TestCase):
         )
         self.assertIsNone(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_query_missing_project_id(self, mock_hook):
         mock_hook.return_value.execute_sql.return_value = None
         op = CloudSpannerInstanceDatabaseQueryOperator(
@@ -274,7 +271,7 @@ class TestCloudSpanner(unittest.TestCase):
         (PROJECT_ID, INSTANCE_ID, "", INSERT_QUERY, "database_id"),
         (PROJECT_ID, INSTANCE_ID, DB_ID, "", "query"),
     ])
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_query_ex_if_param_missing(self, project_id, instance_id,
                                                 database_id, query, exp_msg, mock_hook):
         with self.assertRaises(AirflowException) as cm:
@@ -289,7 +286,7 @@ class TestCloudSpanner(unittest.TestCase):
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_query_dml(self, mock_hook):
         mock_hook.return_value.execute_dml.return_value = None
         op = CloudSpannerInstanceDatabaseQueryOperator(
@@ -305,7 +302,7 @@ class TestCloudSpanner(unittest.TestCase):
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, database_id=DB_ID, queries=[INSERT_QUERY]
         )
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_instance_query_dml_list(self, mock_hook):
         mock_hook.return_value.execute_dml.return_value = None
         op = CloudSpannerInstanceDatabaseQueryOperator(
@@ -322,7 +319,7 @@ class TestCloudSpanner(unittest.TestCase):
             database_id=DB_ID, queries=[INSERT_QUERY, INSERT_QUERY_2]
         )
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_create(self, mock_hook):
         mock_hook.return_value.get_database.return_value = None
         op = CloudSpannerInstanceDatabaseDeployOperator(
@@ -341,7 +338,7 @@ class TestCloudSpanner(unittest.TestCase):
         mock_hook.return_value.update_database.assert_not_called()
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_create_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_database.return_value = None
         op = CloudSpannerInstanceDatabaseDeployOperator(
@@ -359,7 +356,7 @@ class TestCloudSpanner(unittest.TestCase):
         mock_hook.return_value.update_database.assert_not_called()
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_create_with_pre_existing_db(self, mock_hook):
         mock_hook.return_value.get_database.return_value = {"name": DB_ID}
         op = CloudSpannerInstanceDatabaseDeployOperator(
@@ -380,7 +377,7 @@ class TestCloudSpanner(unittest.TestCase):
         (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
         (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
     ])
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_create_ex_if_param_missing(self,
                                                  project_id, instance_id,
                                                  database_id, ddl_statements,
@@ -397,7 +394,7 @@ class TestCloudSpanner(unittest.TestCase):
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_update(self, mock_hook):
         mock_hook.return_value.get_database.return_value = {"name": DB_ID}
         op = CloudSpannerInstanceDatabaseUpdateOperator(
@@ -415,7 +412,7 @@ class TestCloudSpanner(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_update_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_database.return_value = {"name": DB_ID}
         op = CloudSpannerInstanceDatabaseUpdateOperator(
@@ -437,7 +434,7 @@ class TestCloudSpanner(unittest.TestCase):
         (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
         (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
     ])
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_update_ex_if_param_missing(self, project_id, instance_id,
                                                  database_id, ddl_statements,
                                                  exp_msg, mock_hook):
@@ -453,7 +450,7 @@ class TestCloudSpanner(unittest.TestCase):
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_update_ex_if_database_not_exist(self, mock_hook):
         mock_hook.return_value.get_database.return_value = None
         with self.assertRaises(AirflowException) as cm:
@@ -470,7 +467,7 @@ class TestCloudSpanner(unittest.TestCase):
                       "instance 'instance-id' is missing", str(err))
         mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_delete(self, mock_hook):
         mock_hook.return_value.get_database.return_value = {"name": DB_ID}
         op = CloudSpannerInstanceDatabaseDeleteOperator(
@@ -486,7 +483,7 @@ class TestCloudSpanner(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_delete_missing_project_id(self, mock_hook):
         mock_hook.return_value.get_database.return_value = {"name": DB_ID}
         op = CloudSpannerInstanceDatabaseDeleteOperator(
@@ -501,7 +498,7 @@ class TestCloudSpanner(unittest.TestCase):
         )
         self.assertTrue(result)
 
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_delete_exits_and_succeeds_if_database_does_not_exist(self,
                                                                            mock_hook):
         mock_hook.return_value.get_database.return_value = None
@@ -521,7 +518,7 @@ class TestCloudSpanner(unittest.TestCase):
         (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, 'instance_id'),
         (PROJECT_ID, INSTANCE_ID, "", DDL_STATEMENTS, 'database_id'),
     ])
-    @mock.patch("airflow.gcp.operators.spanner.CloudSpannerHook")
+    @mock.patch("airflow.gcp.operators.spanner.SpannerHook")
     def test_database_delete_ex_if_param_missing(self, project_id, instance_id,
                                                  database_id, ddl_statements,
                                                  exp_msg, mock_hook):

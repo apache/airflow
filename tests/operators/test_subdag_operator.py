@@ -18,18 +18,20 @@
 # under the License.
 
 import unittest
+from unittest import mock
 from unittest.mock import Mock
+
+from parameterized import parameterized
 
 import airflow
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.subdag_operator import SubDagOperator
+from airflow.operators.subdag_operator import SkippedStatePropagationOptions, SubDagOperator
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.utils.db import create_session
 from tests.test_utils.db import clear_db_runs
-
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -238,3 +240,66 @@ class TestSubDagOperator(unittest.TestCase):
 
         sub_dagrun.refresh_from_db()
         self.assertEqual(sub_dagrun.state, State.RUNNING)
+
+    @parameterized.expand([
+        (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SKIPPED], True),
+        (SkippedStatePropagationOptions.ALL_LEAVES, [State.SKIPPED, State.SUCCESS], False),
+        (SkippedStatePropagationOptions.ANY_LEAF, [State.SKIPPED, State.SUCCESS], True),
+        (SkippedStatePropagationOptions.ANY_LEAF, [State.FAILED, State.SKIPPED], True),
+        (None, [State.SKIPPED, State.SKIPPED], False),
+    ])
+    @mock.patch('airflow.operators.subdag_operator.SubDagOperator.skip')
+    @mock.patch('airflow.operators.subdag_operator.get_task_instance')
+    def test_subdag_with_propagate_skipped_state(
+        self,
+        propagate_option,
+        states,
+        skip_parent,
+        mock_get_task_instance,
+        mock_skip
+    ):
+        """
+        Tests that skipped state of leaf tasks propagates to the parent dag.
+        Note that the skipped state propagation only takes affect when the dagrun's state is SUCCESS.
+        """
+        dag = DAG('parent', default_args=default_args)
+        subdag = DAG('parent.test', default_args=default_args)
+        subdag_task = SubDagOperator(
+            task_id='test',
+            subdag=subdag,
+            dag=dag,
+            poke_interval=1,
+            propagate_skipped_state=propagate_option
+        )
+        dummy_subdag_tasks = [
+            DummyOperator(task_id='dummy_subdag_{}'.format(i), dag=subdag)
+            for i in range(len(states))
+        ]
+        dummy_dag_task = DummyOperator(task_id='dummy_dag', dag=dag)
+        subdag_task >> dummy_dag_task
+
+        subdag_task._get_dagrun = Mock()
+        subdag_task._get_dagrun.return_value = self.dag_run_success
+        mock_get_task_instance.side_effect = [
+            TaskInstance(
+                task=task,
+                execution_date=DEFAULT_DATE,
+                state=state
+            ) for task, state in zip(dummy_subdag_tasks, states)
+        ]
+
+        context = {
+            'execution_date': DEFAULT_DATE,
+            'dag_run': DagRun(),
+            'task': subdag_task
+        }
+        subdag_task.post_execute(context)
+
+        if skip_parent:
+            mock_skip.assert_called_once_with(
+                context['dag_run'],
+                context['execution_date'],
+                [dummy_dag_task]
+            )
+        else:
+            mock_skip.assert_not_called()

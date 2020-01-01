@@ -17,21 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Optional
+import datetime
 import logging
 import socket
+from typing import Any, Optional
+from urllib.parse import urlparse
 
+import flask
+import flask_login
 from flask import Flask
-from flask_appbuilder import AppBuilder, SQLA
+from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
-from typing import Any
-from urllib.parse import urlparse
-from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.middleware.proxy_fix import ProxyFix
 
+from airflow import settings, version
 from airflow.configuration import conf
-from airflow import settings
 from airflow.logging_config import configure_logging
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
@@ -49,12 +51,12 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
-            num_proxies=None,
-            x_for=1,
-            x_proto=1,
-            x_host=1,
-            x_port=1,
-            x_prefix=1
+            num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
+            x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
+            x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+            x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
+            x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
+            x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
@@ -90,7 +92,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     configure_manifest_files(app)
 
     with app.app_context():
-
         from airflow.www.security import AirflowSecurityManager
         security_manager_class = app.config.get('SECURITY_MANAGER_CLASS') or \
             AirflowSecurityManager
@@ -104,14 +105,16 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             app,
             db.session if not session else session,
             security_manager_class=security_manager_class,
-            base_template='appbuilder/baselayout.html')
+            base_template='appbuilder/baselayout.html',
+            update_perms=conf.getboolean('webserver', 'UPDATE_FAB_PERMS'))
 
         def init_views(appbuilder):
             from airflow.www import views
+            # Remove the session from scoped_session registry to avoid
+            # reusing a session with a disconnected connection
+            appbuilder.session.remove()
             appbuilder.add_view_no_menu(views.Airflow())
             appbuilder.add_view_no_menu(views.DagModelView())
-            appbuilder.add_view_no_menu(views.ConfigurationView())
-            appbuilder.add_view_no_menu(views.VersionView())
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
                                 category="Browse",
@@ -128,8 +131,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.TaskInstanceModelView,
                                 "Task Instances",
                                 category="Browse")
-            appbuilder.add_link("Configurations",
-                                href='/configuration',
+            appbuilder.add_view(views.ConfigurationView,
+                                "Configurations",
                                 category="Admin",
                                 category_icon="fa-user")
             appbuilder.add_view(views.ConnectionModelView,
@@ -144,15 +147,25 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view(views.XComModelView,
                                 "XComs",
                                 category="Admin")
+
+            if "dev" in version.version:
+                airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
+            else:
+                airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
+
+            appbuilder.add_link("Website",
+                                href='https://airflow.apache.org',
+                                category="Docs",
+                                category_icon="fa-globe")
             appbuilder.add_link("Documentation",
-                                href='https://airflow.apache.org/',
+                                href=airflow_doc_site,
                                 category="Docs",
                                 category_icon="fa-cube")
             appbuilder.add_link("GitHub",
                                 href='https://github.com/apache/airflow',
                                 category="Docs")
-            appbuilder.add_link('Version',
-                                href='/version',
+            appbuilder.add_view(views.VersionView,
+                                'Version',
                                 category='About',
                                 category_icon='fa-th')
 
@@ -190,8 +203,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         init_views(appbuilder)
         init_plugin_blueprints(app)
 
-        security_manager = appbuilder.sm
-        security_manager.sync_roles()
+        if conf.getboolean('webserver', 'UPDATE_FAB_PERMS'):
+            security_manager = appbuilder.sm
+            security_manager.sync_roles()
 
         from airflow.www.api.experimental import endpoints as e
         # required for testing purposes otherwise the module retains
@@ -206,8 +220,13 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         def jinja_globals():  # pylint: disable=unused-variable
 
             globals = {
-                'hostname': socket.getfqdn(),
-                'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
+                'hostname': socket.getfqdn() if conf.getboolean(
+                    'webserver',
+                    'EXPOSE_HOSTNAME',
+                    fallback=True) else 'redact',
+                'navbar_color': conf.get(
+                    'webserver',
+                    'NAVBAR_COLOR'),
             }
 
             if 'analytics_tool' in conf.getsection('webserver'):
@@ -217,6 +236,15 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 })
 
             return globals
+
+        @app.before_request
+        def before_request():
+            _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
+            if _force_log_out_after > 0:
+                flask.session.permanent = True
+                app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
+                flask.session.modified = True
+                flask.g.user = flask_login.current_user
 
         @app.teardown_appcontext
         def shutdown_session(exception=None):  # pylint: disable=unused-variable

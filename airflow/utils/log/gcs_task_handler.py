@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from urllib.parse import urlparse
 
 from cached_property import cached_property
-from urllib.parse import urlparse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -44,9 +44,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+            from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
             return GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=remote_conn_id
             )
@@ -67,7 +67,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def close(self):
         """
-        Close and upload local log file to remote storage S3.
+        Close and upload local log file to remote storage GCS.
         """
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
@@ -96,6 +96,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
+
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
         :param metadata: log metadata,
@@ -123,6 +124,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     def gcs_read(self, remote_log_location):
         """
         Returns the log found at the remote_log_location.
+
         :param remote_log_location: the log's location in remote storage
         :type remote_log_location: str (path)
         """
@@ -133,6 +135,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
+
         :param log: the log to write to the remote_log_location
         :type log: str
         :param remote_log_location: the log's location in remote storage

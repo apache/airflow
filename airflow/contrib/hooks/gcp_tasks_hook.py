@@ -27,5 +27,5 @@ from airflow.gcp.hooks.tasks import CloudTasksHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.tasks`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

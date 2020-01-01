@@ -22,15 +22,17 @@ This module contains a CloudTasksHook
 which allows you to connect to GCP Cloud Tasks service,
 performing actions to queues or tasks.
 """
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from google.cloud.tasks_v2 import CloudTasksClient
-from google.cloud.tasks_v2.types import Queue, Task
+from google.api_core.retry import Retry
+from google.cloud.tasks_v2 import CloudTasksClient, enums
+from google.cloud.tasks_v2.types import FieldMask, Queue, Task
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class CloudTasksHook(GoogleCloudBaseHook):
+class CloudTasksHook(CloudBaseHook):
     """
     Hook for Google Cloud Tasks APIs. Cloud Tasks allows developers to manage
     the execution of background work in their applications.
@@ -64,18 +66,18 @@ class CloudTasksHook(GoogleCloudBaseHook):
             )
         return self._client
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_queue(
         self,
-        location,
-        task_queue,
-        project_id=None,
-        queue_name=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        task_queue: Union[Dict, Queue],
+        project_id: Optional[str] = None,
+        queue_name: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> Queue:
         """
         Creates a queue in Cloud Tasks.
 
@@ -122,19 +124,19 @@ class CloudTasksHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def update_queue(
         self,
-        task_queue,
-        project_id=None,
-        location=None,
-        queue_name=None,
-        update_mask=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        task_queue: Queue,
+        project_id: Optional[str] = None,
+        location: Optional[str] = None,
+        queue_name: Optional[str] = None,
+        update_mask: Optional[FieldMask] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> Queue:
         """
         Updates a queue in Cloud Tasks.
 
@@ -185,17 +187,17 @@ class CloudTasksHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def get_queue(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> Queue:
         """
         Gets a queue from Cloud Tasks.
 
@@ -225,18 +227,18 @@ class CloudTasksHook(GoogleCloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def list_queues(
         self,
-        location,
-        project_id=None,
-        results_filter=None,
-        page_size=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        project_id: Optional[str] = None,
+        results_filter: Optional[str] = None,
+        page_size: Optional[int] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> List[Queue]:
         """
         Lists queues from Cloud Tasks.
 
@@ -275,17 +277,17 @@ class CloudTasksHook(GoogleCloudBaseHook):
         )
         return list(queues)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_queue(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> None:
         """
         Deletes a queue from Cloud Tasks, even if it has tasks in it.
 
@@ -314,17 +316,17 @@ class CloudTasksHook(GoogleCloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def purge_queue(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> List[Queue]:
         """
         Purges a queue by deleting all of its tasks from Cloud Tasks.
 
@@ -354,17 +356,17 @@ class CloudTasksHook(GoogleCloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def pause_queue(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> List[Queue]:
         """
         Pauses a queue in Cloud Tasks.
 
@@ -394,17 +396,17 @@ class CloudTasksHook(GoogleCloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def resume_queue(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> List[Queue]:
         """
         Resumes a queue in Cloud Tasks.
 
@@ -434,20 +436,20 @@ class CloudTasksHook(GoogleCloudBaseHook):
             name=full_queue_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_task(
         self,
-        location,
-        queue_name,
-        task,
-        project_id=None,
-        task_name=None,
-        response_view=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        task: Union[Dict, Task],
+        project_id: Optional[str] = None,
+        task_name: Optional[str] = None,
+        response_view: Optional[enums.Task.View] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> Task:
         """
         Creates a task in Cloud Tasks.
 
@@ -466,7 +468,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         :type task_name: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.types.Task.View
+        :type response_view: google.cloud.tasks_v2.enums.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -501,19 +503,19 @@ class CloudTasksHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def get_task(
         self,
-        location,
-        queue_name,
-        task_name,
-        project_id=None,
-        response_view=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        task_name: str,
+        project_id: Optional[str] = None,
+        response_view: Optional[enums.Task.View] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> Task:
         """
         Gets a task from Cloud Tasks.
 
@@ -528,7 +530,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.types.Task.View
+        :type response_view: google.cloud.tasks_v2.enums.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -552,19 +554,19 @@ class CloudTasksHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def list_tasks(
         self,
-        location,
-        queue_name,
-        project_id=None,
-        response_view=None,
-        page_size=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        project_id: Optional[str] = None,
+        response_view: Optional[enums.Task.View] = None,
+        page_size: Optional[int] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> List[Task]:
         """
         Lists the tasks in Cloud Tasks.
 
@@ -577,7 +579,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.types.Task.View
+        :type response_view: google.cloud.tasks_v2.enums.Task.View
         :param page_size: (Optional) The maximum number of resources contained in the
             underlying API response.
         :type page_size: int
@@ -605,18 +607,18 @@ class CloudTasksHook(GoogleCloudBaseHook):
         )
         return list(tasks)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_task(
         self,
-        location,
-        queue_name,
-        task_name,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        task_name: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> None:
         """
         Deletes a task from Cloud Tasks.
 
@@ -647,19 +649,19 @@ class CloudTasksHook(GoogleCloudBaseHook):
             name=full_task_name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def run_task(
         self,
-        location,
-        queue_name,
-        task_name,
-        project_id=None,
-        response_view=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-    ):
+        location: str,
+        queue_name: str,
+        task_name: str,
+        project_id: Optional[str] = None,
+        response_view: Optional[enums.Task.View] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None
+    ) -> Task:
         """
         Forces to run a task in Cloud Tasks.
 
@@ -674,7 +676,7 @@ class CloudTasksHook(GoogleCloudBaseHook):
         :type project_id: str
         :param response_view: (Optional) This field specifies which subset of the Task will
             be returned.
-        :type response_view: google.cloud.tasks_v2.types.Task.View
+        :type response_view: google.cloud.tasks_v2.enums.Task.View
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry

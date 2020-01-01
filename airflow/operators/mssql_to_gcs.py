@@ -22,9 +22,9 @@ MsSQL to GCS operator.
 
 import decimal
 
-from airflow.utils.decorators import apply_defaults
 from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class MsSqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):

@@ -28,20 +28,15 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 from google.api_core.retry import Retry
 from google.cloud.dlp_v2 import DlpServiceClient
-from google.cloud.dlp_v2.types import (ByteContentItem, ContentItem,
-                                       DeidentifyConfig,
-                                       DeidentifyContentResponse,
-                                       DeidentifyTemplate, DlpJob, FieldMask,
-                                       InspectConfig, InspectContentResponse,
-                                       InspectJobConfig, InspectTemplate,
-                                       JobTrigger, ListInfoTypesResponse,
-                                       RedactImageRequest, RedactImageResponse,
-                                       ReidentifyContentResponse,
-                                       RiskAnalysisJobConfig, StoredInfoType,
-                                       StoredInfoTypeConfig)
+from google.cloud.dlp_v2.types import (
+    ByteContentItem, ContentItem, DeidentifyConfig, DeidentifyContentResponse, DeidentifyTemplate, DlpJob,
+    FieldMask, InspectConfig, InspectContentResponse, InspectJobConfig, InspectTemplate, JobTrigger,
+    ListInfoTypesResponse, RedactImageRequest, RedactImageResponse, ReidentifyContentResponse,
+    RiskAnalysisJobConfig, StoredInfoType, StoredInfoTypeConfig,
+)
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
 # Time to sleep between active checks of the operation results
@@ -49,7 +44,7 @@ TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 # pylint: disable=R0904, C0302
-class CloudDLPHook(GoogleCloudBaseHook):
+class CloudDLPHook(CloudBaseHook):
     """
     Hook for Google Cloud Data Loss Prevention (DLP) APIs.
     Cloud DLP allows clients to detect the presence of Personally Identifiable
@@ -81,8 +76,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
             self._client = DlpServiceClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def cancel_dlp_job(
         self,
         dlp_job_id: str,
@@ -119,7 +114,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
         name = DlpServiceClient.dlp_job_path(project_id, dlp_job_id)
         client.cancel_dlp_job(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def create_deidentify_template(
         self,
         organization_id: Optional[str] = None,
@@ -177,8 +172,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_dlp_job(
         self,
         project_id: Optional[str] = None,
@@ -260,7 +255,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
                 )
         return job
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def create_inspect_template(
         self,
         organization_id: Optional[str] = None,
@@ -319,8 +314,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_job_trigger(
         self,
         project_id: Optional[str] = None,
@@ -366,7 +361,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def create_stored_info_type(
         self,
         organization_id: Optional[str] = None,
@@ -424,8 +419,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def deidentify_content(
         self,
         project_id: Optional[str] = None,
@@ -489,7 +484,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def delete_deidentify_template(
         self, template_id, organization_id=None, project_id=None, retry=None, timeout=None, metadata=None
     ) -> None:
@@ -533,8 +528,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
 
         client.delete_deidentify_template(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_dlp_job(
         self,
         dlp_job_id: str,
@@ -572,7 +567,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
         name = DlpServiceClient.dlp_job_path(project_id, dlp_job_id)
         client.delete_dlp_job(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def delete_inspect_template(
         self,
         template_id: str,
@@ -622,8 +617,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
 
         client.delete_inspect_template(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_job_trigger(
         self,
         job_trigger_id: str,
@@ -660,7 +655,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
         name = DlpServiceClient.project_job_trigger_path(project_id, job_trigger_id)
         client.delete_job_trigger(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def delete_stored_info_type(
         self,
         stored_info_type_id: str,
@@ -710,7 +705,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
 
         client.delete_stored_info_type(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def get_deidentify_template(
         self,
         template_id: str,
@@ -761,8 +756,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
 
         return client.get_deidentify_template(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def get_dlp_job(
         self,
         dlp_job_id: str,
@@ -800,7 +795,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
         name = DlpServiceClient.dlp_job_path(project_id, dlp_job_id)
         return client.get_dlp_job(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def get_inspect_template(
         self,
         template_id: str,
@@ -851,8 +846,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
 
         return client.get_inspect_template(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def get_job_trigger(
         self,
         job_trigger_id: str,
@@ -890,7 +885,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
         name = DlpServiceClient.project_job_trigger_path(project_id, job_trigger_id)
         return client.get_job_trigger(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def get_stored_info_type(
         self,
         stored_info_type_id: str,
@@ -941,8 +936,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
 
         return client.get_stored_info_type(name=name, retry=retry, timeout=timeout, metadata=metadata)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def inspect_content(
         self,
         project_id: Optional[str] = None,
@@ -994,7 +989,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def list_deidentify_templates(
         self,
         organization_id: Optional[str] = None,
@@ -1056,8 +1051,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
 
         return list(results)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def list_dlp_jobs(
         self,
         project_id: Optional[str] = None,
@@ -1113,7 +1108,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
         )
         return list(results)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def list_info_types(
         self,
         language_code: Optional[str] = None,
@@ -1153,7 +1148,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def list_inspect_templates(
         self,
         organization_id: Optional[str] = None,
@@ -1214,8 +1209,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
         )
         return list(results)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def list_job_triggers(
         self,
         project_id: Optional[str] = None,
@@ -1267,7 +1262,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
         )
         return list(results)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def list_stored_info_types(
         self,
         organization_id: Optional[str] = None,
@@ -1328,8 +1323,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
         )
         return list(results)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def redact_image(
         self,
         project_id: Optional[str] = None,
@@ -1389,8 +1384,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def reidentify_content(
         self,
         project_id: Optional[str] = None,
@@ -1451,7 +1446,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def update_deidentify_template(
         self,
         template_id: str,
@@ -1515,7 +1510,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def update_inspect_template(
         self,
         template_id: str,
@@ -1578,8 +1573,8 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def update_job_trigger(
         self,
         job_trigger_id: str,
@@ -1630,7 +1625,7 @@ class CloudDLPHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def update_stored_info_type(
         self,
         stored_info_type_id: str,

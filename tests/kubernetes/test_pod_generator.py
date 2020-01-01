@@ -17,12 +17,14 @@
 
 import unittest
 import unittest.mock as mock
+
 import kubernetes.client.models as k8s
 from kubernetes.client import ApiClient
-from airflow.kubernetes.secret import Secret
-from airflow.kubernetes.pod_generator import PodGenerator, PodDefaults
-from airflow.kubernetes.pod import Resources
+
 from airflow.kubernetes.k8s_model import append_to_pod
+from airflow.kubernetes.pod import Resources
+from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
+from airflow.kubernetes.secret import Secret
 
 
 class TestPodGenerator(unittest.TestCase):
@@ -178,14 +180,15 @@ class TestPodGenerator(unittest.TestCase):
         result_dict = self.k8s_client.sanitize_for_serialization(result)
         container_two = {
             'name': 'airflow-xcom-sidecar',
-            'image': 'python:3.5-alpine',
-            'command': ['python', '-c', PodDefaults.XCOM_CMD],
+            'image': "alpine",
+            'command': ['sh', '-c', PodDefaults.XCOM_CMD],
             'volumeMounts': [
                 {
                     'name': 'xcom',
                     'mountPath': '/airflow/xcom'
                 }
-            ]
+            ],
+            'resources': {'requests': {'cpu': '1m'}},
         }
         self.expected['spec']['containers'].append(container_two)
         self.expected['spec']['containers'][0]['volumeMounts'].insert(0, {

@@ -56,7 +56,7 @@ template to it, which will fail.
     t2 = BashOperator(
         task_id='bash_example',
 
-        # This fails with `Jinja template not found` error
+        # This fails with 'Jinja template not found' error
         # bash_command="/home/batcher/test.sh",
 
         # This works (has a space after)

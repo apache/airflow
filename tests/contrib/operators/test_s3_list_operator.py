@@ -19,8 +19,9 @@
 
 import unittest
 
+import mock
+
 from airflow.contrib.operators.s3_list_operator import S3ListOperator
-from tests.compat import mock
 
 TASK_ID = 'test-s3-list-operator'
 BUCKET = 'test-bucket'

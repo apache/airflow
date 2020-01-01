@@ -16,20 +16,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from sqlalchemy.orm.session import Session
+"""
+The module which provides a way to nest your DAGs and so your levels of complexity.
+"""
+from enum import Enum
 from typing import Optional
 
-from airflow import settings
-from airflow.exceptions import AirflowException
-from airflow.models.dag import DAG
-from airflow.models.dagrun import DagRun
+from sqlalchemy.orm.session import Session
+
+from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.exceptions import AirflowException, TaskInstanceNotFound
+from airflow.models import DagRun
+from airflow.models.dag import DAG, DagContext
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.db import create_session, provide_session
+from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import State
+
+
+class SkippedStatePropagationOptions(Enum):
+    """
+    Available options for skipped state propagation of subdag's tasks to parent dag tasks.
+    """
+    ALL_LEAVES = 'all_leaves'
+    ANY_LEAF = 'any_leaf'
 
 
 class SubDagOperator(BaseSensorOperator):
@@ -43,6 +55,8 @@ class SubDagOperator(BaseSensorOperator):
 
     :param subdag: the DAG object to run as a subdag of the current DAG.
     :param session: sqlalchemy session
+    :param propagate_skipped_state: by setting this argument you can define
+        whether the skipped state of leaf task(s) should be propagated to the parent dag's downstream task.
     """
 
     ui_color = '#555'
@@ -50,40 +64,42 @@ class SubDagOperator(BaseSensorOperator):
 
     @provide_session
     @apply_defaults
-    def __init__(
-            self,
-            subdag: DAG,
-            session: Optional[Session] = None,
-            *args, **kwargs) -> None:
+    def __init__(self,
+                 subdag: DAG,
+                 session: Optional[Session] = None,
+                 propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.subdag = subdag
-        dag = kwargs.get('dag') or settings.CONTEXT_MANAGER_DAG
+        self.propagate_skipped_state = propagate_skipped_state
+
+        self._validate_dag(kwargs)
+        self._validate_pool(session)
+
+    def _validate_dag(self, kwargs):
+        dag = kwargs.get('dag') or DagContext.get_current_dag()
+
         if not dag:
-            raise AirflowException('Please pass in the `dag` param or call '
-                                   'within a DAG context manager')
+            raise AirflowException('Please pass in the `dag` param or call within a DAG context manager')
 
-        # validate subdag name
-        if dag.dag_id + '.' + kwargs['task_id'] != subdag.dag_id:
+        if dag.dag_id + '.' + kwargs['task_id'] != self.subdag.dag_id:
             raise AirflowException(
-                "The subdag's dag_id should have the form "
-                "'{{parent_dag_id}}.{{this_task_id}}'. Expected "
-                "'{d}.{t}'; received '{rcvd}'.".format(
-                    d=dag.dag_id, t=kwargs['task_id'], rcvd=subdag.dag_id))
+                "The subdag's dag_id should have the form '{{parent_dag_id}}.{{this_task_id}}'. "
+                "Expected '{d}.{t}'; received '{rcvd}'.".format(
+                    d=dag.dag_id, t=kwargs['task_id'], rcvd=self.subdag.dag_id)
+            )
 
-        # validate that subdag operator and subdag tasks don't have a
-        # pool conflict
+    def _validate_pool(self, session):
         if self.pool:
-            conflicts = [t for t in subdag.tasks if t.pool == self.pool]
+            conflicts = [t for t in self.subdag.tasks if t.pool == self.pool]
             if conflicts:
                 # only query for pool conflicts if one may exist
-                pool = (
-                    session  # type: ignore
-                    .query(Pool)
-                    .filter(Pool.slots == 1)
-                    .filter(Pool.pool == self.pool)
-                    .first()
-                )
-                if pool and any(t.pool == self.pool for t in subdag.tasks):
+                pool = (session
+                        .query(Pool)
+                        .filter(Pool.slots == 1)
+                        .filter(Pool.pool == self.pool)
+                        .first())
+                if pool and any(t.pool == self.pool for t in self.subdag.tasks):
                     raise AirflowException(
                         'SubDagOperator {sd} and subdag task{plural} {t} both '
                         'use pool {p}, but the pool only has 1 slot. The '
@@ -114,13 +130,11 @@ class SubDagOperator(BaseSensorOperator):
         with create_session() as session:
             dag_run.state = State.RUNNING
             session.merge(dag_run)
-            failed_task_instances = (
-                session
-                .query(TaskInstance)
-                .filter(TaskInstance.dag_id == self.subdag.dag_id)
-                .filter(TaskInstance.execution_date == execution_date)
-                .filter(TaskInstance.state.in_([State.FAILED, State.UPSTREAM_FAILED]))
-            )
+            failed_task_instances = (session
+                                     .query(TaskInstance)
+                                     .filter(TaskInstance.dag_id == self.subdag.dag_id)
+                                     .filter(TaskInstance.execution_date == execution_date)
+                                     .filter(TaskInstance.state.in_([State.FAILED, State.UPSTREAM_FAILED])))
 
             for task_instance in failed_task_instances:
                 task_instance.state = State.NONE
@@ -130,6 +144,7 @@ class SubDagOperator(BaseSensorOperator):
     def pre_execute(self, context):
         execution_date = context['execution_date']
         dag_run = self._get_dagrun(execution_date)
+
         if dag_run is None:
             dag_run = self.subdag.create_dagrun(
                 run_id="scheduled__{}".format(execution_date.isoformat()),
@@ -137,7 +152,6 @@ class SubDagOperator(BaseSensorOperator):
                 state=State.RUNNING,
                 external_trigger=True,
             )
-
             self.log.info("Created DagRun: %s", dag_run.run_id)
         else:
             self.log.info("Found existing DagRun: %s", dag_run.run_id)
@@ -156,4 +170,44 @@ class SubDagOperator(BaseSensorOperator):
 
         if dag_run.state != State.SUCCESS:
             raise AirflowException(
-                "Expected state: SUCCESS. Actual state: {}".format(dag_run.state))
+                "Expected state: SUCCESS. Actual state: {}".format(dag_run.state)
+            )
+
+        if self.propagate_skipped_state and self._check_skipped_states(context):
+            self._skip_downstream_tasks(context)
+
+    def _check_skipped_states(self, context):
+        leaves_tis = self._get_leaves_tis(context['execution_date'])
+
+        if self.propagate_skipped_state == SkippedStatePropagationOptions.ANY_LEAF:
+            return any(ti.state == State.SKIPPED for ti in leaves_tis)
+        if self.propagate_skipped_state == SkippedStatePropagationOptions.ALL_LEAVES:
+            return all(ti.state == State.SKIPPED for ti in leaves_tis)
+        raise AirflowException(
+            'Unimplemented SkippedStatePropagationOptions {} used.'.format(self.propagate_skipped_state))
+
+    def _get_leaves_tis(self, execution_date):
+        leaves_tis = []
+        for leaf in self.subdag.leaves:
+            try:
+                ti = get_task_instance(
+                    dag_id=self.subdag.dag_id,
+                    task_id=leaf.task_id,
+                    execution_date=execution_date
+                )
+                leaves_tis.append(ti)
+            except TaskInstanceNotFound:
+                continue
+        return leaves_tis
+
+    def _skip_downstream_tasks(self, context):
+        self.log.info('Skipping downstream tasks because propagate_skipped_state is set to %s '
+                      'and skipped task(s) were found.', self.propagate_skipped_state)
+
+        downstream_tasks = context['task'].downstream_list
+        self.log.debug('Downstream task_ids %s', downstream_tasks)
+
+        if downstream_tasks:
+            self.skip(context['dag_run'], context['execution_date'], downstream_tasks)
+
+        self.log.info('Done.')

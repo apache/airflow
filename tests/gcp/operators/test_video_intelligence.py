@@ -19,14 +19,14 @@
 
 import unittest
 
+import mock
 from google.cloud.videointelligence_v1 import enums
 from google.cloud.videointelligence_v1.proto.video_intelligence_pb2 import AnnotateVideoResponse
+
 from airflow.gcp.operators.video_intelligence import (
-    CloudVideoIntelligenceDetectVideoLabelsOperator,
+    CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
-    CloudVideoIntelligenceDetectVideoExplicitContentOperator,
 )
-from tests.compat import mock
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"

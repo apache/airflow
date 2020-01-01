@@ -25,5 +25,5 @@ from airflow.gcp.hooks.mlengine import MLEngineHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.mlengine`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

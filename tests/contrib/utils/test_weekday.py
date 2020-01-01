@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from enum import Enum
 
 from airflow.contrib.utils.weekday import WeekDay

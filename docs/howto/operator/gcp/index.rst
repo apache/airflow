@@ -26,3 +26,7 @@ Google Cloud Operators
     :glob:
 
     *
+
+.. note::
+    You can learn how to use GCP integrations by analyzing the
+    `source code <https://github.com/apache/airflow/tree/master/airflow/gcp/example_dags/>`_ of the particular example DAGs.

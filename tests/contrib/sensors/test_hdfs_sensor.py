@@ -17,18 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 import logging
-import unittest
-
 import re
+import unittest
 from datetime import timedelta
 
 from airflow.contrib.sensors.hdfs_sensor import HdfsSensorFolder, HdfsSensorRegex
 from airflow.exceptions import AirflowSensorTimeout
+from tests.test_utils.hdfs_utils import FakeHDFSHook
 
 
 class TestHdfsSensorFolder(unittest.TestCase):
     def setUp(self):
-        from tests.core import FakeHDFSHook
         self.hook = FakeHDFSHook
         self.log = logging.getLogger()
         self.log.setLevel(logging.DEBUG)
@@ -124,7 +123,6 @@ class TestHdfsSensorFolder(unittest.TestCase):
 
 class TestHdfsSensorRegex(unittest.TestCase):
     def setUp(self):
-        from tests.core import FakeHDFSHook
         self.hook = FakeHDFSHook
         self.log = logging.getLogger()
         self.log.setLevel(logging.DEBUG)

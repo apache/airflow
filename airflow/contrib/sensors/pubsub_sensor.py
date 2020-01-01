@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.sensors.pubsub`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.sensors.pubsub`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.sensors.pubsub import PubSubPullSensor  # noqa
+from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.sensors.pubsub`.",
-    DeprecationWarning,
+    "This module is deprecated. Please use `airflow.providers.google.cloud.sensors.pubsub`.",
+    DeprecationWarning, stacklevel=2
 )

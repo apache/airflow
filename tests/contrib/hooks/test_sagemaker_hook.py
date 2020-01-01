@@ -18,18 +18,19 @@
 # under the License.
 #
 
-import unittest
 import time
+import unittest
 from datetime import datetime
+
+import mock
 from tzlocal import get_localzone
 
-from airflow.contrib.hooks.sagemaker_hook import (SageMakerHook, secondary_training_status_changed,
-                                                  secondary_training_status_message, LogState)
 from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
-from airflow.hooks.S3_hook import S3Hook
+from airflow.contrib.hooks.sagemaker_hook import (
+    LogState, SageMakerHook, secondary_training_status_changed, secondary_training_status_message,
+)
 from airflow.exceptions import AirflowException
-from tests.compat import mock
-
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 role = 'arn:aws:iam:role/test-role'
 
@@ -294,6 +295,11 @@ class TestSageMakerHook(unittest.TestCase):
         hook = SageMakerHook()
         hook.check_training_config(create_training_params)
         mock_check_url.assert_called_once_with(data_url)
+
+        # InputDataConfig is optional, verify if check succeeds without InputDataConfig
+        create_training_params_no_inputdataconfig = create_training_params.copy()
+        create_training_params_no_inputdataconfig.pop("InputDataConfig")
+        hook.check_training_config(create_training_params_no_inputdataconfig)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'check_s3_url')

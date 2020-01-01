@@ -23,41 +23,68 @@ This module contains a Google Cloud KMS hook.
 
 
 import base64
-from googleapiclient.discovery import build
+from typing import Optional, Sequence, Tuple
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from google.api_core.retry import Retry
+from google.cloud.kms_v1 import KeyManagementServiceClient
+
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-def _b64encode(s):
+def _b64encode(s: bytes) -> str:
     """ Base 64 encodes a bytes object to a string """
-    return base64.b64encode(s).decode('ascii')
+    return base64.b64encode(s).decode("ascii")
 
 
-def _b64decode(s):
+def _b64decode(s: str) -> bytes:
     """ Base 64 decodes a string to bytes. """
-    return base64.b64decode(s.encode('utf-8'))
+    return base64.b64decode(s.encode("utf-8"))
 
 
-class GoogleCloudKMSHook(GoogleCloudBaseHook):
+# noinspection PyAbstractClass
+class CloudKMSHook(CloudBaseHook):
     """
-    Interact with Google Cloud KMS. This hook uses the Google Cloud Platform
-    connection.
+    Hook for Google Cloud Key Management service.
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id: str = 'google_cloud_default', delegate_to: str = None) -> None:
-        super().__init__(gcp_conn_id, delegate_to=delegate_to)
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None
+    ) -> None:
+        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        self._conn = None  # type: Optional[KeyManagementServiceClient]
 
-    def get_conn(self):
+    def get_conn(self) -> KeyManagementServiceClient:
         """
-        Returns a KMS service object.
+        Retrieves connection to Cloud Key Management service.
 
-        :rtype: googleapiclient.discovery.Resource
+        :return: Cloud Key Management service object
+        :rtype: google.cloud.kms_v1.KeyManagementServiceClient
         """
-        http_authorized = self._authorize()
-        return build(
-            'cloudkms', 'v1', http=http_authorized, cache_discovery=False)
+        if not self._conn:
+            self._conn = KeyManagementServiceClient(
+                credentials=self._get_credentials(),
+                client_info=self.client_info
+            )
+        return self._conn
 
-    def encrypt(self, key_name: str, plaintext: bytes, authenticated_data: bytes = None) -> str:
+    def encrypt(
+        self,
+        key_name: str,
+        plaintext: bytes,
+        authenticated_data: Optional[bytes] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ) -> str:
         """
         Encrypts a plaintext message using Google Cloud KMS.
 
@@ -70,21 +97,38 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
         :param authenticated_data: Optional additional authenticated data that
                                    must also be provided to decrypt the message.
         :type authenticated_data: bytes
+        :param retry: A retry object used to retry requests. If None is specified, requests will not be
+            retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            retry is specified, the timeout applies to each individual attempt.
+        :type timeout: float
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: sequence[tuple[str, str]]]
         :return: The base 64 encoded ciphertext of the original message.
         :rtype: str
         """
-        keys = self.get_conn().projects().locations().keyRings().cryptoKeys()  # pylint: disable=no-member
-        body = {'plaintext': _b64encode(plaintext)}
-        if authenticated_data:
-            body['additionalAuthenticatedData'] = _b64encode(authenticated_data)
+        response = self.get_conn().encrypt(
+            name=key_name,
+            plaintext=plaintext,
+            additional_authenticated_data=authenticated_data,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
-        request = keys.encrypt(name=key_name, body=body)
-        response = request.execute(num_retries=self.num_retries)
-
-        ciphertext = response['ciphertext']
+        ciphertext = _b64encode(response.ciphertext)
         return ciphertext
 
-    def decrypt(self, key_name: str, ciphertext: str, authenticated_data: bytes = None) -> bytes:
+    def decrypt(
+        self,
+        key_name: str,
+        ciphertext: str,
+        authenticated_data: Optional[bytes] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+    ) -> bytes:
         """
         Decrypts a ciphertext message using Google Cloud KMS.
 
@@ -96,16 +140,25 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
         :param authenticated_data: Any additional authenticated data that was
                                    provided when encrypting the message.
         :type authenticated_data: bytes
+        :param retry: A retry object used to retry requests. If None is specified, requests will not be
+            retried.
+        :type retry: google.api_core.retry.Retry
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            retry is specified, the timeout applies to each individual attempt.
+        :type timeout: float
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: sequence[tuple[str, str]]]
         :return: The original message.
         :rtype: bytes
         """
-        keys = self.get_conn().projects().locations().keyRings().cryptoKeys()  # pylint: disable=no-member
-        body = {'ciphertext': ciphertext}
-        if authenticated_data:
-            body['additionalAuthenticatedData'] = _b64encode(authenticated_data)
+        response = self.get_conn().decrypt(
+            name=key_name,
+            ciphertext=_b64decode(ciphertext),
+            additional_authenticated_data=authenticated_data,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
-        request = keys.decrypt(name=key_name, body=body)
-        response = request.execute(num_retries=self.num_retries)
-
-        plaintext = _b64decode(response['plaintext'])
+        plaintext = response.plaintext
         return plaintext

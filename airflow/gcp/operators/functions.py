@@ -21,17 +21,16 @@ This module contains Google Cloud Functions operators.
 """
 
 import re
-from typing import Optional, Dict
+from typing import Any, Dict, List, Optional
 
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.contrib.utils.gcp_field_validator import GcpBodyFieldValidator, \
-    GcpFieldValidationException
-from airflow.version import version
+from airflow.gcp.hooks.functions import CloudFunctionsHook
+from airflow.gcp.utils.field_validator import GcpBodyFieldValidator, GcpFieldValidationException
 from airflow.models import BaseOperator
-from airflow.gcp.hooks.functions import GcfHook
 from airflow.utils.decorators import apply_defaults
+from airflow.version import version
 
 
 def _validate_available_memory_in_mb(value):
@@ -80,17 +79,17 @@ CLOUD_FUNCTION_VALIDATION = [
             ])
         ])
     ]),
-]
+]  # type: List[Dict[str, Any]]
 
 
-class GcfFunctionDeployOperator(BaseOperator):
+class CloudFunctionDeployFunctionOperator(BaseOperator):
     """
     Creates a function in Google Cloud Functions.
     If a function with this name already exists, it will be updated.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcfFunctionDeployOperator`
+        :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
 
     :param location: Google Cloud Platform region where the function should be created.
     :type location: str
@@ -123,14 +122,14 @@ class GcfFunctionDeployOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 location,
-                 body,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
-                 zip_path=None,
-                 validate_body=True,
-                 *args, **kwargs):
+                 location: str,
+                 body: Dict,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
+                 zip_path: Optional[str] = None,
+                 validate_body: bool = True,
+                 *args, **kwargs) -> None:
         self.project_id = project_id
         self.location = location
         self.body = body
@@ -138,7 +137,7 @@ class GcfFunctionDeployOperator(BaseOperator):
         self.api_version = api_version
         self.zip_path = zip_path
         self.zip_path_preprocessor = ZipPathPreprocessor(body, zip_path)
-        self._field_validator = None
+        self._field_validator = None  # type: Optional[GcpBodyFieldValidator]
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION,
                                                           api_version=api_version)
@@ -191,7 +190,7 @@ class GcfFunctionDeployOperator(BaseOperator):
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
 
     def execute(self, context):
-        hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = CloudFunctionsHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         if self.zip_path_preprocessor.should_upload_function():
             self.body[GCF_SOURCE_UPLOAD_URL] = self._upload_source_code(hook)
         self._validate_all_body_fields()
@@ -223,13 +222,16 @@ class ZipPathPreprocessor:
 
     :param body: Body passed to the create/update method calls.
     :type body: dict
-    :param zip_path: path to the zip file containing source code.
-    :type body: dict
+    :param zip_path: (optional) Path to zip file containing source code of the function. If the path
+        is set, the sourceUploadUrl should not be specified in the body or it should
+        be empty. Then the zip file will be uploaded using the upload URL generated
+        via generateUploadUrl from the Cloud Functions API.
+    :type zip_path: str
 
     """
     upload_function = None  # type: Optional[bool]
 
-    def __init__(self, body, zip_path):
+    def __init__(self, body: dict, zip_path: Optional[str] = None) -> None:
         self.body = body
         self.zip_path = zip_path
 
@@ -290,13 +292,13 @@ FUNCTION_NAME_PATTERN = '^projects/[^/]+/locations/[^/]+/functions/[^/]+$'
 FUNCTION_NAME_COMPILED_PATTERN = re.compile(FUNCTION_NAME_PATTERN)
 
 
-class GcfFunctionDeleteOperator(BaseOperator):
+class CloudFunctionDeleteFunctionOperator(BaseOperator):
     """
     Deletes the specified function from Google Cloud Functions.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcfFunctionDeleteOperator`
+        :ref:`howto/operator:CloudFunctionDeleteFunctionOperator`
 
     :param name: A fully-qualified function name, matching
         the pattern: `^projects/[^/]+/locations/[^/]+/functions/[^/]+$`
@@ -312,10 +314,10 @@ class GcfFunctionDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 name,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
-                 *args, **kwargs):
+                 name: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
+                 *args, **kwargs) -> None:
         self.name = name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -332,7 +334,7 @@ class GcfFunctionDeleteOperator(BaseOperator):
                     'Parameter name must match pattern: {}'.format(FUNCTION_NAME_PATTERN))
 
     def execute(self, context):
-        hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
+        hook = CloudFunctionsHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         try:
             return hook.delete_function(self.name)
         except HttpError as e:
@@ -344,14 +346,14 @@ class GcfFunctionDeleteOperator(BaseOperator):
                 raise e
 
 
-class GcfFunctionInvokeOperator(BaseOperator):
+class CloudFunctionInvokeFunctionOperator(BaseOperator):
     """
     Invokes a deployed Cloud Function. To be used for testing
     purposes as very limited traffic is allowed.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcfFunctionDeployOperator`
+        :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
 
     :param function_id: ID of the function to be called
     :type function_id: str
@@ -387,7 +389,7 @@ class GcfFunctionInvokeOperator(BaseOperator):
         self.api_version = api_version
 
     def execute(self, context: Dict):
-        hook = GcfHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudFunctionsHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         self.log.info('Calling function %s.', self.function_id)
         result = hook.call_function(
             function_id=self.function_id,

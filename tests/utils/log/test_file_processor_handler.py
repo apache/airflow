@@ -17,14 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import shutil
 import os
+import shutil
 import unittest
+from datetime import timedelta
+
 from freezegun import freeze_time
 
-from airflow.utils.log.file_processor_handler import FileProcessorHandler
 from airflow.utils import timezone
-from datetime import timedelta
+from airflow.utils.log.file_processor_handler import FileProcessorHandler
 
 
 class TestFileProcessorHandler(unittest.TestCase):
@@ -69,13 +70,13 @@ class TestFileProcessorHandler(unittest.TestCase):
         date1 = (timezone.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
         date2 = (timezone.utcnow() + timedelta(days=2)).strftime("%Y-%m-%d")
 
-        p1 = os.path.join(self.base_log_folder, date1, "log1")
-        p2 = os.path.join(self.base_log_folder, date1, "log2")
+        path1 = os.path.join(self.base_log_folder, date1, "log1")
+        path2 = os.path.join(self.base_log_folder, date1, "log2")
 
-        if os.path.exists(p1):
-            os.remove(p1)
-        if os.path.exists(p2):
-            os.remove(p2)
+        if os.path.exists(path1):
+            os.remove(path1)
+        if os.path.exists(path2):
+            os.remove(path2)
 
         link = os.path.join(self.base_log_folder, "latest")
 
@@ -98,9 +99,9 @@ class TestFileProcessorHandler(unittest.TestCase):
 
         date1 = (timezone.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
 
-        p1 = os.path.join(self.base_log_folder, date1, "log1")
-        if os.path.exists(p1):
-            os.remove(p1)
+        path1 = os.path.join(self.base_log_folder, date1, "log1")
+        if os.path.exists(path1):
+            os.remove(path1)
 
         link = os.path.join(self.base_log_folder, "latest")
         if os.path.exists(link):

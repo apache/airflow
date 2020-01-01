@@ -25,5 +25,5 @@ from airflow.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperat
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.postgres_to_gcs`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

@@ -18,14 +18,13 @@
 # under the License.
 #
 
+import datetime
 import unittest
 
-import datetime
+import mock
 
 from airflow import DAG
-from airflow.contrib.sensors.wasb_sensor import WasbBlobSensor
-from airflow.contrib.sensors.wasb_sensor import WasbPrefixSensor
-from tests.compat import mock
+from airflow.contrib.sensors.wasb_sensor import WasbBlobSensor, WasbPrefixSensor
 
 
 class TestWasbBlobSensor(unittest.TestCase):

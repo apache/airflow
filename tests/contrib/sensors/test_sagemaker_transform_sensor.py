@@ -19,11 +19,11 @@
 
 import unittest
 
-from airflow.contrib.sensors.sagemaker_transform_sensor \
-    import SageMakerTransformSensor
+import mock
+
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.contrib.sensors.sagemaker_transform_sensor import SageMakerTransformSensor
 from airflow.exceptions import AirflowException
-from tests.compat import mock
 
 DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE = {
     'TransformJobStatus': 'InProgress',

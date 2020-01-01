@@ -24,39 +24,22 @@ This module contains various unit tests for GCP DLP Operators
 
 import unittest
 
+import mock
+
 from airflow.gcp.operators.dlp import (
-    CloudDLPCancelDLPJobOperator,
-    CloudDLPCreateDeidentifyTemplateOperator,
-    CloudDLPCreateDLPJobOperator,
-    CloudDLPCreateInspectTemplateOperator,
-    CloudDLPCreateJobTriggerOperator,
-    CloudDLPCreateStoredInfoTypeOperator,
-    CloudDLPDeidentifyContentOperator,
-    CloudDLPDeleteDeidentifyTemplateOperator,
-    CloudDLPDeleteInspectTemplateOperator,
-    CloudDLPDeleteDlpJobOperator,
-    CloudDLPDeleteJobTriggerOperator,
-    CloudDLPDeleteStoredInfoTypeOperator,
-    CloudDLPGetDeidentifyTemplateOperator,
-    CloudDLPGetDlpJobOperator,
-    CloudDLPGetInspectTemplateOperator,
-    CloudDLPGetJobTripperOperator,
-    CloudDLPGetStoredInfoTypeOperator,
-    CloudDLPInspectContentOperator,
-    CloudDLPListDeidentifyTemplatesOperator,
-    CloudDLPListDlpJobsOperator,
-    CloudDLPListInfoTypesOperator,
-    CloudDLPListInspectTemplatesOperator,
-    CloudDLPListJobTriggersOperator,
-    CloudDLPListStoredInfoTypesOperator,
-    CloudDLPRedactImageOperator,
-    CloudDLPReidentifyContentOperator,
-    CloudDLPUpdateDeidentifyTemplateOperator,
-    CloudDLPUpdateInspectTemplateOperator,
-    CloudDLPUpdateJobTriggerOperator,
-    CloudDLPUpdateStoredInfoTypeOperator,
+    CloudDLPCancelDLPJobOperator, CloudDLPCreateDeidentifyTemplateOperator, CloudDLPCreateDLPJobOperator,
+    CloudDLPCreateInspectTemplateOperator, CloudDLPCreateJobTriggerOperator,
+    CloudDLPCreateStoredInfoTypeOperator, CloudDLPDeidentifyContentOperator,
+    CloudDLPDeleteDeidentifyTemplateOperator, CloudDLPDeleteDLPJobOperator,
+    CloudDLPDeleteInspectTemplateOperator, CloudDLPDeleteJobTriggerOperator,
+    CloudDLPDeleteStoredInfoTypeOperator, CloudDLPGetDeidentifyTemplateOperator, CloudDLPGetDLPJobOperator,
+    CloudDLPGetDLPJobTriggerOperator, CloudDLPGetInspectTemplateOperator, CloudDLPGetStoredInfoTypeOperator,
+    CloudDLPInspectContentOperator, CloudDLPListDeidentifyTemplatesOperator, CloudDLPListDLPJobsOperator,
+    CloudDLPListInfoTypesOperator, CloudDLPListInspectTemplatesOperator, CloudDLPListJobTriggersOperator,
+    CloudDLPListStoredInfoTypesOperator, CloudDLPRedactImageOperator, CloudDLPReidentifyContentOperator,
+    CloudDLPUpdateDeidentifyTemplateOperator, CloudDLPUpdateInspectTemplateOperator,
+    CloudDLPUpdateJobTriggerOperator, CloudDLPUpdateStoredInfoTypeOperator,
 )
-from tests.compat import mock
 
 GCP_CONN_ID = "google_cloud_default"
 ORGANIZATION_ID = "test-org"
@@ -224,7 +207,7 @@ class TestCloudDLPDeleteDlpJobOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_delete_dlp_job(self, mock_hook):
         mock_hook.return_value.delete_dlp_job.return_value = {}
-        operator = CloudDLPDeleteDlpJobOperator(
+        operator = CloudDLPDeleteDLPJobOperator(
             dlp_job_id=DLP_JOB_ID, project_id=PROJECT_ID, task_id="id"
         )
         operator.execute(context=None)
@@ -319,7 +302,7 @@ class TestCloudDLPGetDlpJobOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_get_dlp_job(self, mock_hook):
         mock_hook.return_value.get_dlp_job.return_value = {}
-        operator = CloudDLPGetDlpJobOperator(
+        operator = CloudDLPGetDLPJobOperator(
             dlp_job_id=DLP_JOB_ID, project_id=PROJECT_ID, task_id="id"
         )
         operator.execute(context=None)
@@ -356,7 +339,7 @@ class TestCloudDLPGetJobTripperOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_get_job_trigger(self, mock_hook):
         mock_hook.return_value.get_job_trigger.return_value = {}
-        operator = CloudDLPGetJobTripperOperator(
+        operator = CloudDLPGetDLPJobTriggerOperator(
             job_trigger_id=TRIGGER_ID, project_id=PROJECT_ID, task_id="id"
         )
         operator.execute(context=None)
@@ -433,7 +416,7 @@ class TestCloudDLPListDlpJobsOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.dlp.CloudDLPHook")
     def test_list_dlp_jobs(self, mock_hook):
         mock_hook.return_value.list_dlp_jobs.return_value = {}
-        operator = CloudDLPListDlpJobsOperator(project_id=PROJECT_ID, task_id="id")
+        operator = CloudDLPListDLPJobsOperator(project_id=PROJECT_ID, task_id="id")
         operator.execute(context=None)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.list_dlp_jobs.assert_called_once_with(

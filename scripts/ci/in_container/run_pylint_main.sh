@@ -28,6 +28,8 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
+export PYTHONPATH=${AIRFLOW_SOURCES}
+
 if [[ ${#@} == "0" ]]; then
     echo
     echo "Running pylint for all sources except 'tests' folder"
@@ -41,6 +43,7 @@ if [[ ${#@} == "0" ]]; then
     -path "./airflow/www/node_modules" -prune -o \
     -path "./airflow/www_rbac/node_modules" -prune -o \
     -path "./airflow/_vendor" -prune -o \
+    -path "./airflow/migrations/versions" -prune -o \
     -path "./.eggs" -prune -o \
     -path "./docs/_build" -prune -o \
     -path "./build" -prune -o \
@@ -54,7 +57,8 @@ else
     print_in_container_info
     print_in_container_info "Running Pylint with parameters: $*"
     print_in_container_info
-    pylint --output-format=colorized "$@"
+    echo "PATH=${PATH}"
+    /usr/local/bin/pylint --output-format=colorized "$@"
     RES=$?
 fi
 

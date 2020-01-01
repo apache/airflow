@@ -23,19 +23,105 @@ or `airflow.gcp.sensors.bigtable`.
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.bigtable import (  # noqa
-    BigtableClusterUpdateOperator,
-    BigtableInstanceCreateOperator,
-    BigtableInstanceDeleteOperator,
-    BigtableTableCreateOperator,
-    BigtableTableDeleteOperator,
-    BigtableValidationMixin,
+from airflow.gcp.operators.bigtable import (
+    BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
+    BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
 )
-from airflow.gcp.sensors.bigtable import BigtableTableWaitForReplicationSensor  # noqa
+from airflow.gcp.sensors.bigtable import BigtableTableReplicationCompletedSensor
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.bigtable`"
     " or `airflow.gcp.sensors.bigtable`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )
+
+
+class BigtableClusterUpdateOperator(BigtableUpdateClusterOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class BigtableInstanceCreateOperator(BigtableCreateInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class BigtableInstanceDeleteOperator(BigtableDeleteInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class BigtableTableCreateOperator(BigtableCreateTableOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.bigtable.BigtableCreateTableOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.bigtable.BigtableCreateTableOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class BigtableTableDeleteOperator(BigtableDeleteTableOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.bigtable.BigtableDeleteTableOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.bigtable.BigtableDeleteTableOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+# pylint: disable=too-many-ancestors
+class BigtableTableWaitForReplicationSensor(BigtableTableReplicationCompletedSensor):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

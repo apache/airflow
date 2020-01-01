@@ -17,18 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import TestDagGcpSystem, SKIP_TEST_WARNING
-from tests.contrib.utils.gcp_authenticator import GCP_AI_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_AI_KEY), SKIP_TEST_WARNING)
-class CloudTranslateExampleDagsSystemTest(TestDagGcpSystem):
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name, dag_id='example_gcp_translate', gcp_key=GCP_AI_KEY
-        )
-
+@skip_gcp_system(GCP_AI_KEY, require_local_executor=True)
+class CloudTranslateExampleDagsSystemTest(SystemTest):
+    @provide_gcp_context(GCP_AI_KEY)
     def test_run_example_dag_function(self):
-        self._run_dag()
+        self.run_dag('example_gcp_translate', GCP_DAG_FOLDER)

@@ -27,5 +27,5 @@ from airflow.gcp.hooks.translate import CloudTranslateHook  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.translate`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

@@ -24,19 +24,13 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.cloud_sql import (  # noqa
-    CloudSqlBaseOperator,
-    CloudSqlInstanceCreateOperator,
-    CloudSqlInstanceDatabaseCreateOperator,
-    CloudSqlInstanceDatabaseDeleteOperator,
-    CloudSqlInstanceDatabasePatchOperator,
-    CloudSqlInstanceDeleteOperator,
-    CloudSqlInstanceExportOperator,
-    CloudSqlInstanceImportOperator,
-    CloudSqlInstancePatchOperator,
-    CloudSqlQueryOperator,
+    CloudSqlBaseOperator, CloudSqlInstanceCreateOperator, CloudSqlInstanceDatabaseCreateOperator,
+    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceDatabasePatchOperator,
+    CloudSqlInstanceDeleteOperator, CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator,
+    CloudSqlInstancePatchOperator, CloudSqlQueryOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.cloud_sql`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

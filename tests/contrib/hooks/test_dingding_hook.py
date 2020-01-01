@@ -20,10 +20,9 @@
 import json
 import unittest
 
-from airflow.utils import db
-
 from airflow.contrib.hooks.dingding_hook import DingdingHook
 from airflow.models import Connection
+from airflow.utils import db
 
 
 class TestDingdingHook(unittest.TestCase):

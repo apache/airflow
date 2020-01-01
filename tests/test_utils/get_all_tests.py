@@ -26,6 +26,7 @@ from xml.etree import ElementTree
 def last_replace(s, old, new, number_of_occurrences):
     """
     Replaces last n occurrences of the old string with the new one within the string provided
+
     :param s: string to replace occurrences with
     :param old: old string
     :param new: new string
@@ -39,6 +40,7 @@ def last_replace(s, old, new, number_of_occurrences):
 def print_all_cases(xunit_test_file_path):
     """
     Prints all test cases read from the xunit test file
+
     :param xunit_test_file_path: path of the xunit file
     :return: None
     """
@@ -69,6 +71,6 @@ def print_all_cases(xunit_test_file_path):
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Please provide name of xml unit file as first parameter")
-        exit(0)
+        sys.exit(1)
     file_name = sys.argv[1]
     print_all_cases(file_name)

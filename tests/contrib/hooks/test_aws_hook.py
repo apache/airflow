@@ -17,14 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import unittest
 
 import boto3
+import mock
 
-from airflow.models import Connection
 from airflow.contrib.hooks.aws_hook import AwsHook
-from tests.compat import mock
+from airflow.models import Connection
 
 try:
     from moto import mock_emr, mock_dynamodb2, mock_sts, mock_iam
@@ -40,7 +39,7 @@ class TestAwsHook(unittest.TestCase):
     @mock_emr
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
         client = boto3.client('emr', region_name='us-east-1')
-        if len(client.list_clusters()['Clusters']):
+        if client.list_clusters()['Clusters']:
             raise ValueError('AWS not properly mocked')
 
         hook = AwsHook(aws_conn_id='aws_default')
@@ -51,12 +50,11 @@ class TestAwsHook(unittest.TestCase):
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
     def test_get_resource_type_returns_a_boto3_resource_of_the_requested_type(self):
-
         hook = AwsHook(aws_conn_id='aws_default')
         resource_from_hook = hook.get_resource_type('dynamodb')
 
         # this table needs to be created in production
-        table = resource_from_hook.create_table(
+        table = resource_from_hook.create_table(  # pylint: disable=no-member
             TableName='test_airflow',
             KeySchema=[
                 {
@@ -66,7 +64,7 @@ class TestAwsHook(unittest.TestCase):
             ],
             AttributeDefinitions=[
                 {
-                    'AttributeName': 'name',
+                    'AttributeName': 'id',
                     'AttributeType': 'S'
                 }
             ],
@@ -87,7 +85,7 @@ class TestAwsHook(unittest.TestCase):
         hook = AwsHook(aws_conn_id='aws_default')
         session_from_hook = hook.get_session()
         resource_from_session = session_from_hook.resource('dynamodb')
-        table = resource_from_session.create_table(
+        table = resource_from_session.create_table(  # pylint: disable=no-member
             TableName='test_airflow',
             KeySchema=[
                 {
@@ -97,7 +95,7 @@ class TestAwsHook(unittest.TestCase):
             ],
             AttributeDefinitions=[
                 {
-                    'AttributeName': 'name',
+                    'AttributeName': 'id',
                     'AttributeType': 'S'
                 }
             ],
@@ -113,9 +111,24 @@ class TestAwsHook(unittest.TestCase):
         self.assertEqual(table.item_count, 0)
 
     @mock.patch.object(AwsHook, 'get_connection')
-    def test_get_credentials_from_login(self, mock_get_connection):
+    def test_get_credentials_from_login_with_token(self, mock_get_connection):
         mock_connection = Connection(login='aws_access_key_id',
-                                     password='aws_secret_access_key')
+                                     password='aws_secret_access_key',
+                                     extra='{"aws_session_token": "test_token"}'
+                                     )
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        credentials_from_hook = hook.get_credentials()
+        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
+        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
+        self.assertEqual(credentials_from_hook.token, 'test_token')
+
+    @mock.patch.object(AwsHook, 'get_connection')
+    def test_get_credentials_from_login_without_token(self, mock_get_connection):
+        mock_connection = Connection(login='aws_access_key_id',
+                                     password='aws_secret_access_key',
+                                     )
+
         mock_get_connection.return_value = mock_connection
         hook = AwsHook()
         credentials_from_hook = hook.get_credentials()
@@ -124,10 +137,24 @@ class TestAwsHook(unittest.TestCase):
         self.assertIsNone(credentials_from_hook.token)
 
     @mock.patch.object(AwsHook, 'get_connection')
-    def test_get_credentials_from_extra(self, mock_get_connection):
+    def test_get_credentials_from_extra_with_token(self, mock_get_connection):
         mock_connection = Connection(
             extra='{"aws_access_key_id": "aws_access_key_id",'
-            '"aws_secret_access_key": "aws_secret_access_key"}'
+                  '"aws_secret_access_key": "aws_secret_access_key",'
+                  ' "aws_session_token": "session_token"}'
+        )
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        credentials_from_hook = hook.get_credentials()
+        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
+        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
+        self.assertEqual(credentials_from_hook.token, 'session_token')
+
+    @mock.patch.object(AwsHook, 'get_connection')
+    def test_get_credentials_from_extra_without_token(self, mock_get_connection):
+        mock_connection = Connection(
+            extra='{"aws_access_key_id": "aws_access_key_id",'
+                  '"aws_secret_access_key": "aws_secret_access_key"}'
         )
         mock_get_connection.return_value = mock_connection
         hook = AwsHook()
@@ -165,33 +192,13 @@ class TestAwsHook(unittest.TestCase):
         mock_get_connection.return_value = mock_connection
         hook = AwsHook()
         credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'AKIAIOSFODNN7EXAMPLE')
-        self.assertEqual(credentials_from_hook.secret_key,
-                         'aJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY')
-        self.assertEqual(credentials_from_hook.token,
-                         'BQoEXAMPLEH4aoAH0gNCAPyJxz4BlCFFxWNE1OPTgk5TthT+FvwqnKwRcOIfrRh'
-                         '3c/LTo6UDdyJwOOvEVPvLXCrrrUtdnniCEXAMPLE/IvU1dYUg2RVAJBanLiHb4I'
-                         'gRmpRV3zrkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15'
-                         'fjrBs2+cTQtpZ3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE')
+        self.assertIn("ASIA", credentials_from_hook.access_key)
 
-    @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
-    @mock.patch.object(AwsHook, 'get_connection')
-    @mock_sts
-    def test_get_credentials_from_role_arn_with_external_id(self, mock_get_connection):
-        mock_connection = Connection(
-            extra='{"role_arn":"arn:aws:iam::123456:role/role_arn",'
-                  ' "external_id":"external_id"}')
-        mock_get_connection.return_value = mock_connection
-        hook = AwsHook()
-        credentials_from_hook = hook.get_credentials()
-        self.assertEqual(credentials_from_hook.access_key, 'AKIAIOSFODNN7EXAMPLE')
-        self.assertEqual(credentials_from_hook.secret_key,
-                         'aJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY')
-        self.assertEqual(credentials_from_hook.token,
-                         'BQoEXAMPLEH4aoAH0gNCAPyJxz4BlCFFxWNE1OPTgk5TthT+FvwqnKwRcOIfrRh'
-                         '3c/LTo6UDdyJwOOvEVPvLXCrrrUtdnniCEXAMPLE/IvU1dYUg2RVAJBanLiHb4I'
-                         'gRmpRV3zrkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15'
-                         'fjrBs2+cTQtpZ3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE')
+        # We assert the length instead of actual values as the values are random:
+        # Details: https://github.com/spulec/moto/commit/ab0d23a0ba2506e6338ae20b3fde70da049f7b03
+        self.assertEqual(20, len(credentials_from_hook.access_key))
+        self.assertEqual(40, len(credentials_from_hook.secret_key))
+        self.assertEqual(356, len(credentials_from_hook.token))
 
     @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
     @mock_iam

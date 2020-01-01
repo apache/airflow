@@ -19,16 +19,16 @@
 """
 This module contains a Google Cloud Speech Hook.
 """
-from typing import Union, Dict
+from typing import Dict, Optional, Union
 
 from google.api_core.retry import Retry
 from google.cloud.speech_v1 import SpeechClient
-from google.cloud.speech_v1.types import RecognitionConfig, RecognitionAudio
+from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class GCPSpeechToTextHook(GoogleCloudBaseHook):
+class CloudSpeechToTextHook(CloudBaseHook):
     """
     Hook for Google Cloud Speech API.
 
@@ -40,7 +40,7 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._client = None
 
@@ -55,12 +55,13 @@ class GCPSpeechToTextHook(GoogleCloudBaseHook):
             self._client = SpeechClient(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
+    @CloudBaseHook.quota_retry()
     def recognize_speech(
         self,
         config: Union[Dict, RecognitionConfig],
         audio: Union[Dict, RecognitionAudio],
-        retry: Retry = None,
-        timeout: float = None
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None
     ):
         """
         Recognizes audio input

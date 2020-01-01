@@ -21,8 +21,8 @@
 # Starts with 'a' to get listed first.
 
 import sys
-
 from datetime import datetime
+
 from airflow.models import DAG
 
 DEFAULT_DATE = datetime(2100, 1, 1)

@@ -20,19 +20,97 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.compute import (  # noqa
-    GceBaseOperator,
-    GceInstanceGroupManagerUpdateTemplateOperator,
-    GceInstanceStartOperator,
-    GceInstanceStopOperator,
-    GceInstanceTemplateCopyOperator,
-    GceSetMachineTypeOperator,
-    GcpBodyFieldSanitizer,
-    GcpBodyFieldValidator,
+from airflow.gcp.operators.compute import (
+    ComputeEngineBaseOperator, ComputeEngineCopyInstanceTemplateOperator,
+    ComputeEngineInstanceGroupUpdateManagerTemplateOperator, ComputeEngineSetMachineTypeOperator,
+    ComputeEngineStartInstanceOperator, ComputeEngineStopInstanceOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.compute`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )
+
+
+class GceBaseOperator(ComputeEngineBaseOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.compute.ComputeEngineBaseOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.compute.ComputeEngineBaseOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GceInstanceGroupManagerUpdateTemplateOperator(ComputeEngineInstanceGroupUpdateManagerTemplateOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.compute.ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated. Please use
+            `airflow.gcp.operators.compute.ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GceInstanceStartOperator(ComputeEngineStartInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.compute.ComputeEngineStartInstanceOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.compute.ComputeEngineStartInstanceOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GceInstanceStopOperator(ComputeEngineStopInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.compute.ComputeEngineStopInstanceOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.compute.ComputeEngineStopInstanceOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GceInstanceTemplateCopyOperator(ComputeEngineCopyInstanceTemplateOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """"This class is deprecated.
+            Please use `airflow.gcp.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GceSetMachineTypeOperator(ComputeEngineSetMachineTypeOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.compute.ComputeEngineSetMachineTypeOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.compute.ComputeEngineSetMachineTypeOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

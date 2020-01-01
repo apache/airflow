@@ -18,19 +18,18 @@
 # under the License.
 
 import unittest
-
 from copy import deepcopy
 
+import mock
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
-from airflow.gcp.operators.functions import \
-    GcfFunctionDeployOperator, GcfFunctionDeleteOperator, \
-    FUNCTION_NAME_PATTERN, GcfFunctionInvokeOperator
 from airflow import AirflowException
+from airflow.gcp.operators.functions import (
+    FUNCTION_NAME_PATTERN, CloudFunctionDeleteFunctionOperator, CloudFunctionDeployFunctionOperator,
+    CloudFunctionInvokeFunctionOperator,
+)
 from airflow.version import version
-from tests.compat import mock
-
 
 EMPTY_CONTENT = b''
 MOCK_RESP_404 = type('', (object,), {"status": 404})()
@@ -72,11 +71,11 @@ def _prepare_test_bodies():
 
 class TestGcfFunctionDeploy(unittest.TestCase):
     @parameterized.expand(_prepare_test_bodies())
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_body_empty_or_missing_fields(self, body, message, mock_hook):
         mock_hook.return_value.upload_function_zip.return_value = 'https://uploadUrl'
         with self.assertRaises(AirflowException) as cm:
-            op = GcfFunctionDeployOperator(
+            op = CloudFunctionDeployFunctionOperator(
                 project_id="test_project_id",
                 location="test_region",
                 body=body,
@@ -86,12 +85,12 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         err = cm.exception
         self.assertIn(message, str(err))
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_deploy_execute(self, mock_hook):
         mock_hook.return_value.get_function.side_effect = mock.Mock(
             side_effect=HttpError(resp=MOCK_RESP_404, content=b'not found'))
         mock_hook.return_value.create_new_function.return_value = True
-        op = GcfFunctionDeployOperator(
+        op = CloudFunctionDeployFunctionOperator(
             project_id=GCP_PROJECT_ID,
             location=GCP_LOCATION,
             body=deepcopy(VALID_BODY),
@@ -113,11 +112,11 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             body=expected_body
         )
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_update_function_if_exists(self, mock_hook):
         mock_hook.return_value.get_function.return_value = True
         mock_hook.return_value.update_function.return_value = True
-        op = GcfFunctionDeployOperator(
+        op = CloudFunctionDeployFunctionOperator(
             project_id=GCP_PROJECT_ID,
             location=GCP_LOCATION,
             body=deepcopy(VALID_BODY),
@@ -138,11 +137,11 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             expected_body, expected_body.keys())
         mock_hook.return_value.create_new_function.assert_not_called()
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_empty_project_id_is_ok(self, mock_hook):
         mock_hook.return_value.get_function.side_effect = \
             HttpError(resp=MOCK_RESP_404, content=b'not found')
-        operator = GcfFunctionDeployOperator(
+        operator = CloudFunctionDeployFunctionOperator(
             location="test_region",
             body=deepcopy(VALID_BODY),
             task_id="id"
@@ -158,10 +157,10 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             location="test_region",
             body=new_body)
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_empty_location(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            GcfFunctionDeployOperator(
+            CloudFunctionDeployFunctionOperator(
                 project_id="test_project_id",
                 location="",
                 body=None,
@@ -170,10 +169,10 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         err = cm.exception
         self.assertIn("The required parameter 'location' is missing", str(err))
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_empty_body(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            GcfFunctionDeployOperator(
+            CloudFunctionDeployFunctionOperator(
                 project_id="test_project_id",
                 location="test_region",
                 body=None,
@@ -185,12 +184,12 @@ class TestGcfFunctionDeploy(unittest.TestCase):
     @parameterized.expand([
         (runtime,) for runtime in VALID_RUNTIMES
     ])
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_correct_runtime_field(self, runtime, mock_hook):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body['runtime'] = runtime
-        op = GcfFunctionDeployOperator(
+        op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id",
             location="test_region",
             body=body,
@@ -209,12 +208,12 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             "projects/PRÓJECT/global/networks/netwórk-01"
         ]
     ])
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_valid_network_field(self, network, mock_hook):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body['network'] = network
-        op = GcfFunctionDeployOperator(
+        op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id",
             location="test_region",
             body=body,
@@ -232,12 +231,12 @@ class TestGcfFunctionDeploy(unittest.TestCase):
             {"label_324234_a_b_c": 'value-01_93'},
         ]
     ])
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_valid_labels_field(self, labels, mock_hook):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body['labels'] = labels
-        op = GcfFunctionDeployOperator(
+        op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id",
             location="test_region",
             body=body,
@@ -248,14 +247,14 @@ class TestGcfFunctionDeploy(unittest.TestCase):
                                           gcp_conn_id='google_cloud_default')
         mock_hook.reset_mock()
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_validation_disabled(self, mock_hook):
         mock_hook.return_value.create_new_function.return_value = True
         body = {
             "name": "function_name",
             "some_invalid_body_field": "some_invalid_body_field_value"
         }
-        op = GcfFunctionDeployOperator(
+        op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id",
             location="test_region",
             body=body,
@@ -267,13 +266,13 @@ class TestGcfFunctionDeploy(unittest.TestCase):
                                           gcp_conn_id='google_cloud_default')
         mock_hook.reset_mock()
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_body_validation_simple(self, mock_hook):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body['name'] = ''
         with self.assertRaises(AirflowException) as cm:
-            op = GcfFunctionDeployOperator(
+            op = CloudFunctionDeployFunctionOperator(
                 project_id="test_project_id",
                 location="test_region",
                 body=body,
@@ -303,13 +302,13 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         ('maxInstances', '-1', "The max instances parameter has to be greater than 0"),
         ('maxInstances', 'ss', "invalid literal for int() with base 10: 'ss'"),
     ])
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_invalid_field_values(self, key, value, message, mock_hook):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body[key] = value
         with self.assertRaises(AirflowException) as cm:
-            op = GcfFunctionDeployOperator(
+            op = CloudFunctionDeployFunctionOperator(
                 project_id="test_project_id",
                 location="test_region",
                 body=body,
@@ -363,7 +362,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         zip_path = source_code.pop('zip_path', None)
         body.update(source_code)
         with self.assertRaises(AirflowException) as cm:
-            op = GcfFunctionDeployOperator(
+            op = CloudFunctionDeployFunctionOperator(
                 project_id="test_project_id",
                 location="test_region",
                 body=body,
@@ -386,7 +385,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
           'repos/b/revisions/c/paths/d'}},
          'test_project_id'),
     ])
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_valid_source_code_union_field(self, source_code, project_id, mock_hook):
         mock_hook.return_value.upload_function_zip.return_value = 'https://uploadUrl'
         mock_hook.return_value.get_function.side_effect = mock.Mock(
@@ -400,7 +399,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         zip_path = source_code.pop('zip_path', None)
         body.update(source_code)
         if project_id:
-            op = GcfFunctionDeployOperator(
+            op = CloudFunctionDeployFunctionOperator(
                 project_id="test_project_id",
                 location="test_region",
                 body=body,
@@ -408,7 +407,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
                 zip_path=zip_path
             )
         else:
-            op = GcfFunctionDeployOperator(
+            op = CloudFunctionDeployFunctionOperator(
                 location="test_region",
                 body=body,
                 task_id="id",
@@ -452,7 +451,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
          "should be of dictionary type")
     ]
     )
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_invalid_trigger_union_field(self, trigger, message, mock_hook):
         mock_hook.return_value.upload_function_zip.return_value = 'https://uploadUrl'
         body = deepcopy(VALID_BODY)
@@ -460,7 +459,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         body.pop('eventTrigger', None)
         body.update(trigger)
         with self.assertRaises(AirflowException) as cm:
-            op = GcfFunctionDeployOperator(
+            op = CloudFunctionDeployFunctionOperator(
                 project_id="test_project_id",
                 location="test_region",
                 body=body,
@@ -488,7 +487,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
                            'service': 'service_name',
                            'failurePolicy': {'retry': {}}}},)
     ])
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_valid_trigger_union_field(self, trigger, mock_hook):
         mock_hook.return_value.upload_function_zip.return_value = 'https://uploadUrl'
         mock_hook.return_value.get_function.side_effect = mock.Mock(
@@ -498,7 +497,7 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         body.pop('httpsTrigger', None)
         body.pop('eventTrigger', None)
         body.update(trigger)
-        op = GcfFunctionDeployOperator(
+        op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id",
             location="test_region",
             body=body,
@@ -517,12 +516,12 @@ class TestGcfFunctionDeploy(unittest.TestCase):
         )
         mock_hook.reset_mock()
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_extra_parameter(self, mock_hook):
         mock_hook.return_value.create_new_function.return_value = True
         body = deepcopy(VALID_BODY)
         body['extra_parameter'] = 'extra'
-        op = GcfFunctionDeployOperator(
+        op = CloudFunctionDeployFunctionOperator(
             project_id="test_project_id",
             location="test_region",
             body=body,
@@ -550,11 +549,11 @@ class TestGcfFunctionDelete(unittest.TestCase):
         'updateTime': '2018-08-23T00:00:00Z',
         'versionId': '1', 'runtime': 'nodejs6'}
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_delete_execute(self, mock_hook):
         mock_hook.return_value.delete_function.return_value = \
             self._DELETE_FUNCTION_EXPECTED
-        op = GcfFunctionDeleteOperator(
+        op = CloudFunctionDeleteFunctionOperator(
             name=self._FUNCTION_NAME,
             task_id="id"
         )
@@ -566,9 +565,9 @@ class TestGcfFunctionDelete(unittest.TestCase):
         )
         self.assertEqual(result['name'], self._FUNCTION_NAME)
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_correct_name(self, mock_hook):
-        op = GcfFunctionDeleteOperator(
+        op = CloudFunctionDeleteFunctionOperator(
             name="projects/project_name/locations/project_location/functions"
                  "/function_name",
             task_id="id"
@@ -577,10 +576,10 @@ class TestGcfFunctionDelete(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version='v1',
                                           gcp_conn_id='google_cloud_default')
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_invalid_name(self, mock_hook):
         with self.assertRaises(AttributeError) as cm:
-            op = GcfFunctionDeleteOperator(
+            op = CloudFunctionDeleteFunctionOperator(
                 name="invalid_name",
                 task_id="id"
             )
@@ -590,12 +589,12 @@ class TestGcfFunctionDelete(unittest.TestCase):
             FUNCTION_NAME_PATTERN))
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_empty_name(self, mock_hook):
         mock_hook.return_value.delete_function.return_value = \
             self._DELETE_FUNCTION_EXPECTED
         with self.assertRaises(AttributeError) as cm:
-            GcfFunctionDeleteOperator(
+            CloudFunctionDeleteFunctionOperator(
                 name="",
                 task_id="id"
             )
@@ -603,9 +602,9 @@ class TestGcfFunctionDelete(unittest.TestCase):
         self.assertEqual(str(err), 'Empty parameter: name')
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_gcf_error_silenced_when_function_doesnt_exist(self, mock_hook):
-        op = GcfFunctionDeleteOperator(
+        op = CloudFunctionDeleteFunctionOperator(
             name=self._FUNCTION_NAME,
             task_id="id"
         )
@@ -618,9 +617,9 @@ class TestGcfFunctionDelete(unittest.TestCase):
             'projects/project_name/locations/project_location/functions/function_name'
         )
 
-    @mock.patch('airflow.gcp.operators.functions.GcfHook')
+    @mock.patch('airflow.gcp.operators.functions.CloudFunctionsHook')
     def test_non_404_gcf_error_bubbled_up(self, mock_hook):
-        op = GcfFunctionDeleteOperator(
+        op = CloudFunctionDeleteFunctionOperator(
             name=self._FUNCTION_NAME,
             task_id="id"
         )
@@ -640,7 +639,7 @@ class TestGcfFunctionDelete(unittest.TestCase):
 
 class TestGcfFunctionInvokeOperator(unittest.TestCase):
     @mock.patch("airflow.gcp.operators.functions.BaseOperator.xcom_push")
-    @mock.patch("airflow.gcp.operators.functions.GcfHook")
+    @mock.patch("airflow.gcp.operators.functions.CloudFunctionsHook")
     def test_execute(self, mock_gcf_hook, mock_xcom):
         exec_id = 'exec_id'
         mock_gcf_hook.return_value.call_function.return_value = {'executionId': exec_id}
@@ -650,7 +649,7 @@ class TestGcfFunctionInvokeOperator(unittest.TestCase):
         api_version = 'test'
         gcp_conn_id = 'test_conn'
 
-        op = GcfFunctionInvokeOperator(
+        op = CloudFunctionInvokeFunctionOperator(
             task_id='test',
             function_id=function_id,
             input_data=payload,

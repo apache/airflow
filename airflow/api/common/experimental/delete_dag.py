@@ -17,14 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Delete DAGs APIs."""
-import os
 
 from sqlalchemy import or_
 
 from airflow import models
-from airflow.models import TaskFail, DagModel
-from airflow.utils.db import provide_session
-from airflow.exceptions import DagFileExists, DagNotFound
+from airflow.exceptions import DagNotFound
+from airflow.models import DagModel, TaskFail
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.settings import STORE_SERIALIZED_DAGS
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 
 @provide_session
@@ -37,13 +39,16 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     :param session: session used
     :return count of deleted dags
     """
+    logger = LoggingMixin()
+    logger.log.info("Deleting DAG: %s", dag_id)
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
     if dag is None:
         raise DagNotFound("Dag id {} not found".format(dag_id))
 
-    if dag.fileloc and os.path.exists(dag.fileloc):
-        raise DagFileExists("Dag id {} is still in DagBag. "
-                            "Remove the DAG file first: {}".format(dag_id, dag.fileloc))
+    # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
+    # There may be a lag, so explicitly removes serialized DAG here.
+    if STORE_SERIALIZED_DAGS and SerializedDagModel.has_dag(dag_id=dag_id, session=session):
+        SerializedDagModel.remove_dag(dag_id=dag_id, session=session)
 
     count = 0
 
@@ -59,5 +64,11 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
         for model in models.DagRun, TaskFail, models.TaskInstance:
             count += session.query(model).filter(model.dag_id == parent_dag_id,
                                                  model.task_id == task_id).delete()
+
+    # Delete entries in Import Errors table for a deleted DAG
+    # This handles the case when the dag_id is changed in the file
+    session.query(models.ImportError).filter(
+        models.ImportError.filename == dag.fileloc
+    ).delete(synchronize_session='fetch')
 
     return count

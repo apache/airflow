@@ -20,17 +20,19 @@
 This module contains Google Dataflow operators.
 """
 
+import copy
 import os
 import re
+import tempfile
 import uuid
-import copy
 from enum import Enum
+from typing import List, Optional
 
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-from airflow.gcp.hooks.dataflow import DataFlowHook
+from airflow.gcp.hooks.dataflow import DataflowHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
-from airflow.version import version
 from airflow.utils.decorators import apply_defaults
+from airflow.version import version
 
 
 class CheckJobRunning(Enum):
@@ -45,7 +47,7 @@ class CheckJobRunning(Enum):
     WaitForRun = 3
 
 
-class DataFlowJavaOperator(BaseOperator):
+class DataflowCreateJavaJobOperator(BaseOperator):
     """
     Start a Java Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
@@ -53,7 +55,7 @@ class DataFlowJavaOperator(BaseOperator):
     **Example**: ::
 
         default_args = {
-            'owner': 'Airflow',
+            'owner': 'airflow',
             'depends_on_past': False,
             'start_date':
                 (2016, 8, 1),
@@ -147,7 +149,7 @@ class DataFlowJavaOperator(BaseOperator):
     .. code-block:: python
 
        t1 = DataFlowJavaOperator(
-           task_id='datapflow_example',
+           task_id='dataflow_example',
            jar='{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar',
            options={
                'autoscalingAlgorithm': 'BASIC',
@@ -167,18 +169,18 @@ class DataFlowJavaOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            jar,
-            job_name='{{task.task_id}}',
-            dataflow_default_options=None,
-            options=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            poll_sleep=10,
-            job_class=None,
-            check_if_running=CheckJobRunning.WaitForRun,
-            multiple_jobs=None,
+            jar: str,
+            job_name: str = '{{task.task_id}}',
+            dataflow_default_options: Optional[dict] = None,
+            options: Optional[dict] = None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            poll_sleep: int = 10,
+            job_class: Optional[str] = None,
+            check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
+            multiple_jobs: Optional[bool] = None,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -197,26 +199,35 @@ class DataFlowJavaOperator(BaseOperator):
         self.check_if_running = check_if_running
 
     def execute(self, context):
-        hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
+        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
         dataflow_options = copy.copy(self.dataflow_default_options)
         dataflow_options.update(self.options)
         is_running = False
         if self.check_if_running != CheckJobRunning.IgnoreJob:
-            is_running = hook.is_job_dataflow_running(self.job_name, dataflow_options)
+            is_running = hook.is_job_dataflow_running(
+                name=self.job_name,
+                variables=dataflow_options
+            )
             while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-                is_running = hook.is_job_dataflow_running(self.job_name, dataflow_options)
+                is_running = hook.is_job_dataflow_running(name=self.job_name, variables=dataflow_options)
 
         if not is_running:
             bucket_helper = GoogleCloudBucketHelper(
                 self.gcp_conn_id, self.delegate_to)
             self.jar = bucket_helper.google_cloud_to_local(self.jar)
-            hook.start_java_dataflow(self.job_name, dataflow_options,
-                                     self.jar, self.job_class, True, self.multiple_jobs)
+            hook.start_java_dataflow(
+                job_name=self.job_name,
+                variables=dataflow_options,
+                jar=self.jar,
+                job_class=self.job_class,
+                append_job_name=True,
+                multiple_jobs=self.multiple_jobs
+            )
 
 
-class DataflowTemplateOperator(BaseOperator):
+class DataflowTemplatedJobStartOperator(BaseOperator):
     """
     Start a Templated Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
@@ -267,7 +278,7 @@ class DataflowTemplateOperator(BaseOperator):
     .. code-block:: python
 
        t1 = DataflowTemplateOperator(
-           task_id='datapflow_example',
+           task_id='dataflow_example',
            template='{{var.value.gcp_dataflow_base}}',
            parameters={
                'inputFile': "gs://bucket/input/my_input.txt",
@@ -295,15 +306,15 @@ class DataflowTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            template,
-            job_name='{{task.task_id}}',
-            dataflow_default_options=None,
-            parameters=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            poll_sleep=10,
+            template: str,
+            job_name: str = '{{task.task_id}}',
+            dataflow_default_options: Optional[dict] = None,
+            parameters: Optional[dict] = None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            poll_sleep: int = 10,
             *args,
-            **kwargs):
+            **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -318,15 +329,19 @@ class DataflowTemplateOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context):
-        hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
+        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
 
-        hook.start_template_dataflow(self.job_name, self.dataflow_default_options,
-                                     self.parameters, self.template)
+        hook.start_template_dataflow(
+            job_name=self.job_name,
+            variables=self.dataflow_default_options,
+            parameters=self.parameters,
+            dataflow_template=self.template
+        )
 
 
-class DataFlowPythonOperator(BaseOperator):
+class DataflowCreatePythonJobOperator(BaseOperator):
     """
     Launching Cloud Dataflow jobs written in python. Note that both
     dataflow_default_options and options will be merged to specify pipeline
@@ -346,11 +361,16 @@ class DataFlowPythonOperator(BaseOperator):
         with key ``'jobName'`` or ``'job_name'`` in ``options`` will be overwritten.
     :type job_name: str
     :param py_options: Additional python options, e.g., ["-m", "-v"].
-    :type pyt_options: list[str]
+    :type py_options: list[str]
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
     :param options: Map of job specific options.
     :type options: dict
+    :param py_interpreter: Python version of the beam pipeline.
+        If None, this defaults to the python3.
+        To track python versions supported by beam and related
+        issues check: https://issues.apache.org/jira/browse/BEAM-1251
+    :type py_interpreter: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
     :type gcp_conn_id: str
@@ -368,16 +388,17 @@ class DataFlowPythonOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            py_file,
-            job_name='{{task.task_id}}',
-            py_options=None,
-            dataflow_default_options=None,
-            options=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            poll_sleep=10,
+            py_file: str,
+            job_name: str = '{{task.task_id}}',
+            py_options: Optional[List[str]] = None,
+            dataflow_default_options: Optional[dict] = None,
+            options: Optional[dict] = None,
+            py_interpreter: str = "python3",
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            poll_sleep: int = 10,
             *args,
-            **kwargs):
+            **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
 
@@ -388,6 +409,7 @@ class DataFlowPythonOperator(BaseOperator):
         self.options = options or {}
         self.options.setdefault('labels', {}).update(
             {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
+        self.py_interpreter = py_interpreter
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
@@ -397,7 +419,7 @@ class DataFlowPythonOperator(BaseOperator):
         bucket_helper = GoogleCloudBucketHelper(
             self.gcp_conn_id, self.delegate_to)
         self.py_file = bucket_helper.google_cloud_to_local(self.py_file)
-        hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
+        hook = DataflowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
         dataflow_options = self.dataflow_default_options.copy()
@@ -408,8 +430,12 @@ class DataFlowPythonOperator(BaseOperator):
         formatted_options = {camel_to_snake(key): dataflow_options[key]
                              for key in dataflow_options}
         hook.start_python_dataflow(
-            self.job_name, formatted_options,
-            self.py_file, self.py_options)
+            job_name=self.job_name,
+            variables=formatted_options,
+            dataflow=self.py_file,
+            py_options=self.py_options,
+            py_interpreter=self.py_interpreter
+        )
 
 
 class GoogleCloudBucketHelper:
@@ -417,11 +443,11 @@ class GoogleCloudBucketHelper:
     GCS_PREFIX_LENGTH = 5
 
     def __init__(self,
-                 gcp_conn_id='google_cloud_default',
-                 delegate_to=None):
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None) -> None:
         self._gcs_hook = GoogleCloudStorageHook(gcp_conn_id, delegate_to)
 
-    def google_cloud_to_local(self, file_name):
+    def google_cloud_to_local(self, file_name: str) -> str:
         """
         Checks whether the file specified by file_name is stored in Google Cloud
         Storage (GCS), if so, downloads the file and saves it locally. The full
@@ -446,8 +472,10 @@ class GoogleCloudBucketHelper:
 
         bucket_id = path_components[0]
         object_id = '/'.join(path_components[1:])
-        local_file = '/tmp/dataflow{}-{}'.format(str(uuid.uuid4())[:8],
-                                                 path_components[-1])
+        local_file = os.path.join(
+            tempfile.gettempdir(),
+            'dataflow{}-{}'.format(str(uuid.uuid4())[:8], path_components[-1])
+        )
         self._gcs_hook.download(bucket_id, object_id, local_file)
 
         if os.stat(local_file).st_size > 0:

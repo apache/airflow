@@ -17,8 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains operator to move data from Hive to MySQL.
+"""
 from tempfile import NamedTemporaryFile
-from typing import Dict
+from typing import Dict, Optional
 
 from airflow.hooks.hive_hooks import HiveServer2Hook
 from airflow.hooks.mysql_hook import MySqlHook
@@ -70,10 +73,10 @@ class HiveToMySqlTransfer(BaseOperator):
                  mysql_table: str,
                  hiveserver2_conn_id: str = 'hiveserver2_default',
                  mysql_conn_id: str = 'mysql_default',
-                 mysql_preoperator: str = None,
-                 mysql_postoperator: str = None,
+                 mysql_preoperator: Optional[str] = None,
+                 mysql_postoperator: Optional[str] = None,
                  bulk_load: bool = False,
-                 hive_conf: Dict = None,
+                 hive_conf: Optional[Dict] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql

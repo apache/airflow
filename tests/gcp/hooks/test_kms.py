@@ -18,129 +18,117 @@
 # under the License.
 
 import unittest
-from base64 import b64encode
+from base64 import b64decode, b64encode
+from collections import namedtuple
 
-from airflow.gcp.hooks.kms import GoogleCloudKMSHook
-from tests.compat import mock
+import mock
 
-BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
-KMS_STRING = 'airflow.gcp.hooks.kms.{}'
+from airflow.gcp.hooks.kms import CloudKMSHook
 
+Response = namedtuple("Response", ["plaintext", "ciphertext"])
 
-TEST_PROJECT = 'test-project'
-TEST_LOCATION = 'global'
-TEST_KEY_RING = 'test-key-ring'
-TEST_KEY = 'test-key'
-TEST_KEY_ID = 'projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}'.format(
-    TEST_PROJECT, TEST_LOCATION, TEST_KEY_RING, TEST_KEY)
+PLAINTEXT = b"Test plaintext"
+PLAINTEXT_b64 = b64encode(PLAINTEXT).decode("ascii")
+
+CIPHERTEXT_b64 = b64encode(b"Test ciphertext").decode("ascii")
+CIPHERTEXT = b64decode(CIPHERTEXT_b64.encode("utf-8"))
+
+AUTH_DATA = b"Test authdata"
+
+TEST_PROJECT = "test-project"
+TEST_LOCATION = "global"
+TEST_KEY_RING = "test-key-ring"
+TEST_KEY = "test-key"
+TEST_KEY_ID = "projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}".format(
+    TEST_PROJECT, TEST_LOCATION, TEST_KEY_RING, TEST_KEY
+)
+
+RESPONSE = Response(PLAINTEXT, PLAINTEXT)
 
 
 def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-argument
     pass
 
 
-class TestGoogleCloudKMSHook(unittest.TestCase):
+class TestCloudKMSHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
-                        new=mock_init):
-            self.kms_hook = GoogleCloudKMSHook(gcp_conn_id='test')
+        with mock.patch(
+            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
+            new=mock_init,
+        ):
+            self.kms_hook = CloudKMSHook(gcp_conn_id="test")
 
-    @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
-    def test_encrypt(self, mock_service):
-        plaintext = b'Test plaintext'
-        ciphertext = 'Test ciphertext'
-        plaintext_b64 = b64encode(plaintext).decode('ascii')
-        body = {'plaintext': plaintext_b64}
-        response = {'ciphertext': ciphertext}
+    @mock.patch(
+        "airflow.gcp.hooks.kms.CloudKMSHook.client_info",
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.kms.KeyManagementServiceClient")
+    def test_kms_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.kms_hook.get_conn()
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value,
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.kms_hook._conn, result)
 
-        encrypt_method = (mock_service.return_value
-                          .projects.return_value
-                          .locations.return_value
-                          .keyRings.return_value
-                          .cryptoKeys.return_value
-                          .encrypt)
-        execute_method = encrypt_method.return_value.execute
-        execute_method.return_value = response
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook.get_conn")
+    def test_encrypt(self, mock_get_conn):
+        mock_get_conn.return_value.encrypt.return_value = RESPONSE
+        result = self.kms_hook.encrypt(TEST_KEY_ID, PLAINTEXT)
+        mock_get_conn.assert_called_once_with()
+        mock_get_conn.return_value.encrypt.assert_called_once_with(
+            name=TEST_KEY_ID,
+            plaintext=PLAINTEXT,
+            additional_authenticated_data=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
+        self.assertEqual(PLAINTEXT_b64, result)
 
-        ret_val = self.kms_hook.encrypt(TEST_KEY_ID, plaintext)
-        encrypt_method.assert_called_once_with(name=TEST_KEY_ID, body=body)
-        execute_method.assert_called_once_with(num_retries=mock.ANY)
-        self.assertEqual(ciphertext, ret_val)
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook.get_conn")
+    def test_encrypt_with_auth_data(self, mock_get_conn):
+        mock_get_conn.return_value.encrypt.return_value = RESPONSE
+        result = self.kms_hook.encrypt(TEST_KEY_ID, PLAINTEXT, AUTH_DATA)
+        mock_get_conn.assert_called_once_with()
+        mock_get_conn.return_value.encrypt.assert_called_once_with(
+            name=TEST_KEY_ID,
+            plaintext=PLAINTEXT,
+            additional_authenticated_data=AUTH_DATA,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
+        self.assertEqual(PLAINTEXT_b64, result)
 
-    @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
-    def test_encrypt_authdata(self, mock_service):
-        plaintext = b'Test plaintext'
-        auth_data = b'Test authdata'
-        ciphertext = 'Test ciphertext'
-        plaintext_b64 = b64encode(plaintext).decode('ascii')
-        auth_data_b64 = b64encode(auth_data).decode('ascii')
-        body = {
-            'plaintext': plaintext_b64,
-            'additionalAuthenticatedData': auth_data_b64
-        }
-        response = {'ciphertext': ciphertext}
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook.get_conn")
+    def test_decrypt(self, mock_get_conn):
+        mock_get_conn.return_value.decrypt.return_value = RESPONSE
+        result = self.kms_hook.decrypt(TEST_KEY_ID, CIPHERTEXT_b64)
+        mock_get_conn.assert_called_once_with()
+        mock_get_conn.return_value.decrypt.assert_called_once_with(
+            name=TEST_KEY_ID,
+            ciphertext=CIPHERTEXT,
+            additional_authenticated_data=None,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
+        self.assertEqual(PLAINTEXT, result)
 
-        encrypt_method = (mock_service.return_value
-                          .projects.return_value
-                          .locations.return_value
-                          .keyRings.return_value
-                          .cryptoKeys.return_value
-                          .encrypt)
-        execute_method = encrypt_method.return_value.execute
-        execute_method.return_value = response
-
-        ret_val = self.kms_hook.encrypt(TEST_KEY_ID, plaintext,
-                                        authenticated_data=auth_data)
-        encrypt_method.assert_called_once_with(name=TEST_KEY_ID, body=body)
-        execute_method.assert_called_once_with(num_retries=mock.ANY)
-        self.assertEqual(ciphertext, ret_val)
-
-    @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
-    def test_decrypt(self, mock_service):
-        plaintext = b'Test plaintext'
-        ciphertext = 'Test ciphertext'
-        plaintext_b64 = b64encode(plaintext).decode('ascii')
-        body = {'ciphertext': ciphertext}
-        response = {'plaintext': plaintext_b64}
-
-        decrypt_method = (mock_service.return_value
-                          .projects.return_value
-                          .locations.return_value
-                          .keyRings.return_value
-                          .cryptoKeys.return_value
-                          .decrypt)
-        execute_method = decrypt_method.return_value.execute
-        execute_method.return_value = response
-
-        ret_val = self.kms_hook.decrypt(TEST_KEY_ID, ciphertext)
-        decrypt_method.assert_called_once_with(name=TEST_KEY_ID, body=body)
-        execute_method.assert_called_once_with(num_retries=mock.ANY)
-        self.assertEqual(plaintext, ret_val)
-
-    @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.get_conn'))
-    def test_decrypt_authdata(self, mock_service):
-        plaintext = b'Test plaintext'
-        auth_data = b'Test authdata'
-        ciphertext = 'Test ciphertext'
-        plaintext_b64 = b64encode(plaintext).decode('ascii')
-        auth_data_b64 = b64encode(auth_data).decode('ascii')
-        body = {
-            'ciphertext': ciphertext,
-            'additionalAuthenticatedData': auth_data_b64
-        }
-        response = {'plaintext': plaintext_b64}
-
-        decrypt_method = (mock_service.return_value
-                          .projects.return_value
-                          .locations.return_value
-                          .keyRings.return_value
-                          .cryptoKeys.return_value
-                          .decrypt)
-        execute_method = decrypt_method.return_value.execute
-        execute_method.return_value = response
-
-        ret_val = self.kms_hook.decrypt(TEST_KEY_ID, ciphertext,
-                                        authenticated_data=auth_data)
-        decrypt_method.assert_called_once_with(name=TEST_KEY_ID, body=body)
-        execute_method.assert_called_once_with(num_retries=mock.ANY)
-        self.assertEqual(plaintext, ret_val)
+    @mock.patch("airflow.gcp.hooks.kms.CloudKMSHook.get_conn")
+    def test_decrypt_with_auth_data(self, mock_get_conn):
+        mock_get_conn.return_value.decrypt.return_value = RESPONSE
+        result = self.kms_hook.decrypt(TEST_KEY_ID, CIPHERTEXT_b64, AUTH_DATA)
+        mock_get_conn.assert_called_once_with()
+        mock_get_conn.return_value.decrypt.assert_called_once_with(
+            name=TEST_KEY_ID,
+            ciphertext=CIPHERTEXT,
+            additional_authenticated_data=AUTH_DATA,
+            retry=None,
+            timeout=None,
+            metadata=None,
+        )
+        self.assertEqual(PLAINTEXT, result)

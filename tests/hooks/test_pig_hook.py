@@ -18,8 +18,10 @@
 # under the License.
 
 import unittest
+
+import mock
+
 from airflow.hooks.pig_hook import PigCliHook
-from tests.compat import mock
 
 
 class TestPigCliHook(unittest.TestCase):
@@ -104,7 +106,7 @@ class TestPigCliHook(unittest.TestCase):
     def test_kill_no_sp(self):
         sp_mock = mock.Mock()
         hook = self.pig_hook()
-        hook.sp = sp_mock
+        hook.sp = sp_mock  # pylint: disable=attribute-defined-outside-init
 
         hook.kill()
         self.assertFalse(sp_mock.kill.called)
@@ -114,7 +116,7 @@ class TestPigCliHook(unittest.TestCase):
         sp_mock.poll.return_value = 0
 
         hook = self.pig_hook()
-        hook.sp = sp_mock
+        hook.sp = sp_mock  # pylint: disable=attribute-defined-outside-init
 
         hook.kill()
         self.assertFalse(sp_mock.kill.called)
@@ -124,7 +126,7 @@ class TestPigCliHook(unittest.TestCase):
         sp_mock.poll.return_value = None
 
         hook = self.pig_hook()
-        hook.sp = sp_mock
+        hook.sp = sp_mock  # pylint: disable=attribute-defined-outside-init
 
         hook.kill()
         self.assertTrue(sp_mock.kill.called)

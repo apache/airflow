@@ -17,25 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
-import elasticsearch
 import logging
 import sys
+
+# Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
+import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
 
+from airflow.configuration import conf
 from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.configuration import conf
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
-    PAGE = 0
-    MAX_LINE_PER_PAGE = 1000
-
     """
     ElasticsearchTaskHandler is a python log handler that
     reads logs from Elasticsearch. Note logs are not directly
@@ -51,6 +49,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     Timestamp here are unreliable because multiple log messages
     might have the same timestamp.
     """
+
+    PAGE = 0
+    MAX_LINE_PER_PAGE = 1000
 
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
@@ -77,6 +78,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.json_format = json_format
         self.json_fields = [label.strip() for label in json_fields.split(",")]
         self.handler = None
+        self.context_set = False
 
     def _render_log_id(self, ti, try_number):
         if self.log_id_jinja_template:
@@ -99,6 +101,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         Clean up an execution date so that it is safe to query in elasticsearch
         by removing reserved characters.
         # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
+
         :param execution_date: execution date of the dag run.
         """
         return execution_date.strftime("%Y_%m_%dT%H_%M_%S_%f")
@@ -106,6 +109,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, ti, try_number, metadata=None):
         """
         Endpoint for streaming log.
+
         :param ti: task instance object
         :param try_number: try_number of the task instance
         :param metadata: log metadata,
@@ -158,6 +162,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Returns the logs matching log_id in Elasticsearch and next offset.
         Returns '' if no log is found or there was an error.
+
         :param log_id: the log_id of the log to read.
         :type log_id: str
         :param offset: the offset start to read log from.
@@ -193,37 +198,31 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     def set_context(self, ti):
         """
         Provide task_instance context to airflow task handler.
+
         :param ti: task instance object
         """
-        super().set_context(ti)
         self.mark_end_on_close = not ti.raw
 
+        if self.json_format:
+            self.formatter = JSONFormatter(self.formatter._fmt, json_fields=self.json_fields, extras={
+                'dag_id': str(ti.dag_id),
+                'task_id': str(ti.task_id),
+                'execution_date': self._clean_execution_date(ti.execution_date),
+                'try_number': str(ti.try_number)
+            })
+
         if self.write_stdout:
+            if self.context_set:
+                # We don't want to re-set up the handler if this logger has
+                # already been initialized
+                return
+
             self.handler = logging.StreamHandler(stream=sys.__stdout__)
             self.handler.setLevel(self.level)
-            if self.json_format and not ti.raw:
-                self.handler.setFormatter(
-                    JSONFormatter(self.formatter._fmt, json_fields=self.json_fields, extras={
-                        'dag_id': str(ti.dag_id),
-                        'task_id': str(ti.task_id),
-                        'execution_date': self._clean_execution_date(ti.execution_date),
-                        'try_number': str(ti.try_number)}))
-            else:
-                self.handler.setFormatter(self.formatter)
+            self.handler.setFormatter(self.formatter)
         else:
             super().set_context(ti)
-
-    def emit(self, record):
-        if self.write_stdout:
-            self.formatter.format(record)
-            if self.handler is not None:
-                self.handler.emit(record)
-        else:
-            super().emit(record)
-
-    def flush(self):
-        if self.handler is not None:
-            self.handler.flush()
+        self.context_set = True
 
     def close(self):
         # When application exit, system shuts down all handlers by
@@ -249,7 +248,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
-        self.handler.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
+        self.handler.stream.write(self.end_of_log_mark)
 
         if self.write_stdout:
             self.handler.close()

@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional, Dict, Match
 import re
 import sys
+from typing import Dict, Match, Optional
 
 
 # We need to explicitly clear the warning registry context
@@ -32,7 +32,7 @@ import sys
 # Proposed fix from Stack overflow, which refers to the Python bug-page
 # noqa
 # https://stackoverflow.com/questions/19428761/python-showing-once-warnings-again-resetting-all-warning-registries
-class reset_warning_registry:
+class reset_warning_registry:  # pylint: disable=invalid-name
     """
     context manager which archives & clears warning registry for duration of
     context.

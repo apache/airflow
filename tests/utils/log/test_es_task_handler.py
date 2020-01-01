@@ -17,21 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import os
 import shutil
 import unittest
+from unittest import mock
 
 import elasticsearch
-from unittest import mock
 import pendulum
 
-from airflow.models import TaskInstance, DAG
+from airflow.configuration import conf
+from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.log.es_task_handler import ElasticsearchTaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.configuration import conf
 
 from .elasticmock import elasticmock
 
@@ -62,7 +63,9 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.json_fields
         )
 
-        self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
+        self.es = elasticsearch.Elasticsearch(  # pylint: disable=invalid-name
+            hosts=[{'host': 'localhost', 'port': 9200}]
+        )
         self.index_name = 'test_index'
         self.doc_type = 'log'
         self.test_message = 'some random stuff'
@@ -260,12 +263,19 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.set_context(self.ti)
 
     def test_close(self):
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.es_task_handler.formatter = formatter
+
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.close()
         with open(os.path.join(self.local_log_location,
                                self.filename_template.format(try_number=1)),
                   'r') as log_file:
-            self.assertIn(self.end_of_log_mark, log_file.read())
+            # end_of_log_mark may contain characters like '\n' which is needed to
+            # have the log uploaded but will not be stored in elasticsearch.
+            # so apply the strip() to log_file.read()
+            log_line = log_file.read().strip()
+            self.assertEqual(self.end_of_log_mark.strip(), log_line)
         self.assertTrue(self.es_task_handler.closed)
 
     def test_close_no_mark_end(self):

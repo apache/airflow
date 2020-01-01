@@ -17,54 +17,28 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from os.path import dirname
 import random
 import string
-import unittest
-
 import time
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_sql import CloudSqlProxyRunner
-from tests.contrib.utils.base_gcp_system_test_case import TestBaseGcpSystem, TestDagGcpSystem
-from tests.gcp.operators.test_cloud_sql_system_helper import \
-    CloudSqlQueryTestHelper
-from tests.contrib.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
+from tests.gcp.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
+from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
-
-SKIP_CLOUDSQL_QUERY_WARNING = """
-    This test is skipped from automated runs intentionally
-    as creating databases in Google Cloud SQL takes a very
-    long time. You can still set GCP_ENABLE_CLOUDSQL_QUERY_TEST
-    environment variable to 'True' and then you should be able to
-    run it manually after you create the database
-    Creating the database can be done by running
-    `{}/test_cloud_sql_operatorquery_system_helper.py \
---action=before-tests`
-    (you should remember to delete the database with --action=after-tests flag)
-""".format(dirname(__file__))
-
-GCP_ENABLE_CLOUDSQL_QUERY_TEST = os.environ.get('GCP_ENABLE_CLOUDSQL_QUERY_TEST')
-
-enable_cloudsql_query_test = bool(GCP_ENABLE_CLOUDSQL_QUERY_TEST == 'True')
-
 
 SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 
-@unittest.skipIf(not enable_cloudsql_query_test, SKIP_CLOUDSQL_QUERY_WARNING)
-class CloudSqlProxySystemTest(TestBaseGcpSystem):
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name,
-            gcp_key='gcp_cloudsql.json')
-
+@skip_gcp_system(GCP_CLOUDSQL_KEY)
+class CloudSqlProxySystemTest(SystemTest):
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
         SQL_QUERY_TEST_HELPER.check_if_instances_are_up(instance_suffix="_QUERY")
-        self.gcp_authenticator.gcp_revoke_authentication()
 
     @staticmethod
     def generate_unique_path():
@@ -96,8 +70,8 @@ class CloudSqlProxySystemTest(TestBaseGcpSystem):
             runner.stop_proxy()
         self.assertIsNone(runner.sql_proxy_process)
 
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_start_proxy_with_all_instances_generated_credential_file(self):
-        self.gcp_authenticator.set_dictionary_in_airflow_connection()
         runner = CloudSqlProxyRunner(path_prefix='/tmp/' + self.generate_unique_path(),
                                      project_id=GCP_PROJECT_ID,
                                      instance_specification='')
@@ -122,21 +96,14 @@ class CloudSqlProxySystemTest(TestBaseGcpSystem):
         self.assertEqual(runner.get_proxy_version(), "1.13")
 
 
-@unittest.skipIf(not enable_cloudsql_query_test, SKIP_CLOUDSQL_QUERY_WARNING)
-class CloudSqlQueryExampleDagsSystemTest(TestDagGcpSystem):
-
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name,
-            dag_id='example_gcp_sql_query',
-            gcp_key=GCP_CLOUDSQL_KEY)
-
+@skip_gcp_system(GCP_CLOUDSQL_KEY)
+class CloudSqlQueryExampleDagsSystemTest(SystemTest):
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def setUp(self):
         super().setUp()
-        self.gcp_authenticator.gcp_authenticate()
         SQL_QUERY_TEST_HELPER.check_if_instances_are_up(instance_suffix="_QUERY")
         SQL_QUERY_TEST_HELPER.setup_instances(instance_suffix="_QUERY")
-        self.gcp_authenticator.gcp_revoke_authentication()
 
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_run_example_dag_cloudsql_query(self):
-        self._run_dag()
+        self.run_dag('example_gcp_sql_query', GCP_DAG_FOLDER)

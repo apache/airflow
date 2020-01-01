@@ -20,10 +20,9 @@
 import datetime
 import unittest
 
-from airflow import settings, models
+from airflow import models, settings
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, DagRun, clear_task_instances
-from airflow.models import TaskInstance as TI
+from airflow.models import DAG, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.utils import timezone
@@ -57,9 +56,9 @@ class TestDagRun(unittest.TestCase):
 
         if task_states is not None:
             session = settings.Session()
-            for task_id, state in task_states.items():
+            for task_id, task_state in task_states.items():
                 ti = dag_run.get_task_instance(task_id)
-                ti.set_state(state, session)
+                ti.set_state(task_state, session)
             session.close()
 
         return dag_run

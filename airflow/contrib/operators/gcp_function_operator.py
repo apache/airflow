@@ -20,14 +20,41 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.functions import (  # noqa
-    GcfFunctionDeleteOperator,
-    GcfFunctionDeployOperator,
-    ZipPathPreprocessor
+from airflow.gcp.operators.functions import (
+    CloudFunctionDeleteFunctionOperator, CloudFunctionDeployFunctionOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.functions`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )
+
+
+class GcfFunctionDeleteOperator(CloudFunctionDeleteFunctionOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.function.CloudFunctionDeleteFunctionOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.function.CloudFunctionDeleteFunctionOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GcfFunctionDeployOperator(CloudFunctionDeployFunctionOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.function.CloudFunctionDeployFunctionOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.function.CloudFunctionDeployFunctionOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

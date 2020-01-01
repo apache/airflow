@@ -18,8 +18,8 @@
 # under the License.
 
 import datetime
-from unittest import mock
 import unittest
+from unittest import mock
 
 from airflow import DAG
 from airflow.operators.email_operator import EmailOperator

@@ -23,6 +23,14 @@ This module contains various GCP Cloud DLP operators
 which allow you to perform basic operations using
 Cloud DLP.
 """
+from typing import Dict, Optional, Sequence, Tuple, Union
+
+from google.api_core.retry import Retry
+from google.cloud.dlp_v2.types import (
+    ByteContentItem, ContentItem, DeidentifyConfig, DeidentifyTemplate, FieldMask, InspectConfig,
+    InspectJobConfig, InspectTemplate, JobTrigger, RedactImageRequest, RiskAnalysisJobConfig,
+    StoredInfoTypeConfig,
+)
 
 from airflow.gcp.hooks.dlp import CloudDLPHook
 from airflow.models import BaseOperator
@@ -57,15 +65,15 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        dlp_job_id,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        dlp_job_id: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.dlp_job_id = dlp_job_id
         self.project_id = project_id
@@ -91,11 +99,11 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
     de-identifying content, images, and storage.
 
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param deidentify_template: (Optional) The DeidentifyTemplate to create.
     :type deidentify_template: dict or google.cloud.dlp_v2.types.DeidentifyTemplate
@@ -126,17 +134,17 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        organization_id=None,
-        project_id=None,
-        deidentify_template=None,
-        template_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        deidentify_template: Optional[Union[Dict, DeidentifyTemplate]] = None,
+        template_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.organization_id = organization_id
         self.project_id = project_id
@@ -196,18 +204,18 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
-        inspect_job=None,
-        risk_job=None,
-        job_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        wait_until_finished=True,
-        gcp_conn_id="google_cloud_default",
+        project_id: Optional[str] = None,
+        inspect_job: Optional[Union[Dict, InspectJobConfig]] = None,
+        risk_job: Optional[Union[Dict, RiskAnalysisJobConfig]] = None,
+        job_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        wait_until_finished: bool = True,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.inspect_job = inspect_job
@@ -239,11 +247,11 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
     inspecting content, images, and storage.
 
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param inspect_template: (Optional) The InspectTemplate to create.
     :type inspect_template: dict or google.cloud.dlp_v2.types.InspectTemplate
@@ -274,17 +282,17 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        organization_id=None,
-        project_id=None,
-        inspect_template=None,
-        template_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        inspect_template: Optional[InspectTemplate] = None,
+        template_id: Optional[Union[Dict, InspectTemplate]] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.organization_id = organization_id
         self.project_id = project_id
@@ -340,16 +348,16 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
-        job_trigger=None,
-        trigger_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        project_id: Optional[str] = None,
+        job_trigger: Optional[Union[Dict, JobTrigger]] = None,
+        trigger_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.job_trigger = job_trigger
@@ -376,11 +384,11 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
     Creates a pre-built stored infoType to be used for inspection.
 
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param config: (Optional) The config for the StoredInfoType.
     :type config: dict or google.cloud.dlp_v2.types.StoredInfoTypeConfig
@@ -411,17 +419,17 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        organization_id=None,
-        project_id=None,
-        config=None,
-        stored_info_type_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        config: Optional[StoredInfoTypeConfig] = None,
+        stored_info_type_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.organization_id = organization_id
         self.project_id = project_id
@@ -497,19 +505,19 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
-        deidentify_config=None,
-        inspect_config=None,
-        item=None,
-        inspect_template_name=None,
-        deidentify_template_name=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        project_id: Optional[str] = None,
+        deidentify_config: Optional[Union[Dict, DeidentifyConfig]] = None,
+        inspect_config: Optional[Union[Dict, InspectConfig]] = None,
+        item: Optional[Union[Dict, ContentItem]] = None,
+        inspect_template_name: Optional[str] = None,
+        deidentify_template_name: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.deidentify_config = deidentify_config
@@ -544,11 +552,11 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
     :param template_id: The ID of deidentify template to be deleted.
     :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -568,16 +576,16 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        template_id,
-        organization_id=None,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        template_id: str,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.template_id = template_id
         self.organization_id = organization_id
@@ -599,7 +607,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         )
 
 
-class CloudDLPDeleteDlpJobOperator(BaseOperator):
+class CloudDLPDeleteDLPJobOperator(BaseOperator):
     """
     Deletes a long-running DlpJob. This method indicates that the client is no longer
     interested in the DlpJob result. The job will be cancelled if possible.
@@ -628,15 +636,15 @@ class CloudDLPDeleteDlpJobOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        dlp_job_id,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        dlp_job_id: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.dlp_job_id = dlp_job_id
         self.project_id = project_id
@@ -663,11 +671,11 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
     :param template_id: The ID of the inspect template to be deleted.
     :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -687,16 +695,16 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        template_id,
-        organization_id=None,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        template_id: str,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.template_id = template_id
         self.organization_id = organization_id
@@ -746,15 +754,15 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        job_trigger_id,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        job_trigger_id: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.job_trigger_id = job_trigger_id
         self.project_id = project_id
@@ -781,11 +789,11 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
     :param stored_info_type_id: The ID of the stored info type to be deleted.
     :type stored_info_type_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -810,16 +818,16 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        stored_info_type_id,
-        organization_id=None,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        stored_info_type_id: str,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.stored_info_type_id = stored_info_type_id
         self.organization_id = organization_id
@@ -848,11 +856,11 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
     :param template_id: The ID of deidentify template to be read.
     :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -873,16 +881,16 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        template_id,
-        organization_id=None,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        template_id: str,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.template_id = template_id
         self.organization_id = organization_id
@@ -904,7 +912,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         )
 
 
-class CloudDLPGetDlpJobOperator(BaseOperator):
+class CloudDLPGetDLPJobOperator(BaseOperator):
     """
     Gets the latest state of a long-running DlpJob.
 
@@ -933,15 +941,15 @@ class CloudDLPGetDlpJobOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        dlp_job_id,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        dlp_job_id: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.dlp_job_id = dlp_job_id
         self.project_id = project_id
@@ -968,11 +976,11 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
     :param template_id: The ID of inspect template to be read.
     :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -993,16 +1001,16 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        template_id,
-        organization_id=None,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        template_id: str,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.template_id = template_id
         self.organization_id = organization_id
@@ -1024,7 +1032,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         )
 
 
-class CloudDLPGetJobTripperOperator(BaseOperator):
+class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
     """
     Gets a job trigger.
 
@@ -1053,15 +1061,15 @@ class CloudDLPGetJobTripperOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        job_trigger_id,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        job_trigger_id: str,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.job_trigger_id = job_trigger_id
         self.project_id = project_id
@@ -1088,11 +1096,11 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
     :param stored_info_type_id: The ID of the stored info type to be read.
     :type stored_info_type_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
@@ -1118,16 +1126,16 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        stored_info_type_id,
-        organization_id=None,
-        project_id=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        stored_info_type_id: str,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.stored_info_type_id = stored_info_type_id
         self.organization_id = organization_id
@@ -1191,17 +1199,17 @@ class CloudDLPInspectContentOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
-        inspect_config=None,
-        item=None,
-        inspect_template_name=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        project_id: Optional[str] = None,
+        inspect_config: Optional[Union[Dict, InspectConfig]] = None,
+        item: Optional[Union[Dict, ContentItem]] = None,
+        inspect_template_name: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.inspect_config = inspect_config
@@ -1230,11 +1238,11 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
     Lists DeidentifyTemplates.
 
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
@@ -1261,17 +1269,17 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        organization_id=None,
-        project_id=None,
-        page_size=None,
-        order_by=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        page_size: Optional[int] = None,
+        order_by: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.organization_id = organization_id
         self.project_id = project_id
@@ -1295,7 +1303,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         )
 
 
-class CloudDLPListDlpJobsOperator(BaseOperator):
+class CloudDLPListDLPJobsOperator(BaseOperator):
     """
     Lists DlpJobs that match the specified filter in the request.
 
@@ -1332,18 +1340,18 @@ class CloudDLPListDlpJobsOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
-        results_filter=None,
-        page_size=None,
-        job_type=None,
-        order_by=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        project_id: Optional[str] = None,
+        results_filter: Optional[str] = None,
+        page_size: Optional[int] = None,
+        job_type: Optional[str] = None,
+        order_by: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.results_filter = results_filter
@@ -1398,15 +1406,15 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        language_code=None,
-        results_filter=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        language_code: Optional[str] = None,
+        results_filter: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.language_code = language_code
         self.results_filter = results_filter
@@ -1431,11 +1439,11 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
     Lists InspectTemplates.
 
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
@@ -1462,17 +1470,17 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        organization_id=None,
-        project_id=None,
-        page_size=None,
-        order_by=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        page_size: Optional[int] = None,
+        order_by: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.organization_id = organization_id
         self.project_id = project_id
@@ -1531,17 +1539,17 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
-        page_size=None,
-        order_by=None,
-        results_filter=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        project_id: Optional[str] = None,
+        page_size: Optional[int] = None,
+        order_by: Optional[str] = None,
+        results_filter: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.page_size = page_size
@@ -1570,11 +1578,11 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
     Lists stored infoTypes.
 
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
@@ -1601,17 +1609,17 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        organization_id=None,
-        project_id=None,
-        page_size=None,
-        order_by=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        page_size: Optional[int] = None,
+        order_by: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.organization_id = organization_id
         self.project_id = project_id
@@ -1649,7 +1657,8 @@ class CloudDLPRedactImageOperator(BaseOperator):
     :type inspect_config: dict or google.cloud.dlp_v2.types.InspectConfig
     :param image_redaction_configs: (Optional) The configuration for specifying what
         content to redact from images.
-    :type image_redaction_configs: list[dict] or list[google.cloud.dlp_v2.types.ImageRedactionConfig]
+    :type image_redaction_configs: list[dict] or
+        list[google.cloud.dlp_v2.types.RedactImageRequest.ImageRedactionConfig]
     :param include_findings: (Optional) Whether the response should include findings
         along with the redacted image.
     :type include_findings: bool
@@ -1681,18 +1690,18 @@ class CloudDLPRedactImageOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
-        inspect_config=None,
-        image_redaction_configs=None,
-        include_findings=None,
-        byte_item=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        project_id: Optional[str] = None,
+        inspect_config: Optional[Union[Dict, InspectConfig]] = None,
+        image_redaction_configs: Optional[Union[Dict, RedactImageRequest.ImageRedactionConfig]] = None,
+        include_findings: Optional[bool] = None,
+        byte_item: Optional[Union[Dict, ByteContentItem]] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.inspect_config = inspect_config
@@ -1767,19 +1776,19 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        project_id=None,
-        reidentify_config=None,
-        inspect_config=None,
-        item=None,
-        inspect_template_name=None,
-        reidentify_template_name=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        project_id: Optional[str] = None,
+        reidentify_config: Optional[Union[Dict, DeidentifyConfig]] = None,
+        inspect_config: Optional[Union[Dict, InspectConfig]] = None,
+        item: Optional[Union[Dict, ContentItem]] = None,
+        inspect_template_name: Optional[str] = None,
+        reidentify_template_name: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.reidentify_config = reidentify_config
@@ -1814,11 +1823,11 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
     :param template_id: The ID of deidentify template to be updated.
     :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param deidentify_template: New DeidentifyTemplate value.
     :type deidentify_template: dict or google.cloud.dlp_v2.types.DeidentifyTemplate
@@ -1850,18 +1859,18 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        template_id,
-        organization_id=None,
-        project_id=None,
-        deidentify_template=None,
-        update_mask=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        template_id: str,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        deidentify_template: Optional[Union[Dict, DeidentifyTemplate]] = None,
+        update_mask: Optional[Union[Dict, FieldMask]] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.template_id = template_id
         self.organization_id = organization_id
@@ -1894,11 +1903,11 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
     :param template_id: The ID of the inspect template to be updated.
     :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param inspect_template: New InspectTemplate value.
     :type inspect_template: dict or google.cloud.dlp_v2.types.InspectTemplate
@@ -1930,18 +1939,18 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        template_id,
-        organization_id=None,
-        project_id=None,
-        inspect_template=None,
-        update_mask=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        template_id: str,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        inspect_template: Optional[Union[Dict, InspectTemplate]] = None,
+        update_mask: Optional[Union[Dict, FieldMask]] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.template_id = template_id
         self.organization_id = organization_id
@@ -2007,16 +2016,16 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
     def __init__(
         self,
         job_trigger_id,
-        project_id=None,
-        job_trigger=None,
-        update_mask=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        project_id: Optional[str] = None,
+        job_trigger: Optional[JobTrigger] = None,
+        update_mask: Optional[Union[Dict, FieldMask]] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.job_trigger_id = job_trigger_id
         self.project_id = project_id
@@ -2047,11 +2056,11 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
     :param stored_info_type_id: The ID of the stored info type to be updated.
     :type stored_info_type_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
-        field if parent resource is an organzation.
+        field if parent resource is an organization.
     :type organization_id: str
     :param project_id: (Optional) Google Cloud Platform project ID where the
         DLP Instance exists. Only set this field if the parent resource is
-        a project instead of an organzation.
+        a project instead of an organization.
     :type project_id: str
     :param config: Updated configuration for the storedInfoType. If not provided, a new
         version of the storedInfoType will be created with the existing configuration.
@@ -2085,17 +2094,17 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
     def __init__(
         self,
         stored_info_type_id,
-        organization_id=None,
-        project_id=None,
-        config=None,
-        update_mask=None,
-        retry=None,
-        timeout=None,
-        metadata=None,
-        gcp_conn_id="google_cloud_default",
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        config: Optional[Union[Dict, StoredInfoTypeConfig]] = None,
+        update_mask: Optional[Union[Dict, FieldMask]] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.stored_info_type_id = stored_info_type_id
         self.organization_id = organization_id

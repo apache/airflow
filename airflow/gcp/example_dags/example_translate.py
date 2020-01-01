@@ -25,7 +25,6 @@ service in the Google Cloud Platform.
 
 import airflow
 from airflow import models
-
 from airflow.gcp.operators.translate import CloudTranslateTextOperator
 from airflow.operators.bash_operator import BashOperator
 

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -34,7 +35,7 @@ TODO: Review the workflow, change it accordingly to
 # from airflow.operators.docker_operator import DockerOperator
 #
 # default_args = {
-#     'owner': 'Airflow',
+#     'owner': 'airflow',
 #     'depends_on_past': False,
 #     'start_date': airflow.utils.dates.days_ago(2),
 #     'email': ['airflow@example.com'],
@@ -69,7 +70,6 @@ TODO: Review the workflow, change it accordingly to
 #
 # t_is_data_available = ShortCircuitOperator(
 #         task_id='check_if_data_available',
-#         provide_context=True,
 #         python_callable=is_data_available,
 #         dag=dag)
 #

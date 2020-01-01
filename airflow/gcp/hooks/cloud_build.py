@@ -19,19 +19,19 @@
 """Hook for Google Cloud Build service"""
 
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
 # noinspection PyAbstractClass
-class CloudBuildHook(GoogleCloudBaseHook):
+class CloudBuildHook(CloudBaseHook):
     """
     Hook for the Google Cloud Build APIs.
 
@@ -54,14 +54,14 @@ class CloudBuildHook(GoogleCloudBaseHook):
         self,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str = None
+        delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
 
     def get_conn(self):
         """
-        Retrieves the connection to Cloud Functions.
+        Retrieves the connection to Cloud Build.
 
         :return: Google Cloud Build services object.
         """
@@ -70,8 +70,8 @@ class CloudBuildHook(GoogleCloudBaseHook):
             self._conn = build("cloudbuild", self.api_version, http=http_authorized, cache_discovery=False)
         return self._conn
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
-    def create_build(self, body: Dict, project_id: str = None) -> Dict:
+    @CloudBaseHook.fallback_to_default_project_id
+    def create_build(self, body: Dict, project_id: Optional[str] = None) -> Dict:
         """
         Starts a build with the specified configuration.
 
@@ -83,7 +83,8 @@ class CloudBuildHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: Dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         service = self.get_conn()
 
         # Create build

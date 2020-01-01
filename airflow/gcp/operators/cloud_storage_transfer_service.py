@@ -23,35 +23,14 @@ This module contains Google Cloud Transfer operators.
 
 from copy import deepcopy
 from datetime import date, time
+from typing import Dict, Optional
 
 from airflow import AirflowException
 from airflow.gcp.hooks.cloud_storage_transfer_service import (
-    GCPTransferServiceHook,
-    GcpTransferJobsStatus,
-    TRANSFER_OPTIONS,
-    OBJECT_CONDITIONS,
-    PROJECT_ID,
-    BUCKET_NAME,
-    GCS_DATA_SINK,
-    STATUS,
-    DESCRIPTION,
-    GCS_DATA_SOURCE,
-    HTTP_DATA_SOURCE,
-    SECONDS,
-    MINUTES,
-    HOURS,
-    YEAR,
-    MONTH,
-    DAY,
-    START_TIME_OF_DAY,
-    SCHEDULE_END_DATE,
-    SCHEDULE_START_DATE,
-    SCHEDULE,
-    SECRET_ACCESS_KEY,
-    ACCESS_KEY_ID,
-    AWS_ACCESS_KEY,
-    AWS_S3_DATA_SOURCE,
-    TRANSFER_SPEC,
+    ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, DAY, DESCRIPTION, GCS_DATA_SINK,
+    GCS_DATA_SOURCE, HOURS, HTTP_DATA_SOURCE, MINUTES, MONTH, OBJECT_CONDITIONS, PROJECT_ID, SCHEDULE,
+    SCHEDULE_END_DATE, SCHEDULE_START_DATE, SECONDS, SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS,
+    TRANSFER_OPTIONS, TRANSFER_SPEC, YEAR, GcpTransferJobsStatus, GCPTransferServiceHook,
 )
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -67,7 +46,7 @@ class TransferJobPreprocessor:
     Helper class for preprocess of transfer job body.
     """
 
-    def __init__(self, body, aws_conn_id='aws_default', default_schedule=False):
+    def __init__(self, body: dict, aws_conn_id: str = 'aws_default', default_schedule: bool = False) -> None:
         self.body = body
         self.aws_conn_id = aws_conn_id
         self.default_schedule = default_schedule
@@ -142,7 +121,7 @@ class TransferJobValidator:
     """
     Helper class for validating transfer job body.
     """
-    def __init__(self, body):
+    def __init__(self, body: dict) -> None:
         if not body:
             raise AirflowException("The required parameter 'body' is empty or None")
 
@@ -220,13 +199,13 @@ class GcpTransferServiceJobCreateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        body,
-        aws_conn_id='aws_default',
-        gcp_conn_id='google_cloud_default',
-        api_version='v1',
+        body: dict,
+        aws_conn_id: str = 'aws_default',
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.body = deepcopy(body)
         self.aws_conn_id = aws_conn_id
@@ -279,14 +258,14 @@ class GcpTransferServiceJobUpdateOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        job_name,
-        body,
-        aws_conn_id='aws_default',
-        gcp_conn_id='google_cloud_default',
-        api_version='v1',
+        job_name: str,
+        body: dict,
+        aws_conn_id: str = 'aws_default',
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1',
         *args,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.body = body
@@ -335,8 +314,14 @@ class GcpTransferServiceJobDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, job_name, gcp_conn_id='google_cloud_default', api_version='v1', project_id=None, *args, **kwargs
-    ):
+        self,
+        job_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        project_id: Optional[str] = None,
+        *args,
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.project_id = project_id
@@ -376,7 +361,14 @@ class GcpTransferServiceOperationGetOperator(BaseOperator):
     # [END gcp_transfer_operation_get_template_fields]
 
     @apply_defaults
-    def __init__(self, operation_name, gcp_conn_id='google_cloud_default', api_version='v1', *args, **kwargs):
+    def __init__(
+        self,
+        operation_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        *args,
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
@@ -402,9 +394,9 @@ class GcpTransferServiceOperationsListOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GcpTransferServiceOperationsListOperator`
 
-    :param filter: (Required) A request filter, as described in
+    :param request_filter: (Required) A request filter, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
-    :type filter: dict
+    :type request_filter: dict
     :param gcp_conn_id: The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
@@ -416,11 +408,11 @@ class GcpTransferServiceOperationsListOperator(BaseOperator):
     # [END gcp_transfer_operations_list_template_fields]
 
     def __init__(self,
-                 request_filter=None,
-                 gcp_conn_id='google_cloud_default',
-                 api_version='v1',
+                 request_filter: Optional[Dict] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 api_version: str = 'v1',
                  *args,
-                 **kwargs):
+                 **kwargs) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if request_filter is None:
@@ -467,7 +459,14 @@ class GcpTransferServiceOperationPauseOperator(BaseOperator):
     # [END gcp_transfer_operation_pause_template_fields]
 
     @apply_defaults
-    def __init__(self, operation_name, gcp_conn_id='google_cloud_default', api_version='v1', *args, **kwargs):
+    def __init__(
+        self,
+        operation_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        *args,
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
@@ -503,7 +502,14 @@ class GcpTransferServiceOperationResumeOperator(BaseOperator):
     # [END gcp_transfer_operation_resume_template_fields]
 
     @apply_defaults
-    def __init__(self, operation_name, gcp_conn_id='google_cloud_default', api_version='v1', *args, **kwargs):
+    def __init__(
+        self,
+        operation_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        *args,
+        **kwargs
+    ) -> None:
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -540,7 +546,14 @@ class GcpTransferServiceOperationCancelOperator(BaseOperator):
     # [END gcp_transfer_operation_cancel_template_fields]
 
     @apply_defaults
-    def __init__(self, operation_name, api_version='v1', gcp_conn_id='google_cloud_default', *args, **kwargs):
+    def __init__(
+        self,
+        operation_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        *args,
+        **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.operation_name = operation_name
         self.api_version = api_version
@@ -624,21 +637,21 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        s3_bucket,
-        gcs_bucket,
-        project_id=None,
-        aws_conn_id='aws_default',
-        gcp_conn_id='google_cloud_default',
-        delegate_to=None,
-        description=None,
-        schedule=None,
-        object_conditions=None,
-        transfer_options=None,
-        wait=True,
-        timeout=None,
+        s3_bucket: str,
+        gcs_bucket: str,
+        project_id: Optional[str] = None,
+        aws_conn_id: str = 'aws_default',
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        description: Optional[str] = None,
+        schedule: Optional[Dict] = None,
+        object_conditions: Optional[Dict] = None,
+        transfer_options: Optional[Dict] = None,
+        wait: bool = True,
+        timeout: Optional[float] = None,
         *args,
         **kwargs
-    ):
+    ) -> None:
 
         super().__init__(*args, **kwargs)
         self.s3_bucket = s3_bucket
@@ -700,6 +713,10 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
         This operator is NOT idempotent. If you run it many times, many transfer
         jobs will be created in the Google Cloud Platform.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageToGoogleCloudStorageOperator`
+
     **Example**:
 
     .. code-block:: python
@@ -711,10 +728,10 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
             project_id='my-gcp-project',
             dag=my_dag)
 
-    :param source_bucket: The source Google cloud storage bucket where the
+    :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
     :type source_bucket: str
-    :param destination_bucket: The destination Google cloud storage bucket
+    :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. (templated)
     :type destination_bucket: str
     :param project_id: The ID of the Google Cloud Platform Console project that
@@ -763,20 +780,20 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
     @apply_defaults
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        source_bucket,
-        destination_bucket,
-        project_id=None,
-        gcp_conn_id='google_cloud_default',
-        delegate_to=None,
-        description=None,
-        schedule=None,
-        object_conditions=None,
-        transfer_options=None,
-        wait=True,
-        timeout=None,
+        source_bucket: str,
+        destination_bucket: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        description: Optional[str] = None,
+        schedule: Optional[Dict] = None,
+        object_conditions: Optional[Dict] = None,
+        transfer_options: Optional[Dict] = None,
+        wait: bool = True,
+        timeout: Optional[float] = None,
         *args,
         **kwargs
-    ):
+    ) -> None:
 
         super().__init__(*args, **kwargs)
         self.source_bucket = source_bucket

@@ -25,5 +25,5 @@ from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator  # 
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.sql_to_gcs`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

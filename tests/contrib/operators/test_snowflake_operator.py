@@ -19,12 +19,11 @@
 
 import unittest
 
+import mock
+
 from airflow import DAG
-from airflow.utils import timezone
-
 from airflow.contrib.operators.snowflake_operator import SnowflakeOperator
-from tests.compat import mock
-
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -49,9 +48,8 @@ class TestSnowflakeOperator(unittest.TestCase):
             dummy VARCHAR(50)
         );
         """
-        t = SnowflakeOperator(
+        op = SnowflakeOperator(
             task_id='basic_snowflake',
             sql=sql,
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-              ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

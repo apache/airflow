@@ -22,10 +22,23 @@ This module is deprecated. Please use `airflow.gcp.hooks.text_to_speech`.
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook  # noqa
+from airflow.gcp.hooks.text_to_speech import CloudTextToSpeechHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.text_to_speech`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )
+
+
+class GCPTextToSpeechHook(CloudTextToSpeechHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+
+        super().__init__(*args, **kwargs)

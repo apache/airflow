@@ -23,11 +23,11 @@ Unit Tests for the GSheets Hook
 
 import unittest
 
-from tests.compat import mock
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+import mock
 
-from airflow.gcp.hooks.gsheets import GSheetsHook
 from airflow import AirflowException
+from airflow.gcp.hooks.gsheets import GSheetsHook
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 GCP_CONN_ID = 'test'
 SPREADHSEET_ID = '1234567890'
@@ -47,9 +47,18 @@ API_RESPONSE = {'test': 'repsonse'}
 
 class TestGSheetsHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.CloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
             self.hook = GSheetsHook(gcp_conn_id=GCP_CONN_ID, spreadsheet_id=SPREADHSEET_ID)
+
+    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook._authorize")
+    @mock.patch("airflow.gcp.hooks.gsheets.build")
+    def test_gsheets_client_creation(self, mock_build, mock_authorize):
+        result = self.hook.get_conn()
+        mock_build.assert_called_once_with(
+            'sheets', 'v4', http=mock_authorize.return_value, cache_discovery=False
+        )
+        self.assertEqual(mock_build.return_value, result)
 
     @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
     def test_get_values(self, get_conn):

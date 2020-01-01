@@ -19,29 +19,15 @@ default_stages: [commit, push]
 default_language_version:
   # force all unspecified python hooks to run python3
   python: python3
+minimum_pre_commit_version: "1.20.0"
 repos:
-  - repo: local
-    hooks:
-      - id: build
-        name: Check if image build is needed
-        entry: ./scripts/ci/ci_build.sh
-        language: system
-        always_run: true
-        pass_filenames: false
-      - id: check-apache-license
-        name: Check if licences are OK for Apache
-        entry: ./scripts/ci/ci_check_license.sh
-        language: system
-        files: ^.*LICENSE.*$|^.*LICENCE.*$
-        pass_filenames: false
-        require_serial: true
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.1.7
     hooks:
       - id: forbid-tabs
         exclude: ^airflow/_vendor/.*$|^docs/Makefile$
       - id: insert-license
-        name: Add licence for all SQL files
+        name: Add license for all SQL files
         files: \.sql$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
@@ -51,7 +37,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all other files
+        name: Add license for all other files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         args:
           - --comment-style
@@ -62,7 +48,7 @@ repos:
         files: >
           \.properties$|\.cfg$|\.conf$|\.ini$|\.ldif$|\.readthedocs$|\.service$|^Dockerfile.*$
       - id: insert-license
-        name: Add licence for all rst files
+        name: Add license for all rst files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         args:
           - --comment-style
@@ -72,8 +58,8 @@ repos:
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
-        name: Add licence for all JS files
-        files: \.js$
+        name: Add license for all JS/CSS files
+        files: \.(js|css)$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
           - --comment-style
@@ -82,8 +68,8 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all JINJA template files
-        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$ # yamllint disable-line rule:line-length
+        name: Add license for all JINJA template files
+        files: ^airflow/www/templates/.*\.html$|^docs/templates/.*\.html$|^airflow/contrib/plugins/metastore_browser/templates/.*\.html$  # yamllint disable-line rule:line-length
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
           - --comment-style
@@ -92,10 +78,9 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for shell files
+        name: Add license for all shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
-        types: [shell]
-        files: ^breeze$|^breeze-complete$
+        files: ^breeze$|^breeze-complete$|\.sh$
         args:
           - --comment-style
           - "|#|"
@@ -103,7 +88,17 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all XML files
+        name: Add license for all python files
+        exclude: ^\.github/.*$"|^airflow/_vendor/.*$
+        types: [python]
+        args:
+          - --comment-style
+          - "|#|"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all XML files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [xml]
         args:
@@ -113,7 +108,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for yaml files
+        name: Add license for all yaml files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
         types: [yaml]
         args:
@@ -123,7 +118,7 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add licence for all md files
+        name: Add license for all md files
         files: \.md$
         exclude: ^\.github/.*$|^airflow/_vendor/.*$
         args:
@@ -145,14 +140,21 @@ repos:
     hooks:
       - id: check-hooks-apply
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+    rev: v2.4.0
     hooks:
       - id: check-merge-conflict
+      - id: debug-statements
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: mixed-line-ending
       - id: check-executables-have-shebangs
       - id: check-xml
+      - id: trailing-whitespace
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.4.2
+    hooks:
+      - id: rst-backticks
+      - id: python-no-log-warn
   - repo: local
     hooks:
       - id: yamllint
@@ -167,31 +169,119 @@ repos:
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
         types: [shell]
-        files: ^breeze$|^breeze-complete$
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$
+        exclude: ^airflow/_vendor/.*$
       - id: lint-dockerfile
         name: Lint dockerfile
         language: system
-        entry: ./scripts/ci/ci_lint_dockerfile.sh
+        entry: "./scripts/ci/pre_commit_lint_dockerfile.sh"
         files: ^Dockerfile.*$
+        pass_filenames: true
+      - id: isort
+        name: Run isort to sort imports
+        language: python
+        entry: isort
+        files: \.py$
+        # To keep consistent with the global isort skip config defined in setup.cfg
+        exclude: ^airflow/_vendor/.*$|^build/.*$|^.tox/.*$|^venv/.*$
+        additional_dependencies: ['isort']
+      - id: setup-order
+        name: Checks for an order of dependencies in setup.py
+        language: python
+        files: ^setup.py$
+        pass_filenames: false
+        require_serial: true
+        entry: tests/test_order_setup.py
+      - id: update-breeze-file
+        name: Update output of breeze command in BREEZE.rst
+        entry: "./scripts/ci/pre_commit_breeze_cmd_line.sh"
+        language: system
+        files: ^BREEZE.rst$|^breeze$|^breeze-complete$
+        pass_filenames: false
+        require_serial: true
+      - id: pydevd
+        language: pygrep
+        name: Check for pydevd debug statements accidentally left
+        entry: "pydevd.*settrace\\("
+        pass_filenames: true
+        files: \.py$
+      - id: consistent-pylint
+        language: pygrep
+        name: Check for inconsitent pylint disable/enable without space
+        entry: "pylint:disable|pylint:enable"
+        pass_filenames: true
+        files: \.py$
+      - id: base-operator
+        language: pygrep
+        name: Make sure BaseOperator[Link] is imported from airflow.models.baseoperator in core
+        entry: "from airflow\\.models import.* BaseOperator"
+        files: \.py$
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/gcp/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/sensors/.*$|
+          ^airflow/providers/.*$|
+          ^airflow/contrib/.*$
+      - id: provide-create-sessions
+        language: pygrep
+        name: Make sure provide_session and create_session are imported from airflow.utils.session
+        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
+        files: \.py$
+        pass_filenames: true
+      - id: base-operator
+        language: pygrep
+        name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
+        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow/gcp/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/sensors/.*$|
+          ^airflow/providers/.*\.py$|
+          ^airflow/contrib/.*\.py$
+      - id: build
+        name: Check if image build is needed
+        entry: ./scripts/ci/pre_commit_ci_build.sh
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: check-apache-license
+        name: Check if licenses are OK for Apache
+        entry: "./scripts/ci/pre_commit_check_license.sh"
+        language: system
+        files: ^.*LICENSE.*$|^.*LICENCE.*$
+        pass_filenames: false
+        require_serial: true
       - id: mypy
         name: Run mypy
         language: system
-        entry: ./scripts/ci/ci_mypy.sh
+        entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
         exclude: ^airflow/_vendor/.*$
+        pass_filenames: true
       - id: pylint
         name: Run pylint for main sources
         language: system
-        entry: ./scripts/ci/ci_pylint_main.sh
+        entry: "./scripts/ci/pre_commit_pylint_main.sh"
         files: \.py$
-        exclude: ^tests/.*\.py$|^airflow/_vendor/.*$
-      - id: pylint
+        exclude: ^tests/.*\.py$|^airflow/_vendor/.*|^scripts/.*\.py$
+        pass_filenames: true
+        require_serial: true  # Pylint tests should be run in one chunk to detect all cycles
+      - id: pylint-tests
         name: Run pylint for tests
         language: system
-        entry: ./scripts/ci/ci_pylint_tests.sh
+        entry: "./scripts/ci/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
+        pass_filenames: true
+        require_serial: false  # For tests, it's perfectly OK to run pylint in parallel
       - id: flake8
         name: Run flake8
         language: system
-        entry: ./scripts/ci/ci_flake8.sh
+        entry: "./scripts/ci/pre_commit_flake8.sh"
         files: \.py$
+        pass_filenames: true

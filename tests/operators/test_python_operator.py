@@ -21,16 +21,16 @@ import copy
 import logging
 import os
 import unittest
+import unittest.mock
 from collections import namedtuple
-from datetime import timedelta, date
+from datetime import date, timedelta
 
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance as TI, DAG, DagRun
+from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
-from airflow.operators.python_operator import ShortCircuitOperator
+from airflow.operators.python_operator import BranchPythonOperator, PythonOperator, ShortCircuitOperator
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -62,7 +62,8 @@ def build_recording_function(calls_collection):
     return recording_function
 
 
-class TestPythonOperator(unittest.TestCase):
+class TestPythonBase(unittest.TestCase):
+    """Base test class for TestPythonOperator and TestPythonSensor classes"""
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -77,8 +78,7 @@ class TestPythonOperator(unittest.TestCase):
             'test_dag',
             default_args={
                 'owner': 'airflow',
-                'start_date': DEFAULT_DATE},
-            schedule_interval=INTERVAL)
+                'start_date': DEFAULT_DATE})
         self.addCleanup(self.dag.clear)
         self.clear_run()
         self.addCleanup(self.clear_run)
@@ -90,15 +90,38 @@ class TestPythonOperator(unittest.TestCase):
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-        for var in TI_CONTEXT_ENV_VARS:
-            if var in os.environ:
-                del os.environ[var]
+    def clear_run(self):
+        self.run = False
+
+    def _assert_calls_equal(self, first, second):
+        self.assertIsInstance(first, Call)
+        self.assertIsInstance(second, Call)
+        self.assertTupleEqual(first.args, second.args)
+        # eliminate context (conf, dag_run, task_instance, etc.)
+        test_args = ["an_int", "a_date", "a_templated_string"]
+        first.kwargs = {
+            key: value
+            for (key, value) in first.kwargs.items()
+            if key in test_args
+        }
+        second.kwargs = {
+            key: value
+            for (key, value) in second.kwargs.items()
+            if key in test_args
+        }
+        self.assertDictEqual(first.kwargs, second.kwargs)
+
+
+@unittest.mock.patch('os.environ', {
+    'AIRFLOW_CTX_DAG_ID': None,
+    'AIRFLOW_CTX_TASK_ID': None,
+    'AIRFLOW_CTX_EXECUTION_DATE': None,
+    'AIRFLOW_CTX_DAG_RUN_ID': None
+})
+class TestPythonOperator(TestPythonBase):
 
     def do_run(self):
         self.run = True
-
-    def clear_run(self):
-        self.run = False
 
     def is_run(self):
         return self.run
@@ -129,12 +152,6 @@ class TestPythonOperator(unittest.TestCase):
                 task_id='python_operator',
                 dag=self.dag)
 
-    def _assertCallsEqual(self, first, second):
-        self.assertIsInstance(first, Call)
-        self.assertIsInstance(second, Call)
-        self.assertTupleEqual(first.args, second.args)
-        self.assertDictEqual(first.kwargs, second.kwargs)
-
     def test_python_callable_arguments_are_templatized(self):
         """Test PythonOperator op_args are templatized"""
         recorded_calls = []
@@ -148,7 +165,7 @@ class TestPythonOperator(unittest.TestCase):
             task_id='python_operator',
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
-            python_callable=(build_recording_function(recorded_calls)),
+            python_callable=build_recording_function(recorded_calls),
             op_args=[
                 4,
                 date(2019, 1, 1),
@@ -167,7 +184,7 @@ class TestPythonOperator(unittest.TestCase):
 
         ds_templated = DEFAULT_DATE.date().isoformat()
         self.assertEqual(1, len(recorded_calls))
-        self._assertCallsEqual(
+        self._assert_calls_equal(
             recorded_calls[0],
             Call(4,
                  date(2019, 1, 1),
@@ -183,7 +200,7 @@ class TestPythonOperator(unittest.TestCase):
             task_id='python_operator',
             # a Mock instance cannot be used as a callable function or test fails with a
             # TypeError: Object of type Mock is not JSON serializable
-            python_callable=(build_recording_function(recorded_calls)),
+            python_callable=build_recording_function(recorded_calls),
             op_kwargs={
                 'an_int': 4,
                 'a_date': date(2019, 1, 1),
@@ -200,7 +217,7 @@ class TestPythonOperator(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         self.assertEqual(1, len(recorded_calls))
-        self._assertCallsEqual(
+        self._assert_calls_equal(
             recorded_calls[0],
             Call(an_int=4,
                  a_date=date(2019, 1, 1),
@@ -245,11 +262,78 @@ class TestPythonOperator(unittest.TestCase):
             external_trigger=False,
         )
 
-        t = PythonOperator(task_id='hive_in_python_op',
-                           dag=self.dag,
-                           python_callable=self._env_var_check_callback
-                           )
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        op = PythonOperator(task_id='hive_in_python_op',
+                            dag=self.dag,
+                            python_callable=self._env_var_check_callback)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_conflicting_kwargs(self):
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        # dag is not allowed since it is a reserved keyword
+        def func(dag):
+            # An ValueError should be triggered since we're using dag as a
+            # reserved keyword
+            raise RuntimeError("Should not be triggered, dag: {}".format(dag))
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_args=[1],
+            python_callable=func,
+            dag=self.dag
+        )
+
+        with self.assertRaises(ValueError) as context:
+            python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.assertTrue('dag' in context.exception, "'dag' not found in the exception")
+
+    def test_context_with_conflicting_op_args(self):
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def func(custom, dag):
+            self.assertEqual(1, custom, "custom should be 1")
+            self.assertIsNotNone(dag, "dag should be set")
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_kwargs={'custom': 1},
+            python_callable=func,
+            dag=self.dag
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_context_with_kwargs(self):
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        def func(**context):
+            # check if context is being set
+            self.assertGreater(len(context), 0, "Context has not been injected")
+
+        python_operator = PythonOperator(
+            task_id='python_operator',
+            op_kwargs={'custom': 1},
+            python_callable=func,
+            dag=self.dag
+        )
+        python_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
 
 class TestBranchOperator(unittest.TestCase):
@@ -270,6 +354,7 @@ class TestBranchOperator(unittest.TestCase):
 
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_3 = None
 
     def tearDown(self):
         super().tearDown()
@@ -280,14 +365,14 @@ class TestBranchOperator(unittest.TestCase):
 
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: 'branch_1')
-        self.branch_1.set_upstream(self.branch_op)
-        self.branch_2.set_upstream(self.branch_op)
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
         self.dag.clear()
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
             tis = session.query(TI).filter(
@@ -308,16 +393,16 @@ class TestBranchOperator(unittest.TestCase):
 
     def test_branch_list_without_dag_run(self):
         """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: ['branch_1', 'branch_2'])
-        self.branch_1.set_upstream(self.branch_op)
-        self.branch_2.set_upstream(self.branch_op)
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: ['branch_1', 'branch_2'])
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
         self.branch_3 = DummyOperator(task_id='branch_3', dag=self.dag)
-        self.branch_3.set_upstream(self.branch_op)
+        self.branch_3.set_upstream(branch_op)
         self.dag.clear()
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         with create_session() as session:
             tis = session.query(TI).filter(
@@ -339,12 +424,12 @@ class TestBranchOperator(unittest.TestCase):
                     raise Exception
 
     def test_with_dag_run(self):
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: 'branch_1')
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
 
-        self.branch_1.set_upstream(self.branch_op)
-        self.branch_2.set_upstream(self.branch_op)
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
@@ -354,7 +439,7 @@ class TestBranchOperator(unittest.TestCase):
             state=State.RUNNING
         )
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = dr.get_task_instances()
         for ti in tis:
@@ -368,12 +453,12 @@ class TestBranchOperator(unittest.TestCase):
                 raise Exception
 
     def test_with_skip_in_branch_downstream_dependencies(self):
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: 'branch_1')
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
 
-        self.branch_op >> self.branch_1 >> self.branch_2
-        self.branch_op >> self.branch_2
+        branch_op >> self.branch_1 >> self.branch_2
+        branch_op >> self.branch_2
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
@@ -383,7 +468,7 @@ class TestBranchOperator(unittest.TestCase):
             state=State.RUNNING
         )
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = dr.get_task_instances()
         for ti in tis:
@@ -397,12 +482,12 @@ class TestBranchOperator(unittest.TestCase):
                 raise Exception
 
     def test_with_skip_in_branch_downstream_dependencies2(self):
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: 'branch_2')
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_2')
 
-        self.branch_op >> self.branch_1 >> self.branch_2
-        self.branch_op >> self.branch_2
+        branch_op >> self.branch_1 >> self.branch_2
+        branch_op >> self.branch_2
         self.dag.clear()
 
         dr = self.dag.create_dagrun(
@@ -412,7 +497,7 @@ class TestBranchOperator(unittest.TestCase):
             state=State.RUNNING
         )
 
-        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = dr.get_task_instances()
         for ti in tis:
@@ -424,6 +509,30 @@ class TestBranchOperator(unittest.TestCase):
                 self.assertEqual(ti.state, State.NONE)
             else:
                 raise Exception
+
+    def test_xcom_push(self):
+        branch_op = BranchPythonOperator(task_id='make_choice',
+                                         dag=self.dag,
+                                         python_callable=lambda: 'branch_1')
+
+        self.branch_1.set_upstream(branch_op)
+        self.branch_2.set_upstream(branch_op)
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(
+                    ti.xcom_pull(task_ids='make_choice'), 'branch_1')
 
 
 class TestShortCircuitOperator(unittest.TestCase):

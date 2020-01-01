@@ -19,8 +19,9 @@
 import unittest
 
 import boto3
+import mock
+
 from airflow.contrib.hooks.aws_glue_catalog_hook import AwsGlueCatalogHook
-from tests.compat import mock
 
 try:
     from moto import mock_glue
@@ -42,6 +43,7 @@ TABLE_INPUT = {
         "Location": "s3://mybucket/{}/{}".format(DB_NAME, TABLE_NAME),
     }
 }
+
 
 @unittest.skipIf(mock_glue is None,
                  "Skipping test because moto.mock_glue is not available")

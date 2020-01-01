@@ -19,9 +19,9 @@
 
 import unittest
 
-from airflow.operators.mssql_to_gcs import \
-    MsSqlToGoogleCloudStorageOperator
-from tests.compat import mock
+import mock
+
+from airflow.operators.mssql_to_gcs import MsSqlToGoogleCloudStorageOperator
 
 TASK_ID = 'test-mssql-to-gcs'
 MSSQL_CONN_ID = 'mssql_conn_test'

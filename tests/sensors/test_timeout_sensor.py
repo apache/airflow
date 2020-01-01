@@ -16,9 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
-
 import time
+import unittest
 from datetime import timedelta
 
 from airflow import DAG
@@ -75,7 +74,7 @@ class TestSensorTimeout(unittest.TestCase):
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
     def test_timeout(self):
-        t = TimeoutTestSensor(
+        op = TimeoutTestSensor(
             task_id='test_timeout',
             execution_timeout=timedelta(days=2),
             return_value=False,
@@ -85,6 +84,6 @@ class TestSensorTimeout(unittest.TestCase):
         )
         self.assertRaises(
             AirflowSensorTimeout,
-            t.run,
+            op.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True
         )

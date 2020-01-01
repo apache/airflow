@@ -18,11 +18,11 @@
 # under the License.
 
 import unittest
-from airflow.utils.state import State
 from unittest.mock import Mock, patch
 
 from airflow.models import DAG, DagRun
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
+from airflow.utils.state import State
 
 
 class TestDagrunRunningDep(unittest.TestCase):

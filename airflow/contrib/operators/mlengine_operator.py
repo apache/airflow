@@ -22,13 +22,10 @@ import warnings
 
 # pylint: disable=unused-import
 from airflow.gcp.operators.mlengine import (  # noqa
-    MLEngineBatchPredictionOperator,
-    MLEngineModelOperator,
-    MLEngineTrainingOperator,
-    MLEngineVersionOperator,
+    MLEngineBatchPredictionOperator, MLEngineModelOperator, MLEngineTrainingOperator, MLEngineVersionOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.mlengine`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

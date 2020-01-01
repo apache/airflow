@@ -20,11 +20,11 @@
 
 from io import StringIO
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.contrib.hooks.qubole_hook import QuboleHook
-from airflow.exceptions import AirflowException
 from qds_sdk.commands import Command
 
+from airflow.contrib.hooks.qubole_hook import QuboleHook
+from airflow.exceptions import AirflowException
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 COL_DELIM = '\t'
 ROW_DELIM = '\r\n'

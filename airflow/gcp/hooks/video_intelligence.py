@@ -19,17 +19,17 @@
 """
 This module contains a Google Cloud Video Intelligence Hook.
 """
-from typing import Sequence, Tuple, Union, Dict, List
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.videointelligence_v1 import VideoIntelligenceServiceClient
 from google.cloud.videointelligence_v1.types import VideoContext
-from google.api_core.operation import Operation
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
+class CloudVideoIntelligenceHook(CloudBaseHook):
     """
     Hook for Google Cloud Video Intelligence APIs.
 
@@ -44,7 +44,7 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
     :type delegate_to: str
     """
 
-    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: str = None) -> None:
+    def __init__(self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self._conn = None
 
@@ -61,17 +61,18 @@ class CloudVideoIntelligenceHook(GoogleCloudBaseHook):
             )
         return self._conn
 
+    @CloudBaseHook.quota_retry()
     def annotate_video(
         self,
-        input_uri: str = None,
-        input_content: bytes = None,
-        features: List[VideoIntelligenceServiceClient.enums.Feature] = None,
+        input_uri: Optional[str] = None,
+        input_content: Optional[bytes] = None,
+        features: Optional[List[VideoIntelligenceServiceClient.enums.Feature]] = None,
         video_context: Union[Dict, VideoContext] = None,
-        output_uri: str = None,
-        location: str = None,
-        retry: Retry = None,
-        timeout: float = None,
-        metadata: Sequence[Tuple[str, str]] = None,
+        output_uri: Optional[str] = None,
+        location: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> Operation:
         """
         Performs video annotation.

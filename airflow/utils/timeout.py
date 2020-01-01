@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import signal
 import os
+import signal
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.utils.log.logging_mixin import LoggingMixin

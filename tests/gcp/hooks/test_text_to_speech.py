@@ -20,9 +20,10 @@
 
 import unittest
 
-from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
-from tests.compat import patch
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from mock import PropertyMock, patch
+
+from airflow.gcp.hooks.text_to_speech import CloudTextToSpeechHook
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 INPUT = {"text": "test text"}
 VOICE = {"language_code": "en-US", "ssml_gender": "FEMALE"}
@@ -32,12 +33,24 @@ AUDIO_CONFIG = {"audio_encoding": "MP3"}
 class TestTextToSpeechHook(unittest.TestCase):
     def setUp(self):
         with patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.gcp_text_to_speech_hook = GCPTextToSpeechHook(gcp_conn_id="test")
+            self.gcp_text_to_speech_hook = CloudTextToSpeechHook(gcp_conn_id="test")
 
-    @patch("airflow.gcp.hooks.text_to_speech.GCPTextToSpeechHook.get_conn")
+    @patch("airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook.client_info", new_callable=PropertyMock)
+    @patch("airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook._get_credentials")
+    @patch("airflow.gcp.hooks.text_to_speech.TextToSpeechClient")
+    def test_text_to_speech_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.gcp_text_to_speech_hook.get_conn()
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.gcp_text_to_speech_hook._client, result)
+
+    @patch("airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook.get_conn")
     def test_synthesize_speech(self, get_conn):
         synthesize_method = get_conn.return_value.synthesize_speech
         synthesize_method.return_value = None

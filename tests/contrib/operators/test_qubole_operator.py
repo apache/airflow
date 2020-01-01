@@ -19,15 +19,15 @@
 #
 
 import unittest
-from airflow.utils.timezone import datetime
 
 from airflow import settings
-from airflow.models import Connection, DAG
-from airflow.models.taskinstance import TaskInstance
-from airflow.utils import db
-
 from airflow.contrib.hooks.qubole_hook import QuboleHook
-from airflow.contrib.operators.qubole_operator import QuboleOperator
+from airflow.contrib.operators.qubole_operator import QDSLink, QuboleOperator
+from airflow.models import DAG, Connection
+from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.utils import db
+from airflow.utils.timezone import datetime
 
 DAG_ID = "qubole_test_dag"
 TASK_ID = "test_task"
@@ -109,7 +109,7 @@ class TestQuboleOperator(unittest.TestCase):
         self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[2], "key2=value2")
 
         cmd = "s3distcp --src s3n://airflow/source_hadoopcmd --dest s3n://airflow/destination_hadoopcmd"
-        task = QuboleOperator(task_id=TASK_ID, command_type='hadoopcmd', dag=dag, sub_command=cmd)
+        task = QuboleOperator(task_id=TASK_ID + "_1", command_type='hadoopcmd', dag=dag, sub_command=cmd)
 
         self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[1],
                          "s3distcp")
@@ -141,4 +141,36 @@ class TestQuboleOperator(unittest.TestCase):
 
         # check for negative case
         url2 = task.get_extra_links(datetime(2017, 1, 2), 'Go to QDS')
+        self.assertEqual(url2, '')
+
+    def test_extra_serialized_field(self):
+        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+        with dag:
+            QuboleOperator(
+                task_id=TASK_ID,
+                command_type='shellcmd',
+                qubole_conn_id=TEST_CONN,
+            )
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        self.assertIn("qubole_conn_id", serialized_dag["dag"]["tasks"][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        simple_task = dag.task_dict[TASK_ID]
+        self.assertEqual(getattr(simple_task, "qubole_conn_id"), TEST_CONN)
+
+        #########################################################
+        # Verify Operator Links work with Serialized Operator
+        #########################################################
+        self.assertIsInstance(list(simple_task.operator_extra_links)[0], QDSLink)
+
+        ti = TaskInstance(task=simple_task, execution_date=DEFAULT_DATE)
+        ti.xcom_push('qbol_cmd_id', 12345)
+
+        # check for positive case
+        url = simple_task.get_extra_links(DEFAULT_DATE, 'Go to QDS')
+        self.assertEqual(url, 'http://localhost/v2/analyze?command_id=12345')
+
+        # check for negative case
+        url2 = simple_task.get_extra_links(datetime(2017, 1, 2), 'Go to QDS')
         self.assertEqual(url2, '')

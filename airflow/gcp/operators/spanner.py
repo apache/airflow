@@ -19,9 +19,10 @@
 """
 This module contains Google Spanner operators.
 """
+from typing import List, Optional, Union
 
 from airflow import AirflowException
-from airflow.gcp.hooks.spanner import CloudSpannerHook
+from airflow.gcp.hooks.spanner import SpannerHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -57,13 +58,13 @@ class CloudSpannerInstanceDeployOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 configuration_name,
-                 node_count,
-                 display_name,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 configuration_name: str,
+                 node_count: str,
+                 display_name: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.configuration_name = configuration_name
@@ -81,7 +82,7 @@ class CloudSpannerInstanceDeployOperator(BaseOperator):
                                    "is empty or None")
 
     def execute(self, context):
-        hook = CloudSpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
         if not hook.get_instance(project_id=self.project_id, instance_id=self.instance_id):
             self.log.info("Creating Cloud Spanner instance '%s'", self.instance_id)
             func = hook.create_instance
@@ -118,10 +119,10 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -136,7 +137,7 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
                                    "is empty or None")
 
     def execute(self, context):
-        hook = CloudSpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
         if hook.get_instance(project_id=self.project_id, instance_id=self.instance_id):
             return hook.delete_instance(project_id=self.project_id,
                                         instance_id=self.instance_id)
@@ -174,12 +175,12 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 database_id,
-                 query,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 database_id: str,
+                 query: Union[str, List[str]],
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
@@ -201,7 +202,7 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
             raise AirflowException("The required parameter 'query' is empty")
 
     def execute(self, context):
-        hook = CloudSpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
         queries = self.query
         if isinstance(self.query, str):
             queries = [x.strip() for x in self.query.split(';')]
@@ -257,12 +258,12 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 database_id,
-                 ddl_statements,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 database_id: str,
+                 ddl_statements: List[str],
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
@@ -282,7 +283,7 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
                                    " or None")
 
     def execute(self, context):
-        hook = CloudSpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
         if not hook.get_database(project_id=self.project_id,
                                  instance_id=self.instance_id,
                                  database_id=self.database_id):
@@ -314,7 +315,7 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
     :type database_id: str
     :param ddl_statements: The string list containing DDL to apply to the database.
     :type ddl_statements: list[str]
-    :param project_id: Optional, the ID of the project that owns the the Cloud Spanner
+    :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the GCP connection is used.
     :type project_id: str
     :param operation_id: (Optional) Unique per database operation id that can
@@ -331,13 +332,13 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 database_id,
-                 ddl_statements,
-                 project_id=None,
-                 operation_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 database_id: str,
+                 ddl_statements: List[str],
+                 project_id: Optional[str] = None,
+                 operation_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
@@ -361,7 +362,7 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
                                    " or None")
 
     def execute(self, context):
-        hook = CloudSpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
         if not hook.get_database(project_id=self.project_id,
                                  instance_id=self.instance_id,
                                  database_id=self.database_id):
@@ -403,11 +404,11 @@ class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 database_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: int,
+                 database_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.instance_id = instance_id
         self.project_id = project_id
         self.database_id = database_id
@@ -426,7 +427,7 @@ class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
                                    " or None")
 
     def execute(self, context):
-        hook = CloudSpannerHook(gcp_conn_id=self.gcp_conn_id)
+        hook = SpannerHook(gcp_conn_id=self.gcp_conn_id)
         database = hook.get_database(project_id=self.project_id,
                                      instance_id=self.instance_id,
                                      database_id=self.database_id)

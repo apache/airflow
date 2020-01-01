@@ -19,12 +19,14 @@
 
 import unittest
 
-from airflow.models import Base as airflow_base
-
-from airflow.settings import engine
 from alembic.autogenerate import compare_metadata
+from alembic.config import Config
 from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData
+
+from airflow.models import Base as airflow_base
+from airflow.settings import engine
 
 
 class TestDb(unittest.TestCase):
@@ -35,8 +37,8 @@ class TestDb(unittest.TestCase):
             all_meta_data._add_table(table_name, table.schema, table)
 
         # create diff between database schema and SQLAlchemy model
-        mc = MigrationContext.configure(engine.connect())
-        diff = compare_metadata(mc, all_meta_data)
+        mctx = MigrationContext.configure(engine.connect())
+        diff = compare_metadata(mctx, all_meta_data)
 
         # known diffs to ignore
         ignores = [
@@ -97,3 +99,12 @@ class TestDb(unittest.TestCase):
             diff,
             'Database schema and SQLAlchemy model are not in sync: ' + str(diff)
         )
+
+    def test_only_single_head_revision_in_migrations(self):
+        config = Config()
+        config.set_main_option("script_location", "airflow:migrations")
+        script = ScriptDirectory.from_config(config)
+
+        # This will raise if there are multiple heads
+        # To resolve, use the command `alembic merge`
+        script.get_current_head()

@@ -25,5 +25,5 @@ from airflow.operators.mssql_to_gcs import MsSqlToGoogleCloudStorageOperator  # 
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.mssql_to_gcs`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

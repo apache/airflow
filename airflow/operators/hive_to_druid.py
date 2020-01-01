@@ -16,10 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Dict
 
-from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
+"""
+This module contains operator to move data from Hive to Druid.
+"""
+
+from typing import Dict, List, Optional
+
 from airflow.hooks.druid_hook import DruidHook
+from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -79,23 +84,23 @@ class HiveToDruidTransfer(BaseOperator):
     template_ext = ('.sql',)
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             sql: str,
             druid_datasource: str,
             ts_dim: str,
-            metric_spec: List = None,
+            metric_spec: Optional[List] = None,
             hive_cli_conn_id: str = 'hive_cli_default',
             druid_ingest_conn_id: str = 'druid_ingest_default',
             metastore_conn_id: str = 'metastore_default',
-            hadoop_dependency_coordinates: List[str] = None,
-            intervals: List = None,
+            hadoop_dependency_coordinates: Optional[List[str]] = None,
+            intervals: Optional[List] = None,
             num_shards: float = -1,
             target_partition_size: int = -1,
             query_granularity: str = "NONE",
             segment_granularity: str = "DAY",
-            hive_tblproperties: Dict = None,
-            job_properties: Dict = None,
+            hive_tblproperties: Optional[Dict] = None,
+            job_properties: Optional[Dict] = None,
             *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql
@@ -124,7 +129,7 @@ class HiveToDruidTransfer(BaseOperator):
         tblproperties = ''.join([", '{}' = '{}'"
                                 .format(k, v)
                                  for k, v in self.hive_tblproperties.items()])
-        hql = """\
+        hql = f"""\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;
         DROP TABLE IF EXISTS {hive_table};
@@ -134,18 +139,18 @@ class HiveToDruidTransfer(BaseOperator):
         TBLPROPERTIES ('serialization.null.format' = ''{tblproperties})
         AS
         {sql}
-        """.format(hive_table=hive_table, tblproperties=tblproperties, sql=sql)
+        """
         self.log.info("Running command:\n %s", hql)
         hive.run_cli(hql)
 
-        m = HiveMetastoreHook(self.metastore_conn_id)
+        meta_hook = HiveMetastoreHook(self.metastore_conn_id)
 
         # Get the Hive table and extract the columns
-        t = m.get_table(hive_table)
-        columns = [col.name for col in t.sd.cols]
+        table = meta_hook.get_table(hive_table)
+        columns = [col.name for col in table.sd.cols]
 
         # Get the path on hdfs
-        static_path = m.get_table(hive_table).sd.location
+        static_path = meta_hook.get_table(hive_table).sd.location
 
         druid = DruidHook(druid_ingest_conn_id=self.druid_ingest_conn_id)
 

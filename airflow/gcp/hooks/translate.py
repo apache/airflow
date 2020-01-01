@@ -19,13 +19,14 @@
 """
 This module contains a Google Cloud Translate Hook.
 """
-from typing import Union, List, Dict, Optional
+from typing import Dict, List, Optional, Union
 
 from google.cloud.translate_v2 import Client
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class CloudTranslateHook(GoogleCloudBaseHook):
+class CloudTranslateHook(CloudBaseHook):
     """
     Hook for Google Cloud translate APIs.
 
@@ -48,13 +49,14 @@ class CloudTranslateHook(GoogleCloudBaseHook):
             self._client = Client(credentials=self._get_credentials(), client_info=self.client_info)
         return self._client
 
+    @CloudBaseHook.quota_retry()
     def translate(
         self,
         values: Union[str, List[str]],
         target_language: str,
-        format_: str = None,
-        source_language: str = None,
-        model: Union[str, List[str]] = None
+        format_: Optional[str] = None,
+        source_language: Optional[str] = None,
+        model: Optional[Union[str, List[str]]] = None
     ) -> Dict:
         """Translate a string or list of strings.
 

@@ -18,15 +18,15 @@
 # under the License.
 
 import unittest
-from unittest.mock import patch, PropertyMock, Mock
 from collections import OrderedDict
+from unittest.mock import Mock, PropertyMock, patch
+
+from airflow.operators.mssql_to_hive import MsSqlToHiveTransfer
 
 try:
     import pymssql
 except ImportError:
     pymssql = None
-
-from airflow.operators.mssql_to_hive import MsSqlToHiveTransfer
 
 
 @unittest.skipIf(pymssql is None, 'pymssql package not present')
@@ -40,18 +40,22 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
             dag=None
         )
 
+    # pylint: disable=c-extension-no-member
     def test_type_map_binary(self):
-        mapped_type = MsSqlToHiveTransfer(**self.kwargs).type_map(pymssql.BINARY.value)
+        mapped_type = MsSqlToHiveTransfer(
+            **self.kwargs).type_map(pymssql.BINARY.value)  # pylint: disable=c-extension-no-member
 
         self.assertEqual(mapped_type, 'INT')
 
     def test_type_map_decimal(self):
-        mapped_type = MsSqlToHiveTransfer(**self.kwargs).type_map(pymssql.DECIMAL.value)
+        mapped_type = MsSqlToHiveTransfer(
+            **self.kwargs).type_map(pymssql.DECIMAL.value)  # pylint: disable=c-extension-no-member
 
         self.assertEqual(mapped_type, 'FLOAT')
 
     def test_type_map_number(self):
-        mapped_type = MsSqlToHiveTransfer(**self.kwargs).type_map(pymssql.NUMBER.value)
+        mapped_type = MsSqlToHiveTransfer(
+            **self.kwargs).type_map(pymssql.NUMBER.value)  # pylint: disable=c-extension-no-member
 
         self.assertEqual(mapped_type, 'INT')
 

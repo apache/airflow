@@ -17,11 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
 import cx_Oracle
+import numpy
 
 from airflow.hooks.dbapi_hook import DbApiHook
-from datetime import datetime
-import numpy
 
 
 class OracleHook(DbApiHook):

@@ -28,12 +28,12 @@ from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 
 from airflow.hooks.mysql_hook import MySqlHook
-from airflow.utils.decorators import apply_defaults
 from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class MySqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
-    """Copy data from MySQL to Google cloud storage in JSON or CSV format.
+    """Copy data from MySQL to Google Cloud Storage in JSON or CSV format.
 
     :param mysql_conn_id: Reference to a specific MySQL hook.
     :type mysql_conn_id: str
@@ -103,7 +103,7 @@ class MySqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
     def convert_type(self, value, schema_type):
         """
         Takes a value from MySQLdb, and converts it to a value that's safe for
-        JSON/Google cloud storage/BigQuery. Dates are converted to UTC seconds.
+        JSON/Google Cloud Storage/BigQuery. Dates are converted to UTC seconds.
         Decimals are converted to floats. Binary type fields are encoded with base64,
         as imported BYTES data must be base64-encoded according to Bigquery SQL
         date type documentation: https://cloud.google.com/bigquery/data-types
@@ -113,12 +113,14 @@ class MySqlToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
         :param schema_type: BigQuery data type
         :type schema_type: str
         """
+        if value is None:
+            return value
         if isinstance(value, (datetime, date)):
             return calendar.timegm(value.timetuple())
         if isinstance(value, timedelta):
             return value.total_seconds()
         if isinstance(value, Decimal):
             return float(value)
-        if schema_type == "BYTES":
+        if isinstance(value, bytes) or schema_type == "BYTES":
             return base64.standard_b64encode(value).decode('ascii')
         return value

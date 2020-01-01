@@ -26,8 +26,8 @@ import os
 
 import sendgrid
 from sendgrid.helpers.mail import (
-    Attachment, Content, Email, Mail, Personalization, CustomArg, Category,
-    MailSettings, SandBoxMode)
+    Attachment, Category, Content, CustomArg, Email, Mail, MailSettings, Personalization, SandBoxMode,
+)
 
 from airflow.utils.email import get_email_address_list
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -36,17 +36,23 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 def send_email(to, subject, html_content, files=None, cc=None,
                bcc=None, sandbox_mode=False, **kwargs):
     """
-    Send an email with html content using sendgrid.
+    Send an email with html content using `Sendgrid <https://sendgrid.com/>`__.
 
     To use this plugin:
-    0. include sendgrid subpackage as part of your Airflow installation, e.g.,
-    pip install 'apache-airflow[sendgrid]'
-    1. update [email] backend in airflow.cfg, i.e.,
-    [email]
-    email_backend = airflow.contrib.utils.sendgrid.send_email
-    2. configure Sendgrid specific environment variables at all Airflow instances:
-    SENDGRID_MAIL_FROM={your-mail-from}
-    SENDGRID_API_KEY={your-sendgrid-api-key}.
+
+    0. Include ``sendgrid`` subpackage as part of your Airflow installation, e.g.,::
+
+       pip install 'apache-airflow[sendgrid]'
+
+    1. Update ``email_backend`` property in `[email]`` section in ``airflow.cfg``, i.e.,::
+
+      [email]
+      email_backend = airflow.contrib.utils.sendgrid.send_email
+
+    2. Configure Sendgrid specific environment variables at all Airflow instances:::
+
+      SENDGRID_MAIL_FROM={your-mail-from}
+      SENDGRID_API_KEY={your-sendgrid-api-key}.
     """
     if files is None:
         files = []
@@ -92,14 +98,16 @@ def send_email(to, subject, html_content, files=None, cc=None,
     for fname in files:
         basename = os.path.basename(fname)
 
-        attachment = Attachment()
-        attachment.type = mimetypes.guess_type(basename)[0]
-        attachment.filename = basename
-        attachment.disposition = "attachment"
-        attachment.content_id = '<{0}>'.format(basename)
-
         with open(fname, "rb") as file:
-            attachment.content = base64.b64encode(file.read()).decode('utf-8')
+            content = base64.b64encode(file.read()).decode('utf-8')
+
+        attachment = Attachment(
+            file_content=content,
+            file_type=mimetypes.guess_type(basename)[0],
+            file_name=basename,
+            disposition="attachment",
+            content_id=f"<{basename}>"
+        )
 
         mail.add_attachment(attachment)
     _post_sendgrid_mail(mail.get())
@@ -107,7 +115,7 @@ def send_email(to, subject, html_content, files=None, cc=None,
 
 def _post_sendgrid_mail(mail_data):
     log = LoggingMixin().log
-    sendgrid_client = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
+    sendgrid_client = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
     response = sendgrid_client.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
     if 200 <= response.status_code < 300:

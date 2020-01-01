@@ -18,10 +18,11 @@
 # under the License.
 #
 
-from unittest import mock
 import unittest
-
 from tempfile import NamedTemporaryFile
+from unittest import mock
+
+import psycopg2.extras
 
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import Connection
@@ -48,7 +49,7 @@ class TestPostgresHookConn(unittest.TestCase):
 
     @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
     def test_get_conn_non_default_id(self, mock_connect):
-        self.db_hook.test_conn_id = 'non_default'
+        self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(user='login', password='password',
                                              host='host', dbname='schema',
@@ -60,6 +61,38 @@ class TestPostgresHookConn(unittest.TestCase):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(user='login', password='password', host='host',
                                              dbname='schema', port=None)
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_cursor(self, mock_connect):
+        self.connection.extra = '{"cursor": "dictcursor"}'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(cursor_factory=psycopg2.extras.DictCursor,
+                                             user='login', password='password', host='host',
+                                             dbname='schema', port=None)
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_with_invalid_cursor(self, mock_connect):
+        self.connection.extra = '{"cursor": "mycursor"}'
+        with self.assertRaises(ValueError):
+            self.db_hook.get_conn()
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_from_connection(self, mock_connect):
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
+        hook = PostgresHook(connection=conn)
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login-conn', password='password-conn', host='host', dbname='schema', port=None
+        )
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn_from_connection_with_schema(self, mock_connect):
+        conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
+        hook = PostgresHook(connection=conn, schema='schema-override')
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user='login-conn', password='password-conn', host='host', dbname='schema-override', port=None
+        )
 
     @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
@@ -112,20 +145,20 @@ class TestPostgresHook(unittest.TestCase):
                 cur.execute("DROP TABLE IF EXISTS {}".format(self.table))
 
     def test_copy_expert(self):
-        m = mock.mock_open(read_data='{"some": "json"}')
-        with mock.patch('airflow.hooks.postgres_hook.open', m):
+        open_mock = mock.mock_open(read_data='{"some": "json"}')
+        with mock.patch('airflow.hooks.postgres_hook.open', open_mock):
             statement = "SQL"
             filename = "filename"
 
             self.cur.fetchall.return_value = None
 
-            self.assertEqual(None, self.db_hook.copy_expert(statement, filename, open=m))
+            self.assertEqual(None, self.db_hook.copy_expert(statement, filename, open=open_mock))
 
             assert self.conn.close.call_count == 1
             assert self.cur.close.call_count == 1
             assert self.conn.commit.call_count == 1
-            self.cur.copy_expert.assert_called_once_with(statement, m.return_value)
-            self.assertEqual(m.call_args[0], (filename, "r+"))
+            self.cur.copy_expert.assert_called_once_with(statement, open_mock.return_value)
+            self.assertEqual(open_mock.call_args[0], (filename, "r+"))
 
     def test_bulk_load(self):
         hook = PostgresHook()

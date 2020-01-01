@@ -18,8 +18,8 @@
 # under the License.
 
 import io
-from unittest import mock
 import unittest
+from unittest import mock
 
 from airflow.contrib.hooks import ftp_hook as fh
 
