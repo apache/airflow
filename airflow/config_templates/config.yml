@@ -2184,3 +2184,88 @@
     to identify the task.
     Should be supplied in the format: ``key = value``
   options: []
+
+- name: aws_ecs
+  description: |
+    This section only applies if you are using the AwsEcsExecutor in
+    ``[core]`` section above.
+
+    For more information on any of these execution parameters, see the link below:
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+    For boto3 credential management, see
+    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+  options:
+    - name: region
+      description: |
+        The name of AWS Region
+      version_added: ~
+      type: string
+      example: us-east-1
+      default: ~
+    - name: cluster
+      description: |
+       Name of AWS ECS or Fargate cluster
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
+    - name: task_definition
+      description: |
+        Name of AWS Task Definition. For more info see url to Boto3 docs above.
+      version_added: ~
+      type: string
+      example: us-east-1
+      default: ~
+    - name: container_name
+      description: |
+        Name of registered Airflow container within your AWS cluster. This container will
+        receive an airflow CLI command as an additional parameter to its entrypoint.
+        For more info see url to Boto3 docs above.
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
+    - name: platform_version
+      description: |
+        Launch type can either be 'FARGATE' OR 'EC2'. For more info see url to Boto3 docs above.
+      version_added: ~
+      type: string
+      example: ~
+      default: LATEST
+    - name: launch_type
+      description: |
+      version_added: ~
+      type: string
+      example: ~
+      default: FARGATE
+    - name: assign_public_ip
+      description: |
+        Assign public ip. For more info see url to Boto3 docs above.
+      version_added: ~
+      type: string
+      example: ~
+      default: ~
+    - name: security_groups
+      description: |
+        Security group ids for task to run in (comma-separated). For more info see url to Boto3 docs above.
+      version_added: ~
+      type: string
+      example:
+      default: ~
+    - name: subnets
+      description: |
+        Subnets for task to run in (comma-separated). For more info see url to Boto3 docs above.
+      version_added: ~
+      type: string
+      example: subnet-XXXXXXXX,subnet-YYYYYYYY
+      default: ~
+    - name: run_task_template
+      description: |
+        This is the default configuration for calling the ECS `run_task` function API (see url above).
+        To change the parameters used to run a task in FARGATE or ECS, the user can overwrite the path to
+        specify another jinja-templated JSON. More documentation can be found in the DEFAULT_RUN_TASK_KWARGS
+        variable in the AWS ECS Executor.
+      version_added: ~
+      type: string
+      example: ~
+      default: airflow.config_templates.default_aws_ecs.DEFAULT_AWS_ECS_CONFIG
