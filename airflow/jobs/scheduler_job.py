@@ -909,8 +909,11 @@ class SchedulerJob(BaseJob):
             self._log = log
 
         self.using_sqlite = False
-        if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
+        self.using_mysql = False
+        if conf.get('core', 'sql_alchemy_conn').lower().startswith('sqlite'):
             self.using_sqlite = True
+        if conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql'):
+            self.using_mysql = True
 
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent = None
@@ -980,7 +983,9 @@ class SchedulerJob(BaseJob):
             .filter(or_(
                 models.DagRun.state != State.RUNNING,
                 models.DagRun.state.is_(None)))
-        if self.using_sqlite:
+        # We need to do this for mysql as well because it can cause deadlocks
+        # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
+        if self.using_sqlite or self.using_mysql:
             tis_to_change = query \
                 .with_for_update() \
                 .all()
