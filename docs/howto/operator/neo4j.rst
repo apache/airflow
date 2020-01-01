@@ -16,11 +16,10 @@
     under the License.
 
 Neo4j Operator
-==================
+===========
 
 This operator enables Airflow DAGs to execute cypher queries against a Neo4j (or ONgDB) graph database.
 
-The Neo4J Operator extends :class:`airflow.models.baseoperator.BaseOperator`
 
 The results of the query execution will be written to a CSV file on disk. Please consider available space
 on the Airflow worker if your query can return a large result.
@@ -58,7 +57,7 @@ Queries can be managed in text files on disk and read in by placing the file nam
     :end-before: [END howto_operator_neo4j_from_file]
 
 Options
-^^^^^^^^^^^^^^^^^^
+^^^^^^^
 The following options are available for this operator:
 cypher_query: Text string with the query to execute:
 
