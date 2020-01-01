@@ -963,14 +963,6 @@ class TaskInstance(Base, LoggingMixin):
                 Stats.incr('ti_successes')
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
-            self.log.info(
-                'Marking task as SUCCESS.'
-                'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-                self.dag_id,
-                self.task_id,
-                self.execution_date.strftime('%Y%m%dT%H%M%S'),
-                self.start_date.strftime('%Y%m%dT%H%M%S'),
-                self.end_date.strftime('%Y%m%dT%H%M%S'))
         except AirflowSkipException as e:
             # log only if exception has any arguments to prevent log flooding
             if e.args:
@@ -1015,6 +1007,14 @@ class TaskInstance(Base, LoggingMixin):
 
         # Recording SUCCESS
         self.end_date = timezone.utcnow()
+        self.log.info(
+            'Marking task as SUCCESS.'
+            'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+            self.dag_id,
+            self.task_id,
+            self.execution_date.strftime('%Y%m%dT%H%M%S'),
+            self.start_date.strftime('%Y%m%dT%H%M%S'),
+            self.end_date.strftime('%Y%m%dT%H%M%S'))
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
