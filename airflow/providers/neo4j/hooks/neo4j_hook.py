@@ -36,8 +36,6 @@ class Neo4JHook(BaseHook):
     """
     n4j_conn_id: str
 
-    template_fields = ['n4j_conn_id']
-
     def __init__(self, n4j_conn_id: str = 'n4j_default', *args, **kwargs):
         self.n4j_conn_id = n4j_conn_id
 
