@@ -33,11 +33,11 @@ except ImportError:
 
 
 class TestDockerOperator(unittest.TestCase):
-    @mock.patch('airflow.utils.file.mkdtemp')
+    @mock.patch('airflow.operators.docker_operator.TemporaryDirectory')
     @mock.patch('airflow.operators.docker_operator.APIClient')
-    def test_execute(self, client_class_mock, mkdtemp_mock):
+    def test_execute(self, client_class_mock, tempdir_mock):
         host_config = mock.Mock()
-        mkdtemp_mock.return_value = '/mkdtemp'
+        tempdir_mock.return_value.__enter__.return_value = '/mkdtemp'
 
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_container.return_value = {'Id': 'some_id'}
@@ -82,7 +82,7 @@ class TestDockerOperator(unittest.TestCase):
                                                                auto_remove=False,
                                                                dns=None,
                                                                dns_search=None)
-        mkdtemp_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp', suffix='')
+        tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         client_mock.images.assert_called_once_with(name='ubuntu:latest')
         client_mock.attach.assert_called_once_with(container='some_id', stdout=True,
                                                    stderr=True, stream=True)

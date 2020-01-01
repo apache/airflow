@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,27 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.functions`."""
 
-import warnings
-
-from airflow.gcp.hooks.functions import CloudFunctionsHook
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.functions`.",
-    DeprecationWarning, stacklevel=2
-)
+import re
 
 
-class GcfHook(CloudFunctionsHook):
-    """
-    This class is deprecated. Please use `airflow.gcp.hooks.functions.CloudFunctionsHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. Please use `airflow.gcp.hooks.functions.CloudFunctionsHook`.",
-            DeprecationWarning, stacklevel=2
-        )
-
-        super().__init__(*args, **kwargs)
+def assert_equal_ignore_multiple_spaces(case, first, second, msg=None):
+    def _trim(s):
+        return re.sub(r"\s+", " ", s.strip())
+    return case.assertEqual(_trim(first), _trim(second), msg)

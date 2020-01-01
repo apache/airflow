@@ -220,8 +220,13 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         def jinja_globals():  # pylint: disable=unused-variable
 
             globals = {
-                'hostname': socket.getfqdn(),
-                'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
+                'hostname': socket.getfqdn() if conf.getboolean(
+                    'webserver',
+                    'EXPOSE_HOSTNAME',
+                    fallback=True) else 'redact',
+                'navbar_color': conf.get(
+                    'webserver',
+                    'NAVBAR_COLOR'),
             }
 
             if 'analytics_tool' in conf.getsection('webserver'):

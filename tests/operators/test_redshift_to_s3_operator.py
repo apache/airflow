@@ -25,7 +25,7 @@ from boto3.session import Session
 from parameterized import parameterized
 
 from airflow.operators.redshift_to_s3_operator import RedshiftToS3Transfer
-from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
+from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
 class TestRedshiftToS3Transfer(unittest.TestCase):
@@ -76,4 +76,4 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
                                unload_options=unload_options)
 
         assert mock_run.call_count == 1
-        assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], unload_query)
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], unload_query)
