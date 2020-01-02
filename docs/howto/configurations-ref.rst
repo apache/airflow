@@ -670,6 +670,7 @@ TLS/ SSL settings to access a secured Dask scheduler.
 
 tls_key
 *******
+
 tls_cert
 ********
 
