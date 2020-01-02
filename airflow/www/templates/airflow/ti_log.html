@@ -123,8 +123,32 @@
             if(auto_tailing && checkAutoTailingCondition()) {
               var should_scroll = true
             }
+            
+            // ANSI color support
+            var ansi_color_regex = /.\[([0-9][0-9])m(.*?).\[0m/gs;
+            var res.message = res.message.replace(ansi_color_regex, function(match, color, content) {
+              var colors = {
+                30: 'black',  40: 'black',
+                31: 'red',    41: 'red',
+                32: 'green',  42: 'green',
+                33: 'yellow', 43: 'yellow',
+                34: 'blue',   44: 'blue',
+                35: 'magenta',45: 'magenta',
+                36: 'cyan',   46: 'cyan',
+                37: 'white',  47: 'white'
+              }
+
+              if (30 <= parseInt(color) && parseInt(color) <= 37) {
+                return "<span style=\"color: " + colors[color] + "\">" + content + "</span>";
+              } else if (40 <= parseInt(color) && parseInt(color) <= 47) {
+                return "<span style=\"background-color: " + colors[color] + "\">" + content + "</span>";
+              } else {
+                return content;
+              }
+            });
+            
             // The message may contain HTML, so either have to escape it or write it as text.
-            document.getElementById(`try-${try_number}`).textContent += res.message + "\n";
+            document.getElementById(`try-${try_number}`).innerHTML += res.message;
             // Auto scroll window to the end if current window location is near the end.
             if(should_scroll) {
               scrollBottom();
