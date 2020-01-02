@@ -188,7 +188,7 @@ with DAG(
         hive_table='default_qubole_airline_origin_destination',
         db_table='exported_airline_origin_destination',
         where_clause='id < 10',
-        db_parallelism=2,
+        parallelism=2,
         dbtap_id=2064,
         trigger_rule="all_done"
     )
