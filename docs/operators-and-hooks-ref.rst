@@ -333,9 +333,9 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon CloudFormation <https://aws.amazon.com/cloudformation/>`__
      -
-     - :mod:`airflow.contrib.hooks.aws_cloudformation_hook`
-     - :mod:`airflow.contrib.operators.cloudformation`
-     - :mod:`airflow.contrib.sensors.cloudformation_sensor`
+     - :mod:`airflow.providers.amazon.aws.hooks.cloud_formation`
+     - :mod:`airflow.providers.amazon.aws.operators.cloud_formation`
+     - :mod:`airflow.providers.amazon.aws.sensors.cloud_formation`
 
    * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__
      -

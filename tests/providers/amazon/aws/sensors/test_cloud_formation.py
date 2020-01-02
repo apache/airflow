@@ -21,7 +21,7 @@ import unittest
 import boto3
 from mock import MagicMock, patch
 
-from airflow.contrib.sensors.cloudformation_sensor import (
+from airflow.providers.amazon.aws.sensors.cloud_formation import (
     CloudFormationCreateStackSensor, CloudFormationDeleteStackSensor,
 )
 

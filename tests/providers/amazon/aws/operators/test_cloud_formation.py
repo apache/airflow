@@ -20,7 +20,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from airflow import DAG
-from airflow.contrib.operators.cloudformation import (
+from airflow.providers.amazon.aws.operators.cloud_formation import (
     CloudFormationCreateStackOperator, CloudFormationDeleteStackOperator,
 )
 from airflow.utils import timezone

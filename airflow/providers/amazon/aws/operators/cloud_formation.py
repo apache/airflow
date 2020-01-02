@@ -21,8 +21,8 @@ This module contains CloudFormation create/delete stack operators.
 """
 from typing import List
 
-from airflow.contrib.hooks.aws_cloudformation_hook import CloudFormationHook
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -53,7 +53,7 @@ class BaseCloudFormationOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Parameters: %s', self.params)
 
-        self.cloudformation_op(CloudFormationHook(aws_conn_id=self.aws_conn_id).get_conn())
+        self.cloudformation_op(AWSCloudFormationHook(aws_conn_id=self.aws_conn_id).get_conn())
 
     def cloudformation_op(self, cloudformation):
         """

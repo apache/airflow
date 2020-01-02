@@ -16,23 +16,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
+import unittest
 
-"""
-This module contains AWS CloudFormation Hook
-"""
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
+
+try:
+    from moto import mock_cloudformation
+except ImportError:
+    mock_cloudformation = None
 
 
-class CloudFormationHook(AwsHook):
-    """
-    Interact with AWS CloudFormation.
-    """
+@unittest.skipIf(mock_cloudformation is None, 'moto package not present')
+class TestAWSCloudFormationHook(unittest.TestCase):
+    @mock_cloudformation
+    def test_get_conn_returns_a_boto3_connection(self):
+        hook = AWSCloudFormationHook(aws_conn_id='aws_default')
+        self.assertIsNotNone(hook.get_conn().describe_stacks())
 
-    def __init__(self, region_name=None, *args, **kwargs):
-        self.region_name = region_name
-        self.conn = None
-        super().__init__(*args, **kwargs)
 
-    def get_conn(self):
-        self.conn = self.get_client_type('cloudformation', self.region_name)
-        return self.conn
+if __name__ == '__main__':
+    unittest.main()

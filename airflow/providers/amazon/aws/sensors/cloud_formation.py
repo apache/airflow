@@ -21,7 +21,7 @@ This module contains sensors for AWS CloudFormation.
 """
 from botocore.exceptions import ClientError
 
-from airflow.contrib.hooks.aws_cloudformation_hook import CloudFormationHook
+from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -86,7 +86,7 @@ class BaseCloudFormationSensor(BaseSensorOperator):
         Gets the AwsGlueCatalogHook
         """
         if not self.hook:
-            self.hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)
+            self.hook = AWSCloudFormationHook(aws_conn_id=self.aws_conn_id)
 
         return self.hook
 
