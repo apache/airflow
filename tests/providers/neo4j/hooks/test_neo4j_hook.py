@@ -19,7 +19,7 @@
 """Test the Neo4J Hook provides the expected interface to the operator
 and makes the right calls to the underlying driver"""
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 from neo4j import BoltStatementResult
 
@@ -42,21 +42,14 @@ class TestNeo4JHook(unittest.TestCase):
         """
         self._hook = neo4j_hook.Neo4JHook(self._conn_id)
 
-    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_config')
-    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_driver')
-    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_session')
-    def test_run_query_with_session(self, mock_get_session, mock_get_driver, mock_get_config):
+    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_conn')
+    def test_run_query_with_session(self, mock_get_conn):
         """
         Proves that the run_query() method makes calls to the supporting methods
-        :param mock_get_config: Stub to test the call to this function
-        :param mock_get_driver: Stub to test the call to this function
-        :param mock_get_session: Stub to test the call to this function
+        :param mock_get_conn: Stub to test the call to this function
         """
         self._hook.run_query(cypher_query="QUERY")
-
-        mock_get_config.assert_called_once_with(self._conn_id)
-        mock_get_driver.assert_called_once_with(mock_get_config())
-        mock_get_session.assert_called_once_with(mock_get_driver())
+        mock_get_conn.assert_called_once()
 
     @patch('neo4j.GraphDatabase.driver')
     def test_get_driver(self, mock_driver):
@@ -89,13 +82,18 @@ class TestNeo4JHook(unittest.TestCase):
         assert result['host'] == 'bolt://localhost:1234'
         assert result['credentials'] == ('your_name_here', 'your_token_here')
 
-    def test_get_session(self):
+    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_config')
+    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_driver')
+    def test_get_conn(self, mock_get_driver, mock_get_config):
         """
-        Assert that the call to get_session() will call the supplied driver() object and request it.
+        Assert that the call to get_conn() will call the supplied driver() object and request it.
+        :param mock_get_config: Stub to test the call to this function
+        :param mock_get_driver: Stub to test the call to this function
         """
-        driver = Mock()
-        self._hook.get_session(driver)
-        assert driver.session.called
+        self._hook.get_conn()
+
+        mock_get_config.assert_called_once_with(self._conn_id)
+        mock_get_driver.assert_called_once_with(mock_get_config())
 
     def test_make_csv(self):
         """
