@@ -233,6 +233,33 @@ class TestFargateExecutor(TestCase):
         self.assertTrue(fail_mock.called)
         self.assertFalse(success_mock.called)
 
+    def test_terminate(self):
+        after_fargate_task = self.__mock_sync()
+        after_fargate_task.json['containers'][0]['exitCode'] = 100
+        self.assertEqual(State.FAILED, after_fargate_task.get_task_state())
+
+        self.executor.terminate()
+
+        self.assertTrue(self.executor.ecs.stop_task.called)
+        self.assert_botocore_call('StopTask', *self.executor.ecs.stop_task.call_args)
+
+    def test_end(self):
+        sync_call_count = 0
+        sync_func = self.executor.sync
+
+        def sync_mock():
+            """Mock won't work here, because we actually want to call the 'sync' func"""
+            nonlocal sync_call_count
+            sync_func()
+            sync_call_count += 1
+
+        self.executor.sync = sync_mock
+        after_fargate_task = self.__mock_sync()
+        after_fargate_task.json['containers'][0]['exitCode'] = 100
+        self.executor.end(heartbeat_interval=0)
+
+        self.executor.sync = sync_func
+
     def assert_botocore_call(self, method_name, args, kwargs):
         """Asserts that a given method-call adheres to Botocore's API docs"""
         # Boto3 doesn't like args
@@ -300,7 +327,7 @@ class TestFargateExecutor(TestCase):
         executor.start()
 
         # replace boto3 ecs client with mock
-        ecs_mock = mock.Mock()
+        ecs_mock = mock.Mock(spec=executor.ecs)
         run_task_ret_val = {
             'tasks': [{'taskArn': '001'}],
             'failures': []
@@ -335,8 +362,6 @@ class TestFargateExecutor(TestCase):
             'failures': []
         }
         return after_fargate_task
-
-
 
     @mock.patch('airflow.executors.fargate_executor.FargateExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
