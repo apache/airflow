@@ -684,6 +684,74 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         cursor.run_table_delete(source_project_dataset_table, ignore_if_missing=True)
         method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_table_upsert_create_new_table(self, mock_get_service, mock_project_id):
+        table_resource = {
+            "tableReference": {
+                "tableId": TABLE_ID
+            }
+        }
+
+        method_tables_list = mock_get_service.return_value.tables.return_value.list
+        method_tables_list_execute = method_tables_list.return_value.execute
+        method_tables_insert = mock_get_service.return_value.tables.return_value.insert
+        method_tables_insert_execute = method_tables_insert.return_value.execute
+
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.run_table_upsert(dataset_id=DATASET_ID, table_resource=table_resource)
+
+        method_tables_list.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID)
+        method_tables_insert.assert_called_once_with(
+            datasetId=DATASET_ID, projectId=PROJECT_ID, body=table_resource
+        )
+        assert method_tables_list_execute.call_count == 1
+        assert method_tables_insert_execute.call_count == 1
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_table_upsert_already_exists(self, mock_get_service, mock_project_id):
+        page_token = "token"
+        table_resource = {
+            "tableReference": {
+                "tableId": TABLE_ID
+            }
+        }
+
+        method_tables_list = mock_get_service.return_value.tables.return_value.list
+        method_tables_list_execute = method_tables_list.return_value.execute
+        method_tables_list_execute.side_effect = [
+            {
+                "tables": [{"tableReference": {"tableId": "some_id"}}],
+                "nextPageToken": page_token
+            },
+            {
+                "tables": [{"tableReference": {"tableId": TABLE_ID}}]
+            }
+        ]
+        method_tables_update = mock_get_service.return_value.tables.return_value.update
+        method_tables_update_execute = method_tables_update.return_value.execute
+
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        cursor.run_table_upsert(dataset_id=DATASET_ID, table_resource=table_resource)
+
+        method_tables_list.has_calls(
+            mock.call(datasetId=DATASET_ID, projectId=PROJECT_ID),
+            mock.call(datasetId=DATASET_ID, projectId=PROJECT_ID, pageToken=page_token),
+        )
+        method_tables_update.assert_called_once_with(
+            projectId=PROJECT_ID, datasetId=DATASET_ID, tableId=TABLE_ID, body=table_resource)
+        assert method_tables_list_execute.call_count == 2
+        assert method_tables_update_execute.call_count == 1
+
 
 class TestTableDataOperations(unittest.TestCase):
     @mock.patch(
