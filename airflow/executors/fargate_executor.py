@@ -17,14 +17,18 @@
 """AWS Fargate Executor."""
 
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 
-from .base_executor import BaseExecutor, TaskInstanceKeyType
+from .base_executor import BaseExecutor, TaskInstanceKeyType, CommandType
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
 
 from airflow import configuration
 import boto3  # Additional Requirement from base-airflow
+from boto3.exceptions import Boto3Error
+
+
+ExecutorConfigFunctionType = Callable[[CommandType], dict]
 
 
 class FargateExecutor(BaseExecutor):
@@ -45,11 +49,11 @@ class FargateExecutor(BaseExecutor):
         super().__init__(*args, **kwargs)
         # This is the function used to generate boto3's execute-task api calls.
         if configuration.conf.has_option('fargate', 'execution_config_function'):
-            self.executor_config_function = import_string(
+            self.executor_config_function: ExecutorConfigFunctionType = import_string(
                 configuration.conf.get('fargate', 'execution_config_function')
             )()
         else:
-            self.executor_config_function = default_task_id_to_fargate_options_function()
+            self.executor_config_function: ExecutorConfigFunctionType = default_task_id_to_fargate_options_function()
         self.region = configuration.conf.get('fargate', 'region')
         self.cluster = configuration.conf.get('fargate', 'cluster')
         self.active_workers: Optional[FargateTaskCollection] = None
@@ -109,7 +113,8 @@ class FargateExecutor(BaseExecutor):
                 self.log.debug(f'ECS Executor could not find task {arn} because {failure["reason"]}; '
                                f'skipping for now on strike #{task.api_failure_count}')
 
-    def execute_async(self, key: TaskInstanceKeyType, command: str, queue=None, executor_config=None):
+    def execute_async(self, key: TaskInstanceKeyType, command: CommandType,
+                      queue=None, executor_config=None):
         """
         This method will execute the command asynchronously.
         """
@@ -123,7 +128,7 @@ class FargateExecutor(BaseExecutor):
             task = FargateTask(task_response['tasks'][0])
             self.log.info(f'Executor running task "{key}" on "{task.task_arn}"')
             self.active_workers.add_task(task, key)
-        except Exception as e:
+        except (FargateError, Boto3Error) as e:
             self.log.error(f'Executor failed to run task {key} with the following exception: {str(e)}')
             self.fail(key)
 
@@ -150,7 +155,7 @@ class FargateExecutor(BaseExecutor):
                 task=worker.task_arn,
                 reason='Airflow Executor received a sig-term'
             )
-        self.end(heartbeat_interval=5)
+        self.end()
 
 
 def default_task_id_to_fargate_options_function():
@@ -208,7 +213,7 @@ def get_default_execute_config_function(region: str, cluster: str, task_definiti
         }
     }
 
-    def with_default(airflow_task_command):
+    def with_default(airflow_task_command: CommandType) -> dict:
         if isinstance(airflow_task_command, str):
             # This is done for backwards compatibility with older versions of airflow (Airflow < 1.10.2)
             # split airflow bash command into an array to feed into the entrypoint of the docker container.
@@ -242,88 +247,12 @@ class FargateTask:
         self.api_failure_count = 0
 
     @property
-    def cluster_arn(self):
-        return self.json['clusterArn']
-
-    @property
-    def connectivity(self):
-        return self.json['connectivity']
-
-    @property
-    def connectivity_at(self):
-        return self.json['connectivityAt']
-
-    @property
     def containers(self):
         return self.json['containers']
 
     @property
-    def cpu(self):
-        return self.json['cpu']
-
-    @property
-    def created_at(self):
-        return self.json['createdAt']
-
-    @property
-    def desired_status(self):
-        return self.json['desiredStatus']
-
-    @property
-    def group(self):
-        return self.json['group']
-
-    @property
-    def health_status(self):
-        return self.json['healthStatus']
-
-    @property
-    def last_status(self):
-        return self.json['lastStatus']
-
-    @property
-    def launch_type(self):
-        return self.json['launchType']
-
-    @property
-    def memory(self):
-        return self.json['memory']
-
-    @property
-    def overrides(self):
-        return self.json['overrides']
-
-    @property
-    def platform_version(self):
-        return self.json['platformVersion']
-
-    @property
-    def pull_started_at(self):
-        return self.json['pullStartedAt']
-
-    @property
-    def pull_stopped_at(self):
-        return self.json['pullStoppedAt']
-
-    @property
-    def started_at(self):
-        return self.json['startedAt']
-
-    @property
-    def tags(self):
-        return self.json['tags']
-
-    @property
     def task_arn(self):
         return self.json['taskArn']
-
-    @property
-    def task_definition_arn(self):
-        return self.json['taskDefinitionArn']
-
-    @property
-    def version(self):
-        return self.json['version']
 
     def get_task_state(self) -> State:
         """Checks all containers in a given task to check task status. Each container has a last-known status,
