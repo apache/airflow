@@ -26,7 +26,7 @@ from airflow.operators.bash_operator import BashOperator
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 
-def check_failure(context, None):
+def check_failure(context):
     TestCase.assertEqual(
         context['dag_run'].dag_id,
         'test_mark_failure'
