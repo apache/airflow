@@ -127,7 +127,7 @@ with models.DAG(
     )
 
     delete_files = GoogleCloudStorageDeleteOperator(
-        task_id="delete_files", bucket_name=BUCKET_1, prefix=""
+        task_id="delete_files", bucket_name=BUCKET_1, objects=[BUCKET_FILE_LOCATION]
     )
 
     [create_bucket1, create_bucket2] >> list_buckets >> list_buckets_result
