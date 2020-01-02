@@ -18,10 +18,10 @@
 # under the License.
 
 import unittest
+from unittest import mock
 
 from airflow.providers.snowflake.operators.s3_to_snowflake import S3ToSnowflakeTransfer
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
-from tests.compat import mock
 
 
 class TestS3ToSnowflakeTransfer(unittest.TestCase):
