@@ -817,6 +817,39 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         assert method_get_execute.call_count == 1
         method_patch.assert_not_called()
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_get_dataset_tables_list(self, mock_get_service, mock_project_id):
+        table_list = [
+            {"projectId": PROJECT_ID, "datasetId": DATASET_ID, "tableId": "a-1"},
+            {"projectId": PROJECT_ID, "datasetId": DATASET_ID, "tableId": "b-1"},
+            {"projectId": PROJECT_ID, "datasetId": DATASET_ID, "tableId": "a-2"},
+            {"projectId": PROJECT_ID, "datasetId": DATASET_ID, "tableId": "b-2"},
+        ]
+        table_list_responses = [
+            {"tables": [{"tableReference": table_list[0]}, {"tableReference": table_list[1]}]},
+            {"tables": [{"tableReference": table_list[2]}, {"tableReference": table_list[3]}]},
+        ]
+
+        method_list_next_mocks = [mock.MagicMock(), None]
+        method_list_next_mocks[0].execute.return_value = table_list_responses[1]
+
+        method_list = mock_get_service.return_value.tables.return_value.list
+        method_list.return_value = mock.MagicMock()
+        method_list_execute = method_list.return_value.execute
+        method_list_execute.return_value = table_list_responses[0]
+        method_list_next = mock_get_service.return_value.tables.return_value.list_next
+        method_list_next.side_effect = method_list_next_mocks
+
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        result = cursor.get_dataset_tables_list(dataset_id=DATASET_ID, project_id=PROJECT_ID)
+
+        self.assertEqual(table_list, result)
+
 
 class TestTableDataOperations(unittest.TestCase):
     @mock.patch(
