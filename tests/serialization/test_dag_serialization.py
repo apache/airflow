@@ -37,6 +37,7 @@ from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
+from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.tests import CustomOperator, CustomOpLink, GoogleLink
 
@@ -56,6 +57,7 @@ serialized_simple_dag_ground_truth = {
             }
         },
         "start_date": 1564617600.0,
+        "is_paused_upon_creation": False,
         "params": {},
         "_dag_id": "simple_dag",
         "fileloc": None,
@@ -114,6 +116,7 @@ def make_simple_dag():
             "depends_on_past": False,
         },
         start_date=datetime(2019, 8, 1),
+        is_paused_upon_creation=False,
     )
     BaseOperator(task_id='simple_task', dag=dag, owner='airflow')
     CustomOperator(task_id='custom_task', dag=dag)
@@ -465,6 +468,18 @@ class TestStringifiedDAGs(unittest.TestCase):
         # Test Deserialized link registered via Airflow Plugin
         google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
         self.assertEqual("https://www.google.com", google_link_from_plugin)
+
+    def test_dag_serialized_fields_with_schema(self):
+        """
+        Additional Properties are disabled on DAGs. This test verifies that all the
+        keys in DAG.get_serialized_fields are listed in Schema definition.
+        """
+        dag_schema = load_dag_schema_dict()["definitions"]["dag"]["properties"]
+
+        # The parameters we add manually in Serialization needs to be ignored
+        ignored_keys = {"is_subdag", "tasks"}
+        dag_params = set(dag_schema.keys()) - ignored_keys
+        self.assertEqual(set(DAG.get_serialized_fields()), dag_params)
 
 
 if __name__ == '__main__':
