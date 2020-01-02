@@ -140,7 +140,7 @@ class FargateExecutor(BaseExecutor):
         """
         while True:
             self.sync()
-            if not self.active_workers:
+            if not len(self.active_workers):
                 break
             time.sleep(heartbeat_interval)
 
@@ -148,11 +148,10 @@ class FargateExecutor(BaseExecutor):
         """
         This method is called when the daemon receives a SIGTERM
         """
-        self.sync()
-        for worker in self.active_workers:
+        for arn in self.active_workers.get_all_arns():
             self.ecs.stop_task(
                 cluster=self.cluster,
-                task=worker.task_arn,
+                task=arn,
                 reason='Airflow Executor received a sig-term'
             )
         self.end()
