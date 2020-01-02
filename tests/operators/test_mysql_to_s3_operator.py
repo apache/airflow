@@ -38,15 +38,15 @@ class TestMySqlToS3Operator(unittest.TestCase):
         s3_key = "key"
 
         op = MySQLToS3Operator(query=query,
-                          s3_bucket=s3_bucket,
-                          s3_key=s3_key,
-                          mysql_conn_id="mysql_conn_id",
-                          aws_conn_id="aws_conn_id",
-                          task_id="task_id",
-                          header=False,
-                          index=False,
-                          dag=None
-                          )
+                               s3_bucket=s3_bucket,
+                               s3_key=s3_key,
+                               mysql_conn_id="mysql_conn_id",
+                               aws_conn_id="aws_conn_id",
+                               task_id="task_id",
+                               header=False,
+                               index=False,
+                               dag=None
+                               )
         op.execute(None)
 
         mock_hook.assert_called_once_with(mysql_conn_id="mysql_conn_id")
