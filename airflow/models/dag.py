@@ -1513,7 +1513,9 @@ class DAG(BaseDag, LoggingMixin):
                 'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
                 '_full_filepath', 'user_defined_filters', 'user_defined_macros',
                 '_schedule_interval', 'partial', '_old_context_manager_dags',
-                '_pickle_id', '_log', 'is_subdag', 'task_dict'
+                '_pickle_id', '_log', 'is_subdag', 'task_dict', 'template_searchpath',
+                'sla_miss_callback', 'on_success_callback', 'on_failure_callback',
+                'template_undefined', 'jinja_environment_kwargs'
             }
         return cls.__serialized_fields
 

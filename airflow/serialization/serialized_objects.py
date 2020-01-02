@@ -30,7 +30,7 @@ from airflow import DAG, AirflowException, LoggingMixin
 from airflow.models import Connection
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.json_schema import Validator, load_dag_schema
+from airflow.serialization.json_schema import Validator, load_and_validate_dag_schema
 from airflow.settings import json
 from airflow.www.utils import get_python_source
 
@@ -475,7 +475,7 @@ class SerializedDAG(DAG, BaseSerialization):
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore
     del __get_constructor_defaults
 
-    _json_schema = load_dag_schema()
+    _json_schema = load_and_validate_dag_schema()
 
     @classmethod
     def serialize_dag(cls, dag: DAG) -> dict:
