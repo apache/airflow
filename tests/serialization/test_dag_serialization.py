@@ -35,7 +35,7 @@ from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
-from airflow.serialization.json_schema import load_schema
+from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 
@@ -470,7 +470,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         Additional Properties are disabled on DAGs. This test verifies that all the
         keys in DAG.get_serialized_fields are listed in Schema definition.
         """
-        dag_schema: dict = load_schema()["definitions"]["dag"]["properties"]
+        dag_schema: dict = load_dag_schema_dict()["definitions"]["dag"]["properties"]
 
         # The parameters we add manually in Serialization needs to be ignored
         ignored_keys: set = {"is_subdag", "tasks"}
