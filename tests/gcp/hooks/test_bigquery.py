@@ -752,6 +752,71 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         assert method_tables_list_execute.call_count == 2
         assert method_tables_update_execute.call_count == 1
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_run_grant_dataset_view_access_granting(self, mock_get_service, mock_project_id):
+        source_dataset = "source_dataset_{}".format(DATASET_ID)
+        view_dataset = "view_dataset_{}".format(DATASET_ID)
+        view = {"projectId": PROJECT_ID, "datasetId": view_dataset, "tableId": TABLE_ID}
+        access = [{"view": view}]
+        body = {"access": access}
+
+        method_get = mock_get_service.return_value.datasets.return_value.get
+        method_get_execute = method_get.return_value.execute
+        method_get_execute.return_value = []
+        method_patch = mock_get_service.return_value.datasets.return_value.patch
+        method_patch_execute = method_patch.return_value.execute
+
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+
+        cursor.run_grant_dataset_view_access(
+            source_dataset=source_dataset,
+            view_dataset=view_dataset,
+            view_table=TABLE_ID
+        )
+
+        method_get.assert_called_once_with(datasetId=source_dataset, projectId=PROJECT_ID)
+        method_patch.assert_called_once_with(datasetId=source_dataset, projectId=PROJECT_ID, body=body)
+        assert method_get.call_count == 1
+        assert method_get_execute.call_count == 1
+        assert method_patch.call_count == 1
+        assert method_patch_execute.call_count == 1
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_run_grant_dataset_view_access_already_granted(self, mock_get_service, mock_project_id):
+        source_dataset = "source_dataset_{}".format(DATASET_ID)
+        view_dataset = "view_dataset_{}".format(DATASET_ID)
+        view = {"projectId": PROJECT_ID, "datasetId": view_dataset, "tableId": TABLE_ID}
+        access = [{"view": view}]
+        body = {"access": access}
+
+        method_get = mock_get_service.return_value.datasets.return_value.get
+        method_get_execute = method_get.return_value.execute
+        method_get_execute.return_value = body
+        method_patch = mock_get_service.return_value.datasets.return_value.patch
+
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+
+        cursor.run_grant_dataset_view_access(
+            source_dataset=source_dataset,
+            view_dataset=view_dataset,
+            view_table=TABLE_ID
+        )
+
+        method_get.assert_called_once_with(datasetId=source_dataset, projectId=PROJECT_ID)
+        assert method_get.call_count == 1
+        assert method_get_execute.call_count == 1
+        method_patch.assert_not_called()
+
 
 class TestTableDataOperations(unittest.TestCase):
     @mock.patch(
