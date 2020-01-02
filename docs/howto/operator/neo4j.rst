@@ -16,7 +16,7 @@
     under the License.
 
 Neo4j Operator
-===========
+==============
 
 This operator enables Airflow DAGs to execute cypher queries against a Neo4j (or ONgDB) graph database.
 
@@ -42,19 +42,31 @@ The connection name is then used in the DAG to reference this definition.
 
 Basic Usage
 ^^^^^^^^^^^
-Use the :class:`airflow.providers.neo4j.operators.neo4j_operator.Neo4JOperator` to execute cypher query:
+Use the :class:`airflow.providers.neo4j.operators.neo4j_operator.Neo4JOperator` to execute cypher query.
 
-.. exampleinclude:: ../../../airflow/providers/neo4j/example_dags/example_neo4j_operator.py
-    :language: python
-    :start-after: [START howto_operator_neo4j]
-    :end-before: [END howto_operator_neo4j]
+.. code:: python
 
-Queries can be managed in text files on disk and read in by placing the file name in the ``cypher_query`` parameter
+    t1 = Neo4JOperator(
+        task_id="RunNeo4JQueryFixed",
+        cypher_query="MATCH (n) RETURN id(n)",
+        output_filename="myfile.csv",
+        soft_fail=True,
+        n4j_conn_id="ExampleN4J",
+        dag=dag
+    )
 
-.. exampleinclude:: ../../../airflow/providers/neo4j/example_dags/example_neo4j_operator.py
-    :language: python
-    :start-after: [START howto_operator_neo4j_from_file]
-    :end-before: [END howto_operator_neo4j_from_file]
+Queries can be managed in text files on disk and read in by placing the file name in the ``cypher_query`` parameter.
+
+.. code:: python
+
+    t2 = Neo4JOperator(
+        task_id="RunNeo4JQueryFromFile",
+        cypher_query="input.cypher",
+        output_filename="output.csv",
+        soft_fail=True,
+        n4j_conn_id="ExampleN4J",
+        dag=dag
+    )
 
 Options
 ^^^^^^^
