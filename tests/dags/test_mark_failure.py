@@ -16,8 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from unittest import TestCase
 from datetime import datetime
+from unittest import TestCase
 
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
