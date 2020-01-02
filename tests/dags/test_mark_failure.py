@@ -26,6 +26,7 @@ DEFAULT_DATE = datetime(2016, 1, 1)
 
 
 def check_failure(context):
+    TestCase.assertIsNotNone(TestCase,context['dag_run'].dag_id)
     TestCase.assertEqual(
         TestCase,
         context['dag_run'].dag_id,
