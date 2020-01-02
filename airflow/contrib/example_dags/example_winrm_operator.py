@@ -31,15 +31,15 @@ This is an example dag for using the WinRMOperator.
 """
 from datetime import timedelta
 
-import airflow
 from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.contrib.operators.winrm_operator import WinRMOperator
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': days_ago(2)
 }
 
 with DAG(

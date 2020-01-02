@@ -22,12 +22,12 @@ Example Airflow DAG for Google Kubernetes Engine.
 
 import os
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.kubernetes_engine import (
     GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
 )
 from airflow.operators.bash_operator import BashOperator
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_LOCATION = os.environ.get("GCP_GKE_LOCATION", "europe-north1-a")
@@ -35,7 +35,7 @@ CLUSTER_NAME = os.environ.get("GCP_GKE_CLUSTER_NAME", "cluster-name")
 
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 
 with models.DAG(
     "example_gcp_gke",

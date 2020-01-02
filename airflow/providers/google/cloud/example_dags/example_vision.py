@@ -34,7 +34,6 @@ This DAG relies on the following OS environment variables
 
 import os
 
-import airflow
 from airflow import models
 from airflow.operators.bash_operator import BashOperator
 from airflow.providers.google.cloud.operators.vision import (
@@ -46,6 +45,7 @@ from airflow.providers.google.cloud.operators.vision import (
     CloudVisionProductSetUpdateOperator, CloudVisionProductUpdateOperator,
     CloudVisionReferenceImageCreateOperator, CloudVisionRemoveProductFromProductSetOperator,
 )
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_vision_retry_import]
 from google.api_core.retry import Retry  # isort:skip pylint: disable=wrong-import-order
@@ -64,7 +64,7 @@ from google.cloud.vision import enums  # isort:skip pylint: disable=wrong-import
 # [END howto_operator_vision_enums_import]
 
 
-default_args = {'start_date': airflow.utils.dates.days_ago(1)}
+default_args = {'start_date': days_ago(1)}
 
 # [START howto_operator_vision_args_common]
 GCP_VISION_LOCATION = os.environ.get('GCP_VISION_LOCATION', 'europe-west1')

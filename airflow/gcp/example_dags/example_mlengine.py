@@ -23,7 +23,6 @@ Example Airflow DAG for Google ML Engine service.
 import os
 from typing import Dict
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.mlengine import (
     MLEngineBatchPredictionOperator, MLEngineCreateVersionOperator, MLEngineDeleteModelOperator,
@@ -32,6 +31,7 @@ from airflow.gcp.operators.mlengine import (
 )
 from airflow.gcp.utils import mlengine_operator_utils
 from airflow.operators.bash_operator import BashOperator
+from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
@@ -50,7 +50,7 @@ SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://test-airflow-mle
 SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://test-airflow-mlengine/staging/")
 
 default_args = {
-    "start_date": airflow.utils.dates.days_ago(1),
+    "start_date": days_ago(1),
     "params": {
         "model_name": MODEL_NAME
     }
