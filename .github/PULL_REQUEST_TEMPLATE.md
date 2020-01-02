@@ -1,3 +1,4 @@
+---
 - [ ] Description above provides context of the change
 - [ ] Commit message contains [\[AIRFLOW-XXXX\]](https://issues.apache.org/jira/browse/AIRFLOW-XXXX) or `[AIRFLOW-XXXX]` for document-only changes
 - [ ] Unit tests coverage for changes (not needed for documentation changes)
