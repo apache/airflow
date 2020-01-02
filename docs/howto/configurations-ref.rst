@@ -1073,7 +1073,7 @@ A list of toleration objects as a single line formatted JSON array See: https://
 
 kube_client_request_args
 ************************
-**kwargs parameters to pass while calling a kubernetes client core_v1_api methods from Kubernetes Executor provided as a single line formatted JSON dictionary string. List of supported params in **kwargs are similar for all core_v1_apis, hence a single config variable for all apis See: https://raw.githubusercontent.com/kubernetes-client/python/master/kubernetes/client/apis/core_v1_api.py
+keywords parameters to pass while calling a kubernetes client core_v1_api methods from Kubernetes Executor provided as a single line formatted JSON dictionary string. List of supported keyworddsparams are similar for all core_v1_apis, hence a single config variable for all apis See: https://raw.githubusercontent.com/kubernetes-client/python/master/kubernetes/client/apis/core_v1_api.py
 
 Worker pods security context options
 See:
