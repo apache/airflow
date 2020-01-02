@@ -445,7 +445,6 @@ Expose stacktrace in the web server
 
 dag_default_view
 ****************
-
 Default DAG view.  Valid values are: tree, graph, duration, gantt, landing_times
 
 dag_orientation
