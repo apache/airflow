@@ -409,6 +409,7 @@ worker_refresh_interval
 ***********************
 
 Number of seconds to wait before refreshing a batch of workers.
+
 secret_key
 **********
 
