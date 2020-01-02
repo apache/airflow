@@ -55,7 +55,7 @@ class Neo4JHook(BaseHook):
         config: dict = {}
         connection_object = Neo4JHook.get_connection(n4j_conn_id)
         if connection_object.login and connection_object.host:
-            config['credentials'] = connection_object.login, connection_object.password
+            config['credentials'] = (connection_object.login, connection_object.password)
             config['host'] = "bolt://{0}:{1}".format(connection_object.host, connection_object.port)
 
         return config
