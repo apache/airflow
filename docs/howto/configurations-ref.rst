@@ -401,7 +401,8 @@ web_server_worker_timeout
 *************************
 
 Number of seconds the gunicorn webserver waits before timing out on a worker
-worker_refresh_batch_size
+
+``worker_refresh_batch_size``
 *************************
 Number of workers to refresh at a time. When set to 0, worker refresh is disabled. When nonzero, airflow periodically refreshes webserver workers by bringing up new ones and killing old ones.
 
