@@ -302,6 +302,7 @@ class TestTaskInstance(unittest.TestCase):
             task_id='test_not_requeue_non_requeueable_task_instance_op',
             dag=dag,
             pool='test_pool',
+            pool_capacity=1,
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
@@ -344,6 +345,7 @@ class TestTaskInstance(unittest.TestCase):
             task_id='test_mark_non_runnable_task_as_success_op',
             dag=dag,
             pool='test_pool',
+            pool_capacity=1,
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
@@ -361,7 +363,7 @@ class TestTaskInstance(unittest.TestCase):
         """
         dag = models.DAG(dag_id='test_run_pooling_task')
         task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
-                             pool='test_pool', owner='airflow',
+                             pool='test_pool', pool_capacity=1, owner='airflow',
                              start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
             task=task, execution_date=timezone.utcnow())
@@ -407,6 +409,7 @@ class TestTaskInstance(unittest.TestCase):
             task_id='test_run_pooling_task_with_mark_success_op',
             dag=dag,
             pool='test_pool',
+            pool_capacity=1,
             owner='airflow',
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
@@ -619,6 +622,7 @@ class TestTaskInstance(unittest.TestCase):
             dag=dag,
             owner='airflow',
             pool='test_pool',
+            pool_capacity=1,
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
         ti = TI(task=task, execution_date=timezone.utcnow())
@@ -715,6 +719,7 @@ class TestTaskInstance(unittest.TestCase):
             dag=dag,
             owner='airflow',
             pool='test_pool',
+            pool_capacity=1,
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
 
         ti = TI(task=task, execution_date=timezone.utcnow())
@@ -908,6 +913,7 @@ class TestTaskInstance(unittest.TestCase):
             task_id='test_xcom',
             dag=dag,
             pool='test_xcom',
+            pool_capacity=1,
             owner='airflow',
             start_date=timezone.datetime(2016, 6, 2, 0, 0, 0))
         exec_date = timezone.utcnow()
@@ -942,6 +948,7 @@ class TestTaskInstance(unittest.TestCase):
             task_id='test_xcom',
             dag=dag,
             pool='test_xcom',
+            pool_capacity=1,
             owner='airflow',
             start_date=timezone.datetime(2016, 6, 2, 0, 0, 0))
         exec_date = timezone.utcnow()
