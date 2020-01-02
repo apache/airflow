@@ -377,7 +377,8 @@ Template for mapred_job_name in HiveOperator, supports the following named param
 base_url
 ********
 The base url of your website as airflow cannot guess what domain or cname you are using. This is used in automated emails that airflow sends to point links to the right web server
-web_server_host
+
+``web_server_host``
 ***************
 The ip specified when starting the web server
 
