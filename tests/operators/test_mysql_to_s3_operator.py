@@ -18,10 +18,8 @@
 # under the License.
 #
 import unittest
-from io import StringIO
 from unittest import mock
 
-import numpy as np
 import pandas as pd
 from boto3.session import Session
 
@@ -35,7 +33,6 @@ class TestMySqlToS3Operator(unittest.TestCase):
     def test_execute(self, mock_hook, mock_session):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
-        
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
@@ -48,19 +45,19 @@ class TestMySqlToS3Operator(unittest.TestCase):
                           task_id="task_id",
                           header=False,
                           index=False,
-                          dag=None,
+                          dag=None
                           )
         op.execute(None)
-        
+
         mock_hook.assert_called_once_with(mysql_conn_id="mysql_conn_id")
-        
+
         mock_hook.return_value.get_pandas_df.assert_called_once_with(query=query)
-        
-        test_df = pd.DataFrame({'a':'1','b':'2'}, index=[0,1])
+
+        test_df = pd.DataFrame({'a': '1', 'b': '2'}, index=[0, 1])
         mock_hook.return_value.get_pandas_df.return_value = test_df
-        
+
         mock_hook.return_value.fix_int_dtypes.assert_called_once_with(test_df)
-        
+
         mock_session.assert_called_once()
         mock_session.return_value = Session(access_key, secret_key)
         
