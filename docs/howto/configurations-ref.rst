@@ -23,7 +23,7 @@ Configuration Reference
 ``[core]``
 ^^^^^^^^^^
 
-dags_folder
+``dags_folder``
 ***********
 The folder where your airflow pipelines live, most likely a subfolder in a code repository. This path must be absolute
 
