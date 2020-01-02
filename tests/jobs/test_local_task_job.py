@@ -30,6 +30,7 @@ from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -314,7 +315,10 @@ class TestLocalTaskJob(unittest.TestCase):
                           session=session)
         ti = TI(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        job1 = LocalTaskJob(task_instance=ti,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
+        job1.task_runner = StandardTaskRunner(job1)
         process = multiprocessing.Process(target=job1.run)
         process.start()
         ti.refresh_from_db()
@@ -328,6 +332,6 @@ class TestLocalTaskJob(unittest.TestCase):
         session.merge(ti)
         session.commit()
 
-        job1.heartbeat_callback(session)
+        job1.heartbeat_callback(session=None)
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
