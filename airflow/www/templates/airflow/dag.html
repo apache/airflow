@@ -484,13 +484,22 @@ function updateQueryStringParameter(uri, key, value) {
       window.location = url;
     });
 
+    function convertDateToDateTime(d) {
+            return d.getUTCFullYear() + "-" + (d.getUTCMonth() + 1) + "-" + d.getUTCDate() + " " + d.getUTCHours() + ":" + d.getUTCMinutes() + ":" + d.getUTCSeconds()
+    }
+
     $("#btn_ti").click(function(){
-      url = "{{ url_for('taskinstance.index_view') }}" +
-        "?flt1_dag_id_equals=" + encodeURIComponent(dag_id) +
-        "&flt2_task_id_equals=" + encodeURIComponent(task_id) +
-        "&sort=3&desc=1";
-      window.location = url;
+              start_date = new Date(execution_date);
+              end_date = new Date(execution_date);
+              end_date.setSeconds(end_date.getSeconds() + 1);
+              url = "{{ url_for('taskinstance.index_view') }}" +
+                    "?flt1_dag_id_equals=" + encodeURIComponent(dag_id) +
+                    "&flt2_task_id_equals=" + encodeURIComponent(task_id) +
+                                            "&flt4_execution_date_between=" + convertDateToDateTime(start_date) + " to " + convertDateToDateTime(end_date) +
+                    "&sort=3&desc=1";
+               window.location = url;
     });
+
 
     $('form button[data-action]').click(function (e) {
       var form = $(this).closest('form').get(0);
