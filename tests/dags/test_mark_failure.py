@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 from unittest import TestCase
-
 from datetime import datetime
 
 from airflow.models import DAG
@@ -28,6 +27,7 @@ DEFAULT_DATE = datetime(2016, 1, 1)
 
 def check_failure(context):
     TestCase.assertEqual(
+        None,
         context['dag_run'].dag_id,
         'test_mark_failure'
     )
