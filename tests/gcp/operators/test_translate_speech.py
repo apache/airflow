@@ -19,13 +19,13 @@
 
 import unittest
 
+import mock
 from google.cloud.speech_v1.proto.cloud_speech_pb2 import (
     RecognizeResponse, SpeechRecognitionAlternative, SpeechRecognitionResult,
 )
 
 from airflow import AirflowException
 from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator
-from tests.compat import mock
 
 GCP_CONN_ID = 'google_cloud_default'
 

@@ -17,10 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import multiprocessing
+import os
 import time
 import unittest
+
+from mock import patch
 
 from airflow import AirflowException, models, settings
 from airflow.configuration import conf
@@ -29,15 +31,14 @@ from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.db import create_session
 from airflow.utils.net import get_hostname
+from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.compat import patch
-from tests.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_executor import MockExecutor
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 
 class TestLocalTaskJob(unittest.TestCase):

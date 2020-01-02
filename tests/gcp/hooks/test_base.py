@@ -23,6 +23,7 @@ import unittest
 from io import StringIO
 
 import google.auth
+import mock
 import tenacity
 from google.api_core.exceptions import AlreadyExists, RetryError
 from google.auth.environment_vars import CREDENTIALS
@@ -34,7 +35,6 @@ from parameterized import parameterized
 from airflow import AirflowException, LoggingMixin, version
 from airflow.gcp.hooks import base as hook
 from airflow.hooks.base_hook import BaseHook
-from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True

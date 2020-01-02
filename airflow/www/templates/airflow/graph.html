@@ -191,7 +191,7 @@
 
     function highlight_nodes(nodes, color) {
         nodes.forEach (function (nodeid) {
-            my_node = d3.select('#' + nodeid).node().parentNode;
+            my_node = d3.select('[id="' + nodeid + '"]').node().parentNode;
             d3.select(my_node).selectAll("rect").style("stroke", color) ;
         })
     }

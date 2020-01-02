@@ -36,7 +36,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.utils.tests import CustomOperator, CustomOpLink, GoogleLink
+from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 
 serialized_simple_dag_ground_truth = {
     "__version": 1,
@@ -78,12 +78,12 @@ serialized_simple_dag_ground_truth = {
                 "_downstream_task_ids": [],
                 "_inlets": [],
                 "_outlets": [],
-                "_operator_extra_links": [{"airflow.utils.tests.CustomOpLink": {}}],
+                "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
                 "ui_color": "#fff",
                 "ui_fgcolor": "#000",
                 "template_fields": [],
                 "_task_type": "CustomOperator",
-                "_task_module": "airflow.utils.tests",
+                "_task_module": "tests.test_utils.mock_operators",
             },
         ],
         "timezone": "UTC",
@@ -391,7 +391,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         # Check Serialized version of operator link only contains the inbuilt Op Link
         self.assertEqual(
             serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
-            [{'airflow.utils.tests.CustomOpLink': {}}]
+            [{'tests.test_utils.mock_operators.CustomOpLink': {}}]
         )
 
         # Test all the extra_links are set
@@ -438,8 +438,8 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.assertEqual(
             serialized_dag["dag"]["tasks"][0]["_operator_extra_links"],
             [
-                {'airflow.utils.tests.CustomBaseIndexOpLink': {'index': 0}},
-                {'airflow.utils.tests.CustomBaseIndexOpLink': {'index': 1}},
+                {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 0}},
+                {'tests.test_utils.mock_operators.CustomBaseIndexOpLink': {'index': 1}},
             ]
         )
 

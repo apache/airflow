@@ -21,11 +21,11 @@ import datetime
 import decimal
 import unittest
 
+import mock
 from _mysql_exceptions import ProgrammingError
 from parameterized import parameterized
 
 from airflow.operators.mysql_to_gcs import MySqlToGoogleCloudStorageOperator
-from tests.compat import mock
 
 TASK_ID = 'test-mysql-to-gcs'
 MYSQL_CONN_ID = 'mysql_conn_test'

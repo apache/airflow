@@ -27,8 +27,8 @@ import airflow
 from airflow import models
 from airflow.operators.bash_operator import BashOperator
 from airflow.providers.google.cloud.operators.natural_language import (
-    CloudLanguageAnalyzeEntitiesOperator, CloudLanguageAnalyzeEntitySentimentOperator,
-    CloudLanguageAnalyzeSentimentOperator, CloudLanguageClassifyTextOperator,
+    CloudNaturalLanguageAnalyzeEntitiesOperator, CloudNaturalLanguageAnalyzeEntitySentimentOperator,
+    CloudNaturalLanguageAnalyzeSentimentOperator, CloudNaturalLanguageClassifyTextOperator,
 )
 
 # [START howto_operator_gcp_natural_language_document_text]
@@ -57,7 +57,8 @@ with models.DAG(
 ) as dag:
 
     # [START howto_operator_gcp_natural_language_analyze_entities]
-    analyze_entities = CloudLanguageAnalyzeEntitiesOperator(document=document, task_id="analyze_entities")
+    analyze_entities = \
+        CloudNaturalLanguageAnalyzeEntitiesOperator(document=document, task_id="analyze_entities")
     # [END howto_operator_gcp_natural_language_analyze_entities]
 
     # [START howto_operator_gcp_natural_language_analyze_entities_result]
@@ -68,7 +69,7 @@ with models.DAG(
     # [END howto_operator_gcp_natural_language_analyze_entities_result]
 
     # [START howto_operator_gcp_natural_language_analyze_entity_sentiment]
-    analyze_entity_sentiment = CloudLanguageAnalyzeEntitySentimentOperator(
+    analyze_entity_sentiment = CloudNaturalLanguageAnalyzeEntitySentimentOperator(
         document=document, task_id="analyze_entity_sentiment"
     )
     # [END howto_operator_gcp_natural_language_analyze_entity_sentiment]
@@ -81,7 +82,8 @@ with models.DAG(
     # [END howto_operator_gcp_natural_language_analyze_entity_sentiment_result]
 
     # [START howto_operator_gcp_natural_language_analyze_sentiment]
-    analyze_sentiment = CloudLanguageAnalyzeSentimentOperator(document=document, task_id="analyze_sentiment")
+    analyze_sentiment = \
+        CloudNaturalLanguageAnalyzeSentimentOperator(document=document, task_id="analyze_sentiment")
     # [END howto_operator_gcp_natural_language_analyze_sentiment]
 
     # [START howto_operator_gcp_natural_language_analyze_sentiment_result]
@@ -92,7 +94,7 @@ with models.DAG(
     # [END howto_operator_gcp_natural_language_analyze_sentiment_result]
 
     # [START howto_operator_gcp_natural_language_analyze_classify_text]
-    analyze_classify_text = CloudLanguageClassifyTextOperator(
+    analyze_classify_text = CloudNaturalLanguageClassifyTextOperator(
         document=document, task_id="analyze_classify_text"
     )
     # [END howto_operator_gcp_natural_language_analyze_classify_text]

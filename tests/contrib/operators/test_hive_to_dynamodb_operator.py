@@ -75,7 +75,7 @@ class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
             ],
             AttributeDefinitions=[
                 {
-                    'AttributeName': 'name',
+                    'AttributeName': 'id',
                     'AttributeType': 'S'
                 }
             ],
@@ -115,7 +115,7 @@ class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
             ],
             AttributeDefinitions=[
                 {
-                    'AttributeName': 'name',
+                    'AttributeName': 'id',
                     'AttributeType': 'S'
                 }
             ],

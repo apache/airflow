@@ -24,6 +24,7 @@ import unittest
 from copy import deepcopy
 
 import httplib2
+import mock
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
@@ -34,7 +35,6 @@ from airflow.gcp.operators.compute import (
 )
 from airflow.models import DAG, TaskInstance
 from airflow.utils import timezone
-from tests.compat import mock
 
 EMPTY_CONTENT = b''
 

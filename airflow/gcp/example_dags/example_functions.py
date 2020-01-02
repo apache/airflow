@@ -45,7 +45,8 @@ import os
 
 from airflow import models
 from airflow.gcp.operators.functions import (
-    GcfFunctionDeleteOperator, GcfFunctionDeployOperator, GcfFunctionInvokeOperator,
+    CloudFunctionDeleteFunctionOperator, CloudFunctionDeployFunctionOperator,
+    CloudFunctionInvokeFunctionOperator,
 )
 from airflow.utils import dates
 
@@ -109,7 +110,7 @@ with models.DAG(
     schedule_interval=None  # Override to match your needs
 ) as dag:
     # [START howto_operator_gcf_deploy]
-    deploy_task = GcfFunctionDeployOperator(
+    deploy_task = CloudFunctionDeployFunctionOperator(
         task_id="gcf_deploy_task",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
@@ -118,7 +119,7 @@ with models.DAG(
     )
     # [END howto_operator_gcf_deploy]
     # [START howto_operator_gcf_deploy_no_project_id]
-    deploy2_task = GcfFunctionDeployOperator(
+    deploy2_task = CloudFunctionDeployFunctionOperator(
         task_id="gcf_deploy2_task",
         location=GCP_LOCATION,
         body=body,
@@ -126,7 +127,7 @@ with models.DAG(
     )
     # [END howto_operator_gcf_deploy_no_project_id]
     # [START howto_operator_gcf_invoke_function]
-    invoke_task = GcfFunctionInvokeOperator(
+    invoke_task = CloudFunctionInvokeFunctionOperator(
         task_id="invoke_task",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
@@ -135,7 +136,7 @@ with models.DAG(
     )
     # [END howto_operator_gcf_invoke_function]
     # [START howto_operator_gcf_delete]
-    delete_task = GcfFunctionDeleteOperator(
+    delete_task = CloudFunctionDeleteFunctionOperator(
         task_id="gcf_delete_task",
         name=FUNCTION_NAME
     )

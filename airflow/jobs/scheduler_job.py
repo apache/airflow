@@ -50,10 +50,10 @@ from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
     AbstractDagFileProcessorProcess, DagFileProcessorAgent, SimpleDag, SimpleDagBag,
 )
-from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -715,7 +715,8 @@ class DagFileProcessor(LoggingMixin):
                             schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
-            self.manage_slas(dag)
+            if conf.getboolean('core', 'CHECK_SLAS', fallback=True):
+                self.manage_slas(dag)
 
     def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]):
         """

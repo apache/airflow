@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,24 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
-from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
+import re
 
 
-class TestTestUtils(unittest.TestCase):
-
-    def test_assertEqualIgnoreMultipleSpaces_raises(self):
-        str1 = 'w oo f'
-        str2 = 'meow'
-
-        self.assertRaises(AssertionError, lambda: assertEqualIgnoreMultipleSpaces(self, str1, str2))
-
-    def test_assertEqualIgnoreMultipleSpaces_passes(self):
-        str1 = 'w oo f'
-        str2 = """
-            w
-            oo    f
-        """
-
-        assertEqualIgnoreMultipleSpaces(self, str1, str2)
+def assert_equal_ignore_multiple_spaces(case, first, second, msg=None):
+    def _trim(s):
+        return re.sub(r"\s+", " ", s.strip())
+    return case.assertEqual(_trim(first), _trim(second), msg)

@@ -27,8 +27,8 @@ from airflow.jobs.base_job import BaseJob
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 

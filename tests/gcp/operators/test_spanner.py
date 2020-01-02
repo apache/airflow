@@ -18,6 +18,7 @@
 # under the License.
 import unittest
 
+import mock
 from parameterized import parameterized
 
 from airflow import AirflowException
@@ -26,7 +27,6 @@ from airflow.gcp.operators.spanner import (
     CloudSpannerInstanceDatabaseQueryOperator, CloudSpannerInstanceDatabaseUpdateOperator,
     CloudSpannerInstanceDeleteOperator, CloudSpannerInstanceDeployOperator,
 )
-from tests.compat import mock
 
 PROJECT_ID = 'project-id'
 INSTANCE_ID = 'instance-id'

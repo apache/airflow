@@ -22,9 +22,9 @@ Helpers to perform system tests for the Google Cloud Build service.
 """
 import argparse
 import os
+from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 
-from airflow.utils.file import TemporaryDirectory
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY, GcpAuthenticator
 

@@ -21,9 +21,11 @@
 
 import unittest
 
+import mock
+from mock import PropertyMock
+
 from airflow import AirflowException
 from airflow.gcp.hooks.compute import ComputeEngineHook, GceOperationStatus
-from tests.compat import PropertyMock, mock
 from tests.gcp.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,

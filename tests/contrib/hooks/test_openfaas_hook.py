@@ -20,13 +20,13 @@
 
 import unittest
 
+import mock
 import requests_mock
 
 from airflow import AirflowException
 from airflow.contrib.hooks.openfaas_hook import OpenFaasHook
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
-from tests.compat import mock
 
 FUNCTION_NAME = "function_name"
 
@@ -70,8 +70,7 @@ class TestOpenFaasHook(unittest.TestCase):
         mock_connection = Connection(host="http://open-faas.io")
 
         mock_get_connection.return_value = mock_connection
-        update_function_ans = self.hook.update_function({})
-        self.assertEqual(update_function_ans, None)
+        self.hook.update_function({})  # returns None
 
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()

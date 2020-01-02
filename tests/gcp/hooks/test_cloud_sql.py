@@ -22,13 +22,14 @@
 import json
 import unittest
 
+import mock
 from googleapiclient.errors import HttpError
+from mock import PropertyMock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook, CloudSqlHook
 from airflow.models import Connection
-from tests.compat import PropertyMock, mock
 from tests.gcp.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id, mock_base_gcp_hook_no_default_project_id,
 )

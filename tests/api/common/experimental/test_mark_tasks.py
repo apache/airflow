@@ -30,7 +30,7 @@ from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
-from airflow.utils.db import create_session, provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_runs
 

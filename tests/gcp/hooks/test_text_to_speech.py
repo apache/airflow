@@ -20,8 +20,9 @@
 
 import unittest
 
+from mock import PropertyMock, patch
+
 from airflow.gcp.hooks.text_to_speech import CloudTextToSpeechHook
-from tests.compat import PropertyMock, patch
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 INPUT = {"text": "test text"}

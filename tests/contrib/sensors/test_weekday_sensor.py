@@ -59,15 +59,15 @@ class TestDayOfWeekSensor(unittest.TestCase):
         session.close()
 
     def test_weekday_sensor_true(self):
-        t = DayOfWeekSensor(
+        op = DayOfWeekSensor(
             task_id='weekday_sensor_check_true',
             week_day='Thursday',
             use_task_execution_day=True,
             dag=self.dag)
-        t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
 
     def test_weekday_sensor_false(self):
-        t = DayOfWeekSensor(
+        op = DayOfWeekSensor(
             task_id='weekday_sensor_check_false',
             poke_interval=1,
             timeout=2,
@@ -75,7 +75,7 @@ class TestDayOfWeekSensor(unittest.TestCase):
             use_task_execution_day=True,
             dag=self.dag)
         with self.assertRaises(AirflowSensorTimeout):
-            t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+            op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
 
     def test_invalid_weekday_number(self):
         invalid_week_day = 'Thsday'
@@ -89,53 +89,53 @@ class TestDayOfWeekSensor(unittest.TestCase):
 
     def test_weekday_sensor_with_enum(self):
         week_day = WeekDay.THURSDAY
-        t = DayOfWeekSensor(
+        op = DayOfWeekSensor(
             task_id='weekday_sensor_check_true',
             week_day=WeekDay.THURSDAY,
             use_task_execution_day=True,
             dag=self.dag)
-        t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(t.week_day, week_day)
+        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+        self.assertEqual(op.week_day, week_day)
 
     def test_weekday_sensor_with_enum_set(self):
         week_day = {WeekDay.THURSDAY}
-        t = DayOfWeekSensor(
+        op = DayOfWeekSensor(
             task_id='weekday_sensor_check_true',
             week_day=week_day,
             use_task_execution_day=True,
             dag=self.dag)
-        t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(t.week_day, week_day)
+        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+        self.assertEqual(op.week_day, week_day)
 
     def test_weekday_sensor_with_enum_set_2_items(self):
         week_day = {WeekDay.THURSDAY, WeekDay.FRIDAY}
-        t = DayOfWeekSensor(
+        op = DayOfWeekSensor(
             task_id='weekday_sensor_check_true',
             week_day=week_day,
             use_task_execution_day=True,
             dag=self.dag)
-        t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(t.week_day, week_day)
+        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+        self.assertEqual(op.week_day, week_day)
 
     def test_weekday_sensor_with_string_set(self):
         week_day = {'Thursday'}
-        t = DayOfWeekSensor(
+        op = DayOfWeekSensor(
             task_id='weekday_sensor_check_true',
             week_day=week_day,
             use_task_execution_day=True,
             dag=self.dag)
-        t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(t.week_day, week_day)
+        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+        self.assertEqual(op.week_day, week_day)
 
     def test_weekday_sensor_with_string_set_2_items(self):
         week_day = {'Thursday', 'Friday'}
-        t = DayOfWeekSensor(
+        op = DayOfWeekSensor(
             task_id='weekday_sensor_check_true',
             week_day=week_day,
             use_task_execution_day=True,
             dag=self.dag)
-        t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(t.week_day, week_day)
+        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+        self.assertEqual(op.week_day, week_day)
 
     def test_weekday_sensor_with_invalid_type(self):
         invalid_week_day = ['Thsday']
@@ -151,7 +151,7 @@ class TestDayOfWeekSensor(unittest.TestCase):
                 dag=self.dag)
 
     def test_weekday_sensor_timeout_with_set(self):
-        t = DayOfWeekSensor(
+        op = DayOfWeekSensor(
             task_id='weekday_sensor_check_false',
             poke_interval=1,
             timeout=2,
@@ -159,4 +159,4 @@ class TestDayOfWeekSensor(unittest.TestCase):
             use_task_execution_day=True,
             dag=self.dag)
         with self.assertRaises(AirflowSensorTimeout):
-            t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+            op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)

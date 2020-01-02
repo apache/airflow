@@ -51,7 +51,7 @@ def upgradedb(args):
 
 @cli_utils.action_logging
 def shell(args):
-    """Run a shell that allows to access database access"""
+    """Run a shell that allows to access metadata database"""
     url = settings.engine.url
     print("DB: " + repr(url))
 
@@ -61,8 +61,8 @@ def shell(args):
                 [client]
                 host     = {url.host}
                 user     = {url.username}
-                password = {url.password}
-                port     = {url.port}
+                password = {url.password or ""}
+                port     = {url.port or ""}
                 database = {url.database}
                 """).strip()
             f.write(content.encode())

@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.models import Connection, DagModel, DagRun, Pool, SlaMiss, TaskInstance, errors
-from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, create_session
+from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
+from airflow.utils.session import create_session
 
 
 def clear_db_runs():

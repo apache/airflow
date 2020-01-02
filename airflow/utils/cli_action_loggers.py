@@ -25,7 +25,7 @@ so that registered callbacks can be used all through the same python process.
 import logging
 from typing import Callable, List
 
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 
 
 def register_pre_exec_callback(action_logger):

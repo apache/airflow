@@ -20,12 +20,13 @@
 
 import unittest
 
+import mock
+
 from airflow.gcp.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator, GoogleCloudBucketHelper,
 )
 from airflow.version import version
-from tests.compat import mock
 
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'
@@ -35,7 +36,7 @@ PARAMETERS = {
     'output': 'gs://test/output/my_output'
 }
 PY_FILE = 'gs://my-bucket/my-object.py'
-PY_INTERPRETER = 'python2'
+PY_INTERPRETER = 'python3'
 JAR_FILE = 'example/test.jar'
 JOB_CLASS = 'com.test.NotMain'
 PY_OPTIONS = ['-m']

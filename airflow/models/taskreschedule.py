@@ -20,7 +20,7 @@
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
 
 from airflow.models.base import ID_LEN, Base
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -64,11 +64,13 @@ class TaskReschedule(Base):
 
     @staticmethod
     @provide_session
-    def find_for_task_instance(task_instance, session):
+    def find_for_task_instance(task_instance, session=None):
         """
         Returns all task reschedules for the task instance and try number,
         in ascending order.
 
+        :param session: the database session object
+        :type session: sqlalchemy.orm.session.Session
         :param task_instance: the task instance to find task reschedules for
         :type task_instance: airflow.models.TaskInstance
         """

@@ -17,11 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import datetime
 import logging
 import socket
 from typing import Any, Optional
 from urllib.parse import urlparse
 
+import flask
+import flask_login
 from flask import Flask
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
@@ -49,11 +52,11 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         app.wsgi_app = ProxyFix(
             app.wsgi_app,
             num_proxies=conf.get("webserver", "PROXY_FIX_NUM_PROXIES", fallback=None),
-            x_for=conf.get("webserver", "PROXY_FIX_X_FOR", fallback=1),
-            x_proto=conf.get("webserver", "PROXY_FIX_X_PROTO", fallback=1),
-            x_host=conf.get("webserver", "PROXY_FIX_X_HOST", fallback=1),
-            x_port=conf.get("webserver", "PROXY_FIX_X_PORT", fallback=1),
-            x_prefix=conf.get("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
+            x_for=conf.getint("webserver", "PROXY_FIX_X_FOR", fallback=1),
+            x_proto=conf.getint("webserver", "PROXY_FIX_X_PROTO", fallback=1),
+            x_host=conf.getint("webserver", "PROXY_FIX_X_HOST", fallback=1),
+            x_port=conf.getint("webserver", "PROXY_FIX_X_PORT", fallback=1),
+            x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
@@ -217,8 +220,13 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         def jinja_globals():  # pylint: disable=unused-variable
 
             globals = {
-                'hostname': socket.getfqdn(),
-                'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
+                'hostname': socket.getfqdn() if conf.getboolean(
+                    'webserver',
+                    'EXPOSE_HOSTNAME',
+                    fallback=True) else 'redact',
+                'navbar_color': conf.get(
+                    'webserver',
+                    'NAVBAR_COLOR'),
             }
 
             if 'analytics_tool' in conf.getsection('webserver'):
@@ -228,6 +236,15 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 })
 
             return globals
+
+        @app.before_request
+        def before_request():
+            _force_log_out_after = conf.getint('webserver', 'FORCE_LOG_OUT_AFTER', fallback=0)
+            if _force_log_out_after > 0:
+                flask.session.permanent = True
+                app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
+                flask.session.modified = True
+                flask.g.user = flask_login.current_user
 
         @app.teardown_appcontext
         def shutdown_session(exception=None):  # pylint: disable=unused-variable

@@ -43,10 +43,10 @@ from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.helpers import reap_process_group
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -401,7 +401,7 @@ class DagFileProcessorAgent(LoggingMixin):
         # e.g. RotatingFileHandler. And it can cause connection corruption if we
         # do not recreate the SQLA connection pool.
         os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
-        os.environ['AIRFLOW__CORE__COLORED_CONSOLE_LOG'] = 'False'
+        os.environ['AIRFLOW__LOGGING__COLORED_CONSOLE_LOG'] = 'False'
         # Replicating the behavior of how logging module was loaded
         # in logging_config.py
         importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
@@ -986,7 +986,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         simple_dags = []
         for file_path, processor in finished_processors.items():
             if processor.result is None:
-                self.log.warning(
+                self.log.error(
                     "Processor for %s exited with return code %s.",
                     processor.file_path, processor.exit_code
                 )

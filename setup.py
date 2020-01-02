@@ -154,7 +154,7 @@ atlas = [
     'atlasclient>=0.1.2',
 ]
 aws = [
-    'boto3>=1.7.0, <1.8.0',
+    'boto3~=1.10',
 ]
 azure = [
     'azure-cosmos>=3.0.1',
@@ -380,7 +380,7 @@ devel = [
     'ipdb',
     'jira',
     'mongomock',
-    'moto==1.3.5',
+    'moto>=1.3.14,<2.0.0',
     'parameterized',
     'paramiko',
     'pre-commit',
