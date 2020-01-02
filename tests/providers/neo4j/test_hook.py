@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, patch
 from neo4j import BoltStatementResult
 
 from airflow.models import Connection
-from airflow.providers.neo4j.hooks import neo4j_hook
+from airflow.providers.neo4j import hook
 from airflow.utils import db
 
 
@@ -40,9 +40,9 @@ class TestNeo4JHook(unittest.TestCase):
         """
         Instantiates the hook and stores it in the test class to support test execution
         """
-        self._hook = neo4j_hook.Neo4JHook(self._conn_id)
+        self._hook = hook.Neo4JHook(self._conn_id)
 
-    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_conn')
+    @patch('airflow.providers.neo4j.hook.Neo4JHook.get_conn')
     def test_run_query_with_session(self, mock_get_conn):
         """
         Proves that the run_query() method makes calls to the supporting methods
@@ -82,8 +82,8 @@ class TestNeo4JHook(unittest.TestCase):
         assert result['host'] == 'bolt://localhost:1234'
         assert result['credentials'] == ('your_name_here', 'your_token_here')
 
-    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_config')
-    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.get_driver')
+    @patch('airflow.providers.neo4j.hook.Neo4JHook.get_config')
+    @patch('airflow.providers.neo4j.hook.Neo4JHook.get_driver')
     def test_get_conn(self, mock_get_driver, mock_get_config):
         """
         Assert that the call to get_conn() will call the supplied driver() object and request it.

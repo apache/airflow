@@ -22,7 +22,7 @@ Test the functioning of the Neo4J Operator for Apache Airflow
 import unittest
 from unittest.mock import patch
 
-from airflow.providers.neo4j.operators import neo4j_operator
+from airflow.providers.neo4j.operators import neo4j
 
 
 class TestNeo4JOperator(unittest.TestCase):
@@ -34,24 +34,24 @@ class TestNeo4JOperator(unittest.TestCase):
         """
         Simple test to validate we can instantiate the class
         """
-        operator = neo4j_operator.Neo4JOperator(task_id="test_task",
-                                                cypher_query="QUERY",
-                                                output_filename="filename.txt",
-                                                n4j_conn_id="mock_connection",
-                                                soft_fail=True)
+        operator = neo4j.Neo4JOperator(task_id="test_task",
+                                       cypher_query="QUERY",
+                                       output_filename="filename.txt",
+                                       n4j_conn_id="mock_connection",
+                                       soft_fail=True)
         assert operator is not None
 
-    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.run_query')
-    @patch('airflow.providers.neo4j.hooks.neo4j_hook.Neo4JHook.__init__', return_value=None)
+    @patch('airflow.providers.neo4j.hook.Neo4JHook.run_query')
+    @patch('airflow.providers.neo4j.hook.Neo4JHook.__init__', return_value=None)
     def test_execute(self, mock_hook_init, mock_hook_run_query):
         """
         Test that the execute() method will make the expected calls to the hook
         """
-        operator = neo4j_operator.Neo4JOperator(task_id="test_task",
-                                                cypher_query="QUERY",
-                                                output_filename="filename.txt",
-                                                n4j_conn_id="mock_connection",
-                                                soft_fail=True)
+        operator = neo4j.Neo4JOperator(task_id="test_task",
+                                       cypher_query="QUERY",
+                                       output_filename="filename.txt",
+                                       n4j_conn_id="mock_connection",
+                                       soft_fail=True)
         operator.execute(context=None)
 
         mock_hook_init.assert_called_once_with(n4j_conn_id='mock_connection')
