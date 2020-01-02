@@ -93,9 +93,6 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
 
 
 class CustomOpLink(BaseOperatorLink):
-    """
-    Operator Link for Apache Airflow Website
-    """
     name = 'Google Custom'
 
     def get_link(self, operator, dttm):
