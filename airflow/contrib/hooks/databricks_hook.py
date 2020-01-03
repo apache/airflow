@@ -16,9 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Databricks hook."""
-from urllib.parse import urlparse
+"""
+Databricks hook.
+
+This hook enable the submitting and running of jobs to the Databricks platform. Internally the
+operators talk to the ``api/2.0/jobs/runs/submit``
+`endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
+"""
 from time import sleep
+from urllib.parse import urlparse
 
 import requests
 from requests import exceptions as requests_exceptions

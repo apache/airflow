@@ -18,7 +18,6 @@
 # under the License.
 
 import unittest
-
 from unittest.mock import patch
 
 from airflow.operators.jdbc_operator import JdbcOperator

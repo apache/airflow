@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.hooks.vision`.
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.vision`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.vision import CloudVisionHook  # noqa
+from airflow.providers.google.cloud.hooks.vision import CloudVisionHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.vision`.",
-    DeprecationWarning
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.vision`.",
+    DeprecationWarning, stacklevel=2
 )

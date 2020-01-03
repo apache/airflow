@@ -17,12 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-from datetime import timedelta, time
+from datetime import time, timedelta
 
-from airflow import DAG, settings
-from airflow import exceptions
+from airflow import DAG, exceptions, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
-from airflow.models import TaskInstance, DagBag
+from airflow.models import DagBag, TaskInstance
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
@@ -50,22 +49,22 @@ class TestExternalTaskSensor(unittest.TestCase):
         self.dag = DAG(TEST_DAG_ID, default_args=self.args)
 
     def test_time_sensor(self):
-        t = TimeSensor(
+        op = TimeSensor(
             task_id=TEST_TASK_ID,
             target_time=time(0),
             dag=self.dag
         )
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor(self):
         self.test_time_sensor()
-        t = ExternalTaskSensor(
+        op = ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
             dag=self.dag
         )
-        t.run(
+        op.run(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             ignore_ti_state=True
@@ -83,13 +82,13 @@ class TestExternalTaskSensor(unittest.TestCase):
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
             state=State.SUCCESS)
-        t = ExternalTaskSensor(
+        op = ExternalTaskSensor(
             task_id='test_external_dag_sensor_check',
             external_dag_id='other_dag',
             external_task_id=None,
             dag=self.dag
         )
-        t.run(
+        op.run(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             ignore_ti_state=True
@@ -154,7 +153,7 @@ exit 0
             # The test_with_failure task is excepted to fail
             # once per minute (the run on the first second of
             # each minute).
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             failed_tis = session.query(TI).filter(
                 TI.dag_id == dag_external_id,
                 TI.state == State.FAILED,
@@ -206,7 +205,7 @@ exit 0
 
     def test_external_task_sensor_delta(self):
         self.test_time_sensor()
-        t = ExternalTaskSensor(
+        op = ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
@@ -214,7 +213,7 @@ exit 0
             allowed_states=['success'],
             dag=self.dag
         )
-        t.run(
+        op.run(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             ignore_ti_state=True
@@ -223,7 +222,7 @@ exit 0
     def test_external_task_sensor_fn(self):
         self.test_time_sensor()
         # check that the execution_fn works
-        t = ExternalTaskSensor(
+        op1 = ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
@@ -231,13 +230,13 @@ exit 0
             allowed_states=['success'],
             dag=self.dag
         )
-        t.run(
+        op1.run(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             ignore_ti_state=True
         )
         # double check that the execution is being called by failing the test
-        t2 = ExternalTaskSensor(
+        op2 = ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
@@ -248,7 +247,7 @@ exit 0
             dag=self.dag
         )
         with self.assertRaises(exceptions.AirflowSensorTimeout):
-            t2.run(
+            op2.run(
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE,
                 ignore_ti_state=True
@@ -288,7 +287,7 @@ exit 0
             )
 
     def test_external_task_sensor_waits_for_task_check_existence(self):
-        t = ExternalTaskSensor(
+        op = ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
             external_dag_id="example_bash_operator",
             external_task_id="non-existing-task",
@@ -297,14 +296,14 @@ exit 0
         )
 
         with self.assertRaises(AirflowException):
-            t.run(
+            op.run(
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE,
                 ignore_ti_state=True
             )
 
     def test_external_task_sensor_waits_for_dag_check_existence(self):
-        t = ExternalTaskSensor(
+        op = ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
             external_dag_id="non-existing-dag",
             external_task_id=None,
@@ -313,7 +312,7 @@ exit 0
         )
 
         with self.assertRaises(AirflowException):
-            t.run(
+            op.run(
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE,
                 ignore_ti_state=True

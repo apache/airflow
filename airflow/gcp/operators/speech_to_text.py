@@ -19,20 +19,24 @@
 """
 This module contains a Google Speech to Text operator.
 """
+from typing import Optional
+
+from google.api_core.retry import Retry
+from google.cloud.speech_v1.types import RecognitionConfig
 
 from airflow import AirflowException
-from airflow.gcp.hooks.speech_to_text import GCPSpeechToTextHook
+from airflow.gcp.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GcpSpeechToTextRecognizeSpeechOperator(BaseOperator):
+class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
     """
     Recognizes speech from audio file and returns it as text.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpSpeechToTextRecognizeSpeechOperator`
+        :ref:`howto/operator:CloudSpeechToTextRecognizeSpeechOperator`
 
     :param config: information to the recognizer that specifies how to process the request. See more:
         https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionConfig
@@ -61,15 +65,15 @@ class GcpSpeechToTextRecognizeSpeechOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        audio,
-        config,
-        project_id=None,
-        gcp_conn_id="google_cloud_default",
-        retry=None,
-        timeout=None,
+        audio: RecognitionAudio,
+        config: RecognitionConfig,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
         *args,
         **kwargs
-    ):
+    ) -> None:
         self.audio = audio
         self.config = config
         self.project_id = project_id
@@ -86,7 +90,7 @@ class GcpSpeechToTextRecognizeSpeechOperator(BaseOperator):
             raise AirflowException("The required parameter 'config' is empty")
 
     def execute(self, context):
-        hook = GCPSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudSpeechToTextHook(gcp_conn_id=self.gcp_conn_id)
         return hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )

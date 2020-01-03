@@ -34,7 +34,7 @@ import os
 from future.backports.urllib.parse import urlparse
 
 from airflow import models
-from airflow.gcp.operators.cloud_build import CloudBuildCreateBuildOperator
+from airflow.gcp.operators.cloud_build import CloudBuildCreateOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils import dates
 
@@ -80,7 +80,7 @@ with models.DAG(
     "example_gcp_cloud_build", default_args=dict(start_date=dates.days_ago(1)), schedule_interval=None
 ) as dag:
     # [START howto_operator_create_build_from_storage]
-    create_build_from_storage = CloudBuildCreateBuildOperator(
+    create_build_from_storage = CloudBuildCreateOperator(
         task_id="create_build_from_storage", project_id=GCP_PROJECT_ID, body=create_build_from_storage_body
     )
     # [END howto_operator_create_build_from_storage]
@@ -92,7 +92,7 @@ with models.DAG(
     )
     # [END howto_operator_create_build_from_storage_result]
 
-    create_build_from_repo = CloudBuildCreateBuildOperator(
+    create_build_from_repo = CloudBuildCreateOperator(
         task_id="create_build_from_repo", project_id=GCP_PROJECT_ID, body=create_build_from_repo_body
     )
 

@@ -20,20 +20,18 @@ set -uo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export PYTHON_VERSION=3.5
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
+export AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
 # shellcheck source=scripts/ci/_utils.sh
 . "${MY_DIR}/_utils.sh"
 
 basic_sanity_checks
 
-force_python_3_5
-
 script_start
 
-rebuild_checklicence_image_if_needed
+rebuild_ci_image_if_needed
 
 run_check_license
 

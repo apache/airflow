@@ -21,13 +21,15 @@
 This module contains a Google Sheets API hook
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
 from googleapiclient.discovery import build
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+
 from airflow.exceptions import AirflowException
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
-class GSheetsHook(GoogleCloudBaseHook):
+class GSheetsHook(CloudBaseHook):
     """
     Interact with Google Sheets via GCP connection
     Reading and writing cells in Google Sheet:
@@ -50,7 +52,7 @@ class GSheetsHook(GoogleCloudBaseHook):
         spreadsheet_id: str,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v4',
-        delegate_to: str = None
+        delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.spreadsheet_id = spreadsheet_id
@@ -72,7 +74,7 @@ class GSheetsHook(GoogleCloudBaseHook):
 
         return self._conn
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def get_values(
         self,
         range_: str,
@@ -109,7 +111,7 @@ class GSheetsHook(GoogleCloudBaseHook):
 
         return response
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def batch_get_values(
         self,
         ranges: List,
@@ -146,7 +148,7 @@ class GSheetsHook(GoogleCloudBaseHook):
 
         return response
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def update_values(
         self,
         range_: str,
@@ -201,7 +203,7 @@ class GSheetsHook(GoogleCloudBaseHook):
 
         return response
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def batch_update_values(
         self,
         ranges: List,
@@ -266,7 +268,7 @@ class GSheetsHook(GoogleCloudBaseHook):
 
         return response
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def append_values(
         self,
         range_: str,
@@ -326,7 +328,7 @@ class GSheetsHook(GoogleCloudBaseHook):
 
         return response
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def clear(self, range_: str) -> Dict:
         """
         Clear values from Google Sheet from a single range
@@ -345,7 +347,7 @@ class GSheetsHook(GoogleCloudBaseHook):
 
         return response
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @CloudBaseHook.catch_http_exception
     def batch_clear(self, ranges: List) -> Dict:
         """
         Clear values from Google Sheet from a list of ranges

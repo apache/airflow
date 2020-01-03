@@ -18,9 +18,8 @@
 # under the License.
 #
 
-from multiprocessing import SimpleQueue
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from boto.compat import json  # type: ignore
 
@@ -30,20 +29,13 @@ from airflow.contrib.operators.dynamodb_to_s3 import DynamoDBToS3Operator
 class DynamodbToS3Test(unittest.TestCase):
 
     def setUp(self):
-        self.output_queue = SimpleQueue()
+        self.output_queue = []
 
-        def mock_upload_file(Filename, Bucket, Key):  # pylint: disable=unused-argument,invalid-name
-            with open(Filename) as f:
-                lines = f.readlines()
-                for line in lines:
-                    self.output_queue.put(json.loads(line))
-        self.mock_upload_file_func = mock_upload_file
-
-    def output_queue_to_list(self):
-        items = []
-        while not self.output_queue.empty():
-            items.append(self.output_queue.get())
-        return items
+    def mock_upload_file(self, Filename, Bucket, Key):  # pylint: disable=unused-argument,invalid-name
+        with open(Filename) as f:
+            lines = f.readlines()
+            for line in lines:
+                self.output_queue.append(json.loads(line))
 
     @patch('airflow.contrib.operators.dynamodb_to_s3.S3Hook')
     @patch('airflow.contrib.operators.dynamodb_to_s3.AwsDynamoDBHook')
@@ -62,7 +54,7 @@ class DynamodbToS3Test(unittest.TestCase):
         mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
 
         s3_client = MagicMock()
-        s3_client.return_value.upload_file = self.mock_upload_file_func
+        s3_client.return_value.upload_file = self.mock_upload_file
         mock_s3_hook.return_value.get_conn = s3_client
 
         dynamodb_to_s3_operator = DynamoDBToS3Operator(
@@ -74,4 +66,4 @@ class DynamodbToS3Test(unittest.TestCase):
 
         dynamodb_to_s3_operator.execute(context={})
 
-        self.assertEqual([{'a': 1}, {'b': 2}, {'c': 3}], self.output_queue_to_list())
+        self.assertEqual([{'a': 1}, {'b': 2}, {'c': 3}], self.output_queue)

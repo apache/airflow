@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,14 +17,13 @@
 # under the License.
 
 import unittest
+from datetime import timedelta
 from unittest import mock
 
 from airflow.configuration import conf
-from airflow.models import DagBag
 from airflow.jobs import BackfillJob
+from airflow.models import DagBag
 from airflow.utils import timezone
-
-from datetime import timedelta
 
 try:
     from airflow.executors.dask_executor import DaskExecutor
@@ -136,7 +134,7 @@ class TestDaskExecutorTLS(TestBaseDask):
     def test_tls(self):
         with dask_testing_cluster(
                 worker_kwargs={'security': tls_security()},
-                scheduler_kwargs={'security': tls_security()}) as (s, _):
+                scheduler_kwargs={'security': tls_security()}) as (cluster, _):
 
             # These use test certs that ship with dask/distributed and should not be
             #  used in production
@@ -144,7 +142,7 @@ class TestDaskExecutorTLS(TestBaseDask):
             conf.set('dask', 'tls_cert', get_cert('tls-key-cert.pem'))
             conf.set('dask', 'tls_key', get_cert('tls-key.pem'))
             try:
-                executor = DaskExecutor(cluster_address=s['address'])
+                executor = DaskExecutor(cluster_address=cluster['address'])
 
                 self.assert_tasks_on_executor(executor)
 

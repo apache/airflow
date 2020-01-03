@@ -28,7 +28,7 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
-DISABLE_CHECKS="missing-docstring,no-self-use,too-many-public-methods,protected-access"
+export PYTHONPATH=${AIRFLOW_SOURCES}
 
 if [[ ${#@} == "0" ]]; then
     echo
@@ -36,13 +36,13 @@ if [[ ${#@} == "0" ]]; then
     echo
     find "./tests" -name "*.py" | \
     grep -vFf scripts/ci/pylint_todo.txt | \
-    xargs pylint --disable="${DISABLE_CHECKS}" --output-format=colorized
+    xargs pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized
     RES=$?
 else
     print_in_container_info
     print_in_container_info "Running Pylint for tests with parameters: $*"
     print_in_container_info
-    pylint --disable="${DISABLE_CHECKS}" --output-format=colorized "$@"
+    pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized "$@"
     RES=$?
 fi
 

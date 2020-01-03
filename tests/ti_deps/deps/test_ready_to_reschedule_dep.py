@@ -18,8 +18,8 @@
 # under the License.
 
 import unittest
-from unittest.mock import Mock, patch
 from datetime import timedelta
+from unittest.mock import Mock, patch
 
 from airflow.models import DAG, TaskInstance, TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
@@ -38,10 +38,10 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
 
     def _get_task_reschedule(self, reschedule_date):
         task = Mock(dag_id='test_dag', task_id='test_task')
-        tr = TaskReschedule(task=task, execution_date=None, try_number=None,
-                            start_date=reschedule_date, end_date=reschedule_date,
-                            reschedule_date=reschedule_date)
-        return tr
+        reschedule = TaskReschedule(task=task, execution_date=None, try_number=None,
+                                    start_date=reschedule_date, end_date=reschedule_date,
+                                    reschedule_date=reschedule_date)
+        return reschedule
 
     def test_should_pass_if_ignore_in_reschedule_period_is_set(self):
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)

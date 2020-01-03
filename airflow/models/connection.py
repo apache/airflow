@@ -18,16 +18,16 @@
 # under the License.
 
 import json
-from urllib.parse import urlparse, unquote, parse_qsl
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse
 
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
-from airflow import LoggingMixin
 from airflow.exceptions import AirflowException
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 # Python automatically converts all letters to lowercase in hostname
@@ -145,6 +145,41 @@ class Connection(Base, LoggingMixin):
         if uri_parts.query:
             self.extra = json.dumps(dict(parse_qsl(uri_parts.query, keep_blank_values=True)))
 
+    def get_uri(self) -> str:
+        uri = '{}://'.format(str(self.conn_type).lower().replace('_', '-'))
+
+        authority_block = ''
+        if self.login is not None:
+            authority_block += quote(self.login, safe='')
+
+        if self.password is not None:
+            authority_block += ':' + quote(self.password, safe='')
+
+        if authority_block > '':
+            authority_block += '@'
+
+            uri += authority_block
+
+        host_block = ''
+        if self.host:
+            host_block += quote(self.host, safe='')
+
+        if self.port:
+            if host_block > '':
+                host_block += ':{}'.format(self.port)
+            else:
+                host_block += '@:{}'.format(self.port)
+
+        if self.schema:
+            host_block += '/{}'.format(quote(self.schema, safe=''))
+
+        uri += host_block
+
+        if self.extra_dejson:
+            uri += '?{}'.format(urlencode(self.extra_dejson))
+
+        return uri
+
     def get_password(self):
         if self._password and self.is_encrypted:
             fernet = get_fernet()
@@ -204,14 +239,14 @@ class Connection(Base, LoggingMixin):
             from airflow.hooks.mysql_hook import MySqlHook
             return MySqlHook(mysql_conn_id=self.conn_id)
         elif self.conn_type == 'google_cloud_platform':
-            from airflow.contrib.hooks.bigquery_hook import BigQueryHook
+            from airflow.gcp.hooks.bigquery import BigQueryHook
             return BigQueryHook(bigquery_conn_id=self.conn_id)
         elif self.conn_type == 'postgres':
             from airflow.hooks.postgres_hook import PostgresHook
             return PostgresHook(postgres_conn_id=self.conn_id)
         elif self.conn_type == 'pig_cli':
             from airflow.hooks.pig_hook import PigCliHook
-            return PigCliHook(pig_conn_id=self.conn_id)
+            return PigCliHook(pig_cli_conn_id=self.conn_id)
         elif self.conn_type == 'hive_cli':
             from airflow.hooks.hive_hooks import HiveCliHook
             return HiveCliHook(hive_cli_conn_id=self.conn_id)
@@ -240,7 +275,7 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.cloudant_hook import CloudantHook
             return CloudantHook(cloudant_conn_id=self.conn_id)
         elif self.conn_type == 'jira':
-            from airflow.contrib.hooks.jira_hook import JiraHook
+            from airflow.providers.jira.hooks.jira import JiraHook
             return JiraHook(jira_conn_id=self.conn_id)
         elif self.conn_type == 'redis':
             from airflow.contrib.hooks.redis_hook import RedisHook
@@ -258,14 +293,14 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
             return AzureCosmosDBHook(azure_cosmos_conn_id=self.conn_id)
         elif self.conn_type == 'cassandra':
-            from airflow.contrib.hooks.cassandra_hook import CassandraHook
+            from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
             return CassandraHook(cassandra_conn_id=self.conn_id)
         elif self.conn_type == 'mongo':
             from airflow.contrib.hooks.mongo_hook import MongoHook
             return MongoHook(conn_id=self.conn_id)
         elif self.conn_type == 'gcpcloudsql':
-            from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook
-            return CloudSqlDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
+            from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook
+            return CloudSQLDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
         elif self.conn_type == 'grpc':
             from airflow.contrib.hooks.grpc_hook import GrpcHook
             return GrpcHook(grpc_conn_id=self.conn_id)
@@ -273,6 +308,17 @@ class Connection(Base, LoggingMixin):
 
     def __repr__(self):
         return self.conn_id
+
+    def log_info(self):
+        return ("id: {}. Host: {}, Port: {}, Schema: {}, "
+                "Login: {}, Password: {}, extra: {}".
+                format(self.conn_id,
+                       self.host,
+                       self.port,
+                       self.schema,
+                       self.login,
+                       "XXXXXXXX" if self.password else None,
+                       "XXXXXXXX" if self.extra_dejson else None))
 
     def debug_info(self):
         return ("id: {}. Host: {}, Port: {}, Schema: {}, "

@@ -19,14 +19,15 @@
 """
 This module contains Google Cloud Bigtable operators.
 """
-
-from typing import Iterable
+from enum import IntEnum
+from typing import Dict, Iterable, List, Optional
 
 import google.api_core.exceptions
+from google.cloud.bigtable.column_family import GarbageCollectionRule
 
 from airflow import AirflowException
-from airflow.models import BaseOperator
 from airflow.gcp.hooks.bigtable import BigtableHook
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -43,7 +44,7 @@ class BigtableValidationMixin:
                 raise AirflowException('Empty parameter: {}'.format(attr_name))
 
 
-class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
+class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
     Creates a new Cloud Bigtable instance.
     If the Cloud Bigtable instance with the given ID exists, the operator does not
@@ -55,7 +56,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableInstanceCreateOperator`
+        :ref:`howto/operator:BigtableCreateInstanceOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to create.
@@ -86,29 +87,31 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
     :type timeout: int
     :param timeout: (optional) timeout (in seconds) for instance creation.
                     If None is not specified, Operator will wait indefinitely.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
     """
 
     REQUIRED_ATTRIBUTES = ('instance_id', 'main_cluster_id',
-                           'main_cluster_zone')
+                           'main_cluster_zone')  # type: Iterable[str]
     template_fields = ['project_id', 'instance_id', 'main_cluster_id',
-                       'main_cluster_zone']
+                       'main_cluster_zone']  # type: Iterable[str]
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments
-                 instance_id,
-                 main_cluster_id,
-                 main_cluster_zone,
-                 project_id=None,
-                 replica_cluster_id=None,
-                 replica_cluster_zone=None,
-                 instance_display_name=None,
-                 instance_type=None,
-                 instance_labels=None,
-                 cluster_nodes=None,
-                 cluster_storage_type=None,
-                 timeout=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: str,
+                 main_cluster_id: str,
+                 main_cluster_zone: str,
+                 project_id: Optional[str] = None,
+                 replica_cluster_id: Optional[str] = None,
+                 replica_cluster_zone: Optional[str] = None,
+                 instance_display_name: Optional[str] = None,
+                 instance_type: Optional[IntEnum] = None,
+                 instance_labels: Optional[int] = None,
+                 cluster_nodes: Optional[int] = None,
+                 cluster_storage_type: Optional[IntEnum] = None,
+                 timeout: Optional[float] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.main_cluster_id = main_cluster_id
@@ -158,7 +161,7 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
+class BigtableDeleteInstanceOperator(BaseOperator, BigtableValidationMixin):
     """
     Deletes the Cloud Bigtable instance, including its clusters and all related tables.
 
@@ -167,23 +170,25 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableInstanceDeleteOperator`
+        :ref:`howto/operator:BigtableDeleteInstanceOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to delete.
     :param project_id: Optional, the ID of the GCP project.  If set to None or missing,
             the default project_id from the GCP connection is used.
     :type project_id: str
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
     """
-    REQUIRED_ATTRIBUTES = ('instance_id',)
-    template_fields = ['project_id', 'instance_id']
+    REQUIRED_ATTRIBUTES = ('instance_id',)  # type: Iterable[str]
+    template_fields = ['project_id', 'instance_id']  # type: Iterable[str]
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self._validate_inputs()
@@ -206,7 +211,7 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
+class BigtableCreateTableOperator(BaseOperator, BigtableValidationMixin):
     """
     Creates the table in the Cloud Bigtable instance.
 
@@ -215,7 +220,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableTableCreateOperator`
+        :ref:`howto/operator:BigtableCreateTableOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance that will
@@ -232,23 +237,25 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
     :param column_families: (Optional) A map columns to create.
                             The key is the column_id str and the value is a
                             :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
     """
-    REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')
-    template_fields = ['project_id', 'instance_id', 'table_id']
+    REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
+    template_fields = ['project_id', 'instance_id', 'table_id']  # type: Iterable[str]
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 table_id,
-                 project_id=None,
-                 initial_split_keys=None,
-                 column_families=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: str,
+                 table_id: str,
+                 project_id: Optional[str] = None,
+                 initial_split_keys: Optional[List] = None,
+                 column_families: Optional[Dict[str, GarbageCollectionRule]] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id
-        self.initial_split_keys = initial_split_keys or list()
+        self.initial_split_keys = initial_split_keys or []
         self.column_families = column_families or dict()
         self._validate_inputs()
         self.gcp_conn_id = gcp_conn_id
@@ -300,7 +307,7 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
                           self.table_id)
 
 
-class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
+class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
     """
     Deletes the Cloud Bigtable table.
 
@@ -309,7 +316,7 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableTableDeleteOperator`
+        :ref:`howto/operator:BigtableDeleteTableOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
@@ -319,19 +326,21 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
     :param project_id: Optional, the ID of the GCP project. If set to None or missing,
             the default project_id from the GCP connection is used.
     :type app_profile_id: str
-    :parm app_profile_id: Application profile.
+    :param app_profile_id: Application profile.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
     """
-    REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')
-    template_fields = ['project_id', 'instance_id', 'table_id']
+    REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')  # type: Iterable[str]
+    template_fields = ['project_id', 'instance_id', 'table_id']  # type: Iterable[str]
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 table_id,
-                 project_id=None,
-                 app_profile_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: str,
+                 table_id: str,
+                 project_id: Optional[str] = None,
+                 app_profile_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.table_id = table_id
@@ -363,7 +372,7 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
             raise e
 
 
-class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
+class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
     """
     Updates a Cloud Bigtable cluster.
 
@@ -373,7 +382,7 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BigtableClusterUpdateOperator`
+        :ref:`howto/operator:BigtableUpdateClusterOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
@@ -383,18 +392,20 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
     :param nodes: The desired number of nodes for the Cloud Bigtable cluster.
     :type project_id: str
     :param project_id: Optional, the ID of the GCP project.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
     """
-    REQUIRED_ATTRIBUTES = ('instance_id', 'cluster_id', 'nodes')
-    template_fields = ['project_id', 'instance_id', 'cluster_id', 'nodes']
+    REQUIRED_ATTRIBUTES = ('instance_id', 'cluster_id', 'nodes')  # type: Iterable[str]
+    template_fields = ['project_id', 'instance_id', 'cluster_id', 'nodes']  # type: Iterable[str]
 
     @apply_defaults
     def __init__(self,
-                 instance_id,
-                 cluster_id,
-                 nodes,
-                 project_id=None,
-                 gcp_conn_id='google_cloud_default',
-                 *args, **kwargs):
+                 instance_id: str,
+                 cluster_id: str,
+                 nodes: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
         self.project_id = project_id
         self.instance_id = instance_id
         self.cluster_id = cluster_id

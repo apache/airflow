@@ -43,7 +43,7 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.
-load-plugins=
+load-plugins=tests.airflow_pylint.do_not_use_asserts
 
 # Pickle collected data for later comparisons.
 persistent=yes
@@ -162,12 +162,16 @@ disable=print-statement,
         no-else-return,  # deemed unnecessary
         no-else-raise,  # deemed unnecessary
         too-many-format-args,  # Pylint fails on multiline string format
+        too-many-lines,  # Pylint fails on too many lines and we have several cases of those
         cell-var-from-loop,  # Raises spurious errors
         super-init-not-called,  # BasPH: ignored for now but should be fixed somewhere in the future
         arguments-differ,  # Doesn't always raise valid messages
         import-error,  # Requires installing Airflow environment in CI task which takes long, therefore ignored. Tests should fail anyways if deps are missing. Possibly un-ignore in the future if we ever use pre-built Docker images for CI.
         fixme,  # There should be a good reason for adding a TODO
-        pointless-statement  # Is raised on the bitshift operator. Could be disabled only on /example_dags after https://github.com/PyCQA/pylint/projects/1.
+        pointless-statement,  # Is raised on the bitshift operator. Could be disabled only on /example_dags after https://github.com/PyCQA/pylint/projects/1.
+        ungrouped-imports,  # Disabled to avoid conflict with isort import order rules, which is enabled in the project.
+        missing-module-docstring,
+        import-outside-toplevel,    # We import outside toplevel to avoid cyclic imports
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -283,7 +287,7 @@ ignore-on-opaque-inference=yes
 # List of class names for which member attributes should not be checked (useful
 # for classes with dynamically set attributes). This supports the use of
 # qualified names.
-ignored-classes=optparse.Values,thread._local,_thread._local
+ignored-classes=optparse.Values,thread._local,_thread._local,sqlalchemy.orm.scoping.scoped_session
 
 # List of module names for which member attributes should not be checked
 # (useful for modules/projects where namespaces are manipulated during runtime

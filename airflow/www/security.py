@@ -21,14 +21,13 @@
 from flask import g
 from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.www.app import appbuilder
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
-
+from airflow.utils.session import provide_session
+from airflow.www.app import appbuilder
 
 EXISTING_ROLES = {
     'Admin',
@@ -453,12 +452,19 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def update_admin_perm_view(self):
         """
-        Admin should have all the permission-views.
+        Admin should has all the permission-views, except the dag views.
+        because Admin have already have all_dags permission.
         Add the missing ones to the table for admin.
 
         :return: None.
         """
-        pvms = self.get_session.query(sqla_models.PermissionView).all()
+        all_dag_view = self.find_view_menu('all_dags')
+        dag_perm_ids = [self.find_permission('can_dag_edit').id, self.find_permission('can_dag_read').id]
+        pvms = self.get_session.query(sqla_models.PermissionView).filter(~and_(
+            sqla_models.PermissionView.permission_id.in_(dag_perm_ids),
+            sqla_models.PermissionView.view_menu_id != all_dag_view.id)
+        ).all()
+
         pvms = [p for p in pvms if p.permission and p.view_menu]
 
         admin = self.find_role('Admin')

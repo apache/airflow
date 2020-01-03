@@ -16,39 +16,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
-
-from tests.gcp.operators.test_video_intelligence_system_helper import (
-    GCPVideoIntelligenceHelper,
-)
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
-from tests.contrib.utils.gcp_authenticator import GCP_AI_KEY
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_AI_KEY), SKIP_TEST_WARNING)
-class CloudVideoIntelligenceExampleDagsTest(TestDagGcpSystem):
-    def __init__(self, method_name="runTest"):
-        super().__init__(
-            method_name, dag_id="example_gcp_video_intelligence", gcp_key=GCP_AI_KEY
-        )
-        self.helper = GCPVideoIntelligenceHelper()
+from tests.gcp.operators.test_video_intelligence_system_helper import GCPVideoIntelligenceHelper
+from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
+
+@skip_gcp_system(GCP_AI_KEY, require_local_executor=True)
+class CloudVideoIntelligenceExampleDagsTest(SystemTest):
+    helper = GCPVideoIntelligenceHelper()
+
+    @provide_gcp_context(GCP_AI_KEY)
     def setUp(self):
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.create_bucket()
-            self.gcp_authenticator.gcp_revoke_authentication()
-        finally:
-            pass
+        self.helper.create_bucket()
         super().setUp()
 
+    @provide_gcp_context(GCP_AI_KEY)
     def tearDown(self):
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            self.helper.delete_bucket()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        self.helper.delete_bucket()
         super().tearDown()
 
+    @provide_gcp_context(GCP_AI_KEY)
     def test_run_example_dag_spanner(self):
-        self._run_dag()
+        self.run_dag('example_gcp_video_intelligence', GCP_DAG_FOLDER)

@@ -18,8 +18,9 @@
 # under the License.
 
 import unittest
-from unittest.mock import MagicMock, patch
 from datetime import datetime
+from unittest.mock import MagicMock, patch
+
 from dateutil.tz import tzlocal
 
 from airflow import AirflowException
@@ -180,7 +181,7 @@ class TestEmrStepSensor(unittest.TestCase):
         self.emr_client_mock = MagicMock()
         self.sensor = EmrStepSensor(
             task_id='test_task',
-            poke_interval=1,
+            poke_interval=0,
             job_flow_id='j-8989898989',
             step_id='s-VK57YR1Z9Z5N',
             aws_conn_id='aws_default',
@@ -214,8 +215,6 @@ class TestEmrStepSensor(unittest.TestCase):
             DESCRIBE_JOB_STEP_CANCELLED_RETURN
         ]
 
-        self.boto3_client_mock = MagicMock(return_value=self.emr_client_mock)
-
         with patch('boto3.session.Session', self.boto3_session_mock):
             self.assertRaises(AirflowException, self.sensor.execute, None)
 
@@ -225,8 +224,6 @@ class TestEmrStepSensor(unittest.TestCase):
             DESCRIBE_JOB_STEP_FAILED_RETURN
         ]
 
-        self.boto3_client_mock = MagicMock(return_value=self.emr_client_mock)
-
         with patch('boto3.session.Session', self.boto3_session_mock):
             self.assertRaises(AirflowException, self.sensor.execute, None)
 
@@ -235,8 +232,6 @@ class TestEmrStepSensor(unittest.TestCase):
             DESCRIBE_JOB_STEP_RUNNING_RETURN,
             DESCRIBE_JOB_STEP_INTERRUPTED_RETURN
         ]
-
-        self.boto3_client_mock = MagicMock(return_value=self.emr_client_mock)
 
         with patch('boto3.session.Session', self.boto3_session_mock):
             self.assertRaises(AirflowException, self.sensor.execute, None)

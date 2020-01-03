@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union, Iterable, Mapping
+from typing import Iterable, Mapping, Optional, Union
 
 from airflow.hooks.jdbc_hook import JdbcHook
 from airflow.models import BaseOperator
@@ -51,7 +51,7 @@ class JdbcOperator(BaseOperator):
                  sql: str,
                  jdbc_conn_id: str = 'jdbc_default',
                  autocommit: bool = False,
-                 parameters: Union[Mapping, Iterable] = None,
+                 parameters: Optional[Union[Mapping, Iterable]] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.parameters = parameters

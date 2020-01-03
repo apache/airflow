@@ -16,11 +16,13 @@
 # under the License.
 import unittest
 import unittest.mock as mock
-from kubernetes.client import ApiClient
+
 import kubernetes.client.models as k8s
+from kubernetes.client import ApiClient
+
+from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.kubernetes.k8s_model import append_to_pod
 
 
 class TestPod(unittest.TestCase):

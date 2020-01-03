@@ -20,10 +20,24 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.datastore import DatastoreImportOperator  # noqa
+from airflow.gcp.operators.datastore import CloudDatastoreImportEntitiesOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.datastore`.",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )
+
+
+class DatastoreImportOperator(CloudDatastoreImportEntitiesOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.datastore.CloudDatastoreImportEntitiesOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.datastore.CloudDatastoreImportEntitiesOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

@@ -18,11 +18,11 @@
 # under the License.
 import unittest
 
+import mock
 from parameterized import parameterized
 
 from airflow.gcp.hooks.cloud_storage_transfer_service import GcpTransferOperationStatus
 from airflow.gcp.sensors.cloud_storage_transfer_service import GCPTransferServiceWaitForJobStatusSensor
-from tests.compat import mock
 
 
 class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):

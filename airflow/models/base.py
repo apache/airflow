@@ -18,6 +18,7 @@
 # under the License.
 
 from typing import Any
+
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -33,3 +34,8 @@ metadata = (
 Base = declarative_base(metadata=metadata)  # type: Any
 
 ID_LEN = 250
+
+
+# used for typing
+class Operator:
+    pass

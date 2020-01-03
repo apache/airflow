@@ -17,22 +17,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.utils import timezone
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
 
 from croniter import croniter
+from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest  # pylint: disable=unused-import
+
+from airflow.utils import timezone
 
 cron_presets = {
     '@hourly': '0 * * * *',
     '@daily': '0 0 * * *',
     '@weekly': '0 0 * * 0',
     '@monthly': '0 0 1 * *',
+    '@quarterly': '0 0 1 */3 *',
     '@yearly': '0 0 1 1 *',
 }
 
 
-def date_range(start_date, end_date=None, num=None, delta=None):
+def date_range(start_date, end_date=None, num=None, delta=None):  # pylint: disable=too-many-branches
     """
     Get a set of dates as a list based on a start, end and delta, delta
     can be something that can be added to `datetime.datetime`
@@ -58,6 +60,8 @@ def date_range(start_date, end_date=None, num=None, delta=None):
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
     :type num: int
+    :param delta: step length. It can be datetime.timedelta or cron expression as string
+    :type delta: datetime.timedelta or str
     """
     if not delta:
         return []
@@ -69,20 +73,25 @@ def date_range(start_date, end_date=None, num=None, delta=None):
         end_date = timezone.utcnow()
 
     delta_iscron = False
-    tz = start_date.tzinfo
+    time_zone = start_date.tzinfo
+
     if isinstance(delta, str):
         delta_iscron = True
-        start_date = timezone.make_naive(start_date, tz)
+        if timezone.is_localized(start_date):
+            start_date = timezone.make_naive(start_date, time_zone)
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
+    else:
+        raise Exception("Wait. delta must be either datetime.timedelta or cron expression as str")
+
     dates = []
     if end_date:
-        if timezone.is_naive(start_date):
-            end_date = timezone.make_naive(end_date, tz)
+        if timezone.is_naive(start_date) and not timezone.is_naive(end_date):
+            end_date = timezone.make_naive(end_date, time_zone)
         while start_date <= end_date:
             if timezone.is_naive(start_date):
-                dates.append(timezone.make_aware(start_date, tz))
+                dates.append(timezone.make_aware(start_date, time_zone))
             else:
                 dates.append(start_date)
 
@@ -93,20 +102,19 @@ def date_range(start_date, end_date=None, num=None, delta=None):
     else:
         for _ in range(abs(num)):
             if timezone.is_naive(start_date):
-                dates.append(timezone.make_aware(start_date, tz))
+                dates.append(timezone.make_aware(start_date, time_zone))
             else:
                 dates.append(start_date)
 
-            if delta_iscron:
-                if num > 0:
-                    start_date = cron.get_next(datetime)
-                else:
-                    start_date = cron.get_prev(datetime)
+            if delta_iscron and num > 0:
+                start_date = cron.get_next(datetime)
+            elif delta_iscron:
+                start_date = cron.get_prev(datetime)
+            elif num > 0:
+                start_date += delta
             else:
-                if num > 0:
-                    start_date += delta
-                else:
-                    start_date -= delta
+                start_date -= delta
+
     return sorted(dates)
 
 
@@ -131,14 +139,14 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
 
     if isinstance(delta, str):
         # It's cron based, so it's easy
-        tz = start_date.tzinfo
-        start_date = timezone.make_naive(start_date, tz)
+        time_zone = start_date.tzinfo
+        start_date = timezone.make_naive(start_date, time_zone)
         cron = croniter(delta, start_date)
         prev = cron.get_prev(datetime)
         if prev == start_date:
-            return timezone.make_aware(start_date, tz)
+            return timezone.make_aware(start_date, time_zone)
         else:
-            return timezone.make_aware(prev, tz)
+            return timezone.make_aware(prev, time_zone)
 
     # Ignore the microseconds of dt
     dt -= timedelta(microseconds=dt.microsecond)
@@ -215,11 +223,11 @@ def scale_time_units(time_seconds_arr, unit):
     Convert an array of time durations in seconds to the specified time unit.
     """
     if unit == 'minutes':
-        return list(map(lambda x: x * 1.0 / 60, time_seconds_arr))
+        return list(map(lambda x: x / 60, time_seconds_arr))
     elif unit == 'hours':
-        return list(map(lambda x: x * 1.0 / (60 * 60), time_seconds_arr))
+        return list(map(lambda x: x / (60 * 60), time_seconds_arr))
     elif unit == 'days':
-        return list(map(lambda x: x * 1.0 / (24 * 60 * 60), time_seconds_arr))
+        return list(map(lambda x: x / (24 * 60 * 60), time_seconds_arr))
     return time_seconds_arr
 
 

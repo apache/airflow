@@ -20,24 +20,23 @@
 
 import getpass
 from time import sleep
+from typing import Optional
 
 from sqlalchemy import Column, Index, Integer, String, and_, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
-from typing import Optional
 
+from airflow import models
 from airflow.configuration import conf
-from airflow import executors, models
-from airflow.exceptions import (
-    AirflowException,
-)
-from airflow.models.base import Base, ID_LEN
+from airflow.exceptions import AirflowException
+from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
-from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
@@ -77,11 +76,11 @@ class BaseJob(Base, LoggingMixin):
 
     def __init__(
             self,
-            executor=executors.get_default_executor(),
+            executor=None,
             heartrate=None,
             *args, **kwargs):
         self.hostname = get_hostname()
-        self.executor = executor
+        self.executor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
@@ -156,39 +155,40 @@ class BaseJob(Base, LoggingMixin):
         This also allows for any job to be killed externally, regardless
         of who is running it or on which machine it is running.
 
-        Note that if your heartbeat is set to 60 seconds and you call this
+        Note that if your heart rate is set to 60 seconds and you call this
         method after 10 seconds of processing since the last heartbeat, it
         will sleep 50 seconds to complete the 60 seconds and keep a steady
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
         """
+        previous_heartbeat = self.latest_heartbeat
+
         try:
             with create_session() as session:
-                job = session.query(BaseJob).filter_by(id=self.id).one()
-                make_transient(job)
-                session.commit()
+                # This will cause it to load from the db
+                session.merge(self)
+                previous_heartbeat = self.latest_heartbeat
 
-            if job.state == State.SHUTDOWN:
+            if self.state == State.SHUTDOWN:
                 self.kill()
 
-            is_unit_test = conf.getboolean('core', 'unit_test_mode')
-            if not is_unit_test:
-                # Figure out how long to sleep for
-                sleep_for = 0
-                if job.latest_heartbeat:
-                    seconds_remaining = self.heartrate - \
-                        (timezone.utcnow() - job.latest_heartbeat)\
-                        .total_seconds()
-                    sleep_for = max(0, seconds_remaining)
-
-                sleep(sleep_for)
+            # Figure out how long to sleep for
+            sleep_for = 0
+            if self.latest_heartbeat:
+                seconds_remaining = self.heartrate - \
+                    (timezone.utcnow() - self.latest_heartbeat)\
+                    .total_seconds()
+                sleep_for = max(0, seconds_remaining)
+            sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:
-                job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
-                job.latest_heartbeat = timezone.utcnow()
-                session.merge(job)
+                # Make the sesion aware of this object
+                session.merge(self)
+                self.latest_heartbeat = timezone.utcnow()
                 session.commit()
+                # At this point, the DB has updated.
+                previous_heartbeat = self.latest_heartbeat
 
                 self.heartbeat_callback(session=session)
                 self.log.debug('[heartbeat]')
@@ -197,6 +197,8 @@ class BaseJob(Base, LoggingMixin):
                 convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1,
                 1)
             self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+            # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
+            self.latest_heartbeat = previous_heartbeat
 
     def run(self):
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)

@@ -17,15 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
+
 import pymongo
-try:
-    import mongomock
-except ImportError:
-    mongomock = None
 
 from airflow.contrib.hooks.mongo_hook import MongoHook
 from airflow.models import Connection
 from airflow.utils import db
+
+try:
+    import mongomock
+except ImportError:
+    mongomock = None
 
 
 class MongoHookTest(MongoHook):
@@ -79,8 +81,7 @@ class TestMongoHook(unittest.TestCase):
 
         self.hook.insert_many(collection, objs)
 
-        result_objs = collection.find()
-        result_objs = [result for result in result_objs]
+        result_objs = list(collection.find())
         self.assertEqual(len(result_objs), 2)
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
@@ -252,9 +253,8 @@ class TestMongoHook(unittest.TestCase):
         collection.insert(objs)
 
         result_objs = self.hook.find(collection, {}, find_one=False)
-        result_objs = [result for result in result_objs]
 
-        self.assertGreater(len(result_objs), 1)
+        self.assertGreater(len(list(result_objs)), 1)
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_aggregate(self):
@@ -281,17 +281,16 @@ class TestMongoHook(unittest.TestCase):
         ]
 
         results = self.hook.aggregate(collection, aggregate_query)
-        results = [result for result in results]
-        self.assertEqual(len(results), 2)
+        self.assertEqual(len(list(results)), 2)
 
     def test_context_manager(self):
-        with MongoHook(conn_id='mongo_default', mongo_db='default') as ctxHook:
-            ctxHook.get_conn()
+        with MongoHook(conn_id='mongo_default', mongo_db='default') as ctx_hook:
+            ctx_hook.get_conn()
 
-            self.assertIsInstance(ctxHook, MongoHook)
-            self.assertIsNotNone(ctxHook.client)
+            self.assertIsInstance(ctx_hook, MongoHook)
+            self.assertIsNotNone(ctx_hook.client)
 
-        self.assertIsNone(ctxHook.client)
+        self.assertIsNone(ctx_hook.client)
 
 
 if __name__ == '__main__':

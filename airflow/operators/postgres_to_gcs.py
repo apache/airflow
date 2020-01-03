@@ -20,13 +20,14 @@
 PostgreSQL to GCS operator.
 """
 
-import time
 import datetime
+import json
+import time
 from decimal import Decimal
 
 from airflow.hooks.postgres_hook import PostgresHook
-from airflow.utils.decorators import apply_defaults
 from airflow.operators.sql_to_gcs import BaseSQLToGoogleCloudStorageOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class PostgresToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
@@ -95,6 +96,8 @@ class PostgresToGoogleCloudStorageOperator(BaseSQLToGoogleCloudStorageOperator):
                 hours=formated_time.tm_hour,
                 minutes=formated_time.tm_min,
                 seconds=formated_time.tm_sec).seconds
+        if isinstance(value, dict):
+            return json.dumps(value)
         if isinstance(value, Decimal):
             return float(value)
         return value

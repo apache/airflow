@@ -19,11 +19,12 @@
 
 
 import unittest
+from unittest.mock import MagicMock, call, patch
+
 from airflow import DAG
+from airflow.contrib.hooks.redis_hook import RedisHook
 from airflow.contrib.sensors.redis_pub_sub_sensor import RedisPubSubSensor
 from airflow.utils import timezone
-from airflow.contrib.hooks.redis_hook import RedisHook
-from unittest.mock import patch, call, MagicMock
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -49,8 +50,7 @@ class TestRedisPubSubSensor(unittest.TestCase):
             redis_conn_id='redis_default'
         )
 
-        self.mock_redis_conn = mock_redis_conn
-        self.mock_redis_conn().pubsub().get_message.return_value = \
+        mock_redis_conn().pubsub().get_message.return_value = \
             {'type': 'message', 'channel': b'test', 'data': b'd1'}
 
         result = sensor.poke(self.mock_context)
@@ -69,8 +69,8 @@ class TestRedisPubSubSensor(unittest.TestCase):
             channels='test',
             redis_conn_id='redis_default'
         )
-        self.mock_redis_conn = mock_redis_conn
-        self.mock_redis_conn().pubsub().get_message.return_value = \
+
+        mock_redis_conn().pubsub().get_message.return_value = \
             {'type': 'subscribe', 'channel': b'test', 'data': b'd1'}
 
         result = sensor.poke(self.mock_context)

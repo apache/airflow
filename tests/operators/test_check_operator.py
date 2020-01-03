@@ -20,10 +20,11 @@
 import unittest
 from datetime import datetime
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.operators.check_operator import ValueCheckOperator, CheckOperator, IntervalCheckOperator
-from tests.compat import mock
+from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 
 
 class TestCheckOperator(unittest.TestCase):

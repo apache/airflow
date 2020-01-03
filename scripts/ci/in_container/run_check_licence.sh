@@ -32,8 +32,6 @@ echo
 echo "Running Licence check"
 echo
 
-sudo chown -R "${AIRFLOW_USER}.${AIRFLOW_USER}" "${AIRFLOW_SOURCES}/logs"
-
 # This is the target of a symlink in airflow/www/static/docs -
 # and rat exclude doesn't cope with the symlink target doesn't exist
 sudo mkdir -p docs/_build/html/
@@ -41,7 +39,7 @@ sudo mkdir -p docs/_build/html/
 echo "Running license checks. This can take a while."
 
 if ! java -jar "${RAT_JAR}" -E "${AIRFLOW_SOURCES}"/.rat-excludes \
-    -d "${AIRFLOW_SOURCES}" > "${AIRFLOW_SOURCES}/logs/rat-results.txt"; then
+    -d "${AIRFLOW_SOURCES}" | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
    echo >&2 "RAT exited abnormally"
    exit 1
 fi

@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import datetime
+import unittest
 
-from airflow.models import TaskInstance as TI, DAG, DagRun
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.branch_operator import BaseBranchOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

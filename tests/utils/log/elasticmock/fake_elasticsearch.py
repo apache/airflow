@@ -1,4 +1,21 @@
 # -*- coding: utf-8 -*-
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 #
 # The MIT License (MIT)
 #
@@ -31,6 +48,8 @@ from elasticsearch.exceptions import NotFoundError
 from .utilities import get_random_id
 
 
+# pylint: disable=redefined-builtin
+# noinspection PyShadowingBuiltins
 class FakeElasticsearch(Elasticsearch):
     __documents_dict = None
 
@@ -101,15 +120,7 @@ class FakeElasticsearch(Elasticsearch):
     def get(self, index, id, doc_type='_all', params=None):
         result = None
         if index in self.__documents_dict:
-            for document in self.__documents_dict[index]:
-                if document.get('_id') == id:
-                    if doc_type == '_all':
-                        result = document
-                        break
-                    else:
-                        if document.get('_type') == doc_type:
-                            result = document
-                            break
+            result = self.find_document(doc_type, id, index, result)
 
         if result:
             result['found'] = True
@@ -122,6 +133,14 @@ class FakeElasticsearch(Elasticsearch):
             }
             raise NotFoundError(404, json.dumps(error_data))
 
+        return result
+
+    def find_document(self, doc_type, id, index, result):
+        for document in self.__documents_dict[index]:
+            if document.get('_id') == id:
+                if doc_type == '_all' or document.get('_type') == doc_type:
+                    result = document
+                    break
         return result
 
     @query_params('_source', '_source_exclude', '_source_include', 'parent',
@@ -172,7 +191,7 @@ class FakeElasticsearch(Elasticsearch):
     def search(self, index=None, doc_type=None, body=None, params=None):
         searchable_indexes = self._normalize_index_to_list(index)
 
-        matches = self._find_match(index, doc_type, body, params)
+        matches = self._find_match(index, doc_type, body)
 
         result = {
             'hits': {
@@ -250,7 +269,7 @@ class FakeElasticsearch(Elasticsearch):
             ]
         return result_dict
 
-    def _find_match(self, index, doc_type, body, params=None):  # pylint: disable=unused-argument
+    def _find_match(self, index, doc_type, body):  # pylint: disable=unused-argument
         searchable_indexes = self._normalize_index_to_list(index)
         searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
 
@@ -258,22 +277,28 @@ class FakeElasticsearch(Elasticsearch):
 
         matches = []
         for searchable_index in searchable_indexes:
-            for document in self.__documents_dict[searchable_index]:
-                if searchable_doc_types\
-                   and document.get('_type') not in searchable_doc_types:
-                    continue
-
-                if 'match_phrase' in must:
-                    for query_id in must['match_phrase']:
-                        query_val = must['match_phrase'][query_id]
-                        if query_id in document['_source']:
-                            if query_val in document['_source'][query_id]:
-                                # use in as a proxy for match_phrase
-                                matches.append(document)
-                else:
-                    matches.append(document)
+            self.find_document_in_searchable_index(matches, must, searchable_doc_types, searchable_index)
 
         return matches
+
+    def find_document_in_searchable_index(self, matches, must, searchable_doc_types, searchable_index):
+        for document in self.__documents_dict[searchable_index]:
+            if searchable_doc_types and document.get('_type') not in searchable_doc_types:
+                continue
+
+            if 'match_phrase' in must:
+                self.match_must_phrase(document, matches, must)
+            else:
+                matches.append(document)
+
+    @staticmethod
+    def match_must_phrase(document, matches, must):
+        for query_id in must['match_phrase']:
+            query_val = must['match_phrase'][query_id]
+            if query_id in document['_source']:
+                if query_val in document['_source'][query_id]:
+                    # use in as a proxy for match_phrase
+                    matches.append(document)
 
     def _normalize_index_to_list(self, index):
         # Ensure to have a list of index
@@ -310,3 +335,4 @@ class FakeElasticsearch(Elasticsearch):
             raise ValueError("Invalid param 'index'")
 
         return searchable_doc_types
+# pylint: enable=redefined-builtin

@@ -1,23 +1,29 @@
 # -*- coding: utf-8 -*-
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import unittest
 from io import StringIO
 
-from airflow.exceptions import AirflowConfigException
+import mock
+
 from airflow.contrib.hooks.grpc_hook import GrpcHook
+from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
-from tests.compat import mock
 
 
 def get_airflow_connection(auth_type="NO_AUTH", credential_pem_file=None, scopes=None):
@@ -47,8 +53,9 @@ def get_airflow_connection_with_port():
     )
 
 
+# noinspection PyMethodMayBeStatic,PyUnusedLocal
 class StubClass:
-    def __init__(self, _):
+    def __init__(self, _):  # pylint: disable=unused-argument
         pass
 
     def single_call(self, data):
@@ -62,6 +69,7 @@ class TestGrpcHook(unittest.TestCase):
     def setUp(self):
         self.channel_mock = mock.patch('grpc.Channel').start()
 
+    # noinspection PyUnusedLocal
     def custom_conn_func(self, _):
         mocked_channel = self.channel_mock.return_value
         return mocked_channel

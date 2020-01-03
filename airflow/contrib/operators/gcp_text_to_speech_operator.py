@@ -22,10 +22,24 @@ This module is deprecated. Please use `airflow.gcp.operators.text_to_speech`.
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator  # noqa
+from airflow.gcp.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.text_to_speech`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )
+
+
+class GcpTextToSpeechSynthesizeOperator(CloudTextToSpeechSynthesizeOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

@@ -80,6 +80,8 @@ Sometimes this can be put to good use. For example, a common pattern with
 ``SubDagOperator`` is to define the subdag inside a function so that Airflow
 doesn't try to load it as a standalone DAG.
 
+.. _default-args:
+
 Default Arguments
 -----------------
 
@@ -90,7 +92,7 @@ any of its operators. This makes it easy to apply a common parameter to many ope
 
     default_args = {
         'start_date': datetime(2016, 1, 1),
-        'owner': 'Airflow'
+        'owner': 'airflow'
     }
 
     dag = DAG('my_dag', default_args=default_args)
@@ -122,14 +124,14 @@ actually gets done.
 An operator describes a single task in a workflow. Operators are usually (but
 not always) atomic, meaning they can stand on their own and don't need to share
 resources with any other operators. The DAG will make sure that operators run in
-the correct certain order; other than those dependencies, operators generally
+the correct order; other than those dependencies, operators generally
 run independently. In fact, they may run on two completely different machines.
 
 This is a subtle but very important point: in general, if two operators need to
 share information, like a filename or small amount of data, you should consider
 combining them into a single operator. If it absolutely can't be avoided,
 Airflow does have a feature for operator cross-communication called XCom that is
-described elsewhere in this document.
+described in the section :ref:`XComs <concepts:xcom>`
 
 Airflow provides operators for many common tasks, including:
 
@@ -269,15 +271,19 @@ and equivalent to:
     op1.set_downstream([op2, op3])
 
 
-Relationship Helper
---------------------
+Relationship Builders
+---------------------
+
+*Moved in Airflow 2.0*
+
+In Airflow 2.0 those two methods moved from ``airflow.utils.helpers`` to ``airflow.models.baseoperator``.
 
 ``chain`` and ``cross_downstream`` function provide easier ways to set relationships
 between operators in specific situation.
 
-When setting relationships between two list of operators and wish all up list
-operators as upstream to all down list operators, we have to split one list
-manually using bitshift composition.
+When setting a relationship between two lists,
+if we want all operators in one list to be upstream to all operators in the other,
+we cannot use a single bitshift composition. Instead we have to split one of the lists:
 
 .. code:: python
 
@@ -361,14 +367,19 @@ A task goes through various stages from start to completion. In the Airflow UI
 (graph and tree views), these stages are displayed by a color representing each
 stage:
 
-.. image:: img/task_lifecycle.png
+.. image:: img/task_stages.png
+
+The complete lifecycle of the task looks like this:
+
+.. image:: img/task_lifecycle_diagram.png
 
 The happy flow consists of the following stages:
 
-1. no status (scheduler created empty task instance)
-2. queued (scheduler placed a task to run on the queue)
-3. running (worker picked up a task and is now running it)
-4. success (task completed)
+1. No status (scheduler created empty task instance)
+2. Scheduled (scheduler determined task instance needs to run)
+3. Queued (scheduler sent task to executor to run on the queue)
+4. Running (worker picked up a task and is now running it)
+5. Success (task completed)
 
 There is also visual difference between scheduled and manually triggered
 DAGs/tasks:
@@ -376,7 +387,7 @@ DAGs/tasks:
 .. image:: img/task_manual_vs_scheduled.png
 
 The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
-DAGs/tasks are manually triggered, i.e. by `airflow dags trigger`.
+DAGs/tasks are manually triggered, i.e. by ``airflow dags trigger``.
 
 Workflows
 =========
@@ -549,9 +560,12 @@ passed, then a corresponding list of XCom values is returned.
     def push_function():
         return value
 
-    # inside another PythonOperator where provide_context=True
-    def pull_function(**context):
-        value = context['task_instance'].xcom_pull(task_ids='pushing_task')
+    # inside another PythonOperator
+    def pull_function(task_instance):
+        value = task_instance.xcom_pull(task_ids='pushing_task')
+
+When specifying arguments that are part of the context, they will be
+automatically passed to the function.
 
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
@@ -563,6 +577,7 @@ of what this may look like:
 Note that XComs are similar to `Variables`_, but are specifically designed
 for inter-task communication rather than global settings.
 
+.. _concepts:variables:
 
 Variables
 =========
@@ -633,8 +648,7 @@ For example:
 
 .. code:: python
 
-  def branch_func(**kwargs):
-      ti = kwargs['ti']
+  def branch_func(ti):
       xcom_value = int(ti.xcom_pull(task_ids='start_task'))
       if xcom_value >= 5:
           return 'continue_task'
@@ -649,7 +663,6 @@ For example:
 
   branch_op = BranchPythonOperator(
       task_id='branch_task',
-      provide_context=True,
       python_callable=branch_func,
       dag=dag)
 
@@ -791,10 +804,19 @@ detailing the list of tasks that missed their SLA. The event is also recorded
 in the database and made available in the web UI under ``Browse->SLA Misses``
 where events can be analyzed and documented.
 
-SLAs can be configured for scheduled tasks by using the `sla` parameter.
-In addition to sending alerts to the addresses specified in a task's `email` parameter,
-the `sla_miss_callback` specifies an additional `Callable`
+SLAs can be configured for scheduled tasks by using the ``sla`` parameter.
+In addition to sending alerts to the addresses specified in a task's ``email`` parameter,
+the ``sla_miss_callback`` specifies an additional ``Callable``
 object to be invoked when the SLA is not met.
+
+If you don't want to check SLAs, you can disable globally (all the DAGs) by
+setting ``check_slas=False`` under ``[core]`` section in ``airflow.cfg`` file:
+
+.. code-block:: ini
+
+  [core]
+  check_slas = False
+
 
 Email Configuration
 -------------------
@@ -824,6 +846,8 @@ For example a ``html_content_template`` file could look like this:
   Host: {{ti.hostname}}<br>
   Log file: {{ti.log_filepath}}<br>
   Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
+
+.. _concepts/trigger_rule:
 
 Trigger Rules
 =============
@@ -1092,6 +1116,61 @@ You can use Jinja templating with every parameter that is marked as "templated"
 in the documentation. Template substitution occurs just before the pre_execute
 function of your operator is called.
 
+You can also use Jinja templating with nested fields, as long as these nested fields
+are marked as templated in the structure they belong to: fields registered in
+``template_fields`` property will be submitted to template substitution, like the
+``path`` field in the example below:
+
+.. code:: python
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataReader('/tmp/{{ ds }}/my_file')
+      ],
+      dag=dag)
+
+.. note:: ``template_fields`` property can equally be a class variable or an
+   instance variable.
+
+Deep nested fields can also be substituted, as long as all intermediate fields are
+marked as template fields:
+
+.. code:: python
+
+  class MyDataTransformer:
+    template_fields = ['reader']
+
+    def __init__(self, my_reader):
+      self.reader = my_reader
+
+    # [additional code here...]
+
+  class MyDataReader:
+    template_fields = ['path']
+
+    def __init__(self, my_path):
+      self.path = my_path
+
+    # [additional code here...]
+
+  t = PythonOperator(
+      task_id='transform_data',
+      python_callable=transform_data
+      op_args=[
+        MyDataTransformer(MyDataReader('/tmp/{{ ds }}/my_file'))
+      ],
+      dag=dag)
+
 You can pass custom options to the Jinja ``Environment`` when creating your DAG.
 One common usage is to avoid Jinja from dropping a trailing newline from a
 template string:
@@ -1177,8 +1256,8 @@ For example, you can prepare a ``.airflowignore`` file with contents
     tenant_[\d]
 
 
-Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
-"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
+``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your ``DAG_FOLDER`` would be ignored
 (If a directory's name matches any of the patterns, this directory and all its subfolders
 would not be scanned by Airflow at all. This improves efficiency of DAG finding).
 

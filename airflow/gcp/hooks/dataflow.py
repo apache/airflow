@@ -19,23 +19,65 @@
 """
 This module contains a Google Dataflow Hook.
 """
-
+import functools
 import json
 import re
 import select
 import subprocess
 import time
 import uuid
-from typing import Dict, List, Callable, Any, Optional
+from copy import deepcopy
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 from googleapiclient.discovery import build
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow import AirflowException
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
+
+
+# https://github.com/apache/beam/blob/75eee7857bb80a0cdb4ce99ae3e184101092e2ed/sdks/go/pkg/beam/runners/
+# universal/runnerlib/execute.go#L85
+JOB_ID_PATTERN = re.compile(
+    r'https?://console\.cloud\.google\.com/dataflow/jobsDetail/locations/.+?/jobs/([a-z|0-9|A-Z|\-|\_]+).*?')
+
+RT = TypeVar('RT')  # pylint: disable=invalid-name
+
+
+def _fallback_to_project_id_from_variables(func: Callable[..., RT]) -> Callable[..., RT]:
+    """
+    Decorator that provides fallback for Google Cloud Platform project id.
+
+    :param func: function to wrap
+    :return: result of the function call
+    """
+    @functools.wraps(func)
+    def inner_wrapper(self: "DataflowHook", *args, **kwargs) -> RT:
+        if args:
+            raise AirflowException(
+                "You must use keyword arguments in this methods rather than positional")
+
+        parameter_project_id = kwargs.get('project_id')
+        variables_project_id = kwargs.get('variables', {}).get('project')
+
+        if parameter_project_id and variables_project_id:
+            raise AirflowException(
+                "The mutually exclusive parameter `project_id` and `project` key in `variables` parameters "
+                "are both present. Please remove one."
+            )
+
+        kwargs['project_id'] = parameter_project_id or variables_project_id
+        if variables_project_id:
+            copy_variables = deepcopy(kwargs['variables'])
+            del copy_variables['project']
+            kwargs['variables'] = copy_variables
+
+        return func(self, *args, **kwargs)
+    return inner_wrapper
 
 
 class DataflowJobStatus:
@@ -44,7 +86,6 @@ class DataflowJobStatus:
     """
     JOB_STATE_DONE = "JOB_STATE_DONE"
     JOB_STATE_RUNNING = "JOB_STATE_RUNNING"
-    JOB_TYPE_STREAMING = "JOB_TYPE_STREAMING"
     JOB_STATE_FAILED = "JOB_STATE_FAILED"
     JOB_STATE_CANCELLED = "JOB_STATE_CANCELLED"
     JOB_STATE_PENDING = "JOB_STATE_PENDING"
@@ -53,7 +94,16 @@ class DataflowJobStatus:
     END_STATES = SUCCEEDED_END_STATES | FAILED_END_STATES
 
 
-class _DataflowJob(LoggingMixin):
+class DataflowJobType:
+    """
+    Helper class with Dataflow job types.
+    """
+    JOB_TYPE_UNKNOWN = "JOB_TYPE_UNKNOWN"
+    JOB_TYPE_BATCH = "JOB_TYPE_BATCH"
+    JOB_TYPE_STREAMING = "JOB_TYPE_STREAMING"
+
+
+class _DataflowJobsController(LoggingMixin):
     def __init__(
         self,
         dataflow: Any,
@@ -61,7 +111,7 @@ class _DataflowJob(LoggingMixin):
         name: str,
         location: str,
         poll_sleep: int = 10,
-        job_id: str = None,
+        job_id: Optional[str] = None,
         num_retries: int = 0,
         multiple_jobs: bool = False
     ) -> None:
@@ -73,22 +123,26 @@ class _DataflowJob(LoggingMixin):
         self._job_id = job_id
         self._num_retries = num_retries
         self._poll_sleep = poll_sleep
-        self._jobs = self._get_jobs()
+        self._jobs = None  # type: Optional[List[Dict]]
 
-    def is_job_running(self):
+    def is_job_running(self) -> bool:
         """
         Helper method to check if jos is still running in dataflow
 
         :return: True if job is running.
         :rtype: bool
         """
+        self._refresh_jobs()
+        if not self._jobs:
+            raise ValueError("Could not read _jobs")
+
         for job in self._jobs:
             if job['currentState'] not in DataflowJobStatus.END_STATES:
                 return True
         return False
 
     # pylint: disable=too-many-nested-blocks
-    def _get_dataflow_jobs(self):
+    def _get_current_jobs(self) -> List[Dict]:
         """
         Helper method to get list of jobs that start with job name or id
 
@@ -96,58 +150,69 @@ class _DataflowJob(LoggingMixin):
         :rtype: list
         """
         if not self._multiple_jobs and self._job_id:
-            return self._dataflow.projects().locations().jobs().get(
-                projectId=self._project_number,
-                location=self._job_location,
-                jobId=self._job_id).execute(num_retries=self._num_retries)
+            return [self._fetch_job_by_id(self._job_id)]
         elif self._job_name:
-            jobs = self._dataflow.projects().locations().jobs().list(
-                projectId=self._project_number,
-                location=self._job_location
-            ).execute(num_retries=self._num_retries)
-            dataflow_jobs = []
-            if jobs:
-                for job in jobs['jobs']:
-                    if job['name'].startswith(self._job_name.lower()):
-                        dataflow_jobs.append(job)
-            if len(dataflow_jobs) == 1:
-                self._job_id = dataflow_jobs[0]['id']
-            return dataflow_jobs
+            jobs = self._fetch_jobs_by_prefix_name(self._job_name.lower())
+            if len(jobs) == 1:
+                self._job_id = jobs[0]['id']
+            return jobs
         else:
             raise Exception('Missing both dataflow job ID and name.')
 
-    def _get_jobs(self):
+    def _fetch_job_by_id(self, job_id: str) -> Dict:
+        return self._dataflow.projects().locations().jobs().get(
+            projectId=self._project_number,
+            location=self._job_location,
+            jobId=job_id
+        ).execute(num_retries=self._num_retries)
+
+    def _fetch_all_jobs(self) -> List[Dict]:
+        request = self._dataflow.projects().locations().jobs().list(
+            projectId=self._project_number,
+            location=self._job_location
+        )
+        jobs = []  # type: List[Dict]
+        while request is not None:
+            response = request.execute(num_retries=self._num_retries)
+            jobs.extend(response["jobs"])
+
+            request = self._dataflow.projects().locations().jobs().list_next(
+                previous_request=request,
+                previous_response=response
+            )
+        return jobs
+
+    def _fetch_jobs_by_prefix_name(self, prefix_name: str) -> List[Dict]:
+        jobs = self._fetch_all_jobs()
+        jobs = [
+            job
+            for job in jobs
+            if job['name'].startswith(prefix_name)
+        ]
+        return jobs
+
+    def _refresh_jobs(self) -> None:
         """
         Helper method to get all jobs by name
 
         :return: jobs
         :rtype: list
         """
-        self._jobs = self._get_dataflow_jobs()
+        self._jobs = self._get_current_jobs()
 
-        for job in self._jobs:
-            if job and 'currentState' in job:
-                self._job_state = job['currentState']
+        if self._jobs:
+            for job in self._jobs:
                 self.log.info(
-                    'Google Cloud DataFlow job %s is %s',
-                    job['name'], job['currentState']
+                    'Google Cloud DataFlow job %s is state: %s', job['name'], job['currentState']
                 )
-            elif job:
-                self.log.info(
-                    'Google Cloud DataFlow with job_id %s has name %s',
-                    self._job_id, job['name']
-                )
-            else:
-                self.log.info(
-                    'Google Cloud DataFlow job not available yet..'
-                )
+        else:
+            self.log.info(
+                'Google Cloud DataFlow job not available yet..'
+            )
 
-        return self._jobs
-
-    # pylint: disable=too-many-nested-blocks
-    def check_dataflow_job_state(self, job):
+    def _check_dataflow_job_state(self, job) -> bool:
         """
-        Helper method to check the state of all jobs in dataflow for this task
+        Helper method to check the state of one job in dataflow for this task
         if job failed raise exception
 
         :return: True if job is done.
@@ -155,14 +220,7 @@ class _DataflowJob(LoggingMixin):
         :raise: Exception
         """
         if DataflowJobStatus.JOB_STATE_DONE == job['currentState']:
-            # check all jobs are done
-            count_not_done = 0
-            for inner_jobs in self._jobs:
-                if inner_jobs and 'currentState' in job:
-                    if not DataflowJobStatus.JOB_STATE_DONE == inner_jobs['currentState']:
-                        count_not_done += 1
-            if count_not_done == 0:
-                return True
+            return True
         elif DataflowJobStatus.JOB_STATE_FAILED == job['currentState']:
             raise Exception("Google Cloud Dataflow job {} has failed.".format(
                 job['name']))
@@ -170,46 +228,42 @@ class _DataflowJob(LoggingMixin):
             raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
                 job['name']))
         elif DataflowJobStatus.JOB_STATE_RUNNING == job['currentState'] and \
-                DataflowJobStatus.JOB_TYPE_STREAMING == job['type']:
+                DataflowJobType.JOB_TYPE_STREAMING == job['type']:
             return True
         elif job['currentState'] in {DataflowJobStatus.JOB_STATE_RUNNING,
                                      DataflowJobStatus.JOB_STATE_PENDING}:
-            time.sleep(self._poll_sleep)
-        else:
-            self.log.debug(str(job))
-            raise Exception(
-                "Google Cloud Dataflow job {} was unknown state: {}".format(
-                    job['name'], job['currentState']))
-        return False
+            return False
+        self.log.debug("Current job: %s", str(job))
+        raise Exception(
+            "Google Cloud Dataflow job {} was unknown state: {}".format(job['name'], job['currentState'])
+        )
 
-    def wait_for_done(self) -> bool:
+    def wait_for_done(self) -> None:
         """
         Helper method to wait for result of submitted job.
-
-        :return: True if job is done.
-        :rtype: bool
-        :raise: Exception
         """
-        while True:
-            for job in self._jobs:
-                if job and 'currentState' in job:
-                    if self.check_dataflow_job_state(job):
-                        return True
-                else:
-                    time.sleep(self._poll_sleep)
-            self._jobs = self._get_jobs()
+        self._refresh_jobs()
+        while self._jobs and not all(self._check_dataflow_job_state(job) for job in self._jobs):
+            time.sleep(self._poll_sleep)
+            self._refresh_jobs()
 
-    def get(self):
+    def get_jobs(self) -> List[Dict]:
         """
-        Returns Dataflow job.
+        Returns Dataflow jobs.
+
         :return: list of jobs
         :rtype: list
         """
+        if not self._jobs:
+            self._refresh_jobs()
+        if not self._jobs:
+            raise ValueError("Could nit read _jobs")
+
         return self._jobs
 
 
-class _Dataflow(LoggingMixin):
-    def __init__(self, cmd) -> None:
+class _DataflowRunner(LoggingMixin):
+    def __init__(self, cmd: Union[List, str]) -> None:
         self.log.info("Running command: %s", ' '.join(cmd))
         self._proc = subprocess.Popen(
             cmd,
@@ -218,23 +272,22 @@ class _Dataflow(LoggingMixin):
             stderr=subprocess.PIPE,
             close_fds=True)
 
-    def _line(self, fd):
+    def _read_line_by_fd(self, fd):
         if fd == self._proc.stderr.fileno():
-            line = b''.join(self._proc.stderr.readlines())
+            line = self._proc.stderr.readline().decode()
             if line:
                 self.log.warning(line[:-1])
             return line
 
         if fd == self._proc.stdout.fileno():
-            line = b''.join(self._proc.stdout.readlines())
+            line = self._proc.stdout.readline().decode()
             if line:
                 self.log.info(line[:-1])
             return line
 
         raise Exception("No data in stderr or in stdout.")
 
-    @staticmethod
-    def _extract_job(line: bytes) -> Optional[str]:
+    def _extract_job(self, line: str) -> Optional[str]:
         """
         Extracts job_id.
 
@@ -244,11 +297,11 @@ class _Dataflow(LoggingMixin):
         :rtype: Optional[str]
         """
         # Job id info: https://goo.gl/SE29y9.
-        job_id_pattern = re.compile(
-            br'.*console.cloud.google.com/dataflow.*/jobs/([a-z|0-9|A-Z|\-|\_]+).*')
-        matched_job = job_id_pattern.search(line or b'')
+        matched_job = JOB_ID_PATTERN.search(line)
         if matched_job:
-            return matched_job.group(1).decode()
+            job_id = matched_job.group(1)
+            self.log.info("Found Job ID: %s", job_id)
+            return job_id
         return None
 
     def wait_for_done(self) -> Optional[str]:
@@ -265,14 +318,16 @@ class _Dataflow(LoggingMixin):
         # terminated.
         process_ends = False
         while True:
-            ret = select.select(reads, [], [], 5)
-            if ret is None:
+            # Wait for at least one available fd.
+            readable_fbs, _, _ = select.select(reads, [], [], 5)
+            if readable_fbs is None:
                 self.log.info("Waiting for DataFlow process to complete.")
                 continue
 
-            for raw_line in ret[0]:
-                line = self._line(raw_line)
-                if line:
+            # Read available fds.
+            for readable_fb in readable_fbs:
+                line = self._read_line_by_fd(readable_fb)
+                if line and not job_id:
                     job_id = job_id or self._extract_job(line)
 
             if process_ends:
@@ -286,7 +341,7 @@ class _Dataflow(LoggingMixin):
         return job_id
 
 
-class DataFlowHook(GoogleCloudBaseHook):
+class DataflowHook(CloudBaseHook):
     """
     Hook for Google Dataflow.
 
@@ -297,7 +352,7 @@ class DataFlowHook(GoogleCloudBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: str = None,
+        delegate_to: Optional[str] = None,
         poll_sleep: int = 10
     ) -> None:
         self.poll_sleep = poll_sleep
@@ -311,36 +366,47 @@ class DataFlowHook(GoogleCloudBaseHook):
         return build(
             'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
-    @GoogleCloudBaseHook.provide_gcp_credential_file
+    @CloudBaseHook.provide_gcp_credential_file
     def _start_dataflow(
         self,
         variables: Dict,
         name: str,
         command_prefix: List[str],
         label_formatter: Callable[[Dict], List[str]],
-        multiple_jobs: bool = False
+        project_id: str,
+        multiple_jobs: bool = False,
     ) -> None:
         variables = self._set_variables(variables)
-        cmd = command_prefix + self._build_cmd(variables, label_formatter)
-        job_id = _Dataflow(cmd).wait_for_done()
-        _DataflowJob(self.get_conn(), variables['project'], name,
-                     variables['region'], self.poll_sleep, job_id, self.num_retries, multiple_jobs) \
-            .wait_for_done()
+        cmd = command_prefix + self._build_cmd(variables, label_formatter, project_id)
+        runner = _DataflowRunner(cmd)
+        job_id = runner.wait_for_done()
+        job_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            name=name,
+            location=variables['region'],
+            poll_sleep=self.poll_sleep,
+            job_id=job_id,
+            num_retries=self.num_retries,
+            multiple_jobs=multiple_jobs
+        )
+        job_controller.wait_for_done()
 
     @staticmethod
-    def _set_variables(variables: Dict):
-        if variables['project'] is None:
-            raise Exception('Project not specified')
+    def _set_variables(variables: Dict) -> Dict:
         if 'region' not in variables.keys():
             variables['region'] = DEFAULT_DATAFLOW_LOCATION
         return variables
 
+    @_fallback_to_project_id_from_variables
+    @CloudBaseHook.fallback_to_default_project_id
     def start_java_dataflow(
         self,
         job_name: str,
         variables: Dict,
         jar: str,
-        job_class: str = None,
+        project_id: Optional[str] = None,
+        job_class: Optional[str] = None,
         append_job_name: bool = True,
         multiple_jobs: bool = False
     ) -> None:
@@ -351,6 +417,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         :type job_name: str
         :param variables: Variables passed to the job.
         :type variables: dict
+        :param project_id: Optional, the GCP project ID in which to start a job.
+            If set to None or missing, the default project_id from the GCP connection is used.
         :param jar: Name of the jar for the job
         :type job_class: str
         :param job_class: Name of the java class for the job.
@@ -360,6 +428,9 @@ class DataFlowHook(GoogleCloudBaseHook):
         :param multiple_jobs: True if to check for multiple job in dataflow
         :type multiple_jobs: bool
         """
+        if not project_id:
+            raise ValueError("The project_id should be set")
+
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['jobName'] = name
 
@@ -369,15 +440,18 @@ class DataFlowHook(GoogleCloudBaseHook):
 
         command_prefix = (["java", "-cp", jar, job_class] if job_class
                           else ["java", "-jar", jar])
-        self._start_dataflow(variables, name, command_prefix, label_formatter, multiple_jobs)
+        self._start_dataflow(variables, name, command_prefix, label_formatter, project_id, multiple_jobs)
 
+    @_fallback_to_project_id_from_variables
+    @CloudBaseHook.fallback_to_default_project_id
     def start_template_dataflow(
         self,
         job_name: str,
         variables: Dict,
         parameters: Dict,
         dataflow_template: str,
-        append_job_name=True
+        project_id: Optional[str] = None,
+        append_job_name: bool = True
     ) -> None:
         """
         Starts Dataflow template job.
@@ -390,21 +464,30 @@ class DataFlowHook(GoogleCloudBaseHook):
         :type parameters: dict
         :param dataflow_template: GCS path to the template.
         :type dataflow_template: str
+        :param project_id: Optional, the GCP project ID in which to start a job.
+            If set to None or missing, the default project_id from the GCP connection is used.
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
         """
+        if not project_id:
+            raise ValueError("The project_id should be set")
+
         variables = self._set_variables(variables)
         name = self._build_dataflow_job_name(job_name, append_job_name)
         self._start_template_dataflow(
-            name, variables, parameters, dataflow_template)
+            name, variables, parameters, dataflow_template, project_id)
 
+    @_fallback_to_project_id_from_variables
+    @CloudBaseHook.fallback_to_default_project_id
     def start_python_dataflow(
         self,
         job_name: str,
         variables: Dict,
         dataflow: str,
         py_options: List[str],
-        append_job_name: bool = True
+        project_id: Optional[str] = None,
+        append_job_name: bool = True,
+        py_interpreter: str = "python3"
     ):
         """
         Starts Dataflow job.
@@ -419,7 +502,17 @@ class DataFlowHook(GoogleCloudBaseHook):
         :type py_options: list
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
+        :param project_id: Optional, the GCP project ID in which to start a job.
+            If set to None or missing, the default project_id from the GCP connection is used.
+        :param py_interpreter: Python version of the beam pipeline.
+            If None, this defaults to the python3.
+            To track python versions supported by beam and related
+            issues check: https://issues.apache.org/jira/browse/BEAM-1251
+        :type py_interpreter: str
         """
+        if not project_id:
+            raise ValueError("The project_id should be set")
+
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['job_name'] = name
 
@@ -427,8 +520,8 @@ class DataFlowHook(GoogleCloudBaseHook):
             return ['--labels={}={}'.format(key, value)
                     for key, value in labels_dict.items()]
 
-        self._start_dataflow(variables, name, ["python2"] + py_options + [dataflow],
-                             label_formatter)
+        self._start_dataflow(variables, name, [py_interpreter] + py_options + [dataflow],
+                             label_formatter, project_id)
 
     @staticmethod
     def _build_dataflow_job_name(job_name: str, append_job_name: bool = True) -> str:
@@ -448,8 +541,11 @@ class DataFlowHook(GoogleCloudBaseHook):
         return safe_job_name
 
     @staticmethod
-    def _build_cmd(variables: Dict, label_formatter: Callable) -> List[str]:
-        command = ["--runner=DataflowRunner"]
+    def _build_cmd(variables: Dict, label_formatter: Callable, project_id: str) -> List[str]:
+        command = [
+            "--runner=DataflowRunner",
+            "--project={}".format(project_id),
+        ]
         if variables is not None:
             for attr, value in variables.items():
                 if attr == 'labels':
@@ -465,7 +561,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         name: str,
         variables: Dict[str, Any],
         parameters: Dict,
-        dataflow_template: str
+        dataflow_template: str,
+        project_id: str
     ) -> Dict:
         # Builds RuntimeEnvironment from variables dictionary
         # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
@@ -480,25 +577,48 @@ class DataFlowHook(GoogleCloudBaseHook):
                 "environment": environment}
         service = self.get_conn()
         request = service.projects().locations().templates().launch(  # pylint: disable=no-member
-            projectId=variables['project'],
+            projectId=project_id,
             location=variables['region'],
             gcsPath=dataflow_template,
             body=body
         )
         response = request.execute(num_retries=self.num_retries)
         variables = self._set_variables(variables)
-        _DataflowJob(self.get_conn(), variables['project'], name, variables['region'],
-                     self.poll_sleep, num_retries=self.num_retries).wait_for_done()
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            name=name,
+            job_id=response['job']['id'],
+            location=variables['region'],
+            poll_sleep=self.poll_sleep,
+            num_retries=self.num_retries)
+        jobs_controller.wait_for_done()
         return response
 
-    def is_job_dataflow_running(self, name: str, variables: Dict) -> bool:
+    @_fallback_to_project_id_from_variables
+    @CloudBaseHook.fallback_to_default_project_id
+    def is_job_dataflow_running(self, name: str, variables: Dict, project_id: Optional[str] = None) -> bool:
         """
         Helper method to check if jos is still running in dataflow
 
+        :param name: The name of the job.
+        :type name: str
+        :param variables: Variables passed to the job.
+        :type variables: dict
+        :param project_id: Optional, the GCP project ID in which to start a job.
+            If set to None or missing, the default project_id from the GCP connection is used.
         :return: True if job is running.
         :rtype: bool
         """
+        if not project_id:
+            raise ValueError("The project_id should be set")
+
         variables = self._set_variables(variables)
-        job = _DataflowJob(self.get_conn(), variables['project'], name,
-                           variables['region'], self.poll_sleep)
-        return job.is_job_running()
+        jobs_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            name=name,
+            location=variables['region'],
+            poll_sleep=self.poll_sleep
+        )
+        return jobs_controller.is_job_running()

@@ -18,11 +18,11 @@
 # under the License.
 
 import os
-from subprocess import Popen, STDOUT, PIPE
-from tempfile import gettempdir, NamedTemporaryFile
-from airflow.utils.decorators import apply_defaults
+from subprocess import PIPE, STDOUT, Popen
+from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
+
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.file import TemporaryDirectory
+from airflow.utils.decorators import apply_defaults
 
 
 class BashSensor(BaseSensorOperator):
@@ -80,7 +80,6 @@ class BashSensor(BaseSensorOperator):
                 self.sp = sp
 
                 self.log.info("Output:")
-                line = ''
                 for line in iter(sp.stdout.readline, b''):
                     line = line.decode(self.output_encoding).strip()
                     self.log.info(line)

@@ -1,8 +1,4 @@
-'''
-Run ephemeral Docker Swarm services
-'''
 # -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -19,6 +15,7 @@ Run ephemeral Docker Swarm services
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Run ephemeral Docker Swarm services"""
 
 from docker import types
 
@@ -89,6 +86,9 @@ class DockerSwarmOperator(DockerOperator):
     :type user: int or str
     :param docker_conn_id: ID of the Airflow connection to use
     :type docker_conn_id: str
+    :param tty: Allocate pseudo-TTY to the container of this service
+        This needs to be set see logs of the Docker container / service.
+    :type tty: bool
     """
 
     @apply_defaults
@@ -111,7 +111,8 @@ class DockerSwarmOperator(DockerOperator):
                     image=self.image,
                     command=self.get_command(),
                     env=self.environment,
-                    user=self.user
+                    user=self.user,
+                    tty=self.tty,
                 ),
                 restart_policy=types.RestartPolicy(condition='none'),
                 resources=types.Resources(mem_limit=self.mem_limit)

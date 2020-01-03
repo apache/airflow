@@ -21,7 +21,7 @@ This module contains operator for uploading local file to GCS.
 """
 import warnings
 
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -82,7 +82,7 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
 
     def execute(self, context):
         """
-        Uploads the file to Google cloud storage
+        Uploads the file to Google Cloud Storage
         """
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,

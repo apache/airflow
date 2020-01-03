@@ -19,9 +19,7 @@
 """Local client API"""
 
 from airflow.api.client import api_client
-from airflow.api.common.experimental import pool
-from airflow.api.common.experimental import trigger_dag
-from airflow.api.common.experimental import delete_dag
+from airflow.api.common.experimental import delete_dag, pool, trigger_dag
 
 
 class Client(api_client.Client):

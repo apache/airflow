@@ -17,8 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import logging
+import unittest
+
+import mock
+
+from airflow.exceptions import AirflowException
 
 try:
     from airflow.operators.docker_operator import DockerOperator
@@ -27,16 +31,13 @@ try:
 except ImportError:
     pass
 
-from airflow.exceptions import AirflowException
-from tests.compat import mock
-
 
 class TestDockerOperator(unittest.TestCase):
-    @mock.patch('airflow.utils.file.mkdtemp')
+    @mock.patch('airflow.operators.docker_operator.TemporaryDirectory')
     @mock.patch('airflow.operators.docker_operator.APIClient')
-    def test_execute(self, client_class_mock, mkdtemp_mock):
+    def test_execute(self, client_class_mock, tempdir_mock):
         host_config = mock.Mock()
-        mkdtemp_mock.return_value = '/mkdtemp'
+        tempdir_mock.return_value.__enter__.return_value = '/mkdtemp'
 
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_container.return_value = {'Id': 'some_id'}
@@ -53,7 +54,8 @@ class TestDockerOperator(unittest.TestCase):
                                   image='ubuntu:latest', network_mode='bridge', owner='unittest',
                                   task_id='unittest', volumes=['/host/path:/container/path'],
                                   working_dir='/container/path', shm_size=1000,
-                                  host_tmp_dir='/host/airflow', container_name='test_container')
+                                  host_tmp_dir='/host/airflow', container_name='test_container',
+                                  tty=True)
         operator.execute(None)
 
         client_class_mock.assert_called_once_with(base_url='unix://var/run/docker.sock', tls=None,
@@ -68,7 +70,8 @@ class TestDockerOperator(unittest.TestCase):
                                                              host_config=host_config,
                                                              image='ubuntu:latest',
                                                              user=None,
-                                                             working_dir='/container/path'
+                                                             working_dir='/container/path',
+                                                             tty=True
                                                              )
         client_mock.create_host_config.assert_called_once_with(binds=['/host/path:/container/path',
                                                                       '/mkdtemp:/tmp/airflow'],
@@ -79,7 +82,7 @@ class TestDockerOperator(unittest.TestCase):
                                                                auto_remove=False,
                                                                dns=None,
                                                                dns_search=None)
-        mkdtemp_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp', suffix='')
+        tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         client_mock.images.assert_called_once_with(name='ubuntu:latest')
         client_mock.attach.assert_called_once_with(container='some_id', stdout=True,
                                                    stderr=True, stream=True)
@@ -125,7 +128,7 @@ class TestDockerOperator(unittest.TestCase):
 
         client_class_mock.return_value = client_mock
 
-        originalRaiseExceptions = logging.raiseExceptions
+        originalRaiseExceptions = logging.raiseExceptions  # pylint: disable=invalid-name
         logging.raiseExceptions = True
 
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')

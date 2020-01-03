@@ -22,24 +22,18 @@ is supported and no serialization need be written.
 """
 
 import copy
-import kubernetes.client.models as k8s
-from airflow.executors import Executors
 import uuid
+
+import kubernetes.client.models as k8s
 
 
 class PodDefaults:
     """
-    Static defaults for the PodGenerator
+    Static defaults for Pods
     """
     XCOM_MOUNT_PATH = '/airflow/xcom'
     SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
-    XCOM_CMD = """import time
-while True:
-    try:
-        time.sleep(3600)
-    except KeyboardInterrupt:
-        exit(0)
-    """
+    XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
     VOLUME_MOUNT = k8s.V1VolumeMount(
         name='xcom',
         mount_path=XCOM_MOUNT_PATH
@@ -50,9 +44,14 @@ while True:
     )
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
-        command=['python', '-c', XCOM_CMD],
-        image='python:3.5-alpine',
-        volume_mounts=[VOLUME_MOUNT]
+        command=['sh', '-c', XCOM_CMD],
+        image='alpine',
+        volume_mounts=[VOLUME_MOUNT],
+        resources=k8s.V1ResourceRequirements(
+            requests={
+                "cpu": "1m",
+            }
+        ),
     )
 
 
@@ -61,14 +60,13 @@ class PodGenerator:
     Contains Kubernetes Airflow Worker configuration logic
 
     Represents a kubernetes pod and manages execution of a single pod.
+
     :param image: The docker image
     :type image: str
     :param envs: A dict containing the environment variables
     :type envs: Dict[str, str]
     :param cmds: The command to be run on the pod
     :type cmds: List[str]
-    :param secrets: Secrets to be launched to the pod
-    :type secrets: List[airflow.kubernetes.models.secret.Secret]
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
@@ -86,14 +84,15 @@ class PodGenerator:
     :param configmaps: Any configmap refs to envfrom.
         If more than one configmap is required, provide a comma separated list
         configmap_a,configmap_b
-    :type configmaps: str
+    :type configmaps: List[str]
     :param dnspolicy: Specify a dnspolicy for the pod
     :type dnspolicy: str
+    :param schedulername: Specify a schedulername for the pod
+    :type schedulername: str
     :param pod: The fully specified pod.
     :type pod: kubernetes.client.models.V1Pod
     """
-
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-locals
         self,
         image,
         name=None,
@@ -119,6 +118,7 @@ class PodGenerator:
         security_context=None,
         configmaps=None,
         dnspolicy=None,
+        schedulername=None,
         pod=None,
         extract_xcom=False,
     ):
@@ -170,6 +170,7 @@ class PodGenerator:
         self.spec.security_context = security_context
         self.spec.tolerations = tolerations
         self.spec.dns_policy = dnspolicy
+        self.spec.scheduler_name = schedulername
         self.spec.host_network = hostnetwork
         self.spec.affinity = affinity
         self.spec.service_account_name = service_account_name
@@ -190,6 +191,7 @@ class PodGenerator:
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
+        """Generates pod"""
         result = self.ud_pod
 
         if result is None:
@@ -205,6 +207,7 @@ class PodGenerator:
 
     @staticmethod
     def add_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
+        """Adds sidecar"""
         pod_cp = copy.deepcopy(pod)
 
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
@@ -215,6 +218,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> k8s.V1Pod:
+        """Converts to pod from obj"""
         if obj is None:
             return k8s.V1Pod()
 
@@ -225,8 +229,9 @@ class PodGenerator:
             raise TypeError(
                 'Cannot convert a non-dictionary or non-PodGenerator '
                 'object into a KubernetesExecutorConfig')
-
-        namespaced = obj.get(Executors.KubernetesExecutor, {})
+        # We do not want to extract constant here from ExecutorLoader because it is just
+        # A name in dictionary rather than executor selection mechanism and it causes cyclic import
+        namespaced = obj.get("KubernetesExecutor", {})
 
         resources = namespaced.get('resources')
 
@@ -234,7 +239,6 @@ class PodGenerator:
             requests = {
                 'cpu': namespaced.get('request_cpu'),
                 'memory': namespaced.get('request_memory')
-
             }
             limits = {
                 'cpu': namespaced.get('limit_cpu'),
@@ -248,14 +252,6 @@ class PodGenerator:
                     requests=requests,
                     limits=limits
                 )
-
-        annotations = namespaced.get('annotations', {})
-        gcp_service_account_key = namespaced.get('gcp_service_account_key', None)
-
-        if annotations is not None and gcp_service_account_key is not None:
-            annotations.update({
-                'iam.cloud.google.com/service-account': gcp_service_account_key
-            })
 
         pod_spec_generator = PodGenerator(
             image=namespaced.get('image'),
@@ -282,6 +278,7 @@ class PodGenerator:
             security_context=namespaced.get('security_context'),
             configmaps=namespaced.get('configmaps'),
             dnspolicy=namespaced.get('dnspolicy'),
+            schedulername=namespaced.get('schedulername'),
             pod=namespaced.get('pod'),
             extract_xcom=namespaced.get('extract_xcom'),
         )

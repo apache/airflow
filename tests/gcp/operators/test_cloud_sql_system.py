@@ -17,43 +17,34 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import unittest
 
 from airflow import AirflowException
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, TestDagGcpSystem
-from tests.gcp.operators.test_cloud_sql_system_helper import \
-    CloudSqlQueryTestHelper
-from tests.contrib.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
+from tests.gcp.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
+from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
+from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.system_tests_class import SystemTest
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
 
 SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 
-@unittest.skipIf(TestDagGcpSystem.skip_check(GCP_CLOUDSQL_KEY), SKIP_TEST_WARNING)
-class CloudSqlExampleDagsIntegrationTest(TestDagGcpSystem):
-    def __init__(self, method_name='runTest'):
-        super().__init__(
-            method_name,
-            dag_id='example_gcp_sql',
-            gcp_key=GCP_CLOUDSQL_KEY)
-
+@skip_gcp_system(GCP_CLOUDSQL_KEY, require_local_executor=True)
+class CloudSqlExampleDagsIntegrationTest(SystemTest):
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def tearDown(self):
         # Delete instances just in case the test failed and did not cleanup after itself
-        self.gcp_authenticator.gcp_authenticate()
-        try:
-            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
-            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
-            SQL_QUERY_TEST_HELPER.delete_instances()
-            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
-            SQL_QUERY_TEST_HELPER.delete_service_account_acls()
-        finally:
-            self.gcp_authenticator.gcp_revoke_authentication()
+        SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
+        SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
+        SQL_QUERY_TEST_HELPER.delete_instances()
+        SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
+        SQL_QUERY_TEST_HELPER.delete_service_account_acls()
         super().tearDown()
 
+    @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_run_example_dag_cloudsql(self):
         try:
-            self._run_dag()
+            self.run_dag('example_gcp_sql', GCP_DAG_FOLDER)
         except AirflowException as e:
             self.log.warning(
                 "In case you see 'The instance or operation is not in an appropriate "

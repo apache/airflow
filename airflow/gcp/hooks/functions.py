@@ -20,20 +20,20 @@
 This module contains a Google Cloud Functions Hook.
 """
 import time
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 import requests
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
 
 
 # noinspection PyAbstractClass
-class GcfHook(GoogleCloudBaseHook):
+class CloudFunctionsHook(CloudBaseHook):
     """
     Hook for the Google Cloud Functions APIs.
 
@@ -46,7 +46,7 @@ class GcfHook(GoogleCloudBaseHook):
         self,
         api_version: str,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: str = None
+        delegate_to: Optional[str] = None
     ) -> None:
         super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
@@ -90,8 +90,8 @@ class GcfHook(GoogleCloudBaseHook):
         return self.get_conn().projects().locations().functions().get(  # pylint: disable=no-member
             name=name).execute(num_retries=self.num_retries)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
-    def create_new_function(self, location: str, body: Dict, project_id: str = None) -> None:
+    @CloudBaseHook.fallback_to_default_project_id
+    def create_new_function(self, location: str, body: Dict, project_id: Optional[str] = None) -> None:
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
@@ -104,7 +104,8 @@ class GcfHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = self.get_conn().projects().locations().functions().create(  # pylint: disable=no-member
             location=self._full_location(project_id, location),
             body=body
@@ -132,8 +133,8 @@ class GcfHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
-    def upload_function_zip(self, location: str, zip_path: str, project_id: str = None) -> str:
+    @CloudBaseHook.fallback_to_default_project_id
+    def upload_function_zip(self, location: str, zip_path: str, project_id: Optional[str] = None) -> str:
         """
         Uploads zip file with sources.
 
@@ -147,7 +148,8 @@ class GcfHook(GoogleCloudBaseHook):
         :return: The upload URL that was returned by generateUploadUrl method.
         :rtype: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
         response = \
             self.get_conn().projects().locations().functions().generateUploadUrl(  # pylint: disable=no-member # noqa
             parent=self._full_location(project_id, location)
@@ -181,13 +183,13 @@ class GcfHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def call_function(
             self,
             function_id: str,
             input_data: Dict,
             location: str,
-            project_id: str = None
+            project_id: Optional[str] = None
     ) -> Dict:
         """
         Synchronously invokes a deployed Cloud Function. To be used for testing
@@ -209,7 +211,7 @@ class GcfHook(GoogleCloudBaseHook):
             location=location,
             function_id=function_id
         )
-        response = self.get_conn().projects().locations().functions().call(  # pylint:disable=no-member
+        response = self.get_conn().projects().locations().functions().call(  # pylint: disable=no-member
             name=name,
             body=input_data
         ).execute(num_retries=self.num_retries)

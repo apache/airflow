@@ -20,14 +20,13 @@
 
 import os
 import signal
-from subprocess import Popen, STDOUT, PIPE
-from tempfile import gettempdir, NamedTemporaryFile
-from typing import Dict
+from subprocess import PIPE, STDOUT, Popen
+from tempfile import TemporaryDirectory, gettempdir
+from typing import Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.file import TemporaryDirectory
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -72,7 +71,7 @@ class BashOperator(BaseOperator):
     def __init__(
             self,
             bash_command: str,
-            env: Dict[str, str] = None,
+            env: Optional[Dict[str, str]] = None,
             output_encoding: str = 'utf-8',
             *args, **kwargs) -> None:
 
@@ -82,6 +81,7 @@ class BashOperator(BaseOperator):
         self.output_encoding = output_encoding
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
+        self.sub_process = None
 
     def execute(self, context):
         """
@@ -105,45 +105,40 @@ class BashOperator(BaseOperator):
         self.lineage_data = self.bash_command
 
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as tmp_file:
-                tmp_file.write(bytes(self.bash_command, 'utf_8'))
-                tmp_file.flush()
-                script_location = os.path.abspath(tmp_file.name)
-                self.log.info('Temporary script location: %s', script_location)
 
-                def pre_exec():
-                    # Restore default signal disposition and invoke setsid
-                    for sig in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
-                        if hasattr(signal, sig):
-                            signal.signal(getattr(signal, sig), signal.SIG_DFL)
-                    os.setsid()
+            def pre_exec():
+                # Restore default signal disposition and invoke setsid
+                for sig in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
+                    if hasattr(signal, sig):
+                        signal.signal(getattr(signal, sig), signal.SIG_DFL)
+                os.setsid()
 
-                self.log.info('Running command: %s', self.bash_command)
-                sub_process = Popen(
-                    ['bash', tmp_file.name],
-                    stdout=PIPE,
-                    stderr=STDOUT,
-                    cwd=tmp_dir,
-                    env=env,
-                    preexec_fn=pre_exec)
+            self.log.info('Running command: %s', self.bash_command)
 
-                self.sub_process = sub_process
+            self.sub_process = Popen(
+                ['bash', "-c", self.bash_command],
+                stdout=PIPE,
+                stderr=STDOUT,
+                cwd=tmp_dir,
+                env=env,
+                preexec_fn=pre_exec)
 
-                self.log.info('Output:')
-                line = ''
-                for raw_line in iter(sub_process.stdout.readline, b''):
-                    line = raw_line.decode(self.output_encoding).rstrip()
-                    self.log.info(line)
+            self.log.info('Output:')
+            line = ''
+            for raw_line in iter(self.sub_process.stdout.readline, b''):
+                line = raw_line.decode(self.output_encoding).rstrip()
+                self.log.info("%s", line)
 
-                sub_process.wait()
+            self.sub_process.wait()
 
-                self.log.info('Command exited with return code %s', sub_process.returncode)
+            self.log.info('Command exited with return code %s', self.sub_process.returncode)
 
-                if sub_process.returncode:
-                    raise AirflowException('Bash command failed')
+            if self.sub_process.returncode != 0:
+                raise AirflowException('Bash command failed. The command returned a non-zero exit code.')
 
         return line
 
     def on_kill(self):
         self.log.info('Sending SIGTERM signal to bash process group')
-        os.killpg(os.getpgid(self.sub_process.pid), signal.SIGTERM)
+        if self.sub_process and hasattr(self.sub_process, 'pid'):
+            os.killpg(os.getpgid(self.sub_process.pid), signal.SIGTERM)

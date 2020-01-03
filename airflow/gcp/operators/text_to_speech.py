@@ -21,15 +21,19 @@ This module contains a Google Text to Speech operator.
 """
 
 from tempfile import NamedTemporaryFile
+from typing import Dict, Optional, Union
+
+from google.api_core.retry import Retry
+from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
 from airflow import AirflowException
-from airflow.gcp.hooks.text_to_speech import GCPTextToSpeechHook
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.text_to_speech import CloudTextToSpeechHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GcpTextToSpeechSynthesizeOperator(BaseOperator):
+class CloudTextToSpeechSynthesizeOperator(BaseOperator):
     """
     Synthesizes text to speech and stores it in Google Cloud Storage
 
@@ -79,18 +83,18 @@ class GcpTextToSpeechSynthesizeOperator(BaseOperator):
     @apply_defaults
     def __init__(
         self,
-        input_data,
-        voice,
-        audio_config,
-        target_bucket_name,
-        target_filename,
-        project_id=None,
-        gcp_conn_id="google_cloud_default",
-        retry=None,
-        timeout=None,
+        input_data: Union[Dict, SynthesisInput],
+        voice: Union[Dict, VoiceSelectionParams],
+        audio_config: Union[Dict, AudioConfig],
+        target_bucket_name: str,
+        target_filename: str,
+        project_id: Optional[str] = None,
+        gcp_conn_id: str = "google_cloud_default",
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
         *args,
         **kwargs
-    ):
+    ) -> None:
         self.input_data = input_data
         self.voice = voice
         self.audio_config = audio_config
@@ -115,7 +119,7 @@ class GcpTextToSpeechSynthesizeOperator(BaseOperator):
                 raise AirflowException("The required parameter '{}' is empty".format(parameter))
 
     def execute(self, context):
-        hook = GCPTextToSpeechHook(gcp_conn_id=self.gcp_conn_id)
+        hook = CloudTextToSpeechHook(gcp_conn_id=self.gcp_conn_id)
         result = hook.synthesize_speech(
             input_data=self.input_data,
             voice=self.voice,

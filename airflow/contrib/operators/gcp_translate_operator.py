@@ -27,5 +27,5 @@ from airflow.gcp.operators.translate import CloudTranslateTextOperator  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.translate`",
-    DeprecationWarning,
+    DeprecationWarning, stacklevel=2
 )

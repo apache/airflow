@@ -18,10 +18,10 @@
 # under the License.
 #
 import datetime as dt
+
 import pendulum
 
 from airflow.settings import TIMEZONE
-
 
 # UTC time zone as a tzinfo instance.
 utc = pendulum.timezone('UTC')
@@ -52,37 +52,40 @@ def is_naive(value):
 def utcnow():
     """
     Get the current date and time in UTC
+
     :return:
     """
 
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()
-    d = dt.datetime.utcnow()
-    d = d.replace(tzinfo=utc)
+    date = dt.datetime.utcnow()
+    date = date.replace(tzinfo=utc)
 
-    return d
+    return date
 
 
 def utc_epoch():
     """
     Gets the epoch in the users timezone
+
     :return:
     """
 
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()
-    d = dt.datetime(1970, 1, 1)
-    d = d.replace(tzinfo=utc)
+    date = dt.datetime(1970, 1, 1)
+    date = date.replace(tzinfo=utc)
 
-    return d
+    return date
 
 
 def convert_to_utc(value):
     """
     Returns the datetime with the default timezone added if timezone
     information was not associated
+
     :param value: datetime
     :return: datetime with tzinfo
     """
@@ -102,7 +105,6 @@ def make_aware(value, timezone=None):
     :param value: datetime
     :param timezone: timezone
     :return: localized datetime in settings.TIMEZONE or timezone
-
     """
     if timezone is None:
         timezone = TIMEZONE
@@ -143,16 +145,16 @@ def make_naive(value, timezone=None):
     if is_naive(value):
         raise ValueError("make_naive() cannot be applied to a naive datetime")
 
-    o = value.astimezone(timezone)
+    date = value.astimezone(timezone)
 
     # cross library compatibility
-    naive = dt.datetime(o.year,
-                        o.month,
-                        o.day,
-                        o.hour,
-                        o.minute,
-                        o.second,
-                        o.microsecond)
+    naive = dt.datetime(date.year,
+                        date.month,
+                        date.day,
+                        date.hour,
+                        date.minute,
+                        date.second,
+                        date.microsecond)
 
     return naive
 
@@ -172,6 +174,7 @@ def datetime(*args, **kwargs):
 def parse(string, timezone=None):
     """
     Parse a time string and return an aware datetime
+
     :param string: time string
     """
     return pendulum.parse(string, tz=timezone or TIMEZONE)

@@ -21,12 +21,11 @@
 from copy import deepcopy
 from unittest import TestCase
 
+import mock
 from parameterized import parameterized
-from tests.compat import mock
 
 from airflow import AirflowException
-from airflow.gcp.operators.cloud_build import BuildProcessor, CloudBuildCreateBuildOperator
-
+from airflow.gcp.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
 
 TEST_CREATE_BODY = {
     "source": {"storageSource": {"bucket": "cloud-build-examples", "object": "node-docker-example.tar.gz"}},
@@ -112,13 +111,11 @@ class TestBuildProcessor(TestCase):
         self.assertEqual(body, expected_body)
 
 
-class TestGcpCloudBuildCreateBuildOperator(TestCase):
-    @mock.patch(  # type: ignore
-        "airflow.gcp.operators.cloud_build.CloudBuildHook",
-        **{"return_value.create_build.return_value": TEST_CREATE_BODY}
-    )
-    def test_minimal_green_path(self, _):
-        operator = CloudBuildCreateBuildOperator(
+class TestGcpCloudBuildCreateOperator(TestCase):
+    @mock.patch("airflow.gcp.operators.cloud_build.CloudBuildHook")
+    def test_minimal_green_path(self, mock_hook):
+        mock_hook.return_value.create_build.return_value = TEST_CREATE_BODY
+        operator = CloudBuildCreateOperator(
             body=TEST_CREATE_BODY, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         result = operator.execute({})
@@ -127,13 +124,11 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
     @parameterized.expand([({},), (None,)])
     def test_missing_input(self, body):
         with self.assertRaisesRegex(AirflowException, "The required parameter 'body' is missing"):
-            CloudBuildCreateBuildOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
+            CloudBuildCreateOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
-    @mock.patch(  # type: ignore
-        "airflow.gcp.operators.cloud_build.CloudBuildHook",
-        **{"return_value.create_build.return_value": TEST_CREATE_BODY}
-    )
+    @mock.patch("airflow.gcp.operators.cloud_build.CloudBuildHook")
     def test_storage_source_replace(self, hook_mock):
+        hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
         current_body = {
             # [START howto_operator_gcp_cloud_build_source_gcs_url]
             "source": {"storageSource": "gs://bucket-name/object-name.tar.gz"},
@@ -147,7 +142,7 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
             "images": ["gcr.io/$PROJECT_ID/docker-image"],
         }
 
-        operator = CloudBuildCreateBuildOperator(
+        operator = CloudBuildCreateOperator(
             body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         operator.execute({})
@@ -166,11 +161,11 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
         }
         hook_mock.create_build(body=expected_result, project_id=TEST_PROJECT_ID)
 
-    @mock.patch(  # type: ignore
+    @mock.patch(
         "airflow.gcp.operators.cloud_build.CloudBuildHook",
-        **{"return_value.create_build.return_value": TEST_CREATE_BODY}
     )
     def test_repo_source_replace(self, hook_mock):
+        hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
         current_body = {
             # [START howto_operator_gcp_cloud_build_source_repo_url]
             "source": {"repoSource": "https://source.developers.google.com/p/airflow-project/r/airflow-repo"},
@@ -183,7 +178,7 @@ class TestGcpCloudBuildCreateBuildOperator(TestCase):
             ],
             "images": ["gcr.io/$PROJECT_ID/docker-image"],
         }
-        operator = CloudBuildCreateBuildOperator(
+        operator = CloudBuildCreateOperator(
             body=current_body, project_id=TEST_PROJECT_ID, task_id="task-id"
         )
         return_value = operator.execute({})

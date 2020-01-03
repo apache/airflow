@@ -17,14 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-from airflow.contrib.operators.oracle_to_azure_data_lake_transfer \
-    import OracleToAzureDataLakeTransfer
-from airflow.utils.file import TemporaryDirectory
-import unicodecsv as csv
 import os
+import unittest
+from tempfile import TemporaryDirectory
 
-from tests.compat import mock, MagicMock
+import mock
+import unicodecsv as csv
+from mock import MagicMock
+
+from airflow.contrib.operators.oracle_to_azure_data_lake_transfer import OracleToAzureDataLakeTransfer
 
 
 class TestOracleToAzureDataLakeTransfer(unittest.TestCase):

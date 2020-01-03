@@ -22,11 +22,11 @@ Helpers to perform system tests for the Google Cloud Build service.
 """
 import argparse
 import os
+from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 
-from airflow.utils.file import TemporaryDirectory
-from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_CLOUD_BUILD_KEY
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
+from tests.gcp.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY, GcpAuthenticator
 
 GCE_INSTANCE = os.environ.get("GCE_INSTANCE", "testinstance")
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

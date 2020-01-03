@@ -17,13 +17,11 @@
 
 import datetime
 import unittest
-
-from unittest.mock import ANY
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from airflow import DAG
-from airflow.gcp.utils import mlengine_operator_utils
 from airflow.exceptions import AirflowException
+from airflow.gcp.utils import mlengine_operator_utils
 from airflow.version import version
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
@@ -65,7 +63,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
             schedule_interval='@daily')
         self.metric_fn = lambda x: (0.1,)
         self.metric_fn_encoded = mlengine_operator_utils.base64.b64encode(
-            mlengine_operator_utils.dill.dumps(self.metric_fn, recurse=True))
+            mlengine_operator_utils.dill.dumps(self.metric_fn, recurse=True)).decode()
 
     def test_successful_run(self):
         input_with_model = self.INPUT_MISSING_ORIGIN.copy()
@@ -78,7 +76,9 @@ class TestCreateEvaluateOps(unittest.TestCase):
             prediction_path=input_with_model['outputPath'],
             metric_fn_and_keys=(self.metric_fn, ['err']),
             validate_fn=(lambda x: 'err=%.1f' % x['err']),
-            dag=self.dag)
+            dag=self.dag,
+            py_interpreter="python3",
+        )
 
         with patch('airflow.gcp.operators.mlengine.MLEngineHook') as mock_mlengine_hook:
             success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
@@ -88,30 +88,30 @@ class TestCreateEvaluateOps(unittest.TestCase):
             result = pred.execute(None)
             mock_mlengine_hook.assert_called_once_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_once_with(
-                'test-project',
-                {
+                project_id='test-project',
+                job={
                     'jobId': 'eval_test_prediction',
                     'predictionInput': input_with_model,
                 },
-                ANY)
+                use_existing_job_fn=ANY)
             self.assertEqual(success_message['predictionOutput'], result)
 
-        with patch('airflow.gcp.operators.dataflow.DataFlowHook') as mock_dataflow_hook:
+        with patch('airflow.gcp.operators.dataflow.DataflowHook') as mock_dataflow_hook:
             hook_instance = mock_dataflow_hook.return_value
             hook_instance.start_python_dataflow.return_value = None
             summary.execute(None)
             mock_dataflow_hook.assert_called_once_with(
                 gcp_conn_id='google_cloud_default', delegate_to=None, poll_sleep=10)
             hook_instance.start_python_dataflow.assert_called_once_with(
-                '{{task.task_id}}',
-                {
+                job_name='{{task.task_id}}',
+                variables={
                     'prediction_path': 'gs://legal-bucket/fake-output-path',
                     'labels': {'airflow-version': TEST_VERSION},
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
-                'airflow.gcp.utils.mlengine_prediction_summary',
-                ['-m'])
+                dataflow='airflow.gcp.utils.mlengine_prediction_summary',
+                py_options=['-m'], py_interpreter='python3')
 
         with patch('airflow.gcp.utils.mlengine_operator_utils.'
                    'GoogleCloudStorageHook') as mock_gcs_hook:

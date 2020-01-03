@@ -22,7 +22,7 @@
 from re import match
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 class DagrunIdDep(BaseTIDep):
@@ -36,6 +36,7 @@ class DagrunIdDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context=None):
         """
         Determines if the DagRun ID is valid for scheduling from scheduler.
+
         :param ti: the task instance to get the dependency status for
         :type ti: airflow.models.TaskInstance
         :param session: database session

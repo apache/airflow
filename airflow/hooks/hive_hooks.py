@@ -20,11 +20,11 @@
 import contextlib
 import os
 import re
+import socket
 import subprocess
 import time
-import socket
 from collections import OrderedDict
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 import unicodecsv as csv
 
@@ -32,7 +32,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.security import utils
-from airflow.utils.file import TemporaryDirectory
 from airflow.utils.helpers import as_flattened_list
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
@@ -433,7 +432,7 @@ class HiveCliHook(BaseHook):
             if field_dict is None:
                 raise ValueError("Must provide a field dict when creating a table")
             fields = ",\n    ".join(
-                [k + ' ' + v for k, v in field_dict.items()])
+                ['`{k}` {v}'.format(k=k.strip('`'), v=v) for k, v in field_dict.items()])
             hql += "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n".format(
                 table=table, fields=fields)
             if partition:
@@ -447,9 +446,9 @@ class HiveCliHook(BaseHook):
                 tprops = ", ".join(
                     ["'{0}'='{1}'".format(k, v) for k, v in tblproperties.items()])
                 hql += "TBLPROPERTIES({tprops})\n".format(tprops=tprops)
-        hql += ";"
-        self.log.info(hql)
-        self.run_cli(hql)
+            hql += ";"
+            self.log.info(hql)
+            self.run_cli(hql)
         hql = "LOAD DATA LOCAL INPATH '{filepath}' ".format(filepath=filepath)
         if overwrite:
             hql += "OVERWRITE "

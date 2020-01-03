@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import datetime
 import unittest
 from unittest import mock
 
@@ -37,22 +36,26 @@ class TestLocalExecutor(unittest.TestCase):
         fail_command = ['false', 'some_parameter']
         self.assertTrue(executor.result_queue.empty())
 
+        execution_date = datetime.datetime.now()
         for i in range(self.TEST_SUCCESS_COMMANDS):
-            key, command = success_key.format(i), success_command
-            executor.running[key] = True
+            key_id, command = success_key.format(i), success_command
+            key = key_id, 'fake_ti', execution_date, 0
+            executor.running.add(key)
             executor.execute_async(key=key, command=command)
 
-        executor.running['fail'] = True
-        executor.execute_async(key='fail', command=fail_command)
+        fail_key = 'fail', 'fake_ti', execution_date, 0
+        executor.running.add(fail_key)
+        executor.execute_async(key=fail_key, command=fail_command)
 
         executor.end()
         # By that time Queues are already shutdown so we cannot check if they are empty
         self.assertEqual(len(executor.running), 0)
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
-            key = success_key.format(i)
+            key_id = success_key.format(i)
+            key = key_id, 'fake_ti', execution_date, 0
             self.assertEqual(executor.event_buffer[key], State.SUCCESS)
-        self.assertEqual(executor.event_buffer['fail'], State.FAILED)
+        self.assertEqual(executor.event_buffer[fail_key], State.FAILED)
 
         expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
         self.assertEqual(executor.workers_used, expected)

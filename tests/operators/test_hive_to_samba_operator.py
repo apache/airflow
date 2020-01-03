@@ -18,8 +18,7 @@
 # under the License.
 
 import unittest
-
-from unittest.mock import patch, PropertyMock, Mock
+from unittest.mock import Mock, PropertyMock, patch
 
 from airflow.operators.hive_to_samba_operator import Hive2SambaOperator
 from airflow.utils.operator_helpers import context_to_airflow_vars

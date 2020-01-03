@@ -17,27 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import namedtuple
-from typing import Sequence, Dict
-from time import sleep
 import re
+from collections import namedtuple
+from time import sleep
+from typing import Dict, Sequence
+
+from azure.mgmt.containerinstance.models import (
+    Container, ContainerGroup, EnvironmentVariable, ResourceRequests, ResourceRequirements, VolumeMount,
+)
+from msrestazure.azure_exceptions import CloudError
 
 from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
 from airflow.contrib.hooks.azure_container_registry_hook import AzureContainerRegistryHook
 from airflow.contrib.hooks.azure_container_volume_hook import AzureContainerVolumeHook
-
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
-from azure.mgmt.containerinstance.models import (EnvironmentVariable,
-                                                 VolumeMount,
-                                                 ResourceRequests,
-                                                 ResourceRequirements,
-                                                 Container,
-                                                 ContainerGroup)
-from msrestazure.azure_exceptions import CloudError
-
 
 Volume = namedtuple(
     'Volume',
@@ -92,6 +87,8 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param container_timeout: max time allowed for the execution of
         the container instance.
     :type container_timeout: datetime.timedelta
+    :param tags: azure tags as dict of str:str
+    :type tags: dict[str, str]
 
     **Example**::
 
@@ -103,7 +100,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     "myprivateregistry.azurecr.io/my_container:latest",
                     "westeurope",
                     {"MODEL_PATH":  "my_value",
-                     "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}"
+                     "POSTGRES_LOGIN": "{{ macros.connection('postgres_default').login }}",
                      "POSTGRES_PASSWORD": "{{ macros.connection('postgres_default').password }}",
                      "JOB_GUID": "{{ ti.xcom_pull(task_ids='task1', key='guid') }}" },
                     ['POSTGRES_PASSWORD'],
@@ -140,6 +137,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                  command=None,
                  remove_on_error=True,
                  fail_if_exists=True,
+                 tags=None,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -160,6 +158,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.remove_on_error = remove_on_error
         self.fail_if_exists = fail_if_exists
         self._ci_hook = None
+        self.tags = tags
 
     def execute(self, context):
         # Check name again in case it was templated.
@@ -227,7 +226,8 @@ class AzureContainerInstancesOperator(BaseOperator):
                 image_registry_credentials=image_registry_credentials,
                 volumes=volumes,
                 restart_policy='Never',
-                os_type='Linux')
+                os_type='Linux',
+                tags=self.tags)
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)
 

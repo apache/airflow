@@ -18,14 +18,13 @@
 # under the License.
 #
 import unittest
-from typing import Dict, Any
+from typing import Any, Dict
 
+import mock
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.gcp.hooks.tasks import CloudTasksHook
-from tests.compat import mock
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
-
+from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
 PROJECT_ID = "test-project"
@@ -42,10 +41,22 @@ FULL_TASK_PATH = (
 class TestCloudTasksHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudTasksHook(gcp_conn_id="test")
+
+    @mock.patch("airflow.gcp.hooks.tasks.CloudTasksHook.client_info", new_callable=mock.PropertyMock)
+    @mock.patch("airflow.gcp.hooks.tasks.CloudTasksHook._get_credentials")
+    @mock.patch("airflow.gcp.hooks.tasks.CloudTasksClient")
+    def test_cloud_tasks_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+        result = self.hook.get_conn()
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=mock_client_info.return_value
+        )
+        self.assertEqual(mock_client.return_value, result)
+        self.assertEqual(self.hook._client, result)
 
     @mock.patch(  # type: ignore
         "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
