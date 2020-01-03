@@ -659,12 +659,12 @@ class TestBigQueryBaseCursor(unittest.TestCase):
     def test_run_table_delete_ignore_if_missing_fails(self, mock_get_service, mock_project_id):
         source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
         method = mock_get_service.return_value.tables.return_value.delete
-        resp = type('', (object,), {"status": 404, })()
+        resp = type('', (object,), {"status": 404, "reason": "Address not found"})()
         method.return_value.execute.side_effect = HttpError(
             resp=resp, content=b'Address not found')
         bq_hook = hook.BigQueryHook()
         cursor = bq_hook.get_cursor()
-        with self.assertRaisesRegex(Exception, r"Table deletion failed\. Table does not exist\."):
+        with self.assertRaisesRegex(AirflowException, r"Address not found"):
             cursor.run_table_delete(source_project_dataset_table)
         method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
 
@@ -676,7 +676,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
     def test_run_table_delete_ignore_if_missing_pass(self, mock_get_service, mock_project_id):
         source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
         method = mock_get_service.return_value.tables.return_value.delete
-        resp = type('', (object,), {"status": 404, })()
+        resp = type('', (object,), {"status": 404, "reason": "Address not found"})()
         method.return_value.execute.side_effect = HttpError(
             resp=resp, content=b'Address not found')
         bq_hook = hook.BigQueryHook()
@@ -1416,8 +1416,11 @@ class TestDatasetsOperations(unittest.TestCase):
     )
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     def test_create_empty_dataset_no_dataset_id_err(self, mock_get_service, mock_get_creds_and_proj_id):
-        with self.assertRaisesRegex(ValueError, r"dataset_id not provided and datasetId not exist in the "
-                                                r"datasetReference\. Impossible to create dataset"):
+        with self.assertRaisesRegex(
+            AirflowException,
+            r"dataset_id not provided and datasetId not exist in the "
+            r"datasetReference\. Impossible to create dataset"
+        ):
             bq_hook = hook.BigQueryHook()
             cursor = bq_hook.get_cursor()
             cursor.create_empty_dataset(dataset_id="", project_id="")
@@ -1429,7 +1432,7 @@ class TestDatasetsOperations(unittest.TestCase):
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     def test_create_empty_dataset_duplicates_call_err(self, mock_get_service, mock_get_creds_and_proj_id):
         with self.assertRaisesRegex(
-            ValueError,
+            AirflowException,
             r"Values of projectId param are duplicated\. dataset_reference contained projectId param in "
             r"`query` config and projectId was also provided with arg to run_query\(\) method\. "
             r"Please remove duplicates\."
@@ -1452,7 +1455,7 @@ class TestDatasetsOperations(unittest.TestCase):
         self, mock_get_service, mock_get_creds_and_proj_id
     ):
         with self.assertRaisesRegex(
-            ValueError,
+            AirflowException,
             r"Values of location param are duplicated\. dataset_reference contained location param in "
             r"`query` config and location was also provided with arg to run_query\(\) method\. "
             r"Please remove duplicates\."
@@ -1524,7 +1527,7 @@ class TestDatasetsOperations(unittest.TestCase):
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     def test_get_dataset_without_dataset_id(self, mock_get_service, mock_get_creds_and_proj_id):
         with self.assertRaisesRegex(
-            ValueError,
+            AirflowException,
             r"ataset_id argument must be provided and has a type 'str'\. You provided: "
         ):
             bq_hook = hook.BigQueryHook()

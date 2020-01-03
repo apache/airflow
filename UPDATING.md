@@ -57,6 +57,15 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Standardize handling http exception in BigQuery
+
+Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
+by usage of the `airflow.gcp.hooks.base.CloudBaseHook.catch_http_exception` decorator however it changes
+exceptions raised by the following methods:
+* `airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_table_delete` raises `AirflowException` instead of `Exception`.
+* `airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset` raises `AirflowException` instead of `ValueError`.
+* `airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset` raises `AirflowException` instead of `ValueError`.
+
 ### Remove airflow.utils.file.TemporaryDirectory
 
 Since Airflow dropped support for Python < 3.5 there's no need to have this custom
