@@ -162,7 +162,7 @@ DAG Assignment
 
 *Added in Airflow 1.8*
 
-Operators do not  sa be assigned to DAGs immediately (previously ``dag`` was
+Operators do not have to be assigned to DAGs immediately (previously ``dag`` was
 a required argument). However, once an operator is assigned to a DAG, it can not
 be transferred or unassigned. DAG assignment can be done explicitly when the
 operator is created, through deferred assignment, or even inferred from other
