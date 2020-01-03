@@ -91,7 +91,7 @@ class S3ToRedshiftTransfer(BaseOperator):
 
         copy_query = """
             COPY {schema}.{table}
-            FROM 's3://{s3_bucket}/{s3_key}/{table}'
+            FROM 's3://{s3_bucket}/{s3_key}'
             with credentials
             'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
             {copy_options};
