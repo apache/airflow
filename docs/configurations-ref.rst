@@ -43,10 +43,11 @@ Configuration Reference
     {{ option["description"] }}
     {% endif %}
 
-    * **Type**: {{ option["type"] }}
-    * **Default**: ``{{ "''" if option["default"] == "" else option["default"] }}``
+    :Type: {{ option["type"] }}
+    :Default: ``{{ "''" if option["default"] == "" else option["default"] }}``
     {% if option["example"] %}
-    * **Example**: ``{{ option["example"] }}``
+    :Example:
+        ``{{ option["example"] }}``
     {% endif %}
 
     {% endfor %}
