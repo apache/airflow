@@ -794,8 +794,9 @@ class DAG(BaseDag, LoggingMixin):
             else:
                 # this is required to deal with NULL values
                 if None in state:
+                    not_none_state = [s for s in state if s]
                     tis = tis.filter(
-                        or_(TaskInstance.state.in_(state),
+                        or_(TaskInstance.state.in_(not_none_state),
                             TaskInstance.state.is_(None))
                     )
                 else:
@@ -1460,8 +1461,9 @@ class DAG(BaseDag, LoggingMixin):
 
         if states is not None:
             if None in states:
+                not_none_states = [state for state in states if state]
                 qry = qry.filter(or_(
-                    TaskInstance.state.in_(states),
+                    TaskInstance.state.in_(not_none_states),
                     TaskInstance.state.is_(None)))
             else:
                 qry = qry.filter(TaskInstance.state.in_(states))
