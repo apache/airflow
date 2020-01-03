@@ -162,7 +162,7 @@ DAG Assignment
 
 *Added in Airflow 1.8*
 
-Operators do not have to be assigned to DAGs immediately (previously ``dag`` was
+Operators do not  sa be assigned to DAGs immediately (previously ``dag`` was
 a required argument). However, once an operator is assigned to a DAG, it can not
 be transferred or unassigned. DAG assignment can be done explicitly when the
 operator is created, through deferred assignment, or even inferred from other
@@ -304,7 +304,7 @@ concat them with bitshift composition.
 
     op1 >> op2 >> op3 >> op4 >> op5
 
-use ``chain`` could do that
+This can be accomplished using ``chain``
 
 .. code:: python
 
@@ -316,7 +316,7 @@ even without operator's name
 
     chain([DummyOperator(task_id='op' + i, dag=dag) for i in range(1, 6)])
 
-``chain`` could handle list of operators
+``chain`` can handle a list of operators
 
 .. code:: python
 
@@ -328,8 +328,7 @@ is equivalent to:
 
     op1 >> [op2, op3] >> op4
 
-Have to same size when ``chain`` set relationships between two list
-of operators.
+When ``chain`` sets relationships between two lists of operators, they must have the same size.
 
 .. code:: python
 
