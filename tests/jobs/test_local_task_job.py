@@ -297,12 +297,19 @@ class TestLocalTaskJob(unittest.TestCase):
         Test that ensures that mark_failure in the UI fails
         the task, and executes on_failure_callback
         """
-        dagbag = models.DagBag(
-            dag_folder=TEST_DAG_FOLDER,
-            include_examples=False,
-        )
-        dag = dagbag.dags.get('test_mark_failure')
-        task = dag.get_task('task1')
+        data = {'called': False}
+
+        def check_failure(context):
+            data['called'] = True
+
+        dag = DAG(dag_id='test_mark_failure',
+                  start_date=DEFAULT_DATE,
+                  default_args={'owner': 'owner1'})
+
+        task = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag,
+            on_failure_callback=check_failure)
 
         session = settings.Session()
 
@@ -333,5 +340,6 @@ class TestLocalTaskJob(unittest.TestCase):
         session.commit()
 
         job1.heartbeat_callback(session=None)
+        self.assertTrue(data['called'])
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
