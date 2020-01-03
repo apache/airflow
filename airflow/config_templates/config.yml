@@ -818,9 +818,16 @@
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "False"
+    - name: x_frame_enabled
+      description: |
+        Allow the UI to be rendered in a frame
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
     - name: analytics_tool
       description: |
         Send anonymous user activity to your analytics tool
