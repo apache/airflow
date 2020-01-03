@@ -680,7 +680,7 @@ class DagFileProcessor(LoggingMixin):
 
         1. Create appropriate DagRun(s) in the DB.
         2. Create appropriate TaskInstance(s) in the DB.
-        3. Send emails for tasks that have missed SLAs.
+        3. Send emails for tasks that have missed SLAs (if CHECK_SLAS config enabled).
 
         :param dagbag: a collection of DAGs to process
         :type dagbag: airflow.models.DagBag
