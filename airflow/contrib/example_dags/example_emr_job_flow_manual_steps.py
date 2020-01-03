@@ -24,7 +24,6 @@ terminating the cluster.
 """
 from datetime import timedelta
 
-import airflow
 from airflow import DAG
 from airflow.contrib.operators.emr_create_job_flow_operator \
     import EmrCreateJobFlowOperator
@@ -33,11 +32,12 @@ from airflow.contrib.operators.emr_add_steps_operator \
 from airflow.contrib.sensors.emr_step_sensor import EmrStepSensor
 from airflow.contrib.operators.emr_terminate_job_flow_operator \
     import EmrTerminateJobFlowOperator
+from airflow.utils.dates import days_ago
 
 DEFAULT_ARGS = {
     'owner': 'Airflow',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False

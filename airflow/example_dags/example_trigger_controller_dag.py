@@ -35,9 +35,9 @@ This example illustrates the following features :
 
 import pprint
 
-import airflow
 from airflow import DAG
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.utils.dates import days_ago
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -54,12 +54,9 @@ def conditionally_trigger(context, dag_run_obj):
 
 # Define the DAG
 dag = DAG(
-    dag_id='example_trigger_controller_dag',
-    default_args={
-        "owner": "airflow",
-        "start_date": airflow.utils.dates.days_ago(2),
-    },
-    schedule_interval='@once',
+    dag_id="example_trigger_controller_dag",
+    default_args={"owner": "airflow", "start_date": days_ago(2)},
+    schedule_interval="@once",
 )
 
 # Define the single task in this controller example DAG

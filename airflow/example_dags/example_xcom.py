@@ -18,13 +18,13 @@
 # under the License.
 from __future__ import print_function
 
-import airflow
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
     'provide_context': True,
 }
 

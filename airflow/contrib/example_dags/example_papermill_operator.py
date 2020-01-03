@@ -24,15 +24,14 @@ templated.
 
 from datetime import timedelta
 
-import airflow
-
 from airflow.models import DAG
 from airflow.operators.papermill_operator import PapermillOperator
+from airflow.utils.dates import days_ago
 
 
 default_args = {
     'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': days_ago(2)
 }
 
 with DAG(

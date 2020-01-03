@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-import airflow
+from airflow.utils.dates import days_ago
 from airflow import DAG
 from airflow.operators import BashOperator
 from datetime import timedelta
@@ -26,7 +26,7 @@ from airflow.operators.docker_operator import DockerOperator
 default_args = {
     'owner': 'Airflow',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,

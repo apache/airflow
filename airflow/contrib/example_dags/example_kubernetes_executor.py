@@ -23,13 +23,13 @@ from __future__ import print_function
 
 import os
 
-import airflow
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': days_ago(2)
 }
 
 with DAG(

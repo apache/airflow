@@ -50,7 +50,6 @@ import json
 
 from os import getenv
 
-import airflow
 from airflow import models
 from airflow.contrib.operators.gcp_bigtable_operator import \
     BigtableInstanceCreateOperator, \
@@ -59,6 +58,7 @@ from airflow.contrib.operators.gcp_bigtable_operator import \
     BigtableTableCreateOperator, \
     BigtableTableWaitForReplicationSensor, \
     BigtableTableDeleteOperator
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_gcp_bigtable_args]
 GCP_PROJECT_ID = getenv('GCP_PROJECT_ID', 'example-project')
@@ -76,7 +76,7 @@ CBT_POKE_INTERVAL = getenv('CBT_POKE_INTERVAL', '60')
 # [END howto_operator_gcp_bigtable_args]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1)
+    'start_date': days_ago(1)
 }
 
 with models.DAG(

@@ -24,7 +24,6 @@ Example Airflow DAG for Google Cloud Natural Language service
 
 from google.cloud.language_v1.proto.language_service_pb2 import Document
 
-import airflow
 from airflow import models
 from airflow.contrib.operators.gcp_natural_language_operator import (
     CloudLanguageAnalyzeEntitiesOperator,
@@ -33,6 +32,7 @@ from airflow.contrib.operators.gcp_natural_language_operator import (
     CloudLanguageClassifyTextOperator,
 )
 from airflow.operators.bash_operator import BashOperator
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_gcp_natural_language_document_text]
 TEXT = """
@@ -52,7 +52,7 @@ document_gcs = Document(gcs_content_uri=GCS_CONTENT_URI, type="PLAIN_TEXT")
 # [END howto_operator_gcp_natural_language_document_gcs]
 
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 
 with models.DAG(
     "example_gcp_natural_language",

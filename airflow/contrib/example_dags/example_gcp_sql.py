@@ -30,7 +30,6 @@ https://airflow.apache.org/concepts.html#variables
 
 import os
 
-import airflow
 from airflow import models
 from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOperator, \
     CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator, \
@@ -42,6 +41,7 @@ from airflow.contrib.operators.gcs_acl_operator import \
     GoogleCloudStorageObjectCreateAclEntryOperator
 
 from six.moves.urllib.parse import urlsplit
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_cloudsql_arguments]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -177,7 +177,7 @@ db_patch_body = {
 # [END howto_operator_cloudsql_db_patch_body]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1)
+    'start_date': days_ago(1)
 }
 
 with models.DAG(

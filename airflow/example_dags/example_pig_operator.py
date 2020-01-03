@@ -17,13 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import airflow
+"""Example DAG demonstrating the usage of the PigOperator."""
+
 from airflow.models import DAG
 from airflow.operators.pig_operator import PigOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
 }
 
 dag = DAG(

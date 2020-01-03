@@ -17,17 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import airflow
+"""Example DAG demonstrating the usage of the SubDagOperator."""
+
 from airflow.example_dags.subdags.subdag import subdag
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
+from airflow.utils.dates import days_ago
 
 DAG_NAME = 'example_subdag_operator'
 
 args = {
     'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
 }
 
 dag = DAG(

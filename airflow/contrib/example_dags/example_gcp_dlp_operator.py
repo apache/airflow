@@ -28,7 +28,6 @@ Cloud DLP service in the Google Cloud Platform:
 import os
 from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplate
 
-import airflow
 from airflow.models import DAG
 from airflow.contrib.operators.gcp_dlp_operator import (
     CloudDLPCreateInspectTemplateOperator,
@@ -36,8 +35,9 @@ from airflow.contrib.operators.gcp_dlp_operator import (
     CloudDLPInspectContentOperator,
 )
 
+from airflow.utils.dates import days_ago
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 
 
 GCP_PROJECT = os.environ.get("GCP_PROJECT_ID", "example-project")

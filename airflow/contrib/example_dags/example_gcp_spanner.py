@@ -35,7 +35,6 @@ This DAG relies on the following environment variables
 
 import os
 
-import airflow
 from airflow import models
 from airflow.contrib.operators.gcp_spanner_operator import \
     CloudSpannerInstanceDeployOperator, \
@@ -44,6 +43,7 @@ from airflow.contrib.operators.gcp_spanner_operator import \
     CloudSpannerInstanceDatabaseDeployOperator, \
     CloudSpannerInstanceDatabaseUpdateOperator, \
     CloudSpannerInstanceDatabaseDeleteOperator
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_spanner_arguments]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -58,7 +58,7 @@ OPERATION_ID = 'unique_operation_id'
 # [END howto_operator_spanner_arguments]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1)
+    'start_date': days_ago(1)
 }
 
 with models.DAG(

@@ -28,16 +28,16 @@ TODO: Review the workflow, change it accordingly to
 # from __future__ import print_function
 #
 # from airflow import DAG
-# import airflow
 # from datetime import timedelta
 # from airflow.operators import BashOperator
 # from airflow.operators import ShortCircuitOperator
 # from airflow.operators.docker_operator import DockerOperator
+# from airflow.utils.dates import days_ago
 #
 # default_args = {
 #     'owner': 'Airflow',
 #     'depends_on_past': False,
-#     'start_date': airflow.utils.dates.days_ago(2),
+#     'start_date': days_ago(2),
 #     'email': ['airflow@example.com'],
 #     'email_on_failure': False,
 #     'email_on_retry': False,

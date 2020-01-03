@@ -34,13 +34,14 @@ works.
     from airflow.operators.dummy_operator import DummyOperator
     from airflow.lineage.datasets import File
     from airflow.models import DAG
+    from airflow.utils.dates import days_ago
     from datetime import timedelta
 
     FILE_CATEGORIES = ["CAT1", "CAT2", "CAT3"]
 
     args = {
         'owner': 'Airflow',
-        'start_date': airflow.utils.dates.days_ago(2)
+        'start_date': days_ago(2)
     }
 
     dag = DAG(
