@@ -26,8 +26,8 @@ DEFAULT_DATE = datetime(2016, 1, 1)
 
 
 def check_failure(context):
-    testCase = TestCase()
-    testCase.assertEqual(testCase,
+    test_case = TestCase()
+    test_case.assertEqual(test_case,
         context['dag_run'].dag_id,
         'test_mark_failure'
     )
