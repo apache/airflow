@@ -1642,6 +1642,22 @@ class TestDagACLView(TestBase):
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_in_response('example_subdag_operator', resp)
 
+    def test_blocked_success_when_selecting_dags(self):
+        resp = self.client.get('blocked?dag_ids=example_subdag_operator', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
+        self.assertNotIn('example_bash_operator', blocked_dags)
+        self.assertIn('example_subdag_operator', blocked_dags)
+
+        # Multiple
+        resp = self.client.get('blocked?dag_ids=example_subdag_operator,example_bash_operator',
+                               follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
+        self.assertIn('example_bash_operator', blocked_dags)
+        self.assertIn('example_subdag_operator', blocked_dags)
+        self.check_content_not_in_response('example_xcom', resp)
+
     def test_failed_success(self):
         self.logout()
         self.login()
