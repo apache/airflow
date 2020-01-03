@@ -126,8 +126,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
         self.username = username
         self.text = text
         self.icon_url = icon_url
-        self.attachments = attachments
-        self.blocks = blocks
+        self.attachments = attachments or []
+        self.blocks = blocks or []
         super(SlackAPIPostOperator, self).__init__(method=self.method,
                                                    *args, **kwargs)
 
