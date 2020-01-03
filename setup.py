@@ -199,6 +199,7 @@ doc = [
     'sphinx==1.8.5;python_version<"3.0"',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
+    'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
 ]
