@@ -953,6 +953,13 @@ class CLIFactory:
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
         }, {
+            'name': 'knative_worker',
+            'func': lazy_load_command('airflow.cli.commands.knative_worker_command.knative_worker'),
+            'help': "Start a knative worker server",
+            'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
+                     'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
+                     'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
+        }, {
             'name': 'version',
             'func': lazy_load_command('airflow.cli.commands.version_command.version'),
             'help': "Show the version",
