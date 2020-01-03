@@ -301,10 +301,8 @@ class TestLocalTaskJob(unittest.TestCase):
         data = {'called': False}
 
         def check_failure(context):
-            self.assertEqual(
-            context['dag_run'].dag_id,
-            'test_mark_failure'
-            )
+            self.assertEqual(context['dag_run'].dag_id,
+                             'test_mark_failure')
             data['called'] = True
 
         dag = DAG(dag_id='test_mark_failure',
@@ -348,3 +346,4 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertTrue(data['called'])
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
+        
