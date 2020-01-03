@@ -45,6 +45,8 @@ class Neo4JOperator(BaseOperator):
     :type n4j_conn_id: str
     :param soft_fail: set True to fail when query return no result
     :type soft_fail: bool
+    :return: Row Count
+    :rtype: int
     """
     cypher_query = None
     output_filename = None
@@ -69,13 +71,7 @@ class Neo4JOperator(BaseOperator):
         self.soft_fail = soft_fail
 
     def execute(self, context):
-        """
-        Executes the supplied query and saves the results as a CSV file on disk
 
-        :param context:
-        :return: Row Count
-        :rtype: int
-        """
         if isfile(self.cypher_query):
             with open(self.cypher_query, 'r') as input_file:
                 self.cypher_query = input_file.read()

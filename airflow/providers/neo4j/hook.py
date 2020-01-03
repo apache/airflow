@@ -20,6 +20,8 @@
 This hook provides minimal thin wrapper around the neo4j python library to provide query execution
 """
 import csv
+from typing import Any, Dict
+from urllib.parse import urlunparse
 
 from neo4j import BoltStatementResult, Driver, GraphDatabase, Session
 
@@ -40,7 +42,7 @@ class Neo4JHook(BaseHook):
         self.n4j_conn_id = n4j_conn_id
 
     @staticmethod
-    def get_config(n4j_conn_id: str) -> dict:
+    def get_config(n4j_conn_id: str) -> Dict[str, Any]:
         """
         Obtain the Username + Password from the Airflow connection definition
         Store them in _config dictionary as:
@@ -50,23 +52,23 @@ class Neo4JHook(BaseHook):
         :param n4j_conn_id: Name of connection configured in Airflow
         :type n4j_conn_id: str
         :return: dictionary with configuration values
-        :rtype: dict
+        :rtype: typing.Dict
         """
-        config: dict = {}
+        config: Dict[str, Any] = {}
         connection_object = Neo4JHook.get_connection(n4j_conn_id)
         if connection_object.login and connection_object.host:
             config['credentials'] = (connection_object.login, connection_object.password)
-            config['host'] = "bolt://{0}:{1}".format(connection_object.host, connection_object.port)
-
+            netloc: str = f"{connection_object.host}:{str(connection_object.port)}"
+            config['host'] = urlunparse(("bolt", netloc, "", "", "", ""))
         return config
 
     @staticmethod
-    def get_driver(config: dict) -> Driver:
+    def get_driver(config: Dict[str, Any]) -> Driver:
         """
         Establish a TCP connection to the server
 
         :param config: Dictionary containing the host and credentials needed to connect
-        :type config: dict containing 'host' and 'credentials' keys
+        :type config: typing.Dict containing 'host' and 'credentials' keys
         :return: Driver connection
         :rtype: neo4j.Driver
         """
@@ -82,7 +84,7 @@ class Neo4JHook(BaseHook):
         :return: Neo4J session which may contain many transactions
         :rtype: neo4j.Session
         """
-        neo4j_config: dict = self.get_config(self.n4j_conn_id)
+        neo4j_config: Dict[str, Any] = self.get_config(self.n4j_conn_id)
         neo4j_driver: Driver = self.get_driver(neo4j_config)
         return neo4j_driver.session()
 
