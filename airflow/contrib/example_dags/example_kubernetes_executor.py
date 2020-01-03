@@ -21,13 +21,13 @@ This is an example dag for using the Kubernetes Executor.
 """
 import os
 
-import airflow
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': days_ago(2)
 }
 
 with DAG(

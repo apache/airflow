@@ -25,7 +25,10 @@ from typing import Dict, List, Optional, Pattern
 from airflow import LoggingMixin, conf
 
 
-def TemporaryDirectory(*args, **kwargs):
+def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
+    """
+    This function is deprecated. Please use `tempfile.TemporaryDirectory`
+    """
     import warnings
     from tempfile import TemporaryDirectory as TmpDir
     warnings.warn(

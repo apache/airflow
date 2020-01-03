@@ -31,11 +31,11 @@ This is an example dag for managing twitter data.
 """
 from datetime import date, timedelta
 
-import airflow
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.hive_operator import HiveOperator
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 # --------------------------------------------------------------------------------
 # Create a few placeholder scripts. In practice these would be different python
@@ -74,7 +74,7 @@ def transfertodb():
 default_args = {
     'owner': 'Ekhtiar',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(5),
+    'start_date': days_ago(5),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,

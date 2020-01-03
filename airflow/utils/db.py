@@ -21,19 +21,22 @@ import os
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.jobs.base_job import BaseJob  # noqa: F401
+from airflow.jobs.base_job import BaseJob  # noqa: F401  # pylint: disable=unused-import
 from airflow.models import Connection
 from airflow.models.pool import Pool
 # We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session, provide_session  # noqa
+from airflow.utils.session import create_session, provide_session  # noqa  # pylint: disable=unused-import
 
 log = LoggingMixin().log
 
 
 @provide_session
 def merge_conn(conn, session=None):
+    """
+    Add new Connection.
+    """
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
         session.commit()
@@ -41,6 +44,9 @@ def merge_conn(conn, session=None):
 
 @provide_session
 def add_default_pool_if_not_exists(session=None):
+    """
+    Add default pool if it does not exist.
+    """
     if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
@@ -54,6 +60,9 @@ def add_default_pool_if_not_exists(session=None):
 
 @provide_session
 def create_default_connections(session=None):
+    """
+    Create default Airflow connections.
+    """
     merge_conn(
         Connection(
             conn_id="airflow_db", conn_type="mysql", host="mysql", login="root", password="", schema="airflow"
@@ -242,7 +251,7 @@ def create_default_connections(session=None):
             conn_id="segment_default", conn_type="segment", extra='{"write_key": "my-segment-write-key"}'
         ),
         session,
-    ),
+    )
     merge_conn(
         Connection(
             conn_id="azure_data_lake_default",
@@ -278,6 +287,9 @@ def create_default_connections(session=None):
 
 
 def initdb():
+    """
+    Initialize Airflow database.
+    """
     upgradedb()
 
     create_default_connections()
@@ -290,10 +302,13 @@ def initdb():
     models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
     from flask_appbuilder.models.sqla import Base
-    Base.metadata.create_all(settings.engine)
+    Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
 
 
 def upgradedb():
+    """
+    Upgrade the database.
+    """
     # alembic adds significant import time, so we import it lazily
     from alembic import command
     from alembic.config import Config
@@ -322,11 +337,12 @@ def resetdb():
 
     connection = settings.engine.connect()
     models.base.Base.metadata.drop_all(connection)
-    mc = MigrationContext.configure(connection)
-    if mc._version.exists(connection):
-        mc._version.drop(connection)
+    migartion_ctx = MigrationContext.configure(connection)
+    version = migartion_ctx._version  # pylint: disable=protected-access
+    if version.exists(connection):
+        version.drop(connection)
 
     from flask_appbuilder.models.sqla import Base
-    Base.metadata.drop_all(connection)
+    Base.metadata.drop_all(connection)  # pylint: disable=no-member
 
     initdb()

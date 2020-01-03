@@ -22,12 +22,12 @@ Example Airflow DAG for Google Cloud Dataflow service
 """
 import os
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://test-dataflow-example/temp/')
@@ -36,7 +36,7 @@ GCS_OUTPUT = os.environ.get('GCP_DATAFLOW_GCS_OUTPUT', 'gs://test-dataflow-examp
 GCS_JAR = os.environ.get('GCP_DATAFLOW_JAR', 'gs://test-dataflow-example/word-count-beam-bundled-0.1.jar')
 
 default_args = {
-    "start_date": airflow.utils.dates.days_ago(1),
+    "start_date": days_ago(1),
     'dataflow_default_options': {
         'project': GCP_PROJECT_ID,
         'tempLocation': GCS_TMP,

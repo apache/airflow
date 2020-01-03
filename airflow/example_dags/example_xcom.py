@@ -19,13 +19,13 @@
 
 """Example DAG demonstrating the usage of XComs."""
 
-import airflow
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
 }
 
 dag = DAG('example_xcom', schedule_interval="@once", default_args=args)

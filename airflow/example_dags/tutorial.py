@@ -25,12 +25,12 @@ Documentation that goes along with the Airflow tutorial located
 # [START tutorial]
 from datetime import timedelta
 
-import airflow
 # [START import_module]
 # The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
 # Operators; we need this to operate!
 from airflow.operators.bash_operator import BashOperator
+from airflow.utils.dates import days_ago
 
 # [END import_module]
 
@@ -40,7 +40,7 @@ from airflow.operators.bash_operator import BashOperator
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,

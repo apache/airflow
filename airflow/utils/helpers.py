@@ -41,6 +41,9 @@ KEY_REGEX = re.compile(r'^[\w.-]+$')
 
 
 def validate_key(k, max_length=250):
+    """
+    Validates value used as a key.
+    """
     if not isinstance(k, str):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
@@ -60,18 +63,21 @@ def alchemy_to_dict(obj):
     """
     if not obj:
         return None
-    d = {}
-    for c in obj.__table__.columns:
-        value = getattr(obj, c.name)
-        if type(value) == datetime:
+    output = {}
+    for col in obj.__table__.columns:
+        value = getattr(obj, col.name)
+        if isinstance(value, datetime):
             value = value.isoformat()
-        d[c.name] = value
-    return d
+        output[col.name] = value
+    return output
 
 
 def ask_yesno(question):
+    """
+    Helper to get yes / no answer from user.
+    """
     yes = {'yes', 'y'}
-    no = {'no', 'n'}
+    no = {'no', 'n'}  # pylint: disable=invalid-name
 
     done = False
     print(question)
@@ -141,7 +147,7 @@ def pprinttable(rows):
     If namedtuple are used, the table will have headers
     """
     if not rows:
-        return
+        return None
     if hasattr(rows[0], '_fields'):  # if namedtuple
         headers = rows[0]._fields
     else:
@@ -164,18 +170,18 @@ def pprinttable(rows):
     pattern = " | ".join(formats)
     hpattern = " | ".join(hformats)
     separator = "-+-".join(['-' * n for n in lens])
-    s = ""
-    s += separator + '\n'
-    s += (hpattern % tuple(headers)) + '\n'
-    s += separator + '\n'
+    tab = ""
+    tab += separator + '\n'
+    tab += (hpattern % tuple(headers)) + '\n'
+    tab += separator + '\n'
 
-    def f(t):
+    def _format(t):
         return "{}".format(t) if isinstance(t, str) else t
 
     for line in rows:
-        s += pattern % tuple(f(t) for t in line) + '\n'
-    s += separator + '\n'
-    return s
+        tab += pattern % tuple(_format(t) for t in line) + '\n'
+    tab += separator + '\n'
+    return tab
 
 
 def reap_process_group(pgid, log, sig=signal.SIGTERM,
@@ -221,10 +227,10 @@ def reap_process_group(pgid, log, sig=signal.SIGTERM,
     except psutil.NoSuchProcess:
         # The process already exited, but maybe it's children haven't.
         children = []
-        for p in psutil.process_iter():
+        for proc in psutil.process_iter():
             try:
-                if os.getpgid(p.pid) == pgid and p.pid != 0:
-                    children.append(p)
+                if os.getpgid(proc.pid) == pgid and proc.pid != 0:
+                    children.append(proc)
             except OSError:
                 pass
 
@@ -240,8 +246,8 @@ def reap_process_group(pgid, log, sig=signal.SIGTERM,
     _, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
 
     if alive:
-        for p in alive:
-            log.warning("process %s did not respond to SIGTERM. Trying SIGKILL", p)
+        for proc in alive:
+            log.warning("process %s did not respond to SIGTERM. Trying SIGKILL", proc)
 
         try:
             signal_procs(signal.SIGKILL)
@@ -251,12 +257,15 @@ def reap_process_group(pgid, log, sig=signal.SIGTERM,
 
         _, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
         if alive:
-            for p in alive:
-                log.error("Process %s (%s) could not be killed. Giving up.", p, p.pid)
+            for proc in alive:
+                log.error("Process %s (%s) could not be killed. Giving up.", proc, proc.pid)
     return returncodes
 
 
 def parse_template_string(template_string):
+    """
+    Parses Jinja template string.
+    """
     if "{{" in template_string:  # jinja mode
         return None, Template(template_string)
     else:
@@ -286,4 +295,7 @@ def render_log_filename(ti, try_number, filename_template):
 
 
 def convert_camel_to_snake(camel_str):
+    """
+    Converts CamelCase to snake_case.
+    """
     return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()

@@ -50,3 +50,8 @@ mergeable:
         changed:
           file: 'package.json'
           files: ['yarn.lock']
+      # If config.yml is updated, so should default_airflow.cfg
+      - do: dependent
+        changed:
+          file: 'config.yml'
+          files: ['default_airflow.cfg']

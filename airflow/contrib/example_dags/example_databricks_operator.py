@@ -32,15 +32,15 @@ For more information about the state of a run refer to
 https://docs.databricks.com/api/latest/jobs.html#runstate
 """
 
-import airflow
 from airflow import DAG
 from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
+from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
     'email': ['airflow@example.com'],
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': days_ago(2)
 }
 
 with DAG(
@@ -48,7 +48,6 @@ with DAG(
     default_args=default_args,
     schedule_interval='@daily'
 ) as dag:
-
     new_cluster = {
         'spark_version': '2.1.0-db3-scala2.11',
         'node_type_id': 'r3.xlarge',

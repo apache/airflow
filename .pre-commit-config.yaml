@@ -285,3 +285,11 @@ repos:
         entry: "./scripts/ci/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
+      - id: airflow-config-yaml
+        name: Checks for consistency between config.yml and default_config.cfg
+        language: python
+        files: "^airflow/config_templates/config.yml$|^airflow/config_templates/default_airflow.cfg$"
+        pass_filenames: false
+        require_serial: false
+        entry: airflow/utils/config_yaml_to_cfg.py
+        additional_dependencies: ['pyyaml']

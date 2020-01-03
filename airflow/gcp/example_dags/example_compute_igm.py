@@ -41,11 +41,11 @@ Variables for update template in Group Manager:
 
 import os
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator, ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
 )
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_compute_igm_common_args]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -53,7 +53,7 @@ GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
 # [END howto_operator_compute_igm_common_args]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1)
+    'start_date': days_ago(1)
 }
 
 # [START howto_operator_compute_template_copy_args]

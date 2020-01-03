@@ -304,7 +304,7 @@ concat them with bitshift composition.
 
     op1 >> op2 >> op3 >> op4 >> op5
 
-use ``chain`` could do that
+This can be accomplished using ``chain``
 
 .. code:: python
 
@@ -316,7 +316,7 @@ even without operator's name
 
     chain([DummyOperator(task_id='op' + i, dag=dag) for i in range(1, 6)])
 
-``chain`` could handle list of operators
+``chain`` can handle a list of operators
 
 .. code:: python
 
@@ -328,8 +328,7 @@ is equivalent to:
 
     op1 >> [op2, op3] >> op4
 
-Have to same size when ``chain`` set relationships between two list
-of operators.
+When ``chain`` sets relationships between two lists of operators, they must have the same size.
 
 .. code:: python
 

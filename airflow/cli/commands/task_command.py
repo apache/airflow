@@ -237,7 +237,7 @@ def task_list(args, dag=None):
 @cli_utils.action_logging
 def task_test(args, dag=None):
     """Tests task for a given dag_id"""
-    # We want log outout from operators etc to show up here. Normally
+    # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
     handlers = logging.getLogger('airflow.task').handlers

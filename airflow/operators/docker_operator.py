@@ -280,7 +280,7 @@ class DockerOperator(BaseOperator):
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
 
-        self._run_image()
+        return self._run_image()
 
     def get_command(self):
         """

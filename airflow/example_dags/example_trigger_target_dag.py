@@ -23,14 +23,14 @@ Example usage of the TriggerDagRunOperator. This example holds 2 DAGs:
 2. 2nd DAG (example_trigger_target_dag) which will be triggered by the TriggerDagRunOperator in the 1st DAG
 """
 
-import airflow.utils.dates
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 dag = DAG(
     dag_id="example_trigger_target_dag",
-    default_args={"start_date": airflow.utils.dates.days_ago(2), "owner": "airflow"},
+    default_args={"start_date": days_ago(2), "owner": "airflow"},
     schedule_interval=None,
 )
 
