@@ -345,11 +345,14 @@ running against it should get it to get triggered and run every day.
 
 Here's a few things you might want to do next:
 
-* Take an in-depth tour of the UI - click all the things!
-* Keep reading the docs! Especially the sections on:
+.. seealso::
+    - Read the :ref:`Concepts page<concepts>` for detailed explanation
+      of Airflow concepts such as DAGs, Tasks, Operators, etc.
+    - Take an in-depth tour of the UI - click all the things!
+    - Keep reading the docs!
 
-    * :doc:`usage-cli`
-    * :doc:`howto/custom-operator`
-    * :doc:`macros-ref`
-
-* Write your first pipeline!
+      - Review the :doc:`how-to guides<howto/index>`, which include a guide to writing your own operator
+      - Review the :ref:`Command Line Interface Reference<cli>`
+      - Review the :ref:`List of operators <pythonapi:operators>`
+      - Review the :ref:`Macros reference<macros>`
+    - Write your first pipeline!
