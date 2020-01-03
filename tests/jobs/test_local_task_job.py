@@ -243,7 +243,7 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertEqual(ti.state, State.RUNNING)
 
         session.close()
-        
+
     def test_localtaskjob_maintain_heart_rate(self):
         dagbag = models.DagBag(
             dag_folder=TEST_DAG_FOLDER,
