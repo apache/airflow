@@ -60,4 +60,3 @@ class TestMySqlToS3Operator(unittest.TestCase):
 
         mock_session.assert_called_once()
         mock_session.return_value = Session(access_key, secret_key)
-        
