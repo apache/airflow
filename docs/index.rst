@@ -107,3 +107,4 @@ Content
     :caption: References
 
     Python API <_api/index>
+    Configurations <configurations-ref>

@@ -36,6 +36,7 @@ import sys
 import warnings
 
 from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
+import yaml
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -112,6 +113,19 @@ def _read_default_config_file(file_name):
 
 DEFAULT_CONFIG, DEFAULT_CONFIG_FILE_PATH = _read_default_config_file('default_airflow.cfg')
 TEST_CONFIG, TEST_CONFIG_FILE_PATH = _read_default_config_file('default_test.cfg')
+
+
+def default_config_yaml():
+    """
+    Read Airflow configs from YAML file
+
+    :return: Python dictionary containing configs & their info
+    """
+    templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
+    file_path = os.path.join(templates_dir, "config.yml")
+
+    with open(file_path) as config_file:
+        return yaml.safe_load(config_file)
 
 
 class AirflowConfigParser(ConfigParser):
