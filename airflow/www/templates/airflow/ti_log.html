@@ -23,7 +23,7 @@
 {% block body %}
 {{ super() }}
 <h4>{{ title }}</h4>
-<script src="/admin/admin/vendor/ansi_up.min.js"></script>
+<script src="/static/ansi_up.min.js"></script>
 <ul class="nav nav-pills" role="tablist">
   {% for log in logs %}
   <li role="presentation" class="{{ 'active' if loop.last else '' }}">
