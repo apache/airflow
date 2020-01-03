@@ -299,7 +299,11 @@ class TestLocalTaskJob(unittest.TestCase):
         """
         data = {'called': False}
 
-        def check_failure():
+        def check_failure(context):
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_mark_failure'
+            )
             data['called'] = True
 
         dag = DAG(dag_id='test_mark_failure',
