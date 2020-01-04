@@ -31,7 +31,7 @@ jobs:
   labeler:
     runs-on: ubuntu-latest
     steps:
-      - uses: paulfantom/periodic-labeler@master
+      - uses: docker://potiuk/periodic-labeler:latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
