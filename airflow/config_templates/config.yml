@@ -1188,6 +1188,13 @@
       type: string
       example: ~
       default: "30"
+    - name: removed_tasks_lead_to_dagrun_failure
+      description: |
+        A DagRun can have a 'removed' task instance and still lead to DagRun 'success' state when False
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
     - name: scheduler_health_check_threshold
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
