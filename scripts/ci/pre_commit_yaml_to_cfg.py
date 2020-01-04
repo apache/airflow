@@ -124,7 +124,8 @@ def write_config(yaml_config_file_path: str, default_cfg_file_path: str):
 
 
 if __name__ == '__main__':
-    airflow_config_dir = os.path.join(os.path.dirname(__file__), "..", "config_templates")
+    airflow_config_dir = os.path.join(
+        os.path.dirname(__file__), "../../airflow/config_templates")
     airflow_default_config_path = os.path.join(airflow_config_dir, "default_airflow.cfg")
     airflow_config_yaml_file_path = os.path.join(airflow_config_dir, "config.yml")
 
