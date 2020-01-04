@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.gcs`.
+This module is eprecated. Please use `airflow.gcp.operators.gcs`.
 """
 
 import warnings
