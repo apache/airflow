@@ -25,7 +25,6 @@ from airflow import models
 from airflow.models.baseoperator import chain
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
-
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}
