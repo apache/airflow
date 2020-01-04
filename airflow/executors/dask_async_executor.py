@@ -18,9 +18,10 @@
 """Dask asynchronous executor."""
 import asyncio
 import random
+from asyncio import Task
 from typing import Any, Dict, Optional
 
-from distributed import Client, Future
+from distributed import Client, Future, LocalCluster
 from distributed.security import Security
 
 from airflow import AirflowException
@@ -46,7 +47,7 @@ class DaskAsyncExecutor(BaseExecutor):
         if cluster_address is None:
             cluster_address = conf.get("dask", "cluster_address")
         if not cluster_address:
-            raise ValueError("Please provide a Dask cluster address in airflow.cfg")
+            cluster_address = LocalCluster()
         self.cluster_address = cluster_address
 
         self.use_async = True
@@ -92,6 +93,17 @@ class DaskAsyncExecutor(BaseExecutor):
         return self._client
 
     @property
+    def event_loop(self) -> asyncio.AbstractEventLoop:
+        """
+        An asyncio event loop
+        """
+        if self._event_loop is None:
+            self._event_loop = asyncio.get_event_loop()
+            self._event_loop.run_forever()
+            self.log.info("The %s event_loop is initialized.", self.__class__.__name__)
+        return self._event_loop
+
+    @property
     def futures(self) -> Dict[Future, TaskInstanceKeyType]:
         """
         A collection of asynchronous futures
@@ -101,22 +113,13 @@ class DaskAsyncExecutor(BaseExecutor):
             self.log.info("The %s futures are initialized.", self.__class__.__name__)
         return self._futures
 
-    @property
-    def event_loop(self) -> asyncio.AbstractEventLoop:
-        """
-        An asyncio event loop
-        """
-        if self._event_loop is None:
-            self._event_loop = asyncio.new_event_loop()
-            self.log.info("The %s event_loop is initialized.", self.__class__.__name__)
-        return self._event_loop
-
     def start(self) -> None:
-        # pylint: disable=do-not-use-asserts
-        assert self.futures
-        assert self.client
-        assert self.event_loop
-        # pylint: enable=do-not-use-asserts
+        if self.client is None:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if self.event_loop is None:
+            raise AirflowException(NOT_STARTED_MESSAGE)
+        if self.futures is None:
+            raise AirflowException(NOT_STARTED_MESSAGE)
 
     def execute_async(
         self,
@@ -125,21 +128,29 @@ class DaskAsyncExecutor(BaseExecutor):
         queue: Optional[str] = None,
         executor_config: Optional[Any] = None,
     ) -> None:
+        self.start()
 
         # TODO: only submit awaitable tasks to the event loop;
         #       all other blocking tasks should raise an exception or something?
 
-        async def async_submit():
-            await self._ensure_started()
-            future = self.client.submit(command)  # command must be awaitable?
-            self.futures[future] = key
-            await future  # TODO: can this raise?
-            self._update_task_status(future)
+        async def submit_coro_func():
+            func = command.pop()
+            args = command
+            command_future = await self.client.submit(func, args)
+            self.futures[command_future] = key
+            # it's possible to submit a function on a future to the dask client, e.g.
+            # self.client.submit(self._update_task_status, command_future)
+            # but this might introduce complex async behavior into the task updates, so
+            # it's avoided here (for now).
 
-        self.event_loop.run_until_complete(async_submit())
+        # self.event_loop.call_soon_threadsafe(submit_coro_func)
+        self.event_loop.call_soon(submit_coro_func)
 
     def sync(self) -> None:
-        pass  # the async_submit will auto-sync, right ???
+        for command_future, _ in self.futures.copy():
+            if command_future.done():
+                self._update_task_status(command_future)
+                self.futures.pop(command_future)
 
     def end(self) -> None:
         """
@@ -147,45 +158,48 @@ class DaskAsyncExecutor(BaseExecutor):
         wants to wait for the jobs submitted previously to be complete.
         """
 
-        async def wait():
+        async def wait_coro_func():
             while self.futures:
-                # the async_submit function will pop futures when they are done;
-                # so if there are any remaining, keep waiting.
+                for command_future in self.futures.copy():
+                    if command_future.done():
+                        self._update_task_status(command_future)
+                        self.futures.pop(command_future)
                 pause = random.uniform(1, 10)
                 await asyncio.sleep(pause)
-            # TODO: close the client and event_loop ?
-            # await self._ensure_stopped()
 
-        self.event_loop.run_until_complete(wait())
+        # self.event_loop.call_soon_threadsafe(wait_coro_func)
+        self.event_loop.call_soon(wait_coro_func)
+        # wait_coro_obj = wait_coro_func()
+        # self.event_loop.create_task(wait_coro_obj)
+
+        self._ensure_stopped()
 
     def terminate(self) -> None:
         """
         This method is called when the daemon receives a SIGTERM
         """
+        self.start()
 
-        async def kill():
-            await self._ensure_started()
+        async def kill_coro_func():
             await self.client.cancel(list(self.futures.keys()))
-            # does this require an additional self.client.gather or would that run them again?
             while self.futures:
-                for future in self.futures.copy():
-                    self._update_task_status(future)
+                for command_future in self.futures.copy():
+                    if command_future.done():
+                        self._update_task_status(command_future)
+                        self.futures.pop(command_future)
                 pause = random.uniform(1, 10)
                 await asyncio.sleep(pause)
             await self._ensure_stopped()
 
-        self.event_loop.run_until_complete(kill())
-
-    async def _ensure_started(self):
-        self.start()
-        if self.futures is None:
-            raise AirflowException(NOT_STARTED_MESSAGE)
-        if self.client is None:
-            raise AirflowException(NOT_STARTED_MESSAGE)
-        if self.event_loop is None:
-            raise AirflowException(NOT_STARTED_MESSAGE)
+        # self.event_loop.call_soon_threadsafe(kill_coro_func)
+        self.event_loop.call_soon(kill_coro_func)
 
     async def _ensure_stopped(self):
+        await self.client.cancel(list(self.futures.keys()))
+        for command_future in self.futures.copy():
+            command_future.cancel()
+        for task in Task.all_tasks():
+            task.cancel()
         await self.client.close()
         self._client = None
         self._futures = None
@@ -199,12 +213,11 @@ class DaskAsyncExecutor(BaseExecutor):
         #         to update the task status?
         if future.done():
             key = self.futures[future]
-            if future.exception():
-                self.log.error("Failed to execute task: %s", repr(future.exception()))
+            if future.cancelled():
+                self.log.error("Failed to execute task: task cancelled")
                 self.fail(key)
-            elif future.cancelled():
-                self.log.error("Failed to execute task")
+            elif future.exception():
+                self.log.error("Failed to execute task: %s", repr(future.exception()))
                 self.fail(key)
             else:
                 self.success(key)
-            self.futures.pop(future)
