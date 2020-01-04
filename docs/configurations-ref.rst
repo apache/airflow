@@ -19,6 +19,13 @@
 Configuration Reference
 =======================
 
+This page contains the list of all the available Airflow configurations that you
+can set in ``airflow.cfg`` file or using environment variables.
+
+.. contents:: Sections:
+   :local:
+   :depth: 1
+
 .. jinja:: config_ctx
 
     {% for section in configs %}
@@ -45,6 +52,7 @@ Configuration Reference
 
     :Type: {{ option["type"] }}
     :Default: ``{{ "''" if option["default"] == "" else option["default"] }}``
+    :Environment Variable: ``AIRFLOW__{{ section["name"] | upper }}__{{ option["name"] | upper }}``
     {% if option["example"] %}
     :Example:
         ``{{ option["example"] }}``
