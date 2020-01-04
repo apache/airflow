@@ -22,6 +22,9 @@ Configuration Reference
 This page contains the list of all the available Airflow configurations that you
 can set in ``airflow.cfg`` file or using environment variables.
 
+.. note::
+    For more information on setting the configuration, see :doc:`howto/set-config`
+
 .. contents:: Sections:
    :local:
    :depth: 1
