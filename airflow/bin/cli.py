@@ -25,7 +25,7 @@ import textwrap
 from argparse import RawTextHelpFormatter
 from typing import Callable, List, Optional
 
-from setproctitle import setproctitle
+from setproctitle import setproctitle  # pylint: disable=no-name-in-module
 from tabulate import tabulate_formats
 
 from airflow import AirflowException, api, settings
