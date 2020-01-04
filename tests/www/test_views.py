@@ -477,6 +477,11 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
+    def test_task_stats_only_noncompleted(self):
+        conf.set("webserver", "show_recent_stats_for_completed_runs", "False")
+        resp = self.client.get('task_stats', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+
     def test_dag_details(self):
         url = 'dag_details?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
