@@ -21,8 +21,8 @@
 import os
 
 import psutil
-from setproctitle import setproctitle
 
+from airflow.bin.cli import exec_airflow_command
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.helpers import reap_process_group
 
@@ -68,17 +68,9 @@ class StandardTaskRunner(BaseTaskRunner):
             settings.engine.pool.dispose()
             settings.engine.dispose()
 
-            parser = get_parser()
-            # [1:] - remove "airflow" from the start of the command
-            args = parser.parse_args(self._command[1:])
-
-            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date}"
-            if hasattr(args, "job_id"):
-                proc_title += " {0.job_id}"
-            setproctitle(proc_title.format(args))
-
             try:
-                args.func(args)
+                exec_airflow_command(self._command)
+
                 os._exit(0)
             except Exception:
                 os._exit(1)

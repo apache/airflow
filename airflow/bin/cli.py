@@ -23,8 +23,9 @@ import argparse
 import os
 import textwrap
 from argparse import RawTextHelpFormatter
-from typing import Callable, List
+from typing import Callable, List, Optional
 
+from setproctitle import setproctitle
 from tabulate import tabulate_formats
 
 from airflow import AirflowException, api, settings
@@ -1065,14 +1066,18 @@ def get_parser():
     return CLIFactory.get_parser()
 
 
-def exec_airflow_command(command_to_exec: List[str]):
+def exec_airflow_command(command_to_exec: List[str], proctitle_prefix: Optional[str] = None):
     """
     Execute command using CLI.
 
     The command is run in the current process and thread.
 
+
     :param command_to_exec: list of program arguments. The first element should contain the "airflow" element.
     :type command_to_exec List[str]
+    :param proctitle_prefix:  If passed, then set will set the process title with task information,
+        Otherwise I do nothing.
+    :param proctitle_prefix: Optional[str]
     """
     parser = CLIFactory.get_parser()
 
@@ -1082,4 +1087,11 @@ def exec_airflow_command(command_to_exec: List[str]):
     # drop "airflow"
     command_to_exec = command_to_exec[1:]
     args = parser.parse_args(command_to_exec)
+
+    if proctitle_prefix:
+        proc_title = "{proctitle_prefix}: {args.dag_id} {args.task_id} {args.execution_date}"
+        if hasattr(args, "job_id"):
+            proc_title += " {args.job_id}"
+        setproctitle(proc_title.format(args=args, proctitle_prefix=proctitle_prefix))
+
     args.func(args)
