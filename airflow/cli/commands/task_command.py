@@ -24,6 +24,8 @@ import os
 import textwrap
 from contextlib import redirect_stderr, redirect_stdout
 
+from tabulate import tabulate
+
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import DagPickle, TaskInstance
@@ -216,8 +218,6 @@ def task_list(args, dag=None):
 @cli_utils.action_logging
 def task_states_for_dag_run(args):
     """Get the status of all task instances in a dag run"""
-    if not args.dag_id or not args.execution_date:
-        raise AirflowException("dag_id and execution_date are mandatory.")
     session = settings.Session()
     tis = session.query(
         TaskInstance.dag_id,
@@ -231,9 +231,20 @@ def task_states_for_dag_run(args):
     session.close()
     if len(tis) == 0:
         raise AirflowException("dag run does not exist.")
+    formatted_rows = []
     for ti in tis:
-        print("dag={0}, exec_date={1}, task={2}, state={3}, start_date={4}, end_date={5}".format(
-            ti.dag_id, ti.execution_date, ti.task_id, ti.state, ti.start_date, ti.end_date))
+        formatted_rows.append((ti.dag_id,
+                               ti.execution_date,
+                               ti.task_id,
+                               ti.state,
+                               ti.start_date,
+                               ti.end_date))
+
+    print(
+        "\n%s" %
+        tabulate(
+            formatted_rows, [
+                'dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'], tablefmt="fancy_grid"))
 
 
 @cli_utils.action_logging

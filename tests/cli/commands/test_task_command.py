@@ -184,6 +184,10 @@ class TestCliTasks(unittest.TestCase):
             'tasks', 'state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
 
+    def test_task_states_for_dag_run(self):
+        task_command.task_states_for_dag_run(self.parser.parse_args([
+            'tasks', 'states_for_dag_run', 'example_bash_operator', DEFAULT_DATE.isoformat()]))
+
     def test_subdag_clear(self):
         args = self.parser.parse_args([
             'tasks', 'clear', 'example_subdag_operator', '--yes'])
