@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,35 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Set
+import re
 
 
-class WeightRule:
-    """
-    Weight rules.
-    """
-    DOWNSTREAM = 'downstream'
-    UPSTREAM = 'upstream'
-    ABSOLUTE = 'absolute'
-
-    _ALL_WEIGHT_RULES = set()  # type: Set[str]
-
-    @classmethod
-    def is_valid(cls, weight_rule):
-        """
-        Check if weight rule is valid.
-        """
-        return weight_rule in cls.all_weight_rules()
-
-    @classmethod
-    def all_weight_rules(cls):
-        """
-        Returns all weight rules
-        """
-        if not cls._ALL_WEIGHT_RULES:
-            cls._ALL_WEIGHT_RULES = {
-                getattr(cls, attr)
-                for attr in dir(cls)
-                if not attr.startswith("_") and not callable(getattr(cls, attr))
-            }
-        return cls._ALL_WEIGHT_RULES
+def assert_equal_ignore_multiple_spaces(case, first, second, msg=None):
+    def _trim(s):
+        return re.sub(r"\s+", " ", s.strip())
+    return case.assertEqual(_trim(first), _trim(second), msg)

@@ -129,13 +129,13 @@ class TestMySql(unittest.TestCase):
         tmp_file = "/path/to/output/file"
         hook.bulk_dump(table, tmp_file)
 
-        from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
+        from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
         assert mock_execute.call_count == 1
         query = """
             SELECT * INTO OUTFILE '{tmp_file}'
             FROM {table}
         """.format(tmp_file=tmp_file, table=table)
-        assertEqualIgnoreMultipleSpaces(self, mock_execute.call_args[0][0], query)
+        assert_equal_ignore_multiple_spaces(self, mock_execute.call_args[0][0], query)
 
     @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
                          "This is a MySQL test")

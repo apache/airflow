@@ -22,7 +22,6 @@ Example Airflow DAG that uses Google PubSub services.
 """
 import os
 
-import airflow
 from airflow import models
 from airflow.operators.bash_operator import BashOperator
 from airflow.providers.google.cloud.operators.pubsub import (
@@ -30,12 +29,13 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
 )
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 TOPIC = "PubSubTestTopic"
 MESSAGE = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 
 # [START howto_operator_gcp_pubsub_pull_messages_result_cmd]
 echo_cmd = """

@@ -68,12 +68,14 @@ class EmrAddStepsOperator(BaseOperator):
         self.steps = steps
 
     def execute(self, context):
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
-        job_flow_id = self.job_flow_id
+        emr = emr_hook.get_conn()
 
+        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(self.job_flow_name,
+                                                                          self.cluster_states)
         if not job_flow_id:
-            job_flow_id = emr.get_cluster_id_by_name(self.job_flow_name, self.cluster_states)
+            raise AirflowException(f'No cluster found for name: {self.job_flow_name}')
 
         if self.do_xcom_push:
             context['ti'].xcom_push(key='job_flow_id', value=job_flow_id)

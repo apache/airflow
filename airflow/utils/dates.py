@@ -20,7 +20,7 @@
 from datetime import datetime, timedelta
 
 from croniter import croniter
-from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
+from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest  # pylint: disable=unused-import
 
 from airflow.utils import timezone
 
@@ -34,7 +34,7 @@ cron_presets = {
 }
 
 
-def date_range(start_date, end_date=None, num=None, delta=None):
+def date_range(start_date, end_date=None, num=None, delta=None):  # pylint: disable=too-many-branches
     """
     Get a set of dates as a list based on a start, end and delta, delta
     can be something that can be added to `datetime.datetime`
@@ -73,12 +73,12 @@ def date_range(start_date, end_date=None, num=None, delta=None):
         end_date = timezone.utcnow()
 
     delta_iscron = False
-    tz = start_date.tzinfo
+    time_zone = start_date.tzinfo
 
     if isinstance(delta, str):
         delta_iscron = True
         if timezone.is_localized(start_date):
-            start_date = timezone.make_naive(start_date, tz)
+            start_date = timezone.make_naive(start_date, time_zone)
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
@@ -88,10 +88,10 @@ def date_range(start_date, end_date=None, num=None, delta=None):
     dates = []
     if end_date:
         if timezone.is_naive(start_date) and not timezone.is_naive(end_date):
-            end_date = timezone.make_naive(end_date, tz)
+            end_date = timezone.make_naive(end_date, time_zone)
         while start_date <= end_date:
             if timezone.is_naive(start_date):
-                dates.append(timezone.make_aware(start_date, tz))
+                dates.append(timezone.make_aware(start_date, time_zone))
             else:
                 dates.append(start_date)
 
@@ -102,20 +102,19 @@ def date_range(start_date, end_date=None, num=None, delta=None):
     else:
         for _ in range(abs(num)):
             if timezone.is_naive(start_date):
-                dates.append(timezone.make_aware(start_date, tz))
+                dates.append(timezone.make_aware(start_date, time_zone))
             else:
                 dates.append(start_date)
 
-            if delta_iscron:
-                if num > 0:
-                    start_date = cron.get_next(datetime)
-                else:
-                    start_date = cron.get_prev(datetime)
+            if delta_iscron and num > 0:
+                start_date = cron.get_next(datetime)
+            elif delta_iscron:
+                start_date = cron.get_prev(datetime)
+            elif num > 0:
+                start_date += delta
             else:
-                if num > 0:
-                    start_date += delta
-                else:
-                    start_date -= delta
+                start_date -= delta
+
     return sorted(dates)
 
 
@@ -140,14 +139,14 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
 
     if isinstance(delta, str):
         # It's cron based, so it's easy
-        tz = start_date.tzinfo
-        start_date = timezone.make_naive(start_date, tz)
+        time_zone = start_date.tzinfo
+        start_date = timezone.make_naive(start_date, time_zone)
         cron = croniter(delta, start_date)
         prev = cron.get_prev(datetime)
         if prev == start_date:
-            return timezone.make_aware(start_date, tz)
+            return timezone.make_aware(start_date, time_zone)
         else:
-            return timezone.make_aware(prev, tz)
+            return timezone.make_aware(prev, time_zone)
 
     # Ignore the microseconds of dt
     dt -= timedelta(microseconds=dt.microsecond)

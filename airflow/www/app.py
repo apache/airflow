@@ -220,8 +220,13 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         def jinja_globals():  # pylint: disable=unused-variable
 
             globals = {
-                'hostname': socket.getfqdn(),
-                'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
+                'hostname': socket.getfqdn() if conf.getboolean(
+                    'webserver',
+                    'EXPOSE_HOSTNAME',
+                    fallback=True) else 'redact',
+                'navbar_color': conf.get(
+                    'webserver',
+                    'NAVBAR_COLOR'),
             }
 
             if 'analytics_tool' in conf.getsection('webserver'):
@@ -240,6 +245,13 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                 app.permanent_session_lifetime = datetime.timedelta(minutes=_force_log_out_after)
                 flask.session.modified = True
                 flask.g.user = flask_login.current_user
+
+        @app.after_request
+        def apply_caching(response):
+            _x_frame_enabled = conf.getboolean('webserver', 'X_FRAME_ENABLED', fallback=True)
+            if not _x_frame_enabled:
+                response.headers["X-Frame-Options"] = "DENY"
+            return response
 
         @app.teardown_appcontext
         def shutdown_session(exception=None):  # pylint: disable=unused-variable

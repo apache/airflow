@@ -92,37 +92,43 @@ def send_email_smtp(to, subject, html_content, files=None,
             part['Content-ID'] = '<%s>' % basename
             msg.attach(part)
 
-    send_MIME_email(smtp_mail_from, recipients, msg, dryrun)
+    send_mime_email(smtp_mail_from, recipients, msg, dryrun)
 
 
-def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
+def send_mime_email(e_from, e_to, mime_msg, dryrun=False):
+    """
+    Send MIME email.
+    """
     log = LoggingMixin().log
 
-    SMTP_HOST = conf.get('smtp', 'SMTP_HOST')
-    SMTP_PORT = conf.getint('smtp', 'SMTP_PORT')
-    SMTP_STARTTLS = conf.getboolean('smtp', 'SMTP_STARTTLS')
-    SMTP_SSL = conf.getboolean('smtp', 'SMTP_SSL')
-    SMTP_USER = None
-    SMTP_PASSWORD = None
+    smtp_host = conf.get('smtp', 'SMTP_HOST')
+    smtp_port = conf.getint('smtp', 'SMTP_PORT')
+    smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')
+    smtp_ssl = conf.getboolean('smtp', 'SMTP_SSL')
+    smtp_user = None
+    smtp_password = None
 
     try:
-        SMTP_USER = conf.get('smtp', 'SMTP_USER')
-        SMTP_PASSWORD = conf.get('smtp', 'SMTP_PASSWORD')
+        smtp_user = conf.get('smtp', 'SMTP_USER')
+        smtp_password = conf.get('smtp', 'SMTP_PASSWORD')
     except AirflowConfigException:
         log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
     if not dryrun:
-        s = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) if SMTP_SSL else smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-        if SMTP_STARTTLS:
-            s.starttls()
-        if SMTP_USER and SMTP_PASSWORD:
-            s.login(SMTP_USER, SMTP_PASSWORD)
+        conn = smtplib.SMTP_SSL(smtp_host, smtp_port) if smtp_ssl else smtplib.SMTP(smtp_host, smtp_port)
+        if smtp_starttls:
+            conn.starttls()
+        if smtp_user and smtp_password:
+            conn.login(smtp_user, smtp_password)
         log.info("Sent an alert email to %s", e_to)
-        s.sendmail(e_from, e_to, mime_msg.as_string())
-        s.quit()
+        conn.sendmail(e_from, e_to, mime_msg.as_string())
+        conn.quit()
 
 
 def get_email_address_list(addresses: Union[str, Iterable[str]]) -> List[str]:
+    """
+    Get list of email addresses.
+    """
     if isinstance(addresses, str):
         return _get_email_list_from_str(addresses)
 

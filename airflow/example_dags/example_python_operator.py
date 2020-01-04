@@ -22,13 +22,13 @@
 import time
 from pprint import pprint
 
-import airflow
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator, PythonVirtualenvOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
 }
 
 dag = DAG(

@@ -61,7 +61,7 @@ class TestCliDb(unittest.TestCase):
             ['mysql', '--defaults-extra-file=/tmp/name']
         )
         mock_tmp_file.return_value.__enter__.return_value.write.assert_called_once_with(
-            b'[client]\nhost     = mysql\nuser     = root\npassword = None\nport     = None'
+            b'[client]\nhost     = mysql\nuser     = root\npassword = \nport     = '
             b'\ndatabase = airflow'
         )
 

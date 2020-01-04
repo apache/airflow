@@ -19,14 +19,14 @@
 """
 Example DAG using GoogleCloudStorageToBigQueryOperator.
 """
-import airflow
 from airflow import models
 from airflow.operators import bash_operator
 from airflow.operators.gcs_to_bq import GoogleCloudStorageToBigQueryOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': days_ago(2)
 }
 
 dag = models.DAG(

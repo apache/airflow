@@ -36,7 +36,7 @@ from airflow.models.connection import Connection
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
-from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
+from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -247,7 +247,7 @@ class TestHiveCliHook(unittest.TestCase):
             STORED AS textfile
             ;
         """
-        assertEqualIgnoreMultipleSpaces(self, mock_run_cli.call_args_list[0][0][0], query)
+        assert_equal_ignore_multiple_spaces(self, mock_run_cli.call_args_list[0][0][0], query)
 
 
 class TestHiveMetastoreHook(TestHiveEnvironment):

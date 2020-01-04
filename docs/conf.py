@@ -37,6 +37,7 @@ import sys
 from typing import Dict
 
 import airflow
+from airflow.configuration import default_config_yaml
 
 try:
     import sphinx_airflow_theme  # pylint: disable=unused-import
@@ -124,6 +125,7 @@ extensions = [
     'sphinx.ext.graphviz',
     'sphinxarg.ext',
     'sphinxcontrib.httpdomain',
+    'sphinxcontrib.jinja',
     'sphinx.ext.intersphinx',
     'autoapi.extension',
     'exampleinclude',
@@ -134,6 +136,10 @@ extensions = [
 autodoc_default_options = {
     'show-inheritance': True,
     'members': True
+}
+
+jinja_contexts = {
+    'config_ctx': {"configs": default_config_yaml()}
 }
 
 viewcode_follow_imported_members = True

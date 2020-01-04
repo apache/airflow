@@ -22,7 +22,6 @@ Example Airflow DAG for Google Cloud Storage operators.
 
 import os
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.gcs import (
     GcsFileTransformOperator, GoogleCloudStorageBucketCreateAclEntryOperator,
@@ -33,8 +32,9 @@ from airflow.gcp.operators.gcs import (
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.gcs_to_gcs import GoogleCloudStorageToGoogleCloudStorageOperator
 from airflow.operators.local_to_gcs import FileToGoogleCloudStorageOperator
+from airflow.utils.dates import days_ago
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 
 # [START howto_operator_gcs_acl_args_common]
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-id")
@@ -127,7 +127,7 @@ with models.DAG(
     )
 
     delete_files = GoogleCloudStorageDeleteOperator(
-        task_id="delete_files", bucket_name=BUCKET_1, prefix=""
+        task_id="delete_files", bucket_name=BUCKET_1, objects=[BUCKET_FILE_LOCATION]
     )
 
     [create_bucket1, create_bucket2] >> list_buckets >> list_buckets_result

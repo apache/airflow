@@ -271,8 +271,12 @@ and equivalent to:
     op1.set_downstream([op2, op3])
 
 
-Relationship Helper
---------------------
+Relationship Builders
+---------------------
+
+*Moved in Airflow 2.0*
+
+In Airflow 2.0 those two methods moved from ``airflow.utils.helpers`` to ``airflow.models.baseoperator``.
 
 ``chain`` and ``cross_downstream`` function provide easier ways to set relationships
 between operators in specific situation.
@@ -300,7 +304,7 @@ concat them with bitshift composition.
 
     op1 >> op2 >> op3 >> op4 >> op5
 
-use ``chain`` could do that
+This can be accomplished using ``chain``
 
 .. code:: python
 
@@ -312,7 +316,7 @@ even without operator's name
 
     chain([DummyOperator(task_id='op' + i, dag=dag) for i in range(1, 6)])
 
-``chain`` could handle list of operators
+``chain`` can handle a list of operators
 
 .. code:: python
 
@@ -324,8 +328,7 @@ is equivalent to:
 
     op1 >> [op2, op3] >> op4
 
-Have to same size when ``chain`` set relationships between two list
-of operators.
+When ``chain`` sets relationships between two lists of operators, they must have the same size.
 
 .. code:: python
 
@@ -804,6 +807,15 @@ SLAs can be configured for scheduled tasks by using the ``sla`` parameter.
 In addition to sending alerts to the addresses specified in a task's ``email`` parameter,
 the ``sla_miss_callback`` specifies an additional ``Callable``
 object to be invoked when the SLA is not met.
+
+If you don't want to check SLAs, you can disable globally (all the DAGs) by
+setting ``check_slas=False`` under ``[core]`` section in ``airflow.cfg`` file:
+
+.. code-block:: ini
+
+  [core]
+  check_slas = False
+
 
 Email Configuration
 -------------------

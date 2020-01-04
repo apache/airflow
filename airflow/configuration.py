@@ -29,6 +29,7 @@ from collections import OrderedDict
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from typing import Dict, Tuple
 
+import yaml
 from cryptography.fernet import Fernet
 from zope.deprecation import deprecated
 
@@ -92,6 +93,19 @@ DEFAULT_CONFIG, DEFAULT_CONFIG_FILE_PATH = _read_default_config_file('default_ai
 TEST_CONFIG, TEST_CONFIG_FILE_PATH = _read_default_config_file('default_test.cfg')
 
 
+def default_config_yaml() -> dict:
+    """
+    Read Airflow configs from YAML file
+
+    :return: Python dictionary containing configs & their info
+    """
+    templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
+    file_path = os.path.join(templates_dir, "config.yml")
+
+    with open(file_path) as config_file:
+        return yaml.safe_load(config_file)
+
+
 class AirflowConfigParser(ConfigParser):
 
     # These configuration elements can be fetched as the stdout of commands
@@ -101,6 +115,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
+        ('celery', 'flower_basic_auth'),
         ('celery', 'result_backend'),
         ('atlas', 'password'),
         ('smtp', 'smtp_password'),

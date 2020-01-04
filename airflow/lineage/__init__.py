@@ -46,6 +46,7 @@ class Metadata:
     Class for serialized entities.
     """
     type_name: str = attr.ib()
+    source: str = attr.ib()
     data: Dict = attr.ib()
 
 
@@ -66,7 +67,7 @@ def _render_object(obj: Any, context) -> Any:
     ).render(**context).encode('utf-8')), type(obj))
 
 
-def _to_dataset(obj: Any) -> Optional[Metadata]:
+def _to_dataset(obj: Any, source: str) -> Optional[Metadata]:
     """
     Create Metadata from attr annotated object
     """
@@ -76,7 +77,7 @@ def _to_dataset(obj: Any) -> Optional[Metadata]:
     type_name = obj.__module__ + '.' + obj.__class__.__name__
     data = unstructure(obj)
 
-    return Metadata(type_name, data)
+    return Metadata(type_name, source, data)
 
 
 def apply_lineage(func):
@@ -91,9 +92,9 @@ def apply_lineage(func):
                        self.inlets, self.outlets)
         ret_val = func(self, context, *args, **kwargs)
 
-        outlets = [unstructure(_to_dataset(x))
+        outlets = [unstructure(_to_dataset(x, f"{self.dag_id}.{self.task_id}"))
                    for x in self.outlets]
-        inlets = [unstructure(_to_dataset(x))
+        inlets = [unstructure(_to_dataset(x, None))
                   for x in self.inlets]
 
         if self.outlets:
@@ -147,13 +148,14 @@ def prepare_lineage(func):
             _inlets = self.xcom_pull(context, task_ids=task_ids,
                                      dag_id=self.dag_id, key=PIPELINE_OUTLETS)
 
-            # re-instantiate and render the obtained inlets
+            # re-instantiate the obtained inlets
             _inlets = [_get_instance(structure(item, Metadata))
                        for sublist in _inlets if sublist for item in sublist]
-            _inlets.extend([_render_object(i, context)
-                            for i in self._inlets if attr.has(i)])
 
             self.inlets.extend(_inlets)
+            self.inlets.extend(self._inlets)
+            self.inlets = [_render_object(i, context)
+                           for i in self.inlets if attr.has(i)]
 
         elif self._inlets:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")
@@ -161,10 +163,10 @@ def prepare_lineage(func):
         if not isinstance(self._outlets, list):
             self._outlets = [self._outlets, ]
 
-        _outlets = list(map(lambda i: _render_object(i, context),
-                            filter(attr.has, self._outlets)))
+        self.outlets.extend(self._outlets)
 
-        self.outlets.extend(_outlets)
+        self.outlets = list(map(lambda i: _render_object(i, context),
+                            filter(attr.has, self.outlets)))
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
         return func(self, context, *args, **kwargs)

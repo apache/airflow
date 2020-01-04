@@ -680,7 +680,7 @@ class DagFileProcessor(LoggingMixin):
 
         1. Create appropriate DagRun(s) in the DB.
         2. Create appropriate TaskInstance(s) in the DB.
-        3. Send emails for tasks that have missed SLAs.
+        3. Send emails for tasks that have missed SLAs (if CHECK_SLAS config enabled).
 
         :param dagbag: a collection of DAGs to process
         :type dagbag: airflow.models.DagBag
@@ -690,6 +690,7 @@ class DagFileProcessor(LoggingMixin):
         :type tis_out: list[TaskInstance]
         :rtype: None
         """
+        check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
             if not dag:
@@ -715,7 +716,7 @@ class DagFileProcessor(LoggingMixin):
                             schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
-            if conf.getboolean('core', 'CHECK_SLAS', fallback=True):
+            if check_slas:
                 self.manage_slas(dag)
 
     def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]):
@@ -1522,6 +1523,8 @@ class SchedulerJob(BaseJob):
         # Last time that self.heartbeat() was called.
         last_self_heartbeat_time = timezone.utcnow()
 
+        is_unit_test = conf.getboolean('core', 'unit_test_mode')
+
         # For the execute duration, parse and schedule DAGs
         while True:
             self.log.debug("Starting Loop...")
@@ -1553,7 +1556,6 @@ class SchedulerJob(BaseJob):
                 self.heartbeat()
                 last_self_heartbeat_time = timezone.utcnow()
 
-            is_unit_test = conf.getboolean('core', 'unit_test_mode')
             loop_end_time = time.time()
             loop_duration = loop_end_time - loop_start_time
             self.log.debug(

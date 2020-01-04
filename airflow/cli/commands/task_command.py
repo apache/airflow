@@ -29,7 +29,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import DagPickle, TaskInstance
 from airflow.ti_deps.dep_context import SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import get_dag, get_dag_by_pickle, get_dags
+from airflow.utils.cli import get_dag, get_dag_by_file_location, get_dag_by_pickle, get_dags
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -43,6 +43,11 @@ def _run_task_by_selected_method(args, dag, ti):
     - as raw task
     - by executor
     """
+    if args.local and args.raw:
+        raise AirflowException(
+            "Option --raw and --local are mutually exclusive. "
+            "Please remove one option to execute the command."
+        )
     if args.local:
         _run_task_by_local_task_job(args, ti)
     elif args.raw:
@@ -87,15 +92,6 @@ def _run_task_by_executor(args, dag, ti):
     executor.end()
 
 
-def _run_raw_task(args, ti):
-    """Runs the main task handling code"""
-    ti._run_raw_task(  # pylint: disable=protected-access
-        mark_success=args.mark_success,
-        job_id=args.job_id,
-        pool=args.pool,
-    )
-
-
 def _run_task_by_local_task_job(args, ti):
     """
     Run LocalTaskJob, which monitors the raw task execution process
@@ -110,6 +106,31 @@ def _run_task_by_local_task_job(args, ti):
         ignore_ti_state=args.force,
         pool=args.pool)
     run_job.run()
+
+
+RAW_TASK_UNSUPPORTED_OPTION = [
+    "ignore_all_dependencies", "ignore_depends_on_past", "ignore_dependencies", "force"
+]
+
+
+def _run_raw_task(args, ti):
+    """Runs the main task handling code"""
+    unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
+
+    if unsupported_options:
+        raise AirflowException(
+            "Option --raw does not work with some of the other options on this command. You "
+            "can't use --raw option and the following options: {}. You provided the option {}. "
+            "Delete it to execute the command".format(
+                ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION),
+                ", ".join(f"--{o}" for o in unsupported_options),
+            )
+        )
+    ti._run_raw_task(  # pylint: disable=protected-access
+        mark_success=args.mark_success,
+        job_id=args.job_id,
+        pool=args.pool,
+    )
 
 
 @cli_utils.action_logging
@@ -216,7 +237,7 @@ def task_list(args, dag=None):
 @cli_utils.action_logging
 def task_test(args, dag=None):
     """Tests task for a given dag_id"""
-    # We want log outout from operators etc to show up here. Normally
+    # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
     handlers = logging.getLogger('airflow.task').handlers
@@ -280,14 +301,19 @@ def task_clear(args):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
-    dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)
 
-    if args.task_regex:
-        for idx, dag in enumerate(dags):
-            dags[idx] = dag.sub_dag(
-                task_regex=args.task_regex,
-                include_downstream=args.downstream,
-                include_upstream=args.upstream)
+    if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:
+        dags = get_dag_by_file_location(args.dag_id)
+    else:
+        # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
+        dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)
+
+        if args.task_regex:
+            for idx, dag in enumerate(dags):
+                dags[idx] = dag.sub_dag(
+                    task_regex=args.task_regex,
+                    include_downstream=args.downstream,
+                    include_upstream=args.upstream)
 
     DAG.clear_dags(
         dags,

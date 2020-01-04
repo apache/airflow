@@ -35,13 +35,14 @@ works.
     from airflow.lineage import AUTO
     from airflow.lineage.entities import File
     from airflow.models import DAG
+    from airflow.utils.dates import days_ago
     from datetime import timedelta
 
     FILE_CATEGORIES = ["CAT1", "CAT2", "CAT3"]
 
     args = {
         'owner': 'airflow',
-        'start_date': airflow.utils.dates.days_ago(2)
+        'start_date': days_ago(2)
     }
 
     dag = DAG(

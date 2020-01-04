@@ -36,7 +36,7 @@ from airflow.utils.decorators import apply_defaults
 MetaData = Sequence[Tuple[str, str]]
 
 
-class CloudVisionProductSetCreateOperator(BaseOperator):
+class CloudVisionCreateProductSetOperator(BaseOperator):
     """
     Creates a new ProductSet resource.
 
@@ -118,7 +118,7 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
             return self.product_set_id
 
 
-class CloudVisionProductSetGetOperator(BaseOperator):
+class CloudVisionGetProductSetOperator(BaseOperator):
     """
     Gets information associated with a ProductSet.
 
@@ -184,7 +184,7 @@ class CloudVisionProductSetGetOperator(BaseOperator):
         )
 
 
-class CloudVisionProductSetUpdateOperator(BaseOperator):
+class CloudVisionUpdateProductSetOperator(BaseOperator):
     """
     Makes changes to a `ProductSet` resource. Only display_name can be updated currently.
 
@@ -275,7 +275,7 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
         )
 
 
-class CloudVisionProductSetDeleteOperator(BaseOperator):
+class CloudVisionDeleteProductSetOperator(BaseOperator):
     """
     Permanently deletes a `ProductSet`. `Products` and `ReferenceImages` in the
     `ProductSet` are not deleted. The actual image files are not deleted from Google
@@ -343,7 +343,7 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
         )
 
 
-class CloudVisionProductCreateOperator(BaseOperator):
+class CloudVisionCreateProductOperator(BaseOperator):
     """
     Creates and returns a new product resource.
 
@@ -430,7 +430,7 @@ class CloudVisionProductCreateOperator(BaseOperator):
             return self.product_id
 
 
-class CloudVisionProductGetOperator(BaseOperator):
+class CloudVisionGetProductOperator(BaseOperator):
     """
     Gets information associated with a `Product`.
 
@@ -500,7 +500,7 @@ class CloudVisionProductGetOperator(BaseOperator):
         )
 
 
-class CloudVisionProductUpdateOperator(BaseOperator):
+class CloudVisionUpdateProductOperator(BaseOperator):
     """
     Makes changes to a Product resource. Only the display_name, description, and labels fields can be
     updated right now.
@@ -602,7 +602,7 @@ class CloudVisionProductUpdateOperator(BaseOperator):
         )
 
 
-class CloudVisionProductDeleteOperator(BaseOperator):
+class CloudVisionDeleteProductOperator(BaseOperator):
     """
     Permanently deletes a product and its reference images.
 
@@ -675,7 +675,7 @@ class CloudVisionProductDeleteOperator(BaseOperator):
         )
 
 
-class CloudVisionAnnotateImageOperator(BaseOperator):
+class CloudVisionImageAnnotateOperator(BaseOperator):
     """
     Run image detection and annotation for an image or a batch of images.
 
@@ -733,7 +733,7 @@ class CloudVisionAnnotateImageOperator(BaseOperator):
         return response
 
 
-class CloudVisionReferenceImageCreateOperator(BaseOperator):
+class CloudVisionCreateReferenceImageOperator(BaseOperator):
     """
     Creates and returns a new ReferenceImage ID resource.
 
@@ -1046,7 +1046,7 @@ class CloudVisionDetectTextOperator(BaseOperator):
         )
 
 
-class CloudVisionDetectDocumentTextOperator(BaseOperator):
+class CloudVisionTextDetectOperator(BaseOperator):
     """
     Detects Document Text in the image
 
