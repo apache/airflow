@@ -35,7 +35,7 @@ from airflow.gcp.hooks.base import CloudBaseHook
 
 class CloudAutoMLHook(CloudBaseHook):
     """
-    Google Cloud AutoML hook.
+    Google Cloud AutoL hook.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
