@@ -22,7 +22,6 @@ import os
 
 import psutil
 
-from airflow.bin.cli import exec_airflow_command
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.helpers import reap_process_group
 
@@ -53,7 +52,7 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
-            from airflow.bin.cli import get_parser
+            from airflow.bin.cli import exec_airflow_command
             import signal
             import airflow.settings as settings
 
