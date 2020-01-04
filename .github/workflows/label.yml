@@ -25,7 +25,7 @@
 name: Pull Request labeler
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '5 0 * * *'
 
 jobs:
   labeler:
