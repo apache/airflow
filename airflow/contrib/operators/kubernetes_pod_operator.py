@@ -53,7 +53,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         generate a pod id (DNS-1123 subdomain, containing only [a-z0-9.-]).
     :type name: str
     :param cmds: entrypoint of the container. (templated)
-        The docker images's entrypoint is used if this is not provided.
+        The docker images's entryoint is used if this is not provided.
     :type cmds: list[str]
     :param arguments: arguments of the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
