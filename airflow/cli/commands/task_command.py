@@ -244,7 +244,7 @@ def task_states_for_dag_run(args):
         "\n%s" %
         tabulate(
             formatted_rows, [
-                'dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'], tablefmt="fancy_grid"))
+                'dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'], tablefmt=args.output))
 
 
 @cli_utils.action_logging
