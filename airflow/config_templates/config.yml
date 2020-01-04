@@ -843,6 +843,13 @@
       type: string
       example: ~
       default: ~
+    - name: show_recent_stats_for_completed_runs
+      description: |
+        'Recent Tasks' stats will show for old DagRuns if set
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
     - name: update_fab_perms
       description: |
         Update FAB permissions and sync security manager roles
