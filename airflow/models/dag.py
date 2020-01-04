@@ -781,13 +781,19 @@ class DAG(BaseDag, LoggingMixin):
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
-        end_date = end_date or timezone.utcnow()
-        tis = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.execution_date >= start_date,
-            TaskInstance.execution_date <= end_date,
-            TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
-        )
+        if end_date:
+            tis = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.execution_date >= start_date,
+                TaskInstance.execution_date <= end_date,
+                TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
+            )
+        else:
+            tis = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.execution_date >= start_date,
+                TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
+            )
         if state:
             if isinstance(state, str):
                 tis = tis.filter(TaskInstance.state == state)

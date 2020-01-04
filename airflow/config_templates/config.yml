@@ -1294,6 +1294,14 @@
       type: string
       example: ~
       default: "True"
+    - name: run_future_exec_dates
+      description: |
+        Allow externally triggered DagRuns for Execution Dates in the future
+        Only has effect if schedule_interval not set in DAG
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
 - name: ldap
   description: ~
   options:
