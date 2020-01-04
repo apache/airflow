@@ -732,7 +732,7 @@ class CLIFactory:
             'name': 'states_for_dag_run',
             'help': "Get the status of all task instances in a dag run",
             'args': (
-                'dag_id', 'execution_date'),
+                'dag_id', 'execution_date', 'output'),
         },
     )
     POOLS_COMMANDS = (
