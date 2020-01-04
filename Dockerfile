@@ -49,8 +49,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Install basic apt dependencies
-RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
-    && curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - >/dev/null \
+RUN curl -L https://deb.nodesource.com/setup_10.x | bash - \
+    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - >/dev/null \
     && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -164,27 +164,27 @@ RUN mkdir -pv "${HADOOP_HOME}" \
 ENV HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
     HADOOP_TMP_FILE="/tmp/hadoop.tar.gz"
 
-RUN curl -sL "${HADOOP_DOWNLOAD_URL}" >"${HADOOP_TMP_FILE}" \
+RUN curl -L "${HADOOP_DOWNLOAD_URL}" > "${HADOOP_TMP_FILE}" \
     && tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_HOME}" \
     && rm "${HADOOP_TMP_FILE}"
 
 ENV HIVE_URL="${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
     HIVE_TMP_FILE="/tmp/hive.tar.gz"
 
-RUN curl -sL "${HIVE_URL}" >"${HIVE_TMP_FILE}" \
+RUN curl -L "${HIVE_URL}" >"${HIVE_TMP_FILE}" \
     && tar xzf "${HIVE_TMP_FILE}" --strip-components 1 -C "${HIVE_HOME}" \
     && rm "${HIVE_TMP_FILE}"
 
 ENV MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip" \
     MINICLUSTER_TMP_FILE="/tmp/minicluster.zip"
 
-RUN curl -sL "${MINICLUSTER_URL}" > "${MINICLUSTER_TMP_FILE}" \
+RUN curl -L "${MINICLUSTER_URL}" > "${MINICLUSTER_TMP_FILE}" \
     && unzip "${MINICLUSTER_TMP_FILE}" -d "/opt" \
     && rm "${MINICLUSTER_TMP_FILE}"
 
 ENV PATH "${PATH}:/opt/hive/bin"
 
-RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
+RUN curl -L https://download.docker.com/linux/debian/gpg | apt-key add - \
     && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" \
     && apt-get update \
     && apt-get -y install --no-install-recommends docker-ce \
@@ -215,8 +215,8 @@ ENV RAT_JAR_MD5="${RAT_JAR}.md5" \
     RAT_URL_MD5="${RAT_URL}.md5"
 
 RUN echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
-    && curl -sL "${RAT_URL}" > "${RAT_JAR}" \
-    && curl -sL "${RAT_URL_MD5}" > "${RAT_JAR_MD5}" \
+    && curl -L "${RAT_URL}" > "${RAT_JAR}" \
+    && curl -L "${RAT_URL_MD5}" > "${RAT_JAR_MD5}" \
     && jar -tf "${RAT_JAR}" >/dev/null \
     && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
 
