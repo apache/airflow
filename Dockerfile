@@ -220,6 +220,48 @@ RUN echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
     && jar -tf "${RAT_JAR}" >/dev/null \
     && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
 
+# Setup PIP
+# By default PIP install run without cache to make image smaller
+ARG PIP_NO_CACHE_DIR="true"
+ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
+RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
+
+# PIP version used to install dependencies
+ARG PIP_VERSION="19.0.2"
+ENV PIP_VERSION=${PIP_VERSION}
+RUN echo "Pip version: ${PIP_VERSION}"
+
+RUN pip install --upgrade pip==${PIP_VERSION}
+
+# Install Google SDK
+ENV GCLOUD_HOME="/opt/gcloud"
+
+RUN GCLOUD_VERSION="274.0.1" \
+    && GCOUD_URL="https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${GCLOUD_VERSION}-linux-x86_64.tar.gz" \
+    && GCLOUD_TMP_FILE="/tmp/gcloud.tar.gz" \
+    && export CLOUDSDK_CORE_DISABLE_PROMPTS=1 \
+    && mkdir -p /opt/gcloud \
+    && curl -o "${GCLOUD_TMP_FILE}" "${GCOUD_URL}" \
+    && tar xzf "${GCLOUD_TMP_FILE}" --strip-components 1 -C "${GCLOUD_HOME}" \
+    && rm -rf "${GCLOUD_TMP_FILE}" \
+    && echo '. /opt/gcloud/completion.bash.inc' >> /etc/bash.bashrc
+
+ENV PATH="$PATH:${GCLOUD_HOME}/bin"
+
+# Install AWS CLI
+# Unfortunately, AWS does not provide a versioned bundle
+ENV AWS_HOME="/opt/aws"
+
+RUN AWS_TMP_DIR="/tmp/awscli/" \
+    && AWS_TMP_BUNDLE="${AWS_TMP_DIR}/awscli-bundle.zip" \
+    && AWS_URL="https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" \
+    && mkdir -pv "${AWS_TMP_DIR}" \
+    && curl "${AWS_URL}" -o "${AWS_TMP_BUNDLE}" \
+    && unzip "${AWS_TMP_BUNDLE}" -d "${AWS_TMP_DIR}" \
+    && "${AWS_TMP_DIR}/awscli-bundle/install" -i "${AWS_HOME}" -b /usr/local/bin/aws \
+    && echo "complete -C '${AWS_HOME}/bin/aws_completer' aws" >> /etc/bash.bashrc \
+    && rm -rf "${AWS_TMP_DIR}"
+
 ARG HOME=/root
 ENV HOME=${HOME}
 
@@ -247,18 +289,6 @@ ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 
 ENV CASS_DRIVER_BUILD_CONCURRENCY=${CASS_DRIVER_BUILD_CONCURRENCY}
 ENV CASS_DRIVER_NO_CYTHON=${CASS_DRIVER_NO_CYTHON}
-
-# By default PIP install run without cache to make image smaller
-ARG PIP_NO_CACHE_DIR="true"
-ENV PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR}
-RUN echo "Pip no cache dir: ${PIP_NO_CACHE_DIR}"
-
-# PIP version used to install dependencies
-ARG PIP_VERSION="19.0.2"
-ENV PIP_VERSION=${PIP_VERSION}
-RUN echo "Pip version: ${PIP_VERSION}"
-
-RUN pip install --upgrade pip==${PIP_VERSION}
 
 ARG AIRFLOW_REPO=apache/airflow
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}
