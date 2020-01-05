@@ -217,8 +217,9 @@ def task_list(args, dag=None):
 
 @cli_utils.action_logging
 def task_states_for_dag_run(args):
-    """Get the status of all task instances in a dag run"""
+    """Get the status of all task instances in a DagRun"""
     session = settings.Session()
+
     tis = session.query(
         TaskInstance.dag_id,
         TaskInstance.execution_date,
@@ -228,10 +229,12 @@ def task_states_for_dag_run(args):
         TaskInstance.end_date).filter(
         TaskInstance.dag_id == args.dag_id,
         TaskInstance.execution_date == args.execution_date).all()
-    session.close()
+
     if len(tis) == 0:
-        raise AirflowException("dag run does not exist.")
+        raise AirflowException("DagRun does not exist.")
+
     formatted_rows = []
+
     for ti in tis:
         formatted_rows.append((ti.dag_id,
                                ti.execution_date,
@@ -245,6 +248,8 @@ def task_states_for_dag_run(args):
         tabulate(
             formatted_rows, [
                 'dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'], tablefmt=args.output))
+
+    session.close()
 
 
 @cli_utils.action_logging
