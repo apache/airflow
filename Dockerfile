@@ -146,44 +146,50 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV HADOOP_DISTRO="cdh" HADOOP_MAJOR="5" HADOOP_DISTRO_VERSION="5.11.0" HADOOP_VERSION="2.6.0" \
-    HADOOP_HOME="/opt/hadoop-cdh"
-ENV HIVE_VERSION="1.1.0" HIVE_HOME="/opt/hive"
-ENV HADOOP_URL="https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/"
-ENV MINICLUSTER_BASE="https://github.com/bolkedebruin/minicluster/releases/download/" \
-    MINICLUSTER_HOME="/opt/minicluster" \
-    MINICLUSTER_VER="1.1"
 
-RUN mkdir -pv "${HADOOP_HOME}" \
+# Install Hadoop and Hive
+# It is done in one step to share variables.
+ENV HADOOP_HOME="/opt/hadoop-cdh" HIVE_HOME="/opt/hive"
+
+RUN HADOOP_DISTRO="cdh" \
+    && HADOOP_MAJOR="5" \
+    && HADOOP_DISTRO_VERSION="5.11.0" \
+    && HADOOP_VERSION="2.6.0" \
+    && HADOOP_URL="https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/"\
+    && HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
+    && HADOOP_TMP_FILE="/tmp/hadoop.tar.gz" \
+    && mkdir -pv "${HADOOP_HOME}" \
+    && curl -L "${HADOOP_DOWNLOAD_URL}" > "${HADOOP_TMP_FILE}" \
+    && tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_HOME}" \
+    && rm "${HADOOP_TMP_FILE}" \
+    && echo "Installing Hive" \
+    && HIVE_VERSION="1.1.0" \
+    && HIVE_URL="${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
+    && HIVE_VERSION="1.1.0" \
+    && HIVE_TMP_FILE="/tmp/hive.tar.gz" \
     && mkdir -pv "${HIVE_HOME}" \
-    && mkdir -pv "${MINICLUSTER_HOME}" \
     && mkdir -pv "/user/hive/warehouse" \
     && chmod -R 777 "${HIVE_HOME}" \
-    && chmod -R 777 "/user/"
-
-ENV HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
-    HADOOP_TMP_FILE="/tmp/hadoop.tar.gz"
-
-RUN curl -L "${HADOOP_DOWNLOAD_URL}" > "${HADOOP_TMP_FILE}" \
-    && tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_HOME}" \
-    && rm "${HADOOP_TMP_FILE}"
-
-ENV HIVE_URL="${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
-    HIVE_TMP_FILE="/tmp/hive.tar.gz"
-
-RUN curl -L "${HIVE_URL}" >"${HIVE_TMP_FILE}" \
+    && chmod -R 777 "/user/" \
+    && curl -L "${HIVE_URL}" > "${HIVE_TMP_FILE}" \
     && tar xzf "${HIVE_TMP_FILE}" --strip-components 1 -C "${HIVE_HOME}" \
     && rm "${HIVE_TMP_FILE}"
 
-ENV MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip" \
-    MINICLUSTER_TMP_FILE="/tmp/minicluster.zip"
+ENV PATH "${PATH}:/opt/hive/bin"
 
-RUN curl -L "${MINICLUSTER_URL}" > "${MINICLUSTER_TMP_FILE}" \
+# Install Minicluster
+ENV MINICLUSTER_HOME="/opt/minicluster"
+
+RUN MINICLUSTER_BASE="https://github.com/bolkedebruin/minicluster/releases/download/" \
+    && MINICLUSTER_VER="1.1" \
+    && MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip" \
+    && MINICLUSTER_TMP_FILE="/tmp/minicluster.zip" \
+    && mkdir -pv "${MINICLUSTER_HOME}" \
+    && curl -L "${MINICLUSTER_URL}" > "${MINICLUSTER_TMP_FILE}" \
     && unzip "${MINICLUSTER_TMP_FILE}" -d "/opt" \
     && rm "${MINICLUSTER_TMP_FILE}"
 
-ENV PATH "${PATH}:/opt/hive/bin"
-
+# Install Docker
 RUN curl -L https://download.docker.com/linux/debian/gpg | apt-key add - \
     && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" \
     && apt-get update \
@@ -191,30 +197,30 @@ RUN curl -L https://download.docker.com/linux/debian/gpg | apt-key add - \
     && apt-get autoremove -yqq --purge \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install kubectl
 ARG KUBECTL_VERSION="v1.15.0"
-ENV KUBECTL_VERSION=${KUBECTL_VERSION}
-ARG KIND_VERSION="v0.5.0"
-ENV KIND_VERSION=${KIND_VERSION}
 
 RUN curl -Lo kubectl \
   "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
   && chmod +x kubectl \
   && mv kubectl /usr/local/bin/kubectl
 
+# Install Kind
+ARG KIND_VERSION="v0.5.0"
+
 RUN curl -Lo kind \
    "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
    && chmod +x kind \
    && mv kind /usr/local/bin/kind
 
+# Install Apache RAT
 ARG RAT_VERSION="0.13"
 
-ENV RAT_VERSION="${RAT_VERSION}" \
-    RAT_JAR="/opt/apache-rat-${RAT_VERSION}.jar" \
-    RAT_URL="https://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar"
-ENV RAT_JAR_MD5="${RAT_JAR}.md5" \
-    RAT_URL_MD5="${RAT_URL}.md5"
-
-RUN echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
+RUN  RAT_URL="https://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar" \
+    && RAT_JAR="/opt/apache-rat.jar" \
+    && RAT_JAR_MD5="${RAT_JAR}.md5" \
+    && RAT_URL_MD5="${RAT_URL}.md5" \
+    && echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
     && curl -L "${RAT_URL}" > "${RAT_JAR}" \
     && curl -L "${RAT_URL_MD5}" > "${RAT_JAR_MD5}" \
     && jar -tf "${RAT_JAR}" >/dev/null \
@@ -295,8 +301,6 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}
 
 ARG AIRFLOW_BRANCH=master
 ENV AIRFLOW_BRANCH=${AIRFLOW_BRANCH}
-
-ENV AIRFLOW_GITHUB_DOWNLOAD=https://raw.githubusercontent.com/${AIRFLOW_REPO}/${AIRFLOW_BRANCH}
 
 # Airflow Extras installed
 ARG AIRFLOW_EXTRAS="all"
