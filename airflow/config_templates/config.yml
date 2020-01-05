@@ -997,7 +997,7 @@
     - name: flower_host
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
-        it ``airflow flower``. This defines the IP that Celery Flower runs on
+        it ``airflow celery flower``. This defines the IP that Celery Flower runs on
       version_added: ~
       type: string
       example: ~
