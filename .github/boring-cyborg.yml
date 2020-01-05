@@ -50,16 +50,34 @@ labelPRBasedOnFilePath:
     - airflow/kubernetes/**/*
 
   area:dev:
+    - scripts/**/*
     - scripts/*
+    - dev/**/*
     - dev/*
+    - .github/**/*
+    - .github/*
+    - breeze
 
   area:docs:
+    - docs/**/*
     - docs/*
 
-  area:webserver:
+  area:Webserver:
     - airflow/www/**/*
     - airflow/www_rbac/**/*
 
-  area:cli:
+  area:CLI:
     - airflow/bin/cli.py
     - airflow/cli/**/*.py
+
+  area:Lineage:
+    - airflow/lineage/**/*
+    - airflow/lineage/*
+
+  area:Scheduler/Executor:
+    - airflow/jobs/*
+    - airflow/executors/*
+    - airflow/task/task_runner/*
+
+  area:Serialization:
+    - airflow/serialization/*
