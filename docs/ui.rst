@@ -49,6 +49,9 @@ the blocking ones.
 
 ------------
 
+
+.. _ui:graph-view:
+
 Graph View
 ..........
 The graph view is perhaps the most comprehensive. Visualize your DAG's
