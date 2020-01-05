@@ -50,13 +50,12 @@ RUN apt-get update \
 
 # Install basic apt dependencies
 RUN curl -L https://deb.nodesource.com/setup_10.x | bash - \
-    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - >/dev/null \
+    && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
     && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
            apt-utils \
            build-essential \
-           curl \
            dirmngr \
            freetds-bin \
            freetds-dev \
@@ -159,7 +158,7 @@ RUN HADOOP_DISTRO="cdh" \
     && HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
     && HADOOP_TMP_FILE="/tmp/hadoop.tar.gz" \
     && mkdir -pv "${HADOOP_HOME}" \
-    && curl -L "${HADOOP_DOWNLOAD_URL}" > "${HADOOP_TMP_FILE}" \
+    && curl -L "${HADOOP_DOWNLOAD_URL}" -o "${HADOOP_TMP_FILE}" \
     && tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_HOME}" \
     && rm "${HADOOP_TMP_FILE}" \
     && echo "Installing Hive" \
@@ -171,7 +170,7 @@ RUN HADOOP_DISTRO="cdh" \
     && mkdir -pv "/user/hive/warehouse" \
     && chmod -R 777 "${HIVE_HOME}" \
     && chmod -R 777 "/user/" \
-    && curl -L "${HIVE_URL}" > "${HIVE_TMP_FILE}" \
+    && curl -L "${HIVE_URL}" -o "${HIVE_TMP_FILE}" \
     && tar xzf "${HIVE_TMP_FILE}" --strip-components 1 -C "${HIVE_HOME}" \
     && rm "${HIVE_TMP_FILE}"
 
@@ -185,7 +184,7 @@ RUN MINICLUSTER_BASE="https://github.com/bolkedebruin/minicluster/releases/downl
     && MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip" \
     && MINICLUSTER_TMP_FILE="/tmp/minicluster.zip" \
     && mkdir -pv "${MINICLUSTER_HOME}" \
-    && curl -L "${MINICLUSTER_URL}" > "${MINICLUSTER_TMP_FILE}" \
+    && curl -L "${MINICLUSTER_URL}" -o "${MINICLUSTER_TMP_FILE}" \
     && unzip "${MINICLUSTER_TMP_FILE}" -d "/opt" \
     && rm "${MINICLUSTER_TMP_FILE}"
 
@@ -200,30 +199,28 @@ RUN curl -L https://download.docker.com/linux/debian/gpg | apt-key add - \
 # Install kubectl
 ARG KUBECTL_VERSION="v1.15.0"
 
-RUN curl -Lo kubectl \
-  "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
-  && chmod +x kubectl \
-  && mv kubectl /usr/local/bin/kubectl
+RUN KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+  && curl -L "${KUBECTL_URL}" -o "/usr/local/bin/kubectl" \
+  && chmod +x /usr/local/bin/kubectl
 
 # Install Kind
 ARG KIND_VERSION="v0.5.0"
 
-RUN curl -Lo kind \
-   "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
-   && chmod +x kind \
-   && mv kind /usr/local/bin/kind
+RUN KIND_URL="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
+   && curl -L "${KIND_URL}" -o "/usr/local/bin/kind" \
+   && chmod +x /usr/local/bin/kind
 
 # Install Apache RAT
 ARG RAT_VERSION="0.13"
 
-RUN  RAT_URL="https://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar" \
+RUN RAT_URL="https://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar" \
     && RAT_JAR="/opt/apache-rat.jar" \
     && RAT_JAR_MD5="${RAT_JAR}.md5" \
     && RAT_URL_MD5="${RAT_URL}.md5" \
     && echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
-    && curl -L "${RAT_URL}" > "${RAT_JAR}" \
-    && curl -L "${RAT_URL_MD5}" > "${RAT_JAR_MD5}" \
-    && jar -tf "${RAT_JAR}" >/dev/null \
+    && curl -L "${RAT_URL}" -o "${RAT_JAR}" \
+    && curl -L "${RAT_URL_MD5}" -o "${RAT_JAR_MD5}" \
+    && jar -tf "${RAT_JAR}" > /dev/null \
     && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
 
 # Setup PIP
@@ -247,7 +244,7 @@ RUN GCLOUD_VERSION="274.0.1" \
     && GCLOUD_TMP_FILE="/tmp/gcloud.tar.gz" \
     && export CLOUDSDK_CORE_DISABLE_PROMPTS=1 \
     && mkdir -p /opt/gcloud \
-    && curl -o "${GCLOUD_TMP_FILE}" "${GCOUD_URL}" \
+    && curl "${GCOUD_URL}" -o "${GCLOUD_TMP_FILE}"\
     && tar xzf "${GCLOUD_TMP_FILE}" --strip-components 1 -C "${GCLOUD_HOME}" \
     && rm -rf "${GCLOUD_TMP_FILE}" \
     && echo '. /opt/gcloud/completion.bash.inc' >> /etc/bash.bashrc
