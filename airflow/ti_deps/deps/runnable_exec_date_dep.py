@@ -31,6 +31,8 @@ class RunnableExecDateDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context):
         cur_date = timezone.utcnow()
 
+        # don't consider runs that are executed in the future unless
+        # specified by config and schedule_interval is None
         if ti.execution_date > cur_date:
             if ti.task.dag.schedule_interval or not conf.getboolean(
                 'scheduler',

@@ -778,6 +778,7 @@ class DAG(BaseDag, LoggingMixin):
     def get_task_instances(
             self, start_date=None, end_date=None, state=None, session=None):
         if not start_date:
+            # TODO why 30?
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
@@ -789,6 +790,7 @@ class DAG(BaseDag, LoggingMixin):
                 TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
             )
         else:
+            # This allows RUN_FUTURE_EXEC_DATES config to take affect rather than mandating exec_date <= UTC
             tis = session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.execution_date >= start_date,
