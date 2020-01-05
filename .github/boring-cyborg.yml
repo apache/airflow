@@ -80,6 +80,24 @@ labelPRBasedOnFilePath:
     - .github/**/*
     - .github/*
     - breeze
+    - Dockerfile
+    - BREEZE.rst
+    - breeze-complete
+    - confirm
+    - CONTRIBUTING.*
+    - LOCAL_VIRTUALENV.rst
+    - STATIC_CODE_CHECKS.rst
+    - TESTING.rst
+    - yamllint-config.yml
+    - .asf.yaml
+    - .bash_completion
+    - .dockerignore
+    - .flake8
+    - .hadolint.yaml
+    - .pre-commit-config.yaml
+    - .rat-excludes
+    - .readthedocs.yml
+    - .travis.yml
 
   area:docs:
     - docs/**/*
