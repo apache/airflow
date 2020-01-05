@@ -783,7 +783,7 @@ class DAG(BaseDag, LoggingMixin):
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
 
-        if not conf.getboolean('scheduler', 'RUN_FUTURE_EXEC_DATES', fallback=False):
+        if end_date or not conf.getboolean('scheduler', 'RUN_FUTURE_EXEC_DATES', fallback=False):
             end_date = end_date or timezone.utcnow()
             tis = session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.dag_id,
