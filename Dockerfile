@@ -146,10 +146,11 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV HADOOP_HOME="/opt/hadoop-cdh" HIVE_HOME="/opt/hive"
 
 # Install Hadoop and Hive
 # It is done in one step to share variables.
+ENV HADOOP_HOME="/opt/hadoop-cdh" HIVE_HOME="/opt/hive"
+
 RUN HADOOP_DISTRO="cdh" \
     && HADOOP_MAJOR="5" \
     && HADOOP_DISTRO_VERSION="5.11.0" \
@@ -214,9 +215,9 @@ RUN curl -Lo kind \
 
 # Install Apache RAT
 ARG RAT_VERSION="0.13"
-ENV RAT_JAR="/opt/apache-rat-${RAT_VERSION}.jar"
 
 RUN  RAT_URL="https://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar" \
+    && RAT_JAR="/opt/apache-rat.jar" \
     && RAT_JAR_MD5="${RAT_JAR}.md5" \
     && RAT_URL_MD5="${RAT_URL}.md5" \
     && echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
