@@ -89,7 +89,7 @@ For example, if you want to export ``example_complex`` DAG then you can use the 
 
   airflow dag show example_complex
 
-After passing the ``dag_id`` parameter itself, the command will print rendered DAG structure (similar to :ref:`ui/graph-view`)
+After passing the ``dag_id`` parameter itself, the command will print rendered DAG structure (similar to :ref:`Graph View <ui:graph-view>`)
 to the screen in the DOT format.
 
 It is possible to save the file in a different format. To do this, add the switch ``--save [filename].[format]``.
