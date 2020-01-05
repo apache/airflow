@@ -96,14 +96,11 @@ class ExternalTaskSensorTests(unittest.TestCase):
         )
 
     def test_templated_sensor(self):
-        dag = DAG(TEST_DAG_ID, self.args)
-
-        with dag:
+        with self.dag:
             sensor = ExternalTaskSensor(
                 task_id='templated_task',
                 external_dag_id='dag_{{ ds }}',
-                external_task_id='task_{{ ds }}',
-                start_date=DEFAULT_DATE
+                external_task_id='task_{{ ds }}'
             )
 
         instance = TaskInstance(sensor, DEFAULT_DATE)
