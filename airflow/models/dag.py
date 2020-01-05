@@ -550,11 +550,8 @@ class DAG(BaseDag, LoggingMixin):
         return list(self.task_dict.keys())
 
     @property
-    def active_task_ids(self):
-        return list(k for k, v in self.task_dict.items())
-
-    @property
     def active_tasks(self):
+        """Return tasks in a DAG. Needed as part of determining overall DagRun outcome"""
         return [t for t in self.tasks]
 
     @property
