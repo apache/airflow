@@ -38,7 +38,7 @@ sudo mkdir -p docs/_build/html/
 
 echo "Running license checks. This can take a while."
 
-if ! java -jar "${RAT_JAR}" -E "${AIRFLOW_SOURCES}"/.rat-excludes \
+if ! java -jar "/opt/apache-rat.jar" -E "${AIRFLOW_SOURCES}"/.rat-excludes \
     -d "${AIRFLOW_SOURCES}" | tee "${AIRFLOW_SOURCES}/logs/rat-results.txt" ; then
    echo >&2 "RAT exited abnormally"
    exit 1
