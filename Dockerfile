@@ -376,6 +376,9 @@ COPY .coveragerc .rat-excludes .flake8 LICENSE MANIFEST.in NOTICE CHANGELOG.txt 
      setup.cfg setup.py \
      ${AIRFLOW_SOURCES}/
 
+# Intall autocomplete
+RUN register-python-argcomplete airflow >> ~/.bashrc
+
 WORKDIR ${AIRFLOW_SOURCES}
 
 # Additional python deps to install
