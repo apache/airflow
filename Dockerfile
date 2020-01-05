@@ -300,7 +300,8 @@ COPY airflow/www/yarn.lock airflow/www/package.json ${AIRFLOW_SOURCES}/airflow/w
 
 WORKDIR ${AIRFLOW_SOURCES}/airflow/www
 
-RUN yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile && \
+    rm -rf /usr/local/share/.cache/yarn
 
 WORKDIR ${AIRFLOW_SOURCES}
 
