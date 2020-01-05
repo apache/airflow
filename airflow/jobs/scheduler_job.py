@@ -1080,12 +1080,18 @@ class SchedulerJob(BaseJob):
         )
 
         # Additional filters on task instance state
-        if None in states:
-            ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(states))  # noqa: E711 pylint: disable=singleton-comparison
-            )
-        else:
-            ti_query = ti_query.filter(TI.state.in_(states))
+        if states:
+            if None in states:
+                if all(x is None for x in states):
+                    ti_query = ti_query.filter(TI.state == None)  # noqa pylint: disable=singleton-comparison
+                else:
+                    not_none_states = [state for state in states if state]
+                    ti_query = ti_query.filter(
+                        or_(TI.state == None,  # noqa: E711 pylint: disable=singleton-comparison
+                            TI.state.in_(not_none_states))
+                    )
+            else:
+                ti_query = ti_query.filter(TI.state.in_(states))
 
         task_instances_to_examine = ti_query.all()
 
@@ -1248,12 +1254,18 @@ class SchedulerJob(BaseJob):
             .query(TI)
             .filter(or_(*filter_for_ti_state_change)))
 
-        if None in acceptable_states:
-            ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(acceptable_states))  # noqa pylint: disable=singleton-comparison
-            )
-        else:
-            ti_query = ti_query.filter(TI.state.in_(acceptable_states))
+        if acceptable_states:
+            if None in acceptable_states:
+                if all(x is None for x in acceptable_states):
+                    ti_query = ti_query.filter(TI.state == None)  # noqa pylint: disable=singleton-comparison
+                else:
+                    not_none_acceptable_states = [state for state in acceptable_states if state]
+                    ti_query = ti_query.filter(
+                        or_(TI.state == None,  # noqa pylint: disable=singleton-comparison
+                            TI.state.in_(not_none_acceptable_states))
+                    )
+            else:
+                ti_query = ti_query.filter(TI.state.in_(acceptable_states))
 
         tis_to_set_to_queued = (
             ti_query

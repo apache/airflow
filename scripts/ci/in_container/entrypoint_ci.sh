@@ -204,6 +204,7 @@ if [[ "${TRAVIS}" == "true" ]]; then
     TRAVIS_ARGS=(
         "--junitxml=${XUNIT_FILE}"
         "--verbosity=0"
+        "--instafail"
         "--durations=100"
         "--cov=airflow/"
         "--cov-config=.coveragerc"

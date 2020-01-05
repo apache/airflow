@@ -21,6 +21,8 @@ Using the Command Line Interface
 
 This document is meant to give an overview of all common tasks while using the CLI.
 
+.. note::
+    For more information on CLI commands, see :doc:`cli-ref`
 
 Set Up connection to a remote Airflow instance
 ----------------------------------------------
@@ -68,3 +70,8 @@ If you’re using ``zsh``, add the following to your ``.zshrc``:
   autoload bashcompinit
   bashcompinit
   eval "$(register-python-argcomplete airflow)"
+
+Creating a Connection
+---------------------
+
+For more information on creating connection using CLI, see :ref:`connection/cli`

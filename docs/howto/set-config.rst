@@ -25,8 +25,7 @@ your ``$AIRFLOW_HOME`` directory (``~/airflow`` by default). This file contains 
 can edit it to change any of the settings. You can also set options with environment variables by using this format:
 ``$AIRFLOW__{SECTION}__{KEY}`` (note the double underscores).
 
-For example, the
-metadata database connection string can either be set in ``airflow.cfg`` like this:
+For example, the metadata database connection string can either be set in ``airflow.cfg`` like this:
 
 .. code-block:: ini
 
@@ -75,3 +74,6 @@ The universal order of precedence for all configuration options is as follows:
 #. set in ``airflow.cfg``
 #. command in ``airflow.cfg``
 #. Airflow's built in defaults
+
+.. note::
+    For more information on configuration options, see :doc:`../configurations-ref`
