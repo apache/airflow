@@ -970,17 +970,20 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.info(e)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SKIPPED
-            try:
-                self.log.info(
-                    'Marking task as SKIPPED.'
-                    'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-                    self.dag_id,
-                    self.task_id,
-                    self.execution_date.strftime('%Y%m%dT%H%M%S') if self.execution_date else '',
-                    self.start_date.strftime('%Y%m%dT%H%M%S') if self.start_date else '',
-                    self.end_date.strftime('%Y%m%dT%H%M%S') if self.end_date else '')
-            except NameError:
-                pass
+            self.log.info(
+                'Marking task as SKIPPED.'
+                'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                self.dag_id,
+                self.task_id,
+                self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                    self,
+                    'execution_date') and self.execution_date else '',
+                self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                    self,
+                    'start_date') and self.start_date else '',
+                self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                    self,
+                    'end_date') and self.end_date else '')
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
