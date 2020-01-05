@@ -281,6 +281,7 @@ class DagRun(Base, LoggingMixin):
 
         # pre-calculate
         # db is faster
+        # REMOVED state not counted as unfinished
         start_dttm = timezone.utcnow()
         unfinished_tasks = self.get_task_instances(
             state=State.unfinished(),
@@ -313,6 +314,7 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
 
         if conf.getboolean('scheduler', 'REMOVED_TASKS_LEAD_TO_DAGRUN_FAILURE', fallback=False):
+            # REMOVED state counted as unfinished
             unfinished_tasks = self.get_task_instances(
                 state=State.unfinished_or_removed(),
                 session=session
