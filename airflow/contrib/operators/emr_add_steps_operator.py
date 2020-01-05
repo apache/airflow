@@ -27,11 +27,11 @@ class EmrAddStepsOperator(BaseOperator):
     An operator that adds steps to an existing EMR job_flow.
 
     :param job_flow_id: id of the JobFlow to add steps to. (templated)
-    :type job_flow_id: str
+    :type job_flow_id: Optional[str]
     :param job_flow_name: name of the JobFlow to add steps to. Use as an alternative to passing
         job_flow_id. will search for id of JobFlow with matching name in one of the states in
         param cluster_states. Exactly one cluster like this should exist or will fail. (templated)
-    :type job_flow_name: str
+    :type job_flow_name: Optional[str]
     :param cluster_states: Acceptable cluster states when searching for JobFlow id by job_flow_name.
         (templated)
     :type cluster_states: list
