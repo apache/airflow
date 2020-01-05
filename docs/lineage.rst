@@ -116,3 +116,6 @@ properly, e.g. in your ``airflow.cfg``:
 
 
 Please make sure to have the ``atlasclient`` package installed.
+
+.. note::
+    For more information on setting the configuration, see :doc:`howto/set-config`

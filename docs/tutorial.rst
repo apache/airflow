@@ -338,8 +338,8 @@ Here's a few things you might want to do next:
 * Take an in-depth tour of the UI - click all the things!
 * Keep reading the docs! Especially the sections on:
 
-    * Command line interface
-    * Operators
-    * Macros
+    * :doc:`usage-cli`
+    * :doc:`howto/custom-operator`
+    * :doc:`macros-ref`
 
 * Write your first pipeline!
