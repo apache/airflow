@@ -159,3 +159,13 @@ firstPRWelcomeComment: |
 # Comment to be posted to congratulate user on their first merged PR
 firstPRMergeComment: >
   Awesome work, congrats on your first merged pull request!
+
+insertIssueLinkInPrDescription:
+  descriptionIssuePlaceholderRegexp: "^Issue link: (.*)$"
+  matchers:
+    jiraIssueMatch:
+      titleIssueIdRegexp: \[(AIRFLOW-[0-9]{4})\]
+      descriptionIssueLink: "[${1}](https://issues.apache.org/jira/browse/${1}/)"
+    docOnlyIssueMatch:
+      titleIssueIdRegexp: \[(AIRFLOW-X{4})\]
+      descriptionIssueLink: "`Document only change, no JIRA issue`"
