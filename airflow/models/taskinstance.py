@@ -1537,9 +1537,7 @@ class SimpleTaskInstance:
         self._pool: Optional[str] = None
         if hasattr(ti, 'pool'):
             self._pool = ti.pool
-        self._priority_weight: Optional[int] = None
-        if hasattr(ti, 'priority_weight'):
-            self._priority_weight = ti.priority_weight
+        self._priority_weight = ti.priority_weight
         self._queue: str = ti.queue
         self._key = ti.key
 
@@ -1577,7 +1575,7 @@ class SimpleTaskInstance:
         return self._pool
 
     @property
-    def priority_weight(self) -> Optional[int]:
+    def priority_weight(self) -> int:
         return self._priority_weight
 
     @property

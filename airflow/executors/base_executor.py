@@ -25,6 +25,7 @@ from airflow.models import TaskInstance
 from airflow.models.queue_task_run import QueueTaskRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
+from airflow.utils.dag_processing import SimpleDag
 from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint('core', 'PARALLELISM')
@@ -59,11 +60,13 @@ class BaseExecutor(LoggingMixin):
         Executors may need to get things started.
         """
 
-    def queue_command(self,
-                      simple_task_instance: SimpleTaskInstance,
-                      command: QueueTaskRun,
-                      priority: int = 1,
-                      queue: Optional[str] = None):
+    def _queue_command(
+        self,
+        simple_task_instance: SimpleTaskInstance,
+        command: QueueTaskRun,
+        priority: int = 1,
+        queue: Optional[str] = None
+    ):
         """Queues command to task"""
         if simple_task_instance.key not in self.queued_tasks and simple_task_instance.key not in self.running:
             self.log.info("Adding to queue: %s", command)
@@ -99,11 +102,33 @@ class BaseExecutor(LoggingMixin):
             pool=pool,
             pickle_id=pickle_id,
             cfg_path=cfg_path)
-        self.queue_command(
+        self._queue_command(
             SimpleTaskInstance(task_instance),
             queue_task_run,
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
+
+    def queue_simple_task_instance(self, simple_task_instance: SimpleTaskInstance, simple_dag: SimpleDag):
+        """Queues simple task instance."""
+        priority = simple_task_instance.priority_weight
+        queue = simple_task_instance.queue
+
+        queue_task_run = QueueTaskRun(
+            dag_id=simple_task_instance.dag_id,
+            task_id=simple_task_instance.task_id,
+            execution_date=simple_task_instance.execution_date,
+            local=True,
+            pool=simple_task_instance.pool,
+            subdir=simple_dag.full_filepath,
+            pickle_id=simple_dag.pickle_id
+        )
+
+        self._queue_command(
+            simple_task_instance,
+            queue_task_run,
+            priority=priority,
+            queue=queue
+        )
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """

@@ -28,6 +28,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
@@ -79,7 +80,7 @@ class BaseJob(Base, LoggingMixin):
             heartrate=None,
             *args, **kwargs):
         self.hostname = get_hostname()
-        self.executor = executor or ExecutorLoader.get_default_executor()
+        self.executor: BaseExecutor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()

@@ -99,7 +99,7 @@ class DebugExecutor(BaseExecutor):
         """
         Queues task instance.
         """
-        self.queue_command(
+        self._queue_command(
             task_instance,
             task_instance.get_queue_task_run(
                 pickle_id=pickle_id,

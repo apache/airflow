@@ -40,7 +40,6 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
-from airflow.models.queue_task_run import QueueTaskRun
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import SCHEDULED_DEPS, DepContext
@@ -1307,33 +1306,14 @@ class SchedulerJob(BaseJob):
         """
         # actually enqueue them
         for simple_task_instance in simple_task_instances:
-            simple_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
-            queue_tsak_run = QueueTaskRun(
-                dag_id=simple_task_instance.dag_id,
-                task_id=simple_task_instance.task_id,
-                execution_date=simple_task_instance.execution_date,
-                local=True,
-                mark_success=False,
-                ignore_all_dependencies=False,
-                ignore_depends_on_past=False,
-                ignore_dependencies=False,
-                force=False,
-                pool=simple_task_instance.pool,
-                subdir=simple_dag.full_filepath,
-                pickle_id=simple_dag.pickle_id)
-
             priority = simple_task_instance.priority_weight
             queue = simple_task_instance.queue
             self.log.info(
                 "Sending %s to executor with priority %s and queue %s",
                 simple_task_instance.key, priority, queue
             )
-
-            self.executor.queue_command(
-                simple_task_instance,
-                queue_tsak_run,
-                priority=priority,
-                queue=queue)
+            simple_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
+            self.executor.queue_simple_task_instance(simple_task_instance, simple_dag)
 
     @provide_session
     def _execute_task_instances(self,

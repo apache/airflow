@@ -1700,7 +1700,7 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti1)
         session.commit()
 
-        with patch.object(BaseExecutor, 'queue_command') as mock_queue_command:
+        with patch.object(BaseExecutor, '_queue_command') as mock_queue_command:
             scheduler._enqueue_task_instances_with_queued_state(dagbag, [ti1])
 
         assert mock_queue_command.called
