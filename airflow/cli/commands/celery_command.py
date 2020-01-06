@@ -37,7 +37,7 @@ from airflow.utils.serve_logs import serve_logs
 @cli_utils.action_logging
 def flower(args):
     """Starts Flower, Celery monitoring tool"""
-    broka = conf.get('celery', 'BROKER_URL')
+    broker = conf.get('celery', 'BROKER_URL')
     address = '--address={}'.format(args.hostname)
     port = '--port={}'.format(args.port)
     api = ''  # pylint: disable=redefined-outer-name
@@ -69,7 +69,7 @@ def flower(args):
 
         with ctx:
             os.execvp("flower", ['flower', '-b',
-                                 broka, address, port, api, flower_conf, url_prefix, basic_auth])
+                                 broker, address, port, api, flower_conf, url_prefix, basic_auth])
 
         stdout.close()
         stderr.close()
@@ -78,7 +78,7 @@ def flower(args):
         signal.signal(signal.SIGTERM, sigint_handler)
 
         os.execvp("flower", ['flower', '-b',
-                             broka, address, port, api, flower_conf, url_prefix, basic_auth])
+                             broker, address, port, api, flower_conf, url_prefix, basic_auth])
 
 
 def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:

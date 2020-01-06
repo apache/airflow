@@ -135,7 +135,9 @@ class BaseOperator(Operator, LoggingMixin):
         of task X to finish successfully before it runs. This is useful if the
         different instances of a task X alter the same asset, and this asset
         is used by tasks downstream of task X. Note that depends_on_past
-        is forced to True wherever wait_for_downstream is used.
+        is forced to True wherever wait_for_downstream is used. Also note that
+        only tasks *immediately* downstream of the previous task instance are waited
+        for; the statuses of any tasks further downstream are ignored.
     :type wait_for_downstream: bool
     :param queue: which queue to target when running this job. Not
         all executors implement queue management, the CeleryExecutor

@@ -77,4 +77,5 @@ pylint_todo.txt
 # Locally mounted files
 .*egg-info/*
 .bash_history
+.bash_aliases
 .inputrc

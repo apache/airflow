@@ -274,9 +274,11 @@ Let's run a few commands to validate this script further.
 
 Testing
 '''''''
-Let's test by running the actual task instances on a specific date. The
-date specified in this context is an ``execution_date``, which simulates the
-scheduler running your task or dag at a specific date + time:
+Let's test by running the actual task instances for a specific date. The
+date specified in this context is called ``execution_date``. This is the
+*logical* date, which simulates the scheduler running your task or dag at
+a specific date and time, even though it *physically* will run now (
+or as soon as its dependencies are met).
 
 .. code-block:: bash
 
@@ -313,8 +315,16 @@ to track the progress. ``airflow webserver`` will start a web server if you
 are interested in tracking the progress visually as your backfill progresses.
 
 Note that if you use ``depends_on_past=True``, individual task instances
-will depend on the success of the preceding task instance, except for the
-start_date specified itself, for which this dependency is disregarded.
+will depend on the success of their previous task instance (that is, previous
+according to ``execution_date``). Task instances with ``execution_date==start_date``
+will disregard this dependency because there would be no
+past task instances created for them.
+
+You may also want to consider ``wait_for_downstream=True`` when using ``depends_on_past=True``.
+While ``depends_on_past=True`` causes a task instance to depend on the success
+of its previous task_instance, ``wait_for_downstream=True`` will cause a task instance
+to also wait for all task instances *immediately downstream* of the previous
+task instance to succeed.
 
 The date range in this context is a ``start_date`` and optionally an ``end_date``,
 which are used to populate the run schedule with task instances from this dag.
@@ -335,11 +345,14 @@ running against it should get it to get triggered and run every day.
 
 Here's a few things you might want to do next:
 
-* Take an in-depth tour of the UI - click all the things!
-* Keep reading the docs! Especially the sections on:
+.. seealso::
+    - Read the :ref:`Concepts page<concepts>` for detailed explanation
+      of Airflow concepts such as DAGs, Tasks, Operators, etc.
+    - Take an in-depth tour of the UI - click all the things!
+    - Keep reading the docs!
 
-    * :doc:`usage-cli`
-    * :doc:`howto/custom-operator`
-    * :doc:`macros-ref`
-
-* Write your first pipeline!
+      - Review the :doc:`how-to guides<howto/index>`, which include a guide to writing your own operator
+      - Review the :ref:`Command Line Interface Reference<cli>`
+      - Review the :ref:`List of operators <pythonapi:operators>`
+      - Review the :ref:`Macros reference<macros>`
+    - Write your first pipeline!
