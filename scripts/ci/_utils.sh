@@ -78,6 +78,59 @@ function print_info() {
     fi
 }
 
+# shellcheck disable=SC1087
+# Simple (?) no-dependency needed Yaml PARSER
+# From https://stackoverflow.com/questions/5014632/how-can-i-parse-a-yaml-file-from-a-linux-shell-script
+function parse_yaml {
+
+    if [[ -z $1 ]]; then
+        echo "Please provide yaml filename as first parameter."
+        exit 1
+    fi
+    local prefix=$2
+    local s='[[:space:]]*' w='[a-zA-Z0-9_-]*' FS
+    FS=$(echo @|tr @ '\034')
+    sed -ne "s|,$s\]$s\$|]|" \
+         -e ":1;s|^\($s\)\($w\)$s:$s\[$s\(.*\)$s,$s\(.*\)$s\]|\1\2: [\3]\n\1  - \4|;t1" \
+         -e "s|^\($s\)\($w\)$s:$s\[$s\(.*\)$s\]|\1\2:\n\1  - \3|;p" "${1}" | \
+    sed -ne "s|,$s}$s\$|}|" \
+         -e ":1;s|^\($s\)-$s{$s\(.*\)$s,$s\($w\)$s:$s\(.*\)$s}|\1- {\2}\n\1  \3: \4|;t1" \
+         -e    "s|^\($s\)-$s{$s\(.*\)$s}|\1-\n\1  \2|;p" | \
+    sed -ne "s|^\($s\):|\1|" \
+         -e "s|^\($s\)-$s[\"']\(.*\)[\"']$s\$|\1$FS$FS\2|p" \
+         -e "s|^\($s\)-$s\(.*\)$s\$|\1$FS$FS\2|p" \
+         -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$FS\2$FS\3|p" \
+         -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$FS\2$FS\3|p" | \
+    awk -F"${FS}" '{
+       indent = length($1)/2;
+       vname[indent] = $2;
+       for (i in vname) {if (i > indent) {delete vname[i]; idx[i]=0}}
+       if(length($2)== 0){  vname[indent]= ++idx[indent] };
+       if (length($3) > 0) {
+          vn=""; for (i=0; i<indent; i++) { vn=(vn)(vname[i])("_")}
+          printf("%s%s%s=\"%s\"\n", "'"${prefix}"'",vn, vname[indent], $3);
+       }
+    }'
+}
+
+# parse docker-compose-local.yaml file to convert volumes entries
+# from airflow-testing section to "-v" "volume mapping" series of options
+function convert_docker_mounts_to_docker_params() {
+    ESCAPED_AIRFLOW_SOURCES=$(echo "${AIRFLOW_SOURCES}" | sed -e 's/[\/&]/\\&/g')
+    # shellcheck disable=2046
+    while IFS= read -r LINE; do
+        echo "-v"
+        echo "${LINE}"
+    done < <(parse_yaml scripts/ci/docker-compose-local.yml COMPOSE_ | \
+            grep "COMPOSE_services_airflow-testing_volumes_" | \
+            sed "s/..\/../${ESCAPED_AIRFLOW_SOURCES}/" | \
+            sed "s/COMPOSE_services_airflow-testing_volumes_//" | \
+            sort -t "=" -k 1 -n | \
+            cut -d "=" -f 2- | \
+            sed -e 's/^"//' -e 's/"$//')
+}
+
+
 function sanitize_file() {
     if [[ -d "${1}" ]]; then
         rm -rf "${1}"
@@ -104,30 +157,12 @@ elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
     print_info "Mounting necessary host volumes to Docker"
     print_info
-    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
-      "-v" "${AIRFLOW_SOURCES}/airflow:/opt/airflow/airflow:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache:cached" \
-      "-v" "${AIRFLOW_SOURCES}/dev:/opt/airflow/dev:cached" \
-      "-v" "${AIRFLOW_SOURCES}/docs:/opt/airflow/docs:cached" \
-      "-v" "${AIRFLOW_SOURCES}/scripts:/opt/airflow/scripts:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.bash_history:/root/.bash_history:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.bash_aliases:/root/.bash_aliases:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.inputrc:/root/.inputrc:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.bash_completion.d:/root/.bash_completion.d:cached" \
-      "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
-      "-v" "${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.flake8:/opt/airflow/.flake8:cached" \
-      "-v" "${AIRFLOW_SOURCES}/pylintrc:/opt/airflow/pylintrc:cached" \
-      "-v" "${AIRFLOW_SOURCES}/pytest.ini:/opt/airflow/pytest.ini:cached" \
-      "-v" "${AIRFLOW_SOURCES}/setup.cfg:/opt/airflow/setup.cfg:cached" \
-      "-v" "${AIRFLOW_SOURCES}/setup.py:/opt/airflow/setup.py:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached" \
-      "-v" "${AIRFLOW_SOURCES}/logs:/opt/airflow/logs:cached" \
-      "-v" "${AIRFLOW_SOURCES}/logs:/root/logs:cached" \
-      "-v" "${AIRFLOW_SOURCES}/files:/files:cached" \
-      "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
-      "--env" "PYTHONDONTWRITEBYTECODE" \
-    )
+
+    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=()
+
+    while IFS= read -r LINE; do
+        AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS+=( "${LINE}")
+    done < <(convert_docker_mounts_to_docker_params)
 else
     print_info
     print_info "Skip mounting host volumes to Docker"
@@ -138,7 +173,6 @@ else
 fi
 
 export AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
-
 
 #
 # Creates cache directory where we will keep temporary files needed for the build
