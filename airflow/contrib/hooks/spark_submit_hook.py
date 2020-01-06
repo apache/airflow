@@ -189,24 +189,24 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # Master can be local, yarn, spark://HOST:PORT, mesos://HOST:PORT and
             # k8s://https://<HOST>:<PORT>
             conn = self.get_connection(self._conn_id)
-        if conn.conn_type in ['spark', 'mesos']:
-            # standalone and mesos
-            conn_data['master'] = "{}://{}:{}".format(conn.conn_type, conn.host, conn.port)
-        elif conn.conn_type == 'k8s':
-            # kubernetes
-            conn_data['master'] = "{}://https://{}:{}".format(conn.conn_type, conn.host, conn.port)
-        else:
-            # local and yarn
-            conn_data['master'] = conn_type
-        
-            # Determine optional yarn queue from the extra field
-            extra = conn.extra_dejson
-            conn_data['queue'] = extra.get('queue', None)
-            conn_data['deploy_mode'] = extra.get('deploy-mode', None)
-            conn_data['spark_home'] = extra.get('spark-home', None)
-            conn_data['spark_binary'] = self._spark_binary or  \
-                extra.get('spark-binary', "spark-submit")
-            conn_data['namespace'] = extra.get('namespace')
+            if conn.conn_type in ['spark', 'mesos']:
+                # standalone and mesos
+                conn_data['master'] = "{}://{}:{}".format(conn.conn_type, conn.host, conn.port)
+            elif conn.conn_type == 'k8s':
+                # kubernetes
+                conn_data['master'] = "{}://https://{}:{}".format(conn.conn_type, conn.host, conn.port)
+            else:
+                # local and yarn
+                conn_data['master'] = conn_type
+            
+                # Determine optional yarn queue from the extra field
+                extra = conn.extra_dejson
+                conn_data['queue'] = extra.get('queue', None)
+                conn_data['deploy_mode'] = extra.get('deploy-mode', None)
+                conn_data['spark_home'] = extra.get('spark-home', None)
+                conn_data['spark_binary'] = self._spark_binary or  \
+                    extra.get('spark-binary', "spark-submit")
+                conn_data['namespace'] = extra.get('namespace')
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s",
