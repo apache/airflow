@@ -933,12 +933,6 @@ class CLIFactory:
             'name': 'db',
             'subcommands': DB_COMMANDS,
         }, {
-            'name': 'kerberos',
-            'func': lazy_load_command('airflow.cli.commands.kerberos_command.kerberos'),
-            'help': "Start a kerberos ticket renewer",
-            'args': ('principal', 'keytab', 'pid',
-                     'daemon', 'stdout', 'stderr', 'log_file'),
-        }, {
             'name': 'webserver',
             'func': lazy_load_command('airflow.cli.commands.webserver_command.webserver'),
             'help': "Start a Airflow webserver instance",
@@ -1010,6 +1004,14 @@ class CLIFactory:
                         'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
                 },
             )
+        })
+    if conf.get("core", "security") == 'kerberos' or BUILD_DOCS:
+        subparsers.append({
+            'name': 'kerberos',
+            'func': lazy_load_command('airflow.cli.commands.kerberos_command.kerberos'),
+            'help': "Start a kerberos ticket renewer",
+            'args': ('principal', 'keytab', 'pid',
+                     'daemon', 'stdout', 'stderr', 'log_file'),
         })
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore
     dag_subparsers = (
