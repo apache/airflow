@@ -174,8 +174,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         subsequent spark-submit status requests after the initial spark-submit request
         :return: if the driver status should be tracked
         """
-        return ('spark://' in self._connection['master'] and
-                self._connection['deploy_mode'] == 'cluster')
+        return self._connection['deploy_mode'] == 'cluster'
 
     def _resolve_connection(self):
         # Build from connection master or default to yarn if not available
@@ -190,11 +189,16 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # Master can be local, yarn, spark://HOST:PORT, mesos://HOST:PORT and
             # k8s://https://<HOST>:<PORT>
             conn = self.get_connection(self._conn_id)
-            if conn.port:
-                conn_data['master'] = "{}:{}".format(conn.host, conn.port)
-            else:
-                conn_data['master'] = conn.host
-
+        if conn.conn_type in ['spark', 'mesos']:
+            # standalone and mesos
+            conn_data['master'] = "{}://{}:{}".format(conn.conn_type, conn.host, conn.port)
+        elif conn.conn_type == 'k8s':
+            # kubernetes
+            conn_data['master'] = "{}://https://{}:{}".format(conn.conn_type, conn.host, conn.port)
+        else:
+            # local and yarn
+            conn_data['master'] = conn_type
+        
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
             conn_data['queue'] = extra.get('queue', None)
