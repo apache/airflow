@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import mock
 import unittest
 import json
@@ -24,6 +23,7 @@ import json
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun
 from airflow.api.common.experimental.trigger_dag import _trigger_dag
+from airflow.utils import timezone
 
 
 class TriggerDagTests(unittest.TestCase):
@@ -107,6 +107,46 @@ class TriggerDagTests(unittest.TestCase):
             replace_microseconds=True)
 
         self.assertEqual(triggers[0].conf, json.loads(conf))
+
+    @mock.patch('airflow.models.DagBag')
+    def test_trigger_dag_with_too_early_start_date(self, dag_bag_mock):
+        dag_id = "trigger_dag_with_too_early_start_date"
+        dag = DAG(dag_id, default_args={'start_date': timezone.datetime(2016, 9, 5, 10, 10, 0)})
+        dag_bag_mock.dags = [dag_id]
+        dag_bag_mock.get_dag.return_value = dag
+        dag_run = DagRun()
+
+        self.assertRaises(
+            ValueError,
+            _trigger_dag,
+            dag_id,
+            dag_bag_mock,
+            dag_run,
+            run_id=None,
+            conf=None,
+            execution_date=timezone.datetime(2015, 7, 5, 10, 10, 0),
+            replace_microseconds=True,
+        )
+
+    @mock.patch('airflow.models.DagBag')
+    def test_trigger_dag_with_valid_start_date(self, dag_bag_mock):
+        dag_id = "trigger_dag_with_valid_start_date"
+        dag = DAG(dag_id, default_args={'start_date': timezone.datetime(2016, 9, 5, 10, 10, 0)})
+        dag_bag_mock.dags = [dag_id]
+        dag_bag_mock.get_dag.return_value = dag
+        dag_run = DagRun()
+
+        triggers = _trigger_dag(
+            dag_id,
+            dag_bag_mock,
+            dag_run,
+            run_id=None,
+            conf=None,
+            execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0),
+            replace_microseconds=True,
+        )
+
+        assert len(triggers) == 1
 
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_with_dict_conf(self, dag_bag_mock):
