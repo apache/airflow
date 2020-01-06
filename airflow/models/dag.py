@@ -573,6 +573,13 @@ class DAG(BaseDag, LoggingMixin):
         """
         return ", ".join({t.owner for t in self.tasks})
 
+    @property
+    def allow_future_exec_dates(self):
+        return conf.getboolean(
+            'scheduler',
+            'RUN_FUTURE_EXEC_DATES',
+            fallback=False) and self.schedule_interval is None
+
     @provide_session
     def _get_concurrency_reached(self, session=None):
         TI = TaskInstance
@@ -783,21 +790,15 @@ class DAG(BaseDag, LoggingMixin):
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
 
-        if end_date or not conf.getboolean('scheduler', 'RUN_FUTURE_EXEC_DATES', fallback=False):
+        tis = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.execution_date >= start_date,
+            TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
+        )
+        # This allows RUN_FUTURE_EXEC_DATES config to take affect, rather than mandating exec_date <= UTC
+        if end_date or not self.allow_future_exec_dates:
             end_date = end_date or timezone.utcnow()
-            tis = session.query(TaskInstance).filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.execution_date >= start_date,
-                TaskInstance.execution_date <= end_date,
-                TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
-            )
-        else:
-            # This allows RUN_FUTURE_EXEC_DATES config to take affect rather than mandating exec_date <= UTC
-            tis = session.query(TaskInstance).filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.execution_date >= start_date,
-                TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
-            )
+            tis = tis.filter(TaskInstance.execution_date <= end_date)
 
         if state:
             if isinstance(state, str):
