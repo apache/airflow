@@ -168,8 +168,7 @@ repos:
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
-        types: [shell]
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
         exclude: ^airflow/_vendor/.*$
       - id: lint-dockerfile
         name: Lint dockerfile
