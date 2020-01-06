@@ -21,7 +21,7 @@ process executor meaning it does not use multiprocessing.
 """
 
 import threading
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from airflow import conf
 from airflow.executors.base_executor import BaseExecutor
@@ -83,36 +83,6 @@ class DebugExecutor(BaseExecutor):
             self.change_state(key, State.FAILED)
             self.log.exception("Failed to execute task: %s.", str(e))
             return False
-
-    def queue_task_instance(
-        self,
-        task_instance: TaskInstance,
-        mark_success: bool = False,
-        pickle_id: Optional[str] = None,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        pool: Optional[str] = None,
-        cfg_path: Optional[str] = None,
-    ) -> None:
-        """
-        Queues task instance.
-        """
-        self._queue_command(
-            task_instance,
-            task_instance.get_queue_task_run(
-                pickle_id=pickle_id,
-                ignore_all_deps=ignore_all_deps,
-                ignore_depends_on_past=ignore_depends_on_past,
-                ignore_task_deps=ignore_task_deps,
-                ignore_ti_state=ignore_ti_state,
-                pool=pool,
-                cfg_path=cfg_path
-            ),
-            priority=task_instance.task.priority_weight_total,
-            queue=task_instance.task.queue,
-        )
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
