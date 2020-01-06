@@ -1017,26 +1017,6 @@ class TestTaskInstance(unittest.TestCase):
         with self.assertRaises(TestError):
             ti.run()
 
-    def test_check_and_change_state_before_execution(self):
-        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
-        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
-        ti = TI(
-            task=task, execution_date=timezone.utcnow())
-        self.assertEqual(ti._try_number, 0)
-        self.assertTrue(ti._check_and_change_state_before_execution())
-        # State should be running, and try_number column should be incremented
-        self.assertEqual(ti.state, State.RUNNING)
-        self.assertEqual(ti._try_number, 1)
-
-    def test_check_and_change_state_before_execution_dep_not_met(self):
-        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
-        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
-        task2 = DummyOperator(task_id='task2', dag=dag, start_date=DEFAULT_DATE)
-        task >> task2
-        ti = TI(
-            task=task2, execution_date=timezone.utcnow())
-        self.assertFalse(ti._check_and_change_state_before_execution())
-
     def test_try_number(self):
         """
         Test the try_number accessor behaves in various running states

@@ -346,3 +346,23 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertTrue(data['called'])
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
+
+    def test_check_and_change_state_before_execution(self):
+        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
+        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        job = LocalTaskJob(task_instance=ti)
+        self.assertEqual(ti._try_number, 0)
+        self.assertTrue(job._check_and_change_state_before_execution())
+        # State should be running, and try_number column should be incremented
+        self.assertEqual(ti.state, State.RUNNING)
+        self.assertEqual(ti._try_number, 1)
+
+    def test_check_and_change_state_before_execution_dep_not_met(self):
+        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
+        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+        task2 = DummyOperator(task_id='task2', dag=dag, start_date=DEFAULT_DATE)
+        task >> task2
+        ti = TI(task=task2, execution_date=timezone.utcnow())
+        job = LocalTaskJob(task_instance=ti)
+        self.assertFalse(job._check_and_change_state_before_execution())

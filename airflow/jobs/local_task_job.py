@@ -21,11 +21,14 @@
 import os
 import signal
 
+from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
+from airflow.models import Log, TaskReschedule
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
+from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNING_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
@@ -75,14 +78,7 @@ class LocalTaskJob(BaseJob):
             raise AirflowException("LocalTaskJob received SIGTERM signal")
         signal.signal(signal.SIGTERM, signal_handler)
 
-        if not self.task_instance._check_and_change_state_before_execution(
-                mark_success=self.mark_success,
-                ignore_all_deps=self.ignore_all_deps,
-                ignore_depends_on_past=self.ignore_depends_on_past,
-                ignore_task_deps=self.ignore_task_deps,
-                ignore_ti_state=self.ignore_ti_state,
-                job_id=self.id,
-                pool=self.pool):
+        if not self._check_and_change_state_before_execution():
             self.log.info("Task is not able to be run")
             return
 
@@ -113,6 +109,124 @@ class LocalTaskJob(BaseJob):
                                                    heartbeat_time_limit))
         finally:
             self.on_kill()
+
+    @provide_session
+    def _check_and_change_state_before_execution(
+        self,
+        verbose: bool = True,
+        test_mode: bool = False,
+        session=None
+    ) -> bool:
+        """
+        Checks dependencies and then sets state to RUNNING if they are met. Returns
+        True if and only if state is set to RUNNING, which implies that task should be
+        executed, in preparation for _run_raw_task
+
+        :param verbose: whether to turn on more verbose logging
+        :type verbose: bool
+        :return: whether the state was changed to running or not
+        :rtype: bool
+        """
+        task = self.task_instance.task
+        self.task_instance.pool = self.pool or task.pool
+        self.task_instance.test_mode = test_mode
+        self.task_instance.refresh_from_db(session=session, lock_for_update=True)
+        self.task_instance.job_id = self.job_id
+        self.task_instance.hostname = get_hostname()
+        self.operator = task.__class__.__name__
+
+        if not self.ignore_all_deps and not self.ignore_ti_state and \
+           self.task_instance.state == State.SUCCESS:
+            Stats.incr('previously_succeeded', 1, 1)
+
+        # TODO: Logging needs cleanup, not clear what is being printed
+        hr = "\n" + ("-" * 80)  # Line break
+
+        if not self.mark_success:
+            # Firstly find non-runnable and non-requeueable tis.
+            # Since mark_success is not set, we do nothing.
+            non_requeueable_dep_context = DepContext(
+                deps=RUNNING_DEPS - REQUEUEABLE_DEPS,
+                ignore_all_deps=self.ignore_all_deps,
+                ignore_ti_state=self.ignore_ti_state,
+                ignore_depends_on_past=self.ignore_depends_on_past,
+                ignore_task_deps=self.ignore_task_deps)
+            if not self.task_instance.are_dependencies_met(
+                dep_context=non_requeueable_dep_context,
+                session=session,
+                verbose=True
+            ):
+                session.commit()
+                return False
+
+            # For reporting purposes, we report based on 1-indexed,
+            # not 0-indexed lists (i.e. Attempt 1 instead of
+            # Attempt 0 for the first attempt).
+            # Set the task start date. In case it was re-scheduled use the initial
+            # start date that is recorded in task_reschedule table
+            self.task_instance.start_date = timezone.utcnow()
+            task_reschedules = TaskReschedule.find_for_task_instance(self.task_instance, session)
+            if task_reschedules:
+                self.task_instance.start_date = task_reschedules[0].start_date
+
+            # Secondly we find non-runnable but requeueable tis. We reset its state.
+            # This is because we might have hit concurrency limits,
+            # e.g. because of backfilling.
+            dep_context = DepContext(
+                deps=REQUEUEABLE_DEPS,
+                ignore_all_deps=self.ignore_all_deps,
+                ignore_depends_on_past=self.ignore_depends_on_past,
+                ignore_task_deps=self.ignore_task_deps,
+                ignore_ti_state=self.ignore_ti_state)
+            if not self.task_instance.are_dependencies_met(
+                dep_context=dep_context,
+                session=session,
+                verbose=True
+            ):
+                self.task_instance.state = State.NONE
+                self.log.warning(hr)
+                self.log.warning(
+                    "Rescheduling due to concurrency limits reached "
+                    "at task runtime. Attempt %s of "
+                    "%s. State set to NONE.", self.task_instance.try_number, self.task_instance.max_tries + 1
+                )
+                self.log.warning(hr)
+                self.task_instance.queued_dttm = timezone.utcnow()
+                session.merge(self.task_instance)
+                session.commit()
+                return False
+
+        # print status message
+        self.log.info(hr)
+        self.log.info("Starting attempt %s of %s",
+                      self.task_instance.try_number, self.task_instance.max_tries + 1
+                      )
+        self.log.info(hr)
+        self.task_instance._try_number += 1
+
+        if not test_mode:
+            session.add(Log(State.RUNNING, self.task_instance))
+        self.task_instance.state = State.RUNNING
+        self.task_instance.pid = os.getpid()
+        self.task_instance.end_date = None
+        if not test_mode:
+            session.merge(self.task_instance)
+        session.commit()
+
+        # Closing all pooled connections to prevent
+        # "max number of connections reached"
+        settings.engine.dispose()  # type: ignore
+        if verbose:
+            if self.mark_success:
+                self.log.info(
+                    "Marking success for %s on %s",
+                    self.task_instance.task, self.task_instance.execution_date
+                )
+            else:
+                self.log.info(
+                    "Executing %s on %s", self.task_instance.task, self.task_instance.execution_date
+                )
+        return True
 
     def on_kill(self):
         self.task_runner.terminate()

@@ -35,7 +35,6 @@ from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
-from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException, AirflowRescheduleException, AirflowSkipException, AirflowTaskTimeout,
@@ -49,7 +48,7 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.sentry import Sentry
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNING_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
@@ -730,134 +729,6 @@ class TaskInstance(Base, LoggingMixin):
         ).first()
 
         return dr
-
-    @provide_session
-    def _check_and_change_state_before_execution(
-            self,
-            verbose: bool = True,
-            ignore_all_deps: bool = False,
-            ignore_depends_on_past: bool = False,
-            ignore_task_deps: bool = False,
-            ignore_ti_state: bool = False,
-            mark_success: bool = False,
-            test_mode: bool = False,
-            job_id: Optional[str] = None,
-            pool: Optional[str] = None,
-            session=None) -> bool:
-        """
-        Checks dependencies and then sets state to RUNNING if they are met. Returns
-        True if and only if state is set to RUNNING, which implies that task should be
-        executed, in preparation for _run_raw_task
-
-        :param verbose: whether to turn on more verbose logging
-        :type verbose: bool
-        :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
-        :type ignore_all_deps: bool
-        :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
-        :type ignore_depends_on_past: bool
-        :param ignore_task_deps: Don't check the dependencies of this TaskInstance's task
-        :type ignore_task_deps: bool
-        :param ignore_ti_state: Disregards previous task instance state
-        :type ignore_ti_state: bool
-        :param mark_success: Don't run the task, mark its state as success
-        :type mark_success: bool
-        :param test_mode: Doesn't record success or failure in the DB
-        :type test_mode: bool
-        :param pool: specifies the pool to use to run the task instance
-        :type pool: str
-        :return: whether the state was changed to running or not
-        :rtype: bool
-        """
-        task = self.task
-        self.pool = pool or task.pool
-        self.test_mode = test_mode
-        self.refresh_from_db(session=session, lock_for_update=True)
-        self.job_id = job_id
-        self.hostname = get_hostname()
-        self.operator = task.__class__.__name__
-
-        if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
-            Stats.incr('previously_succeeded', 1, 1)
-
-        # TODO: Logging needs cleanup, not clear what is being printed
-        hr = "\n" + ("-" * 80)  # Line break
-
-        if not mark_success:
-            # Firstly find non-runnable and non-requeueable tis.
-            # Since mark_success is not set, we do nothing.
-            non_requeueable_dep_context = DepContext(
-                deps=RUNNING_DEPS - REQUEUEABLE_DEPS,
-                ignore_all_deps=ignore_all_deps,
-                ignore_ti_state=ignore_ti_state,
-                ignore_depends_on_past=ignore_depends_on_past,
-                ignore_task_deps=ignore_task_deps)
-            if not self.are_dependencies_met(
-                    dep_context=non_requeueable_dep_context,
-                    session=session,
-                    verbose=True):
-                session.commit()
-                return False
-
-            # For reporting purposes, we report based on 1-indexed,
-            # not 0-indexed lists (i.e. Attempt 1 instead of
-            # Attempt 0 for the first attempt).
-            # Set the task start date. In case it was re-scheduled use the initial
-            # start date that is recorded in task_reschedule table
-            self.start_date = timezone.utcnow()
-            task_reschedules = TaskReschedule.find_for_task_instance(self, session)
-            if task_reschedules:
-                self.start_date = task_reschedules[0].start_date
-
-            # Secondly we find non-runnable but requeueable tis. We reset its state.
-            # This is because we might have hit concurrency limits,
-            # e.g. because of backfilling.
-            dep_context = DepContext(
-                deps=REQUEUEABLE_DEPS,
-                ignore_all_deps=ignore_all_deps,
-                ignore_depends_on_past=ignore_depends_on_past,
-                ignore_task_deps=ignore_task_deps,
-                ignore_ti_state=ignore_ti_state)
-            if not self.are_dependencies_met(
-                    dep_context=dep_context,
-                    session=session,
-                    verbose=True):
-                self.state = State.NONE
-                self.log.warning(hr)
-                self.log.warning(
-                    "Rescheduling due to concurrency limits reached "
-                    "at task runtime. Attempt %s of "
-                    "%s. State set to NONE.", self.try_number, self.max_tries + 1
-                )
-                self.log.warning(hr)
-                self.queued_dttm = timezone.utcnow()
-                session.merge(self)
-                session.commit()
-                return False
-
-        # print status message
-        self.log.info(hr)
-        self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
-        self.log.info(hr)
-        self._try_number += 1
-
-        if not test_mode:
-            session.add(Log(State.RUNNING, self))
-        self.state = State.RUNNING
-        self.pid = os.getpid()
-        self.end_date = None
-        if not test_mode:
-            session.merge(self)
-        session.commit()
-
-        # Closing all pooled connections to prevent
-        # "max number of connections reached"
-        settings.engine.dispose()  # type: ignore
-        if verbose:
-            if mark_success:
-                self.log.info("Marking success for %s on %s", self.task, self.execution_date)
-            else:
-                self.log.info("Executing %s on %s", self.task, self.execution_date)
-        return True
 
     @provide_session
     @Sentry.enrich_errors
