@@ -18,6 +18,8 @@
 Python API Reference
 ====================
 
+.. _pythonapi:operators:
+
 Operators
 ---------
 Operators allow for generation of certain types of tasks that become nodes in
@@ -66,6 +68,8 @@ All operators are in the following packages:
 
   airflow/contrib/sensors/index
 
+
+.. _pythonapi:hooks:
 
 Hooks
 -----
