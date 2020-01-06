@@ -31,7 +31,6 @@ from typing import Dict, Tuple
 
 import yaml
 from cryptography.fernet import Fernet
-from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -618,25 +617,3 @@ if not os.path.isfile(WEBSERVER_CONFIG):
 
 if conf.getboolean('core', 'unit_test_mode'):
     conf.load_test_config()
-
-# Historical convenience functions to access config entries
-
-load_test_config = conf.load_test_config
-get = conf.get
-getboolean = conf.getboolean
-getfloat = conf.getfloat
-getint = conf.getint
-getsection = conf.getsection
-has_option = conf.has_option
-remove_option = conf.remove_option
-as_dict = conf.as_dict
-set = conf.set  # noqa
-
-for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
-             remove_option, as_dict, set]:
-    deprecated(
-        func.__name__,
-        "Accessing configuration method '{f.__name__}' directly from "
-        "the configuration module is deprecated. Please access the "
-        "configuration from the 'configuration.conf' object via "
-        "'conf.{f.__name__}'".format(f=func))
