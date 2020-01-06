@@ -61,6 +61,44 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Introduction of LocalTaskJobDeferred in the Executor.
+
+The executor uses ``LocalTaskJobDeferredRun`` instead of a list of strings with the command to be executed.
+All methods and fields that previously used the `command` parameter now use `deferred_run`.
+If your executor only extends non-implemented methods from BaseExecutor, you only need to update
+the ``execute_async`` method.
+
+The code below
+```diff
+    def execute_async(
+        self,
+        key: TaskInstanceKeyType,
+        command: CommandType,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None) -> None:
+
+        [...]
+
+        self.task_queue.put((key, command))
+```
+can be replaced by the following code:
+```diff
+    def execute_async(
+        self,
+        key: TaskInstanceKeyType,
+        deferred_run: LocalTaskJobDeferredRun,
+        queue: Optional[str] = None,
+        executor_config: Optional[Any] = None) -> None:
+
+        [...]
+
+        command = deferred_run.as_command()
+        self.task_queue.put((key, command))
+```
+
+This change allows the development of executors that run LocalTaskJob in a different way e.g.
+using fork instead of creating a new process.
+
 ### Added `airflow dags test` CLI command
 
 A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
