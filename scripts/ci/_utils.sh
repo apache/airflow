@@ -942,3 +942,38 @@ function build_image_on_ci() {
     unset AIRFLOW_CONTAINER_FORCE_PULL_IMAGES
     unset FORCE_BUILD
 }
+
+function read_from_file {
+    cat "${BUILD_CACHE_DIR}/.$1" 2>/dev/null || true
+}
+
+function save_to_file {
+    # shellcheck disable=SC2005
+    echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
+}
+
+function check_for_allowed_params {
+    _VARIABLE_NAME="${1}"
+    _VARIABLE_DESCRIPTIVE_NAME="${2}"
+    _FLAG="${3}"
+    _ALLOWED_VALUES_ENV_NAME="_BREEZE_ALLOWED_${_VARIABLE_NAME}S"
+    _ALLOWED_VALUES=${!_ALLOWED_VALUES_ENV_NAME}
+    _VALUE=${!_VARIABLE_NAME}
+    if [[ ${_ALLOWED_VALUES:=} != *" ${_VALUE} "* ]]; then
+        echo >&2
+        echo >&2 "ERROR:  Allowed ${_VARIABLE_DESCRIPTIVE_NAME}: [${_ALLOWED_VALUES}]. Is: '${!_VARIABLE_NAME}'."
+        echo >&2
+        echo >&2 "Switch to supported value with ${_FLAG} flag."
+
+        if [[ -n ${!_VARIABLE_NAME} && \
+            -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}" && \
+            ${!_VARIABLE_NAME} == $(cat "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}" ) ]]; then
+            echo >&2
+            echo >&2 "Removing ${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}. Next time you run it, it should be OK."
+            echo >&2
+            rm -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}"
+        fi
+        exit 1
+    fi
+    save_to_file "${_VARIABLE_NAME}"
+}
