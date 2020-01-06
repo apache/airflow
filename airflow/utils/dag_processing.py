@@ -1020,6 +1020,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             now = timezone.utcnow()
             file_paths_recently_processed = []
             for file_path in self._file_paths:
+                if self._file_process_interval == 0:
+                    break
                 last_finish_time = self.get_last_finish_time(file_path)
                 if (last_finish_time is not None and
                     (now - last_finish_time).total_seconds() <
