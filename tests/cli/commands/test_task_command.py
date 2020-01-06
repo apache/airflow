@@ -185,8 +185,18 @@ class TestCliTasks(unittest.TestCase):
             DEFAULT_DATE.isoformat()]))
 
     def test_task_states_for_dag_run(self):
-        task_command.task_states_for_dag_run(self.parser.parse_args([
-            'tasks', 'states_for_dag_run', 'example_bash_operator', DEFAULT_DATE.isoformat()]))
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_states_for_dag_run(self.parser.parse_args([
+                'tasks', 'states_for_dag_run', 'example_bash_operator', DEFAULT_DATE.isoformat()]))
+
+        # can't get perfect match as start/end date are variable
+        # Check that prints, and log messages, are shown
+        temp_stdout = stdout.getvalue()
+        self.assertIn('runme_0', temp_stdout)
+        self.assertIn('example_bash_operator', temp_stdout)
+        self.assertIn('state', temp_stdout)
+        self.assertIn('start_date', temp_stdout)
+        self.assertIn('end_date', temp_stdout)
 
     def test_subdag_clear(self):
         args = self.parser.parse_args([
