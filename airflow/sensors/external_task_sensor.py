@@ -47,11 +47,11 @@ class ExternalTaskSensor(BaseSensorOperator):
         For yesterday, use [positive!] datetime.timedelta(days=1). Either
         execution_delta or execution_date_fn can be passed to
         ExternalTaskSensor, but not both.
-    :type execution_delta: datetime.timedelta
+    :type execution_delta: Optional[datetime.timedelta]
     :param execution_date_fn: function that receives the current execution date
         and returns the desired execution dates to query. Either execution_delta
         or execution_date_fn can be passed to ExternalTaskSensor, but not both.
-    :type execution_date_fn: callable
+    :type execution_date_fn: Optional[Callable]
     :param check_existence: Set to `True` to check if the external task exists (when
         external_task_id is not None) or check if the DAG to wait for exists (when
         external_task_id is None), and immediately cease waiting if the external task

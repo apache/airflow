@@ -56,7 +56,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     :type ci_conn_id: str
     :param registry_conn_id: connection id of a user which can login to a
         private docker registry. If None, we assume a public registry
-    :type registry_conn_id: str
+    :type registry_conn_id: Optional[str]
     :param resource_group: name of the resource group wherein this container
         instance should be started
     :type resource_group: str

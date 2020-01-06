@@ -73,7 +73,6 @@ with models.DAG(
         options={
             'output': GCS_OUTPUT,
         },
-        check_if_running=CheckJobRunning.WaitForRun,
     )
     # [END howto_operator_start_python_job]
 

@@ -23,6 +23,9 @@ Executors are the mechanism by which task instances get run.
 Airflow has support for various executors. Current used is determined by the ``executor`` option in the ``core``
 section of the configuration file.
 
+.. note::
+    For more information on setting the configuration, see :doc:`../howto/set-config`.
+
 .. toctree::
     :maxdepth: 1
     :glob:

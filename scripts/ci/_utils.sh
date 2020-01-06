@@ -78,6 +78,19 @@ function print_info() {
     fi
 }
 
+function sanitize_file() {
+    if [[ -d "${1}" ]]; then
+        rm -rf "${1}"
+    fi
+    touch "${1}"
+
+}
+function sanitize_mounted_files() {
+    sanitize_file "${AIRFLOW_SOURCES}/.bash_history"
+    sanitize_file "${AIRFLOW_SOURCES}/.bash_aliases"
+    sanitize_file "${AIRFLOW_SOURCES}/.inputrc"
+}
+
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
@@ -125,6 +138,7 @@ else
 fi
 
 export AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
+
 
 #
 # Creates cache directory where we will keep temporary files needed for the build
@@ -578,6 +592,7 @@ function basic_sanity_checks() {
     check_if_coreutils_installed
     create_cache_directory
     forget_last_answer
+    sanitize_mounted_files
 }
 
 

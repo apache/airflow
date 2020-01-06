@@ -291,5 +291,5 @@ repos:
         files: "^airflow/config_templates/config.yml$|^airflow/config_templates/default_airflow.cfg$"
         pass_filenames: false
         require_serial: false
-        entry: airflow/utils/config_yaml_to_cfg.py
+        entry: scripts/ci/pre_commit_yaml_to_cfg.py
         additional_dependencies: ['pyyaml']

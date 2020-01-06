@@ -65,108 +65,71 @@ def create_default_connections(session=None):
     """
     merge_conn(
         Connection(
-            conn_id="airflow_db", conn_type="mysql", host="mysql", login="root", password="", schema="airflow"
-        ),
-        session,
-    )
-    merge_conn(
-        Connection(
-            conn_id="local_mysql",
+            conn_id="airflow_db",
             conn_type="mysql",
-            host="localhost",
-            login="airflow",
-            password="airflow",
+            host="mysql",
+            login="root",
+            password="",
             schema="airflow",
         ),
-        session,
-    )
-    merge_conn(
-        Connection(conn_id="presto_default", conn_type="presto", host="localhost", schema="hive", port=3400),
-        session,
-    )
-    merge_conn(
-        Connection(conn_id="google_cloud_default", conn_type="google_cloud_platform", schema="default"),
-        session,
+        session
     )
     merge_conn(
         Connection(
-            conn_id="hive_cli_default",
-            conn_type="hive_cli",
-            port=10000,
+            conn_id="aws_default",
+            conn_type="aws",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="azure_container_instances_default",
+            conn_type="azure_container_instances",
+            extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="azure_cosmos_default",
+            conn_type="azure_cosmos",
+            extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="azure_data_lake_default",
+            conn_type="azure_data_lake",
+            extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="cassandra_default",
+            conn_type="cassandra",
+            host="cassandra",
+            port=9042,
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="databricks_default",
+            conn_type="databricks",
             host="localhost",
-            extra='{"use_beeline": true, "auth": ""}',
-            schema="default",
         ),
-        session,
-    )
-    merge_conn(Connection(conn_id="pig_cli_default", conn_type="pig_cli", schema="default"), session)
-    merge_conn(
-        Connection(
-            conn_id="hiveserver2_default",
-            conn_type="hiveserver2",
-            host="localhost",
-            schema="default",
-            port=10000,
-        ),
-        session,
+        session
     )
     merge_conn(
         Connection(
-            conn_id="metastore_default",
-            conn_type="hive_metastore",
-            host="localhost",
-            extra='{"authMechanism": "PLAIN"}',
-            port=9083,
+            conn_id="dingding_default",
+            conn_type="http",
+            host="",
+            password="",
         ),
-        session,
-    )
-    merge_conn(Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017), session)
-    merge_conn(
-        Connection(conn_id="mysql_default", conn_type="mysql", login="root", schema="airflow", host="mysql"),
-        session,
-    )
-    merge_conn(
-        Connection(
-            conn_id="postgres_default",
-            conn_type="postgres",
-            login="postgres",
-            password="airflow",
-            schema="airflow",
-            host="postgres",
-        ),
-        session,
-    )
-    merge_conn(
-        Connection(conn_id="sqlite_default", conn_type="sqlite", host="/tmp/sqlite_default.db"), session
-    )
-    merge_conn(Connection(conn_id="http_default", conn_type="http", host="https://www.httpbin.org/"), session)
-    merge_conn(Connection(conn_id="mssql_default", conn_type="mssql", host="localhost", port=1433), session)
-    merge_conn(
-        Connection(conn_id="vertica_default", conn_type="vertica", host="localhost", port=5433), session
-    )
-    merge_conn(Connection(conn_id="wasb_default", conn_type="wasb", extra='{"sas_token": null}'), session)
-    merge_conn(Connection(conn_id="webhdfs_default", conn_type="hdfs", host="localhost", port=50070), session)
-    merge_conn(Connection(conn_id="ssh_default", conn_type="ssh", host="localhost"), session)
-    merge_conn(
-        Connection(
-            conn_id="sftp_default",
-            conn_type="sftp",
-            host="localhost",
-            port=22,
-            login="airflow",
-            extra="""
-                {"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}
-            """,
-        ),
-        session,
-    )
-    merge_conn(Connection(conn_id="fs_default", conn_type="fs", extra='{"path": "/"}'), session)
-    merge_conn(Connection(conn_id="aws_default", conn_type="aws"), session)
-    merge_conn(
-        Connection(
-            conn_id="spark_default", conn_type="spark", host="yarn", extra='{"queue": "root.default"}'
-        ),
-        session,
+        session
     )
     merge_conn(
         Connection(
@@ -176,7 +139,7 @@ def create_default_connections(session=None):
             port=8082,
             extra='{"endpoint": "druid/v2/sql"}',
         ),
-        session,
+        session
     )
     merge_conn(
         Connection(
@@ -186,13 +149,8 @@ def create_default_connections(session=None):
             port=8081,
             extra='{"endpoint": "druid/indexer/v1/task"}',
         ),
-        session,
+        session
     )
-    merge_conn(
-        Connection(conn_id="redis_default", conn_type="redis", host="redis", port=6379, extra='{"db": 0}'),
-        session,
-    )
-    merge_conn(Connection(conn_id="sqoop_default", conn_type="sqoop", host="rmdbs", extra=""), session)
     merge_conn(
         Connection(
             conn_id="emr_default",
@@ -242,47 +200,244 @@ def create_default_connections(session=None):
                 }
             """,
         ),
-        session,
+        session
     )
-    merge_conn(Connection(conn_id="databricks_default", conn_type="databricks", host="localhost"), session)
-    merge_conn(Connection(conn_id="qubole_default", conn_type="qubole", host="localhost"), session)
     merge_conn(
         Connection(
-            conn_id="segment_default", conn_type="segment", extra='{"write_key": "my-segment-write-key"}'
+            conn_id="fs_default",
+            conn_type="fs",
+            extra='{"path": "/"}',
         ),
         session,
     )
     merge_conn(
         Connection(
-            conn_id="azure_data_lake_default",
-            conn_type="azure_data_lake",
-            extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }',
+            conn_id="google_cloud_default",
+            conn_type="google_cloud_platform",
+            schema="default",
         ),
-        session,
+        session
     )
     merge_conn(
         Connection(
-            conn_id="azure_cosmos_default",
-            conn_type="azure_cosmos",
-            extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }',
+            conn_id="hive_cli_default",
+            conn_type="hive_cli",
+            port=10000,
+            host="localhost",
+            extra='{"use_beeline": true, "auth": ""}',
+            schema="default",
         ),
-        session,
+        session
     )
     merge_conn(
         Connection(
-            conn_id="azure_container_instances_default",
-            conn_type="azure_container_instances",
-            extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }',
+            conn_id="hiveserver2_default",
+            conn_type="hiveserver2",
+            host="localhost",
+            schema="default",
+            port=10000,
         ),
-        session,
+        session
     )
     merge_conn(
-        Connection(conn_id="cassandra_default", conn_type="cassandra", host="cassandra", port=9042), session
+        Connection(
+            conn_id="http_default",
+            conn_type="http",
+            host="https://www.httpbin.org/",
+        ),
+        session
     )
-    merge_conn(Connection(conn_id="dingding_default", conn_type="http", host="", password=""), session)
-    merge_conn(Connection(conn_id="opsgenie_default", conn_type="http", host="", password=""), session)
     merge_conn(
-        Connection(conn_id="pinot_admin_default", conn_type="pinot", host="localhost", port=9000), session
+        Connection(
+            conn_id="local_mysql",
+            conn_type="mysql",
+            host="localhost",
+            login="airflow",
+            password="airflow",
+            schema="airflow",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="metastore_default",
+            conn_type="hive_metastore",
+            host="localhost",
+            extra='{"authMechanism": "PLAIN"}',
+            port=9083,
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="mongo_default",
+            conn_type="mongo",
+            host="mongo",
+            port=27017
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="mssql_default",
+            conn_type="mssql",
+            host="localhost",
+            port=1433,
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="mysql_default",
+            conn_type="mysql",
+            login="root",
+            schema="airflow",
+            host="mysql",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="opsgenie_default",
+            conn_type="http",
+            host="",
+            password="",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="pig_cli_default",
+            conn_type="pig_cli",
+            schema="default",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="pinot_admin_default",
+            conn_type="pinot",
+            host="localhost",
+            port=9000,
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="postgres_default",
+            conn_type="postgres",
+            login="postgres",
+            password="airflow",
+            schema="airflow",
+            host="postgres",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="presto_default",
+            conn_type="presto",
+            host="localhost",
+            schema="hive",
+            port=3400,
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="qubole_default",
+            conn_type="qubole",
+            host="localhost",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="redis_default",
+            conn_type="redis",
+            host="redis",
+            port=6379,
+            extra='{"db": 0}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="segment_default",
+            conn_type="segment",
+            extra='{"write_key": "my-segment-write-key"}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="sftp_default",
+            conn_type="sftp",
+            host="localhost",
+            port=22,
+            login="airflow",
+            extra='{"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="spark_default",
+            conn_type="spark",
+            host="yarn",
+            extra='{"queue": "root.default"}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="sqlite_default",
+            conn_type="sqlite",
+            host="/tmp/sqlite_default.db",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="sqoop_default",
+            conn_type="sqoop",
+            host="rdbms",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="ssh_default",
+            conn_type="ssh",
+            host="localhost",
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="vertica_default",
+            conn_type="vertica",
+            host="localhost",
+            port=5433,
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="wasb_default",
+            conn_type="wasb",
+            extra='{"sas_token": null}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
+            conn_id="webhdfs_default",
+            conn_type="hdfs",
+            host="localhost",
+            port=50070,
+        ),
+        session
     )
 
 
