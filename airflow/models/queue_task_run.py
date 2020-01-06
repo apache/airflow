@@ -18,7 +18,7 @@
 from airflow.utils import timezone
 
 
-class QueueTaskRun:  # pylint: disable=too-many-instance-attributes
+class RawTaskDeferredRun:  # pylint: disable=too-many-instance-attributes
     """
     Generates the shell command required to execute this task instance.
 
@@ -34,7 +34,6 @@ class QueueTaskRun:  # pylint: disable=too-many-instance-attributes
         associated with the pickled DAG
     :type pickle_id: unicode
     :param subdir: path to the file containing the DAG definition
-    :param raw: raw mode (needs more details)
     :param job_id: job ID (needs more details)
     :param pool: the Airflow pool that the task should run in
     :type pool: unicode
@@ -52,7 +51,6 @@ class QueueTaskRun:  # pylint: disable=too-many-instance-attributes
         job_id=None,
         force=None,
         pool=None,
-        raw=None,
         subdir=None,
         cfg_path=None,
         mock_command=None,
@@ -68,7 +66,6 @@ class QueueTaskRun:  # pylint: disable=too-many-instance-attributes
         self.job_id = job_id
         self.force = force
         self.pool = pool
-        self.raw = raw
         self.subdir = subdir
         self.cfg_path = cfg_path
         self.mock_command = mock_command
@@ -78,7 +75,7 @@ class QueueTaskRun:  # pylint: disable=too-many-instance-attributes
         if self.mock_command:
             return self.mock_command
         iso = self.execution_date.isoformat()
-        cmd = ["airflow", "tasks", "run", str(self.dag_id), str(self.task_id), str(iso)]
+        cmd = ["airflow", "tasks", "run", str(self.dag_id), str(self.task_id), str(iso), "--raw"]
         if self.mark_success:
             cmd.extend(["--mark_success"])
         if self.pickle_id:
@@ -89,8 +86,6 @@ class QueueTaskRun:  # pylint: disable=too-many-instance-attributes
             cmd.extend(["--force"])
         if self.pool:
             cmd.extend(["--pool", self.pool])
-        if self.raw:
-            cmd.extend(["--raw"])
         if self.subdir:
             cmd.extend(["--subdir", self.subdir])
         if self.cfg_path:
@@ -99,7 +94,7 @@ class QueueTaskRun:  # pylint: disable=too-many-instance-attributes
 
     def __repr__(self):
         iso = self.execution_date.isoformat()
-        return f"QueueTaskRun(dag_id={self.dag_id}, task_id={self.task_id}, execution_date={iso})"
+        return f"RawTaskDeferredRun(dag_id={self.dag_id}, task_id={self.task_id}, execution_date={iso})"
 
 
 class LocalTaskJobDeferredRun:  # pylint: disable=too-many-instance-attributes

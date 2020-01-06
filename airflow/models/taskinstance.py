@@ -44,7 +44,7 @@ from airflow.exceptions import (
 from airflow.models.base import ID_LEN, Base
 from airflow.models.log import Log
 from airflow.models.pool import Pool
-from airflow.models.queue_task_run import LocalTaskJobDeferredRun, QueueTaskRun
+from airflow.models.queue_task_run import LocalTaskJobDeferredRun, RawTaskDeferredRun
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -253,11 +253,10 @@ class TaskInstance(Base, LoggingMixin):
     def next_try_number(self):
         return self._try_number + 1
 
-    def get_queue_task_run(
+    def get_raw_task_deferred_run(
         self,
         mark_success=False,
         pickle_id=None,
-        raw=False,
         job_id=None,
         pool=None,
         cfg_path=None
@@ -270,14 +269,13 @@ class TaskInstance(Base, LoggingMixin):
             path = dag.full_filepath
         else:
             path = None
-        queue_task_run = QueueTaskRun(
+        queue_task_run = RawTaskDeferredRun(
             dag_id=self.dag_id,
             task_id=self.task_id,
             execution_date=self.execution_date,
             mark_success=mark_success,
             pickle_id=pickle_id,
             subdir=path,
-            raw=raw,
             job_id=job_id,
             pool=pool,
             cfg_path=cfg_path

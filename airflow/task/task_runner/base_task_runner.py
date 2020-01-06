@@ -85,8 +85,7 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
         self._cfg_path = cfg_path
-        self._command = popen_prepend + self._task_instance.get_queue_task_run(
-            raw=True,
+        self._command = popen_prepend + self._task_instance.get_raw_task_deferred_run(
             pickle_id=local_task_job.pickle_id,
             mark_success=local_task_job.mark_success,
             job_id=local_task_job.id,
