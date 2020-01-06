@@ -31,7 +31,7 @@ class BaseCloudFormationOperator(BaseOperator):
     Base operator for CloudFormation operations.
 
     :param params: parameters to be passed to CloudFormation.
-    :type dict
+    :type params: dict
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
@@ -68,7 +68,7 @@ class CloudFormationCreateStackOperator(BaseCloudFormationOperator):
 
     :param params: parameters to be passed to CloudFormation. For possible arguments see:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.create_stack
-    :type dict
+    :type params: dict
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
@@ -94,7 +94,7 @@ class CloudFormationDeleteStackOperator(BaseCloudFormationOperator):
 
     :param params: parameters to be passed to CloudFormation. For possible arguments see:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
-    :type dict
+    :type params: dict
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
     """
