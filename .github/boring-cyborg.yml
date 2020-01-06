@@ -145,3 +145,17 @@ labelPRBasedOnFilePath:
     - airflow/serialization/*
     - tests/serialization/*
     - docs/dag-serialization.rst
+
+# Comment to be posted to welcome users when they open their first PR
+firstPRWelcomeComment: |
+  Congratulations on your first Pull Request and welcome to the Apache Airflow community!
+  If you have any issues or are unsure about any anything please check our
+  Contribution Guide (https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst)
+
+  In case of doubts contact the developers at:
+  Mailing List: dev@airflow.apache.org
+  Slack: https://apache-airflow-slack.herokuapp.com/
+
+# Comment to be posted to congratulate user on their first merged PR
+firstPRMergeComment: >
+  Awesome work, congrats on your first merged pull request!
