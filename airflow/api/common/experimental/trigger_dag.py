@@ -21,7 +21,6 @@ import json
 from datetime import datetime
 from typing import List, Optional, Union
 
-from airflow.configuration import conf as cfg_conf
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
@@ -53,8 +52,7 @@ def _trigger_dag(
 
     dag = dag_bag.get_dag(dag_id)
 
-    utc_now = timezone.utcnow()
-    execution_date = execution_date if execution_date else utc_now
+    execution_date = execution_date if execution_date else timezone.utcnow()
 
     if not timezone.is_localized(execution_date):
         raise ValueError("The execution_date should be localized")
@@ -69,14 +67,6 @@ def _trigger_dag(
                 "The execution_date [{0}] should be >= start_date [{1}] from DAG's default_args".format(
                     execution_date.isoformat(),
                     min_dag_start_date.isoformat()))
-
-    if not cfg_conf.getboolean(
-        'scheduler',
-        'RUN_FUTURE_EXEC_DATES',
-            fallback=False) and execution_date > utc_now:
-        raise ValueError(
-            "The execution_date [{0}] should be <= now [{1}] when RUN_FUTURE_EXEC_DATES=False".format(
-                execution_date.isoformat(), utc_now.isoformat()))
 
     if not run_id:
         run_id = "manual__{0}".format(execution_date.isoformat())
