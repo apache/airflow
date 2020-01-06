@@ -36,6 +36,7 @@ from airflow import DAG
 from airflow.configuration import conf
 from airflow.executors import celery_executor
 from airflow.models import TaskInstance
+from airflow.models.queue_task_run import QueueTaskRun
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.utils.state import State
@@ -81,18 +82,34 @@ class TestCeleryExecutor(unittest.TestCase):
             executor.start()
 
             with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
-                success_command = ['true', 'some_parameter']
-                fail_command = ['false', 'some_parameter']
+                success_command = QueueTaskRun(
+                    dag_id="test_executor_dag",
+                    task_id="success",
+                    execution_date=None,
+                    local=True,
+                    mock_command=["bash", "-c", "exit 0"],
+                )
+                fail_command = QueueTaskRun(
+                    dag_id="test_executor_dag",
+                    task_id="fail",
+                    execution_date=None,
+                    local=True,
+                    mock_command=["bash", "-c", "exit 1"],
+                )
                 execute_date = datetime.datetime.now()
 
                 cached_celery_backend = celery_executor.execute_command.backend
                 task_tuples_to_send = [
-                    (('success', 'fake_simple_ti', execute_date, 0),
-                     None, success_command, celery_executor.celery_configuration['task_default_queue'],
-                     celery_executor.execute_command),
-                    (('fail', 'fake_simple_ti', execute_date, 0),
-                     None, fail_command, celery_executor.celery_configuration['task_default_queue'],
-                     celery_executor.execute_command)
+                    (
+                        ('success', 'fake_simple_ti', execute_date, 0),
+                        None, success_command, celery_executor.celery_configuration['task_default_queue'],
+                        celery_executor.execute_command
+                    ),
+                    (
+                        ('fail', 'fake_simple_ti', execute_date, 0),
+                        None, fail_command, celery_executor.celery_configuration['task_default_queue'],
+                        celery_executor.execute_command
+                    )
                 ]
 
                 chunksize = executor._num_tasks_per_send_process(len(task_tuples_to_send))
@@ -146,8 +163,9 @@ class TestCeleryExecutor(unittest.TestCase):
                 dag=DAG(dag_id='id'),
                 start_date=datetime.datetime.now()
             )
-            value_tuple = 'command', 1, None, \
-                SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.datetime.now()))
+            qtr = QueueTaskRun(None, None, None, mock_command=["command"])
+            sti = SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.datetime.now()))
+            value_tuple = qtr, 1, None, sti
             key = ('fail', 'fake_simple_ti', datetime.datetime.now(), 0)
             executor.queued_tasks[key] = value_tuple
             executor.heartbeat()

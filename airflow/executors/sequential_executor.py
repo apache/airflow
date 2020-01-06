@@ -17,9 +17,10 @@
 # under the License.
 """Sequential executor."""
 import subprocess
-from typing import Any, Optional
+from typing import Any, List, Optional, Tuple
 
-from airflow.executors.base_executor import BaseExecutor, CommandType
+from airflow.executors.base_executor import BaseExecutor
+from airflow.models.queue_task_run import QueueTaskRun
 from airflow.models.taskinstance import TaskInstanceKeyType
 from airflow.utils.state import State
 
@@ -36,21 +37,21 @@ class SequentialExecutor(BaseExecutor):
 
     def __init__(self):
         super().__init__()
-        self.commands_to_run = []
+        self.commands_to_run: List[Tuple[TaskInstanceKeyType, QueueTaskRun]] = []
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      command: CommandType,
+                      command: QueueTaskRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         self.commands_to_run.append((key, command))
 
     def sync(self) -> None:
         for key, command in self.commands_to_run:
-            self.log.info("Executing command: %s", command)
+            self.log.info("Executing command: %s", command.as_command())
 
             try:
-                subprocess.check_call(command, close_fds=True)
+                subprocess.check_call(command.as_command(), close_fds=True)
                 self.change_state(key, State.SUCCESS)
             except subprocess.CalledProcessError as e:
                 self.change_state(key, State.FAILED)

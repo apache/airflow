@@ -25,6 +25,7 @@ from datetime import datetime
 import mock
 from urllib3 import HTTPResponse
 
+from airflow.models.queue_task_run import QueueTaskRun
 from tests.test_utils.config import conf_vars
 
 try:
@@ -201,10 +202,13 @@ class TestKubernetesExecutor(unittest.TestCase):
 
         # Execute a task while the Api Throws errors
         try_number = 1
-        kubernetes_executor.execute_async(key=('dag', 'task', datetime.utcnow(), try_number),
-                                          queue=None,
-                                          command='command',
-                                          executor_config={})
+        qtr = QueueTaskRun(dag_id=None, task_id=None, execution_date=None, mock_command="true")
+        kubernetes_executor.execute_async(
+            key=('dag', 'task', datetime.utcnow(), try_number),
+            queue=None,
+            command=qtr,
+            executor_config={}
+        )
         kubernetes_executor.sync()
         kubernetes_executor.sync()
 

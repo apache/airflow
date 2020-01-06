@@ -19,6 +19,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 from airflow.executors.debug_executor import DebugExecutor
+from airflow.models import TaskInstance
 from airflow.utils.state import State
 
 
@@ -30,12 +31,15 @@ class TestDebugExecutor:
         executor = DebugExecutor()
 
         ti1 = MagicMock(key="t1")
+        qtr1 = mock.MagicMock()
         ti2 = MagicMock(key="t2")
-        executor.tasks_to_run = [ti1, ti2]
+        qtr2 = mock.MagicMock()
+        executor.tasks_to_run = [(ti1, qtr1), (ti2, qtr2)]
 
         executor.sync()
         assert not executor.tasks_to_run
-        run_task_mock.assert_has_calls([mock.call(ti1), mock.call(ti2)])
+        print(run_task_mock.call_args_list)
+        run_task_mock.assert_has_calls([mock.call(ti1, qtr1), mock.call(ti2, qtr2)])
 
     @mock.patch("airflow.executors.debug_executor.TaskInstance")
     def test_run_task(self, task_instance_mock):
@@ -43,13 +47,16 @@ class TestDebugExecutor:
         job_id = " job_id"
         task_instance_mock.key = ti_key
         task_instance_mock.job_id = job_id
+        qtr = mock.MagicMock()
 
         executor = DebugExecutor()
         executor.running = set([ti_key])
-        succeeded = executor._run_task(task_instance_mock)
+        succeeded = executor._run_task(task_instance_mock, qtr)
 
         assert succeeded
-        task_instance_mock._run_raw_task.assert_called_once_with(job_id=job_id)
+        task_instance_mock._run_raw_task.assert_called_once_with(
+            job_id=job_id, mark_success=qtr.mark_success, pool=qtr.pool
+        )
 
     def test_queue_task_instance(self):
         key = "ti_key"
@@ -59,11 +66,6 @@ class TestDebugExecutor:
         executor.queue_task_instance(task_instance=ti, mark_success=True, pool="pool")
 
         assert key in executor.queued_tasks
-        assert key in executor.tasks_params
-        assert executor.tasks_params[key] == {
-            "mark_success": True,
-            "pool": "pool",
-        }
 
     def test_trigger_tasks(self):
         execute_async_mock = MagicMock()
@@ -71,8 +73,8 @@ class TestDebugExecutor:
         executor.execute_async = execute_async_mock
 
         executor.queued_tasks = {
-            "t1": (None, 1, None, MagicMock(key="t1")),
-            "t2": (None, 2, None, MagicMock(key="t2")),
+            "t1": (None, 1, None, MagicMock(key="t1", spec=TaskInstance)),
+            "t2": (None, 2, None, MagicMock(key="t2", spec=TaskInstance)),
         }
 
         executor.trigger_tasks(open_slots=4)
@@ -85,8 +87,8 @@ class TestDebugExecutor:
         ti = MagicMock(key="ti_key")
 
         executor = DebugExecutor()
-        executor.tasks_to_run = [ti]
-        executor.running = set([ti.key])
+        executor.tasks_to_run = [(ti, mock.MagicMock)]
+        executor.running = {ti.key}
         executor.end()
 
         ti.set_state.assert_called_once_with(State.UPSTREAM_FAILED)
@@ -98,11 +100,13 @@ class TestDebugExecutor:
             executor = DebugExecutor()
 
         ti1 = MagicMock(key="t1")
+        qtr1 = mock.MagicMock()
         ti2 = MagicMock(key="t2")
+        qtr2 = mock.MagicMock()
 
         ti1._run_raw_task.side_effect = Exception
 
-        executor.tasks_to_run = [ti1, ti2]
+        executor.tasks_to_run = [(ti1, qtr1), (ti2, qtr2)]
 
         executor.sync()
 

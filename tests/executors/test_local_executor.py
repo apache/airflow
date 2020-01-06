@@ -20,6 +20,7 @@ import unittest
 from unittest import mock
 
 from airflow.executors.local_executor import LocalExecutor
+from airflow.models.queue_task_run import QueueTaskRun
 from airflow.utils.state import State
 
 
@@ -32,8 +33,8 @@ class TestLocalExecutor(unittest.TestCase):
         executor.start()
 
         success_key = 'success {}'
-        success_command = ['true', 'some_parameter']
-        fail_command = ['false', 'some_parameter']
+        success_command = QueueTaskRun(None, None, None, mock_command=['true', 'some_parameter'])
+        fail_command = QueueTaskRun(None, None, None, mock_command=['false', 'some_parameter'])
         self.assertTrue(executor.result_queue.empty())
 
         execution_date = datetime.datetime.now()

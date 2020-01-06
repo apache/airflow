@@ -21,10 +21,11 @@ process executor meaning it does not use multiprocessing.
 """
 
 import threading
-from typing import Any, Dict, List, Optional
+from typing import List, Optional, Tuple
 
 from airflow import conf
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.queue_task_run import QueueTaskRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.utils.state import State
 
@@ -41,9 +42,7 @@ class DebugExecutor(BaseExecutor):
 
     def __init__(self):
         super().__init__()
-        self.tasks_to_run: List[TaskInstance] = []
-        # Place where we keep information for task instance raw run
-        self.tasks_params: Dict[TaskInstanceKeyType, Dict[str, Any]] = {}
+        self.tasks_to_run: List[Tuple[TaskInstance, QueueTaskRun]] = []
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
     def execute_async(self, *args, **kwargs) -> None:
@@ -54,7 +53,7 @@ class DebugExecutor(BaseExecutor):
     def sync(self) -> None:
         task_succeeded = True
         while self.tasks_to_run:
-            ti = self.tasks_to_run.pop(0)
+            ti, queue_task_run = self.tasks_to_run.pop(0)
             if self.fail_fast and not task_succeeded:
                 self.log.info("Setting %s to %s", ti.key, State.UPSTREAM_FAILED)
                 ti.set_state(State.UPSTREAM_FAILED)
@@ -69,15 +68,14 @@ class DebugExecutor(BaseExecutor):
                 self.change_state(ti.key, State.FAILED)
                 continue
 
-            task_succeeded = self._run_task(ti)
+            task_succeeded = self._run_task(ti, queue_task_run)
 
-    def _run_task(self, ti: TaskInstance) -> bool:
+    def _run_task(self, ti: TaskInstance, queue_task_run: QueueTaskRun) -> bool:
         self.log.debug("Executing task: %s", ti)
         key = ti.key
         try:
-            params = self.tasks_params.pop(ti.key, {})
             ti._run_raw_task(  # pylint: disable=protected-access
-                job_id=ti.job_id, **params
+                job_id=ti.job_id, mark_success=queue_task_run.mark_success, pool=queue_task_run.pool
             )
             self.change_state(key, State.SUCCESS)
             return True
@@ -99,19 +97,22 @@ class DebugExecutor(BaseExecutor):
         cfg_path: Optional[str] = None,
     ) -> None:
         """
-        Queues task instance with empty command because we do not need it.
+        Queues task instance.
         """
         self.queue_command(
             task_instance,
-            [str(task_instance)],  # Just for better logging, it's not used anywhere
+            task_instance.get_queue_task_run(
+                pickle_id=pickle_id,
+                ignore_all_deps=ignore_all_deps,
+                ignore_depends_on_past=ignore_depends_on_past,
+                ignore_task_deps=ignore_task_deps,
+                ignore_ti_state=ignore_ti_state,
+                pool=pool,
+                cfg_path=cfg_path
+            ),
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue,
         )
-        # Save params for TaskInstance._run_raw_task
-        self.tasks_params[task_instance.key] = {
-            "mark_success": mark_success,
-            "pool": pool,
-        }
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
@@ -126,17 +127,19 @@ class DebugExecutor(BaseExecutor):
             reverse=True,
         )
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (_, _, _, ti) = sorted_queue.pop(0)
+            key, (command, _, _, ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running.add(key)
-            self.tasks_to_run.append(ti)  # type: ignore
+            if not isinstance(ti, TaskInstance):
+                raise ValueError(f"Expected TaskInstance, but found {type(ti)} type")
+            self.tasks_to_run.append((ti, command))
 
     def end(self) -> None:
         """
         When the method is called we just set states of queued tasks
         to UPSTREAM_FAILED marking them as not executed.
         """
-        for ti in self.tasks_to_run:
+        for ti, _ in self.tasks_to_run:
             self.log.info("Setting %s to %s", ti.key, State.UPSTREAM_FAILED)
             ti.set_state(State.UPSTREAM_FAILED)
             self.change_state(ti.key, State.UPSTREAM_FAILED)

@@ -40,6 +40,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
+from airflow.models.queue_task_run import QueueTaskRun
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import SCHEDULED_DEPS, DepContext
@@ -1304,22 +1305,21 @@ class SchedulerJob(BaseJob):
         :param simple_dag_bag: Should contains all of the task_instances' dags
         :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         """
-        TI = models.TaskInstance
         # actually enqueue them
         for simple_task_instance in simple_task_instances:
             simple_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
-            command = TI.generate_command(
-                simple_task_instance.dag_id,
-                simple_task_instance.task_id,
-                simple_task_instance.execution_date,
+            queue_tsak_run = QueueTaskRun(
+                dag_id=simple_task_instance.dag_id,
+                task_id=simple_task_instance.task_id,
+                execution_date=simple_task_instance.execution_date,
                 local=True,
                 mark_success=False,
-                ignore_all_deps=False,
+                ignore_all_dependencies=False,
                 ignore_depends_on_past=False,
-                ignore_task_deps=False,
-                ignore_ti_state=False,
+                ignore_dependencies=False,
+                force=False,
                 pool=simple_task_instance.pool,
-                file_path=simple_dag.full_filepath,
+                subdir=simple_dag.full_filepath,
                 pickle_id=simple_dag.pickle_id)
 
             priority = simple_task_instance.priority_weight
@@ -1331,7 +1331,7 @@ class SchedulerJob(BaseJob):
 
             self.executor.queue_command(
                 simple_task_instance,
-                command,
+                queue_tsak_run,
                 priority=priority,
                 queue=queue)
 

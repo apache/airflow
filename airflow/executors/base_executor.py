@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from airflow import LoggingMixin, conf
 from airflow.models import TaskInstance
+from airflow.models.queue_task_run import QueueTaskRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
 from airflow.utils.state import State
@@ -30,17 +31,11 @@ PARALLELISM: int = conf.getint('core', 'PARALLELISM')
 
 NOT_STARTED_MESSAGE = "The executor should be started first!"
 
-# Command to execute - list of strings
-# the first element is always "airflow".
-# It should be result of TaskInstance.generate_command method.q
-CommandType = List[str]
-
-
 # Task that is queued. It contains all the information that is
 # needed to run the task.
 #
 # Tuple of: command, priority, queue name, SimpleTaskInstance
-QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], Union[SimpleTaskInstance, TaskInstance]]
+QueuedTaskInstanceType = Tuple[QueueTaskRun, int, Optional[str], Union[SimpleTaskInstance, TaskInstance]]
 
 
 class BaseExecutor(LoggingMixin):
@@ -66,7 +61,7 @@ class BaseExecutor(LoggingMixin):
 
     def queue_command(self,
                       simple_task_instance: SimpleTaskInstance,
-                      command: CommandType,
+                      command: QueueTaskRun,
                       priority: int = 1,
                       queue: Optional[str] = None):
         """Queues command to task"""
@@ -94,7 +89,7 @@ class BaseExecutor(LoggingMixin):
         # cfg_path is needed to propagate the config values if using impersonation
         # (run_as_user), given that there are different code paths running tasks.
         # For a long term solution we need to address AIRFLOW-1986
-        command_list_to_run = task_instance.command_as_list(
+        queue_task_run = task_instance.get_queue_task_run(
             local=True,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
@@ -106,7 +101,7 @@ class BaseExecutor(LoggingMixin):
             cfg_path=cfg_path)
         self.queue_command(
             SimpleTaskInstance(task_instance),
-            command_list_to_run,
+            queue_task_run,
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
 
@@ -232,7 +227,7 @@ class BaseExecutor(LoggingMixin):
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      command: CommandType,
+                      command: QueueTaskRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:  # pragma: no cover
         """

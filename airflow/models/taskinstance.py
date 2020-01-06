@@ -44,6 +44,7 @@ from airflow.exceptions import (
 from airflow.models.base import ID_LEN, Base
 from airflow.models.log import Log
 from airflow.models.pool import Pool
+from airflow.models.queue_task_run import QueueTaskRun
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -264,26 +265,14 @@ class TaskInstance(Base, LoggingMixin):
             raw=False,
             job_id=None,
             pool=None,
-            cfg_path=None):
+            cfg_path=None
+    ):
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
-        dag = self.task.dag
-
-        should_pass_filepath = not pickle_id and dag
-        if should_pass_filepath and dag.full_filepath != dag.filepath:
-            path = "DAGS_FOLDER/{}".format(dag.filepath)
-        elif should_pass_filepath and dag.full_filepath:
-            path = dag.full_filepath
-        else:
-            path = None
-
-        return TaskInstance.generate_command(
-            self.dag_id,
-            self.task_id,
-            self.execution_date,
+        queue_task_run = self.get_queue_task_run(
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
             ignore_task_deps=ignore_task_deps,
@@ -291,80 +280,53 @@ class TaskInstance(Base, LoggingMixin):
             ignore_ti_state=ignore_ti_state,
             local=local,
             pickle_id=pickle_id,
-            file_path=path,
             raw=raw,
             job_id=job_id,
             pool=pool,
-            cfg_path=cfg_path)
+            cfg_path=cfg_path
+        )
+        return queue_task_run.as_command()
 
-    @staticmethod
-    def generate_command(dag_id,
-                         task_id,
-                         execution_date,
-                         mark_success=False,
-                         ignore_all_deps=False,
-                         ignore_depends_on_past=False,
-                         ignore_task_deps=False,
-                         ignore_ti_state=False,
-                         local=False,
-                         pickle_id=None,
-                         file_path=None,
-                         raw=False,
-                         job_id=None,
-                         pool=None,
-                         cfg_path=None
-                         ):
-        """
-        Generates the shell command required to execute this task instance.
-
-        :param dag_id: DAG ID
-        :type dag_id: unicode
-        :param task_id: Task ID
-        :type task_id: unicode
-        :param execution_date: Execution date for the task
-        :type execution_date: datetime.datetime
-        :param mark_success: Whether to mark the task as successful
-        :type mark_success: bool
-        :param ignore_all_deps: Ignore all ignorable dependencies.
-            Overrides the other ignore_* parameters.
-        :type ignore_all_deps: bool
-        :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
-            (e.g. for Backfills)
-        :type ignore_depends_on_past: bool
-        :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
-            and trigger rule
-        :type ignore_task_deps: bool
-        :param ignore_ti_state: Ignore the task instance's previous failure/success
-        :type ignore_ti_state: bool
-        :param local: Whether to run the task locally
-        :type local: bool
-        :param pickle_id: If the DAG was serialized to the DB, the ID
-            associated with the pickled DAG
-        :type pickle_id: unicode
-        :param file_path: path to the file containing the DAG definition
-        :param raw: raw mode (needs more details)
-        :param job_id: job ID (needs more details)
-        :param pool: the Airflow pool that the task should run in
-        :type pool: unicode
-        :param cfg_path: the Path to the configuration file
-        :type cfg_path: str
-        :return: shell command that can be used to run the task instance
-        """
-        iso = execution_date.isoformat()
-        cmd = ["airflow", "tasks", "run", str(dag_id), str(task_id), str(iso)]
-        cmd.extend(["--mark_success"]) if mark_success else None
-        cmd.extend(["--pickle", str(pickle_id)]) if pickle_id else None
-        cmd.extend(["--job_id", str(job_id)]) if job_id else None
-        cmd.extend(["-A"]) if ignore_all_deps else None
-        cmd.extend(["-i"]) if ignore_task_deps else None
-        cmd.extend(["-I"]) if ignore_depends_on_past else None
-        cmd.extend(["--force"]) if ignore_ti_state else None
-        cmd.extend(["--local"]) if local else None
-        cmd.extend(["--pool", pool]) if pool else None
-        cmd.extend(["--raw"]) if raw else None
-        cmd.extend(["-sd", file_path]) if file_path else None
-        cmd.extend(["--cfg_path", cfg_path]) if cfg_path else None
-        return cmd
+    def get_queue_task_run(
+        self,
+        mark_success=False,
+        ignore_all_deps=False,
+        ignore_task_deps=False,
+        ignore_depends_on_past=False,
+        ignore_ti_state=False,
+        local=False,
+        pickle_id=None,
+        raw=False,
+        job_id=None,
+        pool=None,
+        cfg_path=None
+    ):
+        dag = self.task.dag
+        should_pass_filepath = not pickle_id and dag
+        if should_pass_filepath and dag.full_filepath != dag.filepath:
+            path = "DAGS_FOLDER/{}".format(dag.filepath)
+        elif should_pass_filepath and dag.full_filepath:
+            path = dag.full_filepath
+        else:
+            path = None
+        queue_task_run = QueueTaskRun(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            execution_date=self.execution_date,
+            mark_success=mark_success,
+            ignore_all_dependencies=ignore_all_deps,
+            ignore_dependencies=ignore_task_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            force=ignore_ti_state,
+            local=local,
+            pickle_id=pickle_id,
+            subdir=path,
+            raw=raw,
+            job_id=job_id,
+            pool=pool,
+            cfg_path=cfg_path
+        )
+        return queue_task_run
 
     @property
     def log_filepath(self):

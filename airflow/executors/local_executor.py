@@ -49,7 +49,8 @@ from queue import Empty, Queue  # pylint: disable=unused-import  # noqa: F401
 from typing import Any, List, Optional, Tuple, Union  # pylint: disable=unused-import # noqa: F401
 
 from airflow import AirflowException
-from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor, CommandType
+from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor
+from airflow.models.queue_task_run import QueueTaskRun
 from airflow.models.taskinstance import (  # pylint: disable=unused-import # noqa: F401
     TaskInstanceKeyType, TaskInstanceStateType,
 )
@@ -59,7 +60,7 @@ from airflow.utils.state import State
 # This is a work to be executed by a worker.
 # It can Key and Command - but it can also be None, None which is actually a
 # "Poison Pill" - worker seeing Poison Pill should take the pill and ... die instantly.
-ExecutorWorkType = Tuple[Optional[TaskInstanceKeyType], Optional[CommandType]]
+ExecutorWorkType = Tuple[Optional[TaskInstanceKeyType], Optional[QueueTaskRun]]
 
 
 class LocalWorkerBase(Process, LoggingMixin):
@@ -74,7 +75,7 @@ class LocalWorkerBase(Process, LoggingMixin):
         self.daemon: bool = True
         self.result_queue: 'Queue[TaskInstanceStateType]' = result_queue
 
-    def execute_work(self, key: TaskInstanceKeyType, command: CommandType) -> None:
+    def execute_work(self, key: TaskInstanceKeyType, command: QueueTaskRun) -> None:
         """
         Executes command received and stores result state in queue.
 
@@ -85,7 +86,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             return
         self.log.info("%s running %s", self.__class__.__name__, command)
         try:
-            subprocess.check_call(command, close_fds=True)
+            subprocess.check_call(command.as_command(), close_fds=True)
             state = State.SUCCESS
         except subprocess.CalledProcessError as e:
             state = State.FAILED
@@ -104,10 +105,10 @@ class LocalWorker(LocalWorkerBase):
     def __init__(self,
                  result_queue: 'Queue[TaskInstanceStateType]',
                  key: TaskInstanceKeyType,
-                 command: CommandType):
+                 command: QueueTaskRun):
         super().__init__(result_queue)
         self.key: TaskInstanceKeyType = key
-        self.command: CommandType = command
+        self.command: QueueTaskRun = command
 
     def run(self) -> None:
         self.execute_work(key=self.key, command=self.command)
@@ -176,7 +177,7 @@ class LocalExecutor(BaseExecutor):
         # noinspection PyUnusedLocal
         def execute_async(self,
                           key: TaskInstanceKeyType,
-                          command: CommandType,
+                          command: QueueTaskRun,
                           queue: Optional[str] = None,
                           executor_config: Optional[Any] = None) -> None:  \
                 # pylint: disable=unused-argument # pragma: no cover
@@ -246,7 +247,7 @@ class LocalExecutor(BaseExecutor):
         # noinspection PyUnusedLocal
         def execute_async(self,
                           key: TaskInstanceKeyType,
-                          command: CommandType,
+                          command: QueueTaskRun,
                           queue: Optional[str] = None,
                           executor_config: Optional[Any] = None) -> None: \
                 # pylint: disable=unused-argument # pragma: no cover
@@ -298,7 +299,7 @@ class LocalExecutor(BaseExecutor):
         self.impl.start()
 
     def execute_async(self, key: TaskInstanceKeyType,
-                      command: CommandType,
+                      command: QueueTaskRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         """Execute asynchronously."""
