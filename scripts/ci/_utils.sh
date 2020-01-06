@@ -626,6 +626,18 @@ function run_flake8() {
     fi
 }
 
+function run_bats_tests() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        docker run --workdir /airflow -v "$(pwd):/airflow"  \
+            bats/bats:latest --tap -r /airflow/tests/bats | tee -a "${OUTPUT_LOG}"
+    else
+        docker run --workdir /airflow -v "$(pwd):/airflow" \
+            bats/bats:latest --tap -r "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
+    fi
+}
+
+
 function run_docs() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \

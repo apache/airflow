@@ -80,7 +80,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
-        files: ^breeze$|^breeze-complete$|\.sh$
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
         args:
           - --comment-style
           - "|#|"
@@ -284,6 +284,12 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit_flake8.sh"
         files: \.py$
+        pass_filenames: true
+      - id: bat-tests
+        name: Run BATS bash tests
+        language: system
+        entry: "./scripts/ci/pre_commit_bat_tests.sh"
+        files: ^tests/bats/.*\.bats$
         pass_filenames: true
       - id: airflow-config-yaml
         name: Checks for consistency between config.yml and default_config.cfg

@@ -331,3 +331,54 @@ It will run a backfill job:
 Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
 all other running or scheduled tasks fail immediately. To enable this option set
 ``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
+
+
+BASH unit testing (BATS)
+========================
+
+We have started to add tests to cover Bash scripts we have in our codeabase.
+The tests are placed in ``tests\bats`` folder.
+They require BAT CLI to be installed if you want to run them in your
+host or via docker image.
+
+BATS CLI installation
+.....................
+
+You can find installation guide as well as information on how to write
+the bash tests in [BATS installation](https://github.com/bats-core/bats-core#installation)
+
+Running BATS tests in the host
+..............................
+
+Running all tests:
+
+```
+bats -r tests/bats/
+```
+
+Running single test:
+
+```
+bats tests/bats/your_test_file.bats
+```
+
+Running BATS tests via docker
+..............................
+
+Running all tests:
+
+```
+docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest -r /airflow/tests/bats
+```
+
+Running single test:
+
+```
+docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest /airflow/tests/bats/your_test_file.bats
+```
+
+BATS usage
+..........
+
+You can read more about using BATS CLI and writing tests in:
+[BATS usage](https://github.com/bats-core/bats-core#usage)
