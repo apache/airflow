@@ -268,13 +268,13 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
   * Enter interactive environment when no command flags are specified (default behaviour)
   * Stop the interactive environment with -k, --stop-environment command
   * Run static checks - either for currently staged change or for all files with
-    -S, --static-check or -F, --static-check-all-files commanbd
+    -S, --static-check or -F, --static-check-all-files command
   * Build documentation with -O, --build-docs command
   * Setup local virtualenv with -e, --setup-virtualenv command
   * Setup autocomplete for itself with -a, --setup-autocomplete command
   * Build docker image with -b, --build-only command
-  * Run test target specified with -t, --test-target connad
-  * Execute arbitrary command in the test environmenrt with -x, --execute-command command
+  * Run test target specified with -t, --test-target command
+  * Execute arbitrary command in the test environment with -x, --execute-command command
   * Execute arbitrary docker-compose command with -d, --docker-compose command
 
 ** Commands

@@ -83,7 +83,7 @@ Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
 
 Before you run tests, enter the environment or run local static checks, the necessary local images should be
 pulled and built from Docker Hub. This happens automatically for the test environment but you need to
-manually trigger it for static checks as described in `Building the images <#bulding-the-images>`_
+manually trigger it for static checks as described in `Building the images <#building-the-images>`_
 and `Pulling the latest images <#pulling-the-latest-images>`_.
 The static checks will fail and inform what to do if the image is not yet built.
 
@@ -359,7 +359,7 @@ Installing Dependencies for a Single Breeze Session
 You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
 ``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
 quickly while you are in the container. However, these changes are not retained: they disappear once you
-exit the container (except for theh node.js dependencies if your sources are mounted to the container).
+exit the container (except for the node.js dependencies if your sources are mounted to the container).
 Therefore, if you want to retain a new dependency, follow the second option described below.
 
 Adding Dependencies Permanently
@@ -512,7 +512,7 @@ To use your host IDE with Breeze:
 Note that you can also use the local virtualenv for Airflow development without Breeze.
 This is a lightweight solution that has its own limitations.
 
-More details on using the local virtualenv are avaiable in the `LOCAL_VIRTUALENV.rst <LOCAL_VIRTUALENV.rst>`_.
+More details on using the local virtualenv are available in the `LOCAL_VIRTUALENV.rst <LOCAL_VIRTUALENV.rst>`_.
 
 Running static checks in Breeze
 ===============================
@@ -551,13 +551,13 @@ This is the current syntax for  `./breeze <./breeze>`_:
     * Enter interactive environment when no command flags are specified (default behaviour)
     * Stop the interactive environment with -k, --stop-environment command
     * Run static checks - either for currently staged change or for all files with
-      -S, --static-check or -F, --static-check-all-files commanbd
+      -S, --static-check or -F, --static-check-all-files command
     * Build documentation with -O, --build-docs command
     * Setup local virtualenv with -e, --setup-virtualenv command
     * Setup autocomplete for itself with -a, --setup-autocomplete command
     * Build docker image with -b, --build-only command
-    * Run test target specified with -t, --test-target connad
-    * Execute arbitrary command in the test environmenrt with -x, --execute-command command
+    * Run test target specified with -t, --test-target command
+    * Execute arbitrary command in the test environment with -x, --execute-command command
     * Execute arbitrary docker-compose command with -d, --docker-compose command
 
   ** Commands
