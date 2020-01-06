@@ -59,6 +59,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Failure callback will be called when task is marked failed
+When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
+
+See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
+
 
 ## Airflow 1.10.7
 
