@@ -153,7 +153,7 @@ firstPRWelcomeComment: |
   Contribution Guide (https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst)
 
   Here are some useful points:
-  - Check the quality of your code (flake8, pylint and type annotations). Our [pre-commits](
+  - Pay attention to the quality of your code (flake8, pylint and type annotations). Our [pre-commits](
   https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#prerequisites-for-pre-commit-hooks)
   will help you with that.
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
@@ -163,7 +163,7 @@ firstPRWelcomeComment: |
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.
 
-  Apache Airflow is a community-driven project and together we are making it better 🚀
+  Apache Airflow is a community-driven project and together we are making it better 🚀.
 
   In case of doubts contact the developers at:
   Mailing List: dev@airflow.apache.org
