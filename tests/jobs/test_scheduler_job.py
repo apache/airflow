@@ -1700,10 +1700,10 @@ class TestSchedulerJob(unittest.TestCase):
         session.merge(ti1)
         session.commit()
 
-        with patch.object(BaseExecutor, '_queue_command') as mock_queue_command:
+        with patch.object(BaseExecutor, '_queue_deferred_run') as mock_deferred_run:
             scheduler._enqueue_task_instances_with_queued_state(dagbag, [ti1])
 
-        assert mock_queue_command.called
+        assert mock_deferred_run.called
 
     def test_execute_task_instances_nothing(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_nothing'

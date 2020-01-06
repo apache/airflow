@@ -37,17 +37,17 @@ class SequentialExecutor(BaseExecutor):
 
     def __init__(self):
         super().__init__()
-        self.commands_to_run: List[Tuple[TaskInstanceKeyType, LocalTaskJobDeferredRun]] = []
+        self.deferred_runs_to_run: List[Tuple[TaskInstanceKeyType, LocalTaskJobDeferredRun]] = []
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      command: LocalTaskJobDeferredRun,
+                      deferred_run: LocalTaskJobDeferredRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
-        self.commands_to_run.append((key, command))
+        self.deferred_runs_to_run.append((key, deferred_run))
 
     def sync(self) -> None:
-        for key, command in self.commands_to_run:
+        for key, command in self.deferred_runs_to_run:
             self.log.info("Executing command: %s", command.as_command())
 
             try:
@@ -57,7 +57,7 @@ class SequentialExecutor(BaseExecutor):
                 self.change_state(key, State.FAILED)
                 self.log.error("Failed to execute task %s.", str(e))
 
-        self.commands_to_run = []
+        self.deferred_runs_to_run = []
 
     def end(self):
         """End the executor."""

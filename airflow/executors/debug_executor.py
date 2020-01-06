@@ -97,12 +97,12 @@ class DebugExecutor(BaseExecutor):
             reverse=True,
         )
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, _, _, ti) = sorted_queue.pop(0)
+            key, (deferred_run, _, _, ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running.add(key)
             if not isinstance(ti, TaskInstance):
                 raise ValueError(f"Expected TaskInstance, but found {type(ti)} type")
-            self.tasks_to_run.append((ti, command))
+            self.tasks_to_run.append((ti, deferred_run))
 
     def end(self) -> None:
         """

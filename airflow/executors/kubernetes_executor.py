@@ -22,7 +22,7 @@ import json
 import multiprocessing
 import re
 from queue import Empty, Queue  # pylint: disable=unused-import
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import kubernetes
 from dateutil import parser
@@ -47,7 +47,7 @@ from airflow.utils.state import State
 MAX_LABEL_LEN = 63
 
 # TaskInstance key, command, configuration
-KubernetesJobType = Tuple[TaskInstanceKeyType, LocalTaskJobDeferredRun, Any]
+KubernetesJobType = Tuple[TaskInstanceKeyType, List[str], Any]
 
 # key, state, pod_id, resource_version
 KubernetesResultsType = Tuple[TaskInstanceKeyType, Optional[str], str, str]
@@ -775,19 +775,19 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      command: LocalTaskJobDeferredRun,
+                      deferred_run: LocalTaskJobDeferredRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         """Executes task asynchronously"""
         self.log.info(
             'Add task %s with command %s with executor_config %s',
-            key, command, executor_config
+            key, deferred_run, executor_config
         )
 
         kube_executor_config = PodGenerator.from_obj(executor_config)
         if not self.task_queue:
             raise AirflowException(NOT_STARTED_MESSAGE)
-        self.task_queue.put((key, command.as_command(), kube_executor_config))
+        self.task_queue.put((key, deferred_run.as_command(), kube_executor_config))
 
     def sync(self) -> None:
         """Synchronize task state."""

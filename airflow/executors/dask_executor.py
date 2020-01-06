@@ -63,14 +63,14 @@ class DaskExecutor(BaseExecutor):
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      command: LocalTaskJobDeferredRun,
+                      deferred_run: LocalTaskJobDeferredRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         if not self.futures:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
         def airflow_run():
-            return subprocess.check_call(command.as_command(), close_fds=True)
+            return subprocess.check_call(deferred_run.as_command(), close_fds=True)
 
         if not self.client:
             raise AirflowException(NOT_STARTED_MESSAGE)

@@ -56,14 +56,14 @@ class TestCeleryExecutor(unittest.TestCase):
     @contextlib.contextmanager
     def _prepare_app(self, broker_url=None, execute=None):
         broker_url = broker_url or conf.get('celery', 'BROKER_URL')
-        execute = execute or celery_executor.execute_command.__wrapped__
+        execute = execute or celery_executor.execute_deferred_run.__wrapped__
 
         test_config = dict(celery_executor.celery_configuration)
         test_config.update({'broker_url': broker_url})
         test_app = Celery(broker_url, config_source=test_config)
         test_execute = test_app.task(execute)
         patch_app = mock.patch('airflow.executors.celery_executor.app', test_app)
-        patch_execute = mock.patch('airflow.executors.celery_executor.execute_command', test_execute)
+        patch_execute = mock.patch('airflow.executors.celery_executor.execute_deferred_run', test_execute)
 
         with patch_app, patch_execute:
             try:
@@ -82,14 +82,14 @@ class TestCeleryExecutor(unittest.TestCase):
             executor.start()
 
             with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
-                success_command = LocalTaskJobDeferredRun(
+                success_deferred_run = LocalTaskJobDeferredRun(
                     dag_id="test_executor_dag",
                     task_id="success",
                     execution_date=None,
                     local=True,
                     mock_command=["bash", "-c", "exit 0"],
                 )
-                fail_command = LocalTaskJobDeferredRun(
+                fail_deferred_run = LocalTaskJobDeferredRun(
                     dag_id="test_executor_dag",
                     task_id="fail",
                     execution_date=None,
@@ -98,17 +98,19 @@ class TestCeleryExecutor(unittest.TestCase):
                 )
                 execute_date = datetime.datetime.now()
 
-                cached_celery_backend = celery_executor.execute_command.backend
+                cached_celery_backend = celery_executor.execute_deferred_run.backend
                 task_tuples_to_send = [
                     (
                         ('success', 'fake_simple_ti', execute_date, 0),
-                        None, success_command, celery_executor.celery_configuration['task_default_queue'],
-                        celery_executor.execute_command
+                        None, success_deferred_run,
+                        celery_executor.celery_configuration['task_default_queue'],
+                        celery_executor.execute_deferred_run
                     ),
                     (
                         ('fail', 'fake_simple_ti', execute_date, 0),
-                        None, fail_command, celery_executor.celery_configuration['task_default_queue'],
-                        celery_executor.execute_command
+                        None, fail_deferred_run,
+                        celery_executor.celery_configuration['task_default_queue'],
+                        celery_executor.execute_deferred_run
                     )
                 ]
 
