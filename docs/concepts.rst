@@ -399,6 +399,7 @@ and equivalent to:
 .. code:: python
 
     op1.set_downstream([op2, op3])
+    op4.set_upstream([op2, op3])
 
 
 Relationship Builders
