@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base class for all hooks"""
+import json
 import os
 import random
 from typing import Iterable
@@ -57,7 +58,18 @@ class BaseHook(LoggingMixin):
         environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
         conn = None
         if environment_uri:
-            conn = Connection(conn_id=conn_id, uri=environment_uri)
+            obj = json.loads(environment_uri)
+            conn_args = {
+                'conn_type': obj.get('conn_type', None),
+                'host': obj.get('host', None),
+                'login': obj.get('login', None),
+                'password': obj.get('password', None),
+                'schema': obj.get('schema', None),
+                'port': obj.get('port', None),
+                'extra': obj.get('extra', None)
+            }
+            conn = Connection(conn_id=conn_id, **conn_args)
+
         return conn
 
     @classmethod
