@@ -20,7 +20,7 @@ import subprocess
 from typing import Any, List, Optional, Tuple
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.queue_task_run import QueueTaskRun
+from airflow.models.queue_task_run import LocalTaskJobDeferredRun
 from airflow.models.taskinstance import TaskInstanceKeyType
 from airflow.utils.state import State
 
@@ -37,11 +37,11 @@ class SequentialExecutor(BaseExecutor):
 
     def __init__(self):
         super().__init__()
-        self.commands_to_run: List[Tuple[TaskInstanceKeyType, QueueTaskRun]] = []
+        self.commands_to_run: List[Tuple[TaskInstanceKeyType, LocalTaskJobDeferredRun]] = []
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      command: QueueTaskRun,
+                      command: LocalTaskJobDeferredRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         self.commands_to_run.append((key, command))

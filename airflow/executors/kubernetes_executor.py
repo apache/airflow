@@ -33,7 +33,7 @@ from kubernetes.client.rest import ApiException
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, QueueTaskRun
+from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, LocalTaskJobDeferredRun
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import MAX_POD_ID_LEN, PodGenerator
 from airflow.kubernetes.pod_launcher import PodLauncher
@@ -47,7 +47,7 @@ from airflow.utils.state import State
 MAX_LABEL_LEN = 63
 
 # TaskInstance key, command, configuration
-KubernetesJobType = Tuple[TaskInstanceKeyType, QueueTaskRun, Any]
+KubernetesJobType = Tuple[TaskInstanceKeyType, LocalTaskJobDeferredRun, Any]
 
 # key, state, pod_id, resource_version
 KubernetesResultsType = Tuple[TaskInstanceKeyType, Optional[str], str, str]
@@ -775,7 +775,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      command: QueueTaskRun,
+                      command: LocalTaskJobDeferredRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         """Executes task asynchronously"""

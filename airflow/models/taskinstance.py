@@ -44,7 +44,7 @@ from airflow.exceptions import (
 from airflow.models.base import ID_LEN, Base
 from airflow.models.log import Log
 from airflow.models.pool import Pool
-from airflow.models.queue_task_run import QueueTaskRun
+from airflow.models.queue_task_run import LocalTaskJobDeferredRun, QueueTaskRun
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -322,6 +322,43 @@ class TaskInstance(Base, LoggingMixin):
             pickle_id=pickle_id,
             subdir=path,
             raw=raw,
+            job_id=job_id,
+            pool=pool,
+            cfg_path=cfg_path
+        )
+        return queue_task_run
+
+    def get_local_task_job_deferred_run(
+        self,
+        mark_success=False,
+        ignore_all_deps=False,
+        ignore_task_deps=False,
+        ignore_depends_on_past=False,
+        ignore_ti_state=False,
+        pickle_id=None,
+        job_id=None,
+        pool=None,
+        cfg_path=None
+    ):
+        dag = self.task.dag
+        should_pass_filepath = not pickle_id and dag
+        if should_pass_filepath and dag.full_filepath != dag.filepath:
+            path = "DAGS_FOLDER/{}".format(dag.filepath)
+        elif should_pass_filepath and dag.full_filepath:
+            path = dag.full_filepath
+        else:
+            path = None
+        queue_task_run = LocalTaskJobDeferredRun(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            execution_date=self.execution_date,
+            mark_success=mark_success,
+            ignore_all_dependencies=ignore_all_deps,
+            ignore_dependencies=ignore_task_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            force=ignore_ti_state,
+            pickle_id=pickle_id,
+            subdir=path,
             job_id=job_id,
             pool=pool,
             cfg_path=cfg_path

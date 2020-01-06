@@ -36,7 +36,7 @@ from airflow import DAG
 from airflow.configuration import conf
 from airflow.executors import celery_executor
 from airflow.models import TaskInstance
-from airflow.models.queue_task_run import QueueTaskRun
+from airflow.models.queue_task_run import LocalTaskJobDeferredRun
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.utils.state import State
@@ -82,14 +82,14 @@ class TestCeleryExecutor(unittest.TestCase):
             executor.start()
 
             with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
-                success_command = QueueTaskRun(
+                success_command = LocalTaskJobDeferredRun(
                     dag_id="test_executor_dag",
                     task_id="success",
                     execution_date=None,
                     local=True,
                     mock_command=["bash", "-c", "exit 0"],
                 )
-                fail_command = QueueTaskRun(
+                fail_command = LocalTaskJobDeferredRun(
                     dag_id="test_executor_dag",
                     task_id="fail",
                     execution_date=None,
@@ -163,7 +163,7 @@ class TestCeleryExecutor(unittest.TestCase):
                 dag=DAG(dag_id='id'),
                 start_date=datetime.datetime.now()
             )
-            qtr = QueueTaskRun(None, None, None, mock_command=["command"])
+            qtr = LocalTaskJobDeferredRun(None, None, None, mock_command=["command"])
             sti = SimpleTaskInstance(ti=TaskInstance(task=task, execution_date=datetime.datetime.now()))
             value_tuple = qtr, 1, None, sti
             key = ('fail', 'fake_simple_ti', datetime.datetime.now(), 0)

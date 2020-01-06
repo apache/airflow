@@ -25,7 +25,7 @@ from typing import List, Tuple
 
 from airflow import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.queue_task_run import QueueTaskRun
+from airflow.models.queue_task_run import LocalTaskJobDeferredRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.utils.state import State
 
@@ -42,7 +42,7 @@ class DebugExecutor(BaseExecutor):
 
     def __init__(self):
         super().__init__()
-        self.tasks_to_run: List[Tuple[TaskInstance, QueueTaskRun]] = []
+        self.tasks_to_run: List[Tuple[TaskInstance, LocalTaskJobDeferredRun]] = []
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
     def execute_async(self, *args, **kwargs) -> None:
@@ -70,7 +70,7 @@ class DebugExecutor(BaseExecutor):
 
             task_succeeded = self._run_task(ti, queue_task_run)
 
-    def _run_task(self, ti: TaskInstance, queue_task_run: QueueTaskRun) -> bool:
+    def _run_task(self, ti: TaskInstance, queue_task_run: LocalTaskJobDeferredRun) -> bool:
         self.log.debug("Executing task: %s", ti)
         key = ti.key
         try:

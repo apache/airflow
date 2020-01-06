@@ -50,7 +50,7 @@ from typing import Any, List, Optional, Tuple, Union  # pylint: disable=unused-i
 
 from airflow import AirflowException
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, PARALLELISM, BaseExecutor
-from airflow.models.queue_task_run import QueueTaskRun
+from airflow.models.queue_task_run import LocalTaskJobDeferredRun
 from airflow.models.taskinstance import (  # pylint: disable=unused-import # noqa: F401
     TaskInstanceKeyType, TaskInstanceStateType,
 )
@@ -60,7 +60,7 @@ from airflow.utils.state import State
 # This is a work to be executed by a worker.
 # It can Key and Command - but it can also be None, None which is actually a
 # "Poison Pill" - worker seeing Poison Pill should take the pill and ... die instantly.
-ExecutorWorkType = Tuple[Optional[TaskInstanceKeyType], Optional[QueueTaskRun]]
+ExecutorWorkType = Tuple[Optional[TaskInstanceKeyType], Optional[LocalTaskJobDeferredRun]]
 
 
 class LocalWorkerBase(Process, LoggingMixin):
@@ -75,7 +75,7 @@ class LocalWorkerBase(Process, LoggingMixin):
         self.daemon: bool = True
         self.result_queue: 'Queue[TaskInstanceStateType]' = result_queue
 
-    def execute_work(self, key: TaskInstanceKeyType, command: QueueTaskRun) -> None:
+    def execute_work(self, key: TaskInstanceKeyType, command: LocalTaskJobDeferredRun) -> None:
         """
         Executes command received and stores result state in queue.
 
@@ -105,10 +105,10 @@ class LocalWorker(LocalWorkerBase):
     def __init__(self,
                  result_queue: 'Queue[TaskInstanceStateType]',
                  key: TaskInstanceKeyType,
-                 command: QueueTaskRun):
+                 command: LocalTaskJobDeferredRun):
         super().__init__(result_queue)
         self.key: TaskInstanceKeyType = key
-        self.command: QueueTaskRun = command
+        self.command: LocalTaskJobDeferredRun = command
 
     def run(self) -> None:
         self.execute_work(key=self.key, command=self.command)
@@ -177,7 +177,7 @@ class LocalExecutor(BaseExecutor):
         # noinspection PyUnusedLocal
         def execute_async(self,
                           key: TaskInstanceKeyType,
-                          command: QueueTaskRun,
+                          command: LocalTaskJobDeferredRun,
                           queue: Optional[str] = None,
                           executor_config: Optional[Any] = None) -> None:  \
                 # pylint: disable=unused-argument # pragma: no cover
@@ -247,7 +247,7 @@ class LocalExecutor(BaseExecutor):
         # noinspection PyUnusedLocal
         def execute_async(self,
                           key: TaskInstanceKeyType,
-                          command: QueueTaskRun,
+                          command: LocalTaskJobDeferredRun,
                           queue: Optional[str] = None,
                           executor_config: Optional[Any] = None) -> None: \
                 # pylint: disable=unused-argument # pragma: no cover
@@ -298,8 +298,9 @@ class LocalExecutor(BaseExecutor):
 
         self.impl.start()
 
-    def execute_async(self, key: TaskInstanceKeyType,
-                      command: QueueTaskRun,
+    def execute_async(self,
+                      key: TaskInstanceKeyType,
+                      command: LocalTaskJobDeferredRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         """Execute asynchronously."""

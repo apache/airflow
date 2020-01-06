@@ -25,7 +25,7 @@ from distributed.security import Security
 from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor
-from airflow.models.queue_task_run import QueueTaskRun
+from airflow.models.queue_task_run import LocalTaskJobDeferredRun
 from airflow.models.taskinstance import TaskInstanceKeyType
 
 
@@ -63,7 +63,7 @@ class DaskExecutor(BaseExecutor):
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      command: QueueTaskRun,
+                      command: LocalTaskJobDeferredRun,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         if not self.futures:
