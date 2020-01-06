@@ -145,3 +145,11 @@ labelPRBasedOnFilePath:
     - airflow/serialization/*
     - tests/serialization/*
     - docs/dag-serialization.rst
+
+updateIssueLinkInPrDescription:
+  # specify the regexp of issue id that you can find in the title of the PR
+  # the first match group will be used as an issue id
+  titleIssueIdRegexp: /\[(AIRFLOW-[0-9X]{4})\]/
+  # specify the regexp of issue link that you can find in the description of the PR
+  # the first matched group will be replaced with the issue id found from title (if it is found)
+  descriptionIssueLinkRegexp: /https:\/\/issues.apache.org\/jira\/browse\/(AIRFLOW-[0-9X]{4})/
