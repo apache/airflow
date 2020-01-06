@@ -159,7 +159,10 @@ class TestLocalTaskJob(unittest.TestCase):
             for i in range(1, len(heartbeat_records)):
                 time1 = heartbeat_records[i - 1]
                 time2 = heartbeat_records[i]
-                self.assertGreaterEqual((time2 - time1).total_seconds(), job.heartrate)
+                # Assert that difference small enough to avoid:
+                # AssertionError: 1.996401 not greater than or equal to 2
+                delta = (time2 - time1).total_seconds()
+                self.assertAlmostEqual(delta, job.heartrate, delta=0.006)
 
     @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
