@@ -85,14 +85,14 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
         self._cfg_path = cfg_path
-        self._command = popen_prepend + self._task_instance.command_as_list(
+        self._command = popen_prepend + self._task_instance.get_queue_task_run(
             raw=True,
             pickle_id=local_task_job.pickle_id,
             mark_success=local_task_job.mark_success,
             job_id=local_task_job.id,
             pool=local_task_job.pool,
             cfg_path=cfg_path,
-        )
+        ).as_command()
         self.process = None
 
     def _read_task_logs(self, stream):
