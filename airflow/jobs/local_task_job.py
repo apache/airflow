@@ -171,6 +171,7 @@ class LocalTaskJob(BaseJob):
             if ti.state == State.FAILED and ti.task.on_failure_callback:
                 context = ti.get_template_context()
                 ti.task.on_failure_callback(context)
+                
             # need to set self.terminating first to let the job know not to
             # treat non zero return code as invalid.
             self.terminating = True
