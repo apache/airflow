@@ -24,7 +24,6 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 from parameterized import parameterized
-
 from tabulate import tabulate
 
 from airflow import AirflowException, models
