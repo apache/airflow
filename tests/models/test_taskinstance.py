@@ -372,6 +372,20 @@ class TestTaskInstance(unittest.TestCase):
         db.clear_db_pools()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    def test_pool_capacity_property(self):
+        """
+        test that try to create a task with pool_capacity less than 1
+        """
+        def create_task_instance():
+            dag = models.DAG(dag_id='test_run_pooling_task')
+            task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
+                                 pool='test_pool', pool_capacity=0, owner='airflow',
+                                 start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+            ti = TI(
+                task=task, execution_date=timezone.utcnow())
+
+        self.assertRaises(AirflowException, create_task_instance)
+
     @provide_session
     def test_ti_updates_with_task(self, session=None):
         """
