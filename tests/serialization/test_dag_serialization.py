@@ -391,7 +391,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         (None, {}),
         ({"param_1": "value_1"}, {"param_1": "value_1"}),
     ])
-    def test_params_roundtrip(self, val, expected_val):
+    def test_dag_params_roundtrip(self, val, expected_val):
         """
         Test that params work both on Serialized DAGs & Tasks
         """
@@ -407,6 +407,28 @@ class TestStringifiedDAGs(unittest.TestCase):
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         self.assertEqual(expected_val, deserialized_dag.params)
+        self.assertEqual(expected_val, deserialized_simple_task.params)
+
+    @parameterized.expand([
+        (None, {}),
+        ({"param_1": "value_1"}, {"param_1": "value_1"}),
+    ])
+    def test_task_params_roundtrip(self, val, expected_val):
+        """
+        Test that params work both on Serialized DAGs & Tasks
+        """
+        dag = DAG(dag_id='simple_dag')
+        BaseOperator(task_id='simple_task', dag=dag, params=val,
+                     start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if val:
+            self.assertIn("params", serialized_dag["dag"]["tasks"][0])
+        else:
+            self.assertNotIn("params", serialized_dag["dag"]["tasks"][0])
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         self.assertEqual(expected_val, deserialized_simple_task.params)
 
     def test_extra_serialized_field_and_operator_links(self):

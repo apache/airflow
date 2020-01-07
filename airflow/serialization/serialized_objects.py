@@ -268,7 +268,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     _decorated_fields = {'executor_config'}
 
-    _CONSTRUCTOR_PARAMS = dict(signature(BaseOperator).parameters)
+    _CONSTRUCTOR_PARAMS = {
+        k: v for k, v in signature(BaseOperator).parameters.items()
+        if v.default is not v.empty
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -465,6 +468,7 @@ class SerializedDAG(DAG, BaseSerialization):
         }
         return {
             param_to_attr.get(k, k): v for k, v in signature(DAG).parameters.items()
+            if v.default is not v.empty
         }
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore
     del __get_constructor_defaults
