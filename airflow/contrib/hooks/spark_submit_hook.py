@@ -199,14 +199,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 # local and yarn
                 conn_data['master'] = conn.conn_type
             
-                # Determine optional yarn queue from the extra field
-                extra = conn.extra_dejson
-                conn_data['queue'] = extra.get('queue', None)
-                conn_data['deploy_mode'] = extra.get('deploy-mode', None)
-                conn_data['spark_home'] = extra.get('spark-home', None)
-                conn_data['spark_binary'] = self._spark_binary or  \
-                    extra.get('spark-binary', "spark-submit")
-                conn_data['namespace'] = extra.get('namespace')
+            # Determine optional yarn queue from the extra field
+            extra = conn.extra_dejson
+            conn_data['queue'] = extra.get('queue', None)
+            conn_data['deploy_mode'] = extra.get('deploy-mode', None)
+            conn_data['spark_home'] = extra.get('spark-home', None)
+            conn_data['spark_binary'] = self._spark_binary or  \
+                extra.get('spark-binary', "spark-submit")
+            conn_data['namespace'] = extra.get('namespace')
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s",
