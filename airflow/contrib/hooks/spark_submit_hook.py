@@ -197,7 +197,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 conn_data['master'] = "{}://https://{}:{}".format(conn.conn_type, conn.host, conn.port)
             else:
                 # local and yarn
-                conn_data['master'] = conn_type
+                conn_data['master'] = conn.conn_type
             
                 # Determine optional yarn queue from the extra field
                 extra = conn.extra_dejson
