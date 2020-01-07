@@ -66,7 +66,7 @@ class BaseHook(LoggingMixin):
                 'password': obj.get('password', None),
                 'schema': obj.get('schema', None),
                 'port': obj.get('port', None),
-                'extra': obj.get('extra', None)
+                'extra': json.dumps(obj.get('extra', None))
             }
             conn = Connection(conn_id=conn_id, **conn_args)
 
