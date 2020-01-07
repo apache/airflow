@@ -27,7 +27,7 @@ from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
 
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -268,7 +268,7 @@ class BaseSQLToGoogleCloudStorageOperator(BaseOperator, metaclass=abc.ABCMeta):
         Upload all of the file splits (and optionally the schema .json file) to
         Google Cloud Storage.
         """
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
         for tmp_file in files_to_upload:

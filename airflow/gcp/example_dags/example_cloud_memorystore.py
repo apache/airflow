@@ -33,7 +33,7 @@ from airflow.gcp.operators.cloud_memorystore import (
     CloudMemorystoreListInstancesOperator, CloudMemorystoreScaleInstanceOperator,
     CloudMemorystoreUpdateInstanceOperator,
 )
-from airflow.gcp.operators.gcs import GoogleCloudStorageBucketCreateAclEntryOperator
+from airflow.gcp.operators.gcs import GCSBucketCreateAclEntryOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils import dates
 
@@ -130,7 +130,7 @@ with models.DAG(
     # [END howto_operator_update_instance]
 
     # [START howto_operator_set_acl_permission]
-    set_acl_permission = GoogleCloudStorageBucketCreateAclEntryOperator(
+    set_acl_permission = GCSBucketCreateAclEntryOperator(
         task_id="gcs-set-acl-permission",
         bucket=BUCKET_NAME,
         entity="user-{{ task_instance.xcom_pull('get-instance')['persistenceIamIdentity']"

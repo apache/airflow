@@ -26,7 +26,7 @@ from typing import Any, Dict, Optional
 from googleapiclient import http
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.utils.decorators import apply_defaults
@@ -210,7 +210,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
             delegate_to=self.delegate_to,
             api_version=self.api_version,
         )
-        gcs_hook = GoogleCloudStorageHook(
+        gcs_hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
         # Get name of the report

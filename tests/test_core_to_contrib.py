@@ -69,7 +69,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook",
     ),
     (
-        "airflow.gcp.hooks.gcs.GoogleCloudStorageHook",
+        "airflow.gcp.hooks.gcs.GCSHook",
         "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
     ),
     (
@@ -730,27 +730,27 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator",
+        "airflow.gcp.operators.gcs.GCSBucketCreateAclEntryOperator",
         "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator",
+        "airflow.gcp.operators.gcs.GCSObjectCreateAclEntryOperator",
         "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator",
+        "airflow.gcp.operators.gcs.GCSDeleteObjectsOperator",
         "airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageDownloadOperator",
+        "airflow.gcp.operators.gcs.GCSToLocalOperator",
         "airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageListOperator",
+        "airflow.gcp.operators.gcs.GCSListObjectsOperator",
         "airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator",
+        "airflow.gcp.operators.gcs.GCSCreateBucketOperator",
         "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
     ),
     (
@@ -792,19 +792,19 @@ SENSOR = [
         "airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectSensor",
+        "airflow.gcp.sensors.gcs.GCSObjectExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectUpdatedSensor",
+        "airflow.gcp.sensors.gcs.GCSObjectUpdateSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStoragePrefixSensor",
+        "airflow.gcp.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStorageUploadSessionCompleteSensor",
+        "airflow.gcp.sensors.gcs.GCSUploadSessionCompleteSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor",
     ),
     (

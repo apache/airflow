@@ -40,7 +40,7 @@ from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.utils import timezone
@@ -1279,7 +1279,7 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
 
         self.log.info("Uploading %s to %s", local_file, temp_filename)
 
-        GoogleCloudStorageHook(
+        GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id
         ).upload(
             bucket_name=bucket,

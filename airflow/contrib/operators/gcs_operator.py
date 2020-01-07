@@ -22,10 +22,23 @@ This module is deprecated. Please use `airflow.gcp.operators.gcs`.
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.gcs import GoogleCloudStorageCreateBucketOperator  # noqa
+from airflow.gcp.operators.gcs import GCSCreateBucketOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.gcs`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GoogleCloudStorageCreateBucketOperator(GCSCreateBucketOperator):
+    """
+    This class is deprecated.Please use `airflow.gcp.operators.gcs.GCSCreateBucketOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.gcs.GCSCreateBucketOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
