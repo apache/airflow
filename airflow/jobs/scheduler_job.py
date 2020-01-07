@@ -28,7 +28,6 @@ import time
 from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
-from time import sleep
 from typing import List, Set
 
 from setproctitle import setproctitle
@@ -1539,7 +1538,6 @@ class SchedulerJob(BaseJob):
 
         # For the execute duration, parse and schedule DAGs
         while True:
-            self.log.debug("Starting Loop...")
             loop_start_time = time.time()
 
             if self.using_sqlite:
@@ -1550,7 +1548,6 @@ class SchedulerJob(BaseJob):
                     "Waiting for processors to finish since we're using sqlite")
                 self.processor_agent.wait_until_finished()
 
-            self.log.debug("Harvesting DAG parsing results")
             simple_dags = self._get_simple_dags()
             self.log.debug("Harvested {} SimpleDAGs".format(len(simple_dags)))
 
@@ -1575,20 +1572,12 @@ class SchedulerJob(BaseJob):
                 loop_duration)
 
             if not is_unit_test:
-                self.log.debug("Sleeping for %.2f seconds", self._processor_poll_interval)
                 time.sleep(self._processor_poll_interval)
 
             if self.processor_agent.done:
                 self.log.info("Exiting scheduler loop as all files"
                               " have been processed {} times".format(self.num_runs))
                 break
-
-            if loop_duration < 1 and not is_unit_test:
-                sleep_length = 1 - loop_duration
-                self.log.debug(
-                    "Sleeping for {0:.2f} seconds to prevent excessive logging"
-                    .format(sleep_length))
-                sleep(sleep_length)
 
         # Stop any processors
         self.processor_agent.terminate()
