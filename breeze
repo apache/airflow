@@ -37,19 +37,10 @@ mkdir -pv "${BUILD_CACHE_DIR}"
 mkdir -pv "${TMP_DIR}"
 mkdir -pv "${FILES_DIR}"
 
-function save_to_file {
-    # shellcheck disable=SC2005
-    echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
-}
-
-function read_from_file {
-    cat "${BUILD_CACHE_DIR}/.$1" 2>/dev/null || true
-}
-
-export PYTHON_VERSION="${PYTHON_VERSION:=$(read_from_file PYTHON_VERSION)}"
-
 # shellcheck source=scripts/ci/_utils.sh
 . "${SCRIPTS_CI_DIR}/_utils.sh"
+
+export PYTHON_VERSION="${PYTHON_VERSION:=$(read_from_file PYTHON_VERSION)}"
 
 basic_sanity_checks
 
@@ -711,50 +702,14 @@ export KUBERNETES_VERSION=${KUBERNETES_VERSION:=${_BREEZE_DEFAULT_KUBERNETES_VER
 # Default mode of Kubernetes to use
 export KUBERNETES_MODE=${KUBERNETES_MODE:=${_BREEZE_DEFAULT_KUBERNETES_MODE}}
 
-#################### Check python version ##########################################
-if [[ ${_BREEZE_ALLOWED_PYTHON_VERSIONS:=} != *" ${PYTHON_VERSION} "* ]]; then
-    echo >&2
-    echo >&2 "ERROR:  Allowed Python versions: [${_BREEZE_ALLOWED_PYTHON_VERSIONS}]. Is: '${PYTHON_VERSION}'."
-    echo >&2
-    echo >&2 "Switch to virtualenv with the supported python version or specify python with --python flag."
-    echo >&2
-    exit 1
-fi
+check_for_allowed_params "PYTHON_VERSION"  "Python version" "--python"
+check_for_allowed_params "BACKEND"  "backend" "--backend"
+check_for_allowed_params "KUBERNETES_MODE"  "Kubernetes mode" "--kubernetes-mode"
+check_for_allowed_params "ENV"  "environment" "--env"
+check_for_allowed_params "KUBERNETES_VERSION"  "Kubernetes version" "--kubernetes-version"
 
-#################### Check environments ##########################################
-if [[ ${_BREEZE_ALLOWED_ENVS:=} != *" ${ENV} "* ]]; then
-    echo >&2
-    echo >&2 "ERROR:  Allowed environments are [${_BREEZE_ALLOWED_ENVS}]. Used: '${ENV}'"
-    echo >&2
-    exit 1
-fi
-
-#################### Check backends ##########################################
-if [[ ${_BREEZE_ALLOWED_BACKENDS:=} != *" ${BACKEND} "* ]]; then
-    echo >&2
-    echo >&2 "ERROR:  Allowed backends are [${_BREEZE_ALLOWED_BACKENDS}]. Used: '${BACKEND}'"
-    echo >&2
-    exit 1
-fi
-
-#################### Check environments ##########################################
-if [[ ${_BREEZE_ALLOWED_KUBERNETES_VERSIONS} != *" ${KUBERNETES_VERSION} "* ]]; then
-    echo >&2
-    echo >&2 "ERROR:  Allowed kubernetes versions" \
-         "are [${_BREEZE_ALLOWED_KUBERNETES_VERSIONS}]. Used: '${KUBERNETES_VERSION}'"
-    echo >&2
-    exit 1
-fi
-
-#################### Check environments ##########################################
-if [[ ${_BREEZE_ALLOWED_KUBERNETES_MODES} != *" ${KUBERNETES_MODE} "* ]]; then
-    echo >&2
-    echo >&2 "ERROR:  Allowed kubernetes modes" \
-         "are [${_BREEZE_ALLOWED_KUBERNETES_MODES}]. Used: '${KUBERNETES_MODE}'"
-    echo >&2
-    exit 1
-fi
-
+save_to_file DOCKERHUB_USER
+save_to_file DOCKERHUB_REPO
 
 # Those files are mounted into container when run locally
 # .bash_history is preserved and you can modify .bash_aliases and .inputrc
@@ -762,14 +717,6 @@ fi
 touch "${MY_DIR}/.bash_history"
 touch "${MY_DIR}/.bash_aliases"
 touch "${MY_DIR}/.inputrc"
-
-save_to_file BACKEND
-save_to_file ENV
-save_to_file KUBERNETES_VERSION
-save_to_file KUBERNETES_MODE
-save_to_file PYTHON_VERSION
-save_to_file DOCKERHUB_USER
-save_to_file DOCKERHUB_REPO
 
 #################### Cleanup image if requested ########################################
 if [[ "${CLEANUP_IMAGES}" == "true" ]]; then
