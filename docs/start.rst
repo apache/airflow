@@ -45,7 +45,7 @@ The installation is quick and straightforward.
     airflow scheduler
 
     # visit localhost:8080 in the browser and use the admin account you just
-    # created to login. Enable the example dag in the home page
+    # created to login. Enable the example_bash_operator dag in the home page
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and lay an "airflow.cfg" file with defaults that get you going fast. You can
