@@ -29,7 +29,7 @@ from airflow.operators.mysql_to_s3_operator import MySQLToS3Operator
 class TestMySqlToS3Operator(unittest.TestCase):
 
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.hooks.mysql_hook.MySqlHook")
+    @mock.patch("airflow.hooks.mysql_hook.MySqlHook.run")
     def test_execute(self, mock_hook, mock_session):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
