@@ -68,7 +68,7 @@ def run_task():
     execution_date = pendulum.fromtimestamp(int(request.args.get("execution_date")))
     log = LoggingMixin().log
     log.info("running dag {} for task {} on date {} in subdir {}"
-             .format(dag_id, task_id, execution_date, subdir))
+             log.info("Running dag %s for task %s on date %s in subdir %s", dag_id, task_id, execution_date, subdir)
     logging.shutdown()
     try:
         # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
