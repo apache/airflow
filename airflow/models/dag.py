@@ -550,11 +550,6 @@ class DAG(BaseDag, LoggingMixin):
         return list(self.task_dict.keys())
 
     @property
-    def active_tasks(self):
-        """Return tasks in a DAG. Needed as part of determining overall DagRun outcome"""
-        return [t for t in self.tasks]
-
-    @property
     def filepath(self):
         """
         File location of where the dag object is instantiated

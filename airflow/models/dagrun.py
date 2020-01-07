@@ -313,7 +313,7 @@ class DagRun(Base, LoggingMixin):
 
         leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
 
-        if len(tis) == len(dag.active_tasks):
+        if len(tis) == len(dag.tasks):
             # if all roots finished and at least one failed, the run failed
             if not unfinished_tasks and any(
                 leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
