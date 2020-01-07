@@ -98,7 +98,6 @@
         "is_paused_upon_creation":  { "type": "boolean" }
       },
       "required": [
-        "params",
         "_dag_id",
         "fileloc",
         "tasks"
