@@ -19,85 +19,12 @@
 """
 This module contains sensors for AWS CloudFormation.
 """
-from botocore.exceptions import ClientError
-
 from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class BaseCloudFormationSensor(BaseSensorOperator):
-    """
-    Waits for a stack operation to complete on AWS CloudFormation.
-
-    :param stack_name: The name of the stack to wait for (templated)
-    :type stack_name: str
-    :param aws_conn_id: ID of the Airflow connection where credentials and extra configuration are
-        stored
-    :type aws_conn_id: str
-    :param poke_interval: Time in seconds that the job should wait between each try
-    :type poke_interval: int
-    """
-
-    @apply_defaults
-    def __init__(self,
-                 stack_name,
-                 complete_status,
-                 in_progress_status,
-                 aws_conn_id='aws_default',
-                 poke_interval=60 * 3,
-                 *args,
-                 **kwargs):
-        super().__init__(poke_interval=poke_interval, *args, **kwargs)
-        self.aws_conn_id = aws_conn_id
-        self.stack_name = stack_name
-        self.complete_status = complete_status
-        self.in_progress_status = in_progress_status
-        self.hook = None
-
-    def poke(self, context):
-        """
-        Checks for existence of the stack in AWS CloudFormation.
-        """
-        cloudformation = self.get_hook().get_conn()
-
-        self.log.info('Poking for stack %s', self.stack_name)
-
-        try:
-            stacks = cloudformation.describe_stacks(StackName=self.stack_name)['Stacks']
-            stack_status = stacks[0]['StackStatus']
-            if stack_status == self.complete_status:
-                return True
-            elif stack_status == self.in_progress_status:
-                return False
-            else:
-                raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
-        except ClientError as e:
-            if 'does not exist' in str(e):
-                if not self.allow_non_existing_stack_status():
-                    raise ValueError(f'Stack {self.stack_name} does not exist')
-                else:
-                    return True
-            else:
-                raise e
-
-    def get_hook(self):
-        """
-        Gets the AwsGlueCatalogHook
-        """
-        if not self.hook:
-            self.hook = AWSCloudFormationHook(aws_conn_id=self.aws_conn_id)
-
-        return self.hook
-
-    def allow_non_existing_stack_status(self):
-        """
-        Boolean value whether or not sensor should allow non existing stack responses.
-        """
-        return False
-
-
-class CloudFormationCreateStackSensor(BaseCloudFormationSensor):
+class CloudFormationCreateStackSensor(BaseSensorOperator):
     """
     Waits for a stack to be created successfully on AWS CloudFormation.
 
@@ -117,19 +44,24 @@ class CloudFormationCreateStackSensor(BaseCloudFormationSensor):
     def __init__(self,
                  stack_name,
                  aws_conn_id='aws_default',
-                 poke_interval=60 * 3,
+                 region_name=None,
                  *args,
                  **kwargs):
-        super().__init__(stack_name=stack_name,
-                         complete_status='CREATE_COMPLETE',
-                         in_progress_status='CREATE_IN_PROGRESS',
-                         aws_conn_id=aws_conn_id,
-                         poke_interval=poke_interval,
-                         *args,
-                         **kwargs)
+        super().__init__(*args, **kwargs)
+        self.stack_name = stack_name
+        self.hook = AWSCloudFormationHook(aws_conn_id=aws_conn_id, region_name=region_name)
+
+    def poke(self, context):
+        stack_status = self.hook.get_stack_status(self.stack_name)
+        if stack_status == 'CREATE_COMPLETE':
+            return True
+        elif stack_status in ('CREATE_IN_PROGRESS', None):
+            return False
+        else:
+            raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
 
 
-class CloudFormationDeleteStackSensor(BaseCloudFormationSensor):
+class CloudFormationDeleteStackSensor(BaseSensorOperator):
     """
     Waits for a stack to be deleted successfully on AWS CloudFormation.
 
@@ -149,14 +81,18 @@ class CloudFormationDeleteStackSensor(BaseCloudFormationSensor):
     def __init__(self,
                  stack_name,
                  aws_conn_id='aws_default',
-                 poke_interval=60 * 3,
+                 region_name=None,
                  *args,
                  **kwargs):
-        super().__init__(stack_name=stack_name,
-                         complete_status='DELETE_COMPLETE',
-                         in_progress_status='DELETE_IN_PROGRESS',
-                         aws_conn_id=aws_conn_id,
-                         poke_interval=poke_interval, *args, **kwargs)
+        super().__init__(*args, **kwargs)
+        self.stack_name = stack_name
+        self.hook = AWSCloudFormationHook(aws_conn_id=aws_conn_id, region_name=region_name)
 
-    def allow_non_existing_stack_status(self):
-        return True
+    def poke(self, context):
+        stack_status = self.hook.get_stack_status(self.stack_name)
+        if stack_status in ('DELETE_COMPLETE', None):
+            return True
+        elif stack_status == 'DELETE_IN_PROGRESS':
+            return False
+        else:
+            raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')

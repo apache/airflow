@@ -20,6 +20,8 @@
 """
 This module contains AWS CloudFormation Hook
 """
+from botocore.exceptions import ClientError
+
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 
@@ -34,5 +36,23 @@ class AWSCloudFormationHook(AwsHook):
         super().__init__(*args, **kwargs)
 
     def get_conn(self):
-        self.conn = self.get_client_type('cloudformation', self.region_name)
+        if not self.conn:
+            self.conn = self.get_client_type('cloudformation', self.region_name)
         return self.conn
+
+    def get_stack_status(self, stack_name):
+        """
+        Get stack status from CloudFormation.
+        """
+        cloudformation = self.get_conn()
+
+        self.log.info('Poking for stack %s', stack_name)
+
+        try:
+            stacks = cloudformation.describe_stacks(StackName=stack_name)['Stacks']
+            return stacks[0]['StackStatus']
+        except ClientError as e:
+            if 'does not exist' in str(e):
+                return None
+            else:
+                raise e

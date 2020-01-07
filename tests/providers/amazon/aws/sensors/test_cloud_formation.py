@@ -71,7 +71,7 @@ class TestCloudFormationCreateStackSensor(unittest.TestCase):
                 op = CloudFormationCreateStackSensor(task_id='task', stack_name='foo')
                 op.poke({})
 
-            self.assertEqual(str(error.exception), 'Stack foo in bad state: bar')
+            self.assertEqual('Stack foo in bad state: bar', str(error.exception))
 
 
 @unittest.skipIf(mock_cloudformation is None,
@@ -115,7 +115,7 @@ class TestCloudFormationDeleteStackSensor(unittest.TestCase):
                 op = CloudFormationDeleteStackSensor(task_id='task', stack_name='foo')
                 op.poke({})
 
-            self.assertEqual(str(error.exception), 'Stack foo in bad state: bar')
+            self.assertEqual('Stack foo in bad state: bar', str(error.exception))
 
     @mock_cloudformation
     def test_poke_stack_does_not_exist(self):
