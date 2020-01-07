@@ -178,7 +178,7 @@ class KnativeExecutor(BaseExecutor):
         try:
             host_header = conf.get("knative", "knative_host_header")
         except AirflowConfigException:
-            host_header = None
+            host_header = conf.get("knative", "knative_host_header", fallback=None)
         if req is None:
             raise AirflowException("you must set a knative host")
 
