@@ -145,7 +145,7 @@ class HttpHook(BaseHook):
             response.raise_for_status()
         except requests.exceptions.HTTPError:
             # mark the exception if colored log is supported
-            if conf.get('core', 'colored_ui_logs'):
+            if conf.getboolean('core', 'colored_ui_logs'):
                 self.log.error(Fore.WHITE + Back.RED + "HTTP error: %s", response.reason + Style.RESET_ALL)
                 self.log.error(Fore.WHITE + Back.RED + response.text + Style.RESET_ALL)
             else:
