@@ -381,8 +381,7 @@ class TestTaskInstance(unittest.TestCase):
             task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
                                  pool='test_pool', pool_capacity=0, owner='airflow',
                                  start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
-            ti = TI(
-                task=task, execution_date=timezone.utcnow())
+            return TI(task=task, execution_date=timezone.utcnow())
 
         self.assertRaises(AirflowException, create_task_instance)
 
