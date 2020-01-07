@@ -266,7 +266,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     Class specific attributes used by UI are move to object attributes.
     """
 
-    _decorated_fields = {'executor_config', 'params'}
+    _decorated_fields = {'executor_config'}
 
     _CONSTRUCTOR_PARAMS = dict(signature(BaseOperator).parameters)
 
@@ -453,7 +453,7 @@ class SerializedDAG(DAG, BaseSerialization):
     not pickle-able. SerializedDAG works for all DAGs.
     """
 
-    _decorated_fields = {'schedule_interval', 'default_args', 'params'}
+    _decorated_fields = {'schedule_interval', 'default_args'}
 
     @staticmethod
     def __get_constructor_defaults():  # pylint: disable=no-method-argument

@@ -390,10 +390,6 @@ class TestStringifiedDAGs(unittest.TestCase):
     @parameterized.expand([
         (None, {}),
         ({"param_1": "value_1"}, {"param_1": "value_1"}),
-        (
-            {"param_1": {"nested_param_1": "value_1"}},
-            {"param_1": {"nested_param_1": "value_1"}},
-        ),
     ])
     def test_params_roundtrip(self, val, expected_val):
         """
