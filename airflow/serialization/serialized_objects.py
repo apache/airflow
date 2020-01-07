@@ -253,7 +253,9 @@ class BaseSerialization:
         default. (This is because ``"default" is "default"`` will be False as
         they are different strings with the same characters.)
 
-        Also returns True if the value is an empty list or empty dict.
+        Also returns True if the value is an empty list or empty dict. This is done
+        to account for the case where the default value of the field is None but has the
+        ``field = field or {}`` set.
         """
         if attrname in cls._CONSTRUCTOR_PARAMS and \
                 (cls._CONSTRUCTOR_PARAMS[attrname].default is value or (value in [{}, []])):
