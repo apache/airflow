@@ -367,7 +367,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
     :param options: Map of job specific options.
     :type options: dict
     :param py_interpreter: Python version of the beam pipeline.
-        If None, this defaults to the python2.
+        If None, this defaults to the python3.
         To track python versions supported by beam and related
         issues check: https://issues.apache.org/jira/browse/BEAM-1251
     :type py_interpreter: str
@@ -393,7 +393,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
             py_options: Optional[List[str]] = None,
             dataflow_default_options: Optional[dict] = None,
             options: Optional[dict] = None,
-            py_interpreter: str = "python2",
+            py_interpreter: str = "python3",
             gcp_conn_id: str = 'google_cloud_default',
             delegate_to: Optional[str] = None,
             poll_sleep: int = 10,

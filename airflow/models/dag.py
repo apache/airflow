@@ -788,16 +788,21 @@ class DAG(BaseDag, LoggingMixin):
             TaskInstance.execution_date <= end_date,
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
         )
+
         if state:
             if isinstance(state, str):
                 tis = tis.filter(TaskInstance.state == state)
             else:
                 # this is required to deal with NULL values
                 if None in state:
-                    tis = tis.filter(
-                        or_(TaskInstance.state.in_(state),
-                            TaskInstance.state.is_(None))
-                    )
+                    if all(x is None for x in state):
+                        tis = tis.filter(TaskInstance.state.is_(None))
+                    else:
+                        not_none_state = [s for s in state if s]
+                        tis = tis.filter(
+                            or_(TaskInstance.state.in_(not_none_state),
+                                TaskInstance.state.is_(None))
+                        )
                 else:
                     tis = tis.filter(TaskInstance.state.in_(state))
         tis = tis.order_by(TaskInstance.execution_date).all()
@@ -1458,11 +1463,15 @@ class DAG(BaseDag, LoggingMixin):
                 TaskInstance.task_id.in_(task_ids),
             )
 
-        if states is not None:
+        if states:
             if None in states:
-                qry = qry.filter(or_(
-                    TaskInstance.state.in_(states),
-                    TaskInstance.state.is_(None)))
+                if all(x is None for x in states):
+                    qry = qry.filter(TaskInstance.state.is_(None))
+                else:
+                    not_none_states = [state for state in states if state]
+                    qry = qry.filter(or_(
+                        TaskInstance.state.in_(not_none_states),
+                        TaskInstance.state.is_(None)))
             else:
                 qry = qry.filter(TaskInstance.state.in_(states))
         return qry.scalar()
@@ -1513,7 +1522,9 @@ class DAG(BaseDag, LoggingMixin):
                 'parent_dag', '_old_context_manager_dags', 'safe_dag_id', 'last_loaded',
                 '_full_filepath', 'user_defined_filters', 'user_defined_macros',
                 '_schedule_interval', 'partial', '_old_context_manager_dags',
-                '_pickle_id', '_log', 'is_subdag', 'task_dict'
+                '_pickle_id', '_log', 'is_subdag', 'task_dict', 'template_searchpath',
+                'sla_miss_callback', 'on_success_callback', 'on_failure_callback',
+                'template_undefined', 'jinja_environment_kwargs'
             }
         return cls.__serialized_fields
 

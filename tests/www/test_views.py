@@ -477,6 +477,11 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
+    def test_task_stats_only_noncompleted(self):
+        conf.set("webserver", "show_recent_stats_for_completed_runs", "False")
+        resp = self.client.get('task_stats', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+
     def test_dag_details(self):
         url = 'dag_details?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
@@ -1865,8 +1870,8 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        from airflow.utils.tests import (
-            Dummy2TestOperator, Dummy3TestOperator)
+        from tests.test_utils.mock_operators import Dummy3TestOperator
+        from tests.test_utils.mock_operators import Dummy2TestOperator
         super().setUp()
         self.endpoint = "extra_links"
         self.default_date = datetime(2017, 1, 1)

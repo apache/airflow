@@ -136,7 +136,10 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 @app.errorhandler(404)
 def circles(error):
     return render_template(
-        'airflow/circles.html', hostname=socket.getfqdn()), 404
+        'airflow/circles.html', hostname=socket.getfqdn() if conf.getboolean(
+            'webserver',
+            'EXPOSE_HOSTNAME',
+            fallback=True) else 'redact'), 404
 
 
 @app.errorhandler(500)
@@ -144,9 +147,15 @@ def show_traceback(error):
     from airflow.utils import asciiart as ascii_
     return render_template(
         'airflow/traceback.html',
-        hostname=socket.getfqdn(),
+        hostname=socket.getfqdn() if conf.getboolean(
+            'webserver',
+            'EXPOSE_HOSTNAME',
+            fallback=True) else 'redact',
         nukular=ascii_.nukular,
-        info=traceback.format_exc()), 500
+        info=traceback.format_exc() if conf.getboolean(
+            'webserver',
+            'EXPOSE_STACKTRACE',
+            fallback=True) else 'Error! Please contact server admin'), 500
 
 
 class AirflowBaseView(BaseView):
@@ -368,16 +377,6 @@ class Airflow(AirflowBaseView):
         else:
             filter_dag_ids = allowed_dag_ids
 
-        LastDagRun = (
-            session.query(
-                DagRun.dag_id,
-                sqla.func.max(DagRun.execution_date).label('execution_date')
-            )
-            .join(Dag, Dag.dag_id == DagRun.dag_id)
-            .filter(DagRun.state != State.RUNNING, Dag.is_active)
-            .group_by(DagRun.dag_id)
-        )
-
         RunningDagRun = (
             session.query(DagRun.dag_id, DagRun.execution_date)
                    .join(Dag, Dag.dag_id == DagRun.dag_id)
@@ -385,36 +384,54 @@ class Airflow(AirflowBaseView):
         )
 
         if selected_dag_ids:
-            LastDagRun = LastDagRun.filter(DagRun.dag_id.in_(filter_dag_ids))
             RunningDagRun = RunningDagRun.filter(DagRun.dag_id.in_(filter_dag_ids))
-
-        LastDagRun = LastDagRun.subquery('last_dag_run')
         RunningDagRun = RunningDagRun.subquery('running_dag_run')
 
         # Select all task_instances from active dag_runs.
-        # If no dag_run is active, return task instances from most recent dag_run.
-        LastTI = (
-            session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
-                   .join(LastDagRun,
-                         and_(LastDagRun.c.dag_id == TI.dag_id,
-                              LastDagRun.c.execution_date == TI.execution_date))
-        )
         RunningTI = (
             session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
                    .join(RunningDagRun,
                          and_(RunningDagRun.c.dag_id == TI.dag_id,
                               RunningDagRun.c.execution_date == TI.execution_date))
         )
-
         if selected_dag_ids:
-            LastTI = LastTI.filter(TI.dag_id.in_(filter_dag_ids))
             RunningTI = RunningTI.filter(TI.dag_id.in_(filter_dag_ids))
 
-        UnionTI = union_all(LastTI, RunningTI).alias('union_ti')
+        if conf.getboolean('webserver', 'SHOW_RECENT_STATS_FOR_COMPLETED_RUNS', fallback=True):
+            LastDagRun = (
+                session.query(
+                    DagRun.dag_id,
+                    sqla.func.max(DagRun.execution_date).label('execution_date')
+                )
+                .join(Dag, Dag.dag_id == DagRun.dag_id)
+                .filter(DagRun.state != State.RUNNING, Dag.is_active)
+                .group_by(DagRun.dag_id)
+            )
+
+            if selected_dag_ids:
+                LastDagRun = LastDagRun.filter(DagRun.dag_id.in_(filter_dag_ids))
+            LastDagRun = LastDagRun.subquery('last_dag_run')
+
+            # Select all task_instances from active dag_runs.
+            # If no dag_run is active, return task instances from most recent dag_run.
+            LastTI = (
+                session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
+                       .join(LastDagRun,
+                             and_(LastDagRun.c.dag_id == TI.dag_id,
+                                  LastDagRun.c.execution_date == TI.execution_date))
+            )
+            if selected_dag_ids:
+                LastTI = LastTI.filter(TI.dag_id.in_(filter_dag_ids))
+
+            FinalTI = union_all(LastTI, RunningTI).alias('final_ti')
+        else:
+            FinalTI = RunningTI.subquery('final_ti')
+
         qry = (
-            session.query(UnionTI.c.dag_id, UnionTI.c.state, sqla.func.count())
-                   .group_by(UnionTI.c.dag_id, UnionTI.c.state)
+            session.query(FinalTI.c.dag_id, FinalTI.c.state, sqla.func.count())
+                   .group_by(FinalTI.c.dag_id, FinalTI.c.state)
         )
+
         data = {}
         for dag_id, state, count in qry:
             if dag_id not in data:

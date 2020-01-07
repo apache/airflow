@@ -100,7 +100,7 @@ NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStat
 
 
 # noinspection PyAbstractClass
-class GCPTransferServiceHook(CloudBaseHook):
+class CloudDataTransferServiceHook(CloudBaseHook):
     """
     Hook for Google Storage Transfer Service.
 
@@ -406,7 +406,8 @@ class GCPTransferServiceHook(CloudBaseHook):
                 request_filter={FILTER_PROJECT_ID: job[PROJECT_ID], FILTER_JOB_NAMES: [job[NAME]]}
             )
 
-            if GCPTransferServiceHook.operations_contain_expected_statuses(operations, expected_statuses):
+            if CloudDataTransferServiceHook.\
+                    operations_contain_expected_statuses(operations, expected_statuses):
                 return
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
         raise AirflowException("Timeout. The operation could not be completed within the allotted time.")

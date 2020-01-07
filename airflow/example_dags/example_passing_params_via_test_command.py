@@ -21,16 +21,16 @@
 
 from datetime import timedelta
 
-import airflow
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 dag = DAG(
     "example_passing_params_via_test_command",
     default_args={
         "owner": "airflow",
-        "start_date": airflow.utils.dates.days_ago(1),
+        "start_date": days_ago(1),
     },
     schedule_interval='*/1 * * * *',
     dagrun_timeout=timedelta(minutes=4),

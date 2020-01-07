@@ -82,14 +82,14 @@ CLOUD_FUNCTION_VALIDATION = [
 ]  # type: List[Dict[str, Any]]
 
 
-class GcfFunctionDeployOperator(BaseOperator):
+class CloudFunctionDeployFunctionOperator(BaseOperator):
     """
     Creates a function in Google Cloud Functions.
     If a function with this name already exists, it will be updated.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcfFunctionDeployOperator`
+        :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
 
     :param location: Google Cloud Platform region where the function should be created.
     :type location: str
@@ -292,13 +292,13 @@ FUNCTION_NAME_PATTERN = '^projects/[^/]+/locations/[^/]+/functions/[^/]+$'
 FUNCTION_NAME_COMPILED_PATTERN = re.compile(FUNCTION_NAME_PATTERN)
 
 
-class GcfFunctionDeleteOperator(BaseOperator):
+class CloudFunctionDeleteFunctionOperator(BaseOperator):
     """
     Deletes the specified function from Google Cloud Functions.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcfFunctionDeleteOperator`
+        :ref:`howto/operator:CloudFunctionDeleteFunctionOperator`
 
     :param name: A fully-qualified function name, matching
         the pattern: `^projects/[^/]+/locations/[^/]+/functions/[^/]+$`
@@ -346,14 +346,14 @@ class GcfFunctionDeleteOperator(BaseOperator):
                 raise e
 
 
-class GcfFunctionInvokeOperator(BaseOperator):
+class CloudFunctionInvokeFunctionOperator(BaseOperator):
     """
     Invokes a deployed Cloud Function. To be used for testing
     purposes as very limited traffic is allowed.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcfFunctionDeployOperator`
+        :ref:`howto/operator:CloudFunctionDeployFunctionOperator`
 
     :param function_id: ID of the function to be called
     :type function_id: str

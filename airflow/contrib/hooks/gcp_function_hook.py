@@ -20,8 +20,7 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.functions import CloudFunctionsHook  # noqa
+from airflow.gcp.hooks.functions import CloudFunctionsHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.functions`.",

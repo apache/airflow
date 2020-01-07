@@ -24,7 +24,7 @@ from typing import Dict, Iterable, List, Optional, Union
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook, CloudSqlHook
+from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.mysql_hook import MySqlHook
@@ -140,7 +140,7 @@ CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
 ]
 
 
-class CloudSqlBaseOperator(BaseOperator):
+class CloudSQLBaseOperator(BaseOperator):
     """
     Abstract base operator for Google Cloud SQL operators to inherit from.
 
@@ -174,7 +174,7 @@ class CloudSqlBaseOperator(BaseOperator):
         if not self.instance:
             raise AirflowException("The required parameter 'instance' is empty or None")
 
-    def _check_if_instance_exists(self, instance, hook: CloudSqlHook):
+    def _check_if_instance_exists(self, instance, hook: CloudSQLHook):
         try:
             return hook.get_instance(
                 project_id=self.project_id,
@@ -186,7 +186,7 @@ class CloudSqlBaseOperator(BaseOperator):
                 return False
             raise e
 
-    def _check_if_db_exists(self, db_name, hook: CloudSqlHook):
+    def _check_if_db_exists(self, db_name, hook: CloudSQLHook):
         try:
             return hook.get_database(
                 project_id=self.project_id,
@@ -206,7 +206,7 @@ class CloudSqlBaseOperator(BaseOperator):
         return instance.get(SETTINGS).get(SETTINGS_VERSION)
 
 
-class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
+class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     """
     Creates a new Cloud SQL instance.
     If an instance with the same name exists, no action will be taken and
@@ -262,7 +262,7 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
                                   api_version=self.api_version).validate(self.body)
 
     def execute(self, context):
-        hook = CloudSqlHook(
+        hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version
         )
@@ -285,7 +285,7 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
         task_instance.xcom_push(key="service_account_email", value=service_account_email)
 
 
-class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
+class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
     """
     Updates settings of a Cloud SQL instance.
 
@@ -336,7 +336,7 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
             raise AirflowException("The required parameter 'body' is empty")
 
     def execute(self, context):
-        hook = CloudSqlHook(
+        hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version
         )
@@ -351,7 +351,7 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
                 instance=self.instance)
 
 
-class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
+class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
     """
     Deletes a Cloud SQL instance.
 
@@ -385,7 +385,7 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
             api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        hook = CloudSqlHook(
+        hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version
         )
@@ -399,7 +399,7 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
                 instance=self.instance)
 
 
-class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
+class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
     """
     Creates a new database inside a Cloud SQL instance.
 
@@ -458,7 +458,7 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
             self.log.error("Body doesn't contain 'name'. Cannot check if the"
                            " database already exists in the instance %s.", self.instance)
             return False
-        hook = CloudSqlHook(
+        hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version
         )
@@ -474,7 +474,7 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
             )
 
 
-class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
+class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
     """
     Updates a resource containing information about a database inside a Cloud SQL
     instance using patch semantics.
@@ -536,7 +536,7 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
 
     def execute(self, context):
         self._validate_body_fields()
-        hook = CloudSqlHook(
+        hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version
         )
@@ -553,7 +553,7 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
                 body=self.body)
 
 
-class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
+class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
     """
     Deletes a database from a Cloud SQL instance.
 
@@ -597,7 +597,7 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
             raise AirflowException("The required parameter 'database' is empty")
 
     def execute(self, context):
-        hook = CloudSqlHook(
+        hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version
         )
@@ -613,7 +613,7 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
                 database=self.database)
 
 
-class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
+class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
     """
     Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
     or CSV file.
@@ -671,7 +671,7 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
 
     def execute(self, context):
         self._validate_body_fields()
-        hook = CloudSqlHook(
+        hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version
         )
@@ -681,7 +681,7 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
             body=self.body)
 
 
-class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
+class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
     """
     Imports data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
 
@@ -751,7 +751,7 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
 
     def execute(self, context):
         self._validate_body_fields()
-        hook = CloudSqlHook(
+        hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version
         )
@@ -761,7 +761,7 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
             body=self.body)
 
 
-class CloudSqlQueryOperator(BaseOperator):
+class CloudSQLExecuteQueryOperator(BaseOperator):
     """
     Performs DML or DDL query on an existing Cloud Sql instance. It optionally uses
     cloud-sql-proxy to establish secure connection with the database.
@@ -811,7 +811,7 @@ class CloudSqlQueryOperator(BaseOperator):
         self.parameters = parameters
         self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
 
-    def _execute_query(self, hook: CloudSqlDatabaseHook, database_hook: Union[PostgresHook, MySqlHook]):
+    def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: Union[PostgresHook, MySqlHook]):
         cloud_sql_proxy_runner = None
         try:
             if hook.use_proxy:
@@ -828,7 +828,7 @@ class CloudSqlQueryOperator(BaseOperator):
                 cloud_sql_proxy_runner.stop_proxy()
 
     def execute(self, context):
-        hook = CloudSqlDatabaseHook(
+        hook = CloudSQLDatabaseHook(
             gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
             gcp_conn_id=self.gcp_conn_id,
             default_gcp_project_id=self.gcp_connection.extra_dejson.get(

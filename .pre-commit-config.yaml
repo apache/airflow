@@ -80,7 +80,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
-        files: ^breeze$|^breeze-complete$|\.sh$
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
         args:
           - --comment-style
           - "|#|"
@@ -168,8 +168,7 @@ repos:
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
-        types: [shell]
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
         exclude: ^airflow/_vendor/.*$
       - id: lint-dockerfile
         name: Lint dockerfile
@@ -213,7 +212,7 @@ repos:
         files: \.py$
       - id: base-operator
         language: pygrep
-        name: Make sure BaseOperator is imported from airflow.models.baseoperator in core
+        name: Make sure BaseOperator[Link] is imported from airflow.models.baseoperator in core
         entry: "from airflow\\.models import.* BaseOperator"
         files: \.py$
         pass_filenames: true
@@ -233,7 +232,7 @@ repos:
         pass_filenames: true
       - id: base-operator
         language: pygrep
-        name: Make sure BaseOperator is imported from airflow.models outside of core
+        name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
         entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
         pass_filenames: true
         files: >
@@ -285,3 +284,17 @@ repos:
         entry: "./scripts/ci/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
+      - id: bat-tests
+        name: Run BATS bash tests
+        language: system
+        entry: "./scripts/ci/pre_commit_bat_tests.sh"
+        files: ^tests/bats/.*\.bats$
+        pass_filenames: true
+      - id: airflow-config-yaml
+        name: Checks for consistency between config.yml and default_config.cfg
+        language: python
+        files: "^airflow/config_templates/config.yml$|^airflow/config_templates/default_airflow.cfg$"
+        pass_filenames: false
+        require_serial: false
+        entry: scripts/ci/pre_commit_yaml_to_cfg.py
+        additional_dependencies: ['pyyaml']

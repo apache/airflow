@@ -32,14 +32,15 @@ from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLa
 MetaData = Sequence[Tuple[str, str]]
 
 
-class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
+class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
     """
     Finds named entities in the text along with entity types,
     salience, mentions for each entity, and other properties.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudLanguageAnalyzeEntitiesOperator`
+        :ref:`howto/operator:CloudNaturalLanguageAnalyzeEntitiesOperator`
+
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
@@ -91,14 +92,14 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
         return MessageToDict(response)
 
 
-class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
+class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
     """
     Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
     entity and its mentions.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudLanguageAnalyzeEntitySentimentOperator`
+        :ref:`howto/operator:CloudNaturalLanguageAnalyzeEntitySentimentOperator`
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
@@ -155,13 +156,13 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         return MessageToDict(response)
 
 
-class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
+class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
     """
     Analyzes the sentiment of the provided text.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudLanguageAnalyzeSentimentOperator`
+        :ref:`howto/operator:CloudNaturalLanguageAnalyzeSentimentOperator`
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document
@@ -214,13 +215,13 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
         return MessageToDict(response)
 
 
-class CloudLanguageClassifyTextOperator(BaseOperator):
+class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
     """
     Classifies a document into categories.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudLanguageClassifyTextOperator`
+        :ref:`howto/operator:CloudNaturalLanguageClassifyTextOperator`
 
     :param document: Input document.
         If a dict is provided, it must be of the same form as the protobuf message Document

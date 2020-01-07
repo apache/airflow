@@ -107,6 +107,8 @@ it is therefore important to make sure this setting is equal on all Airflow node
     [core]
     default_timezone = utc
 
+.. note::
+    For more information on setting the configuration, see :doc:`howto/set-config`
 
 Time zone aware DAGs
 --------------------

@@ -30,6 +30,7 @@ blocking the execution of DAG.
 Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
 all other running or scheduled tasks fail immediately. To enable this option set
 ``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
+For more information on setting the configuration, see :doc:`../howto/set-config`.
 
 **IDE setup steps:**
 

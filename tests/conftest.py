@@ -75,7 +75,7 @@ def breeze_test_helper(request):
     print(" AIRFLOW ".center(60, "="))
 
     # Setup test environment for breeze
-    home = os.environ.get("HOME")
+    home = os.path.expanduser("~")
     airflow_home = os.environ.get("AIRFLOW_HOME") or os.path.join(home, "airflow")
     tests_directory = os.path.dirname(os.path.realpath(__file__))
 

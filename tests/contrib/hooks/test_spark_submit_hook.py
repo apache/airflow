@@ -166,6 +166,36 @@ class TestSparkSubmitHook(unittest.TestCase):
         ]
         self.assertEqual(expected_build_cmd, cmd)
 
+    def test_build_track_driver_status_command(self):
+        # note this function is only relevant for spark setup matching below condition
+        # 'spark://' in self._connection['master'] and self._connection['deploy_mode'] == 'cluster'
+
+        # Given
+        hook_spark_standalone_cluster = SparkSubmitHook(
+            conn_id='spark_standalone_cluster')
+        hook_spark_standalone_cluster._driver_id = 'driver-20171128111416-0001'
+        hook_spark_yarn_cluster = SparkSubmitHook(
+            conn_id='spark_yarn_cluster')
+        hook_spark_yarn_cluster._driver_id = 'driver-20171128111417-0001'
+
+        # When
+        build_track_driver_status_spark_standalone_cluster = \
+            hook_spark_standalone_cluster._build_track_driver_status_command()
+        build_track_driver_status_spark_yarn_cluster = \
+            hook_spark_yarn_cluster._build_track_driver_status_command()
+
+        # Then
+        expected_spark_standalone_cluster = [
+            '/usr/bin/curl',
+            '--max-time',
+            '30',
+            'http://spark-standalone-master:6066/v1/submissions/status/driver-20171128111416-0001']
+        expected_spark_yarn_cluster = [
+            'spark-submit', '--master', 'yarn://yarn-master', '--status', 'driver-20171128111417-0001']
+
+        assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
+        assert expected_spark_yarn_cluster == build_track_driver_status_spark_yarn_cluster
+
     @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
     def test_spark_process_runcmd(self, mock_popen):
         # Given
