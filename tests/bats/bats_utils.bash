@@ -15,5 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-export AIRFLOW_SOURCES=$(pwd)
+AIRFLOW_SOURCES=$(pwd)
+export AIRFLOW_SOURCES
 source scripts/ci/_utils.sh
