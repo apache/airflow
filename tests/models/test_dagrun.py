@@ -19,6 +19,7 @@
 
 import datetime
 import unittest
+from unittest import mock
 
 from airflow import models, settings
 from airflow.jobs import BackfillJob
@@ -29,6 +30,7 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
+from tests.test_utils.config import conf_vars
 
 
 class TestDagRun(unittest.TestCase):
@@ -559,3 +561,77 @@ class TestDagRun(unittest.TestCase):
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
         self.assertEqual(State.NONE, flaky_ti.state)
+
+    @conf_vars({
+        ('scheduler', 'removed_tasks_lead_to_dagrun_failure'): 'True'
+    })
+    def test_dagrun_removed_tasks_lead_to_dagrun_failure_true(self):
+        session = settings.Session()
+        on_failure_callback = mock.MagicMock()
+        dag = DAG(
+            'test_dagrun_removed_tasks_lead_to_dagrun_failure_true',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'},
+            on_failure_callback=on_failure_callback
+        )
+        dag.clear()
+        with dag:
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op2.set_upstream(op1)
+
+        dag.clear()
+        now = timezone.utcnow()
+        dr = dag.create_dagrun(run_id='test_dagrun_deadlock1' + now.isoformat(),
+                               state=State.RUNNING,
+                               execution_date=timezone.datetime(2019, 1, 11),
+                               start_date=now)
+
+        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
+        ti_op1.set_state(state=State.REMOVED, session=session)
+        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
+        ti_op2.set_state(state=State.SUCCESS, session=session)
+        del dag.task_dict[ti_op1.task_id]
+
+        dr.update_state()
+        self.assertEqual(dr.state, State.FAILED)
+        kall = on_failure_callback
+        callback_context = kall.call_args[0][0]
+        self.assertEqual('removed_tasks', callback_context['reason'])
+
+    @conf_vars({
+        ('scheduler', 'removed_tasks_lead_to_dagrun_failure'): 'False'
+    })
+    def test_dagrun_removed_tasks_lead_to_dagrun_failure_false(self):
+        session = settings.Session()
+        on_failure_callback = mock.MagicMock()
+        dag = DAG(
+            'test_dagrun_removed_tasks_lead_to_dagrun_failure_false',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'},
+            on_success_callback=on_failure_callback
+        )
+        dag.clear()
+        with dag:
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op2.set_upstream(op1)
+
+        dag.clear()
+        now = timezone.utcnow()
+        dr = dag.create_dagrun(run_id='test_dagrun_deadlock2' + now.isoformat(),
+                               state=State.RUNNING,
+                               execution_date=timezone.datetime(2019, 1, 12),
+                               start_date=now)
+
+        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
+        ti_op1.set_state(state=State.REMOVED, session=session)
+        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
+        ti_op2.set_state(state=State.SUCCESS, session=session)
+        del dag.task_dict[ti_op1.task_id]
+
+        dr.update_state()
+        self.assertEqual(dr.state, State.SUCCESS)
+        kall = on_failure_callback
+        callback_context = kall.call_args[0][0]
+        self.assertEqual('success', callback_context['reason'])
