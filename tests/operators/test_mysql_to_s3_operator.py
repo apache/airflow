@@ -36,6 +36,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
+        mock_session.return_value = Session(access_key, secret_key)
 
         op = MySQLToS3Operator(query=query,
                                s3_bucket=s3_bucket,
