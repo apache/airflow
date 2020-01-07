@@ -171,6 +171,13 @@ class SSHHook(BaseHook):
                              'against Man-In-The-Middle attacks')
             # Default is RejectPolicy
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        # restart host_proxy to avoid "Broken Pipe" error
+        if getattr(self, 'host_proxy') is not None:
+            if not self.host_proxy.closed:
+                self.host_proxy.close()
+            self.host_proxy = paramiko.ProxyCommand(' '.join(self.host_proxy.cmd))
+
         connect_kwargs = dict(
             hostname=self.remote_host,
             username=self.username,
