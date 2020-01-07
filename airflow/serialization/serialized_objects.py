@@ -252,6 +252,8 @@ class BaseSerialization:
         user explicitly specifies an attribute with the same "value" as the
         default. (This is because ``"default" is "default"`` will be False as
         they are different strings with the same characters.)
+
+        Also returns True if the value is an empty list or empty dict.
         """
         if attrname in cls._CONSTRUCTOR_PARAMS and \
                 (cls._CONSTRUCTOR_PARAMS[attrname].default is value or (value in [{}, []])):
