@@ -25,6 +25,8 @@ from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
 
+from tabulate import tabulate
+
 from airflow import models
 from airflow.bin import cli
 from airflow.cli.commands import task_command
@@ -185,18 +187,40 @@ class TestCliTasks(unittest.TestCase):
             DEFAULT_DATE.isoformat()]))
 
     def test_task_states_for_dag_run(self):
+
+        dag2 = DagBag().dags['example_python_operator']
+
+        task2 = dag2.get_task(task_id='print_the_context')
+        defaut_date2 = timezone.make_aware(datetime(2016, 1, 9))
+        ti2 = TaskInstance(task2, defaut_date2)
+
+        ti2.set_state(State.SUCCESS)
+        ti_start = ti2.start_date
+        ti_end = ti2.end_date
+
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_states_for_dag_run(self.parser.parse_args([
-                'tasks', 'states_for_dag_run', 'example_bash_operator', DEFAULT_DATE.isoformat()]))
+                'tasks', 'states_for_dag_run', 'example_python_operator', defaut_date2.isoformat()]))
+        actual_out = stdout.getvalue()
 
-        # can't get perfect match as start/end date are variable
+        formatted_rows = [('example_python_operator',
+                           '2016-01-09 00:00:00+00:00',
+                           'print_the_context',
+                           'success',
+                           ti_start,
+                           ti_end)]
+
+        expected = tabulate(formatted_rows,
+                            ['dag',
+                             'exec_date',
+                             'task',
+                             'state',
+                             'start_date',
+                             'end_date'],
+                            tablefmt="fancy_grid")
+
         # Check that prints, and log messages, are shown
-        temp_stdout = stdout.getvalue()
-        self.assertIn('runme_0', temp_stdout)
-        self.assertIn('example_bash_operator', temp_stdout)
-        self.assertIn('state', temp_stdout)
-        self.assertIn('start_date', temp_stdout)
-        self.assertIn('end_date', temp_stdout)
+        self.assertEqual(expected.replace("\n", ""), actual_out.replace("\n", ""))
 
     def test_subdag_clear(self):
         args = self.parser.parse_args([
