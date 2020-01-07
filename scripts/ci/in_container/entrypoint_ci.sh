@@ -43,6 +43,7 @@ KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 RECREATE_KIND_CLUSTER=${RECREATE_KIND_CLUSTER:="true"}
 ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
+RUNTIME=${RUNTIME:=""}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -116,7 +117,7 @@ sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
 mkdir -p "${AIRFLOW_SOURCES}"/logs/
 mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 
-if [[ "${ENABLE_KIND_CLUSTER}" == "false" ]]; then
+if [[ "${RUNTIME}" == "" ]]; then
     # Start MiniCluster
     java -cp "/opt/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
         >"${AIRFLOW_HOME}/logs/minicluster.log" 2>&1 &
@@ -168,30 +169,35 @@ if [[ "${ENABLE_KIND_CLUSTER}" == "false" ]]; then
         set -e
 
         if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
+            if [[ -n ${KRB5_CONFIG:=} ]]; then
+                echo
+                echo "ERROR !!!!Kerberos initialisation requested, but failed"
+                echo
+                echo "I will exit now, and you need to run 'breeze --stop-environment' to kill kerberos."
+                echo
+                echo "Then you can again run 'breeze --integration kerberos' to start it again"
+                echo
+            fi
             echo
-            echo "ERROR:  There was a problem communicating with kerberos"
-            echo "Errors produced by kadmin commands are in : ${AIRFLOW_HOME}/logs/kadmin*.log"
+            echo "No kerberos. If you want to start it, exit and run 'breeze --integration kerberos'"
             echo
-            echo "Action! Please restart the environment!"
-            echo "Run './scripts/ci/local_ci_stop_environment.sh' and re-enter the environment"
+        else
             echo
-            exit 1
+            echo "Kerberos enabled and working."
+            echo
+            sudo chmod 0644 "${KRB5_KTNAME}"
         fi
 
-        sudo chmod 0644 "${KRB5_KTNAME}"
     fi
 fi
 
-# Exporting XUNIT_FILE so that we can see summary of failed tests
-# at the end of the log
-export XUNIT_FILE="${AIRFLOW_HOME}/logs/all_tests.xml"
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 
 cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
 export KIND_CLUSTER_OPERATION="${KIND_CLUSTER_OPERATION:="start"}"
 
-if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
+if [[ ${RUNTIME:=""} == "kubernetes" ]]; then
     unset KRB5_CONFIG
     unset KRB5_KTNAME
     export AIRFLOW_KUBERNETES_IMAGE=${AIRFLOW_CI_IMAGE}-kubernetes
@@ -199,8 +205,12 @@ if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     export AIRFLOW_KUBERNETES_IMAGE_NAME
     AIRFLOW_KUBERNETES_IMAGE_TAG=$(echo "${AIRFLOW_KUBERNETES_IMAGE}" | cut -f 2 -d ":")
     export AIRFLOW_KUBERNETES_IMAGE_TAG
+fi
+
+
+if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     export CLUSTER_NAME="airflow-python-${PYTHON_VERSION}-${KUBERNETES_VERSION}"
-    "${MY_DIR}/kubernetes/setup_kubernetes.sh"
+    "${MY_DIR}/kubernetes/setup_kind_cluster.sh"
     if [[ ${KIND_CLUSTER_OPERATION} == "stop" ]]; then
         exit 1
     fi
@@ -221,9 +231,9 @@ set -u
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
 if [[ "${TRAVIS}" == "true" ]]; then
-    TRAVIS_ARGS=(
-        "--junitxml=${XUNIT_FILE}"
+    CI_ARGS=(
         "--verbosity=0"
+        "--strict-markers"
         "--instafail"
         "--durations=100"
         "--cov=airflow/"
@@ -233,22 +243,27 @@ if [[ "${TRAVIS}" == "true" ]]; then
         "--pythonwarnings=ignore::PendingDeprecationWarning"
         )
 else
-    TRAVIS_ARGS=()
+    CI_ARGS=()
 fi
 
+if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
+    CI_ARGS+=("--integrations" "${RUN_INTEGRATION_TESTS}" "-rpfExX")
+fi
 
-if [[ ${ENABLE_KIND_CLUSTER} == "true" ]]; then
-    export SKIP_INIT_DB=true
-    "${MY_DIR}/deploy_airflow_to_kubernetes.sh"
-    echo "Kind cluster is enabled: = running only kubernetes tests"
-    ARGS=("${TRAVIS_ARGS[@]}" "tests/integration/kubernetes")
-    "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
-else
-    echo "Kind cluster is disabled: = running all tests"
-    ARGS=("${TRAVIS_ARGS[@]}" "tests/")
-    "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
+TEST_DIR="tests/"
+
+if [[ -n ${RUNTIME} ]]; then
+    CI_ARGS+=("--runtime" "${RUNTIME}" "-rpfExX")
+    TEST_DIR="tests/runtime"
+    if [[ ${RUNTIME} == "kubernetes" ]]; then
+        export SKIP_INIT_DB=true
+        "${MY_DIR}/deploy_airflow_to_kubernetes.sh"
+    fi
 fi
 
 export PYTHONPATH=${AIRFLOW_SOURCES}
+
+ARGS=("${CI_ARGS[@]}" "${TEST_DIR}")
+"${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 
 in_container_script_end

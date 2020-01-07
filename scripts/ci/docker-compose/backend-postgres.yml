@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,35 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
-# Fixes ownership for files created inside container (files owned by root will be owned by host user)
-#
-
-set -euo pipefail
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
-
-export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
-
-export AIRFLOW_CI_IMAGE=\
-${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
-
-HOST_USER_ID="$(id -ur)"
-export HOST_USER_ID
-
-HOST_GROUP_ID="$(id -gr)"
-export HOST_GROUP_ID
-
-docker-compose \
-    -f "${MY_DIR}/docker-compose/base.yml" \
-    -f "${MY_DIR}/docker-compose/local.yml" \
-    run airflow-testing /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh
-
-script_end
+---
+version: "2.2"
+services:
+  airflow-testing:
+    environment:
+      - BACKEND=postgres
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://postgres:airflow@postgres/airflow
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:9.6
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "${POSTGRES_HOST_PORT}:5432"
