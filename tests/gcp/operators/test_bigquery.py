@@ -22,15 +22,17 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 import mock
+from parameterized import parameterized
 
 from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.gcp.operators.bigquery import (
-    BigQueryConsoleIndexableLink, BigQueryConsoleLink, BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator,
-    BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator, BigQueryGetDataOperator,
-    BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator, BigQueryPatchDatasetOperator,
-    BigQueryUpdateDatasetOperator,
+    BigQueryCheckOperator, BigQueryConsoleIndexableLink, BigQueryConsoleLink,
+    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator,
+    BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator,
+    BigQueryIntervalCheckOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
+    BigQueryValueCheckOperator,
 )
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -700,3 +702,28 @@ class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
                 max_results=2,
                 page_token=None
             )
+
+
+class TestBigQueryConnIdDeprecationWarning(unittest.TestCase):
+    @parameterized.expand([
+        (BigQueryCheckOperator, dict(sql='Select * from test_table', task_id=TASK_ID)),
+        (BigQueryValueCheckOperator, dict(sql='Select * from test_table', pass_value=95, task_id=TASK_ID)),
+        (BigQueryIntervalCheckOperator,
+         dict(table=TEST_TABLE_ID, metrics_thresholds={'COUNT(*)': 1.5}, task_id=TASK_ID)),
+        (BigQueryGetDataOperator, dict(dataset_id=TEST_DATASET, table_id=TEST_TABLE_ID, task_id=TASK_ID)),
+        (BigQueryExecuteQueryOperator, dict(sql='Select * from test_table', task_id=TASK_ID)),
+        (BigQueryDeleteDatasetOperator, dict(dataset_id=TEST_DATASET, task_id=TASK_ID)),
+        (BigQueryCreateEmptyDatasetOperator, dict(dataset_id=TEST_DATASET, task_id=TASK_ID)),
+        (BigQueryDeleteTableOperator, dict(deletion_dataset_table=TEST_DATASET, task_id=TASK_ID))
+    ])
+    def test_bigquery_conn_id_deprecation_warning(self, operator_class, kwargs):
+        bigquery_conn_id = 'google_cloud_default'
+        with self.assertWarnsRegex(
+            DeprecationWarning,
+            "The bigquery_conn_id parameter has been deprecated. You should pass the gcp_conn_id parameter."
+        ):
+            operator = operator_class(
+                bigquery_conn_id=bigquery_conn_id,
+                **kwargs
+            )
+            self.assertEqual(bigquery_conn_id, operator.gcp_conn_id)
