@@ -110,8 +110,7 @@ class StreamLogWriter(object):
         """
         Propagate message removing escape codes.
         """
-        colored_ui_logs = conf.get('core', 'colored_ui_logs')
-        if colored_ui_logs:
+        if conf.getboolean('core', 'colored_ui_logs'):
             self.logger.log(self.level, message)
         else:
             self.logger.log(self.level, remove_escape_codes(message))
