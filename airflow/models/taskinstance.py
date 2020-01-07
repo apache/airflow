@@ -197,6 +197,9 @@ class TaskInstance(Base, LoggingMixin):
         self.pool = task.pool
         if hasattr(task, 'pool_capacity'):
             self.pool_capacity = task.pool_capacity
+            if task.pool_capacity < 1:
+                raise AirflowException("pool_capacity for %s in dag %s cannot be less than 1"
+                                       % (task.task_id, task.dag_id))
         self.priority_weight = task.priority_weight_total
         self.try_number = 0
         self.max_tries = self.task.retries
