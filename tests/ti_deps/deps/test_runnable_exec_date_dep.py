@@ -37,14 +37,14 @@ class TestRunnableExecDateDep(unittest.TestCase):
     @freeze_time('2016-01-01')
     def test_exec_date_after_end_date(self):
         """
-        If the dag's execution date is in the future this dep should fail
+        If the dag's execution date is in the future this dep should succeed
         """
         ti = self._get_task_instance(
             dag_end_date=datetime(2016, 1, 3),
             task_end_date=datetime(2016, 1, 3),
             execution_date=datetime(2016, 1, 2),
         )
-        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
+        self.assertTrue(RunnableExecDateDep().is_met(ti=ti))
 
     def test_exec_date_after_task_end_date(self):
         """
