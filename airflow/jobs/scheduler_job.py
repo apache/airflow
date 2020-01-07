@@ -692,17 +692,18 @@ class SchedulerJob(BaseJob):
                     dag.start_date = new_start
 
             next_run_date = None
-            if not last_scheduled_run:
-                # First run
-                task_start_dates = [t.start_date for t in dag.tasks]
-                if task_start_dates:
-                    next_run_date = dag.normalize_schedule(min(task_start_dates))
-                    self.log.debug(
-                        "Next run date based on tasks %s",
-                        next_run_date
-                    )
-            else:
-                next_run_date = dag.following_schedule(last_scheduled_run)
+            task_start_dates = [t.start_date for t in dag.tasks]
+            if task_start_dates:
+                next_run_date = dag.normalize_schedule(min(task_start_dates))
+                self.log.debug(
+                    "Next run date based on tasks %s",
+                    next_run_date
+                )
+            if last_scheduled_run:
+                if not next_run_date:
+                    next_run_date = dag.following_schedule(last_scheduled_run)
+                else:
+                    next_run_date = max(dag.following_schedule(last_scheduled_run), next_run_date)
 
             # make sure backfills are also considered
             last_run = dag.get_last_dagrun(session=session)

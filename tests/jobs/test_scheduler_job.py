@@ -2810,6 +2810,118 @@ class SchedulerJobTest(unittest.TestCase):
         dr = scheduler.create_dag_run(dag4)
         self.assertIsNotNone(dr)
 
+    def test_dag_when_start_date_changes(self):
+        """
+        Test to check that a DAG could schedule reasonable when start_date defined in
+        default_args has changed
+        """
+
+        def setup_dag(dag_id, schedule_interval, start_date, catchup):
+            default_args = {
+                'owner': 'airflow',
+                'depends_on_past': False,
+                'start_date': start_date
+            }
+            dag = DAG(dag_id,
+                      schedule_interval=schedule_interval,
+                      max_active_runs=5,
+                      catchup=catchup,
+                      default_args=default_args)
+
+            t1 = DummyOperator(task_id='t1', dag=dag)
+            t2 = DummyOperator(task_id='t2', dag=dag)
+            t2.set_upstream(t1)
+            t3 = DummyOperator(task_id='t3', dag=dag)
+            t3.set_upstream(t2)
+
+            session = settings.Session()
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            session.merge(orm_dag)
+            session.commit()
+            session.close()
+
+            return dag
+
+        now = timezone.utcnow()
+        half_an_hour_ago = now - datetime.timedelta(minutes=30)
+        next_month = now + datetime.timedelta(days=30)
+
+        scheduler = SchedulerJob()
+
+        dag1 = setup_dag(dag_id='dag_with_catchup',
+                         schedule_interval=timedelta(days=1),
+                         start_date=timezone.datetime(2020, 5, 1),
+                         catchup=True)
+        dr = scheduler.create_dag_run(dag1)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 1))
+        dr = scheduler.create_dag_run(dag1)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 2))
+        # update start_date
+        dag1 = setup_dag(dag_id='dag_with_catchup',
+                         schedule_interval=timedelta(days=1),
+                         start_date=timezone.datetime(2020, 10, 1),
+                         catchup=True)
+        dr = scheduler.create_dag_run(dag1)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 10, 1))
+        dr = scheduler.create_dag_run(dag1)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 10, 2))
+
+        dag2 = setup_dag(dag_id='dag_with_catchup_cron',
+                         schedule_interval='0 0 * * *',
+                         start_date=timezone.datetime(2020, 5, 1),
+                         catchup=True)
+        dr = scheduler.create_dag_run(dag2)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 1))
+        dr = scheduler.create_dag_run(dag2)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 2))
+        # update start_date
+        dag2 = setup_dag(dag_id='dag_with_catchup_cron',
+                         schedule_interval='0 0 * * *',
+                         start_date=timezone.datetime(2020, 10, 1),
+                         catchup=True)
+        dr = scheduler.create_dag_run(dag2)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 10, 1))
+        dr = scheduler.create_dag_run(dag2)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 10, 2))
+
+        dag3 = setup_dag(dag_id='dag_without_catchup_with_future_day',
+                         schedule_interval='*/10 * * * *',
+                         start_date=timezone.datetime(2020, 5, 1),
+                         catchup=False)
+        dr = scheduler.create_dag_run(dag3)
+        self.assertIsNotNone(dr)
+        self.assertGreater(dr.execution_date, half_an_hour_ago)
+        # update start_date
+        dag3 = setup_dag(dag_id='dag_without_catchup_with_future_day',
+                         schedule_interval='*/10 * * * *',
+                         start_date=next_month,
+                         catchup=False)
+        dr = scheduler.create_dag_run(dag3)
+        self.assertIsNone(dr)
+
+        dag4 = setup_dag(dag_id='dag_with_catchup_once',
+                         schedule_interval='@once',
+                         start_date=timezone.datetime(2020, 5, 1),
+                         catchup=True)
+        dr = scheduler.create_dag_run(dag4)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, timezone.datetime(2020, 5, 1))
+        # update start_date
+        dag4 = setup_dag(dag_id='dag_with_catchup_once',
+                         schedule_interval='@once',
+                         start_date=timezone.datetime(2020, 10, 1),
+                         catchup=True)
+        dr = scheduler.create_dag_run(dag4)
+        self.assertIsNone(dr)
+
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
         dags_folder = mkdtemp()
         try:
