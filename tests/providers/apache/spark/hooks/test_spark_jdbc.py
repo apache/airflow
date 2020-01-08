@@ -19,8 +19,8 @@
 #
 import unittest
 
-from airflow.contrib.hooks.spark_jdbc_hook import SparkJDBCHook
 from airflow.models import Connection
+from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.utils import db
 
 

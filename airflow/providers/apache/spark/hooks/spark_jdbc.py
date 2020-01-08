@@ -17,17 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
-from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
-from airflow.utils.decorators import apply_defaults
+import os
+
+from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
+from airflow.exceptions import AirflowException
 
 
-class SparkJDBCOperator(SparkSubmitOperator):
+class SparkJDBCHook(SparkSubmitHook):
     """
-    This operator extends the SparkSubmitOperator specifically for performing data
-    transfers to/from JDBC-based databases with Apache Spark. As with the
-    SparkSubmitOperator, it assumes that the "spark-submit" binary is available on the
-    PATH.
+    This hook extends the SparkSubmitHook specifically for performing data
+    transfers to/from JDBC-based databases with Apache Spark.
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
     :type spark_app_name: str
@@ -111,8 +110,6 @@ class SparkJDBCOperator(SparkSubmitOperator):
                                       The specified types should be valid spark sql data
                                       types.
     """
-
-    @apply_defaults
     def __init__(self,
                  spark_app_name='airflow-spark-jdbc',
                  spark_conn_id='spark-default',
@@ -125,8 +122,8 @@ class SparkJDBCOperator(SparkSubmitOperator):
                  executor_memory=None,
                  driver_memory=None,
                  verbose=False,
-                 keytab=None,
                  principal=None,
+                 keytab=None,
                  cmd_type='spark_to_jdbc',
                  jdbc_table=None,
                  jdbc_conn_id='jdbc-default',
@@ -143,14 +140,15 @@ class SparkJDBCOperator(SparkSubmitOperator):
                  upper_bound=None,
                  create_table_column_types=None,
                  *args,
-                 **kwargs):
+                 **kwargs
+                 ):
         super().__init__(*args, **kwargs)
-        self._spark_app_name = spark_app_name
-        self._spark_conn_id = spark_conn_id
-        self._spark_conf = spark_conf
-        self._spark_py_files = spark_py_files
-        self._spark_files = spark_files
-        self._spark_jars = spark_jars
+        self._name = spark_app_name
+        self._conn_id = spark_conn_id
+        self._conf = spark_conf
+        self._py_files = spark_py_files
+        self._files = spark_files
+        self._jars = spark_jars
         self._num_executors = num_executors
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
@@ -173,42 +171,77 @@ class SparkJDBCOperator(SparkSubmitOperator):
         self._lower_bound = lower_bound
         self._upper_bound = upper_bound
         self._create_table_column_types = create_table_column_types
+        self._jdbc_connection = self._resolve_jdbc_connection()
 
-    def execute(self, context):
-        """
-        Call the SparkSubmitHook to run the provided spark job
-        """
-        self._hook = SparkJDBCHook(
-            spark_app_name=self._spark_app_name,
-            spark_conn_id=self._spark_conn_id,
-            spark_conf=self._spark_conf,
-            spark_py_files=self._spark_py_files,
-            spark_files=self._spark_files,
-            spark_jars=self._spark_jars,
-            num_executors=self._num_executors,
-            executor_cores=self._executor_cores,
-            executor_memory=self._executor_memory,
-            driver_memory=self._driver_memory,
-            verbose=self._verbose,
-            keytab=self._keytab,
-            principal=self._principal,
-            cmd_type=self._cmd_type,
-            jdbc_table=self._jdbc_table,
-            jdbc_conn_id=self._jdbc_conn_id,
-            jdbc_driver=self._jdbc_driver,
-            metastore_table=self._metastore_table,
-            jdbc_truncate=self._jdbc_truncate,
-            save_mode=self._save_mode,
-            save_format=self._save_format,
-            batch_size=self._batch_size,
-            fetch_size=self._fetch_size,
-            num_partitions=self._num_partitions,
-            partition_column=self._partition_column,
-            lower_bound=self._lower_bound,
-            upper_bound=self._upper_bound,
-            create_table_column_types=self._create_table_column_types
-        )
-        self._hook.submit_jdbc_job()
+    def _resolve_jdbc_connection(self):
+        conn_data = {'url': '',
+                     'schema': '',
+                     'conn_prefix': '',
+                     'user': '',
+                     'password': ''
+                     }
+        try:
+            conn = self.get_connection(self._jdbc_conn_id)
+            if conn.port:
+                conn_data['url'] = "{}:{}".format(conn.host, conn.port)
+            else:
+                conn_data['url'] = conn.host
+            conn_data['schema'] = conn.schema
+            conn_data['user'] = conn.login
+            conn_data['password'] = conn.password
+            extra = conn.extra_dejson
+            conn_data['conn_prefix'] = extra.get('conn_prefix', '')
+        except AirflowException:
+            self.log.debug(
+                "Could not load jdbc connection string %s, defaulting to %s",
+                self._jdbc_conn_id, ""
+            )
+        return conn_data
 
-    def on_kill(self):
-        self._hook.on_kill()
+    def _build_jdbc_application_arguments(self, jdbc_conn):
+        arguments = []
+        arguments += ["-cmdType", self._cmd_type]
+        if self._jdbc_connection['url']:
+            arguments += ['-url', "{0}{1}/{2}".format(
+                jdbc_conn['conn_prefix'], jdbc_conn['url'], jdbc_conn['schema']
+            )]
+        if self._jdbc_connection['user']:
+            arguments += ['-user', self._jdbc_connection['user']]
+        if self._jdbc_connection['password']:
+            arguments += ['-password', self._jdbc_connection['password']]
+        if self._metastore_table:
+            arguments += ['-metastoreTable', self._metastore_table]
+        if self._jdbc_table:
+            arguments += ['-jdbcTable', self._jdbc_table]
+        if self._jdbc_truncate:
+            arguments += ['-jdbcTruncate', str(self._jdbc_truncate)]
+        if self._jdbc_driver:
+            arguments += ['-jdbcDriver', self._jdbc_driver]
+        if self._batch_size:
+            arguments += ['-batchsize', str(self._batch_size)]
+        if self._fetch_size:
+            arguments += ['-fetchsize', str(self._fetch_size)]
+        if self._num_partitions:
+            arguments += ['-numPartitions', str(self._num_partitions)]
+        if (self._partition_column and self._lower_bound and
+                self._upper_bound and self._num_partitions):
+            # these 3 parameters need to be used all together to take effect.
+            arguments += ['-partitionColumn', self._partition_column,
+                          '-lowerBound', self._lower_bound,
+                          '-upperBound', self._upper_bound]
+        if self._save_mode:
+            arguments += ['-saveMode', self._save_mode]
+        if self._save_format:
+            arguments += ['-saveFormat', self._save_format]
+        if self._create_table_column_types:
+            arguments += ['-createTableColumnTypes', self._create_table_column_types]
+        return arguments
+
+    def submit_jdbc_job(self):
+        self._application_args = \
+            self._build_jdbc_application_arguments(self._jdbc_connection)
+        self.submit(application=os.path.dirname(os.path.abspath(__file__)) +
+                    "/spark_jdbc_script.py")
+
+    def get_conn(self):
+        pass

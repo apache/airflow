@@ -23,7 +23,7 @@
 ./airflow/contrib/hooks/segment_hook.py
 ./airflow/contrib/hooks/slack_webhook_hook.py
 ./airflow/contrib/hooks/snowflake_hook.py
-./airflow/contrib/hooks/spark_jdbc_hook.py
+./airflow/providers/apache/spark/hooks/spark_jdbc.py
 ./airflow/contrib/hooks/spark_jdbc_script.py
 ./airflow/contrib/hooks/spark_sql_hook.py
 ./airflow/contrib/hooks/spark_submit_hook.py

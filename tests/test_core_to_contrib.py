@@ -160,6 +160,10 @@ HOOK = [
         'airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook',
         'airflow.contrib.hooks.pinot_hook.PinotAdminHook',
     ),
+    (
+        'airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook',
+        'airflow.contrib.hooks.spark_jdbc_hook.SparkJDBCHook',
+    ),
 ]
 
 OPERATOR = [

@@ -112,7 +112,7 @@ Foundation.
 
    * - `Apache Spark <https://spark.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.spark_jdbc_hook`,
+     - :mod:`airflow.providers.apache.spark.hooks.spark_jdbc`,
        :mod:`airflow.contrib.hooks.spark_jdbc_script`,
        :mod:`airflow.contrib.hooks.spark_sql_hook`,
        :mod:`airflow.contrib.hooks.spark_submit_hook`
