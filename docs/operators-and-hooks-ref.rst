@@ -118,7 +118,7 @@ Foundation.
        :mod:`airflow.providers.apache.spark.hooks.spark_submit`
      - :mod:`airflow.providers.apache.spark.operators.spark_jdbc`,
        :mod:`airflow.providers.apache.spark.operators.spark_sql`,
-       :mod:`airflow.contrib.operators.spark_submit_operator`
+       :mod:`airflow.providers.apache.spark.operators.spark_submit`
      -
 
    * - `Apache Sqoop <https://sqoop.apache.org/>`__
