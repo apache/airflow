@@ -1112,12 +1112,9 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                                delegate_to=self.delegate_to,
                                location=self.location)
 
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
-
         try:
             self.log.info('Creating Dataset: %s in project: %s ', self.dataset_id, self.project_id)
-            cursor.create_empty_dataset(
+            bq_hook.create_empty_dataset(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
                 dataset_reference=self.dataset_reference,

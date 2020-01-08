@@ -260,6 +260,81 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             datasetId=dataset_id,
             body=table_resource).execute(num_retries=num_retries)
 
+    @CloudBaseHook.catch_http_exception
+    def create_empty_dataset(self,
+                             dataset_id: str = "",
+                             project_id: str = "",
+                             location: Optional[str] = None,
+                             dataset_reference: Optional[Dict] = None) -> None:
+        """
+        Create a new empty dataset:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
+
+        :param project_id: The name of the project where we want to create
+            an empty a dataset. Don't need to provide, if projectId in dataset_reference.
+        :type project_id: str
+        :param dataset_id: The id of dataset. Don't need to provide,
+            if datasetId in dataset_reference.
+        :type dataset_id: str
+        :param location: (Optional) The geographic location where the dataset should reside.
+            There is no default value but the dataset will be created in US if nothing is provided.
+        :type location: str
+        :param dataset_reference: Dataset reference that could be provided
+            with request body. More info:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_reference: dict
+        """
+        service = self.get_service()
+
+        if dataset_reference:
+            _validate_value('dataset_reference', dataset_reference, dict)
+        else:
+            dataset_reference = {}
+
+        if "datasetReference" not in dataset_reference:
+            dataset_reference["datasetReference"] = {}
+
+        if self.location:
+            dataset_reference['location'] = dataset_reference.get('location') or self.location
+
+        if not dataset_reference["datasetReference"].get("datasetId") and not dataset_id:
+            raise ValueError(
+                "dataset_id not provided and datasetId not exist in the datasetReference. "
+                "Impossible to create dataset")
+
+        dataset_required_params = [(dataset_id, "datasetId", ""),
+                                   (project_id, "projectId", self.project_id)]
+        for param_tuple in dataset_required_params:
+            param, param_name, param_default = param_tuple
+            if param_name not in dataset_reference['datasetReference']:
+                if param_default and not param:
+                    self.log.info(
+                        "%s was not specified. Will be used default value %s.",
+                        param_name, param_default
+                    )
+                    param = param_default
+                dataset_reference['datasetReference'].update(
+                    {param_name: param})
+            elif param:
+                _api_resource_configs_duplication_check(
+                    param_name, param,
+                    dataset_reference['datasetReference'], 'dataset_reference')
+
+        if location:
+            if 'location' not in dataset_reference:
+                dataset_reference.update({'location': location})
+            else:
+                _api_resource_configs_duplication_check(
+                    'location', location,
+                    dataset_reference, 'dataset_reference')
+
+        dataset_id = dataset_reference.get("datasetReference").get("datasetId")  # type: ignore
+        dataset_project_id = dataset_reference.get("datasetReference").get("projectId")  # type: ignore
+
+        service.datasets().insert(  # pylint: disable=no-member
+            projectId=dataset_project_id,
+            body=dataset_reference).execute(num_retries=self.num_retries)
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -348,6 +423,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_table`",
             DeprecationWarning, stacklevel=3)
         return self.hook.create_empty_table(*args, **kwargs)
+
+    def create_empty_dataset(self, *args, **kwargs) -> None:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_dataset`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_dataset`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.create_empty_dataset(*args, **kwargs)
 
     @CloudBaseHook.catch_http_exception
     def create_external_table(self,  # pylint: disable=too-many-locals,too-many-arguments
@@ -1669,80 +1755,6 @@ class BigQueryBaseCursor(LoggingMixin):
                 'Table %s:%s.%s already has authorized view access to %s:%s dataset.',
                 view_project, view_dataset, view_table, source_project, source_dataset)
             return source_dataset_resource
-
-    @CloudBaseHook.catch_http_exception
-    def create_empty_dataset(self,
-                             dataset_id: str = "",
-                             project_id: str = "",
-                             location: Optional[str] = None,
-                             dataset_reference: Optional[Dict] = None) -> None:
-        """
-        Create a new empty dataset:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
-
-        :param project_id: The name of the project where we want to create
-            an empty a dataset. Don't need to provide, if projectId in dataset_reference.
-        :type project_id: str
-        :param dataset_id: The id of dataset. Don't need to provide,
-            if datasetId in dataset_reference.
-        :type dataset_id: str
-        :param location: (Optional) The geographic location where the dataset should reside.
-            There is no default value but the dataset will be created in US if nothing is provided.
-        :type location: str
-        :param dataset_reference: Dataset reference that could be provided
-            with request body. More info:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
-        :type dataset_reference: dict
-        """
-
-        if dataset_reference:
-            _validate_value('dataset_reference', dataset_reference, dict)
-        else:
-            dataset_reference = {}
-
-        if "datasetReference" not in dataset_reference:
-            dataset_reference["datasetReference"] = {}
-
-        if self.location:
-            dataset_reference['location'] = dataset_reference.get('location') or self.location
-
-        if not dataset_reference["datasetReference"].get("datasetId") and not dataset_id:
-            raise ValueError(
-                "dataset_id not provided and datasetId not exist in the datasetReference. "
-                "Impossible to create dataset")
-
-        dataset_required_params = [(dataset_id, "datasetId", ""),
-                                   (project_id, "projectId", self.project_id)]
-        for param_tuple in dataset_required_params:
-            param, param_name, param_default = param_tuple
-            if param_name not in dataset_reference['datasetReference']:
-                if param_default and not param:
-                    self.log.info(
-                        "%s was not specified. Will be used default value %s.",
-                        param_name, param_default
-                    )
-                    param = param_default
-                dataset_reference['datasetReference'].update(
-                    {param_name: param})
-            elif param:
-                _api_resource_configs_duplication_check(
-                    param_name, param,
-                    dataset_reference['datasetReference'], 'dataset_reference')
-
-        if location:
-            if 'location' not in dataset_reference:
-                dataset_reference.update({'location': location})
-            else:
-                _api_resource_configs_duplication_check(
-                    'location', location,
-                    dataset_reference, 'dataset_reference')
-
-        dataset_id = dataset_reference.get("datasetReference").get("datasetId")  # type: ignore
-        dataset_project_id = dataset_reference.get("datasetReference").get("projectId")  # type: ignore
-
-        self.service.datasets().insert(
-            projectId=dataset_project_id,
-            body=dataset_reference).execute(num_retries=self.num_retries)
 
     @CloudBaseHook.catch_http_exception
     def delete_dataset(self, project_id: str, dataset_id: str, delete_contents: bool = False) -> None:

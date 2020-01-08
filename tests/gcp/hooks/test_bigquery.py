@@ -1679,8 +1679,7 @@ class TestDatasetsOperations(unittest.TestCase):
             r"datasetReference\. Impossible to create dataset"
         ):
             bq_hook = hook.BigQueryHook()
-            cursor = bq_hook.get_cursor()
-            cursor.create_empty_dataset(dataset_id="", project_id="")
+            bq_hook.create_empty_dataset(dataset_id="", project_id="")
 
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
@@ -1695,8 +1694,7 @@ class TestDatasetsOperations(unittest.TestCase):
             r"Please remove duplicates\."
         ):
             bq_hook = hook.BigQueryHook()
-            cursor = bq_hook.get_cursor()
-            cursor.create_empty_dataset(
+            bq_hook.create_empty_dataset(
                 dataset_id="", project_id="project_test",
                 dataset_reference={
                     "datasetReference":
@@ -1718,8 +1716,7 @@ class TestDatasetsOperations(unittest.TestCase):
             r"Please remove duplicates\."
         ):
             bq_hook = hook.BigQueryHook()
-            cursor = bq_hook.get_cursor()
-            cursor.create_empty_dataset(
+            bq_hook.create_empty_dataset(
                 dataset_id="", project_id="project_test", location="EU",
                 dataset_reference={
                     "location": "US",
@@ -1737,8 +1734,7 @@ class TestDatasetsOperations(unittest.TestCase):
 
         method = mock_get_service.return_value.datasets.return_value.insert
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.create_empty_dataset(project_id=PROJECT_ID, dataset_id=DATASET_ID, location=location)
+        bq_hook.create_empty_dataset(project_id=PROJECT_ID, dataset_id=DATASET_ID, location=location)
 
         expected_body = {
             "location": "EU",
@@ -1763,9 +1759,8 @@ class TestDatasetsOperations(unittest.TestCase):
 
         method = mock_get_service.return_value.datasets.return_value.insert
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.create_empty_dataset(project_id=PROJECT_ID, dataset_id=DATASET_ID, location=location,
-                                    dataset_reference=dataset_reference)
+        bq_hook.create_empty_dataset(project_id=PROJECT_ID, dataset_id=DATASET_ID, location=location,
+                                     dataset_reference=dataset_reference)
 
         expected_body = {
             "location": "EU",
@@ -2481,6 +2476,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
 class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
     @parameterized.expand([
         ("create_empty_table",),
+        ("create_empty_dataset",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):
