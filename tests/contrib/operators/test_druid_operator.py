@@ -47,7 +47,7 @@ class TestDruidOperator(unittest.TestCase):
             )
 
             open_mock.assert_called_once_with('index_spec.json')
-            self.assertEqual(druid.index_spec_str, '{\n    "some": "json"\n}')
+            self.assertEqual(druid.json_index_file, '{\n    "some": "json"\n}')
 
     def test_render_template(self):
         json_str = '''
