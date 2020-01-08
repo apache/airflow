@@ -792,7 +792,11 @@ OPERATOR = [
     (
         "airflow.providers.amazon.aws.operators.sns.SnsPublishOperator",
         "airflow.contrib.operators.sns_publish_operator.SnsPublishOperator",
-    )
+    ),
+    (
+        'airflow.providers.apache.druid.operators.druid.DruidOperator',
+        'airflow.contrib.operators.druid_operator.DruidOperator',
+    ),
 ]
 
 SENSOR = [

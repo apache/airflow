@@ -22,8 +22,8 @@ import unittest
 from unittest import mock
 
 from airflow import DAG
-from airflow.contrib.operators.druid_operator import DruidOperator
 from airflow.models import TaskInstance
+from airflow.providers.apache.druid.operators.druid import DruidOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -39,7 +39,9 @@ class TestDruidOperator(unittest.TestCase):
 
     def test_read_spec_from_file(self):
         open_mock = mock.mock_open(read_data='{"some": "json"}')
-        with mock.patch('airflow.contrib.operators.druid_operator.open', open_mock, create=True) as open_mock:
+        with mock.patch(
+            'airflow.providers.apache.druid.operators.druid.open', open_mock, create=True
+        ) as open_mock:
             druid = DruidOperator(
                 task_id='druid_indexing_job',
                 json_index_file='index_spec.json',
@@ -64,7 +66,9 @@ class TestDruidOperator(unittest.TestCase):
             }
         '''
         open_mock = mock.mock_open(read_data=json_str)
-        with mock.patch('airflow.contrib.operators.druid_operator.open', open_mock, create=True) as open_mock:
+        with mock.patch(
+            'airflow.providers.apache.druid.operators.druid.open', open_mock, create=True
+        ) as open_mock:
             operator = DruidOperator(
                 task_id='spark_submit_job',
                 json_index_file='index_spec.json',
