@@ -77,7 +77,8 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             project_id=self.project_id,
             use_legacy_sql=self.use_legacy_sql,
             location=self.location,
-            num_retries=self.num_retries
+            num_retries=self.num_retries,
+            hook=self
         )
 
     def get_service(self) -> Any:
@@ -214,6 +215,7 @@ class BigQueryBaseCursor(LoggingMixin):
     def __init__(self,
                  service: Any,
                  project_id: str,
+                 hook: BigQueryHook,
                  use_legacy_sql: bool = True,
                  api_resource_configs: Optional[Dict] = None,
                  location: Optional[str] = None,
@@ -229,6 +231,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.running_job_id = None  # type: Optional[str]
         self.location = location
         self.num_retries = num_retries
+        self.hook = hook
 
     # pylint: disable=too-many-arguments
     @CloudBaseHook.catch_http_exception
@@ -2069,6 +2072,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         self,
         service: Any,
         project_id: str,
+        hook: BigQueryHook,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
         num_retries: int = 5,
@@ -2076,9 +2080,10 @@ class BigQueryCursor(BigQueryBaseCursor):
         super().__init__(
             service=service,
             project_id=project_id,
+            hook=hook,
             use_legacy_sql=use_legacy_sql,
             location=location,
-            num_retries=num_retries
+            num_retries=num_retries,
         )
         self.buffersize = None  # type: Optional[int]
         self.page_token = None  # type: Optional[str]

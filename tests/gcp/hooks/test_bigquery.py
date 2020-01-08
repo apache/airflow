@@ -57,6 +57,7 @@ class TestBigQueryHookMethods(unittest.TestCase):
         mock_bigquery_connection.assert_called_once_with(
             service=mock_build.return_value,
             project_id=PROJECT_ID,
+            hook=bq_hook,
             use_legacy_sql=bq_hook.use_legacy_sql,
             location=bq_hook.location,
             num_retries=bq_hook.num_retries
@@ -552,13 +553,18 @@ class TestBigQueryBaseCursor(unittest.TestCase):
     @parameterized.expand(
         [("AVRO",), ("PARQUET",), ("NEWLINE_DELIMITED_JSON",), ("DATASTORE_BACKUP",)]
     )
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
-    def test_run_load_with_non_csv_as_src_fmt(self, fmt, mock_get_service, mock_rwc):
-        bq_hook = hook.BigQueryBaseCursor(mock_get_service, PROJECT_ID)
+    def test_run_load_with_non_csv_as_src_fmt(self, fmt, mock_get_service, mock_project_id, mock_rwc):
+        bq_hook = hook.BigQueryHook()
+        bq_base_cursor = hook.BigQueryBaseCursor(mock_get_service, PROJECT_ID, bq_hook)
 
         try:
-            bq_hook.run_load(
+            bq_base_cursor.run_load(
                 destination_project_dataset_table='my_dataset.my_table',
                 source_uris=[],
                 source_format=fmt,
@@ -1366,9 +1372,16 @@ class TestTableOperations(unittest.TestCase):
 
 
 class TestBigQueryCursor(unittest.TestCase):
+
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
-    def test_execute_with_parameters(self, mocked_rwc):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    def test_execute_with_parameters(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         bq_cursor.execute("SELECT %(foo)s", {"foo": "bar"})
         assert mocked_rwc.call_count == 1
         assert mocked_rwc.has_calls(
@@ -1384,9 +1397,15 @@ class TestBigQueryCursor(unittest.TestCase):
             )
         )
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
-    def test_execute_many(self, mocked_rwc):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    def test_execute_many(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         bq_cursor.executemany("SELECT %(foo)s", [{"foo": "bar"}, {"foo": "baz"}])
         assert mocked_rwc.call_count == 2
         assert mocked_rwc.has_calls(
@@ -1412,41 +1431,77 @@ class TestBigQueryCursor(unittest.TestCase):
             )
         )
 
-    def test_description(self):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_description(self, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         with self.assertRaises(NotImplementedError):
             bq_cursor.description
 
-    def test_close(self):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_close(self, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         result = bq_cursor.close()  # pylint: disable=assignment-from-no-return
         self.assertIsNone(result)
 
-    def test_rowcunt(self):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_rowcunt(self, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         result = bq_cursor.rowcount
         self.assertEqual(-1, result)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryCursor.next")
-    def test_fetchone(self, mock_next):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    def test_fetchone(self, mock_next, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         result = bq_cursor.fetchone()
         mock_next.call_count == 1
         self.assertEqual(mock_next.return_value, result)
 
     @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    @mock.patch(
         "airflow.gcp.hooks.bigquery.BigQueryCursor.fetchone",
         side_effect=[1, 2, 3, None]
     )
-    def test_fetchall(self, mock_fetchone):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    def test_fetchall(self, mock_fetchone, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         result = bq_cursor.fetchall()
         self.assertEqual([1, 2, 3], result)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryCursor.fetchone")
-    def test_fetchmany(self, mock_fetchone):
+    def test_fetchmany(self, mock_fetchone, mock_get_service, mock_get_creds_and_proj_id):
         side_effect_values = [1, 2, 3, None]
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         mock_fetchone.side_effect = side_effect_values
         result = bq_cursor.fetchmany()
         self.assertEqual([1], result)
@@ -1459,14 +1514,26 @@ class TestBigQueryCursor(unittest.TestCase):
         result = bq_cursor.fetchmany(5)
         self.assertEqual([1, 2, 3], result)
 
-    def test_next_no_jobid(self):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_next_no_jobid(self, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         bq_cursor.job_id = None
         result = bq_cursor.next()
         self.assertIsNone(result)
 
-    def test_next_buffer(self):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_next_buffer(self, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         bq_cursor.job_id = JOB_ID
         bq_cursor.buffer = [1, 2]
         result = bq_cursor.next()
@@ -1477,9 +1544,13 @@ class TestBigQueryCursor(unittest.TestCase):
         result = bq_cursor.next()
         self.assertIsNone(result)
 
-    def test_next(self):
-        mock_service = mock.MagicMock()
-        mock_get_query_results = mock_service.jobs.return_value.getQueryResults
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_next(self, mock_get_service, mock_get_creds_and_proj_id):
+        mock_get_query_results = mock_get_service.return_value.jobs.return_value.getQueryResults
         mock_execute = mock_get_query_results.return_value.execute
         mock_execute.return_value = {
             "rows": [
@@ -1495,7 +1566,8 @@ class TestBigQueryCursor(unittest.TestCase):
             }
         }
 
-        bq_cursor = hook.BigQueryCursor(mock_service, PROJECT_ID)
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         bq_cursor.job_id = JOB_ID
 
         result = bq_cursor.next()
@@ -1507,14 +1579,19 @@ class TestBigQueryCursor(unittest.TestCase):
         mock_get_query_results.assert_called_once_with(jobId=JOB_ID, pageToken=None, projectId='bq-project')
         mock_execute.assert_called_once_with(num_retries=bq_cursor.num_retries)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryCursor.flush_results")
-    def test_next_no_rows(self, mock_flush_results):
-        mock_service = mock.MagicMock()
-        mock_get_query_results = mock_service.jobs.return_value.getQueryResults
+    def test_next_no_rows(self, mock_flush_results, mock_get_service, mock_get_creds_and_proj_id):
+        mock_get_query_results = mock_get_service.return_value.jobs.return_value.getQueryResults
         mock_execute = mock_get_query_results.return_value.execute
         mock_execute.return_value = {}
 
-        bq_cursor = hook.BigQueryCursor(mock_service, PROJECT_ID)
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         bq_cursor.job_id = JOB_ID
 
         result = bq_cursor.next()
@@ -1524,15 +1601,27 @@ class TestBigQueryCursor(unittest.TestCase):
         mock_execute.assert_called_once_with(num_retries=bq_cursor.num_retries)
         assert mock_flush_results.call_count == 1
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration")
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryCursor.flush_results")
-    def test_flush_cursor_in_execute(self, _, mocked_fr):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    def test_flush_cursor_in_execute(self, _, mocked_fr, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         bq_cursor.execute("SELECT %(foo)s", {"foo": "bar"})
         assert mocked_fr.call_count == 1
 
-    def test_flush_cursor(self):
-        bq_cursor = hook.BigQueryCursor("test", PROJECT_ID)
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_flush_cursor(self, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         bq_cursor.page_token = '456dcea9-fcbf-4f02-b570-83f5297c685e'
         bq_cursor.job_id = 'c0a79ae4-0e72-4593-a0d0-7dbbf726f193'
         bq_cursor.all_pages_loaded = True
@@ -1543,8 +1632,14 @@ class TestBigQueryCursor(unittest.TestCase):
         self.assertFalse(bq_cursor.all_pages_loaded)
         self.assertListEqual(bq_cursor.buffer, [])
 
-    def test_arraysize(self):
-        bq_cursor = hook.BigQueryCursor("test_service", PROJECT_ID)
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_arraysize(self, mock_get_service, mock_get_creds_and_proj_id):
+        bq_hook = hook.BigQueryHook()
+        bq_cursor = bq_hook.get_cursor()
         self.assertIsNone(bq_cursor.buffersize)
         self.assertEqual(bq_cursor.arraysize, 1)
         bq_cursor.set_arraysize(10)
