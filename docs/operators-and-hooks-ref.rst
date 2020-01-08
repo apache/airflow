@@ -106,7 +106,7 @@ Foundation.
 
    * - `Apache Pinot <https://pinot.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.pinot_hook`
+     - :mod:`airflow.providers.apache.pinot.hooks.pinot`
      -
      -
 

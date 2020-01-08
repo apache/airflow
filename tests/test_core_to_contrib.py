@@ -152,6 +152,14 @@ HOOK = [
         "airflow.providers.amazon.aws.hooks.sns.AwsSnsHook",
         "airflow.contrib.hooks.aws_sns_hook.AwsSnsHook",
     ),
+    (
+        'airflow.providers.apache.pinot.hooks.pinot.PinotDbApiHook',
+        'airflow.contrib.hooks.pinot_hook.PinotDbApiHook',
+    ),
+    (
+        'airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook',
+        'airflow.contrib.hooks.pinot_hook.PinotAdminHook',
+    ),
 ]
 
 OPERATOR = [

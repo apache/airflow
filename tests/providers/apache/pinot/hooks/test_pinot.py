@@ -24,8 +24,8 @@ import subprocess
 import unittest
 from unittest import mock
 
-from airflow.contrib.hooks.pinot_hook import PinotAdminHook, PinotDbApiHook
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbApiHook
 
 
 class TestPinotAdminHook(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestPinotAdminHook(unittest.TestCase):
 
         self.db_hook = PinotAdminHookTest()
 
-    @mock.patch('airflow.contrib.hooks.pinot_hook.PinotAdminHook.run_cli')
+    @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
     def test_add_schema(self, mock_run_cli):
         params = ["schema_file", False]
         self.db_hook.add_schema(*params)
@@ -52,7 +52,7 @@ class TestPinotAdminHook(unittest.TestCase):
                                               '-controllerPort', self.conn.port,
                                               '-schemaFile', params[0]])
 
-    @mock.patch('airflow.contrib.hooks.pinot_hook.PinotAdminHook.run_cli')
+    @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
     def test_add_table(self, mock_run_cli):
         params = ["config_file", False]
         self.db_hook.add_table(*params)
@@ -61,7 +61,7 @@ class TestPinotAdminHook(unittest.TestCase):
                                               '-controllerPort', self.conn.port,
                                               '-filePath', params[0]])
 
-    @mock.patch('airflow.contrib.hooks.pinot_hook.PinotAdminHook.run_cli')
+    @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
     def test_create_segment(self, mock_run_cli):
         params = {
             "generator_config_file": "a",
@@ -106,7 +106,7 @@ class TestPinotAdminHook(unittest.TestCase):
             '-postCreationVerification', params["post_creation_verification"],
             '-retry', params["retry"]])
 
-    @mock.patch('airflow.contrib.hooks.pinot_hook.PinotAdminHook.run_cli')
+    @mock.patch('airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli')
     def test_upload_segment(self, mock_run_cli):
         params = ["segment_dir", False]
         self.db_hook.upload_segment(*params)

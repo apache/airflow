@@ -80,6 +80,8 @@ All operators are in the following packages:
 
   airflow/providers/apache/cassandra/sensors/index
 
+  airflow/providers/apache/pinot/hooks/index
+
   airflow/providers/google/cloud/operators/index
 
   airflow/providers/google/cloud/sensors/index

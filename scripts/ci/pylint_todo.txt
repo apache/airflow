@@ -17,7 +17,7 @@
 ./airflow/contrib/hooks/jenkins_hook.py
 ./airflow/contrib/hooks/openfaas_hook.py
 ./airflow/contrib/hooks/opsgenie_alert_hook.py
-./airflow/contrib/hooks/pinot_hook.py
+./airflow/providers/apache/pinot/hooks/pinot.py
 ./airflow/contrib/hooks/qubole_check_hook.py
 ./airflow/contrib/hooks/sagemaker_hook.py
 ./airflow/contrib/hooks/segment_hook.py
