@@ -1356,8 +1356,7 @@ class TestTableOperations(unittest.TestCase):
         mock_service.tables.return_value.list.return_value.execute.return_value = expected_result
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        result = cursor.get_dataset_tables(dataset_id=DATASET_ID)
+        result = bq_hook.get_dataset_tables(dataset_id=DATASET_ID)
         mock_service.tables.return_value.list.assert_called_once_with(
             datasetId=DATASET_ID, projectId=PROJECT_ID
         )
@@ -2477,6 +2476,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
     @parameterized.expand([
         ("create_empty_table",),
         ("create_empty_dataset",),
+        ("get_dataset_tables",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

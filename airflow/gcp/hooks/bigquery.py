@@ -335,6 +335,42 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             projectId=dataset_project_id,
             body=dataset_reference).execute(num_retries=self.num_retries)
 
+    @CloudBaseHook.catch_http_exception
+    def get_dataset_tables(self, dataset_id: str, project_id: Optional[str] = None,
+                           max_results: Optional[int] = None,
+                           page_token: Optional[str] = None) -> Dict[str, Union[str, int, List]]:
+        """
+        Get the list of tables for a given dataset.
+        .. seealso:: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
+
+        :param dataset_id: the dataset ID of the requested dataset.
+        :type dataset_id: str
+        :param project_id: (Optional) the project of the requested dataset. If None,
+            self.project_id will be used.
+        :type project_id: str
+        :param max_results: (Optional) the maximum number of tables to return.
+        :type max_results: int
+        :param page_token: (Optional) page token, returned from a previous call,
+            identifying the result set.
+        :type page_token: str
+
+        :return: map containing the list of tables + metadata.
+        """
+        service = self.get_service()
+
+        optional_params = {}  # type: Dict[str, Union[str, int]]
+        if max_results:
+            optional_params['maxResults'] = max_results
+        if page_token:
+            optional_params['pageToken'] = page_token
+
+        dataset_project_id = project_id or self.project_id
+
+        return (service.tables().list(  # pylint: disable=no-member
+            projectId=dataset_project_id,
+            datasetId=dataset_id,
+            **optional_params).execute(num_retries=self.num_retries))
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -434,6 +470,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_dataset`",
             DeprecationWarning, stacklevel=3)
         return self.hook.create_empty_dataset(*args, **kwargs)
+
+    def get_dataset_tables(self, *args, **kwargs) -> Dict[str, Union[str, int, List]]:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.get_dataset_tables(*args, **kwargs)
 
     @CloudBaseHook.catch_http_exception
     def create_external_table(self,  # pylint: disable=too-many-locals,too-many-arguments
@@ -1517,40 +1564,6 @@ class BigQueryBaseCursor(LoggingMixin):
                 self.log.info('Waiting for canceled job with id %s to finish.',
                               self.running_job_id)
                 time.sleep(5)
-
-    @CloudBaseHook.catch_http_exception
-    def get_dataset_tables(self, dataset_id: str, project_id: Optional[str] = None,
-                           max_results: Optional[int] = None,
-                           page_token: Optional[str] = None) -> Dict[str, Union[str, int, List]]:
-        """
-        Get the list of tables for a given dataset.
-        .. seealso:: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
-
-        :param dataset_id: the dataset ID of the requested dataset.
-        :type dataset_id: str
-        :param project_id: (Optional) the project of the requested dataset. If None,
-            self.project_id will be used.
-        :type project_id: str
-        :param max_results: (Optional) the maximum number of tables to return.
-        :type max_results: int
-        :param page_token: (Optional) page token, returned from a previous call,
-            identifying the result set.
-        :type page_token: str
-
-        :return: map containing the list of tables + metadata.
-        """
-        optional_params = {}  # type: Dict[str, Union[str, int]]
-        if max_results:
-            optional_params['maxResults'] = max_results
-        if page_token:
-            optional_params['pageToken'] = page_token
-
-        dataset_project_id = project_id or self.project_id
-
-        return (self.service.tables().list(
-            projectId=dataset_project_id,
-            datasetId=dataset_id,
-            **optional_params).execute(num_retries=self.num_retries))
 
     @CloudBaseHook.catch_http_exception
     def get_schema(self, dataset_id: str, table_id: str, project_id: Optional[str] = None) -> Dict:
