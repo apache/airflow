@@ -274,12 +274,11 @@ For now you can execute the system tests and follow messages printed to get them
 running the tests will be available.
 
 
-Local and Remote Debugging
-==========================
+Local and Remote Debugging in IDE
+=================================
 
 One of the great benefits of using the local virtualenv and Breeze is an option to run
-local debugging in `your IDE graphical interface <BREEZE.rst#using-your-host-ide>`__. You can also use ``ipdb``
-if you prefer `console debugging <#breeze-debugging-with-ipdb>`__.
+local debugging in your IDE graphical interface.
 
 When you run example DAGs, even if you run them using unit tests within IDE, they are run in a separate
 container. This makes it a little harder to use with IDE built-in debuggers.
@@ -302,7 +301,6 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
 .. image:: images/source_code_mapping_ide.png
     :align: center
     :alt: Source code mapping
-
 
 DAG testing
 ===========
