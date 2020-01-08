@@ -29,7 +29,6 @@ class SnowflakeHook(DbApiHook):
     Interact with Snowflake.
     get_sqlalchemy_engine() depends on snowflake-sqlalchemy
     """
-    conn_name_attr = 'snowflake_conn_id'
     default_conn_name = 'snowflake_default'
     supports_autocommit = True
 
@@ -41,6 +40,7 @@ class SnowflakeHook(DbApiHook):
         self.region = kwargs.pop("region", None)
         self.role = kwargs.pop("role", None)
         self.schema = kwargs.pop("schema", None)
+        self.snowflake_conn_id = 'snowflake_conn_id'
 
     def _get_conn_params(self):
         """
