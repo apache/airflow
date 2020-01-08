@@ -23,6 +23,7 @@ import logging
 import os
 import textwrap
 from contextlib import redirect_stderr, redirect_stdout
+from typing import List
 
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors.executor_loader import ExecutorLoader
@@ -234,6 +235,35 @@ def task_list(args, dag=None):
         print("\n".join(sorted(tasks)))
 
 
+SUPPORTED_DEBUGGER_MODULES: List[str] = [
+    "pudb",
+    "web_pdb",
+    "ipdb",
+    "pdb",
+]
+
+
+def _guess_debugger():
+    """
+    Trying to guess the debugger used by the user. When it doesn't find any user-installed debugger,
+    returns ``pdb``.
+
+    List of supported debuggers:
+
+    * `pudb <https://github.com/inducer/pudb>`__
+    * `web_pdb <https://github.com/romanvm/python-web-pdb>`__
+    * `ipdb <https://github.com/gotcha/ipdb>`__
+    * `pdb <https://docs.python.org/3/library/pdb.html>`__
+    """
+
+    for mod in SUPPORTED_DEBUGGER_MODULES:
+        try:
+            return importlib.import_module(mod)
+        except ImportError:
+            continue
+    return importlib.import_module("pdb")
+
+
 @cli_utils.action_logging
 def task_test(args, dag=None):
     """Tests task for a given dag_id"""
@@ -265,10 +295,7 @@ def task_test(args, dag=None):
             ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
     except Exception:  # pylint: disable=broad-except
         if args.post_mortem:
-            try:
-                debugger = importlib.import_module("ipdb")
-            except ImportError:
-                debugger = importlib.import_module("pdb")
+            debugger = _guess_debugger()
             debugger.post_mortem()
         else:
             raise
