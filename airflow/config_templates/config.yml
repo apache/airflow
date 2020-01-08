@@ -1506,19 +1506,21 @@
   options:
     - name: worker_container_repository
       description: |
-        The repository, tag and imagePullPolicy of the Kubernetes Image for the Worker to Run
+        The repository of the Kubernetes Image for the Worker to Run
       version_added: ~
       type: string
       example: ~
       default: ""
     - name: worker_container_tag
-      description: ~
+      description: |
+        The tag of the Kubernetes Image for the Worker to Run
       version_added: ~
       type: string
       example: ~
       default: ""
     - name: worker_container_image_pull_policy
-      description: ~
+      description: |
+        The imagePullPolicy of the Kubernetes Image for the Worker to Run
       version_added: ~
       type: string
       example: ~
@@ -1532,7 +1534,11 @@
       default: "True"
     - name: worker_pods_creation_batch_size
       description: |
-        Number of Kubernetes Worker Pod creation calls per scheduler loop
+        Number of Kubernetes Worker Pod creation calls per scheduler loop.
+        Note that the current default of "1" will only launch a single pod
+        per-heartbeat. It is HIGHLY recommended that users increase this
+        number to match the tolerance of their kubernetes cluster for
+        better performance.
       version_added: ~
       type: string
       example: ~
@@ -1546,7 +1552,27 @@
       default: "default"
     - name: airflow_configmap
       description: |
-        The name of the Kubernetes ConfigMap containing the Airflow Configuration (this file)
+        The name of the Kubernetes ConfigMap containing ``airflow.cfg`` file.
+
+        For example:
+
+        ``airflow_configmap = "airflow-configmap"`` if you have the following ConfigMap.
+
+        ``airflow-configmap.yaml``:
+
+        .. code-block:: yaml
+
+          ---
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: airflow-configmap
+          data:
+            airflow.cfg: |
+                ...
+
+        Note that the ``airflow_configmap`` and the ``airflow_local_settings_configmap``
+        can be the same configMap
       version_added: ~
       type: string
       example: "airflow-configmap"
@@ -1581,8 +1607,7 @@
     - name: dags_in_image
       description: |
         For docker image already contains DAGs, this is set to ``True``, and the worker will
-        search for dags in dags_folder,
-        otherwise use git sync or dags volume claim to mount DAGs
+        search for dags in dags_folder, otherwise use git sync or dags volume claim to mount DAGs
       version_added: ~
       type: string
       example: ~
@@ -1655,13 +1680,17 @@
       example: ~
       default: ""
     - name: git_branch
-      description: ~
+      description: |
+        Branch of the git repo containing DAGs. This can be useful for users who wish to version their DAGs
+        using release branches.
       version_added: ~
       type: string
       example: ~
       default: ""
     - name: git_subpath
-      description: ~
+      description: |
+        Subpath of git repo to be pulled for DAGs. This allows users to maintain multiple DAG
+        repositories in a single git repo.
       version_added: ~
       type: string
       example: ~
@@ -1835,7 +1864,8 @@
       example: ~
       default: ~
     - name: config_file
-      description: ~
+      description: |
+        Path to the kubernetes configfile to be used when ``in_cluster`` is set to False
       version_added: ~
       type: string
       example: ~
