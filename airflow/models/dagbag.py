@@ -250,6 +250,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                     loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
                     spec = importlib.util.spec_from_loader(mod_name, loader)
                     m = importlib.util.module_from_spec(spec)
+                    sys.modules[spec.name] = m
                     loader.exec_module(m)
                     mods.append(m)
                 except Exception as e:
