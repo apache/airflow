@@ -22,7 +22,7 @@ import datetime
 import unittest
 
 from airflow import DAG
-from airflow.contrib.operators.spark_sql_operator import SparkSqlOperator
+from airflow.providers.apache.spark.operators.spark_sql import SparkSqlOperator
 
 DEFAULT_DATE = datetime.datetime(2017, 1, 1)
 

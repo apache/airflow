@@ -801,6 +801,10 @@ OPERATOR = [
         'airflow.providers.apache.spark.operators.spark_jdbc.SparkSubmitOperator',
         'airflow.contrib.operators.spark_jdbc_operator.SparkSubmitOperator',
     ),
+    (
+        'airflow.providers.apache.spark.operators.spark_sql.SparkSqlOperator',
+        'airflow.contrib.operators.spark_sql_operator.SparkSqlOperator',
+    ),
 ]
 
 SENSOR = [
