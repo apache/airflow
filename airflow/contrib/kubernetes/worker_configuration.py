@@ -332,6 +332,22 @@ class WorkerConfiguration(LoggingMixin):
                 'readOnly': True
             }
 
+        if self.kube_config.airflow_local_settings_configmap:
+            config_volume_name = 'airflow-config'
+            config_path = '{}/config/airflow_local_settings.py'.format(self.worker_airflow_home)
+            volumes[config_volume_name] = {
+                'name': config_volume_name,
+                'configMap': {
+                    'name': self.kube_config.airflow_local_settings_configmap
+                }
+            }
+            volume_mounts[config_volume_name] = {
+                'name': config_volume_name,
+                'mountPath': config_path,
+                'subPath': 'airflow_local_settings.py',
+                'readOnly': True
+            }
+
         return volumes, volume_mounts
 
     def generate_dag_volume_mount_path(self):
