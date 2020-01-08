@@ -66,7 +66,7 @@
 ./airflow/contrib/operators/sftp_to_s3_operator.py
 ./airflow/contrib/operators/slack_webhook_operator.py
 ./airflow/contrib/operators/snowflake_operator.py
-./airflow/contrib/operators/spark_jdbc_operator.py
+./airflow/providers/apache/spark/operators/spark_jdbc.py
 ./airflow/contrib/operators/spark_sql_operator.py
 ./airflow/contrib/operators/spark_submit_operator.py
 ./airflow/contrib/operators/sqoop_operator.py

@@ -797,6 +797,10 @@ OPERATOR = [
         'airflow.providers.apache.druid.operators.druid.DruidOperator',
         'airflow.contrib.operators.druid_operator.DruidOperator',
     ),
+    (
+        'airflow.providers.apache.spark.operators.spark_jdbc.SparkSubmitOperator',
+        'airflow.contrib.operators.spark_jdbc_operator.SparkSubmitOperator',
+    ),
 ]
 
 SENSOR = [
