@@ -1618,10 +1618,37 @@
       default: "default"
     - name: airflow_configmap
       description: |
-        The name of the Kubernetes ConfigMap Containing the Airflow Configuration (this file)
+        The name of the Kubernetes ConfigMap containing the Airflow Configuration (this file)
       version_added: ~
       type: string
-      example: ~
+      example: "airflow-configmap"
+      default: ""
+    - name: airflow_local_settings_configmap
+      description: |
+        The name of the Kubernetes ConfigMap containing ``airflow_local_settings.py`` file.
+
+        For example:
+
+        ``airflow_local_settings_configmap = "airflow-configmap"`` if you have the following ConfigMap.
+
+        ``airflow-configmap.yaml``:
+
+        .. code-block:: yaml
+
+          ---
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: airflow-configmap
+          data:
+            airflow_local_settings.py: |
+                def pod_mutation_hook(pod):
+                    ...
+            airflow.cfg: |
+                ...
+      version_added: ~
+      type: string
+      example: "airflow-configmap"
       default: ""
     - name: dags_in_image
       description: |
