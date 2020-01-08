@@ -762,13 +762,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         else:
             schema_fields = self.schema_fields
 
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
-
         try:
             self.log.info('Creating Table %s:%s.%s',
                           self.project_id, self.dataset_id, self.table_id)
-            cursor.create_empty_table(
+            bq_hook.create_empty_table(
                 project_id=self.project_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,

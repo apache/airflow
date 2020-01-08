@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import re
 import unittest
 from unittest import mock
 
@@ -1109,10 +1109,8 @@ class TestTableOperations(unittest.TestCase):
         method.return_value.execute.side_effect = HttpError(
             resp=resp, content=b'Query is required for views')
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         with self.assertRaisesRegex(Exception, "HttpError 500 \"Query is required for views\""):
-            cursor.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID,
-                                      view=view)
+            bq_hook.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID, view=view)
 
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
@@ -1128,9 +1126,7 @@ class TestTableOperations(unittest.TestCase):
         mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID,
-                                  view=view)
+        bq_hook.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID, view=view)
         body = {
             'tableReference': {
                 'tableId': TABLE_ID
@@ -1244,8 +1240,7 @@ class TestTableOperations(unittest.TestCase):
         mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.create_empty_table(
+        bq_hook.create_empty_table(
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
             table_id=TABLE_ID)
@@ -1278,9 +1273,8 @@ class TestTableOperations(unittest.TestCase):
         mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
 
-        cursor.create_empty_table(
+        bq_hook.create_empty_table(
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
             table_id=TABLE_ID,
@@ -1319,9 +1313,8 @@ class TestTableOperations(unittest.TestCase):
         method.return_value.execute.side_effect = HttpError(
             resp=resp, content=b'Bad request')
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         with self.assertRaisesRegex(Exception, "Bad request"):
-            cursor.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID)
+            bq_hook.create_empty_table(PROJECT_ID, DATASET_ID, TABLE_ID)
 
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
@@ -2278,9 +2271,8 @@ class TestBigQueryWithKMS(unittest.TestCase):
         mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
 
-        cursor.create_empty_table(
+        bq_hook.create_empty_table(
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
             table_id=TABLE_ID,
@@ -2484,6 +2476,29 @@ class TestBigQueryWithKMS(unittest.TestCase):
             args[0]['load']['destinationEncryptionConfiguration'],
             encryption_configuration
         )
+
+
+class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
+    @parameterized.expand([
+        ("create_empty_table",),
+    ])
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
+    def test_deprecation_warning(self, func_name, mock_bq_hook):
+        args, kwargs = [1], {"param1": "val1"}
+        new_path = r"`airflow\.gcp\.hooks\.bigquery\.BigQueryHook\.{}".format(func_name)
+        message_pattern = r"This method is deprecated\.\sPlease use {}".format(new_path)
+        messege_regex = re.compile(message_pattern, re.MULTILINE)
+
+        mocked_func = getattr(mock_bq_hook, func_name)
+        bq_cursor = hook.BigQueryCursor(mock.MagicMock(), PROJECT_ID, mock_bq_hook)
+        func = getattr(bq_cursor, func_name)
+
+        with self.assertWarnsRegex(DeprecationWarning, messege_regex):
+            result = func(*args, **kwargs)
+
+        mocked_func.assert_called_once_with(*args, **kwargs)
+        self.assertEqual(mocked_func.return_value, result)
+        self.assertRegex(func.__doc__, ".*{}.*".format(new_path))
 
 
 if __name__ == '__main__':
