@@ -256,6 +256,14 @@ repos:
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
         require_serial: true
+      - id: airflow-config-yaml
+        name: Checks for consistency between config.yml and default_config.cfg
+        language: python
+        files: "^airflow/config_templates/config.yml$|^airflow/config_templates/default_airflow.cfg$"
+        pass_filenames: false
+        require_serial: false
+        entry: scripts/ci/pre_commit_yaml_to_cfg.py
+        additional_dependencies: ['pyyaml']
       - id: mypy
         name: Run mypy
         language: system
@@ -290,11 +298,3 @@ repos:
         entry: "./scripts/ci/pre_commit_bat_tests.sh"
         files: ^tests/bats/.*\.bats$
         pass_filenames: true
-      - id: airflow-config-yaml
-        name: Checks for consistency between config.yml and default_config.cfg
-        language: python
-        files: "^airflow/config_templates/config.yml$|^airflow/config_templates/default_airflow.cfg$"
-        pass_filenames: false
-        require_serial: false
-        entry: scripts/ci/pre_commit_yaml_to_cfg.py
-        additional_dependencies: ['pyyaml']
