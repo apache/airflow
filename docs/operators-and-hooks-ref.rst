@@ -123,7 +123,7 @@ Foundation.
 
    * - `Apache Sqoop <https://sqoop.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.sqoop_hook`
+     - :mod:`airflow.providers.apache.sqoop.hooks.sqoop`
      - :mod:`airflow.contrib.operators.sqoop_operator`
      -
 

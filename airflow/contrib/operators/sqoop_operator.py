@@ -24,9 +24,9 @@ This module contains a sqoop 1 operator
 import os
 import signal
 
-from airflow.contrib.hooks.sqoop_hook import SqoopHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
 from airflow.utils.decorators import apply_defaults
 
 

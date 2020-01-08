@@ -164,6 +164,18 @@ HOOK = [
         'airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook',
         'airflow.contrib.hooks.spark_jdbc_hook.SparkJDBCHook',
     ),
+    (
+        'airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook',
+        'airflow.contrib.hooks.spark_sql_hook.SparkSqlHook',
+    ),
+    (
+        'airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook',
+        'airflow.contrib.hooks.spark_submit_hook.SparkSubmitHook',
+    ),
+    (
+        'airflow.providers.apache.sqoop.hooks.sqoop.SqoopHook',
+        'airflow.contrib.hooks.sqoop_hook.SqoopHook',
+    ),
 ]
 
 OPERATOR = [

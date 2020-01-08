@@ -16,14 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.sqoop.hooks.sqoop`."""
-
-import warnings
-
-# pylint: disable=unused-import
-from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook  # noqa
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.apache.sqoop.hooks.sqoop`.",
-    DeprecationWarning, stacklevel=2
-)
