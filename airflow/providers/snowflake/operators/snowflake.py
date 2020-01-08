@@ -70,11 +70,18 @@ class SnowflakeOperator(BaseOperator):
         self.schema = schema
 
     def get_hook(self):
+        """
+        Create and return SnowflakeHook.
+        :return SnowflakeHook: An SnowflakeHook instance.
+        """
         return SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id,
                              warehouse=self.warehouse, database=self.database,
                              role=self.role, schema=self.schema)
 
     def execute(self, context):
+        """
+        Run query on snowflake
+        """
         self.log.info('Executing: %s', self.sql)
         hook = self.get_hook()
         hook.run(
