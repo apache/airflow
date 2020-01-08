@@ -194,6 +194,11 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         # configmap
         self.airflow_configmap = conf.get(self.kubernetes_section, 'airflow_configmap')
 
+        # The worker pod may optionally have a valid Airflow local settings loaded via a
+        # configmap
+        self.airflow_local_settings_configmap = conf.get(
+            self.kubernetes_section, 'airflow_local_settings_configmap')
+
         affinity_json = conf.get(self.kubernetes_section, 'affinity')
         if affinity_json:
             self.kube_affinity = json.loads(affinity_json)
