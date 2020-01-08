@@ -22,8 +22,8 @@ import datetime
 import unittest
 
 from airflow import DAG
-from airflow.contrib.operators.sqoop_operator import SqoopOperator
 from airflow.exceptions import AirflowException
+from airflow.providers.apache.sqoop.operators.sqoop import SqoopOperator
 
 
 class TestSqoopOperator(unittest.TestCase):

@@ -124,7 +124,7 @@ Foundation.
    * - `Apache Sqoop <https://sqoop.apache.org/>`__
      -
      - :mod:`airflow.providers.apache.sqoop.hooks.sqoop`
-     - :mod:`airflow.contrib.operators.sqoop_operator`
+     - :mod:`airflow.providers.apache.sqoop.operators.sqoop`
      -
 
    * - `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__

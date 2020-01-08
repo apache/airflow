@@ -69,7 +69,7 @@
 ./airflow/providers/apache/spark/operators/spark_jdbc.py
 ./airflow/providers/apache/spark/operators/spark_sql.py
 ./airflow/providers/apache/spark/operators/spark_submit.py
-./airflow/contrib/operators/sqoop_operator.py
+./airflow/providers/apache/sqoop/operators/sqoop.py
 ./airflow/contrib/operators/ssh_operator.py
 ./airflow/contrib/operators/vertica_operator.py
 ./airflow/contrib/operators/vertica_to_mysql.py

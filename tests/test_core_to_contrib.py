@@ -809,6 +809,10 @@ OPERATOR = [
         'airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator',
         'airflow.contrib.operators.spark_submit_operator.SparkSubmitOperator',
     ),
+    (
+        'airflow.providers.apache.sqoop.operators.sqoop.SqoopOperator',
+        'airflow.contrib.operators.sqoop_operator.SqoopOperator',
+    ),
 ]
 
 SENSOR = [
