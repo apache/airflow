@@ -248,7 +248,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
             with timeout(self.DAGBAG_IMPORT_TIMEOUT):
                 try:
-                    m = imp.load_source(mod_name, filepath)
+                    m = importlib.machinery.SourceFileLoader(mod_name, filepath).load_module()
                     mods.append(m)
                 except Exception as e:
                     self.log.exception("Failed to import: %s", filepath)
