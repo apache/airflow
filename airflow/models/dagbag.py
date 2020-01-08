@@ -18,7 +18,6 @@
 # under the License.
 
 import hashlib
-import imp
 import importlib
 import os
 import sys
