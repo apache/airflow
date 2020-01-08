@@ -352,13 +352,18 @@
       example: ~
       default: ""
     - name: remote_base_log_folder
-      description: ~
+      description: |
+        Storage bucket URL for remote logging
+        S3 buckets should start with "s3://"
+        GCS buckets should start with "gs://"
+        WASB buckets should start with "wasb" just to help Airflow select correct handler
       version_added: ~
       type: string
       example: ~
       default: ""
     - name: encrypt_s3_logs
-      description: ~
+      description: |
+        Use server-side encryption for logs stored in S3
       version_added: ~
       type: string
       example: ~
@@ -431,19 +436,21 @@
       default: ""
     - name: log_filename_template
       description: |
-        Log filename format
+        Formatting for how airflow generates file names/paths for each task run.
       version_added: ~
       type: string
       example: ~
       default: "{{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{{{ try_number }}}}.log"
     - name: log_processor_filename_template
-      description: ~
+      description: |
+        Formatting for how airflow generates file names for log
       version_added: ~
       type: string
       example: ~
       default: "{{{{ filename }}}}.log"
     - name: dag_processor_manager_log_location
-      description: ~
+      description: |
+        full path of dag_processor_manager logfile
       version_added: ~
       type: string
       example: ~
@@ -1904,7 +1911,7 @@
   description: |
     The scheduler sets the following environment variables into your workers. You may define as
     many environment variables as needed and the kubernetes launcher will set them in the launched workers.
-    Environment variables in this section are defined as follows
+    Environment variables in this section are defined as followsa
     ``<environment_variable_key> = <environment_variable_value>``
 
     For example if you wanted to set an environment variable with value `prod` and key
