@@ -663,10 +663,10 @@ function run_flake8() {
 function run_bats_tests() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run --workdir /airflow -v "$(pwd):/airflow"  \
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
             bats/bats:latest --tap -r /airflow/tests/bats | tee -a "${OUTPUT_LOG}"
     else
-        docker run --workdir /airflow -v "$(pwd):/airflow" \
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
             bats/bats:latest --tap -r "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
 }
