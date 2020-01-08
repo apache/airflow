@@ -31,6 +31,11 @@ class SnowflakeOperator(BaseOperator):
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
+    :param autocommit: if True, each command is automatically committed.
+        (default value: True)
+    :type autocommit: bool
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :type parameters: mapping or iterable
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
     :type warehouse: str
@@ -42,6 +47,7 @@ class SnowflakeOperator(BaseOperator):
     :type schema: str
     :param role: name of role (will overwrite any role defined in
         connection's extra JSON)
+    :type role: str
     """
 
     template_fields = ('sql',)

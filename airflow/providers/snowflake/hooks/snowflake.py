@@ -27,11 +27,8 @@ from airflow.hooks.dbapi_hook import DbApiHook
 class SnowflakeHook(DbApiHook):
     """
     Interact with Snowflake.
-
     get_sqlalchemy_engine() depends on snowflake-sqlalchemy
-
     """
-
     conn_name_attr = 'snowflake_conn_id'
     default_conn_name = 'snowflake_default'
     supports_autocommit = True
@@ -69,12 +66,11 @@ class SnowflakeHook(DbApiHook):
 
         }
 
-        """
-        If private_key_file is specified in the extra json, load the contents of the file as a private
-        key and specify that in the connection configuration. The connection password then becomes the
-        passphrase for the private key. If your private key file is not encrypted (not recommended), then
-        leave the password empty.
-        """
+        # If private_key_file is specified in the extra json, load the contents of the file as a private
+        # key and specify that in the connection configuration. The connection password then becomes the
+        # passphrase for the private key. If your private key file is not encrypted (not recommended), then
+        # leave the password empty.
+
         private_key_file = conn.extra_dejson.get('private_key_file', None)
         if private_key_file:
             with open(private_key_file, "rb") as key:
@@ -102,8 +98,8 @@ class SnowflakeHook(DbApiHook):
         override DbApiHook get_uri method for get_sqlalchemy_engine()
         """
         conn_config = self._get_conn_params()
-        uri = 'snowflake://{user}:{password}@{account}/{database}/'
-        uri += '{schema}?warehouse={warehouse}&role={role}'
+        uri = 'snowflake://{user}:{password}@{account}/{database}/{schema}' \
+              '?warehouse={warehouse}&role={role}'
         return uri.format(**conn_config)
 
     def get_conn(self):
