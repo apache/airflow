@@ -340,7 +340,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = set(v)
             elif k == "subdag":
                 v = SerializedDAG.deserialize_dag(v)
-            elif k in {"retry_delay", "execution_timeout"}:
+            elif k in {"retry_delay", "execution_timeout", "execution_delta"}:
                 v = cls._deserialize_timedelta(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)

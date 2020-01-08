@@ -18,6 +18,7 @@
 # under the License.
 import unittest
 from datetime import time, timedelta
+from unittest import mock
 
 import pytest
 
@@ -26,8 +27,9 @@ from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import DagBag, TaskInstance
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.sensors.external_task_sensor import ExternalTaskMarker, ExternalTaskSensor
+from airflow.sensors.external_task_sensor import ExternalTaskLink, ExternalTaskMarker, ExternalTaskSensor
 from airflow.sensors.time_sensor import TimeSensor
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
@@ -316,6 +318,118 @@ exit 0
                 end_date=DEFAULT_DATE,
                 ignore_ti_state=True
             )
+
+    @mock.patch('airflow.sensors.external_task_sensor.conf')
+    def test_external_task_link_same_execution_date(self, patched_conf):
+        patched_conf.get.return_value = 'http://localhost:8080'
+
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='other_dag',
+            external_task_id='other_task',
+            check_existence=False,
+            dag=self.dag
+        )
+        link = ExternalTaskLink()
+
+        self.assertEqual(
+            'http://localhost:8080/graph?dag_id=other_dag&execution_date=2015-01-01T00:00:00+00:00',
+            link.get_link(op, DEFAULT_DATE),
+        )
+
+        patched_conf.get.assert_called_once_with('webserver', 'base_url')
+
+    @mock.patch('airflow.sensors.external_task_sensor.conf')
+    def test_external_task_link_execution_delta(self, patched_conf):
+        patched_conf.get.return_value = 'http://localhost:8080'
+
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='other_dag',
+            external_task_id='other_task',
+            check_existence=False,
+            execution_delta=timedelta(hours=-12),
+            dag=self.dag
+        )
+        link = ExternalTaskLink()
+
+        self.assertEqual(
+            'http://localhost:8080/graph?dag_id=other_dag&execution_date=2015-01-01T12:00:00+00:00',
+            link.get_link(op, DEFAULT_DATE),
+        )
+
+        patched_conf.get.assert_called_once_with('webserver', 'base_url')
+
+    @mock.patch('airflow.sensors.external_task_sensor.conf')
+    def test_external_task_link_serialization(self, patched_conf):
+        patched_conf.get.return_value = 'http://localhost:8080'
+
+        ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='other_dag',
+            external_task_id='other_task',
+            check_existence=False,
+            dag=self.dag
+        )
+
+        serialized_dag = SerializedDAG.to_dict(self.dag)
+        self.assertIn('external_dag_id', serialized_dag['dag']['tasks'][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        serialized_task = dag.task_dict['test_external_task_sensor_check']
+        self.assertEqual(getattr(serialized_task, 'external_task_id'), 'other_task')
+
+        self.assertIsInstance(list(serialized_task.operator_extra_links)[0], ExternalTaskLink)
+
+        self.assertEqual(
+            'http://localhost:8080/graph?dag_id=other_dag&execution_date=2015-01-01T00:00:00+00:00',
+            serialized_task.get_extra_links(DEFAULT_DATE, 'External DAG'),
+        )
+
+        patched_conf.get.assert_called_once_with('webserver', 'base_url')
+
+    @mock.patch('airflow.sensors.external_task_sensor.conf')
+    def test_external_task_link_delta_serialization(self, patched_conf):
+        patched_conf.get.return_value = 'http://localhost:8080'
+
+        ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='other_dag',
+            external_task_id='other_task',
+            execution_delta=timedelta(hours=-12),
+            check_existence=False,
+            dag=self.dag
+        )
+
+        serialized_dag = SerializedDAG.to_dict(self.dag)
+        self.assertIn('execution_delta', serialized_dag['dag']['tasks'][0])
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        serialized_task = dag.task_dict['test_external_task_sensor_check']
+
+        self.assertIsInstance(list(serialized_task.operator_extra_links)[0], ExternalTaskLink)
+        self.assertEqual(
+            'http://localhost:8080/graph?dag_id=other_dag&execution_date=2015-01-01T12:00:00+00:00',
+            serialized_task.get_extra_links(DEFAULT_DATE, 'External DAG'),
+        )
+        patched_conf.get.assert_called_once_with('webserver', 'base_url')
+
+    def test_external_task_link_delta_no_link_when_function_specified(self):
+        ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='other_dag',
+            external_task_id='other_task',
+            execution_date_fn=lambda t: t + timedelta(hours=12),
+            check_existence=False,
+            dag=self.dag
+        )
+
+        serialized_dag = SerializedDAG.to_dict(self.dag)
+
+        dag = SerializedDAG.from_dict(serialized_dag)
+        serialized_task = dag.task_dict['test_external_task_sensor_check']
+
+        self.assertIsNone(serialized_task.get_extra_links(DEFAULT_DATE, 'External DAG'))
 
 
 @pytest.fixture

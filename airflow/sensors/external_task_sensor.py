@@ -16,20 +16,70 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import datetime
 import os
-from typing import Optional, Union
+from typing import FrozenSet, Optional, Union
 
 from sqlalchemy import func
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+
+
+def get_possible_target_execution_dates(execution_date, execution_delta, execution_date_fn):
+    """
+    Gets the execution date(s) of an external DAG for which an
+    ExternalTaskSensor should succeed on. Default is the execution
+    date itself, but it may be modified if a non-null execution delta
+    or execution date function is passed in.
+
+    :param execution_date: The execution date of the sensor
+    :type execution_date: datetime.datetime
+    :param execution_delta: Time difference between the sensor
+        execution date and the target DAG run execution date. Positive
+        delta looks back in time.
+    :type execution_delta: Optional[datetime.timedelta]
+    :param execution_date_fn: Function to compute the execution date(s)
+        of the target DAG run to look at given the sensor's execution
+        date.
+    :type execution_date_fn: Optional[Callable]
+    :return: Execution date(s) to wait for
+    :rtype: List[datetime.datetime]
+    """
+    if execution_delta:
+        dttm = execution_date - execution_delta
+    elif execution_date_fn:
+        dttm = execution_date_fn(execution_date)
+    else:
+        dttm = execution_date
+
+    return dttm if isinstance(dttm, list) else [dttm]
+
+
+class ExternalTaskLink(BaseOperatorLink):
+    name = 'External DAG'
+
+    def get_link(self, operator, dttm):
+        if not getattr(operator, 'has_execution_date_fn', False):
+            possible_execution_dates = get_possible_target_execution_dates(
+                execution_date=dttm,
+                execution_delta=getattr(operator, 'execution_delta', None),
+                execution_date_fn=None,
+            )
+            if len(possible_execution_dates) == 1:
+                return '{}/graph?dag_id={}&execution_date={}'.format(
+                    conf.get('webserver', 'base_url'),
+                    operator.external_dag_id,
+                    possible_execution_dates[0].isoformat()
+                )
+
+        return None
 
 
 class ExternalTaskSensor(BaseSensorOperator):
@@ -54,6 +104,8 @@ class ExternalTaskSensor(BaseSensorOperator):
     :param execution_date_fn: function that receives the current execution date
         and returns the desired execution dates to query. Either execution_delta
         or execution_date_fn can be passed to ExternalTaskSensor, but not both.
+        Note that execution_date_fn is specified, no operator extra link will
+        be provided in the task instance dialog by default.
     :type execution_date_fn: Optional[Callable]
     :param check_existence: Set to `True` to check if the external task exists (when
         external_task_id is not None) or check if the DAG to wait for exists (when
@@ -63,6 +115,11 @@ class ExternalTaskSensor(BaseSensorOperator):
     """
     template_fields = ['external_dag_id', 'external_task_id']
     ui_color = '#19647e'
+    operator_extra_links = (
+        ExternalTaskLink(),
+    )
+
+    __serialized_fields: Optional[FrozenSet[str]] = None
 
     @apply_defaults
     def __init__(self,
@@ -96,6 +153,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         self.execution_delta = execution_delta
         self.execution_date_fn = execution_date_fn
+        self.has_execution_date_fn = execution_date_fn is not None
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
         self.check_existence = check_existence
@@ -104,14 +162,11 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     @provide_session
     def poke(self, context, session=None):
-        if self.execution_delta:
-            dttm = context['execution_date'] - self.execution_delta
-        elif self.execution_date_fn:
-            dttm = self.execution_date_fn(context['execution_date'])
-        else:
-            dttm = context['execution_date']
-
-        dttm_filter = dttm if isinstance(dttm, list) else [dttm]
+        dttm_filter = get_possible_target_execution_dates(
+            execution_date=context['execution_date'],
+            execution_delta=self.execution_delta,
+            execution_date_fn=self.execution_date_fn,
+        )
         serialized_dttm_filter = ','.join(
             [datetime.isoformat() for datetime in dttm_filter])
 
@@ -164,6 +219,18 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         session.commit()
         return count == len(dttm_filter)
+
+    @classmethod
+    def get_serialized_fields(cls):
+        """Serialized ExternalTaskSensor contain exactly these fields."""
+        if not cls.__serialized_fields:
+            cls.__serialized_fields = frozenset(super().get_serialized_fields() | {
+                'external_dag_id',
+                'external_task_id',
+                'execution_delta',
+                'has_execution_date_fn',
+            })
+        return cls.__serialized_fields
 
 
 class ExternalTaskMarker(DummyOperator):

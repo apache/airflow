@@ -133,6 +133,12 @@ def register_inbuilt_operator_links() -> None:
     except ImportError:
         pass
 
+    try:
+        from airflow.sensors.external_task_sensor import ExternalTaskLink   # pylint: disable=R0401
+        inbuilt_operator_links.update([ExternalTaskLink])
+    except ImportError:
+        pass
+
     registered_operator_link_classes.update({
         "{}.{}".format(link.__module__, link.__name__): link
         for link in inbuilt_operator_links
