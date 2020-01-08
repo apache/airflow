@@ -17,6 +17,7 @@
 # under the License.
 import logging
 import os
+import time
 
 from sqlalchemy import Table
 
@@ -561,12 +562,7 @@ def initdb():
     Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
 
 
-def upgradedb():
-    """
-    Upgrade the database.
-    """
-    # alembic adds significant import time, so we import it lazily
-    from alembic import command
+def _get_alembic_config():
     from alembic.config import Config
 
     log.info("Creating tables")
@@ -576,6 +572,47 @@ def upgradedb():
     directory = os.path.join(package_dir, 'migrations')
     config = Config(os.path.join(package_dir, 'alembic.ini'))
     config.set_main_option('script_location', directory.replace('%', '%%'))
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
+    return config
+
+
+def check_migrations(timeout):
+    """
+    Function to wait for all airflow migrations to complete.
+    @param timeout:
+    @return:
+    """
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+
+    config = _get_alembic_config()
+    script_ = ScriptDirectory.from_config(config)
+    with settings.engine.connect() as connection:
+        context = MigrationContext.configure(connection)
+        ticker = 0
+        while True:
+            source_heads = set(script_.get_heads())
+            db_heads = set(context.get_current_heads())
+            if source_heads == db_heads:
+                break
+            if ticker >= timeout:
+                raise TimeoutError("There are still unapplied migrations after {} "
+                                   "seconds.".format(ticker))
+            ticker += 1
+            time.sleep(1)
+            log.info('Waiting for migrations... %s second(s)', ticker)
+
+
+def upgradedb():
+    """
+    Upgrade the database.
+    """
+    # alembic adds significant import time, so we import it lazily
+    from alembic import command
+
+    log.info("Creating tables")
+    config = _get_alembic_config()
+
     config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
     add_default_pool_if_not_exists()

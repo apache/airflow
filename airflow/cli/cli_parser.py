@@ -434,6 +434,12 @@ ARG_JOB_ID = Arg(
 ARG_CFG_PATH = Arg(
     ("--cfg-path",),
     help="Path to config file to use instead of airflow.cfg")
+ARG_MIGRATION_TIMEOUT = Arg(
+    ("-t", "--migration-wait-timeout"),
+    help="timeout to wait for db to migrate ",
+    type=int,
+    default="0",
+)
 
 # webserver
 ARG_PORT = Arg(
@@ -951,6 +957,12 @@ DB_COMMANDS = (
         help="Initialize the metadata database",
         func=lazy_load_command('airflow.cli.commands.db_command.initdb'),
         args=(),
+    ),
+    ActionCommand(
+        name="check-migrations",
+        help="Check if migration have finished (or until continually check until timeout)",
+        func=lazy_load_command('airflow.cli.commands.db_command.wait_for_migrations'),
+        args=(ARG_MIGRATION_TIMEOUT,),
     ),
     ActionCommand(
         name='reset',
