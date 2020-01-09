@@ -1319,12 +1319,9 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
 
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
-
         self.log.info('Start updating dataset: %s:%s', self.project_id, self.dataset_id)
 
-        return cursor.update_dataset(
+        return bq_hook.update_dataset(
             dataset_id=self.dataset_id,
             dataset_resource=self.dataset_resource,
             project_id=self.project_id)
