@@ -47,6 +47,34 @@ class TestJSONFormatter(unittest.TestCase):
         merged = merge_dicts(dict1, dict2)
         self.assertDictEqual(merged, {'a': 1, 'b': 3, 'c': 3, 'd': 42})
 
+    def test_merge_dicts_recursive_overlap_l1(self):
+        """
+        Test merge_dicts with recursive dict; one level of nesting
+        """
+        dict1 = {'a': 1, 'r': {'a': 1, 'b': 2}}
+        dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
+        merged = merge_dicts(dict1, dict2)
+        self.assertDictEqual(merged, {'a': 1, 'r': {'a': 1, 'b': 0, 'c': 3}})
+
+    def test_merge_dicts_recursive_overlap_l2(self):
+        """
+        Test merge_dicts with recursive dict; two levels of nesting
+        """
+
+        dict1 = {'a': 1, 'r': {'a': 1, 'b': {'a': 1}}}
+        dict2 = {'a': 1, 'r': {'c': 3, 'b': {'b': 1}}}
+        merged = merge_dicts(dict1, dict2)
+        self.assertDictEqual(merged, {'a': 1, 'r': {'a': 1, 'b': {'a': 1, 'b': 1}, 'c': 3}})
+
+    def test_merge_dicts_recursive_right_only(self):
+        """
+        Test merge_dicts with recursive when dict1 doesn't have any nested dict
+        """
+        dict1 = {'a': 1}
+        dict2 = {'a': 1, 'r': {'c': 3, 'b': 0}}
+        merged = merge_dicts(dict1, dict2)
+        self.assertDictEqual(merged, {'a': 1, 'r': {'b': 0, 'c': 3}})
+
     def test_format(self):
         """
         Test format method from JSONFormatter
