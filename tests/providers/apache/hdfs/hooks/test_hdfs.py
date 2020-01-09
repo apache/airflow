@@ -21,8 +21,8 @@ import json
 import unittest
 from unittest import mock
 
-from airflow.hooks.hdfs_hook import HDFSHook
 from airflow.models import Connection
+from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 
 try:
     import snakebite
@@ -50,8 +50,8 @@ class TestHDFSHook(unittest.TestCase):
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
     })
-    @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
-    @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
+    @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.AutoConfigClient')
+    @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook.get_connections')
     def test_get_autoconfig_client(self, mock_get_connections, mock_client):
         conn = Connection(
             conn_id='hdfs',
@@ -68,12 +68,12 @@ class TestHDFSHook(unittest.TestCase):
     @mock.patch.dict('os.environ', {
         'AIRFLOW_CONN_HDFS_DEFAULT': 'hdfs://localhost:8020',
     })
-    @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
+    @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.AutoConfigClient')
     def test_get_autoconfig_client_no_conn(self, mock_client):
         HDFSHook(hdfs_conn_id='hdfs_missing', autoconfig=True).get_conn()
         mock_client.assert_called_once_with(effective_user=None, use_sasl=False)
 
-    @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
+    @mock.patch('airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook.get_connections')
     def test_get_ha_client(self, mock_get_connections):
         conn_1 = Connection(
             conn_id='hdfs_default',

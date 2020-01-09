@@ -129,7 +129,7 @@ Foundation.
 
    * - `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
      -
-     - :mod:`airflow.hooks.hdfs_hook`
+     - :mod:`airflow.providers.apache.hdfs.hooks.hdfs`
      -
      - :mod:`airflow.sensors.hdfs_sensor`,
        :mod:`airflow.providers.apache.hdfs.sensors.hdfs`

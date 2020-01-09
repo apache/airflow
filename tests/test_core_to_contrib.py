@@ -184,6 +184,14 @@ HOOK = [
         'airflow.providers.apache.druid.hooks.druid.DruidDbApiHook',
         'airflow.hooks.druid_hook.DruidDbApiHook',
     ),
+    (
+        'airflow.providers.apache.hdfs.hooks.hdfs.HDFSHookException',
+        'airflow.hooks.hdfs_hook.HDFSHookException',
+    ),
+    (
+        'airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook',
+        'airflow.hooks.hdfs_hook.HDFSHook',
+    ),
 ]
 
 OPERATOR = [
