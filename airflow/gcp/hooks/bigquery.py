@@ -1453,7 +1453,7 @@ class BigQueryBaseCursor(LoggingMixin):
             **optional_params).execute(num_retries=self.num_retries))
 
     @CloudBaseHook.catch_http_exception
-    def get_schema(self, dataset_id: str, table_id: str, project_id: Optional[str] = None,) -> Dict:
+    def get_schema(self, dataset_id: str, table_id: str, project_id: Optional[str] = None) -> Dict:
         """
         Get the schema for a given datset.table.
         see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
