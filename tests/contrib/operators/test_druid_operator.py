@@ -61,7 +61,6 @@ class TestDruidOperator(unittest.TestCase):
         )
         ti = TaskInstance(operator, DEFAULT_DATE)
         ti.render_templates()
-
         expected = '''
             {
                 "type": "index_hadoop",
