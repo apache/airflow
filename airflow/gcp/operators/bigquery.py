@@ -1377,8 +1377,6 @@ class BigQueryDeleteTableOperator(BaseOperator):
         hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             location=self.location)
-        conn = hook.get_conn()
-        cursor = conn.cursor()
-        cursor.run_table_delete(
+        hook.run_table_delete(
             deletion_dataset_table=self.deletion_dataset_table,
             ignore_if_missing=self.ignore_if_missing)

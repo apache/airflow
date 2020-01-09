@@ -656,8 +656,6 @@ class TestBigQueryTableDeleteOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_table_delete \
             .assert_called_once_with(
                 deletion_dataset_table=deletion_dataset_table,

@@ -652,8 +652,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         source_project_dataset_table = "{}.{}.{}".format(PROJECT_ID, DATASET_ID, TABLE_ID)
         method = mock_get_service.return_value.tables.return_value.delete
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_table_delete(source_project_dataset_table)
+        bq_hook.run_table_delete(source_project_dataset_table)
         method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
 
     @mock.patch(
@@ -668,9 +667,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method.return_value.execute.side_effect = HttpError(
             resp=resp, content=b'Address not found')
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         with self.assertRaisesRegex(AirflowException, r"Address not found"):
-            cursor.run_table_delete(source_project_dataset_table)
+            bq_hook.run_table_delete(source_project_dataset_table)
         method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
 
     @mock.patch(
@@ -685,8 +683,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method.return_value.execute.side_effect = HttpError(
             resp=resp, content=b'Address not found')
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_table_delete(source_project_dataset_table, ignore_if_missing=True)
+        bq_hook.run_table_delete(source_project_dataset_table, ignore_if_missing=True)
         method.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID, tableId=TABLE_ID)
 
     @mock.patch(
@@ -2467,6 +2464,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("get_dataset",),
         ("run_grant_dataset_view_access",),
         ("run_table_upsert",),
+        ("run_table_delete",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

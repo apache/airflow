@@ -1136,6 +1136,44 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                     datasetId=dataset_id,
                     body=table_resource).execute(num_retries=self.num_retries)
 
+    @CloudBaseHook.catch_http_exception
+    def run_table_delete(self, deletion_dataset_table: str,
+                         ignore_if_missing: bool = False) -> None:
+        """
+        Delete an existing table from the dataset;
+        If the table does not exist, return an error unless ignore_if_missing
+        is set to True.
+
+        :param deletion_dataset_table: A dotted
+            ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
+            will be deleted.
+        :type deletion_dataset_table: str
+        :param ignore_if_missing: if True, then return success even if the
+            requested table does not exist.
+        :type ignore_if_missing: bool
+        :return:
+        """
+        if not self.project_id:
+            raise ValueError("The project_id should be set")
+        service = self.get_service()
+        deletion_project, deletion_dataset, deletion_table = \
+            _split_tablename(table_input=deletion_dataset_table,
+                             default_project_id=self.project_id)
+
+        try:
+            service.tables() \
+                .delete(projectId=deletion_project,  # pylint: disable=no-member
+                        datasetId=deletion_dataset,
+                        tableId=deletion_table) \
+                .execute(num_retries=self.num_retries)
+            self.log.info('Deleted table %s:%s.%s.', deletion_project,
+                          deletion_dataset, deletion_table)
+        except HttpError as e:
+            if e.resp.status == 404 and ignore_if_missing:
+                self.log.info('Table does not exist. Skipping.')
+            else:
+                raise e
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1367,6 +1405,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_table_upsert`",
             DeprecationWarning, stacklevel=3)
         return self.hook.run_table_upsert(*args, **kwargs)
+
+    def run_table_delete(self, *args, **kwargs) -> None:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_table_delete`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_table_delete`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.run_table_delete(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2187,41 +2236,6 @@ class BigQueryBaseCursor(LoggingMixin):
             datasetId=dataset_id,
             tableId=table_id,
             **optional_params).execute(num_retries=self.num_retries))
-
-    @CloudBaseHook.catch_http_exception
-    def run_table_delete(self, deletion_dataset_table: str,
-                         ignore_if_missing: bool = False) -> None:
-        """
-        Delete an existing table from the dataset;
-        If the table does not exist, return an error unless ignore_if_missing
-        is set to True.
-
-        :param deletion_dataset_table: A dotted
-            ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
-            will be deleted.
-        :type deletion_dataset_table: str
-        :param ignore_if_missing: if True, then return success even if the
-            requested table does not exist.
-        :type ignore_if_missing: bool
-        :return:
-        """
-        deletion_project, deletion_dataset, deletion_table = \
-            _split_tablename(table_input=deletion_dataset_table,
-                             default_project_id=self.project_id)
-
-        try:
-            self.service.tables() \
-                .delete(projectId=deletion_project,
-                        datasetId=deletion_dataset,
-                        tableId=deletion_table) \
-                .execute(num_retries=self.num_retries)
-            self.log.info('Deleted table %s:%s.%s.', deletion_project,
-                          deletion_dataset, deletion_table)
-        except HttpError as e:
-            if e.resp.status == 404 and ignore_if_missing:
-                self.log.info('Table does not exist. Skipping.')
-            else:
-                raise e
 
 
 class BigQueryCursor(BigQueryBaseCursor):
