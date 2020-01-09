@@ -817,7 +817,6 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             airflow_cfg_volume_mount
         )
 
-
     def test_kubernetes_environment_variables(self):
         # Tests the kubernetes environment variables get copied into the worker pods
         input_environment = {
