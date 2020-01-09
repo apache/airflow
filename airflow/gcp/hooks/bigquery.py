@@ -612,6 +612,119 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         self.log.info('External table created successfully: %s',
                       external_project_dataset_table)
 
+    @CloudBaseHook.catch_http_exception
+    def patch_table(self,  # pylint: disable=too-many-arguments
+                    dataset_id: str,
+                    table_id: str,
+                    project_id: Optional[str] = None,
+                    description: Optional[str] = None,
+                    expiration_time: Optional[int] = None,
+                    external_data_configuration: Optional[Dict] = None,
+                    friendly_name: Optional[str] = None,
+                    labels: Optional[Dict] = None,
+                    schema: Optional[List] = None,
+                    time_partitioning: Optional[Dict] = None,
+                    view: Optional[Dict] = None,
+                    require_partition_filter: Optional[bool] = None,
+                    encryption_configuration: Optional[Dict] = None) -> None:
+        """
+        Patch information in an existing table.
+        It only updates fileds that are provided in the request object.
+
+        Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
+
+        :param dataset_id: The dataset containing the table to be patched.
+        :type dataset_id: str
+        :param table_id: The Name of the table to be patched.
+        :type table_id: str
+        :param project_id: The project containing the table to be patched.
+        :type project_id: str
+        :param description: [Optional] A user-friendly description of this table.
+        :type description: str
+        :param expiration_time: [Optional] The time when this table expires,
+            in milliseconds since the epoch.
+        :type expiration_time: int
+        :param external_data_configuration: [Optional] A dictionary containing
+            properties of a table stored outside of BigQuery.
+        :type external_data_configuration: dict
+        :param friendly_name: [Optional] A descriptive name for this table.
+        :type friendly_name: str
+        :param labels: [Optional] A dictionary containing labels associated with this table.
+        :type labels: dict
+        :param schema: [Optional] If set, the schema field list as defined here:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+            The supported schema modifications and unsupported schema modification are listed here:
+            https://cloud.google.com/bigquery/docs/managing-table-schemas
+            **Example**: ::
+
+                schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                               {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
+
+        :type schema: list
+        :param time_partitioning: [Optional] A dictionary containing time-based partitioning
+             definition for the table.
+        :type time_partitioning: dict
+        :param view: [Optional] A dictionary containing definition for the view.
+            If set, it will patch a view instead of a table:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
+            **Example**: ::
+
+                view = {
+                    "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+                    "useLegacySql": False
+                }
+
+        :type view: dict
+        :param require_partition_filter: [Optional] If true, queries over the this table require a
+            partition filter. If false, queries over the table
+        :type require_partition_filter: bool
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
+
+        """
+        service = self.get_service()
+        project_id = project_id if project_id is not None else self.project_id
+
+        table_resource = {}  # type: Dict[str, Any]
+
+        if description is not None:
+            table_resource['description'] = description
+        if expiration_time is not None:
+            table_resource['expirationTime'] = expiration_time
+        if external_data_configuration:
+            table_resource['externalDataConfiguration'] = external_data_configuration
+        if friendly_name is not None:
+            table_resource['friendlyName'] = friendly_name
+        if labels:
+            table_resource['labels'] = labels
+        if schema:
+            table_resource['schema'] = {'fields': schema}
+        if time_partitioning:
+            table_resource['timePartitioning'] = time_partitioning
+        if view:
+            table_resource['view'] = view
+        if require_partition_filter is not None:
+            table_resource['requirePartitionFilter'] = require_partition_filter
+        if encryption_configuration:
+            table_resource["encryptionConfiguration"] = encryption_configuration
+
+        self.log.info('Patching Table %s:%s.%s',
+                      project_id, dataset_id, table_id)
+
+        service.tables().patch(  # pylint: disable=no-member
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            body=table_resource).execute(num_retries=self.num_retries)
+
+        self.log.info('Table patched successfully: %s:%s.%s',
+                      project_id, dataset_id, table_id)
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -745,118 +858,16 @@ class BigQueryBaseCursor(LoggingMixin):
             DeprecationWarning, stacklevel=3)
         return self.hook.create_external_table(*args, **kwargs)
 
-    @CloudBaseHook.catch_http_exception
-    def patch_table(self,  # pylint: disable=too-many-arguments
-                    dataset_id: str,
-                    table_id: str,
-                    project_id: Optional[str] = None,
-                    description: Optional[str] = None,
-                    expiration_time: Optional[int] = None,
-                    external_data_configuration: Optional[Dict] = None,
-                    friendly_name: Optional[str] = None,
-                    labels: Optional[Dict] = None,
-                    schema: Optional[List] = None,
-                    time_partitioning: Optional[Dict] = None,
-                    view: Optional[Dict] = None,
-                    require_partition_filter: Optional[bool] = None,
-                    encryption_configuration: Optional[Dict] = None) -> None:
+    def patch_table(self, *args, **kwargs) -> None:
         """
-        Patch information in an existing table.
-        It only updates fileds that are provided in the request object.
-
-        Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
-
-        :param dataset_id: The dataset containing the table to be patched.
-        :type dataset_id: str
-        :param table_id: The Name of the table to be patched.
-        :type table_id: str
-        :param project_id: The project containing the table to be patched.
-        :type project_id: str
-        :param description: [Optional] A user-friendly description of this table.
-        :type description: str
-        :param expiration_time: [Optional] The time when this table expires,
-            in milliseconds since the epoch.
-        :type expiration_time: int
-        :param external_data_configuration: [Optional] A dictionary containing
-            properties of a table stored outside of BigQuery.
-        :type external_data_configuration: dict
-        :param friendly_name: [Optional] A descriptive name for this table.
-        :type friendly_name: str
-        :param labels: [Optional] A dictionary containing labels associated with this table.
-        :type labels: dict
-        :param schema: [Optional] If set, the schema field list as defined here:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
-            The supported schema modifications and unsupported schema modification are listed here:
-            https://cloud.google.com/bigquery/docs/managing-table-schemas
-            **Example**: ::
-
-                schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                               {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
-
-        :type schema: list
-        :param time_partitioning: [Optional] A dictionary containing time-based partitioning
-             definition for the table.
-        :type time_partitioning: dict
-        :param view: [Optional] A dictionary containing definition for the view.
-            If set, it will patch a view instead of a table:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
-            **Example**: ::
-
-                view = {
-                    "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
-                    "useLegacySql": False
-                }
-
-        :type view: dict
-        :param require_partition_filter: [Optional] If true, queries over the this table require a
-            partition filter. If false, queries over the table
-        :type require_partition_filter: bool
-        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-            **Example**: ::
-
-                encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
-                }
-        :type encryption_configuration: dict
-
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.patch_table`
         """
-
-        project_id = project_id if project_id is not None else self.project_id
-
-        table_resource = {}  # type: Dict[str, Any]
-
-        if description is not None:
-            table_resource['description'] = description
-        if expiration_time is not None:
-            table_resource['expirationTime'] = expiration_time
-        if external_data_configuration:
-            table_resource['externalDataConfiguration'] = external_data_configuration
-        if friendly_name is not None:
-            table_resource['friendlyName'] = friendly_name
-        if labels:
-            table_resource['labels'] = labels
-        if schema:
-            table_resource['schema'] = {'fields': schema}
-        if time_partitioning:
-            table_resource['timePartitioning'] = time_partitioning
-        if view:
-            table_resource['view'] = view
-        if require_partition_filter is not None:
-            table_resource['requirePartitionFilter'] = require_partition_filter
-        if encryption_configuration:
-            table_resource["encryptionConfiguration"] = encryption_configuration
-
-        self.log.info('Patching Table %s:%s.%s',
-                      project_id, dataset_id, table_id)
-
-        self.service.tables().patch(
-            projectId=project_id,
-            datasetId=dataset_id,
-            tableId=table_id,
-            body=table_resource).execute(num_retries=self.num_retries)
-
-        self.log.info('Table patched successfully: %s:%s.%s',
-                      project_id, dataset_id, table_id)
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.patch_table`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.patch_table(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,

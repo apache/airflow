@@ -1158,8 +1158,7 @@ class TestTableOperations(unittest.TestCase):
         mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.patch
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.patch_table(
+        bq_hook.patch_table(
             DATASET_ID, TABLE_ID, PROJECT_ID,
             description=description_patched,
             expiration_time=expiration_time_patched,
@@ -1199,9 +1198,8 @@ class TestTableOperations(unittest.TestCase):
         method.return_value.execute.side_effect = HttpError(
             resp=resp, content=b'Bad request')
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         with self.assertRaisesRegex(AirflowException, "Bad request"):
-            cursor.patch_table(DATASET_ID, TABLE_ID)
+            bq_hook.patch_table(DATASET_ID, TABLE_ID)
 
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
@@ -1217,8 +1215,7 @@ class TestTableOperations(unittest.TestCase):
         mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.patch
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.patch_table(DATASET_ID, VIEW_ID, PROJECT_ID, view=view_patched)
+        bq_hook.patch_table(DATASET_ID, VIEW_ID, PROJECT_ID, view=view_patched)
 
         body = {
             'view': view_patched
@@ -2377,9 +2374,8 @@ class TestBigQueryWithKMS(unittest.TestCase):
         mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.patch
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
 
-        cursor.patch_table(
+        bq_hook.patch_table(
             dataset_id=DATASET_ID,
             table_id=TABLE_ID,
             project_id=PROJECT_ID,
@@ -2476,6 +2472,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("get_dataset_tables",),
         ("delete_dataset",),
         ("create_external_table",),
+        ("patch_table",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):
