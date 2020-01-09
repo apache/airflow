@@ -28,7 +28,7 @@ import uuid
 
 import kubernetes.client.models as k8s
 
-from airflow.executors import Executors
+from airflow.version import version as airflow_version
 
 MAX_LABEL_LEN = 63
 
@@ -87,28 +87,59 @@ class PodGenerator:
     Contains Kubernetes Airflow Worker configuration logic
 
     Represents a kubernetes pod and manages execution of a single pod.
+    Any configuration that is container specific gets applied to
+    the first container in the list of containers.
+
+    Parameters with a type of `kubernetes.client.models.*`/`k8s.*` can
+    often be replaced with their dictionary equivalent, for example the output of
+    `sanitize_for_serialization`.
+
     :param image: The docker image
-    :type image: str
+    :type image: Optional[str]
+    :param name: name in the metadata section (not the container name)
+    :type name: Optional[str]
+    :param namespace: pod namespace
+    :type namespace: Optional[str]
+    :param volume_mounts: list of kubernetes volumes mounts
+    :type volume_mounts: Optional[List[Union[k8s.V1VolumeMount, dict]]]
     :param envs: A dict containing the environment variables
-    :type envs: Dict[str, str]
-    :param cmds: The command to be run on the pod
-    :type cmds: List[str]
-    :param secrets: Secrets to be launched to the pod
-    :type secrets: List[airflow.kubernetes.models.secret.Secret]
+    :type envs: Optional[Dict[str, str]]
+    :param cmds: The command to be run on the first container
+    :type cmds: Optional[List[str]]
+    :param args: The arguments to be run on the pod
+    :type args: Optional[List[str]]
+    :param labels: labels for the pod metadata
+    :type labels: Optional[Dict[str, str]]
+    :param node_selectors: node selectors for the pod
+    :type node_selectors: Optional[Dict[str, str]]
+    :param ports: list of ports. Applies to the first container.
+    :type ports: Optional[List[Union[k8s.V1ContainerPort, dict]]]
+    :param volumes: Volumes to be attached to the first container
+    :type volumes: Optional[List[Union[k8s.V1Volume, dict]]]
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
+    :param restart_policy: The restart policy of the pod
+    :type restart_policy: str
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a comma separated list:
         secret_a,secret_b
     :type image_pull_secrets: str
+    :param init_containers: A list of init containers
+    :type init_containers: Optional[List[k8s.V1Container]]
+    :param service_account_name: Identity for processes that run in a Pod
+    :type service_account_name: Optional[str]
+    :param resources: Resource requirements for the first containers
+    :type resources: Optional[Union[k8s.V1ResourceRequirements, dict]]
+    :param annotations: annotations for the pod
+    :type annotations: Optional[Dict[str, str]]
     :param affinity: A dict containing a group of affinity scheduling rules
-    :type affinity: dict
+    :type affinity: Optional[dict]
     :param hostnetwork: If True enable host networking on the pod
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
-    :type tolerations: list
+    :type tolerations: Optional[list]
     :param security_context: A dict containing the security context for the pod
-    :type security_context: dict
+    :type security_context: Optional[Union[k8s.V1PodSecurityContext, dict]]
     :param configmaps: Any configmap refs to envfrom.
         If more than one configmap is required, provide a comma separated list
         configmap_a,configmap_b
@@ -117,11 +148,13 @@ class PodGenerator:
     :type dnspolicy: str
     :param pod: The fully specified pod.
     :type pod: kubernetes.client.models.V1Pod
+    :param extract_xcom: Whether to bring up a container for xcom
+    :type extract_xcom: bool
     """
 
     def __init__(
         self,
-        image,
+        image=None,
         name=None,
         namespace=None,
         volume_mounts=None,
@@ -225,10 +258,11 @@ class PodGenerator:
             result.metadata = self.metadata
             result.spec.containers = [self.container]
 
+        result.metadata.name = self.make_unique_pod_id(result.metadata.name)
+
         if self.extract_xcom:
             result = self.add_sidecar(result)
 
-        result.metadata.name = self.make_unique_pod_id(result.metadata.name)
         return result
 
     @staticmethod
@@ -252,8 +286,9 @@ class PodGenerator:
     @staticmethod
     def add_sidecar(pod):
         pod_cp = copy.deepcopy(pod)
-
+        pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
+        pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
         pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaults.VOLUME_MOUNT)
         pod_cp.spec.containers.append(PodDefaults.SIDECAR_CONTAINER)
 
@@ -262,7 +297,7 @@ class PodGenerator:
     @staticmethod
     def from_obj(obj):
         if obj is None:
-            return k8s.V1Pod()
+            return None
 
         if isinstance(obj, PodGenerator):
             return obj.gen_pod()
@@ -272,7 +307,12 @@ class PodGenerator:
                 'Cannot convert a non-dictionary or non-PodGenerator '
                 'object into a KubernetesExecutorConfig')
 
-        namespaced = obj.get(Executors.KubernetesExecutor, {})
+        # We do not want to extract constant here from ExecutorLoader because it is just
+        # A name in dictionary rather than executor selection mechanism and it causes cyclic import
+        namespaced = obj.get("KubernetesExecutor", {})
+
+        if not namespaced:
+            return None
 
         resources = namespaced.get('resources')
 
@@ -348,46 +388,159 @@ class PodGenerator:
         should be preserved from base, the volumes appended to and
         the other fields overwritten.
         """
+        if client_pod is None:
+            return base_pod
 
         client_pod_cp = copy.deepcopy(client_pod)
+        client_pod_cp.spec = PodGenerator.reconcile_specs(base_pod.spec, client_pod_cp.spec)
 
-        def merge_objects(base_obj, client_obj):
-            for base_key in base_obj.to_dict().keys():
-                base_val = getattr(base_obj, base_key, None)
-                if not getattr(client_obj, base_key, None) and base_val:
-                    setattr(client_obj, base_key, base_val)
-
-        def extend_object_field(base_obj, client_obj, field_name):
-            base_obj_field = getattr(base_obj, field_name, None)
-            client_obj_field = getattr(client_obj, field_name, None)
-            if not base_obj_field:
-                return
-            if not client_obj_field:
-                setattr(client_obj, field_name, base_obj_field)
-                return
-            appended_fields = base_obj_field + client_obj_field
-            setattr(client_obj, field_name, appended_fields)
-
-        # Values at the pod and metadata should be overwritten where they exist,
-        # but certain values at the spec and container level must be conserved.
-        base_container = base_pod.spec.containers[0]
-        client_container = client_pod_cp.spec.containers[0]
-
-        extend_object_field(base_container, client_container, 'volume_mounts')
-        extend_object_field(base_container, client_container, 'env')
-        extend_object_field(base_container, client_container, 'env_from')
-        extend_object_field(base_container, client_container, 'ports')
-        extend_object_field(base_container, client_container, 'volume_devices')
-        client_container.command = base_container.command
-        client_container.args = base_container.args
-        merge_objects(base_pod.spec.containers[0], client_pod_cp.spec.containers[0])
-        # Just append any additional containers from the base pod
-        client_pod_cp.spec.containers.extend(base_pod.spec.containers[1:])
-
-        merge_objects(base_pod.metadata, client_pod_cp.metadata)
-
-        extend_object_field(base_pod.spec, client_pod_cp.spec, 'volumes')
-        merge_objects(base_pod.spec, client_pod_cp.spec)
-        merge_objects(base_pod, client_pod_cp)
+        client_pod_cp.metadata = merge_objects(base_pod.metadata, client_pod_cp.metadata)
+        client_pod_cp = merge_objects(base_pod, client_pod_cp)
 
         return client_pod_cp
+
+    @staticmethod
+    def reconcile_specs(base_spec,
+                        client_spec):
+        """
+        :param base_spec: has the base attributes which are overwritten if they exist
+            in the client_spec and remain if they do not exist in the client_spec
+        :type base_spec: k8s.V1PodSpec
+        :param client_spec: the spec that the client wants to create.
+        :type client_spec: k8s.V1PodSpec
+        :return: the merged specs
+        """
+        if base_spec and not client_spec:
+            return base_spec
+        if not base_spec and client_spec:
+            return client_spec
+        elif client_spec and base_spec:
+            client_spec.containers = PodGenerator.reconcile_containers(
+                base_spec.containers, client_spec.containers
+            )
+            merged_spec = extend_object_field(base_spec, client_spec, 'volumes')
+            return merge_objects(base_spec, merged_spec)
+
+        return None
+
+    @staticmethod
+    def reconcile_containers(base_containers,
+                             client_containers):
+        """
+        :param base_containers: has the base attributes which are overwritten if they exist
+            in the client_containers and remain if they do not exist in the client_containers
+        :type base_containers: List[k8s.V1Container]
+        :param client_containers: the containers that the client wants to create.
+        :type client_containers: List[k8s.V1Container]
+        :return: the merged containers
+
+        The runs recursively over the list of containers.
+        """
+        if not base_containers:
+            return client_containers
+        if not client_containers:
+            return base_containers
+
+        client_container = client_containers[0]
+        base_container = base_containers[0]
+        client_container = extend_object_field(base_container, client_container, 'volume_mounts')
+        client_container = extend_object_field(base_container, client_container, 'env')
+        client_container = extend_object_field(base_container, client_container, 'env_from')
+        client_container = extend_object_field(base_container, client_container, 'ports')
+        client_container = extend_object_field(base_container, client_container, 'volume_devices')
+        client_container = merge_objects(base_container, client_container)
+
+        return [client_container] + PodGenerator.reconcile_containers(
+            base_containers[1:], client_containers[1:]
+        )
+
+    @staticmethod
+    def construct_pod(
+        dag_id,
+        task_id,
+        pod_id,
+        try_number,
+        date,
+        command,
+        kube_executor_config,
+        worker_config,
+        namespace,
+        worker_uuid
+    ):
+        """
+        Construct a pod by gathering and consolidating the configuration from 3 places:
+            - airflow.cfg
+            - executor_config
+            - dynamic arguments
+        """
+        dynamic_pod = PodGenerator(
+            namespace=namespace,
+            image='',
+            labels={
+                'airflow-worker': worker_uuid,
+                'dag_id': dag_id,
+                'task_id': task_id,
+                'execution_date': date,
+                'try_number': str(try_number),
+                'airflow_version': airflow_version.replace('+', '-'),
+                'kubernetes_executor': 'True',
+            },
+            cmds=command,
+            name=pod_id
+        ).gen_pod()
+
+        # Reconcile the pod generated by the Operator and the Pod
+        # generated by the .cfg file
+        pod_with_executor_config = PodGenerator.reconcile_pods(worker_config,
+                                                               kube_executor_config)
+        # Reconcile that pod with the dynamic fields.
+        return PodGenerator.reconcile_pods(pod_with_executor_config, dynamic_pod)
+
+
+def merge_objects(base_obj, client_obj):
+    """
+    :param base_obj: has the base attributes which are overwritten if they exist
+        in the client_obj and remain if they do not exist in the client_obj
+    :param client_obj: the object that the client wants to create.
+    :return: the merged objects
+    """
+    if not base_obj:
+        return client_obj
+    if not client_obj:
+        return base_obj
+
+    client_obj_cp = copy.deepcopy(client_obj)
+
+    for base_key in base_obj.to_dict().keys():
+        base_val = getattr(base_obj, base_key, None)
+        if not getattr(client_obj, base_key, None) and base_val:
+            setattr(client_obj_cp, base_key, base_val)
+    return client_obj_cp
+
+
+def extend_object_field(base_obj, client_obj, field_name):
+    """
+    :param base_obj: an object which has a property `field_name` that is a list
+    :param client_obj: an object which has a property `field_name` that is a list.
+        A copy of this object is returned with `field_name` modified
+    :param field_name: the name of the list field
+    :type field_name: str
+    :return: the client_obj with the property `field_name` being the two properties appended
+    """
+    client_obj_cp = copy.deepcopy(client_obj)
+    base_obj_field = getattr(base_obj, field_name, None)
+    client_obj_field = getattr(client_obj, field_name, None)
+
+    if (not isinstance(base_obj_field, list) and base_obj_field is not None) or \
+       (not isinstance(client_obj_field, list) and client_obj_field is not None):
+        raise ValueError("The chosen field must be a list.")
+
+    if not base_obj_field:
+        return client_obj_cp
+    if not client_obj_field:
+        setattr(client_obj_cp, field_name, base_obj_field)
+        return client_obj_cp
+
+    appended_fields = base_obj_field + client_obj_field
+    setattr(client_obj_cp, field_name, appended_fields)
+    return client_obj_cp
