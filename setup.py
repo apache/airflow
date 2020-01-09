@@ -390,7 +390,6 @@ devel = [
     'requests_mock',
     'yamllint'
 ]
-<<<<<<< HEAD
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
 # IF you are removing dependencies from the above list, please make sure that you also increase
