@@ -712,7 +712,7 @@ class SchedulerJob(BaseJob):
 
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType
-            if dag.schedule_interval == '@once' or not self.schedule_when_period_ends::
+            if dag.schedule_interval == '@once' or not self.schedule_when_period_ends:
                 period_end = next_run_date
             elif next_run_date:
                 period_end = dag.following_schedule(next_run_date)
