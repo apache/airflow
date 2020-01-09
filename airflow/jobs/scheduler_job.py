@@ -399,7 +399,7 @@ class SchedulerJob(BaseJob):
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
     def on_lock_error(self):
-        self._exit_gracefully(signal.SIGTERM, None)
+        os.kill(os.getpid(), signal.SIGTERM)
 
     def run(self):
         def on_stolen_lock(*args, **kwargs):
