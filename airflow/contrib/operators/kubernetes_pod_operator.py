@@ -367,11 +367,11 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 pod,
                 startup_timeout=self.startup_timeout_seconds)
             final_state, result = launcher.monitor_pod(pod=pod, get_logs=self.get_logs)
-        except AirflowException:
+        except AirflowException as ex:
             if self.log_events_on_failure:
                 for event in launcher.read_pod_events(pod).items:
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            raise
+            raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
         finally:
             if self.is_delete_operator_pod:
                 launcher.delete_pod(pod)
