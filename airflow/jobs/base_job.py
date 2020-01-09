@@ -66,6 +66,7 @@ class BaseJob(Base, LoggingMixin):
     hostname = Column(String(500))
     unixname = Column(String(1000))
 
+
     __mapper_args__ = {
         'polymorphic_on': job_type,
         'polymorphic_identity': 'BaseJob'
@@ -91,6 +92,11 @@ class BaseJob(Base, LoggingMixin):
             self.heartrate = heartrate
         self.unixname = getpass.getuser()
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
+        self.schedule_when_period_ends = True
+
+        if conf.has_option('scheduler', 'schedule_when_period_ends'):
+            self.schedule_when_period_ends = conf.getboolean('scheduler', 'schedule_when_period_ends')
+
         super(BaseJob, self).__init__(*args, **kwargs)
 
     @classmethod
