@@ -18,8 +18,8 @@
 # under the License.
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.druid_hook import DruidDbApiHook
 from airflow.operators.check_operator import CheckOperator
+from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook
 from airflow.utils.decorators import apply_defaults
 
 

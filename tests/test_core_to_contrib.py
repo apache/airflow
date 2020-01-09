@@ -176,6 +176,14 @@ HOOK = [
         'airflow.providers.apache.sqoop.hooks.sqoop.SqoopHook',
         'airflow.contrib.hooks.sqoop_hook.SqoopHook',
     ),
+    (
+        'airflow.providers.apache.druid.hooks.druid.DruidHook',
+        'airflow.hooks.druid_hook.DruidHook',
+    ),
+    (
+        'airflow.providers.apache.druid.hooks.druid.DruidDbApiHook',
+        'airflow.hooks.druid_hook.DruidDbApiHook',
+    ),
 ]
 
 OPERATOR = [

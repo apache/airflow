@@ -101,7 +101,7 @@
 ./airflow/contrib/sensors/weekday_sensor.py
 ./airflow/hooks/dbapi_hook.py
 ./airflow/hooks/docker_hook.py
-./airflow/hooks/druid_hook.py
+./airflow/providers/apache/druid/hooks/druid.py
 ./airflow/hooks/hive_hooks.py
 ./airflow/hooks/http_hook.py
 ./airflow/hooks/jdbc_hook.py

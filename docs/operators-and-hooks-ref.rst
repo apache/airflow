@@ -84,7 +84,7 @@ Foundation.
 
    * - `Apache Druid <https://druid.apache.org/>`__
      -
-     - :mod:`airflow.hooks.druid_hook`
+     - :mod:`airflow.providers.apache.druid.hooks.druid`
      - :mod:`airflow.providers.apache.druid.operators.druid`,
        :mod:`airflow.operators.druid_check_operator`
      -
