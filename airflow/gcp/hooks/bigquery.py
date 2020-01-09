@@ -882,6 +882,69 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return dataset
 
+    @CloudBaseHook.catch_http_exception
+    def get_dataset_tables_list(self, dataset_id, project_id=None, table_prefix=None, max_results=None):
+        """
+        Method returns tables list of a BigQuery dataset. If table prefix is specified,
+        only tables beginning by it are returned.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :param table_prefix: Tables must begin by this prefix to be returned (case sensitive)
+        :type table_prefix: str
+        :param max_results: The maximum number of results to return in a single response page.
+            Leverage the page tokens to iterate through the entire collection.
+        :type max_results: int
+        :return: dataset_tables_list
+
+            Example of returned dataset_tables_list: ::
+
+                    [
+                       {
+                          "projectId": "your-project",
+                          "datasetId": "dataset",
+                          "tableId": "table1"
+                        },
+                        {
+                          "projectId": "your-project",
+                          "datasetId": "dataset",
+                          "tableId": "table2"
+                        }
+                    ]
+        """
+        service = self.get_service()
+        dataset_project_id = project_id if project_id else self.project_id
+
+        optional_params = {}
+        if max_results:
+            optional_params['maxResults'] = max_results
+
+        request = service.tables().list(projectId=dataset_project_id,  # pylint: disable=no-member
+                                        datasetId=dataset_id,
+                                        **optional_params)
+        dataset_tables_list = []
+        while request is not None:
+            response = request.execute(num_retries=self.num_retries)
+
+            for table in response.get('tables', []):
+                table_ref = table.get('tableReference')
+                table_id = table_ref.get('tableId')
+                if table_id and (not table_prefix or table_id.startswith(table_prefix)):
+                    dataset_tables_list.append(table_ref)
+
+            request = service.tables().list_next(previous_request=request,   # pylint: disable=no-member
+                                                 previous_response=response)
+
+        self.log.info("%s tables found", len(dataset_tables_list))
+
+        return dataset_tables_list
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1058,6 +1121,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.patch_dataset`",
             DeprecationWarning, stacklevel=3)
         return self.hook.patch_dataset(*args, **kwargs)
+
+    def get_dataset_tables_list(self, *args, **kwargs) -> Dict:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables_list`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables_list`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.get_dataset_tables_list(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2101,69 +2175,6 @@ class BigQueryBaseCursor(LoggingMixin):
         self.log.info("Datasets List: %s", datasets_list)
 
         return datasets_list
-
-    @CloudBaseHook.catch_http_exception
-    def get_dataset_tables_list(self, dataset_id, project_id=None, table_prefix=None, max_results=None):
-        """
-        Method returns tables list of a BigQuery dataset. If table prefix is specified,
-        only tables beginning by it are returned.
-
-        .. seealso::
-            For more information, see:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
-
-        :param dataset_id: The BigQuery Dataset ID
-        :type dataset_id: str
-        :param project_id: The GCP Project ID
-        :type project_id: str
-        :param table_prefix: Tables must begin by this prefix to be returned (case sensitive)
-        :type table_prefix: str
-        :param max_results: The maximum number of results to return in a single response page.
-            Leverage the page tokens to iterate through the entire collection.
-        :type max_results: int
-        :return: dataset_tables_list
-
-            Example of returned dataset_tables_list: ::
-
-                    [
-                       {
-                          "projectId": "your-project",
-                          "datasetId": "dataset",
-                          "tableId": "table1"
-                        },
-                        {
-                          "projectId": "your-project",
-                          "datasetId": "dataset",
-                          "tableId": "table2"
-                        }
-                    ]
-        """
-
-        dataset_project_id = project_id if project_id else self.project_id
-
-        optional_params = {}
-        if max_results:
-            optional_params['maxResults'] = max_results
-
-        request = self.service.tables().list(projectId=dataset_project_id,
-                                             datasetId=dataset_id,
-                                             **optional_params)
-        dataset_tables_list = []
-        while request is not None:
-            response = request.execute(num_retries=self.num_retries)
-
-            for table in response.get('tables', []):
-                table_ref = table.get('tableReference')
-                table_id = table_ref.get('tableId')
-                if table_id and (not table_prefix or table_id.startswith(table_prefix)):
-                    dataset_tables_list.append(table_ref)
-
-            request = self.service.tables().list_next(previous_request=request,
-                                                      previous_response=response)
-
-        self.log.info("%s tables found", len(dataset_tables_list))
-
-        return dataset_tables_list
 
 
 class BigQueryCursor(BigQueryBaseCursor):
