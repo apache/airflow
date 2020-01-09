@@ -1049,8 +1049,7 @@ class TestTableDataOperations(unittest.TestCase):
         }
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.insert_all(PROJECT_ID, DATASET_ID, TABLE_ID, rows)
+        bq_hook.insert_all(PROJECT_ID, DATASET_ID, TABLE_ID, rows)
         method.assert_called_once_with(
             projectId=PROJECT_ID,
             datasetId=DATASET_ID,
@@ -1080,14 +1079,12 @@ class TestTableDataOperations(unittest.TestCase):
             ]
         }
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         with self.assertRaisesRegex(
             Exception,
             r"BigQuery job failed\. Error was: 1 insert error\(s\) occurred: "
             r"bq-project:bq_dataset\.bq_table\. Details: \[{'index': 1, 'errors': \[\]}\]"
         ):
-            cursor.insert_all(PROJECT_ID, DATASET_ID, TABLE_ID,
-                              rows, fail_on_error=True)
+            bq_hook.insert_all(PROJECT_ID, DATASET_ID, TABLE_ID, rows, fail_on_error=True)
 
 
 class TestTableOperations(unittest.TestCase):
@@ -2473,6 +2470,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("delete_dataset",),
         ("create_external_table",),
         ("patch_table",),
+        ("insert_all",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

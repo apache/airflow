@@ -725,6 +725,78 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         self.log.info('Table patched successfully: %s:%s.%s',
                       project_id, dataset_id, table_id)
 
+    @CloudBaseHook.catch_http_exception
+    def insert_all(self, project_id: str, dataset_id: str, table_id: str,
+                   rows: List, ignore_unknown_values: bool = False,
+                   skip_invalid_rows: bool = False, fail_on_error: bool = False) -> None:
+        """
+        Method to stream data into BigQuery one record at a time without needing
+        to run a load job
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+
+        :param project_id: The name of the project where we have the table
+        :type project_id: str
+        :param dataset_id: The name of the dataset where we have the table
+        :type dataset_id: str
+        :param table_id: The name of the table
+        :type table_id: str
+        :param rows: the rows to insert
+        :type rows: list
+
+        **Example or rows**:
+            rows=[{"json": {"a_key": "a_value_0"}}, {"json": {"a_key": "a_value_1"}}]
+
+        :param ignore_unknown_values: [Optional] Accept rows that contain values
+            that do not match the schema. The unknown values are ignored.
+            The default value  is false, which treats unknown values as errors.
+        :type ignore_unknown_values: bool
+        :param skip_invalid_rows: [Optional] Insert all valid rows of a request,
+            even if invalid rows exist. The default value is false, which causes
+            the entire request to fail if any invalid rows exist.
+        :type skip_invalid_rows: bool
+        :param fail_on_error: [Optional] Force the task to fail if any errors occur.
+            The default value is false, which indicates the task should not fail
+            even if any insertion errors occur.
+        :type fail_on_error: bool
+        """
+        service = self.get_service()
+        dataset_project_id = project_id if project_id else self.project_id
+
+        body = {
+            "rows": rows,
+            "ignoreUnknownValues": ignore_unknown_values,
+            "kind": "bigquery#tableDataInsertAllRequest",
+            "skipInvalidRows": skip_invalid_rows,
+        }
+
+        self.log.info(
+            'Inserting %s row(s) into Table %s:%s.%s',
+            len(rows), dataset_project_id, dataset_id, table_id
+        )
+
+        resp = service.tabledata().insertAll(  # pylint: disable=no-member
+            projectId=dataset_project_id, datasetId=dataset_id,
+            tableId=table_id, body=body
+        ).execute(num_retries=self.num_retries)
+
+        if 'insertErrors' not in resp:
+            self.log.info(
+                'All row(s) inserted successfully: %s:%s.%s',
+                dataset_project_id, dataset_id, table_id
+            )
+        else:
+            error_msg = '{} insert error(s) occurred: {}:{}.{}. Details: {}'.format(
+                len(resp['insertErrors']),
+                dataset_project_id, dataset_id, table_id, resp['insertErrors'])
+            if fail_on_error:
+                raise AirflowException(
+                    'BigQuery job failed. Error was: {}'.format(error_msg)
+                )
+            self.log.info(error_msg)
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -868,6 +940,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.patch_table`",
             DeprecationWarning, stacklevel=3)
         return self.hook.patch_table(*args, **kwargs)
+
+    def insert_all(self, *args, **kwargs) -> None:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.insert_all`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.insert_all`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.insert_all(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2058,78 +2141,6 @@ class BigQueryBaseCursor(LoggingMixin):
         self.log.info("Dataset successfully updated: %s", dataset)
 
         return dataset
-
-    @CloudBaseHook.catch_http_exception
-    def insert_all(self, project_id: str, dataset_id: str, table_id: str,
-                   rows: List, ignore_unknown_values: bool = False,
-                   skip_invalid_rows: bool = False, fail_on_error: bool = False) -> None:
-        """
-        Method to stream data into BigQuery one record at a time without needing
-        to run a load job
-
-        .. seealso::
-            For more information, see:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
-
-        :param project_id: The name of the project where we have the table
-        :type project_id: str
-        :param dataset_id: The name of the dataset where we have the table
-        :type dataset_id: str
-        :param table_id: The name of the table
-        :type table_id: str
-        :param rows: the rows to insert
-        :type rows: list
-
-        **Example or rows**:
-            rows=[{"json": {"a_key": "a_value_0"}}, {"json": {"a_key": "a_value_1"}}]
-
-        :param ignore_unknown_values: [Optional] Accept rows that contain values
-            that do not match the schema. The unknown values are ignored.
-            The default value  is false, which treats unknown values as errors.
-        :type ignore_unknown_values: bool
-        :param skip_invalid_rows: [Optional] Insert all valid rows of a request,
-            even if invalid rows exist. The default value is false, which causes
-            the entire request to fail if any invalid rows exist.
-        :type skip_invalid_rows: bool
-        :param fail_on_error: [Optional] Force the task to fail if any errors occur.
-            The default value is false, which indicates the task should not fail
-            even if any insertion errors occur.
-        :type fail_on_error: bool
-        """
-
-        dataset_project_id = project_id if project_id else self.project_id
-
-        body = {
-            "rows": rows,
-            "ignoreUnknownValues": ignore_unknown_values,
-            "kind": "bigquery#tableDataInsertAllRequest",
-            "skipInvalidRows": skip_invalid_rows,
-        }
-
-        self.log.info(
-            'Inserting %s row(s) into Table %s:%s.%s',
-            len(rows), dataset_project_id, dataset_id, table_id
-        )
-
-        resp = self.service.tabledata().insertAll(
-            projectId=dataset_project_id, datasetId=dataset_id,
-            tableId=table_id, body=body
-        ).execute(num_retries=self.num_retries)
-
-        if 'insertErrors' not in resp:
-            self.log.info(
-                'All row(s) inserted successfully: %s:%s.%s',
-                dataset_project_id, dataset_id, table_id
-            )
-        else:
-            error_msg = '{} insert error(s) occurred: {}:{}.{}. Details: {}'.format(
-                len(resp['insertErrors']),
-                dataset_project_id, dataset_id, table_id, resp['insertErrors'])
-            if fail_on_error:
-                raise AirflowException(
-                    'BigQuery job failed. Error was: {}'.format(error_msg)
-                )
-            self.log.info(error_msg)
 
 
 class BigQueryCursor(BigQueryBaseCursor):
