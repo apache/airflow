@@ -56,6 +56,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           list_py_file_paths)
 from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
+from airflow.utils.lock import acquire_lock
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.state import State
 
@@ -396,6 +397,20 @@ class SchedulerJob(BaseJob):
 
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
+
+    def on_lock_error(self):
+        self._exit_gracefully(signal.SIGTERM, None)
+
+    def run(self):
+        def on_stolen_lock(*args, **kwargs):
+            self.log.info("Scheduler has lost the lock. Shutting down")
+            self.on_lock_error()
+
+        # Scheduler locking logic
+        self.log.error("Acquiring lock...")
+        with acquire_lock(callback=on_stolen_lock):
+            self.log.info("Lock Acquired!")
+            return super(SchedulerJob, self).run()
 
     def _exit_gracefully(self, signum, frame):
         """
