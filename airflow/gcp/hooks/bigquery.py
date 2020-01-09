@@ -1460,6 +1460,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :param dataset_id: the dataset ID of the requested table
         :param table_id: the table ID of the requested table
+        :param project_id: the optional project ID of the requested table.
+               If not provided, the connector's configured project will be used.
         :return: a table schema
         """
         tables_resource = self.service.tables() \
