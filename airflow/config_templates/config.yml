@@ -778,6 +778,27 @@
       type: string
       example: ~
       default: "5"
+    - name: log_fetch_delay_sec
+      description: |
+        Time interval (in secs) to wait before next log fetching.
+      version_added: ~
+      type: int
+      example: ~
+      default: "2"
+    - name: log_auto_tailing_offset
+      description: |
+        Distance away from page bottom to enable auto tailing.
+      version_added: ~
+      type: int
+      example: ~
+      default: "30"
+    - name: log_animation_speed
+      description: |
+        Animation speed for auto tailing log display.
+      version_added: ~
+      type: int
+      example: ~
+      default: "1000"
     - name: hide_paused_dags_by_default
       description: |
         By default, the webserver shows paused DAGs. Flip this to hide paused
