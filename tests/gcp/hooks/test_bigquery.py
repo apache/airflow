@@ -776,9 +776,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method_patch_execute = method_patch.return_value.execute
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
 
-        cursor.run_grant_dataset_view_access(
+        bq_hook.run_grant_dataset_view_access(
             source_dataset=source_dataset,
             view_dataset=view_dataset,
             view_table=TABLE_ID
@@ -809,9 +808,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method_patch = mock_get_service.return_value.datasets.return_value.patch
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
 
-        cursor.run_grant_dataset_view_access(
+        bq_hook.run_grant_dataset_view_access(
             source_dataset=source_dataset,
             view_dataset=view_dataset,
             view_table=TABLE_ID
@@ -2469,6 +2467,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("get_dataset_tables_list",),
         ("get_datasets_list",),
         ("get_dataset",),
+        ("run_grant_dataset_view_access",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

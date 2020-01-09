@@ -1019,6 +1019,71 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return dataset_resource
 
+    @CloudBaseHook.catch_http_exception
+    def run_grant_dataset_view_access(self,
+                                      source_dataset: str,
+                                      view_dataset: str,
+                                      view_table: str,
+                                      source_project: Optional[str] = None,
+                                      view_project: Optional[str] = None) -> Dict:
+        """
+        Grant authorized view access of a dataset to a view table.
+        If this view has already been granted access to the dataset, do nothing.
+        This method is not atomic.  Running it may clobber a simultaneous update.
+
+        :param source_dataset: the source dataset
+        :type source_dataset: str
+        :param view_dataset: the dataset that the view is in
+        :type view_dataset: str
+        :param view_table: the table of the view
+        :type view_table: str
+        :param source_project: the project of the source dataset. If None,
+            self.project_id will be used.
+        :type source_project: str
+        :param view_project: the project that the view is in. If None,
+            self.project_id will be used.
+        :type view_project: str
+        :return: the datasets resource of the source dataset.
+        """
+        service = self.get_service()
+
+        # Apply default values to projects
+        source_project = source_project if source_project else self.project_id
+        view_project = view_project if view_project else self.project_id
+
+        # we don't want to clobber any existing accesses, so we have to get
+        # info on the dataset before we can add view access
+        source_dataset_resource = service.datasets().get(  # pylint: disable=no-member
+            projectId=source_project, datasetId=source_dataset).execute(num_retries=self.num_retries)
+        access = source_dataset_resource[
+            'access'] if 'access' in source_dataset_resource else []
+        view_access = {
+            'view': {
+                'projectId': view_project,
+                'datasetId': view_dataset,
+                'tableId': view_table
+            }
+        }
+        # check to see if the view we want to add already exists.
+        if view_access not in access:
+            self.log.info(
+                'Granting table %s:%s.%s authorized view access to %s:%s dataset.',
+                view_project, view_dataset, view_table, source_project,
+                source_dataset)
+            access.append(view_access)
+            return service.datasets().patch(  # pylint: disable=no-member
+                projectId=source_project,
+                datasetId=source_dataset,
+                body={
+                    'access': access
+                }).execute(num_retries=self.num_retries)
+        else:
+            # if view is already in access, do nothing.
+            self.log.info(
+                'Table %s:%s.%s already has authorized view access to %s:%s dataset.',
+                view_project, view_dataset, view_table, source_project, source_dataset)
+            return source_dataset_resource
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1228,6 +1293,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset`",
             DeprecationWarning, stacklevel=3)
         return self.hook.get_dataset(*args, **kwargs)
+
+    def run_grant_dataset_view_access(self, *args, **kwargs) -> Dict:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.run_grant_dataset_view_access(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2134,70 +2210,6 @@ class BigQueryBaseCursor(LoggingMixin):
                     projectId=project_id,
                     datasetId=dataset_id,
                     body=table_resource).execute(num_retries=self.num_retries)
-
-    @CloudBaseHook.catch_http_exception
-    def run_grant_dataset_view_access(self,
-                                      source_dataset: str,
-                                      view_dataset: str,
-                                      view_table: str,
-                                      source_project: Optional[str] = None,
-                                      view_project: Optional[str] = None) -> Dict:
-        """
-        Grant authorized view access of a dataset to a view table.
-        If this view has already been granted access to the dataset, do nothing.
-        This method is not atomic.  Running it may clobber a simultaneous update.
-
-        :param source_dataset: the source dataset
-        :type source_dataset: str
-        :param view_dataset: the dataset that the view is in
-        :type view_dataset: str
-        :param view_table: the table of the view
-        :type view_table: str
-        :param source_project: the project of the source dataset. If None,
-            self.project_id will be used.
-        :type source_project: str
-        :param view_project: the project that the view is in. If None,
-            self.project_id will be used.
-        :type view_project: str
-        :return: the datasets resource of the source dataset.
-        """
-
-        # Apply default values to projects
-        source_project = source_project if source_project else self.project_id
-        view_project = view_project if view_project else self.project_id
-
-        # we don't want to clobber any existing accesses, so we have to get
-        # info on the dataset before we can add view access
-        source_dataset_resource = self.service.datasets().get(
-            projectId=source_project, datasetId=source_dataset).execute(num_retries=self.num_retries)
-        access = source_dataset_resource[
-            'access'] if 'access' in source_dataset_resource else []
-        view_access = {
-            'view': {
-                'projectId': view_project,
-                'datasetId': view_dataset,
-                'tableId': view_table
-            }
-        }
-        # check to see if the view we want to add already exists.
-        if view_access not in access:
-            self.log.info(
-                'Granting table %s:%s.%s authorized view access to %s:%s dataset.',
-                view_project, view_dataset, view_table, source_project,
-                source_dataset)
-            access.append(view_access)
-            return self.service.datasets().patch(
-                projectId=source_project,
-                datasetId=source_dataset,
-                body={
-                    'access': access
-                }).execute(num_retries=self.num_retries)
-        else:
-            # if view is already in access, do nothing.
-            self.log.info(
-                'Table %s:%s.%s already has authorized view access to %s:%s dataset.',
-                view_project, view_dataset, view_table, source_project, source_dataset)
-            return source_dataset_resource
 
 
 class BigQueryCursor(BigQueryBaseCursor):
