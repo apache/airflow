@@ -52,7 +52,6 @@
 {% block tail %}
 {{ super() }}
 <script>
-    // TODO: make those constants configurable.
     // Time interval to wait before next log fetching. Default 2s.
     const DELAY = "{{ (log_fetch_delay_sec | int ) * 1000 }}";
     // Distance away from page bottom to enable auto tailing.
