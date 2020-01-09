@@ -410,7 +410,7 @@ devel_all = (all_dbs + atlas + aws +
              elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + oracle +
              papermill + password + pinot +
              redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
-             virtualenv + webhdfs + zendesk +  + dynamodb_lock)
+             virtualenv + webhdfs + zendesk + dynamodb_lock)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
