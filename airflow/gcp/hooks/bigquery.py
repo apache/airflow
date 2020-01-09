@@ -1174,6 +1174,42 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             else:
                 raise e
 
+    @CloudBaseHook.catch_http_exception
+    def get_tabledata(self, dataset_id: str, table_id: str,
+                      max_results: Optional[int] = None, selected_fields: Optional[str] = None,
+                      page_token: Optional[str] = None, start_index: Optional[int] = None) -> Dict:
+        """
+        Get the data of a given dataset.table and optionally with selected columns.
+        see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
+
+        :param dataset_id: the dataset ID of the requested table.
+        :param table_id: the table ID of the requested table.
+        :param max_results: the maximum results to return.
+        :param selected_fields: List of fields to return (comma-separated). If
+            unspecified, all fields are returned.
+        :param page_token: page token, returned from a previous call,
+            identifying the result set.
+        :param start_index: zero based index of the starting row to read.
+        :return: map containing the requested rows.
+        """
+        service = self.get_service()
+        optional_params = {}  # type: Dict[str, Any]
+        if self.location:
+            optional_params['location'] = self.location
+        if max_results:
+            optional_params['maxResults'] = max_results
+        if selected_fields:
+            optional_params['selectedFields'] = selected_fields
+        if page_token:
+            optional_params['pageToken'] = page_token
+        if start_index:
+            optional_params['startIndex'] = start_index
+        return (service.tabledata().list(  # pylint: disable=no-member
+            projectId=self.project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            **optional_params).execute(num_retries=self.num_retries))
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1416,6 +1452,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_table_delete`",
             DeprecationWarning, stacklevel=3)
         return self.hook.run_table_delete(*args, **kwargs)
+
+    def get_tabledata(self, *args, **kwargs) -> Dict:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_tabledata`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_tabledata`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.get_tabledata(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2201,41 +2248,6 @@ class BigQueryBaseCursor(LoggingMixin):
                  tableId=table_id) \
             .execute(num_retries=self.num_retries)
         return tables_resource['schema']
-
-    @CloudBaseHook.catch_http_exception
-    def get_tabledata(self, dataset_id: str, table_id: str,
-                      max_results: Optional[int] = None, selected_fields: Optional[str] = None,
-                      page_token: Optional[str] = None, start_index: Optional[int] = None) -> Dict:
-        """
-        Get the data of a given dataset.table and optionally with selected columns.
-        see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
-
-        :param dataset_id: the dataset ID of the requested table.
-        :param table_id: the table ID of the requested table.
-        :param max_results: the maximum results to return.
-        :param selected_fields: List of fields to return (comma-separated). If
-            unspecified, all fields are returned.
-        :param page_token: page token, returned from a previous call,
-            identifying the result set.
-        :param start_index: zero based index of the starting row to read.
-        :return: map containing the requested rows.
-        """
-        optional_params = {}  # type: Dict[str, Any]
-        if self.location:
-            optional_params['location'] = self.location
-        if max_results:
-            optional_params['maxResults'] = max_results
-        if selected_fields:
-            optional_params['selectedFields'] = selected_fields
-        if page_token:
-            optional_params['pageToken'] = page_token
-        if start_index:
-            optional_params['startIndex'] = start_index
-        return (self.service.tabledata().list(
-            projectId=self.project_id,
-            datasetId=dataset_id,
-            tableId=table_id,
-            **optional_params).execute(num_retries=self.num_retries))
 
 
 class BigQueryCursor(BigQueryBaseCursor):

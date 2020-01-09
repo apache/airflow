@@ -631,8 +631,6 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
                                            )
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .get_tabledata \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,

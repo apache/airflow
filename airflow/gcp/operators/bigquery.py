@@ -302,12 +302,10 @@ class BigQueryGetDataOperator(BaseOperator):
                             delegate_to=self.delegate_to,
                             location=self.location)
 
-        conn = hook.get_conn()
-        cursor = conn.cursor()
-        response = cursor.get_tabledata(dataset_id=self.dataset_id,
-                                        table_id=self.table_id,
-                                        max_results=self.max_results,
-                                        selected_fields=self.selected_fields)
+        response = hook.get_tabledata(dataset_id=self.dataset_id,
+                                      table_id=self.table_id,
+                                      max_results=self.max_results,
+                                      selected_fields=self.selected_fields)
 
         total_rows = int(response['totalRows'])
         self.log.info('Total Extracted rows: %s', total_rows)

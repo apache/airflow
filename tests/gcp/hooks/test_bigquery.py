@@ -2465,6 +2465,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("run_grant_dataset_view_access",),
         ("run_table_upsert",),
         ("run_table_delete",),
+        ("get_tabledata",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):
