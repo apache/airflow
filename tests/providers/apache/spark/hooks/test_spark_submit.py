@@ -22,8 +22,8 @@ import unittest
 from unittest.mock import call, patch
 
 from airflow import AirflowException
-from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
 from airflow.models import Connection
+from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.utils import db
 
 
@@ -196,7 +196,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
         assert expected_spark_yarn_cluster == build_track_driver_status_spark_yarn_cluster
 
-    @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
+    @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
     def test_spark_process_runcmd(self, mock_popen):
         # Given
         mock_popen.return_value.stdout = io.StringIO('stdout')
@@ -628,7 +628,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         self.assertEqual(hook._driver_status, 'RUNNING')
 
-    @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
+    @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
     def test_yarn_process_on_kill(self, mock_popen):
         # Given
         mock_popen.return_value.stdout = io.StringIO('stdout')
@@ -682,7 +682,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         self.assertEqual(kill_cmd[4], 'driver-20171128111415-0001')
 
     @patch('airflow.kubernetes.kube_client.get_kube_client')
-    @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
+    @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
     def test_k8s_process_on_kill(self, mock_popen, mock_client_method):
         # Given
         mock_popen.return_value.stdout = io.StringIO('stdout')

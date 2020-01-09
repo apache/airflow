@@ -164,10 +164,6 @@ HOOK = [
         'airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook',
         'airflow.contrib.hooks.spark_jdbc_hook.SparkJDBCHook',
     ),
-    (
-        'airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook',
-        'airflow.contrib.hooks.spark_sql_hook.SparkSqlHook',
-    ),
 ]
 
 OPERATOR = [
