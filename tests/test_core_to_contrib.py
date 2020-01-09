@@ -859,6 +859,14 @@ SENSOR = [
         "airflow.providers.amazon.aws.sensors.sqs.SQSSensor",
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
     ),
+    (
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensorFolder',
+        'airflow.contrib.sensors.hdfs_sensor.HdfsSensorFolder',
+    ),
+    (
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensorRegex',
+        'airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex',
+    ),
 ]
 
 PROTOCOLS = [

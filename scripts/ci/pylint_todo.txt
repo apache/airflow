@@ -85,7 +85,7 @@
 ./airflow/contrib/sensors/emr_step_sensor.py
 ./airflow/contrib/sensors/file_sensor.py
 ./airflow/contrib/sensors/ftp_sensor.py
-./airflow/contrib/sensors/hdfs_sensor.py
+./airflow/providers/apache/hdfs/sensors/hdfs.py
 ./airflow/providers/jira/sensors/jira.py
 ./airflow/contrib/sensors/mongo_sensor.py
 ./airflow/contrib/sensors/python_sensor.py

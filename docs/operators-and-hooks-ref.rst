@@ -132,7 +132,7 @@ Foundation.
      - :mod:`airflow.hooks.hdfs_hook`
      -
      - :mod:`airflow.sensors.hdfs_sensor`,
-       :mod:`airflow.contrib.sensors.hdfs_sensor`
+       :mod:`airflow.providers.apache.hdfs.sensors.hdfs`
 
    * - `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__
      -

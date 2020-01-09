@@ -21,8 +21,8 @@ import re
 import unittest
 from datetime import timedelta
 
-from airflow.contrib.sensors.hdfs_sensor import HdfsSensorFolder, HdfsSensorRegex
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensorFolder, HdfsSensorRegex
 from tests.test_utils.hdfs_utils import FakeHDFSHook
 
 
