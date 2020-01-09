@@ -208,6 +208,7 @@ docker = [
 druid = [
     'pydruid>=0.4.1',
 ]
+dynamodb_lock = ['python-dynamodb-lock==0.9.1']
 elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
     'elasticsearch-dsl>=5.0.0,<6.0.0',
@@ -389,6 +390,7 @@ devel = [
     'requests_mock',
     'yamllint'
 ]
+<<<<<<< HEAD
 ############################################################################################################
 # IMPORTANT NOTE!!!!!!!!!!!!!!!
 # IF you are removing dependencies from the above list, please make sure that you also increase
@@ -409,7 +411,7 @@ devel_all = (all_dbs + atlas + aws +
              elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + oracle +
              papermill + password + pinot +
              redis + samba + segment + sendgrid + sentry + slack + snowflake + ssh +
-             virtualenv + webhdfs + zendesk)
+             virtualenv + webhdfs + zendesk +  + dynamodb_lock)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -531,6 +533,7 @@ def do_setup():
             'doc': doc,
             'docker': docker,
             'druid': druid,
+            'dynamodb_lock': dynamodb_lock,
             'elasticsearch': elasticsearch,
             'emr': aws,
             'gcp': gcp,

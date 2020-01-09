@@ -64,6 +64,7 @@ from airflow.models import (
 )
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_QUEUED_DEPS)
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.lock import initialize as scheduler_lock_init
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
@@ -1141,6 +1142,12 @@ def initdb(args):  # noqa
     print("Done.")
 
 
+def initscheduler(args):  # noqa
+    print("Initializing the resources for the scheduler")
+    scheduler_lock_init()
+    print("Done.")
+
+
 def resetdb(args):
     py2_deprecation_waring()
     print("DB: " + repr(settings.engine.url))
@@ -2128,6 +2135,10 @@ class CLIFactory(object):
         }, {
             'func': initdb,
             'help': "Initialize the metadata database",
+            'args': tuple(),
+        },  {
+            'func': initscheduler,
+            'help': "Initialize the resources for the scheduler",
             'args': tuple(),
         }, {
             'func': list_dags,

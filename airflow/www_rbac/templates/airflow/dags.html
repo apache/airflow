@@ -125,6 +125,12 @@
                     <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
                 </a>
 
+                <!-- Cancel Dag Runs -->
+                <a href="{{ url_for('Airflow.dagrun_cancel', dag_id=dag.dag_id) }}"
+                   onclick="return confirmCancelDagRun('{{ dag.safe_dag_id }}')">
+                    <span class="glyphicon glyphicon-remove" aria-hidden="true" data-original-title="Cancel Dag Run"></span>
+                </a>
+
                 <!-- Tree -->
                 <a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}">
                     <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" data-original-title="Tree View"></span>
@@ -247,6 +253,10 @@
           postAsForm(link.href, {});
         }
         return false;
+      }
+
+      function confirmCancelDagRun(dag_id){
+          return confirm("Are you sure you want to cancel all active runs of '"+dag_id+"'?");
       }
 
       var encoded_dag_ids = [];
