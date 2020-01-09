@@ -707,8 +707,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method_tables_insert_execute = method_tables_insert.return_value.execute
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_table_upsert(dataset_id=DATASET_ID, table_resource=table_resource)
+        bq_hook.run_table_upsert(dataset_id=DATASET_ID, table_resource=table_resource)
 
         method_tables_list.assert_called_once_with(datasetId=DATASET_ID, projectId=PROJECT_ID)
         method_tables_insert.assert_called_once_with(
@@ -745,8 +744,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method_tables_update_execute = method_tables_update.return_value.execute
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_table_upsert(dataset_id=DATASET_ID, table_resource=table_resource)
+        bq_hook.run_table_upsert(dataset_id=DATASET_ID, table_resource=table_resource)
 
         method_tables_list.has_calls(
             mock.call(datasetId=DATASET_ID, projectId=PROJECT_ID),
@@ -2468,6 +2466,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("get_datasets_list",),
         ("get_dataset",),
         ("run_grant_dataset_view_access",),
+        ("run_table_upsert",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

@@ -1084,6 +1084,58 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                 view_project, view_dataset, view_table, source_project, source_dataset)
             return source_dataset_resource
 
+    @CloudBaseHook.catch_http_exception
+    def run_table_upsert(self, dataset_id: str, table_resource: Dict,
+                         project_id: Optional[str] = None) -> Dict:
+        """
+        creates a new, empty table in the dataset;
+        If the table already exists, update the existing table.
+        Since BigQuery does not natively allow table upserts, this is not an
+        atomic operation.
+
+        :param dataset_id: the dataset to upsert the table into.
+        :type dataset_id: str
+        :param table_resource: a table resource. see
+            https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
+        :type table_resource: dict
+        :param project_id: the project to upsert the table into.  If None,
+            project will be self.project_id.
+        :return:
+        """
+        service = self.get_service()
+        # check to see if the table exists
+        table_id = table_resource['tableReference']['tableId']
+        project_id = project_id if project_id is not None else self.project_id
+        tables_list_resp = service.tables().list(  # pylint: disable=no-member
+            projectId=project_id, datasetId=dataset_id).execute(num_retries=self.num_retries)
+        while True:
+            for table in tables_list_resp.get('tables', []):
+                if table['tableReference']['tableId'] == table_id:
+                    # found the table, do update
+                    self.log.info('Table %s:%s.%s exists, updating.',
+                                  project_id, dataset_id, table_id)
+                    return service.tables().update(  # pylint: disable=no-member
+                        projectId=project_id,
+                        datasetId=dataset_id,
+                        tableId=table_id,
+                        body=table_resource).execute(num_retries=self.num_retries)
+            # If there is a next page, we need to check the next page.
+            if 'nextPageToken' in tables_list_resp:
+                tables_list_resp = service.tables()\
+                    .list(projectId=project_id,  # pylint: disable=no-member
+                          datasetId=dataset_id,
+                          pageToken=tables_list_resp['nextPageToken'])\
+                    .execute(num_retries=self.num_retries)
+            # If there is no next page, then the table doesn't exist.
+            else:
+                # do insert
+                self.log.info('Table %s:%s.%s does not exist. creating.',
+                              project_id, dataset_id, table_id)
+                return service.tables().insert(  # pylint: disable=no-member
+                    projectId=project_id,
+                    datasetId=dataset_id,
+                    body=table_resource).execute(num_retries=self.num_retries)
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1304,6 +1356,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access`",
             DeprecationWarning, stacklevel=3)
         return self.hook.run_grant_dataset_view_access(*args, **kwargs)
+
+    def run_table_upsert(self, *args, **kwargs) -> Dict:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_table_upsert`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_table_upsert`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.run_table_upsert(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2159,57 +2222,6 @@ class BigQueryBaseCursor(LoggingMixin):
                 self.log.info('Table does not exist. Skipping.')
             else:
                 raise e
-
-    @CloudBaseHook.catch_http_exception
-    def run_table_upsert(self, dataset_id: str, table_resource: Dict,
-                         project_id: Optional[str] = None) -> Dict:
-        """
-        creates a new, empty table in the dataset;
-        If the table already exists, update the existing table.
-        Since BigQuery does not natively allow table upserts, this is not an
-        atomic operation.
-
-        :param dataset_id: the dataset to upsert the table into.
-        :type dataset_id: str
-        :param table_resource: a table resource. see
-            https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
-        :type table_resource: dict
-        :param project_id: the project to upsert the table into.  If None,
-            project will be self.project_id.
-        :return:
-        """
-        # check to see if the table exists
-        table_id = table_resource['tableReference']['tableId']
-        project_id = project_id if project_id is not None else self.project_id
-        tables_list_resp = self.service.tables().list(
-            projectId=project_id, datasetId=dataset_id).execute(num_retries=self.num_retries)
-        while True:
-            for table in tables_list_resp.get('tables', []):
-                if table['tableReference']['tableId'] == table_id:
-                    # found the table, do update
-                    self.log.info('Table %s:%s.%s exists, updating.',
-                                  project_id, dataset_id, table_id)
-                    return self.service.tables().update(
-                        projectId=project_id,
-                        datasetId=dataset_id,
-                        tableId=table_id,
-                        body=table_resource).execute(num_retries=self.num_retries)
-            # If there is a next page, we need to check the next page.
-            if 'nextPageToken' in tables_list_resp:
-                tables_list_resp = self.service.tables()\
-                    .list(projectId=project_id,
-                          datasetId=dataset_id,
-                          pageToken=tables_list_resp['nextPageToken'])\
-                    .execute(num_retries=self.num_retries)
-            # If there is no next page, then the table doesn't exist.
-            else:
-                # do insert
-                self.log.info('Table %s:%s.%s does not exist. creating.',
-                              project_id, dataset_id, table_id)
-                return self.service.tables().insert(
-                    projectId=project_id,
-                    datasetId=dataset_id,
-                    body=table_resource).execute(num_retries=self.num_retries)
 
 
 class BigQueryCursor(BigQueryBaseCursor):
