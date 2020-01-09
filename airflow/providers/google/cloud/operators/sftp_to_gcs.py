@@ -31,13 +31,13 @@ from airflow.utils.decorators import apply_defaults
 WILDCARD = "*"
 
 
-class SFTPToGoogleCloudStorageOperator(BaseOperator):
+class SFTPToGCSOperator(BaseOperator):
     """
     Transfer files to Google Cloud Storage from SFTP server.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SFTPToGoogleCloudStorageOperator`
+        :ref:`howto/operator:SFTPToGCSOperator`
 
     :param source_path: The sftp remote path. This is the specified file path
         for downloading the single file or multiple files from the SFTP server.

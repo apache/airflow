@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
 
 
-class S3ToGoogleCloudStorageOperator(S3ListOperator):
+class S3ToGCSOperator(S3ListOperator):
     """
     Synchronizes an S3 key, possibly a prefix, with a Google Cloud Storage
     destination path.
@@ -74,7 +74,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
 
     .. code-block:: python
 
-       s3_to_gcs_op = S3ToGoogleCloudStorageOperator(
+       s3_to_gcs_op = S3ToGCSOperator(
             task_id='s3_to_gcs_example',
             bucket='my-s3-bucket',
             prefix='data/customers-201804',

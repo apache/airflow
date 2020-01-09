@@ -23,7 +23,7 @@ Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 import os
 
 from airflow import models
-from airflow.providers.google.cloud.operators.sftp_to_gcs import SFTPToGoogleCloudStorageOperator
+from airflow.providers.google.cloud.operators.sftp_to_gcs import SFTPToGCSOperator
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}
@@ -43,7 +43,7 @@ with models.DAG(
     "example_sftp_to_gcs", default_args=default_args, schedule_interval=None
 ) as dag:
     # [START howto_operator_sftp_to_gcs_copy_single_file]
-    copy_file_from_sftp_to_gcs = SFTPToGoogleCloudStorageOperator(
+    copy_file_from_sftp_to_gcs = SFTPToGCSOperator(
         task_id="file-copy-sftp-to-gcs",
         source_path=os.path.join(TMP_PATH, DIR, OBJECT_SRC_1),
         destination_bucket=BUCKET_SRC,
@@ -51,7 +51,7 @@ with models.DAG(
     # [END howto_operator_sftp_to_gcs_copy_single_file]
 
     # [START howto_operator_sftp_to_gcs_move_single_file_destination]
-    move_file_from_sftp_to_gcs_destination = SFTPToGoogleCloudStorageOperator(
+    move_file_from_sftp_to_gcs_destination = SFTPToGCSOperator(
         task_id="file-move-sftp-to-gcs-destination",
         source_path=os.path.join(TMP_PATH, DIR, OBJECT_SRC_2),
         destination_bucket=BUCKET_SRC,
@@ -61,7 +61,7 @@ with models.DAG(
     # [END howto_operator_sftp_to_gcs_move_single_file_destination]
 
     # [START howto_operator_sftp_to_gcs_copy_directory]
-    copy_directory_from_sftp_to_gcs = SFTPToGoogleCloudStorageOperator(
+    copy_directory_from_sftp_to_gcs = SFTPToGCSOperator(
         task_id="dir-copy-sftp-to-gcs",
         source_path=os.path.join(TMP_PATH, DIR, SUBDIR, "*"),
         destination_bucket=BUCKET_SRC,
@@ -69,7 +69,7 @@ with models.DAG(
     # [END howto_operator_sftp_to_gcs_copy_directory]
 
     # [START howto_operator_sftp_to_gcs_move_specific_files]
-    move_specific_files_from_gcs_to_sftp = SFTPToGoogleCloudStorageOperator(
+    move_specific_files_from_gcs_to_sftp = SFTPToGCSOperator(
         task_id="dir-move-specific-files-sftp-to-gcs",
         source_path=os.path.join(TMP_PATH, DIR, SUBDIR, "*.bin"),
         destination_bucket=BUCKET_SRC,
