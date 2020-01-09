@@ -62,19 +62,19 @@ class TestDruidOperator(unittest.TestCase):
         ti = TaskInstance(operator, DEFAULT_DATE)
         ti.render_templates()
 
-        expected = '''{
-    "datasource": "datasource_prd",
-    "spec": {
-        "dataSchema": {
-            "granularitySpec": {
-                "intervals": [
-                    "2017-01-01/2017-01-02"
-                ]
+        expected = '''
+            {
+                "type": "index_hadoop",
+                "datasource": "datasource_prd",
+                "spec": {
+                    "dataSchema": {
+                        "granularitySpec": {
+                            "intervals": ["2017-01-01/2017-01-02"]
+                        }
+                    }
+                }
             }
-        }
-    },
-    "type": "index_hadoop"
-}'''
+        '''
         self.assertEqual(expected, getattr(operator, 'json_index_file'))
 
 
