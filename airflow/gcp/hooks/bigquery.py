@@ -840,6 +840,48 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return dataset
 
+    @CloudBaseHook.catch_http_exception
+    def patch_dataset(self, dataset_id: str, dataset_resource: str, project_id: Optional[str] = None) -> Dict:
+        """
+        Patches information in an existing dataset.
+        It only replaces fields that are provided in the submitted dataset resource.
+        More info:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param dataset_resource: Dataset resource that will be provided
+            in request body.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_resource: dict
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :rtype: dataset
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError(
+                "dataset_id argument must be provided and has "
+                "a type 'str'. You provided: {}".format(dataset_id)
+            )
+
+        service = self.get_service()
+        dataset_project_id = project_id if project_id else self.project_id
+
+        dataset = (
+            service.datasets()  # pylint: disable=no-member
+            .patch(
+                datasetId=dataset_id,
+                projectId=dataset_project_id,
+                body=dataset_resource,
+            )
+            .execute(num_retries=self.num_retries)
+        )
+        self.log.info("Dataset successfully patched: %s", dataset)
+
+        return dataset
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1005,6 +1047,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.update_dataset`",
             DeprecationWarning, stacklevel=3)
         return self.hook.update_dataset(*args, **kwargs)
+
+    def patch_dataset(self, *args, **kwargs) -> Dict:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.patch_dataset`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.patch_dataset`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.patch_dataset(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2111,47 +2164,6 @@ class BigQueryBaseCursor(LoggingMixin):
         self.log.info("%s tables found", len(dataset_tables_list))
 
         return dataset_tables_list
-
-    @CloudBaseHook.catch_http_exception
-    def patch_dataset(self, dataset_id: str, dataset_resource: str, project_id: Optional[str] = None) -> Dict:
-        """
-        Patches information in an existing dataset.
-        It only replaces fields that are provided in the submitted dataset resource.
-        More info:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch
-
-        :param dataset_id: The BigQuery Dataset ID
-        :type dataset_id: str
-        :param dataset_resource: Dataset resource that will be provided
-            in request body.
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
-        :type dataset_resource: dict
-        :param project_id: The GCP Project ID
-        :type project_id: str
-        :rtype: dataset
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
-        """
-
-        if not dataset_id or not isinstance(dataset_id, str):
-            raise ValueError(
-                "dataset_id argument must be provided and has "
-                "a type 'str'. You provided: {}".format(dataset_id)
-            )
-
-        dataset_project_id = project_id if project_id else self.project_id
-
-        dataset = (
-            self.service.datasets()
-            .patch(
-                datasetId=dataset_id,
-                projectId=dataset_project_id,
-                body=dataset_resource,
-            )
-            .execute(num_retries=self.num_retries)
-        )
-        self.log.info("Dataset successfully patched: %s", dataset)
-
-        return dataset
 
 
 class BigQueryCursor(BigQueryBaseCursor):
