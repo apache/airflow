@@ -1030,10 +1030,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
 
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
-
-        cursor.delete_dataset(
+        bq_hook.delete_dataset(
             project_id=self.project_id,
             dataset_id=self.dataset_id,
             delete_contents=self.delete_contents

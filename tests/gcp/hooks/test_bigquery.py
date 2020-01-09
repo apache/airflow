@@ -1858,8 +1858,7 @@ class TestDatasetsOperations(unittest.TestCase):
 
         method = mock_get_service.return_value.datasets.return_value.delete
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.delete_dataset(PROJECT_ID, DATASET_ID, delete_contents)
+        bq_hook.delete_dataset(PROJECT_ID, DATASET_ID, delete_contents)
 
         method.assert_called_once_with(projectId=PROJECT_ID, datasetId=DATASET_ID,
                                        deleteContents=delete_contents)
@@ -2477,6 +2476,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("create_empty_table",),
         ("create_empty_dataset",),
         ("get_dataset_tables",),
+        ("delete_dataset",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

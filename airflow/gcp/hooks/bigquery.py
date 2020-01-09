@@ -371,6 +371,40 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             datasetId=dataset_id,
             **optional_params).execute(num_retries=self.num_retries))
 
+    @CloudBaseHook.catch_http_exception
+    def delete_dataset(self, project_id: str, dataset_id: str, delete_contents: bool = False) -> None:
+        """
+        Delete a dataset of Big query in your project.
+
+        :param project_id: The name of the project where we have the dataset .
+        :type project_id: str
+        :param dataset_id: The dataset to be delete.
+        :type dataset_id: str
+        :param delete_contents: [Optional] Whether to force the deletion even if the dataset is not empty.
+            Will delete all tables (if any) in the dataset if set to True.
+            Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
+            The default value is False.
+        :type delete_contents: bool
+        :return:
+        """
+        service = self.get_service()
+        project_id = project_id if project_id is not None else self.project_id
+        self.log.info('Deleting from project: %s  Dataset:%s',
+                      project_id, dataset_id)
+
+        try:
+            service.datasets().delete(  # pylint: disable=no-member
+                projectId=project_id,
+                datasetId=dataset_id,
+                deleteContents=delete_contents).execute(num_retries=self.num_retries)
+            self.log.info('Dataset deleted successfully: In project %s '
+                          'Dataset %s', project_id, dataset_id)
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -481,6 +515,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables`",
             DeprecationWarning, stacklevel=3)
         return self.hook.get_dataset_tables(*args, **kwargs)
+
+    def delete_dataset(self, *args, **kwargs) -> None:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.delete_dataset`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.delete_dataset`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.delete_dataset(*args, **kwargs)
 
     @CloudBaseHook.catch_http_exception
     def create_external_table(self,  # pylint: disable=too-many-locals,too-many-arguments
@@ -1768,39 +1813,6 @@ class BigQueryBaseCursor(LoggingMixin):
                 'Table %s:%s.%s already has authorized view access to %s:%s dataset.',
                 view_project, view_dataset, view_table, source_project, source_dataset)
             return source_dataset_resource
-
-    @CloudBaseHook.catch_http_exception
-    def delete_dataset(self, project_id: str, dataset_id: str, delete_contents: bool = False) -> None:
-        """
-        Delete a dataset of Big query in your project.
-
-        :param project_id: The name of the project where we have the dataset .
-        :type project_id: str
-        :param dataset_id: The dataset to be delete.
-        :type dataset_id: str
-        :param delete_contents: [Optional] Whether to force the deletion even if the dataset is not empty.
-            Will delete all tables (if any) in the dataset if set to True.
-            Will raise HttpError 400: "{dataset_id} is still in use" if set to False and dataset is not empty.
-            The default value is False.
-        :type delete_contents: bool
-        :return:
-        """
-        project_id = project_id if project_id is not None else self.project_id
-        self.log.info('Deleting from project: %s  Dataset:%s',
-                      project_id, dataset_id)
-
-        try:
-            self.service.datasets().delete(
-                projectId=project_id,
-                datasetId=dataset_id,
-                deleteContents=delete_contents).execute(num_retries=self.num_retries)
-            self.log.info('Dataset deleted successfully: In project %s '
-                          'Dataset %s', project_id, dataset_id)
-
-        except HttpError as err:
-            raise AirflowException(
-                'BigQuery job failed. Error was: {}'.format(err.content)
-            )
 
     @CloudBaseHook.catch_http_exception
     def get_dataset(self, dataset_id: str, project_id: Optional[str] = None) -> Dict:
