@@ -1156,12 +1156,10 @@ class BigQueryGetDatasetOperator(BaseOperator):
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
 
         self.log.info('Start getting dataset: %s:%s', self.project_id, self.dataset_id)
 
-        return cursor.get_dataset(
+        return bq_hook.get_dataset(
             dataset_id=self.dataset_id,
             project_id=self.project_id)
 

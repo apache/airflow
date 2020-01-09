@@ -1774,8 +1774,7 @@ class TestDatasetsOperations(unittest.TestCase):
             r"ataset_id argument must be provided and has a type 'str'\. You provided: "
         ):
             bq_hook = hook.BigQueryHook()
-            cursor = bq_hook.get_cursor()
-            cursor.get_dataset(dataset_id="", project_id="project_test")
+            bq_hook.get_dataset(dataset_id="", project_id="project_test")
 
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
@@ -1797,9 +1796,7 @@ class TestDatasetsOperations(unittest.TestCase):
         )
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-
-        result = cursor.get_dataset(dataset_id=DATASET_ID, project_id=PROJECT_ID)
+        result = bq_hook.get_dataset(dataset_id=DATASET_ID, project_id=PROJECT_ID)
 
         self.assertEqual(result, expected_result)
 
@@ -2471,6 +2468,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("patch_dataset",),
         ("get_dataset_tables_list",),
         ("get_datasets_list",),
+        ("get_dataset",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

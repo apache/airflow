@@ -990,6 +990,35 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return datasets_list
 
+    @CloudBaseHook.catch_http_exception
+    def get_dataset(self, dataset_id: str, project_id: Optional[str] = None) -> Dict:
+        """
+        Method returns dataset_resource if dataset exist
+        and raised 404 error if dataset does not exist
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :return: dataset_resource
+
+            .. seealso::
+                For more information, see Dataset Resource content:
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+        service = self.get_service()
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError("dataset_id argument must be provided and has "
+                             "a type 'str'. You provided: {}".format(dataset_id))
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        dataset_resource = service.datasets().get(  # pylint: disable=no-member
+            datasetId=dataset_id, projectId=dataset_project_id).execute(num_retries=self.num_retries)
+        self.log.info("Dataset Resource: %s", dataset_resource)
+
+        return dataset_resource
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1188,6 +1217,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_datasets_list`",
             DeprecationWarning, stacklevel=3)
         return self.hook.get_datasets_list(*args, **kwargs)
+
+    def get_dataset(self, *args, **kwargs) -> Dict:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.get_dataset(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2159,34 +2199,6 @@ class BigQueryBaseCursor(LoggingMixin):
                 view_project, view_dataset, view_table, source_project, source_dataset)
             return source_dataset_resource
 
-    @CloudBaseHook.catch_http_exception
-    def get_dataset(self, dataset_id: str, project_id: Optional[str] = None) -> Dict:
-        """
-        Method returns dataset_resource if dataset exist
-        and raised 404 error if dataset does not exist
-
-        :param dataset_id: The BigQuery Dataset ID
-        :type dataset_id: str
-        :param project_id: The GCP Project ID
-        :type project_id: str
-        :return: dataset_resource
-
-            .. seealso::
-                For more information, see Dataset Resource content:
-                https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
-        """
-
-        if not dataset_id or not isinstance(dataset_id, str):
-            raise ValueError("dataset_id argument must be provided and has "
-                             "a type 'str'. You provided: {}".format(dataset_id))
-
-        dataset_project_id = project_id if project_id else self.project_id
-
-        dataset_resource = self.service.datasets().get(
-            datasetId=dataset_id, projectId=dataset_project_id).execute(num_retries=self.num_retries)
-        self.log.info("Dataset Resource: %s", dataset_resource)
-
-        return dataset_resource
 
 class BigQueryCursor(BigQueryBaseCursor):
     """
