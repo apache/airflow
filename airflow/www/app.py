@@ -180,12 +180,16 @@ def create_app(config=None, testing=False):
         def jinja_globals():
             return {
                 'hostname': get_hostname() if conf.getboolean(
-                    'webserver',
-                    'EXPOSE_HOSTNAME',
+                    'webserver', 'EXPOSE_HOSTNAME',
                     fallback=True) else 'redact',
                 'navbar_color': conf.get(
-                    'webserver',
-                    'NAVBAR_COLOR'),
+                    'webserver', 'NAVBAR_COLOR'),
+                'log_fetch_delay_sec': conf.getint(
+                    'webserver', 'log_fetch_delay_sec', fallback=2),
+                'log_auto_tailing_offset': conf.getint(
+                    'webserver', 'log_auto_tailing_offset', fallback=30),
+                'log_animation_speed': conf.getint(
+                    'webserver', 'log_animation_speed', fallback=1000)
             }
 
         @app.before_request
