@@ -989,8 +989,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method_execute.return_value = {"schema": schema}
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        result = cursor.get_schema(dataset_id=DATASET_ID, table_id=TABLE_ID)
+        result = bq_hook.get_schema(dataset_id=DATASET_ID, table_id=TABLE_ID)
 
         method_get.assert_called_once_with(projectId=PROJECT_ID, datasetId=DATASET_ID, tableId=TABLE_ID)
         assert method_execute.call_count == 1
@@ -2466,6 +2465,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("run_table_upsert",),
         ("run_table_delete",),
         ("get_tabledata",),
+        ("get_schema",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):
