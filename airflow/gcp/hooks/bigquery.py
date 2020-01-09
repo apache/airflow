@@ -945,6 +945,51 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return dataset_tables_list
 
+    @CloudBaseHook.catch_http_exception
+    def get_datasets_list(self, project_id: Optional[str] = None) -> List:
+        """
+        Method returns full list of BigQuery datasets in the current project
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
+
+        :param project_id: Google Cloud Project for which you
+            try to get all datasets
+        :type project_id: str
+        :return: datasets_list
+
+            Example of returned datasets_list: ::
+
+                   {
+                      "kind":"bigquery#dataset",
+                      "location":"US",
+                      "id":"your-project:dataset_2_test",
+                      "datasetReference":{
+                         "projectId":"your-project",
+                         "datasetId":"dataset_2_test"
+                      }
+                   },
+                   {
+                      "kind":"bigquery#dataset",
+                      "location":"US",
+                      "id":"your-project:dataset_1_test",
+                      "datasetReference":{
+                         "projectId":"your-project",
+                         "datasetId":"dataset_1_test"
+                      }
+                   }
+                ]
+        """
+        service = self.get_service()
+        dataset_project_id = project_id if project_id else self.project_id
+
+        datasets_list = service.datasets().list(  # pylint: disable=no-member
+            projectId=dataset_project_id).execute(num_retries=self.num_retries)['datasets']
+        self.log.info("Datasets List: %s", datasets_list)
+
+        return datasets_list
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1132,6 +1177,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables_list`",
             DeprecationWarning, stacklevel=3)
         return self.hook.get_dataset_tables_list(*args, **kwargs)
+
+    def get_datasets_list(self, *args, **kwargs) -> List:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_datasets_list`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_datasets_list`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.get_datasets_list(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2131,51 +2187,6 @@ class BigQueryBaseCursor(LoggingMixin):
         self.log.info("Dataset Resource: %s", dataset_resource)
 
         return dataset_resource
-
-    @CloudBaseHook.catch_http_exception
-    def get_datasets_list(self, project_id: Optional[str] = None) -> List:
-        """
-        Method returns full list of BigQuery datasets in the current project
-
-        .. seealso::
-            For more information, see:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
-
-        :param project_id: Google Cloud Project for which you
-            try to get all datasets
-        :type project_id: str
-        :return: datasets_list
-
-            Example of returned datasets_list: ::
-
-                   {
-                      "kind":"bigquery#dataset",
-                      "location":"US",
-                      "id":"your-project:dataset_2_test",
-                      "datasetReference":{
-                         "projectId":"your-project",
-                         "datasetId":"dataset_2_test"
-                      }
-                   },
-                   {
-                      "kind":"bigquery#dataset",
-                      "location":"US",
-                      "id":"your-project:dataset_1_test",
-                      "datasetReference":{
-                         "projectId":"your-project",
-                         "datasetId":"dataset_1_test"
-                      }
-                   }
-                ]
-        """
-        dataset_project_id = project_id if project_id else self.project_id
-
-        datasets_list = self.service.datasets().list(
-            projectId=dataset_project_id).execute(num_retries=self.num_retries)['datasets']
-        self.log.info("Datasets List: %s", datasets_list)
-
-        return datasets_list
-
 
 class BigQueryCursor(BigQueryBaseCursor):
     """

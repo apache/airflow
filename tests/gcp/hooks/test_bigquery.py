@@ -1834,8 +1834,7 @@ class TestDatasetsOperations(unittest.TestCase):
             expected_result
         )
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        result = cursor.get_datasets_list(project_id=PROJECT_ID)
+        result = bq_hook.get_datasets_list(project_id=PROJECT_ID)
 
         mock_get_service.return_value.datasets.return_value.list.assert_called_once_with(projectId=PROJECT_ID)
         self.assertEqual(result, expected_result['datasets'])
@@ -2471,6 +2470,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("update_dataset",),
         ("patch_dataset",),
         ("get_dataset_tables_list",),
+        ("get_datasets_list",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):
