@@ -32,7 +32,7 @@ from datetime import timedelta
 from urllib.parse import quote_plus
 
 import pytest
-from flask import Markup, url_for
+from flask import Markup, session as flask_session, url_for
 from flask._compat import PY2
 from parameterized import parameterized
 from werkzeug.test import Client
@@ -493,6 +493,15 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('home', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
+    def test_home_filter_tags(self):
+        from airflow.www_rbac.views import FILTER_TAGS_COOKIE
+        with self.client:
+            self.client.get('home?tags=example&tags=data', follow_redirects=True)
+            self.assertEqual('example,data', flask_session[FILTER_TAGS_COOKIE])
+
+            self.client.get('home?reset_tags', follow_redirects=True)
+            self.assertEqual(None, flask_session[FILTER_TAGS_COOKIE])
+
     def test_task(self):
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
@@ -713,17 +722,22 @@ class TestAirflowBaseViews(TestBase):
         # The delete-dag URL should be generated correctly for DAGs
         # that exist on the scheduler (DB) but not the webserver DagBag
 
+        dag_id = 'example_bash_operator'
         test_dag_id = "non_existent_dag"
 
         DM = models.DagModel
-        self.session.query(DM).filter(DM.dag_id == 'example_bash_operator').update({'dag_id': test_dag_id})
+        dag_query = self.session.query(DM).filter(DM.dag_id == dag_id)
+        dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error
+        self.session.commit()
+
+        dag_query.update({'dag_id': test_dag_id})
         self.session.commit()
 
         resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('/delete?dag_id={}'.format(test_dag_id), resp)
         self.check_content_in_response("return confirmDeleteDag(this, '{}')".format(test_dag_id), resp)
 
-        self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
+        self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': dag_id})
         self.session.commit()
 
 

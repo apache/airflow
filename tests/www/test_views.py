@@ -859,18 +859,23 @@ class TestDeleteDag(unittest.TestCase):
         # The delete-dag URL should be generated correctly for DAGs
         # that exist on the scheduler (DB) but not the webserver DagBag
 
+        dag_id = 'example_bash_operator'
         test_dag_id = "non_existent_dag"
 
         session = Session()
         DM = models.DagModel
-        session.query(DM).filter(DM.dag_id == 'example_bash_operator').update({'dag_id': test_dag_id})
+        dag_query = session.query(DM).filter(DM.dag_id == dag_id)
+        dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error
+        session.commit()
+
+        dag_query.update({'dag_id': test_dag_id})
         session.commit()
 
         resp = self.app.get('/', follow_redirects=True)
         self.assertIn('/delete?dag_id={}'.format(test_dag_id), resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, '{}')".format(test_dag_id), resp.data.decode('utf-8'))
 
-        session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
+        session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': dag_id})
         session.commit()
 
 

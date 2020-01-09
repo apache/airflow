@@ -912,6 +912,13 @@
       type: string
       example: ~
       default: "0"
+    - name: session_lifetime_days
+      description: |
+        The UI cookie lifetime in days
+      version_added: ~
+      type: string
+      example: ~
+      default: "30"
 
 - name: email
   description: ~

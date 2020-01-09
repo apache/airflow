@@ -47,6 +47,7 @@ dag = DAG(
     dag_id="example_trigger_target_dag",
     default_args={"start_date": days_ago(2), "owner": "Airflow"},
     schedule_interval=None,
+    tags=['example']
 )
 
 

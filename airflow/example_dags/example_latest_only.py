@@ -30,6 +30,7 @@ dag = DAG(
     dag_id='latest_only',
     schedule_interval=dt.timedelta(hours=4),
     start_date=days_ago(2),
+    tags=['example']
 )
 
 latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
