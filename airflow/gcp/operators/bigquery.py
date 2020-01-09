@@ -942,11 +942,9 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
         source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
                        for source_object in self.source_objects]
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
 
         try:
-            cursor.create_external_table(
+            bq_hook.create_external_table(
                 external_project_dataset_table=self.destination_project_dataset_table,
                 schema_fields=schema_fields,
                 source_uris=source_uris,

@@ -233,8 +233,7 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
             r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]"
         ):
             bq_hook = hook.BigQueryHook()
-            cursor = bq_hook.get_cursor()
-            cursor.create_external_table(
+            bq_hook.create_external_table(
                 external_project_dataset_table='test.test',
                 schema_fields='test_schema.json',
                 source_uris=['test_data.json'],
@@ -2315,9 +2314,8 @@ class TestBigQueryWithKMS(unittest.TestCase):
         mock_service = mock_get_service.return_value
         method = mock_service.tables.return_value.insert
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
 
-        cursor.create_external_table(
+        bq_hook.create_external_table(
             external_project_dataset_table=external_project_dataset_table,
             source_uris=source_uris,
             source_format=source_format,
@@ -2477,6 +2475,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("create_empty_dataset",),
         ("get_dataset_tables",),
         ("delete_dataset",),
+        ("create_external_table",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

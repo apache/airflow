@@ -119,8 +119,6 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .create_external_table \
             .assert_called_once_with(
                 external_project_dataset_table='{}.{}'.format(
