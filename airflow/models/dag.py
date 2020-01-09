@@ -32,7 +32,8 @@ import jinja2
 import pendulum
 from croniter import croniter
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import Boolean, Column, Index, Integer, String, Text, func, or_
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, func, or_
+from sqlalchemy.orm import backref, relationship
 
 from airflow import settings, utils
 from airflow.configuration import conf
@@ -181,6 +182,8 @@ class DAG(BaseDag, LoggingMixin):
         <https://jinja.palletsprojects.com/en/master/api/#jinja2.Environment>`_
 
     :type jinja_environment_kwargs: dict
+    :param tags: List of tags to help filtering DAGS in the UI.
+    :type tags: List[str]
     """
     _comps = {
         'dag_id',
@@ -221,7 +224,8 @@ class DAG(BaseDag, LoggingMixin):
         params: Optional[Dict] = None,
         access_control: Optional[Dict] = None,
         is_paused_upon_creation: Optional[bool] = None,
-        jinja_environment_kwargs: Optional[Dict] = None
+        jinja_environment_kwargs: Optional[Dict] = None,
+        tags: Optional[List[str]] = None
     ):
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -310,6 +314,7 @@ class DAG(BaseDag, LoggingMixin):
         self.is_paused_upon_creation = is_paused_upon_creation
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
+        self.tags = tags
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -1366,6 +1371,7 @@ class DAG(BaseDag, LoggingMixin):
             if self.is_paused_upon_creation is not None:
                 orm_dag.is_paused = self.is_paused_upon_creation
             self.log.info("Creating ORM DAG for %s", self.dag_id)
+            session.add(orm_dag)
         if self.is_subdag:
             orm_dag.is_subdag = True
             orm_dag.fileloc = self.parent_dag.fileloc
@@ -1379,7 +1385,8 @@ class DAG(BaseDag, LoggingMixin):
         orm_dag.default_view = self._default_view
         orm_dag.description = self.description
         orm_dag.schedule_interval = self.schedule_interval
-        session.merge(orm_dag)
+        orm_dag.tags = self.get_dagtags(session=session)
+
         session.commit()
 
         for subdag in self.subdags:
@@ -1394,6 +1401,28 @@ class DAG(BaseDag, LoggingMixin):
                 min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                 session=session
             )
+
+    @provide_session
+    def get_dagtags(self, session=None):
+        """
+        Creating a list of DagTags, if one is missing from the DB, will insert.
+
+        :return: The DagTag list.
+        :rtype: list
+        """
+        tags = []
+        if not self.tags:
+            return tags
+
+        for name in set(self.tags):
+            tag = session.query(
+                DagTag).filter(DagTag.name == name).filter(DagTag.dag_id == self.dag_id).first()
+            if not tag:
+                tag = DagTag(name=name, dag_id=self.dag_id)
+                session.add(tag)
+            tags.append(tag)
+        session.commit()
+        return tags
 
     @staticmethod
     @provide_session
@@ -1529,6 +1558,15 @@ class DAG(BaseDag, LoggingMixin):
         return cls.__serialized_fields
 
 
+class DagTag(Base):
+    """
+    A tag name per dag, to allow quick filtering in the DAG view.
+    """
+    __tablename__ = "dag_tag"
+    name = Column(String(100), primary_key=True)
+    dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id'), primary_key=True)
+
+
 class DagModel(Base):
 
     __tablename__ = "dag"
@@ -1571,6 +1609,8 @@ class DagModel(Base):
     default_view = Column(String(25))
     # Schedule interval
     schedule_interval = Column(Interval)
+    # Tags for view filter
+    tags = relationship('DagTag', cascade='all,delete-orphan', backref=backref('dag'))
 
     __table_args__ = (
         Index('idx_root_dag_id', root_dag_id, unique=False),

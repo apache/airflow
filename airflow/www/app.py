@@ -20,12 +20,13 @@
 import datetime
 import logging
 import socket
+from datetime import timedelta
 from typing import Any, Optional
 from urllib.parse import urlparse
 
 import flask
 import flask_login
-from flask import Flask
+from flask import Flask, session as flask_session
 from flask_appbuilder import SQLA, AppBuilder
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
@@ -59,6 +60,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             x_prefix=conf.getint("webserver", "PROXY_FIX_X_PREFIX", fallback=1)
         )
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
+
+    session_lifetime_days = conf.getint('webserver', 'SESSION_LIFETIME_DAYS', fallback=30)
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=session_lifetime_days)
 
     app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     app.config['APP_NAME'] = app_name
@@ -256,6 +260,10 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         @app.teardown_appcontext
         def shutdown_session(exception=None):  # pylint: disable=unused-variable
             settings.Session.remove()
+
+        @app.before_request
+        def make_session_permanent():
+            flask_session.permanent = True
 
     return app, appbuilder
 

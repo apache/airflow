@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,17 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Used for unit tests"""
-from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
-from airflow.utils.dates import days_ago
 
-dag = DAG(dag_id='test_utils', schedule_interval=None, tags=['example'])
+"""Add DagTags table
 
-task = BashOperator(
-    task_id='sleeps_forever',
-    dag=dag,
-    bash_command="sleep 10000000000",
-    start_date=days_ago(2),
-    owner='airflow',
-)
+Revision ID: 7939bcff74ba
+Revises: fe461863935f
+Create Date: 2020-01-07 19:39:01.247442
+
+"""
+
+import sqlalchemy as sa
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = '7939bcff74ba'
+down_revision = 'fe461863935f'
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    """Apply Add DagTags table"""
+    op.create_table(
+        'dag_tag',
+        sa.Column('name', sa.String(length=100), nullable=False),
+        sa.Column('dag_id', sa.String(length=250), nullable=False),
+        sa.ForeignKeyConstraint(['dag_id'], ['dag.dag_id'], ),
+        sa.PrimaryKeyConstraint('name', 'dag_id')
+    )
+
+
+def downgrade():
+    """Unapply Add DagTags table"""
+    op.drop_table('dag_tag')

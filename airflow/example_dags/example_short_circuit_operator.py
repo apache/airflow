@@ -29,7 +29,7 @@ args = {
     'start_date': dates.days_ago(2),
 }
 
-dag = DAG(dag_id='example_short_circuit_operator', default_args=args)
+dag = DAG(dag_id='example_short_circuit_operator', default_args=args, tags=['example'])
 
 cond_true = ShortCircuitOperator(
     task_id='condition_is_True',

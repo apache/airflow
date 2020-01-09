@@ -34,7 +34,8 @@ import lazy_object_proxy
 import markdown
 import sqlalchemy as sqla
 from flask import (
-    Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request, url_for,
+    Markup, Response, escape, flash, jsonify, make_response, redirect, render_template, request,
+    session as flask_session, url_for,
 )
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
@@ -43,6 +44,7 @@ from flask_babel import lazy_gettext
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import and_, desc, or_, union_all
+from sqlalchemy.orm import joinedload
 from wtforms import SelectField, validators
 
 import airflow
@@ -53,7 +55,7 @@ from airflow.api.common.experimental.mark_tasks import (
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.models import Connection, DagModel, DagRun, Log, SlaMiss, TaskFail, XCom, errors
+from airflow.models import Connection, DagModel, DagRun, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
@@ -70,6 +72,7 @@ from airflow.www.forms import (
 from airflow.www.widgets import AirflowModelListWidget
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
+FILTER_TAGS_COOKIE = 'tags_filter'
 
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER, store_serialized_dags=STORE_SERIALIZED_DAGS)
@@ -225,6 +228,17 @@ class Airflow(AirflowBaseView):
 
         arg_current_page = request.args.get('page', '0')
         arg_search_query = request.args.get('search', None)
+        arg_tags_filter = request.args.getlist('tags', None)
+
+        if request.args.get('reset_tags') is not None:
+            flask_session[FILTER_TAGS_COOKIE] = None
+            arg_tags_filter = None
+        else:
+            cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+            if arg_tags_filter:
+                flask_session[FILTER_TAGS_COOKIE] = ','.join(arg_tags_filter)
+            elif cookie_val:
+                arg_tags_filter = cookie_val.split(',')
 
         dags_per_page = PAGE_SIZE
         current_page = get_int_arg(arg_current_page, default=0)
@@ -258,10 +272,21 @@ class Airflow(AirflowBaseView):
                     DagModel.owners.ilike('%' + arg_search_query + '%')
                 )
 
+            if arg_tags_filter:
+                dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
+
             if 'all_dags' not in filter_dag_ids:
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
-            dags = dags_query.order_by(DagModel.dag_id).offset(start).limit(dags_per_page).all()
+            dags = dags_query.order_by(DagModel.dag_id).options(
+                joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
+            tags = []
+
+            dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
+            tags = [
+                {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
+                for name, in dagtags
+            ]
 
             import_errors = session.query(errors.ImportError).all()
 
@@ -301,7 +326,8 @@ class Airflow(AirflowBaseView):
                                            search=escape(arg_search_query) if arg_search_query else None,
                                            showPaused=not hide_paused),
             auto_complete_data=auto_complete_data,
-            num_runs=num_runs)
+            num_runs=num_runs,
+            tags=tags)
 
     @expose('/dag_stats')
     @has_access

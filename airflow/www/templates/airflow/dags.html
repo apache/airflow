@@ -32,10 +32,21 @@
 
   <div id="main_content">
     <div class="row">
-      <div class="col-sm-2">
+      <div class="col-sm-4">
+          <form id="filter_form" class="form-inline" style="width: 100%; text-align: left;">
+              <div id="dags_filter" class="form-group" style="width: 100%;">
+                  <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 60%;">
+                    {% for tag in tags %}
+                      <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="submit" value="Filter tags" class="btn btn-default">
+                  <input type="submit" value="Reset" class="btn btn-default" name="reset_tags">
+              </div>
+          </form>
       </div>
-      <div class="col-sm-10">
-        <form id="search_form" class="form-inline" style="width: 100%; text-align: right;">
+      <div class="col-sm-8">
+        <form id="search_form" class="form-inline" style="width: 100%; text-align: right; float: right;">
             <div id="dags_filter" class="form-group" style="width: 100%;">
               <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
               <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}" autocomplete="off">
@@ -81,9 +92,17 @@
 
                 <!-- Column 3: Name -->
                 <td>
-                    <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description }}">
-                        {{ dag.dag_id }}
-                    </a>
+                    <span>
+                      <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description }}">
+                          {{ dag.dag_id }}
+                      </a>
+                    </span>
+
+                    <div style="float: right; max-width: 70%; text-align: right; line-height: 160%;">
+                    {% for tag in dag.tags %}
+                      <span class="label label-success" style="margin: 3px;">{{ tag.name }}</span>
+                    {% endfor %}
+                    </div>
                 </td>
 
                 <!-- Column 4: Dag Schedule -->
@@ -216,6 +235,11 @@
 
       const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
       const ENTER_KEY_CODE = 13;
+
+      $('#tags_filter').select2({
+        placeholder: "Filter dags",
+        allowClear: true
+      });
 
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
