@@ -280,7 +280,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 write_disposition='WRITE_EMPTY'
             )
 
-    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.poll_job_complete", side_effect=[False, True])
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete", side_effect=[False, True])
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
@@ -877,9 +877,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
         hook_params = {"location": location} if location else {}
         bq_hook = hook.BigQueryHook(**hook_params)
-        cursor = bq_hook.get_cursor()
 
-        result = cursor.poll_job_complete(JOB_ID)
+        result = bq_hook.poll_job_complete(JOB_ID)
         self.assertEqual(expected_result, result)
         method_get.assert_called_once_with(projectId=PROJECT_ID, jobId=JOB_ID, **hook_params)
         assert method_jobs.call_count == 1
@@ -899,16 +898,15 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method_execute.side_effect = HttpError(resp=resp, content=b'Not Found')
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         with self.assertRaisesRegex(AirflowException, "HttpError 404 \"Not Found\""):
-            cursor.poll_job_complete(JOB_ID)
+            bq_hook.poll_job_complete(JOB_ID)
 
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
-    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.poll_job_complete")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete")
     @mock.patch("logging.Logger.info")
     def test_cancel_query_np_jobs_to_cancel(
         self, mock_logger_info, poll_job_complete, mock_get_service, mock_get_creds_and_proj_id
@@ -929,7 +927,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
-    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.poll_job_complete")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete")
     @mock.patch("time.sleep")
     @mock.patch("logging.Logger.info")
     def test_cancel_query_np_cancel_timeout(
@@ -957,7 +955,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         return_value=(CREDENTIALS, PROJECT_ID)
     )
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
-    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryBaseCursor.poll_job_complete")
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete")
     @mock.patch("time.sleep")
     @mock.patch("logging.Logger.info")
     def test_cancel_query_np_cancel_completed(
@@ -2466,6 +2464,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("run_table_delete",),
         ("get_tabledata",),
         ("get_schema",),
+        ("poll_job_complete",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

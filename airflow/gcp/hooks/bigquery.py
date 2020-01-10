@@ -1232,6 +1232,36 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         )
         return tables_resource['schema']
 
+    @CloudBaseHook.catch_http_exception
+    def poll_job_complete(self, job_id: str) -> bool:
+        """
+        Check if jobs completed.
+
+        :param job_id: id of the job.
+        :type job_id: str
+        :rtype: bool
+        """
+        service = self.get_service()
+        jobs = service.jobs()  # pylint: disable=no-member
+        try:
+            if self.location:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id,
+                               location=self.location).execute(num_retries=self.num_retries)
+            else:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id).execute(num_retries=self.num_retries)
+            if job['status']['state'] == 'DONE':
+                return True
+        except HttpError as err:
+            if err.resp.status in [500, 503]:
+                self.log.info(
+                    '%s: Retryable error while polling job with id %s',
+                    err.resp.status, job_id)
+            else:
+                raise err
+        return False
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1496,6 +1526,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.get_schema`",
             DeprecationWarning, stacklevel=3)
         return self.hook.get_schema(*args, **kwargs)
+
+    def poll_job_complete(self, *args, **kwargs) -> bool:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.poll_job_complete(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2189,35 +2230,6 @@ class BigQueryBaseCursor(LoggingMixin):
                           self.project_id, self.running_job_id)
             time.sleep(5)
         return keep_polling_job
-
-    @CloudBaseHook.catch_http_exception
-    def poll_job_complete(self, job_id: str) -> bool:
-        """
-        Check if jobs completed.
-
-        :param job_id: id of the job.
-        :type job_id: str
-        :rtype: bool
-        """
-        jobs = self.service.jobs()
-        try:
-            if self.location:
-                job = jobs.get(projectId=self.project_id,
-                               jobId=job_id,
-                               location=self.location).execute(num_retries=self.num_retries)
-            else:
-                job = jobs.get(projectId=self.project_id,
-                               jobId=job_id).execute(num_retries=self.num_retries)
-            if job['status']['state'] == 'DONE':
-                return True
-        except HttpError as err:
-            if err.resp.status in [500, 503]:
-                self.log.info(
-                    '%s: Retryable error while polling job with id %s',
-                    err.resp.status, job_id)
-            else:
-                raise err
-        return False
 
     @CloudBaseHook.catch_http_exception
     def cancel_query(self) -> None:
