@@ -44,7 +44,6 @@ class MockExecutor(BaseExecutor):
 
         super().__init__(*args, **kwargs)
 
-
     def success(self):
         return State.SUCCESS
 
