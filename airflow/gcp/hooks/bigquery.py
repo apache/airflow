@@ -66,6 +66,7 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
         self.location = location
+        self.running_job_id = None  # type: Optional[str]
 
     def get_conn(self) -> "BigQueryConnection":
         """
@@ -1262,6 +1263,51 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                 raise err
         return False
 
+    @CloudBaseHook.catch_http_exception
+    def cancel_query(self) -> None:
+        """
+        Cancel all started queries that have not yet completed
+        """
+        service = self.get_service()
+        jobs = service.jobs()  # pylint: disable=no-member
+        if (self.running_job_id and
+                not self.poll_job_complete(self.running_job_id)):
+            self.log.info('Attempting to cancel job : %s, %s', self.project_id,
+                          self.running_job_id)
+            if self.location:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id,
+                    location=self.location).execute(num_retries=self.num_retries)
+            else:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id).execute(num_retries=self.num_retries)
+        else:
+            self.log.info('No running BigQuery jobs to cancel.')
+            return
+
+        # Wait for all the calls to cancel to finish
+        max_polling_attempts = 12
+        polling_attempts = 0
+
+        job_complete = False
+        while polling_attempts < max_polling_attempts and not job_complete:
+            polling_attempts = polling_attempts + 1
+            job_complete = self.poll_job_complete(self.running_job_id)
+            if job_complete:
+                self.log.info('Job successfully canceled: %s, %s',
+                              self.project_id, self.running_job_id)
+            elif polling_attempts == max_polling_attempts:
+                self.log.info(
+                    "Stopping polling due to timeout. Job with id %s "
+                    "has not completed cancel and may or may not finish.",
+                    self.running_job_id)
+            else:
+                self.log.info('Waiting for canceled job with id %s to finish.',
+                              self.running_job_id)
+                time.sleep(5)
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1537,6 +1583,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete`",
             DeprecationWarning, stacklevel=3)
         return self.hook.poll_job_complete(*args, **kwargs)
+
+    def cancel_query(self, *args, **kwargs) -> None:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.cancel_query`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.cancel_query`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.cancel_query(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2230,50 +2287,6 @@ class BigQueryBaseCursor(LoggingMixin):
                           self.project_id, self.running_job_id)
             time.sleep(5)
         return keep_polling_job
-
-    @CloudBaseHook.catch_http_exception
-    def cancel_query(self) -> None:
-        """
-        Cancel all started queries that have not yet completed
-        """
-        jobs = self.service.jobs()
-        if (self.running_job_id and
-                not self.poll_job_complete(self.running_job_id)):
-            self.log.info('Attempting to cancel job : %s, %s', self.project_id,
-                          self.running_job_id)
-            if self.location:
-                jobs.cancel(
-                    projectId=self.project_id,
-                    jobId=self.running_job_id,
-                    location=self.location).execute(num_retries=self.num_retries)
-            else:
-                jobs.cancel(
-                    projectId=self.project_id,
-                    jobId=self.running_job_id).execute(num_retries=self.num_retries)
-        else:
-            self.log.info('No running BigQuery jobs to cancel.')
-            return
-
-        # Wait for all the calls to cancel to finish
-        max_polling_attempts = 12
-        polling_attempts = 0
-
-        job_complete = False
-        while polling_attempts < max_polling_attempts and not job_complete:
-            polling_attempts = polling_attempts + 1
-            job_complete = self.poll_job_complete(self.running_job_id)
-            if job_complete:
-                self.log.info('Job successfully canceled: %s, %s',
-                              self.project_id, self.running_job_id)
-            elif polling_attempts == max_polling_attempts:
-                self.log.info(
-                    "Stopping polling due to timeout. Job with id %s "
-                    "has not completed cancel and may or may not finish.",
-                    self.running_job_id)
-            else:
-                self.log.info('Waiting for canceled job with id %s to finish.',
-                              self.running_job_id)
-                time.sleep(5)
 
 
 class BigQueryCursor(BigQueryBaseCursor):

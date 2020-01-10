@@ -290,9 +290,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         running_job_id = 3
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.running_job_id = running_job_id
-        cursor.cancel_query()
+        bq_hook.running_job_id = running_job_id
+        bq_hook.cancel_query()
 
         mock_poll_job_complete.has_calls(mock.call(running_job_id), mock.call(running_job_id))
         mock_get_service.return_value.jobs.return_value.cancel.assert_called_once_with(
@@ -915,9 +914,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         poll_job_complete.return_value = True
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.running_job_id = JOB_ID
-        cursor.cancel_query()
+        bq_hook.running_job_id = JOB_ID
+        bq_hook.cancel_query()
         assert method_jobs.call_count == 1
         assert poll_job_complete.call_count == 1
         mock_logger_info.has_call(mock.call("No running BigQuery jobs to cancel."))
@@ -938,9 +936,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         poll_job_complete.side_effect = [False] * 13
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.running_job_id = JOB_ID
-        cursor.cancel_query()
+        bq_hook.running_job_id = JOB_ID
+        bq_hook.cancel_query()
         assert method_jobs.call_count == 1
         assert method_jobs_cancel.call_count == 1
         assert poll_job_complete.call_count == 13
@@ -966,9 +963,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         poll_job_complete.side_effect = [False] * 12 + [True]
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.running_job_id = JOB_ID
-        cursor.cancel_query()
+        bq_hook.running_job_id = JOB_ID
+        bq_hook.cancel_query()
         assert method_jobs.call_count == 1
         assert method_jobs_cancel.call_count == 1
         assert poll_job_complete.call_count == 13
@@ -2465,6 +2461,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("get_tabledata",),
         ("get_schema",),
         ("poll_job_complete",),
+        ("cancel_query",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

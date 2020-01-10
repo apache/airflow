@@ -530,17 +530,18 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         self.cluster_fields = cluster_fields
         self.location = location
         self.encryption_configuration = encryption_configuration
+        self.hook = None  # type: Optional[BigQueryHook]
 
     def execute(self, context):
         if self.bq_cursor is None:
             self.log.info('Executing: %s', self.sql)
-            hook = BigQueryHook(
+            self.hook = BigQueryHook(
                 bigquery_conn_id=self.gcp_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
                 delegate_to=self.delegate_to,
                 location=self.location,
             )
-            conn = hook.get_conn()
+            conn = self.hook.get_conn()
             self.bq_cursor = conn.cursor()
         if isinstance(self.sql, str):
             job_id = self.bq_cursor.run_query(
@@ -593,7 +594,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         super().on_kill()
         if self.bq_cursor is not None:
             self.log.info('Cancelling running query')
-            self.bq_cursor.cancel_query()
+            self.hook.cancel_query()
 
     @classmethod
     def get_serialized_fields(cls):
