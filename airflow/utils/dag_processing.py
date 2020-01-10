@@ -622,13 +622,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         )
 
         # In sync mode we want timeout=None -- wait forever until a message is received
-        poll_time = None  # type: Optional[float]
         if self._async_mode:
             poll_time = 0.0
-            self.log.debug("Starting DagFileProcessorManager in async mode")
         else:
             poll_time = None
-            self.log.debug("Starting DagFileProcessorManager in sync mode")
 
         # Used to track how long it takes us to get once around every file in the DAG folder.
         self._parsing_start_time = timezone.utcnow()
@@ -638,7 +635,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             # pylint: disable=no-else-break
             if self._signal_conn.poll(poll_time):
                 agent_signal = self._signal_conn.recv()
-                self.log.debug("Recived %s singal from DagFileProcessorAgent", agent_signal)
+                self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                 if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
                     self.terminate()
                     break
@@ -729,7 +726,9 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         Occasionally print out stats about how fast the files are getting processed
         """
-        if (timezone.utcnow() - self.last_stat_print_time).total_seconds() > self.print_stats_interval:
+        if self.print_stats_interval > 0 and (
+                timezone.utcnow() -
+                self.last_stat_print_time).total_seconds() > self.print_stats_interval:
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = timezone.utcnow()
