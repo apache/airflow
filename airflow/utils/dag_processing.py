@@ -292,6 +292,7 @@ class DagFileProcessorAgent(LoggingMixin):
                  max_runs,
                  processor_factory,
                  processor_timeout,
+                 pickle_dags,
                  async_mode):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
@@ -307,6 +308,8 @@ class DagFileProcessorAgent(LoggingMixin):
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessorProcess)
         :param processor_timeout: How long to wait before timing out a DAG file processor
         :type processor_timeout: timedelta
+        :param pickle_dags: whether to pickle DAGs.
+        :type: pickle_dags: bool
         :param async_mode: Whether to start agent in async mode
         :type async_mode: bool
         """
@@ -316,6 +319,7 @@ class DagFileProcessorAgent(LoggingMixin):
         self._max_runs = max_runs
         self._processor_factory = processor_factory
         self._processor_timeout = processor_timeout
+        self._pickle_dags = pickle_dags
         self._async_mode = async_mode
         # Map from file path to the processor
         self._processors = {}
@@ -342,6 +346,7 @@ class DagFileProcessorAgent(LoggingMixin):
                 self._processor_factory,
                 self._processor_timeout,
                 child_signal_conn,
+                self._pickle_dags,
                 self._async_mode,
             )
         )
@@ -388,6 +393,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                processor_factory,
                                processor_timeout,
                                signal_conn,
+                               pickle_dags,
                                async_mode):
 
         # Make this process start as a new process group - that makes it easy
@@ -414,6 +420,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                                     processor_factory,
                                                     processor_timeout,
                                                     signal_conn,
+                                                    pickle_dags,
                                                     async_mode)
 
         processor_manager.start()
@@ -527,6 +534,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
     :type processor_timeout: timedelta
     :param signal_conn: connection to communicate signal with processor agent.
     :type signal_conn: airflow.models.connection.Connection
+    :param pickle_dags: whether to pickle DAGs.
+    :type pickle_dags: bool
     :param async_mode: whether to start the manager in async mode
     :type async_mode: bool
     """
@@ -538,6 +547,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                  processor_factory: Callable[[str, List[Any]], AbstractDagFileProcessorProcess],
                  processor_timeout: timedelta,
                  signal_conn: Connection,
+                 pickle_dags: bool,
                  async_mode: bool = True):
         self._file_paths = file_paths
         self._file_path_queue: List[str] = []
@@ -545,6 +555,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._max_runs = max_runs
         self._processor_factory = processor_factory
         self._signal_conn = signal_conn
+        self._pickle_dags = pickle_dags,
         self._async_mode = async_mode
         self._parsing_start_time: Optional[datetime] = None
 
@@ -1054,7 +1065,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # Start more processors if we have enough slots and files to process
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
-            processor = self._processor_factory(file_path, self._zombies)
+            processor = self._processor_factory(file_path, self._zombies, self._pickle_dags)
             Stats.incr('dag_processing.processes')
 
             processor.start()

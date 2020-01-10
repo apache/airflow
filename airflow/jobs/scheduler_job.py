@@ -1458,6 +1458,14 @@ class SchedulerJob(BaseJob):
                         session.merge(ti)
                         session.commit()
 
+    def processor_factory(self, file_path, zombies, pickle_dags):
+        return DagFileProcessorProcess(
+            file_path=file_path,
+            pickle_dags=pickle_dags,
+            dag_id_white_list=self.dag_ids,
+            zombies=zombies
+        )
+
     def _execute(self):
         self.log.info("Starting the scheduler")
 
@@ -1473,14 +1481,6 @@ class SchedulerJob(BaseJob):
         known_file_paths = list_py_file_paths(self.subdir)
         self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
 
-        def processor_factory(file_path, zombies):
-            return DagFileProcessorProcess(
-                file_path=file_path,
-                pickle_dags=pickle_dags,
-                dag_id_white_list=self.dag_ids,
-                zombies=zombies
-            )
-
         # When using sqlite, we do not use async_mode
         # so the scheduler job and DAG parser don't access the DB at the same time.
         async_mode = not self.using_sqlite
@@ -1490,8 +1490,9 @@ class SchedulerJob(BaseJob):
         self.processor_agent = DagFileProcessorAgent(self.subdir,
                                                      known_file_paths,
                                                      self.num_runs,
-                                                     processor_factory,
+                                                     self.processor_factory,
                                                      processor_timeout,
+                                                     pickle_dags,
                                                      async_mode)
 
         try:
