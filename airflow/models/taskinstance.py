@@ -1214,7 +1214,7 @@ class TaskInstance(Base, LoggingMixin):
             # only mark task instance as FAILED if the next task instance
             # try_number exceeds the max_tries.
             if self.is_eligible_to_retry():
-                if force_fail is not True:
+                if not force_fail:
                     self.state = State.UP_FOR_RETRY
                     self.log.info('Marking task as UP_FOR_RETRY')
                     if task.email_on_retry and task.email:
