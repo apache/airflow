@@ -1124,7 +1124,7 @@ and is expected to alter its attributes.
 For example, this function could apply a specific queue property when
 using a specific operator, or enforce a task timeout policy, making sure
 that no tasks run for more than 48 hours. Here's an example of what this
-may look like inside your ``airflow_settings.py``:
+may look like inside your ``airflow_local_settings.py``:
 
 
 .. code:: python
