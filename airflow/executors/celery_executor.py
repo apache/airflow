@@ -41,6 +41,8 @@ CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
 
 CELERY_SEND_ERR_MSG_HEADER = 'Error sending Celery task'
 
+OPERATION_TIMEOUT = conf.getint('celery', 'operation_timeout', fallback=2)
+
 '''
 To start the celery worker, run the command:
 airflow celery worker
@@ -102,7 +104,7 @@ def fetch_celery_task_state(celery_task: Tuple[TaskInstanceKeyType, AsyncResult]
     """
 
     try:
-        with timeout(seconds=2):
+        with timeout(seconds=OPERATION_TIMEOUT):
             # Accessing state property of celery task will make actual network request
             # to get the current state of the task.
             return celery_task[0], celery_task[1].state
@@ -122,7 +124,7 @@ def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
     """Sends task to executor."""
     key, _, command, queue, task_to_run = task_tuple
     try:
-        with timeout(seconds=2):
+        with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=[command], queue=queue)
     except Exception as e:  # pylint: disable=broad-except
         exception_traceback = "Celery Task ID: {}\n{}".format(key, traceback.format_exc())
