@@ -1614,6 +1614,95 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return self.run_with_configuration(configuration)
 
+    def run_copy(self,  # pylint: disable=invalid-name
+                 source_project_dataset_tables: Union[List, str],
+                 destination_project_dataset_table: str,
+                 write_disposition: str = 'WRITE_EMPTY',
+                 create_disposition: str = 'CREATE_IF_NEEDED',
+                 labels: Optional[Dict] = None,
+                 encryption_configuration: Optional[Dict] = None) -> str:
+        """
+        Executes a BigQuery copy command to copy data from one BigQuery table
+        to another. See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
+
+        For more details about these parameters.
+
+        :param source_project_dataset_tables: One or more dotted
+            ``(project:|project.)<dataset>.<table>``
+            BigQuery tables to use as the source data. Use a list if there are
+            multiple source tables.
+            If ``<project>`` is not included, project will be the project defined
+            in the connection json.
+        :type source_project_dataset_tables: list|string
+        :param destination_project_dataset_table: The destination BigQuery
+            table. Format is: ``(project:|project.)<dataset>.<table>``
+        :type destination_project_dataset_table: str
+        :param write_disposition: The write disposition if the table already exists.
+        :type write_disposition: str
+        :param create_disposition: The create disposition if the table doesn't exist.
+        :type create_disposition: str
+        :param labels: a dictionary containing labels for the job/query,
+            passed to BigQuery
+        :type labels: dict
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
+        """
+        if not self.project_id:
+            raise ValueError("The project_id should be set")
+
+        source_project_dataset_tables = ([
+            source_project_dataset_tables
+        ] if not isinstance(source_project_dataset_tables, list) else
+            source_project_dataset_tables)
+
+        source_project_dataset_tables_fixup = []
+        for source_project_dataset_table in source_project_dataset_tables:
+            source_project, source_dataset, source_table = \
+                _split_tablename(table_input=source_project_dataset_table,
+                                 default_project_id=self.project_id,
+                                 var_name='source_project_dataset_table')
+            source_project_dataset_tables_fixup.append({
+                'projectId':
+                source_project,
+                'datasetId':
+                source_dataset,
+                'tableId':
+                source_table
+            })
+
+        destination_project, destination_dataset, destination_table = \
+            _split_tablename(table_input=destination_project_dataset_table,
+                             default_project_id=self.project_id)
+        configuration = {
+            'copy': {
+                'createDisposition': create_disposition,
+                'writeDisposition': write_disposition,
+                'sourceTables': source_project_dataset_tables_fixup,
+                'destinationTable': {
+                    'projectId': destination_project,
+                    'datasetId': destination_dataset,
+                    'tableId': destination_table
+                }
+            }
+        }
+
+        if labels:
+            configuration['labels'] = labels
+
+        if encryption_configuration:
+            configuration["copy"][
+                "destinationEncryptionConfiguration"
+            ] = encryption_configuration
+
+        return self.run_with_configuration(configuration)
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1923,6 +2012,17 @@ class BigQueryBaseCursor(LoggingMixin):
             DeprecationWarning, stacklevel=3)
         return self.hook.run_load(*args, **kwargs)
 
+    def run_copy(self, *args, **kwargs) -> str:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_copy`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_copy`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.run_copy(*args, **kwargs)
+
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
                   sql: str,
@@ -2225,92 +2325,6 @@ class BigQueryBaseCursor(LoggingMixin):
             # formats.
             configuration['extract']['fieldDelimiter'] = field_delimiter
             configuration['extract']['printHeader'] = print_header
-
-        return self.run_with_configuration(configuration)
-
-    def run_copy(self,  # pylint: disable=invalid-name
-                 source_project_dataset_tables: Union[List, str],
-                 destination_project_dataset_table: str,
-                 write_disposition: str = 'WRITE_EMPTY',
-                 create_disposition: str = 'CREATE_IF_NEEDED',
-                 labels: Optional[Dict] = None,
-                 encryption_configuration: Optional[Dict] = None) -> str:
-        """
-        Executes a BigQuery copy command to copy data from one BigQuery table
-        to another. See here:
-
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
-
-        For more details about these parameters.
-
-        :param source_project_dataset_tables: One or more dotted
-            ``(project:|project.)<dataset>.<table>``
-            BigQuery tables to use as the source data. Use a list if there are
-            multiple source tables.
-            If ``<project>`` is not included, project will be the project defined
-            in the connection json.
-        :type source_project_dataset_tables: list|string
-        :param destination_project_dataset_table: The destination BigQuery
-            table. Format is: ``(project:|project.)<dataset>.<table>``
-        :type destination_project_dataset_table: str
-        :param write_disposition: The write disposition if the table already exists.
-        :type write_disposition: str
-        :param create_disposition: The create disposition if the table doesn't exist.
-        :type create_disposition: str
-        :param labels: a dictionary containing labels for the job/query,
-            passed to BigQuery
-        :type labels: dict
-        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-            **Example**: ::
-
-                encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
-                }
-        :type encryption_configuration: dict
-        """
-        source_project_dataset_tables = ([
-            source_project_dataset_tables
-        ] if not isinstance(source_project_dataset_tables, list) else
-            source_project_dataset_tables)
-
-        source_project_dataset_tables_fixup = []
-        for source_project_dataset_table in source_project_dataset_tables:
-            source_project, source_dataset, source_table = \
-                _split_tablename(table_input=source_project_dataset_table,
-                                 default_project_id=self.project_id,
-                                 var_name='source_project_dataset_table')
-            source_project_dataset_tables_fixup.append({
-                'projectId':
-                source_project,
-                'datasetId':
-                source_dataset,
-                'tableId':
-                source_table
-            })
-
-        destination_project, destination_dataset, destination_table = \
-            _split_tablename(table_input=destination_project_dataset_table,
-                             default_project_id=self.project_id)
-        configuration = {
-            'copy': {
-                'createDisposition': create_disposition,
-                'writeDisposition': write_disposition,
-                'sourceTables': source_project_dataset_tables_fixup,
-                'destinationTable': {
-                    'projectId': destination_project,
-                    'datasetId': destination_dataset,
-                    'tableId': destination_table
-                }
-            }
-        }
-
-        if labels:
-            configuration['labels'] = labels
-
-        if encryption_configuration:
-            configuration["copy"][
-                "destinationEncryptionConfiguration"
-            ] = encryption_configuration
 
         return self.run_with_configuration(configuration)
 

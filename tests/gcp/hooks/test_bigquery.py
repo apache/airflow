@@ -2393,8 +2393,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_copy(
+        bq_hook.run_copy(
             source_project_dataset_tables='p.d.st',
             destination_project_dataset_table='p.d.dt',
             encryption_configuration=encryption_configuration
@@ -2453,6 +2452,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("cancel_query",),
         ("run_with_configuration",),
         ("run_load",),
+        ("run_copy",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):
