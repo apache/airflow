@@ -347,7 +347,7 @@ class AirflowConfigParser(ConfigParser):
                 section not in self.airflow_defaults._sections):
             return None
 
-        _section = copy.deepcopy(self.airflow_defaults._sections[section])
+        _section = copy.deepcopy(self.airflow_defaults._sections.get(section, {}))
 
         if section in self._sections:
             _section.update(copy.deepcopy(self._sections[section]))
@@ -553,7 +553,15 @@ def get_airflow_test_config(airflow_home):
     return expand_env_var(os.environ['AIRFLOW_TEST_CONFIG'])
 
 
+def resolve_actual_config():
+    """Returns path to airflow.cfg or unittests.cfg"""
+    if conf.getboolean('core', 'unit_test_mode'):
+        return TEST_CONFIG_FILE
+    return AIRFLOW_CONFIG
+
+
 TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
+
 
 # only generate a Fernet key if we need to create a new config file
 if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):
@@ -571,7 +579,7 @@ if not os.path.isfile(TEST_CONFIG_FILE):
     )
     with open(TEST_CONFIG_FILE, 'w') as file:
         cfg = parameterized_config(TEST_CONFIG)
-        file.write(cfg.split(TEMPLATE_START)[-1].strip())
+        file.write(cfg.split(TEMPLATE_START)[-1])
 if not os.path.isfile(AIRFLOW_CONFIG):
     log.info(
         'Creating new Airflow config file in: %s',
@@ -579,7 +587,7 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     )
     with open(AIRFLOW_CONFIG, 'w') as file:
         cfg = parameterized_config(DEFAULT_CONFIG)
-        cfg = cfg.split(TEMPLATE_START)[-1].strip()
+        cfg = cfg.split(TEMPLATE_START)[-1]
         file.write(cfg)
 
 log.info("Reading the config from %s", AIRFLOW_CONFIG)
@@ -619,6 +627,7 @@ if not os.path.isfile(WEBSERVER_CONFIG):
 if conf.getboolean('core', 'unit_test_mode'):
     conf.load_test_config()
 
+# TODO: delete one day
 # Historical convenience functions to access config entries
 
 load_test_config = conf.load_test_config

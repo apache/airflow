@@ -174,3 +174,38 @@ You will see a similar result as in the screenshot below.
 .. figure:: img/usage_cli_imgcat.png
 
     Preview of DAG in iTerm2
+
+
+Display Airflow config
+----------------------
+
+Airflow command line tool has a convenient methods to work with configuration.
+To display current configuration use:
+
+.. code-block:: bash
+
+    airflow config show
+
+To shorten the output to a single section:
+
+.. code-block:: bash
+
+    airflow config show core
+
+There is also a simple method to check where is the current config file:
+
+.. code-block:: bash
+
+    airflow config path
+
+Update Airflow config
+----------------------
+
+To update ``airflow.cfg`` from command line level use:
+
+.. code-block:: bash
+
+    airflow config set SECTION OPTION VALUE
+
+Beware that this will override the config file but if environment variable
+``AIRFLOW__SECTION__OPTION`` is set the changes will have no result.

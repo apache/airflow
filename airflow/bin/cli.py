@@ -130,6 +130,21 @@ class CLIFactory:
             choices=tabulate_formats,
             default="fancy_grid"),
 
+        # config
+        'section': Arg(
+            ("section",),
+            nargs="?",
+            type=str,
+            help="Section of the config"),
+        'option': Arg(
+            ("option",),
+            type=str,
+            help="Option in the given section"),
+        'value': Arg(
+            ("value",),
+            type=str,
+            help="Value for the option"),
+
         # list_dag_runs
         'no_backfill': Arg(
             ("--no_backfill",),
@@ -923,11 +938,36 @@ class CLIFactory:
             'args': ('roles',),
         },
     )
+    CONFIG_COMMANDS = (
+        {
+            'name': 'show',
+            'func': lazy_load_command('airflow.cli.commands.config_command.show_config'),
+            'help': 'Show current application configuration',
+            'args': ('section',),
+        },
+        {
+            'name': 'set',
+            'func': lazy_load_command('airflow.cli.commands.config_command.set_config_option'),
+            'help': 'Set an option in config: '
+                    'airflow config set --section=core.executor --value=LocalExecutor',
+            'args': ('section', 'option', 'value', 'cfg_path'),
+        },
+        {
+            'name': 'path',
+            'func': lazy_load_command('airflow.cli.commands.config_command.get_config_location'),
+            'help': 'Show path to airflow.cfg',
+            'args': (),
+        },
+    )
     subparsers = [
         {
             'help': 'List and manage DAGs',
             'name': 'dags',
             'subcommands': DAGS_SUBCOMMANDS,
+        }, {
+            'help': 'Config operations',
+            'name': 'config',
+            'subcommands': CONFIG_COMMANDS,
         }, {
             'help': 'List and manage tasks',
             'name': 'tasks',
@@ -995,12 +1035,6 @@ class CLIFactory:
             'help': 'Rotate all encrypted connection credentials and variables; see '
                     'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
                     '#rotating-encryption-keys',
-            'args': (),
-        },
-        {
-            'name': 'config',
-            'func': lazy_load_command('airflow.cli.commands.config_command.show_config'),
-            'help': 'Show current application configuration',
             'args': (),
         },
     ]

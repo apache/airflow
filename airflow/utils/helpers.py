@@ -72,7 +72,7 @@ def alchemy_to_dict(obj):
     return output
 
 
-def ask_yesno(question):
+def ask_yesno(question, assume=None):
     """
     Helper to get yes / no answer from user.
     """
@@ -87,6 +87,8 @@ def ask_yesno(question):
             return True
         elif choice in no:
             return False
+        elif not choice and assume:
+            return assume.lower() in yes
         else:
             print("Please respond by yes or no.")
 

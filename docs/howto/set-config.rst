@@ -76,4 +76,9 @@ The universal order of precedence for all configuration options is as follows:
 #. Airflow's built in defaults
 
 .. note::
+    Airflow command line tool has a convenient methods to work with configuration.
+    For more information on configuration options, see :doc:`../usage-cli`
+
+
+.. note::
     For more information on configuration options, see :doc:`../configurations-ref`
