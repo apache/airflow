@@ -359,6 +359,17 @@ persisted in the database.
 
   airflow/models/index
 
+.. _pythonapi:exceptions:
+
+Exceptions
+----------
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  airflow/exceptions/index
 
 Secrets Backends
 ----------------
