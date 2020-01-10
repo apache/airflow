@@ -1481,6 +1481,22 @@ class TestTaskInstance(unittest.TestCase):
         context_arg_2 = mock_on_retry_2.call_args[0][0]
         assert context_arg_2 and "task_instance" in context_arg_2
 
+        # test the scenario where normally we would retry but have been asked to fail
+        mock_on_failure_3 = mock.MagicMock()
+        mock_on_retry_3 = mock.MagicMock()
+        task3 = DummyOperator(task_id="test_handle_failure_on_force_fail",
+                              on_failure_callback=mock_on_failure_3,
+                              on_retry_callback=mock_on_retry_3,
+                              retries=1,
+                              dag=dag)
+        ti3 = TI(task=task3, execution_date=start_date)
+        ti3.state = State.FAILED
+        ti3.handle_failure("test force_fail handling", force_fail=True)
+
+        context_arg_3 = mock_on_failure_3.call_args[0][0]
+        assert context_arg_3 and "task_instance" in context_arg_3
+        mock_on_retry_3.assert_not_called()
+
     def _env_var_check_callback(self):
         self.assertEqual('test_echo_env_variables', os.environ['AIRFLOW_CTX_DAG_ID'])
         self.assertEqual('hive_in_python_op', os.environ['AIRFLOW_CTX_TASK_ID'])
