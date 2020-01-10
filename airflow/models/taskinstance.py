@@ -1067,6 +1067,11 @@ class TaskInstance(Base, LoggingMixin):
             self.refresh_from_db()
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
             return
+        except AirflowFailException as e:
+            self.refresh_from_db()
+            self.handle_failure(e, test_mode, context, force_fail=True)
+            raise
+
         except AirflowException as e:
             self.refresh_from_db()
             # for case when task is marked as success/failed externally
@@ -1177,7 +1182,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
-    def handle_failure(self, error, test_mode=None, context=None, session=None):
+    def handle_failure(self, error, test_mode=None, context=None, session=None, force_fail=False):
         if test_mode is None:
             test_mode = self.test_mode
         if context is None:
@@ -1205,10 +1210,33 @@ class TaskInstance(Base, LoggingMixin):
             # only mark task instance as FAILED if the next task instance
             # try_number exceeds the max_tries.
             if self.is_eligible_to_retry():
-                self.state = State.UP_FOR_RETRY
-                self.log.info('Marking task as UP_FOR_RETRY')
-                if task.email_on_retry and task.email:
-                    self.email_alert(error)
+                if force_fail is not True:
+                    self.state = State.UP_FOR_RETRY
+                    self.log.info('Marking task as UP_FOR_RETRY')
+                    if task.email_on_retry and task.email:
+                        self.email_alert(error)
+                else:
+                    self.state = State.FAILED
+                    if task.retries:
+                        self.log.info(
+                            'Immediate failure requested; skipping retries and marking task as FAILED.'
+                            'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                            self.dag_id,
+                            self.task_id,
+                            self.execution_date.strftime('%Y%m%dT%H%M%S'),
+                            self.start_date.strftime('%Y%m%dT%H%M%S'),
+                            self.end_date.strftime('%Y%m%dT%H%M%S'))
+                    else:
+                        self.log.info(
+                            'Marking task as FAILED.'
+                            'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                            self.dag_id,
+                            self.task_id,
+                            self.execution_date.strftime('%Y%m%dT%H%M%S'),
+                            self.start_date.strftime('%Y%m%dT%H%M%S'),
+                            self.end_date.strftime('%Y%m%dT%H%M%S'))
+                    if task.email_on_failure and task.email:
+                        self.email_alert(error)
             else:
                 self.state = State.FAILED
                 if task.retries:
