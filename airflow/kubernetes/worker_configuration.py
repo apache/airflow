@@ -35,7 +35,6 @@ class WorkerConfiguration(LoggingMixin):
     git_sync_ssh_secret_volume_name = 'git-sync-ssh-key'
     git_ssh_key_secret_key = 'gitSshKey'
     git_sync_ssh_known_hosts_volume_name = 'git-sync-known-hosts'
-    git_ssh_known_hosts_configmap_key = 'known_hosts'
 
     def __init__(self, kube_config):
         self.kube_config = kube_config
