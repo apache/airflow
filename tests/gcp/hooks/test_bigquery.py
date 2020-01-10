@@ -214,8 +214,7 @@ class TestBigQueryHookSourceFormat(unittest.TestCase):
             r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]"
         ):
             bq_hook = hook.BigQueryHook()
-            cursor = bq_hook.get_cursor()
-            cursor.run_load(
+            bq_hook.run_load(
                 "test.test", "test_schema.json", ["test_data.json"], source_format="json"
             )
 
@@ -254,8 +253,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             r"the following options: \['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'\]"
         ):
             bq_hook = hook.BigQueryHook()
-            cursor = bq_hook.get_cursor()
-            cursor.run_load(
+            bq_hook.run_load(
                 "test.test",
                 "test_schema.json",
                 ["test_data.json"],
@@ -271,8 +269,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "schema_update_options is only allowed if"
                                                " write_disposition is 'WRITE_APPEND' or 'WRITE_TRUNCATE'."):
             bq_hook = hook.BigQueryHook()
-            cursor = bq_hook.get_cursor()
-            cursor.run_load(
+            bq_hook.run_load(
                 "test.test",
                 "test_schema.json",
                 ["test_data.json"],
@@ -559,10 +556,9 @@ class TestBigQueryBaseCursor(unittest.TestCase):
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.run_with_configuration")
     def test_run_load_with_non_csv_as_src_fmt(self, fmt, mock_get_service, mock_project_id, mock_rwc):
         bq_hook = hook.BigQueryHook()
-        bq_base_cursor = hook.BigQueryBaseCursor(mock_get_service, PROJECT_ID, bq_hook)
 
         try:
-            bq_base_cursor.run_load(
+            bq_hook.run_load(
                 destination_project_dataset_table='my_dataset.my_table',
                 source_uris=[],
                 source_format=fmt,
@@ -1910,9 +1906,8 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
 
-        cursor.run_load(
+        bq_hook.run_load(
             destination_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
@@ -1929,8 +1924,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
     def test_run_with_auto_detect(self, run_with_config, mock_get_service, mock_get_creds_and_proj_id):
         destination_project_dataset_table = "autodetect.table"
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_load(destination_project_dataset_table, [], [], autodetect=True)
+        bq_hook.run_load(destination_project_dataset_table, [], [], autodetect=True)
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['load']['autodetect'], True)
 
@@ -1953,8 +1947,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_load(
+        bq_hook.run_load(
             destination_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
@@ -2045,8 +2038,7 @@ class TestClusteringInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_load(
+        bq_hook.run_load(
             destination_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
@@ -2072,8 +2064,7 @@ class TestClusteringInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_load(
+        bq_hook.run_load(
             destination_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
@@ -2426,8 +2417,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_load(
+        bq_hook.run_load(
             destination_project_dataset_table='p.d.dt',
             source_uris=['abc.csv'],
             autodetect=True,
@@ -2462,6 +2452,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("poll_job_complete",),
         ("cancel_query",),
         ("run_with_configuration",),
+        ("run_load",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

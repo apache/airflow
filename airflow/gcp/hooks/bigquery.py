@@ -1378,6 +1378,242 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             time.sleep(5)
         return keep_polling_job
 
+    def run_load(self,  # pylint: disable=too-many-locals,too-many-arguments,invalid-name
+                 destination_project_dataset_table: str,
+                 source_uris: List,
+                 schema_fields: Optional[List] = None,
+                 source_format: str = 'CSV',
+                 create_disposition: str = 'CREATE_IF_NEEDED',
+                 skip_leading_rows: int = 0,
+                 write_disposition: str = 'WRITE_EMPTY',
+                 field_delimiter: str = ',',
+                 max_bad_records: int = 0,
+                 quote_character: Optional[str] = None,
+                 ignore_unknown_values: bool = False,
+                 allow_quoted_newlines: bool = False,
+                 allow_jagged_rows: bool = False,
+                 encoding: str = "UTF-8",
+                 schema_update_options: Optional[Iterable] = None,
+                 src_fmt_configs: Optional[Dict] = None,
+                 time_partitioning: Optional[Dict] = None,
+                 cluster_fields: Optional[List] = None,
+                 autodetect: bool = False,
+                 encryption_configuration: Optional[Dict] = None) -> str:
+        """
+        Executes a BigQuery load command to load data from Google Cloud Storage
+        to BigQuery. See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        For more details about these parameters.
+
+        :param destination_project_dataset_table:
+            The dotted ``(<project>.|<project>:)<dataset>.<table>($<partition>)`` BigQuery
+            table to load data into. If ``<project>`` is not included, project will be the
+            project defined in the connection json. If a partition is specified the
+            operator will automatically append the data, create a new partition or create
+            a new DAY partitioned table.
+        :type destination_project_dataset_table: str
+        :param schema_fields: The schema field list as defined here:
+            https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
+            Required if autodetect=False; optional if autodetect=True.
+        :type schema_fields: list
+        :param autodetect: Attempt to autodetect the schema for CSV and JSON
+            source files.
+        :type autodetect: bool
+        :param source_uris: The source Google Cloud
+            Storage URI (e.g. gs://some-bucket/some-file.txt). A single wild
+            per-object name can be used.
+        :type source_uris: list
+        :param source_format: File format to export.
+        :type source_format: str
+        :param create_disposition: The create disposition if the table doesn't exist.
+        :type create_disposition: str
+        :param skip_leading_rows: Number of rows to skip when loading from a CSV.
+        :type skip_leading_rows: int
+        :param write_disposition: The write disposition if the table already exists.
+        :type write_disposition: str
+        :param field_delimiter: The delimiter to use when loading from a CSV.
+        :type field_delimiter: str
+        :param max_bad_records: The maximum number of bad records that BigQuery can
+            ignore when running the job.
+        :type max_bad_records: int
+        :param quote_character: The value that is used to quote data sections in a CSV
+            file.
+        :type quote_character: str
+        :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
+            extra values that are not represented in the table schema.
+            If true, the extra values are ignored. If false, records with extra columns
+            are treated as bad records, and if there are too many bad records, an
+            invalid error is returned in the job result.
+        :type ignore_unknown_values: bool
+        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not
+            (false).
+        :type allow_quoted_newlines: bool
+        :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
+            The missing values are treated as nulls. If false, records with missing
+            trailing columns are treated as bad records, and if there are too many bad
+            records, an invalid error is returned in the job result. Only applicable when
+            soure_format is CSV.
+        :type allow_jagged_rows: bool
+        :param encoding: The character encoding of the data.
+
+            .. seealso::
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
+        :type encoding: str
+        :param schema_update_options: Allows the schema of the destination
+            table to be updated as a side effect of the load job.
+        :type schema_update_options: Union[list, tuple, set]
+        :param src_fmt_configs: configure optional fields specific to the source format
+        :type src_fmt_configs: dict
+        :param time_partitioning: configure optional time partitioning fields i.e.
+            partition by field, type and  expiration as per API specifications.
+        :type time_partitioning: dict
+        :param cluster_fields: Request that the result of this load be stored sorted
+            by one or more columns. This is only available in combination with
+            time_partitioning. The order of columns given determines the sort order.
+        :type cluster_fields: list[str]
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
+        """
+        if not self.project_id:
+            raise ValueError("The project_id should be set")
+
+        # To provide backward compatibility
+        schema_update_options = list(schema_update_options or [])
+
+        # bigquery only allows certain source formats
+        # we check to make sure the passed source format is valid
+        # if it's not, we raise a ValueError
+        # Refer to this link for more details:
+        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat # noqa # pylint: disable=line-too-long
+
+        if schema_fields is None and not autodetect:
+            raise ValueError(
+                'You must either pass a schema or autodetect=True.')
+
+        if src_fmt_configs is None:
+            src_fmt_configs = {}
+
+        source_format = source_format.upper()
+        allowed_formats = [
+            "CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS",
+            "DATASTORE_BACKUP", "PARQUET"
+        ]
+        if source_format not in allowed_formats:
+            raise ValueError("{0} is not a valid source format. "
+                             "Please use one of the following types: {1}"
+                             .format(source_format, allowed_formats))
+
+        # bigquery also allows you to define how you want a table's schema to change
+        # as a side effect of a load
+        # for more details:
+        # https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schemaUpdateOptions
+        allowed_schema_update_options = [
+            'ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"
+        ]
+        if not set(allowed_schema_update_options).issuperset(
+                set(schema_update_options)):
+            raise ValueError(
+                "{0} contains invalid schema update options."
+                "Please only use one or more of the following options: {1}"
+                .format(schema_update_options, allowed_schema_update_options))
+
+        destination_project, destination_dataset, destination_table = \
+            _split_tablename(table_input=destination_project_dataset_table,
+                             default_project_id=self.project_id,
+                             var_name='destination_project_dataset_table')
+
+        configuration = {
+            'load': {
+                'autodetect': autodetect,
+                'createDisposition': create_disposition,
+                'destinationTable': {
+                    'projectId': destination_project,
+                    'datasetId': destination_dataset,
+                    'tableId': destination_table,
+                },
+                'sourceFormat': source_format,
+                'sourceUris': source_uris,
+                'writeDisposition': write_disposition,
+                'ignoreUnknownValues': ignore_unknown_values
+            }
+        }
+
+        time_partitioning = _cleanse_time_partitioning(
+            destination_project_dataset_table,
+            time_partitioning
+        )
+        if time_partitioning:
+            configuration['load'].update({
+                'timePartitioning': time_partitioning
+            })
+
+        if cluster_fields:
+            configuration['load'].update({'clustering': {'fields': cluster_fields}})
+
+        if schema_fields:
+            configuration['load']['schema'] = {'fields': schema_fields}
+
+        if schema_update_options:
+            if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
+                raise ValueError("schema_update_options is only "
+                                 "allowed if write_disposition is "
+                                 "'WRITE_APPEND' or 'WRITE_TRUNCATE'.")
+            else:
+                self.log.info(
+                    "Adding experimental 'schemaUpdateOptions': %s",
+                    schema_update_options
+                )
+                configuration['load'][
+                    'schemaUpdateOptions'] = schema_update_options
+
+        if max_bad_records:
+            configuration['load']['maxBadRecords'] = max_bad_records
+
+        if encryption_configuration:
+            configuration["load"][
+                "destinationEncryptionConfiguration"
+            ] = encryption_configuration
+
+        src_fmt_to_configs_mapping = {
+            'CSV': [
+                'allowJaggedRows', 'allowQuotedNewlines', 'autodetect',
+                'fieldDelimiter', 'skipLeadingRows', 'ignoreUnknownValues',
+                'nullMarker', 'quote', 'encoding'
+            ],
+            'DATASTORE_BACKUP': ['projectionFields'],
+            'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
+            'PARQUET': ['autodetect', 'ignoreUnknownValues'],
+            'AVRO': ['useAvroLogicalTypes'],
+        }
+
+        valid_configs = src_fmt_to_configs_mapping[source_format]
+
+        # if following fields are not specified in src_fmt_configs,
+        # honor the top-level params for backward-compatibility
+        backward_compatibility_configs = {'skipLeadingRows': skip_leading_rows,
+                                          'fieldDelimiter': field_delimiter,
+                                          'ignoreUnknownValues': ignore_unknown_values,
+                                          'quote': quote_character,
+                                          'allowQuotedNewlines': allow_quoted_newlines,
+                                          'encoding': encoding}
+
+        src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
+                                                    backward_compatibility_configs)
+
+        configuration['load'].update(src_fmt_configs)
+
+        if allow_jagged_rows:
+            configuration['load']['allowJaggedRows'] = allow_jagged_rows
+
+        return self.run_with_configuration(configuration)
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -1675,6 +1911,17 @@ class BigQueryBaseCursor(LoggingMixin):
             "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_with_configuration`",
             DeprecationWarning, stacklevel=3)
         return self.hook.run_with_configuration(*args, **kwargs)
+
+    def run_load(self, *args, **kwargs) -> str:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_load`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_load`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.run_load(*args, **kwargs)
 
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
@@ -2064,239 +2311,6 @@ class BigQueryBaseCursor(LoggingMixin):
             configuration["copy"][
                 "destinationEncryptionConfiguration"
             ] = encryption_configuration
-
-        return self.run_with_configuration(configuration)
-
-    def run_load(self,  # pylint: disable=too-many-locals,too-many-arguments,invalid-name
-                 destination_project_dataset_table: str,
-                 source_uris: List,
-                 schema_fields: Optional[List] = None,
-                 source_format: str = 'CSV',
-                 create_disposition: str = 'CREATE_IF_NEEDED',
-                 skip_leading_rows: int = 0,
-                 write_disposition: str = 'WRITE_EMPTY',
-                 field_delimiter: str = ',',
-                 max_bad_records: int = 0,
-                 quote_character: Optional[str] = None,
-                 ignore_unknown_values: bool = False,
-                 allow_quoted_newlines: bool = False,
-                 allow_jagged_rows: bool = False,
-                 encoding: str = "UTF-8",
-                 schema_update_options: Optional[Iterable] = None,
-                 src_fmt_configs: Optional[Dict] = None,
-                 time_partitioning: Optional[Dict] = None,
-                 cluster_fields: Optional[List] = None,
-                 autodetect: bool = False,
-                 encryption_configuration: Optional[Dict] = None) -> str:
-        """
-        Executes a BigQuery load command to load data from Google Cloud Storage
-        to BigQuery. See here:
-
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
-
-        For more details about these parameters.
-
-        :param destination_project_dataset_table:
-            The dotted ``(<project>.|<project>:)<dataset>.<table>($<partition>)`` BigQuery
-            table to load data into. If ``<project>`` is not included, project will be the
-            project defined in the connection json. If a partition is specified the
-            operator will automatically append the data, create a new partition or create
-            a new DAY partitioned table.
-        :type destination_project_dataset_table: str
-        :param schema_fields: The schema field list as defined here:
-            https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
-            Required if autodetect=False; optional if autodetect=True.
-        :type schema_fields: list
-        :param autodetect: Attempt to autodetect the schema for CSV and JSON
-            source files.
-        :type autodetect: bool
-        :param source_uris: The source Google Cloud
-            Storage URI (e.g. gs://some-bucket/some-file.txt). A single wild
-            per-object name can be used.
-        :type source_uris: list
-        :param source_format: File format to export.
-        :type source_format: str
-        :param create_disposition: The create disposition if the table doesn't exist.
-        :type create_disposition: str
-        :param skip_leading_rows: Number of rows to skip when loading from a CSV.
-        :type skip_leading_rows: int
-        :param write_disposition: The write disposition if the table already exists.
-        :type write_disposition: str
-        :param field_delimiter: The delimiter to use when loading from a CSV.
-        :type field_delimiter: str
-        :param max_bad_records: The maximum number of bad records that BigQuery can
-            ignore when running the job.
-        :type max_bad_records: int
-        :param quote_character: The value that is used to quote data sections in a CSV
-            file.
-        :type quote_character: str
-        :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
-            extra values that are not represented in the table schema.
-            If true, the extra values are ignored. If false, records with extra columns
-            are treated as bad records, and if there are too many bad records, an
-            invalid error is returned in the job result.
-        :type ignore_unknown_values: bool
-        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not
-            (false).
-        :type allow_quoted_newlines: bool
-        :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
-            The missing values are treated as nulls. If false, records with missing
-            trailing columns are treated as bad records, and if there are too many bad
-            records, an invalid error is returned in the job result. Only applicable when
-            soure_format is CSV.
-        :type allow_jagged_rows: bool
-        :param encoding: The character encoding of the data.
-
-            .. seealso::
-                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#externalDataConfiguration.csvOptions.encoding
-        :type encoding: str
-        :param schema_update_options: Allows the schema of the destination
-            table to be updated as a side effect of the load job.
-        :type schema_update_options: Union[list, tuple, set]
-        :param src_fmt_configs: configure optional fields specific to the source format
-        :type src_fmt_configs: dict
-        :param time_partitioning: configure optional time partitioning fields i.e.
-            partition by field, type and  expiration as per API specifications.
-        :type time_partitioning: dict
-        :param cluster_fields: Request that the result of this load be stored sorted
-            by one or more columns. This is only available in combination with
-            time_partitioning. The order of columns given determines the sort order.
-        :type cluster_fields: list[str]
-        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-            **Example**: ::
-
-                encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
-                }
-        :type encryption_configuration: dict
-        """
-        # To provide backward compatibility
-        schema_update_options = list(schema_update_options or [])
-
-        # bigquery only allows certain source formats
-        # we check to make sure the passed source format is valid
-        # if it's not, we raise a ValueError
-        # Refer to this link for more details:
-        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat # noqa # pylint: disable=line-too-long
-
-        if schema_fields is None and not autodetect:
-            raise ValueError(
-                'You must either pass a schema or autodetect=True.')
-
-        if src_fmt_configs is None:
-            src_fmt_configs = {}
-
-        source_format = source_format.upper()
-        allowed_formats = [
-            "CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS",
-            "DATASTORE_BACKUP", "PARQUET"
-        ]
-        if source_format not in allowed_formats:
-            raise ValueError("{0} is not a valid source format. "
-                             "Please use one of the following types: {1}"
-                             .format(source_format, allowed_formats))
-
-        # bigquery also allows you to define how you want a table's schema to change
-        # as a side effect of a load
-        # for more details:
-        # https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schemaUpdateOptions
-        allowed_schema_update_options = [
-            'ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"
-        ]
-        if not set(allowed_schema_update_options).issuperset(
-                set(schema_update_options)):
-            raise ValueError(
-                "{0} contains invalid schema update options."
-                "Please only use one or more of the following options: {1}"
-                .format(schema_update_options, allowed_schema_update_options))
-
-        destination_project, destination_dataset, destination_table = \
-            _split_tablename(table_input=destination_project_dataset_table,
-                             default_project_id=self.project_id,
-                             var_name='destination_project_dataset_table')
-
-        configuration = {
-            'load': {
-                'autodetect': autodetect,
-                'createDisposition': create_disposition,
-                'destinationTable': {
-                    'projectId': destination_project,
-                    'datasetId': destination_dataset,
-                    'tableId': destination_table,
-                },
-                'sourceFormat': source_format,
-                'sourceUris': source_uris,
-                'writeDisposition': write_disposition,
-                'ignoreUnknownValues': ignore_unknown_values
-            }
-        }
-
-        time_partitioning = _cleanse_time_partitioning(
-            destination_project_dataset_table,
-            time_partitioning
-        )
-        if time_partitioning:
-            configuration['load'].update({
-                'timePartitioning': time_partitioning
-            })
-
-        if cluster_fields:
-            configuration['load'].update({'clustering': {'fields': cluster_fields}})
-
-        if schema_fields:
-            configuration['load']['schema'] = {'fields': schema_fields}
-
-        if schema_update_options:
-            if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
-                raise ValueError("schema_update_options is only "
-                                 "allowed if write_disposition is "
-                                 "'WRITE_APPEND' or 'WRITE_TRUNCATE'.")
-            else:
-                self.log.info(
-                    "Adding experimental 'schemaUpdateOptions': %s",
-                    schema_update_options
-                )
-                configuration['load'][
-                    'schemaUpdateOptions'] = schema_update_options
-
-        if max_bad_records:
-            configuration['load']['maxBadRecords'] = max_bad_records
-
-        if encryption_configuration:
-            configuration["load"][
-                "destinationEncryptionConfiguration"
-            ] = encryption_configuration
-
-        src_fmt_to_configs_mapping = {
-            'CSV': [
-                'allowJaggedRows', 'allowQuotedNewlines', 'autodetect',
-                'fieldDelimiter', 'skipLeadingRows', 'ignoreUnknownValues',
-                'nullMarker', 'quote', 'encoding'
-            ],
-            'DATASTORE_BACKUP': ['projectionFields'],
-            'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
-            'PARQUET': ['autodetect', 'ignoreUnknownValues'],
-            'AVRO': ['useAvroLogicalTypes'],
-        }
-
-        valid_configs = src_fmt_to_configs_mapping[source_format]
-
-        # if following fields are not specified in src_fmt_configs,
-        # honor the top-level params for backward-compatibility
-        backward_compatibility_configs = {'skipLeadingRows': skip_leading_rows,
-                                          'fieldDelimiter': field_delimiter,
-                                          'ignoreUnknownValues': ignore_unknown_values,
-                                          'quote': quote_character,
-                                          'allowQuotedNewlines': allow_quoted_newlines,
-                                          'encoding': encoding}
-
-        src_fmt_configs = _validate_src_fmt_configs(source_format, src_fmt_configs, valid_configs,
-                                                    backward_compatibility_configs)
-
-        configuration['load'].update(src_fmt_configs)
-
-        if allow_jagged_rows:
-            configuration['load']['allowJaggedRows'] = allow_jagged_rows
 
         return self.run_with_configuration(configuration)
 
