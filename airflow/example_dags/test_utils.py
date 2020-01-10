@@ -21,7 +21,7 @@ from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils.dates import days_ago
 
-dag = DAG(dag_id='test_utils', schedule_interval=None)
+dag = DAG(dag_id='test_utils', schedule_interval=None, tags=['example'])
 
 task = BashOperator(
     task_id='sleeps_forever',

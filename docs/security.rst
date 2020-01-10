@@ -31,7 +31,7 @@ following CLI commands to create an account:
 .. code-block:: bash
 
     # create an admin user
-    airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
+    airflow users create --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
@@ -50,7 +50,7 @@ Password
 
 One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
 
-Please use command line interface ``airflow users --create`` to create accounts, or do that in the UI.
+Please use command line interface ``airflow users create`` to create accounts, or do that in the UI.
 
 
 LDAP

@@ -109,7 +109,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook",
     ),
     (
-        "airflow.gcp.hooks.cloud_storage_transfer_service.GCPTransferServiceHook",
+        "airflow.gcp.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook",
         "airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook",
     ),
     (
@@ -153,6 +153,7 @@ HOOK = [
         "airflow.contrib.hooks.aws_sns_hook.AwsSnsHook",
     ),
 ]
+
 OPERATOR = [
     (
         "airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator",
@@ -395,27 +396,27 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeleteOperator",
+        "airflow.gcp.operators.spanner.SpannerDeleteDatabaseInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseDeployOperator",
+        "airflow.gcp.operators.spanner.SpannerDeployDatabaseInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseQueryOperator",
+        "airflow.gcp.operators.spanner.SpannerQueryDatabaseInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDatabaseUpdateOperator",
+        "airflow.gcp.operators.spanner.SpannerUpdateDatabaseInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDeleteOperator",
+        "airflow.gcp.operators.spanner.SpannerDeleteInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.spanner.CloudSpannerInstanceDeployOperator",
+        "airflow.gcp.operators.spanner.SpannerDeployInstanceOperator",
         "airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator",
     ),
     (
@@ -427,50 +428,50 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobCreateOperator",
+        "airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator",
         "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobDeleteOperator",
+        "airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceDeleteJobOperator",
         "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobUpdateOperator",
+        "airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceUpdateJobOperator",
         "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator",
     ),
     (
         "airflow.gcp.operators.cloud_storage_transfer_service."
-        "GcpTransferServiceOperationCancelOperator",
+        "CloudDataTransferServiceCancelOperationOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationCancelOperator",
     ),
     (
         "airflow.gcp.operators.cloud_storage_transfer_service."
-        "GcpTransferServiceOperationGetOperator",
+        "CloudDataTransferServiceGetOperationOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationGetOperator",
     ),
     (
         "airflow.gcp.operators.cloud_storage_transfer_service."
-        "GcpTransferServiceOperationPauseOperator",
+        "CloudDataTransferServicePauseOperationOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationPauseOperator",
     ),
     (
         "airflow.gcp.operators.cloud_storage_transfer_service."
-        "GcpTransferServiceOperationResumeOperator",
+        "CloudDataTransferServiceResumeOperationOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationResumeOperator",
     ),
     (
         "airflow.gcp.operators.cloud_storage_transfer_service."
-        "GcpTransferServiceOperationsListOperator",
+        "CloudDataTransferServiceListOperationsOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationsListOperator",
     ),
     (
         "airflow.gcp.operators.cloud_storage_transfer_service."
-        "GoogleCloudStorageToGoogleCloudStorageTransferOperator",
+        "CloudDataTransferServiceGCSToGCSOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GoogleCloudStorageToGoogleCloudStorageTransferOperator",
     ),
@@ -578,19 +579,19 @@ OPERATOR = [
         "airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator",
     ),
     (
-        "airflow.gcp.operators.mlengine.MLEngineBatchPredictionOperator",
+        "airflow.gcp.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator",
     ),
     (
-        "airflow.gcp.operators.mlengine.MLEngineModelOperator",
+        "airflow.gcp.operators.mlengine.MLEngineManageModelOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineModelOperator",
     ),
     (
-        "airflow.gcp.operators.mlengine.MLEngineTrainingOperator",
+        "airflow.gcp.operators.mlengine.MLEngineStartTrainingJobOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator",
     ),
     (
-        "airflow.gcp.operators.mlengine.MLEngineVersionOperator",
+        "airflow.gcp.operators.mlengine.MLEngineManageVersionOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator",
     ),
     (
@@ -607,23 +608,23 @@ OPERATOR = [
         "PostgresToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubPublishMessageOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubPublishOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionCreateOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubCreateSubscriptionOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubSubscriptionDeleteOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubDeleteSubscriptionOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubTopicCreateOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubCreateTopicOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator",
     ),
     (
-        "airflow.providers.google.cloud.operators.pubsub.PubSubTopicDeleteOperator",
+        "airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator",
         "airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator",
     ),
     (
@@ -769,6 +770,7 @@ OPERATOR = [
         "airflow.contrib.operators.sns_publish_operator.SnsPublishOperator",
     )
 ]
+
 SENSOR = [
     (
         "airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor",
@@ -777,7 +779,7 @@ SENSOR = [
     ),
     (
         "airflow.gcp.sensors.cloud_storage_transfer_service."
-        "GCPTransferServiceWaitForJobStatusSensor",
+        "CloudDataTransferServiceJobStatusSensor",
         "airflow.contrib.sensors.gcp_transfer_sensor."
         "GCPTransferServiceWaitForJobStatusSensor",
     ),
@@ -813,12 +815,21 @@ SENSOR = [
         "airflow.providers.amazon.aws.sensors.sqs.SQSSensor",
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
     ),
-
 ]
-ALL = HOOK + OPERATOR + SENSOR
+
+PROTOCOLS = [
+    (
+        "airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol",
+        "airflow.contrib.operators.awsbatch_operator.BatchProtocol",
+    ),
+]
+
+
+ALL = HOOK + OPERATOR + SENSOR + PROTOCOLS
+
 RENAMED_HOOKS = [
     (old_class, new_class)
-    for old_class, new_class in ALL
+    for old_class, new_class in HOOK + OPERATOR + SENSOR
     if old_class.rpartition(".")[2] != new_class.rpartition(".")[2]
 ]
 
@@ -848,6 +859,14 @@ class TestMovingCoreToContrib(TestCase):
         module = importlib.import_module(path)
         class_ = getattr(module, class_name)
         return class_
+
+    @parameterized.expand(PROTOCOLS)
+    def test_is_protocol_deprecated(self, _, old_module):
+        deprecation_warning_msg = "This class is deprecated."
+        old_module_class = self.get_class_from_path(old_module)
+        with self.assertWarnsRegex(DeprecationWarning, deprecation_warning_msg) as wrn:
+            self.assertTrue(deprecation_warning_msg, wrn)
+            old_module_class()
 
     @parameterized.expand(RENAMED_HOOKS)
     def test_is_class_deprecated(self, new_module, old_module):

@@ -23,6 +23,7 @@ import argparse
 import os
 import textwrap
 from argparse import RawTextHelpFormatter
+from itertools import filterfalse, tee
 from typing import Callable
 
 from tabulate import tabulate_formats
@@ -1035,6 +1036,27 @@ class CLIFactory:
         return parser
 
     @classmethod
+    def sort_args(cls, args: Arg):
+        """
+        Sort subcommand optional args, keep positional args
+        """
+        def partition(pred, iterable):
+            """
+            Use a predicate to partition entries into false entries and true entries
+            """
+            iter_1, iter_2 = tee(iterable)
+            return filterfalse(pred, iter_1), filter(pred, iter_2)
+
+        def get_long_option(arg):
+            """
+            Get long option from Arg.flags
+            """
+            return cls.args[arg].flags[0] if len(cls.args[arg].flags) == 1 else cls.args[arg].flags[1]
+        positional, optional = partition(lambda x: cls.args[x].flags[0].startswith("-"), args)
+        yield from positional
+        yield from sorted(optional, key=lambda x: get_long_option(x).lower())
+
+    @classmethod
     def _add_subcommand(cls, subparsers, sub):
         dag_parser = False
         sub_proc = subparsers.add_parser(
@@ -1046,10 +1068,10 @@ class CLIFactory:
         if subcommands:
             sub_subparsers = sub_proc.add_subparsers(dest='subcommand')
             sub_subparsers.required = True
-            for command in subcommands:
+            for command in sorted(subcommands, key=lambda x: x['name']):
                 cls._add_subcommand(sub_subparsers, command)
         else:
-            for arg in sub['args']:
+            for arg in cls.sort_args(sub['args']):
                 if 'dag_id' in arg and dag_parser:
                     continue
                 arg = cls.args[arg]

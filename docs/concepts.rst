@@ -607,8 +607,8 @@ the queue that tasks get assigned to when not specified, as well as which
 queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow worker``), a set of comma-delimited
-queue names can be specified (e.g. ``airflow worker -q spark``). This worker
+started (using the command ``airflow celery worker``), a set of comma-delimited
+queue names can be specified (e.g. ``airflow celery worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 
 This can be useful if you need specialized workers, either from a

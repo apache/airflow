@@ -53,13 +53,13 @@ There are a few guidelines that you should follow when writing unit tests:
 * For new tests we should use standard "asserts" of python and pytest decorators/context managers for testing
   rather than unittest ones. Look at `Pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
 * We use parameterized framework for tests that have variations in parameters
-* We plann to convert all unittests to standard "asserts" semi-automatically but this will be done later
+* We plan to convert all unittests to standard "asserts" semi-automatically but this will be done later
   in Airflow 2.0 development phase. That will include setUp/tearDown/context managers and decorators
 
 Running Unit Tests from IDE
 ---------------------------
 
-To run unit tests from the IDE, create the `local virtualenv <LOCAL_VRTUALENV.rst>`_,
+To run unit tests from the IDE, create the `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
 select it as the default project's environment, then configure your test runner:
 
 .. image:: images/configure_test_runner.png
@@ -274,12 +274,11 @@ For now you can execute the system tests and follow messages printed to get them
 running the tests will be available.
 
 
-Local and Remote Debugging
-==========================
+Local and Remote Debugging in IDE
+=================================
 
 One of the great benefits of using the local virtualenv and Breeze is an option to run
-local debugging in your IDE graphical interface. You can also use ``ipdb``
-if you prefer `console debugging <#breeze-debugging-with-ipdb>`__.
+local debugging in your IDE graphical interface.
 
 When you run example DAGs, even if you run them using unit tests within IDE, they are run in a separate
 container. This makes it a little harder to use with IDE built-in debuggers.
@@ -303,7 +302,6 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
     :align: center
     :alt: Source code mapping
 
-
 DAG testing
 ===========
 
@@ -326,8 +324,59 @@ It will run a backfill job:
 2. Setup ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in run configuration of your IDE. In
    this step you should also setup all environment variables required by your DAG.
 
-3. Run / debug the DAG file.
+3. Run and debug the DAG file.
 
 Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
 all other running or scheduled tasks fail immediately. To enable this option set
 ``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
+
+
+BASH unit testing (BATS)
+========================
+
+We have started to add tests to cover Bash scripts we have in our codeabase.
+The tests are placed in ``tests\bats`` folder.
+They require BAT CLI to be installed if you want to run them in your
+host or via docker image.
+
+BATS CLI installation
+.....................
+
+You can find installation guide as well as information on how to write
+the bash tests in [BATS installation](https://github.com/bats-core/bats-core#installation)
+
+Running BATS tests in the host
+..............................
+
+Running all tests:
+
+```
+bats -r tests/bats/
+```
+
+Running single test:
+
+```
+bats tests/bats/your_test_file.bats
+```
+
+Running BATS tests via docker
+..............................
+
+Running all tests:
+
+```
+docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest -r /airflow/tests/bats
+```
+
+Running single test:
+
+```
+docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest /airflow/tests/bats/your_test_file.bats
+```
+
+BATS usage
+..........
+
+You can read more about using BATS CLI and writing tests in:
+[BATS usage](https://github.com/bats-core/bats-core#usage)

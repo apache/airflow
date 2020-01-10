@@ -20,7 +20,7 @@
 from airflow.models.base import ID_LEN, Base  # noqa: F401
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink  # noqa: F401
 from airflow.models.connection import Connection  # noqa: F401
-from airflow.models.dag import DAG, DagModel  # noqa: F401
+from airflow.models.dag import DAG, DagModel, DagTag  # noqa: F401
 from airflow.models.dagbag import DagBag  # noqa: F401
 from airflow.models.dagpickle import DagPickle  # noqa: F401
 from airflow.models.dagrun import DagRun  # noqa: F401

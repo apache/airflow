@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.contrib.operators.s3_to_gcs_operator import S3ToGoogleCloudStorageOperator
+from airflow.contrib.operators.s3_to_gcs_operator import S3ToGCSOperator
 
 TASK_ID = 'test-s3-gcs-operator'
 S3_BUCKET = 'test-bucket'
@@ -35,9 +35,9 @@ GCS_CONN_ID = 'google_cloud_default'
 
 class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
     def test_init(self):
-        """Test S3ToGoogleCloudStorageOperator instance is properly initialized."""
+        """Test S3ToGCSOperator instance is properly initialized."""
 
-        operator = S3ToGoogleCloudStorageOperator(
+        operator = S3ToGCSOperator(
             task_id=TASK_ID,
             bucket=S3_BUCKET,
             prefix=S3_PREFIX,
@@ -59,7 +59,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
     def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 
-        operator = S3ToGoogleCloudStorageOperator(
+        operator = S3ToGCSOperator(
             task_id=TASK_ID,
             bucket=S3_BUCKET,
             prefix=S3_PREFIX,
@@ -94,7 +94,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
     def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 
-        operator = S3ToGoogleCloudStorageOperator(
+        operator = S3ToGCSOperator(
             task_id=TASK_ID,
             bucket=S3_BUCKET,
             prefix=S3_PREFIX,

@@ -27,10 +27,16 @@ import logging
 
 def merge_dicts(dict1, dict2):
     """
-    Merge two dicts
+    Merge two dicts recursively, returning new dict (input dict is not mutated).
+
+    Lists are not concatenated. Items in dict2 overwrite those also found in dict1.
     """
     merged = dict1.copy()
-    merged.update(dict2)
+    for k, v in dict2.items():
+        if k in merged and isinstance(v, dict):
+            merged[k] = merge_dicts(merged.get(k, {}), v)
+        else:
+            merged[k] = v
     return merged
 
 

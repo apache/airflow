@@ -352,13 +352,18 @@
       example: ~
       default: ""
     - name: remote_base_log_folder
-      description: ~
+      description: |
+        Storage bucket URL for remote logging
+        S3 buckets should start with "s3://"
+        GCS buckets should start with "gs://"
+        WASB buckets should start with "wasb" just to help Airflow select correct handler
       version_added: ~
       type: string
       example: ~
       default: ""
     - name: encrypt_s3_logs
-      description: ~
+      description: |
+        Use server-side encryption for logs stored in S3
       version_added: ~
       type: string
       example: ~
@@ -431,19 +436,21 @@
       default: ""
     - name: log_filename_template
       description: |
-        Log filename format
+        Formatting for how airflow generates file names/paths for each task run.
       version_added: ~
       type: string
       example: ~
       default: "{{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{{{ try_number }}}}.log"
     - name: log_processor_filename_template
-      description: ~
+      description: |
+        Formatting for how airflow generates file names for log
       version_added: ~
       type: string
       example: ~
       default: "{{{{ filename }}}}.log"
     - name: dag_processor_manager_log_location
-      description: ~
+      description: |
+        full path of dag_processor_manager logfile
       version_added: ~
       type: string
       example: ~
@@ -764,6 +771,27 @@
       type: string
       example: ~
       default: "5"
+    - name: log_fetch_delay_sec
+      description: |
+        Time interval (in secs) to wait before next log fetching.
+      version_added: ~
+      type: int
+      example: ~
+      default: "2"
+    - name: log_auto_tailing_offset
+      description: |
+        Distance away from page bottom to enable auto tailing.
+      version_added: ~
+      type: int
+      example: ~
+      default: "30"
+    - name: log_animation_speed
+      description: |
+        Animation speed for auto tailing log display.
+      version_added: ~
+      type: int
+      example: ~
+      default: "1000"
     - name: hide_paused_dags_by_default
       description: |
         By default, the webserver shows paused DAGs. Flip this to hide paused
@@ -843,6 +871,13 @@
       type: string
       example: ~
       default: ~
+    - name: show_recent_stats_for_completed_runs
+      description: |
+        'Recent Tasks' stats will show for old DagRuns if set
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
     - name: update_fab_perms
       description: |
         Update FAB permissions and sync security manager roles
@@ -859,6 +894,13 @@
       type: string
       example: ~
       default: "0"
+    - name: session_lifetime_days
+      description: |
+        The UI cookie lifetime in days
+      version_added: ~
+      type: string
+      example: ~
+      default: "30"
 
 - name: email
   description: ~
@@ -997,7 +1039,7 @@
     - name: flower_host
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
-        it ``airflow flower``. This defines the IP that Celery Flower runs on
+        it ``airflow celery flower``. This defines the IP that Celery Flower runs on
       version_added: ~
       type: string
       example: ~
@@ -1499,19 +1541,21 @@
   options:
     - name: worker_container_repository
       description: |
-        The repository, tag and imagePullPolicy of the Kubernetes Image for the Worker to Run
+        The repository of the Kubernetes Image for the Worker to Run
       version_added: ~
       type: string
       example: ~
       default: ""
     - name: worker_container_tag
-      description: ~
+      description: |
+        The tag of the Kubernetes Image for the Worker to Run
       version_added: ~
       type: string
       example: ~
       default: ""
     - name: worker_container_image_pull_policy
-      description: ~
+      description: |
+        The imagePullPolicy of the Kubernetes Image for the Worker to Run
       version_added: ~
       type: string
       example: ~
@@ -1525,7 +1569,11 @@
       default: "True"
     - name: worker_pods_creation_batch_size
       description: |
-        Number of Kubernetes Worker Pod creation calls per scheduler loop
+        Number of Kubernetes Worker Pod creation calls per scheduler loop.
+        Note that the current default of "1" will only launch a single pod
+        per-heartbeat. It is HIGHLY recommended that users increase this
+        number to match the tolerance of their kubernetes cluster for
+        better performance.
       version_added: ~
       type: string
       example: ~
@@ -1539,16 +1587,62 @@
       default: "default"
     - name: airflow_configmap
       description: |
-        The name of the Kubernetes ConfigMap Containing the Airflow Configuration (this file)
+        The name of the Kubernetes ConfigMap containing ``airflow.cfg`` file.
+
+        For example:
+
+        ``airflow_configmap = "airflow-configmap"`` if you have the following ConfigMap.
+
+        ``airflow-configmap.yaml``:
+
+        .. code-block:: yaml
+
+          ---
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: airflow-configmap
+          data:
+            airflow.cfg: |
+                ...
+
+        Note that the ``airflow_configmap`` and the ``airflow_local_settings_configmap``
+        can be the same configMap
       version_added: ~
       type: string
-      example: ~
+      example: "airflow-configmap"
+      default: ""
+    - name: airflow_local_settings_configmap
+      description: |
+        The name of the Kubernetes ConfigMap containing ``airflow_local_settings.py`` file.
+
+        For example:
+
+        ``airflow_local_settings_configmap = "airflow-configmap"`` if you have the following ConfigMap.
+
+        ``airflow-configmap.yaml``:
+
+        .. code-block:: yaml
+
+          ---
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: airflow-configmap
+          data:
+            airflow_local_settings.py: |
+                def pod_mutation_hook(pod):
+                    ...
+            airflow.cfg: |
+                ...
+      version_added: ~
+      type: string
+      example: "airflow-configmap"
       default: ""
     - name: dags_in_image
       description: |
         For docker image already contains DAGs, this is set to ``True``, and the worker will
-        search for dags in dags_folder,
-        otherwise use git sync or dags volume claim to mount DAGs
+        search for dags in dags_folder, otherwise use git sync or dags volume claim to mount DAGs
       version_added: ~
       type: string
       example: ~
@@ -1621,13 +1715,17 @@
       example: ~
       default: ""
     - name: git_branch
-      description: ~
+      description: |
+        Branch of the git repo containing DAGs. This can be useful for users who wish to version their DAGs
+        using release branches.
       version_added: ~
       type: string
       example: ~
       default: ""
     - name: git_subpath
-      description: ~
+      description: |
+        Subpath of git repo to be pulled for DAGs. This allows users to maintain multiple DAG
+        repositories in a single git repo.
       version_added: ~
       type: string
       example: ~
@@ -1801,7 +1899,8 @@
       example: ~
       default: ~
     - name: config_file
-      description: ~
+      description: |
+        Path to the kubernetes configfile to be used when ``in_cluster`` is set to False
       version_added: ~
       type: string
       example: ~
@@ -1870,7 +1969,7 @@
   description: |
     The scheduler sets the following environment variables into your workers. You may define as
     many environment variables as needed and the kubernetes launcher will set them in the launched workers.
-    Environment variables in this section are defined as follows
+    Environment variables in this section are defined as followsa
     ``<environment_variable_key> = <environment_variable_value>``
 
     For example if you wanted to set an environment variable with value `prod` and key

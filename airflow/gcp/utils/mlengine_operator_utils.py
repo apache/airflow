@@ -31,7 +31,7 @@ import dill
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.gcp.operators.dataflow import DataflowCreatePythonJobOperator
-from airflow.gcp.operators.mlengine import MLEngineBatchPredictionOperator
+from airflow.gcp.operators.mlengine import MLEngineStartBatchPredictionJobOperator
 from airflow.operators.python_operator import PythonOperator
 
 
@@ -209,7 +209,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
         dataflow_options = dataflow_options or \
             default_args.get('dataflow_default_options')
 
-    evaluate_prediction = MLEngineBatchPredictionOperator(
+    evaluate_prediction = MLEngineStartBatchPredictionJobOperator(
         task_id=(task_prefix + "-prediction"),
         project_id=project_id,
         job_id=batch_prediction_job_id,
