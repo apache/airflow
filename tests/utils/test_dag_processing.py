@@ -147,7 +147,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
-            pickle_dags=True,
+            pickle_dags=False,
             async_mode=True)
 
         mock_processor = MagicMock()
@@ -169,7 +169,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
-            pickle_dags=True,
+            pickle_dags=False,
             async_mode=True)
 
         mock_processor = MagicMock()
@@ -190,7 +190,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
-            pickle_dags=True,
+            pickle_dags=False,
             async_mode=True)
 
         dagbag = DagBag(TEST_DAG_FOLDER)
@@ -289,7 +289,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                                                     1,
                                                     processor_factory,
                                                     timedelta.max,
-                                                    True,
+                                                    False,
                                                     async_mode)
             processor_agent.start()
             parsing_result = []
@@ -315,7 +315,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta(seconds=5),
             signal_conn=MagicMock(),
-            pickle_dags=True,
+            pickle_dags=False,
             async_mode=True)
 
         processor = DagFileProcessorProcess('abc.txt', False, [], [])
@@ -335,7 +335,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta(seconds=5),
             signal_conn=MagicMock(),
-            pickle_dags=True,
+            pickle_dags=False,
             async_mode=True)
 
         processor = DagFileProcessorProcess('abc.txt', False, [], [])
@@ -387,7 +387,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                     0,
                                                     processor_factory,
                                                     timedelta.max,
-                                                    True,
+                                                    False,
                                                     async_mode)
             processor_agent.start()
             if not async_mode:
@@ -413,7 +413,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 1,
                                                 processor_factory,
                                                 timedelta.max,
-                                                True,
+                                                False,
                                                 async_mode)
         processor_agent.start()
         parsing_result = []
@@ -449,7 +449,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 0,
                                                 processor_factory,
                                                 timedelta.max,
-                                                True,
+                                                False,
                                                 async_mode)
         processor_agent.start()
         if not async_mode:
