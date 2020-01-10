@@ -25,6 +25,7 @@ from datetime import datetime
 import mock
 from urllib3 import HTTPResponse
 
+from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
 try:
@@ -237,7 +238,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         executor = KubernetesExecutor()
         executor.start()
         key = ('dag_id', 'task_id', 'ex_time', 'try_number1')
-        executor._change_state(key, State.RUNNING, 'pod_id')
+        executor._change_state(key, State.RUNNING, 'pod_id', 'default')
         self.assertTrue(executor.event_buffer[key] == State.RUNNING)
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
@@ -246,10 +247,11 @@ class TestKubernetesExecutor(unittest.TestCase):
     def test_change_state_success(self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = KubernetesExecutor()
         executor.start()
-        key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
-        executor._change_state(key, State.SUCCESS, 'pod_id')
+        test_time = timezone.utcnow()
+        key = ('dag_id', 'task_id', test_time, 'try_number2')
+        executor._change_state(key, State.SUCCESS, 'pod_id', 'default')
         self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
-        mock_delete_pod.assert_called_once_with('pod_id')
+        mock_delete_pod.assert_called_once_with('pod_id', 'default')
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
@@ -257,10 +259,11 @@ class TestKubernetesExecutor(unittest.TestCase):
     def test_change_state_failed(self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = KubernetesExecutor()
         executor.start()
-        key = ('dag_id', 'task_id', 'ex_time', 'try_number3')
-        executor._change_state(key, State.FAILED, 'pod_id')
+        test_time = timezone.utcnow()
+        key = ('dag_id', 'task_id', test_time, 'try_number3')
+        executor._change_state(key, State.FAILED, 'pod_id', 'default')
         self.assertTrue(executor.event_buffer[key] == State.FAILED)
-        mock_delete_pod.assert_called_once_with('pod_id')
+        mock_delete_pod.assert_called_once_with('pod_id', 'default')
 # pylint: enable=unused-argument
 
     @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
@@ -268,11 +271,12 @@ class TestKubernetesExecutor(unittest.TestCase):
     @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod')
     def test_change_state_skip_pod_deletion(self, mock_delete_pod, mock_get_kube_client,
                                             mock_kubernetes_job_watcher):
+        test_time = timezone.utcnow()
         executor = KubernetesExecutor()
         executor.kube_config.delete_worker_pods = False
         executor.start()
-        key = ('dag_id', 'task_id', 'ex_time', 'try_number2')
-        executor._change_state(key, State.SUCCESS, 'pod_id')
+        key = ('dag_id', 'task_id', test_time, 'try_number2')
+        executor._change_state(key, State.SUCCESS, 'pod_id', 'default')
         self.assertTrue(executor.event_buffer[key] == State.SUCCESS)
         mock_delete_pod.assert_not_called()
 
