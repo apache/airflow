@@ -92,6 +92,25 @@ class TestKubernetesPodOperator(unittest.TestCase):
             }
         }
 
+    def test_do_xcom_push_defaults_false(self):
+        new_config_path = '/tmp/kube_config'
+        old_config_path = os.path.expanduser('~/.kube/config')
+        shutil.copy(old_config_path, new_config_path)
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            config_file=new_config_path,
+        )
+        self.assertFalse(k.do_xcom_push)
+
     def test_config_path_move(self):
         new_config_path = '/tmp/kube_config'
         old_config_path = os.path.expanduser('~/.kube/config')

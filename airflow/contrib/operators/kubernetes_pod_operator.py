@@ -170,6 +170,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  schedulername: Optional[str] = None,
                  full_pod_spec: Optional[k8s.V1Pod] = None,
                  init_containers: Optional[List[k8s.V1Container]] = None,
+                 do_xcom_push: bool = False,
                  *args,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
@@ -177,7 +178,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         super().__init__(*args, resources=None, **kwargs)
 
         self.pod = None
-
+        self.do_xcom_push = do_xcom_push
         self.image = image
         self.namespace = namespace
         self.cmds = cmds or []
