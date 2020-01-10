@@ -1072,7 +1072,6 @@ class TaskInstance(Base, LoggingMixin):
             self.refresh_from_db()
             self.handle_failure(e, test_mode, context, force_fail=True)
             raise
-
         except AirflowException as e:
             self.refresh_from_db()
             # for case when task is marked as success/failed externally
