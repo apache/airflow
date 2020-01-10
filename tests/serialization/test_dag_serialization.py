@@ -275,7 +275,7 @@ class TestStringifiedDAGs(unittest.TestCase):
         checking fields between Serialized Dags & non-Serialized Dags
         """
         fields_to_check = [
-            "task_ids", "params", "fileloc", "max_active_runs", "concurrency",
+            "params", "fileloc", "max_active_runs", "concurrency",
             "is_paused_upon_creation", "doc_md", "safe_dag_id", "is_subdag",
             "catchup", "description", "start_date", "end_date", "parent_dag",
             "template_searchpath"
@@ -284,6 +284,10 @@ class TestStringifiedDAGs(unittest.TestCase):
         # fields_to_check = dag.get_serialized_fields()
         for field in fields_to_check:
             self.assertEqual(getattr(serialized_dag, field), getattr(dag, field))
+
+        self.assertEqual(
+            sorted(serialized_dag.task_ids),
+            sorted([str(task) for task in dag.task_ids]))
 
     def validate_deserialized_task(self, task, task_type, ui_color, ui_fgcolor):
         """Verify non-airflow operators are casted to BaseOperator."""
