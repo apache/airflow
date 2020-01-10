@@ -523,7 +523,6 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         self.schema_update_options = schema_update_options
         self.query_params = query_params
         self.labels = labels
-        self.bq_cursor = None
         self.priority = priority
         self.time_partitioning = time_partitioning
         self.api_resource_configs = api_resource_configs
@@ -533,7 +532,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         self.hook = None  # type: Optional[BigQueryHook]
 
     def execute(self, context):
-        if self.bq_cursor is None:
+        if self.hook is None:
             self.log.info('Executing: %s', self.sql)
             self.hook = BigQueryHook(
                 bigquery_conn_id=self.gcp_conn_id,
@@ -541,10 +540,8 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                 delegate_to=self.delegate_to,
                 location=self.location,
             )
-            conn = self.hook.get_conn()
-            self.bq_cursor = conn.cursor()
         if isinstance(self.sql, str):
-            job_id = self.bq_cursor.run_query(
+            job_id = self.hook.run_query(
                 sql=self.sql,
                 destination_dataset_table=self.destination_dataset_table,
                 write_disposition=self.write_disposition,
@@ -565,7 +562,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
             )
         elif isinstance(self.sql, Iterable):
             job_id = [
-                self.bq_cursor.run_query(
+                self.hook.run_query(
                     sql=s,
                     destination_dataset_table=self.destination_dataset_table,
                     write_disposition=self.write_disposition,
@@ -592,7 +589,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
 
     def on_kill(self):
         super().on_kill()
-        if self.bq_cursor is not None:
+        if self.hook is not None:
             self.log.info('Cancelling running query')
             self.hook.cancel_query()
 

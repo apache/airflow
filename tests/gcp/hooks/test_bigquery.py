@@ -305,8 +305,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self, run_with_config, mock_get_service, mock_get_creds_and_proj_id
     ):
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_query('query')
+        bq_hook.run_query('query')
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useLegacySql'], True)
 
@@ -321,8 +320,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self, bool_val, expected, run_with_config, mock_get_service, mock_get_creds_and_proj_id
     ):
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_query('query', use_legacy_sql=bool_val)
+        bq_hook.run_query('query', use_legacy_sql=bool_val)
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useLegacySql'], expected)
 
@@ -336,13 +334,12 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self, run_with_config, mock_get_service, mock_get_creds_and_proj_id
     ):
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         params = [{
             'name': "param_name",
             'parameterType': {'type': "STRING"},
             'parameterValue': {'value': "param_value"}
         }]
-        cursor.run_query('query', use_legacy_sql=False, query_params=params)
+        bq_hook.run_query('query', use_legacy_sql=False, query_params=params)
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useLegacySql'], False)
 
@@ -355,14 +352,13 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self, mock_get_service, mock_get_creds_and_proj_id
     ):
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         params = [{
             'name': "param_name",
             'parameterType': {'type': "STRING"},
             'parameterValue': {'value': "param_value"}
         }]
         with self.assertRaisesRegex(ValueError, "Query parameters are not allowed when using legacy SQL"):
-            cursor.run_query('query', use_legacy_sql=True, query_params=params)
+            bq_hook.run_query('query', use_legacy_sql=True, query_params=params)
 
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
@@ -373,12 +369,11 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self, mock_get_service, mock_get_creds_and_proj_id
     ):
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         with self.assertRaisesRegex(
             TypeError,
             r"`BigQueryBaseCursor.run_query` missing 1 required positional argument: `sql`"
         ):
-            cursor.run_query(sql=None)
+            bq_hook.run_query(sql=None)
 
     @parameterized.expand([
         (['ALLOW_FIELD_ADDITION'], 'WRITE_APPEND'),
@@ -403,8 +398,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         mock_get_creds_and_proj_id
     ):
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_query(
+        bq_hook.run_query(
             sql='query',
             destination_dataset_table='my_dataset.my_table',
             schema_update_options=schema_update_options,
@@ -455,9 +449,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         mock_get_creds_and_proj_id
     ):
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
         with self.assertRaisesRegex(ValueError, expected_regex):
-            cursor.run_query(
+            bq_hook.run_query(
                 sql='query',
                 destination_dataset_table='my_dataset.my_table',
                 schema_update_options=schema_update_options,
@@ -475,10 +468,9 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self, bool_val, run_with_config, mock_get_service, mock_get_creds_and_proj_id
     ):
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_query('query',
-                         api_resource_configs={
-                             'query': {'useQueryCache': bool_val}})
+        bq_hook.run_query('query',
+                          api_resource_configs={
+                              'query': {'useQueryCache': bool_val}})
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['query']['useQueryCache'], bool_val)
         self.assertIs(args[0]['query']['useLegacySql'], True)
@@ -496,11 +488,10 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             r"Please remove duplicates\."
         ):
             bq_hook = hook.BigQueryHook()
-            cursor = bq_hook.get_cursor()
-            cursor.run_query('query',
-                             use_legacy_sql=True,
-                             api_resource_configs={
-                                 'query': {'useLegacySql': False}})
+            bq_hook.run_query('query',
+                              use_legacy_sql=True,
+                              api_resource_configs={
+                                  'query': {'useLegacySql': False}})
 
     def test_validate_value(self):
         with self.assertRaisesRegex(
@@ -1628,8 +1619,7 @@ class TestLabelsInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_query(
+        bq_hook.run_query(
             sql='select 1',
             destination_dataset_table='my_dataset.my_table',
             labels={'label1': 'test1', 'label2': 'test2'}
@@ -1967,8 +1957,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_query(sql='select 1')
+        bq_hook.run_query(sql='select 1')
 
         assert mocked_rwc.call_count == 1
 
@@ -1991,8 +1980,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_query(
+        bq_hook.run_query(
             sql='select 1',
             destination_dataset_table='my_dataset.my_table',
             time_partitioning={'type': 'DAY',
@@ -2086,8 +2074,7 @@ class TestClusteringInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_query(sql='select 1')
+        bq_hook.run_query(sql='select 1')
 
         assert mocked_rwc.call_count == 1
 
@@ -2109,9 +2096,8 @@ class TestClusteringInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
 
-        cursor.run_query(
+        bq_hook.run_query(
             sql='select 1',
             destination_dataset_table='my_dataset.my_table',
             cluster_fields=['field1', 'field2'],
@@ -2165,11 +2151,10 @@ class TestBigQueryHookLocation(unittest.TestCase):
     ):
         bq_hook = hook.BigQueryHook(location=None)
         self.assertIsNone(bq_hook.location)
-        cursor = bq_hook.get_cursor()
-        self.assertIsNone(cursor.location)
-        cursor.run_query(sql='select 1', location='US')
+        self.assertIsNone(bq_hook.location)
+        bq_hook.run_query(sql='select 1', location='US')
         assert run_with_config.call_count == 1
-        self.assertEqual(cursor.location, 'US')
+        self.assertEqual(bq_hook.location, 'US')
 
 
 class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
@@ -2369,8 +2354,7 @@ class TestBigQueryWithKMS(unittest.TestCase):
             "kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"
         }
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_query(
+        bq_hook.run_query(
             sql='query',
             encryption_configuration=encryption_configuration
         )
@@ -2453,6 +2437,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("run_load",),
         ("run_copy",),
         ("run_extract",),
+        ("run_query",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

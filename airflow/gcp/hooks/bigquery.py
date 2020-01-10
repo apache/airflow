@@ -55,7 +55,8 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                  delegate_to: Optional[str] = None,
                  use_legacy_sql: bool = True,
                  location: Optional[str] = None,
-                 bigquery_conn_id: Optional[str] = None) -> None:
+                 bigquery_conn_id: Optional[str] = None,
+                 api_resource_configs: Optional[Dict] = None) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if bigquery_conn_id:
@@ -68,6 +69,8 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.running_job_id = None  # type: Optional[str]
+        self.api_resource_configs = api_resource_configs \
+            if api_resource_configs else {}  # type Dict
 
     def get_conn(self) -> "BigQueryConnection":
         """
@@ -1774,6 +1777,246 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return self.run_with_configuration(configuration)
 
+    # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
+    def run_query(self,
+                  sql: str,
+                  destination_dataset_table: Optional[str] = None,
+                  write_disposition: str = 'WRITE_EMPTY',
+                  allow_large_results: bool = False,
+                  flatten_results: Optional[bool] = None,
+                  udf_config: Optional[List] = None,
+                  use_legacy_sql: Optional[bool] = None,
+                  maximum_billing_tier: Optional[int] = None,
+                  maximum_bytes_billed: Optional[float] = None,
+                  create_disposition: str = 'CREATE_IF_NEEDED',
+                  query_params: Optional[List] = None,
+                  labels: Optional[Dict] = None,
+                  schema_update_options: Optional[Iterable] = None,
+                  priority: str = 'INTERACTIVE',
+                  time_partitioning: Optional[Dict] = None,
+                  api_resource_configs: Optional[Dict] = None,
+                  cluster_fields: Optional[List[str]] = None,
+                  location: Optional[str] = None,
+                  encryption_configuration: Optional[Dict] = None) -> str:
+        """
+        Executes a BigQuery SQL query. Optionally persists results in a BigQuery
+        table. See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        For more details about these parameters.
+
+        :param sql: The BigQuery SQL to execute.
+        :type sql: str
+        :param destination_dataset_table: The dotted ``<dataset>.<table>``
+            BigQuery table to save the query results.
+        :type destination_dataset_table: str
+        :param write_disposition: What to do if the table already exists in
+            BigQuery.
+        :type write_disposition: str
+        :param allow_large_results: Whether to allow large results.
+        :type allow_large_results: bool
+        :param flatten_results: If true and query uses legacy SQL dialect, flattens
+            all nested and repeated fields in the query results. ``allowLargeResults``
+            must be true if this is set to false. For standard SQL queries, this
+            flag is ignored and results are never flattened.
+        :type flatten_results: bool
+        :param udf_config: The User Defined Function configuration for the query.
+            See https://cloud.google.com/bigquery/user-defined-functions for details.
+        :type udf_config: list
+        :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
+            If `None`, defaults to `self.use_legacy_sql`.
+        :type use_legacy_sql: bool
+        :param api_resource_configs: a dictionary that contain params
+            'configuration' applied for Google BigQuery Jobs API:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
+            for example, {'query': {'useQueryCache': False}}. You could use it
+            if you need to provide some params that are not supported by the
+            BigQueryHook like args.
+        :type api_resource_configs: dict
+        :param maximum_billing_tier: Positive integer that serves as a
+            multiplier of the basic price.
+        :type maximum_billing_tier: int
+        :param maximum_bytes_billed: Limits the bytes billed for this job.
+            Queries that will have bytes billed beyond this limit will fail
+            (without incurring a charge). If unspecified, this will be
+            set to your project default.
+        :type maximum_bytes_billed: float
+        :param create_disposition: Specifies whether the job is allowed to
+            create new tables.
+        :type create_disposition: str
+        :param query_params: a list of dictionary containing query parameter types and
+            values, passed to BigQuery
+        :type query_params: list
+        :param labels: a dictionary containing labels for the job/query,
+            passed to BigQuery
+        :type labels: dict
+        :param schema_update_options: Allows the schema of the destination
+            table to be updated as a side effect of the query job.
+        :type schema_update_options: Union[list, tuple, set]
+        :param priority: Specifies a priority for the query.
+            Possible values include INTERACTIVE and BATCH.
+            The default value is INTERACTIVE.
+        :type priority: str
+        :param time_partitioning: configure optional time partitioning fields i.e.
+            partition by field, type and expiration as per API specifications.
+        :type time_partitioning: dict
+        :param cluster_fields: Request that the result of this query be stored sorted
+            by one or more columns. This is only available in combination with
+            time_partitioning. The order of columns given determines the sort order.
+        :type cluster_fields: list[str]
+        :param location: The geographic location of the job. Required except for
+            US and EU. See details at
+            https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+        :type location: str
+        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+            **Example**: ::
+
+                encryption_configuration = {
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                }
+        :type encryption_configuration: dict
+        """
+        if not self.project_id:
+            raise ValueError("The project_id should be set")
+
+        schema_update_options = list(schema_update_options or [])
+
+        if time_partitioning is None:
+            time_partitioning = {}
+
+        if location:
+            self.location = location
+
+        if not api_resource_configs:
+            api_resource_configs = self.api_resource_configs
+        else:
+            _validate_value('api_resource_configs',
+                            api_resource_configs, dict)
+        configuration = deepcopy(api_resource_configs)
+        if 'query' not in configuration:
+            configuration['query'] = {}
+
+        else:
+            _validate_value("api_resource_configs['query']",
+                            configuration['query'], dict)
+
+        if sql is None and not configuration['query'].get('query', None):
+            raise TypeError('`BigQueryBaseCursor.run_query` '
+                            'missing 1 required positional argument: `sql`')
+
+        # BigQuery also allows you to define how you want a table's schema to change
+        # as a side effect of a query job
+        # for more details:
+        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.schemaUpdateOptions  # noqa # pylint: disable=line-too-long
+
+        allowed_schema_update_options = [
+            'ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"
+        ]
+
+        if not set(allowed_schema_update_options
+                   ).issuperset(set(schema_update_options)):
+            raise ValueError("{0} contains invalid schema update options. "
+                             "Please only use one or more of the following "
+                             "options: {1}"
+                             .format(schema_update_options,
+                                     allowed_schema_update_options))
+
+        if schema_update_options:
+            if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
+                raise ValueError("schema_update_options is only "
+                                 "allowed if write_disposition is "
+                                 "'WRITE_APPEND' or 'WRITE_TRUNCATE'.")
+
+        if destination_dataset_table:
+            destination_project, destination_dataset, destination_table = \
+                _split_tablename(table_input=destination_dataset_table,
+                                 default_project_id=self.project_id)
+
+            destination_dataset_table = {  # type: ignore
+                'projectId': destination_project,
+                'datasetId': destination_dataset,
+                'tableId': destination_table,
+            }
+
+        if cluster_fields:
+            cluster_fields = {'fields': cluster_fields}  # type: ignore
+
+        query_param_list = [
+            (sql, 'query', None, (str,)),
+            (priority, 'priority', 'INTERACTIVE', (str,)),
+            (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
+            (query_params, 'queryParameters', None, list),
+            (udf_config, 'userDefinedFunctionResources', None, list),
+            (maximum_billing_tier, 'maximumBillingTier', None, int),
+            (maximum_bytes_billed, 'maximumBytesBilled', None, float),
+            (time_partitioning, 'timePartitioning', {}, dict),
+            (schema_update_options, 'schemaUpdateOptions', None, list),
+            (destination_dataset_table, 'destinationTable', None, dict),
+            (cluster_fields, 'clustering', None, dict),
+        ]  # type: List[Tuple]
+
+        for param, param_name, param_default, param_type in query_param_list:
+            if param_name not in configuration['query'] and param in [None, {}, ()]:
+                if param_name == 'timePartitioning':
+                    param_default = _cleanse_time_partitioning(
+                        destination_dataset_table, time_partitioning)
+                param = param_default
+
+            if param in [None, {}, ()]:
+                continue
+
+            _api_resource_configs_duplication_check(
+                param_name, param, configuration['query'])
+
+            configuration['query'][param_name] = param
+
+            # check valid type of provided param,
+            # it last step because we can get param from 2 sources,
+            # and first of all need to find it
+
+            _validate_value(param_name, configuration['query'][param_name],
+                            param_type)
+
+            if param_name == 'schemaUpdateOptions' and param:
+                self.log.info("Adding experimental 'schemaUpdateOptions': "
+                              "%s", schema_update_options)
+
+            if param_name != 'destinationTable':
+                continue
+
+            for key in ['projectId', 'datasetId', 'tableId']:
+                if key not in configuration['query']['destinationTable']:
+                    raise ValueError(
+                        "Not correct 'destinationTable' in "
+                        "api_resource_configs. 'destinationTable' "
+                        "must be a dict with {'projectId':'', "
+                        "'datasetId':'', 'tableId':''}")
+
+            configuration['query'].update({
+                'allowLargeResults': allow_large_results,
+                'flattenResults': flatten_results,
+                'writeDisposition': write_disposition,
+                'createDisposition': create_disposition,
+            })
+
+        if 'useLegacySql' in configuration['query'] and configuration['query']['useLegacySql'] and\
+                'queryParameters' in configuration['query']:
+            raise ValueError("Query parameters are not allowed "
+                             "when using legacy SQL")
+
+        if labels:
+            _api_resource_configs_duplication_check(
+                'labels', labels, configuration)
+            configuration['labels'] = labels
+
+        if encryption_configuration:
+            configuration["query"][
+                "destinationEncryptionConfiguration"
+            ] = encryption_configuration
+
+        return self.run_with_configuration(configuration)
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -2105,242 +2348,16 @@ class BigQueryBaseCursor(LoggingMixin):
             DeprecationWarning, stacklevel=3)
         return self.hook.run_extract(*args, **kwargs)
 
-    # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
-    def run_query(self,
-                  sql: str,
-                  destination_dataset_table: Optional[str] = None,
-                  write_disposition: str = 'WRITE_EMPTY',
-                  allow_large_results: bool = False,
-                  flatten_results: Optional[bool] = None,
-                  udf_config: Optional[List] = None,
-                  use_legacy_sql: Optional[bool] = None,
-                  maximum_billing_tier: Optional[int] = None,
-                  maximum_bytes_billed: Optional[float] = None,
-                  create_disposition: str = 'CREATE_IF_NEEDED',
-                  query_params: Optional[List] = None,
-                  labels: Optional[Dict] = None,
-                  schema_update_options: Optional[Iterable] = None,
-                  priority: str = 'INTERACTIVE',
-                  time_partitioning: Optional[Dict] = None,
-                  api_resource_configs: Optional[Dict] = None,
-                  cluster_fields: Optional[List[str]] = None,
-                  location: Optional[str] = None,
-                  encryption_configuration: Optional[Dict] = None) -> str:
+    def run_query(self, *args, **kwargs) -> str:
         """
-        Executes a BigQuery SQL query. Optionally persists results in a BigQuery
-        table. See here:
-
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
-
-        For more details about these parameters.
-
-        :param sql: The BigQuery SQL to execute.
-        :type sql: str
-        :param destination_dataset_table: The dotted ``<dataset>.<table>``
-            BigQuery table to save the query results.
-        :type destination_dataset_table: str
-        :param write_disposition: What to do if the table already exists in
-            BigQuery.
-        :type write_disposition: str
-        :param allow_large_results: Whether to allow large results.
-        :type allow_large_results: bool
-        :param flatten_results: If true and query uses legacy SQL dialect, flattens
-            all nested and repeated fields in the query results. ``allowLargeResults``
-            must be true if this is set to false. For standard SQL queries, this
-            flag is ignored and results are never flattened.
-        :type flatten_results: bool
-        :param udf_config: The User Defined Function configuration for the query.
-            See https://cloud.google.com/bigquery/user-defined-functions for details.
-        :type udf_config: list
-        :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
-            If `None`, defaults to `self.use_legacy_sql`.
-        :type use_legacy_sql: bool
-        :param api_resource_configs: a dictionary that contain params
-            'configuration' applied for Google BigQuery Jobs API:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
-            for example, {'query': {'useQueryCache': False}}. You could use it
-            if you need to provide some params that are not supported by the
-            BigQueryHook like args.
-        :type api_resource_configs: dict
-        :param maximum_billing_tier: Positive integer that serves as a
-            multiplier of the basic price.
-        :type maximum_billing_tier: int
-        :param maximum_bytes_billed: Limits the bytes billed for this job.
-            Queries that will have bytes billed beyond this limit will fail
-            (without incurring a charge). If unspecified, this will be
-            set to your project default.
-        :type maximum_bytes_billed: float
-        :param create_disposition: Specifies whether the job is allowed to
-            create new tables.
-        :type create_disposition: str
-        :param query_params: a list of dictionary containing query parameter types and
-            values, passed to BigQuery
-        :type query_params: list
-        :param labels: a dictionary containing labels for the job/query,
-            passed to BigQuery
-        :type labels: dict
-        :param schema_update_options: Allows the schema of the destination
-            table to be updated as a side effect of the query job.
-        :type schema_update_options: Union[list, tuple, set]
-        :param priority: Specifies a priority for the query.
-            Possible values include INTERACTIVE and BATCH.
-            The default value is INTERACTIVE.
-        :type priority: str
-        :param time_partitioning: configure optional time partitioning fields i.e.
-            partition by field, type and expiration as per API specifications.
-        :type time_partitioning: dict
-        :param cluster_fields: Request that the result of this query be stored sorted
-            by one or more columns. This is only available in combination with
-            time_partitioning. The order of columns given determines the sort order.
-        :type cluster_fields: list[str]
-        :param location: The geographic location of the job. Required except for
-            US and EU. See details at
-            https://cloud.google.com/bigquery/docs/locations#specifying_your_location
-        :type location: str
-        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-            **Example**: ::
-
-                encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
-                }
-        :type encryption_configuration: dict
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_query`
         """
-        schema_update_options = list(schema_update_options or [])
-
-        if time_partitioning is None:
-            time_partitioning = {}
-
-        if location:
-            self.location = location
-
-        if not api_resource_configs:
-            api_resource_configs = self.api_resource_configs
-        else:
-            _validate_value('api_resource_configs',
-                            api_resource_configs, dict)
-        configuration = deepcopy(api_resource_configs)
-        if 'query' not in configuration:
-            configuration['query'] = {}
-
-        else:
-            _validate_value("api_resource_configs['query']",
-                            configuration['query'], dict)
-
-        if sql is None and not configuration['query'].get('query', None):
-            raise TypeError('`BigQueryBaseCursor.run_query` '
-                            'missing 1 required positional argument: `sql`')
-
-        # BigQuery also allows you to define how you want a table's schema to change
-        # as a side effect of a query job
-        # for more details:
-        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.schemaUpdateOptions  # noqa # pylint: disable=line-too-long
-
-        allowed_schema_update_options = [
-            'ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"
-        ]
-
-        if not set(allowed_schema_update_options
-                   ).issuperset(set(schema_update_options)):
-            raise ValueError("{0} contains invalid schema update options. "
-                             "Please only use one or more of the following "
-                             "options: {1}"
-                             .format(schema_update_options,
-                                     allowed_schema_update_options))
-
-        if schema_update_options:
-            if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
-                raise ValueError("schema_update_options is only "
-                                 "allowed if write_disposition is "
-                                 "'WRITE_APPEND' or 'WRITE_TRUNCATE'.")
-
-        if destination_dataset_table:
-            destination_project, destination_dataset, destination_table = \
-                _split_tablename(table_input=destination_dataset_table,
-                                 default_project_id=self.project_id)
-
-            destination_dataset_table = {  # type: ignore
-                'projectId': destination_project,
-                'datasetId': destination_dataset,
-                'tableId': destination_table,
-            }
-
-        if cluster_fields:
-            cluster_fields = {'fields': cluster_fields}  # type: ignore
-
-        query_param_list = [
-            (sql, 'query', None, (str,)),
-            (priority, 'priority', 'INTERACTIVE', (str,)),
-            (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
-            (query_params, 'queryParameters', None, list),
-            (udf_config, 'userDefinedFunctionResources', None, list),
-            (maximum_billing_tier, 'maximumBillingTier', None, int),
-            (maximum_bytes_billed, 'maximumBytesBilled', None, float),
-            (time_partitioning, 'timePartitioning', {}, dict),
-            (schema_update_options, 'schemaUpdateOptions', None, list),
-            (destination_dataset_table, 'destinationTable', None, dict),
-            (cluster_fields, 'clustering', None, dict),
-        ]  # type: List[Tuple]
-
-        for param, param_name, param_default, param_type in query_param_list:
-            if param_name not in configuration['query'] and param in [None, {}, ()]:
-                if param_name == 'timePartitioning':
-                    param_default = _cleanse_time_partitioning(
-                        destination_dataset_table, time_partitioning)
-                param = param_default
-
-            if param in [None, {}, ()]:
-                continue
-
-            _api_resource_configs_duplication_check(
-                param_name, param, configuration['query'])
-
-            configuration['query'][param_name] = param
-
-            # check valid type of provided param,
-            # it last step because we can get param from 2 sources,
-            # and first of all need to find it
-
-            _validate_value(param_name, configuration['query'][param_name],
-                            param_type)
-
-            if param_name == 'schemaUpdateOptions' and param:
-                self.log.info("Adding experimental 'schemaUpdateOptions': "
-                              "%s", schema_update_options)
-
-            if param_name != 'destinationTable':
-                continue
-
-            for key in ['projectId', 'datasetId', 'tableId']:
-                if key not in configuration['query']['destinationTable']:
-                    raise ValueError(
-                        "Not correct 'destinationTable' in "
-                        "api_resource_configs. 'destinationTable' "
-                        "must be a dict with {'projectId':'', "
-                        "'datasetId':'', 'tableId':''}")
-
-            configuration['query'].update({
-                'allowLargeResults': allow_large_results,
-                'flattenResults': flatten_results,
-                'writeDisposition': write_disposition,
-                'createDisposition': create_disposition,
-            })
-
-        if 'useLegacySql' in configuration['query'] and configuration['query']['useLegacySql'] and\
-                'queryParameters' in configuration['query']:
-            raise ValueError("Query parameters are not allowed "
-                             "when using legacy SQL")
-
-        if labels:
-            _api_resource_configs_duplication_check(
-                'labels', labels, configuration)
-            configuration['labels'] = labels
-
-        if encryption_configuration:
-            configuration["query"][
-                "destinationEncryptionConfiguration"
-            ] = encryption_configuration
-
-        return self.run_with_configuration(configuration)
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_query`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.run_query(*args, **kwargs)
 
 
 class BigQueryCursor(BigQueryBaseCursor):
@@ -2400,7 +2417,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         sql = _bind_parameters(operation,
                                parameters) if parameters else operation
         self.flush_results()
-        self.job_id = self.run_query(sql)
+        self.job_id = self.hook.run_query(sql)
 
     def executemany(self, operation: str, seq_of_parameters: List) -> None:
         """

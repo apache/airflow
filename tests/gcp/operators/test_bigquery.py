@@ -287,8 +287,6 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',
@@ -340,8 +338,6 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_query \
             .assert_has_calls([
                 mock.call(
@@ -423,8 +419,6 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',
