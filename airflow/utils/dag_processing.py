@@ -555,7 +555,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._max_runs = max_runs
         self._processor_factory = processor_factory
         self._signal_conn = signal_conn
-        self._pickle_dags = pickle_dags,
+        self._pickle_dags = pickle_dags
         self._async_mode = async_mode
         self._parsing_start_time: Optional[datetime] = None
 
