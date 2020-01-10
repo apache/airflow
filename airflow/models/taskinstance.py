@@ -41,10 +41,7 @@ from sqlalchemy.sql.elements import BooleanClauseList
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
-    AirflowException,
-    AirflowFailException,
-    AirflowRescheduleException,
-    AirflowSkipException,
+    AirflowException, AirflowFailException, AirflowRescheduleException, AirflowSkipException,
     AirflowTaskTimeout,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
