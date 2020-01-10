@@ -592,8 +592,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         }
 
         bq_hook = hook.BigQueryHook()
-        cursor = bq_hook.get_cursor()
-        cursor.run_extract(
+        bq_hook.run_extract(
             source_project_dataset_table=source_project_dataset_table,
             destination_cloud_storage_uris=destination_cloud_storage_uris
         )
@@ -2453,6 +2452,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning(unittest.TestCase):
         ("run_with_configuration",),
         ("run_load",),
         ("run_copy",),
+        ("run_extract",),
     ])
     @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, func_name, mock_bq_hook):

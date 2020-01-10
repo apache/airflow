@@ -42,6 +42,7 @@ from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
+# pylint: disable=too-many-public-methods
 class BigQueryHook(CloudBaseHook, DbApiHook):
     """
     Interact with BigQuery. This hook uses the Google Cloud Platform
@@ -1703,6 +1704,76 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         return self.run_with_configuration(configuration)
 
+    def run_extract(
+            self,
+            source_project_dataset_table: str,
+            destination_cloud_storage_uris: str,
+            compression: str = 'NONE',
+            export_format: str = 'CSV',
+            field_delimiter: str = ',',
+            print_header: bool = True,
+            labels: Optional[Dict] = None) -> str:
+        """
+        Executes a BigQuery extract command to copy data from BigQuery to
+        Google Cloud Storage. See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        For more details about these parameters.
+
+        :param source_project_dataset_table: The dotted ``<dataset>.<table>``
+            BigQuery table to use as the source data.
+        :type source_project_dataset_table: str
+        :param destination_cloud_storage_uris: The destination Google Cloud
+            Storage URI (e.g. gs://some-bucket/some-file.txt). Follows
+            convention defined here:
+            https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
+        :type destination_cloud_storage_uris: list
+        :param compression: Type of compression to use.
+        :type compression: str
+        :param export_format: File format to export.
+        :type export_format: str
+        :param field_delimiter: The delimiter to use when extracting to a CSV.
+        :type field_delimiter: str
+        :param print_header: Whether to print a header for a CSV file extract.
+        :type print_header: bool
+        :param labels: a dictionary containing labels for the job/query,
+            passed to BigQuery
+        :type labels: dict
+        """
+        if not self.project_id:
+            raise ValueError("The project_id should be set")
+
+        source_project, source_dataset, source_table = \
+            _split_tablename(table_input=source_project_dataset_table,
+                             default_project_id=self.project_id,
+                             var_name='source_project_dataset_table')
+
+        configuration = {
+            'extract': {
+                'sourceTable': {
+                    'projectId': source_project,
+                    'datasetId': source_dataset,
+                    'tableId': source_table,
+                },
+                'compression': compression,
+                'destinationUris': destination_cloud_storage_uris,
+                'destinationFormat': export_format,
+            }
+        }  # type: Dict[str, Any]
+
+        if labels:
+            configuration['labels'] = labels
+
+        if export_format == 'CSV':
+            # Only set fieldDelimiter and printHeader fields if using CSV.
+            # Google does not like it if you set these fields for other export
+            # formats.
+            configuration['extract']['fieldDelimiter'] = field_delimiter
+            configuration['extract']['printHeader'] = print_header
+
+        return self.run_with_configuration(configuration)
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
@@ -2023,6 +2094,17 @@ class BigQueryBaseCursor(LoggingMixin):
             DeprecationWarning, stacklevel=3)
         return self.hook.run_copy(*args, **kwargs)
 
+    def run_extract(self, *args, **kwargs) -> str:
+        """
+        This method is deprecated.
+        Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_extract`
+        """
+        warnings.warn(
+            "This method is deprecated. "
+            "Please use `airflow.gcp.hooks.bigquery.BigQueryHook.run_extract`",
+            DeprecationWarning, stacklevel=3)
+        return self.hook.run_extract(*args, **kwargs)
+
     # pylint: disable=too-many-locals,too-many-arguments, too-many-branches
     def run_query(self,
                   sql: str,
@@ -2257,74 +2339,6 @@ class BigQueryBaseCursor(LoggingMixin):
             configuration["query"][
                 "destinationEncryptionConfiguration"
             ] = encryption_configuration
-
-        return self.run_with_configuration(configuration)
-
-    def run_extract(  # noqa
-            self,
-            source_project_dataset_table: str,
-            destination_cloud_storage_uris: str,
-            compression: str = 'NONE',
-            export_format: str = 'CSV',
-            field_delimiter: str = ',',
-            print_header: bool = True,
-            labels: Optional[Dict] = None) -> str:
-        """
-        Executes a BigQuery extract command to copy data from BigQuery to
-        Google Cloud Storage. See here:
-
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
-
-        For more details about these parameters.
-
-        :param source_project_dataset_table: The dotted ``<dataset>.<table>``
-            BigQuery table to use as the source data.
-        :type source_project_dataset_table: str
-        :param destination_cloud_storage_uris: The destination Google Cloud
-            Storage URI (e.g. gs://some-bucket/some-file.txt). Follows
-            convention defined here:
-            https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
-        :type destination_cloud_storage_uris: list
-        :param compression: Type of compression to use.
-        :type compression: str
-        :param export_format: File format to export.
-        :type export_format: str
-        :param field_delimiter: The delimiter to use when extracting to a CSV.
-        :type field_delimiter: str
-        :param print_header: Whether to print a header for a CSV file extract.
-        :type print_header: bool
-        :param labels: a dictionary containing labels for the job/query,
-            passed to BigQuery
-        :type labels: dict
-        """
-
-        source_project, source_dataset, source_table = \
-            _split_tablename(table_input=source_project_dataset_table,
-                             default_project_id=self.project_id,
-                             var_name='source_project_dataset_table')
-
-        configuration = {
-            'extract': {
-                'sourceTable': {
-                    'projectId': source_project,
-                    'datasetId': source_dataset,
-                    'tableId': source_table,
-                },
-                'compression': compression,
-                'destinationUris': destination_cloud_storage_uris,
-                'destinationFormat': export_format,
-            }
-        }  # type: Dict[str, Any]
-
-        if labels:
-            configuration['labels'] = labels
-
-        if export_format == 'CSV':
-            # Only set fieldDelimiter and printHeader fields if using CSV.
-            # Google does not like it if you set these fields for other export
-            # formats.
-            configuration['extract']['fieldDelimiter'] = field_delimiter
-            configuration['extract']['printHeader'] = print_header
 
         return self.run_with_configuration(configuration)
 
