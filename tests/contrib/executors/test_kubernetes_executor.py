@@ -780,7 +780,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         ]
         self.assertEqual(2, len(volume_mounts))
 
-        self.assertCountEqual(
+        six.assertCountEqual(
+            self,
             [
                 {
                     'mountPath': '/usr/local/airflow/airflow.cfg',
@@ -869,7 +870,6 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             ],
             airflow_cfg_volume_mount
         )
-
 
     def test_kubernetes_environment_variables(self):
         # Tests the kubernetes environment variables get copied into the worker pods
