@@ -33,8 +33,8 @@ from airflow.operators.presto_to_mysql import PrestoToMySqlTransfer
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
+from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
 from airflow.sensors.hdfs_sensor import HdfsSensor
-from airflow.sensors.metastore_partition_sensor import MetastorePartitionSensor
 from airflow.sensors.named_hive_partition_sensor import NamedHivePartitionSensor
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.sensors.web_hdfs_sensor import WebHdfsSensor

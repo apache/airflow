@@ -173,7 +173,7 @@
 ./airflow/sensors/hdfs_sensor.py
 ./airflow/providers/apache/hive/sensors/hive_partition.py
 ./airflow/sensors/http_sensor.py
-./airflow/sensors/metastore_partition_sensor.py
+./airflow/providers/apache/hive/sensors/metastore_partition.py
 ./airflow/sensors/named_hive_partition_sensor.py
 ./airflow/sensors/s3_key_sensor.py
 ./airflow/sensors/s3_prefix_sensor.py

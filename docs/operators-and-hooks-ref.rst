@@ -96,7 +96,7 @@ Foundation.
        :mod:`airflow.providers.apache.hive.operators.hive_stats`
      - :mod:`airflow.sensors.named_hive_partition_sensor`,
        :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
-       :mod:`airflow.sensors.metastore_partition_sensor`
+       :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
    * - `Apache Pig <https://pig.apache.org/>`__
      -
