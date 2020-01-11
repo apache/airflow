@@ -29,7 +29,7 @@ script_start
 
 build_image_on_ci
 
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
+KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 
 mkdir -p "${AIRFLOW_SOURCES}/files"
 
