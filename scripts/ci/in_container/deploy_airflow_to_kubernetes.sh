@@ -16,16 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-IMAGE=${IMAGE:-airflow}
-TAG=${TAG:-latest}
-DIRNAME=$(cd "$(dirname "$0")" && pwd)
-AIRFLOW_ROOT="${DIRNAME}/../../../.."
+# Script to run flake8 on all code. Can be started from any working directory
+set -uo pipefail
 
-set -e
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-echo "Airflow directory ${AIRFLOW_ROOT}"
-echo "Airflow Docker directory ${DIRNAME}"
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
-cd "${DIRNAME}" && docker build --build-arg AIRFLOW_CI_IMAGE="${AIRFLOW_CONTAINER_DOCKER_IMAGE}" --pull "${DIRNAME}" --tag="${IMAGE}:${TAG}"
+in_container_basic_sanity_check
 
-kind load docker-image "${IMAGE}:${TAG}"
+in_container_script_start
+
+"${MY_DIR}/kubernetes/docker/rebuild_airflow_image.sh"
+"${MY_DIR}/kubernetes/app/deploy_app.sh"
+
+in_container_script_end
