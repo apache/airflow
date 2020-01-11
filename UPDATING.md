@@ -212,6 +212,15 @@ The following methods were moved:
 | airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration        |
 | airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset                |
 
+### Make behavior of `none_failed` trigger rule consistent with documentation
+The behavior of the `none_failed` trigger rule is documented as "all parents have not failed (`failed` or
+    `upstream_failed`) i.e. all parents have succeeded or been skipped." As previously implemented, the actual behavior
+    would skip if all parents of a task had also skipped.
+
+This may break workflows that depend on the previous behavior.
+    If you really need the old behavior, you can have your workflow manually check the status of upstream tasks for non-
+    skipped tasks and respond appropriately.
+
 ### Standardize handling http exception in BigQuery
 
 Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
