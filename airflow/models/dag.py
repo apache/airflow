@@ -48,7 +48,7 @@ from airflow.models.base import Base, ID_LEN
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_task_instances, cancel_task_instances
 from airflow.settings import STORE_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL
 from airflow.utils import timezone
 from airflow.utils.dag_processing import correct_maybe_zipped
@@ -898,6 +898,69 @@ class DAG(BaseDag, LoggingMixin):
         for dr in drs:
             dr.state = state
             dirty_ids.append(dr.dag_id)
+
+    @provide_session
+    def cancel(
+            self, start_date=None, end_date=None,
+            confirm_prompt=False,
+            include_subdags=True,
+            dry_run=False,
+            session=None,
+    ):
+        """
+        Clears a set of task instances associated with the current dag for
+        a specified date range.
+        """
+        TI = TaskInstance
+        tis = session.query(TI)
+        if include_subdags:
+            # Crafting the right filter for dag_id and task_ids combo
+            conditions = []
+            for dag in self.subdags + [self]:
+                conditions.append(
+                    TI.dag_id.like(dag.dag_id) &
+                    TI.task_id.in_(dag.task_ids)
+                )
+            tis = tis.filter(or_(*conditions))
+        else:
+            tis = session.query(TI).filter(TI.dag_id == self.dag_id)
+            tis = tis.filter(TI.task_id.in_(self.task_ids))
+
+        if start_date:
+            tis = tis.filter(TI.execution_date >= start_date)
+        if end_date:
+            tis = tis.filter(TI.execution_date <= end_date)
+
+        tis = tis.filter(~TI.state.in_(State.finished()))
+
+        if dry_run:
+            tis = tis.all()
+            session.expunge_all()
+            return tis
+
+        count = tis.count()
+        do_it = True
+        if count == 0:
+            return 0
+        if confirm_prompt:
+            ti_list = "\n".join([str(t) for t in tis])
+            question = (
+                "You are about to cancel these {count} tasks:\n"
+                "{ti_list}\n\n"
+                "Are you sure? (yes/no): ").format(**locals())
+            do_it = utils.helpers.ask_yesno(question)
+
+        if do_it:
+            cancel_task_instances(tis.all(),
+                                  session,
+                                  dag=self,
+                                  )
+        else:
+            count = 0
+            print("Bail. Nothing was cancelled.")
+
+        session.commit()
+        return count
 
     @provide_session
     def clear(

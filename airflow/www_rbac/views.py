@@ -1075,13 +1075,14 @@ class Airflow(AirflowBaseView):
                                    recursive=True, confirmed=confirmed)
 
 
-    @expose('/dagrun_cancel')
+    @expose('/dagrun_cancel', methods=['POST', 'GET'])
+    @has_dag_access(can_dag_edit=True)
     @has_access
     @action_logging
     def dagrun_cancel(self):
         dag_id = request.args.get('dag_id')
         origin = request.args.get('origin') or "/"
-        confirmed = request.args.get('confirmed') == "true"
+        confirmed = request.form.get('confirmed') == "true"
 
         dag = dagbag.get_dag(dag_id)
 
