@@ -253,7 +253,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             self.handler.stream = self.handler._open()  # pylint: disable=protected-access
 
         # Mark the end of file using end of log mark,
-        # so we know where to stop while auto-tailing.\
+        # so we know where to stop while auto-tailing.
         if self.write_stdout:
             print()
         self.handler.emit(logging.LogRecord(None, logging.INFO, None, 0, self.end_of_log_mark, None, None))
