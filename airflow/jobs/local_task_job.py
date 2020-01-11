@@ -154,5 +154,8 @@ class LocalTaskJob(BaseJob):
                 "Taking the poison pill.",
                 ti.state
             )
+            if ti.state == State.FAILED and ti.task.on_failure_callback:
+                context = ti.get_template_context()
+                ti.task.on_failure_callback(context)
             self.task_runner.terminate()
             self.terminating = True

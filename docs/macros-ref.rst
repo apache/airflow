@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-
+.. _macros:
 
 Macros reference
 ================
@@ -50,7 +50,7 @@ Variable                                Description
 ``{{ ts }}``                            same as ``execution_date.isoformat()``. Example: ``2018-01-01T00:00:00+00:00``
 ``{{ ts_nodash }}``                     same as ``ts`` without ``-``, ``:`` and TimeZone info. Example: ``20180101T000000``
 ``{{ ts_nodash_with_tz }}``             same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
-``{{ execution_date }}``                the execution_date (`pendulum.Pendulum`_)
+``{{ execution_date }}``                the execution_date (logical date) (`pendulum.Pendulum`_)
 ``{{ prev_execution_date }}``           the previous execution date (if available) (`pendulum.Pendulum`_)
 ``{{ prev_execution_date_success }}``   execution date from prior successful dag run (if available) (`pendulum.Pendulum`_)
 ``{{ prev_start_date_success }}``       start date from prior successful dag run (if available) (`pendulum.Pendulum`_)

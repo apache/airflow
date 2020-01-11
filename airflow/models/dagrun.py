@@ -181,16 +181,21 @@ class DagRun(Base, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date == self.execution_date,
         )
+
         if state:
             if isinstance(state, str):
                 tis = tis.filter(TaskInstance.state == state)
             else:
                 # this is required to deal with NULL values
                 if None in state:
-                    tis = tis.filter(
-                        or_(TaskInstance.state.in_(state),
-                            TaskInstance.state.is_(None))
-                    )
+                    if all(x is None for x in state):
+                        tis = tis.filter(TaskInstance.state.is_(None))
+                    else:
+                        not_none_state = [s for s in state if s]
+                        tis = tis.filter(
+                            or_(TaskInstance.state.in_(not_none_state),
+                                TaskInstance.state.is_(None))
+                        )
                 else:
                     tis = tis.filter(TaskInstance.state.in_(state))
 

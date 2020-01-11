@@ -59,10 +59,10 @@ def utcnow():
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()
-    d = dt.datetime.utcnow()
-    d = d.replace(tzinfo=utc)
+    date = dt.datetime.utcnow()
+    date = date.replace(tzinfo=utc)
 
-    return d
+    return date
 
 
 def utc_epoch():
@@ -75,10 +75,10 @@ def utc_epoch():
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not pickable and also creates issues
     # when using replace()
-    d = dt.datetime(1970, 1, 1)
-    d = d.replace(tzinfo=utc)
+    date = dt.datetime(1970, 1, 1)
+    date = date.replace(tzinfo=utc)
 
-    return d
+    return date
 
 
 def convert_to_utc(value):
@@ -145,16 +145,16 @@ def make_naive(value, timezone=None):
     if is_naive(value):
         raise ValueError("make_naive() cannot be applied to a naive datetime")
 
-    o = value.astimezone(timezone)
+    date = value.astimezone(timezone)
 
     # cross library compatibility
-    naive = dt.datetime(o.year,
-                        o.month,
-                        o.day,
-                        o.hour,
-                        o.minute,
-                        o.second,
-                        o.microsecond)
+    naive = dt.datetime(date.year,
+                        date.month,
+                        date.day,
+                        date.hour,
+                        date.minute,
+                        date.second,
+                        date.microsecond)
 
     return naive
 

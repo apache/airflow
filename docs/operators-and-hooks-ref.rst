@@ -303,7 +303,8 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `AWS Batch <https://aws.amazon.com/batch/>`__
      -
-     -
+     - :mod:`airflow.providers.amazon.aws.hooks.batch_client`,
+       :mod:`airflow.providers.amazon.aws.hooks.batch_waiters`
      - :mod:`airflow.providers.amazon.aws.operators.batch`
      -
 

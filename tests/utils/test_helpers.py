@@ -28,7 +28,6 @@ from datetime import datetime
 import psutil
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers
@@ -172,41 +171,6 @@ class TestHelpers(unittest.TestCase):
         test_str = 'test_str'
         as_tup = helpers.as_tuple(test_str)
         self.assertTupleEqual((test_str,), as_tup)
-
-    def test_cross_downstream(self):
-        """Test if all dependencies between tasks are all set correctly."""
-        dag = DAG(dag_id="test_dag", start_date=datetime.now())
-        start_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(1, 4)]
-        end_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(4, 7)]
-        helpers.cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
-
-        for start_task in start_tasks:
-            self.assertCountEqual(start_task.get_direct_relatives(upstream=False), end_tasks)
-
-    def test_chain(self):
-        dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [op1, op2, op3, op4, op5, op6] = [
-            DummyOperator(task_id='t{i}'.format(i=i), dag=dag)
-            for i in range(1, 7)
-        ]
-        helpers.chain(op1, [op2, op3], [op4, op5], op6)
-
-        self.assertCountEqual([op2, op3], op1.get_direct_relatives(upstream=False))
-        self.assertEqual([op4], op2.get_direct_relatives(upstream=False))
-        self.assertEqual([op5], op3.get_direct_relatives(upstream=False))
-        self.assertCountEqual([op4, op5], op6.get_direct_relatives(upstream=True))
-
-    def test_chain_not_support_type(self):
-        dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [op1, op2] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 3)]
-        with self.assertRaises(TypeError):
-            helpers.chain([op1, op2], 1)
-
-    def test_chain_different_length_iterable(self):
-        dag = DAG(dag_id='test_chain', start_date=datetime.now())
-        [op1, op2, op3, op4, op5] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 6)]
-        with self.assertRaises(AirflowException):
-            helpers.chain([op1, op2], [op3, op4, op5])
 
     def test_convert_camel_to_snake(self):
         self.assertEqual(helpers.convert_camel_to_snake('LocalTaskJob'), 'local_task_job')

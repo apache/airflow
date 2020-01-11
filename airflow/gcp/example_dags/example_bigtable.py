@@ -50,13 +50,13 @@ This DAG relies on the following environment variables:
 import json
 from os import getenv
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
     BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
 )
 from airflow.gcp.sensors.bigtable import BigtableTableReplicationCompletedSensor
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_gcp_bigtable_args]
 GCP_PROJECT_ID = getenv('GCP_PROJECT_ID', 'example-project')
@@ -74,7 +74,7 @@ CBT_POKE_INTERVAL = getenv('CBT_POKE_INTERVAL', '60')
 # [END howto_operator_gcp_bigtable_args]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1)
+    'start_date': days_ago(1)
 }
 
 with models.DAG(

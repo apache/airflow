@@ -35,6 +35,7 @@ from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
+from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from tests.test_utils.mock_operators import CustomOperator, CustomOpLink, GoogleLink
 
@@ -53,7 +54,7 @@ serialized_simple_dag_ground_truth = {
             }
         },
         "start_date": 1564617600.0,
-        "params": {},
+        "is_paused_upon_creation": False,
         "_dag_id": "simple_dag",
         "fileloc": None,
         "tasks": [
@@ -107,6 +108,7 @@ def make_simple_dag():
             "depends_on_past": False,
         },
         start_date=datetime(2019, 8, 1),
+        is_paused_upon_creation=False,
     )
     BaseOperator(task_id='simple_task', dag=dag, owner='airflow')
     CustomOperator(task_id='custom_task', dag=dag)
@@ -156,6 +158,9 @@ def collect_dags():
     dags.update(make_example_dags(example_dags))
     dags.update(make_example_dags(contrib_example_dags))
     dags.update(make_example_dags(gcp_example_dags))
+
+    # Filter subdags as they are stored in same row in Serialized Dag table
+    dags = {dag_id: dag for dag_id, dag in dags.items() if not dag.is_subdag}
     return dags
 
 
@@ -238,6 +243,9 @@ class TestStringifiedDAGs(unittest.TestCase):
         self.assertTrue(set(stringified_dags.keys()) == set(dags.keys()))
 
         # Verify deserialized DAGs.
+        for dag_id in stringified_dags:
+            self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
+
         example_skip_dag = stringified_dags['example_skip_dag']
         skip_operator_1_task = example_skip_dag.task_dict['skip_operator_1']
         self.validate_deserialized_task(
@@ -257,6 +265,22 @@ class TestStringifiedDAGs(unittest.TestCase):
             SubDagOperator.ui_fgcolor
         )
 
+    def validate_deserialized_dag(self, serialized_dag, dag):
+        """
+        Verify that all example DAGs work with DAG Serialization by
+        checking fields between Serialized Dags & non-Serialized Dags
+        """
+        fields_to_check = [
+            "task_ids", "params", "fileloc", "max_active_runs", "concurrency",
+            "is_paused_upon_creation", "doc_md", "safe_dag_id", "is_subdag",
+            "catchup", "description", "start_date", "end_date", "parent_dag",
+            "template_searchpath"
+        ]
+
+        # fields_to_check = dag.get_serialized_fields()
+        for field in fields_to_check:
+            self.assertEqual(getattr(serialized_dag, field), getattr(dag, field))
+
     def validate_deserialized_task(self, task, task_type, ui_color, ui_fgcolor):
         """Verify non-airflow operators are casted to BaseOperator."""
         self.assertTrue(isinstance(task, SerializedBaseOperator))
@@ -272,6 +296,8 @@ class TestStringifiedDAGs(unittest.TestCase):
             self.assertTrue(isinstance(task.subdag, DAG))
         else:
             self.assertIsNone(task.subdag)
+        self.assertEqual({}, task.params)
+        self.assertEqual({}, task.executor_config)
 
     @parameterized.expand([
         (datetime(2019, 8, 1), None, datetime(2019, 8, 1)),
@@ -332,7 +358,6 @@ class TestStringifiedDAGs(unittest.TestCase):
             "__version": 1,
             "dag": {
                 "default_args": {"__type": "dict", "__var": {}},
-                "params": {},
                 "_dag_id": "simple_dag",
                 "fileloc": __file__,
                 "tasks": [],
@@ -361,6 +386,50 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         round_tripped = SerializedDAG._deserialize(serialized)
         self.assertEqual(val, round_tripped)
+
+    @parameterized.expand([
+        (None, {}),
+        ({"param_1": "value_1"}, {"param_1": "value_1"}),
+    ])
+    def test_dag_params_roundtrip(self, val, expected_val):
+        """
+        Test that params work both on Serialized DAGs & Tasks
+        """
+        dag = DAG(dag_id='simple_dag', params=val)
+        BaseOperator(task_id='simple_task', dag=dag, start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if val:
+            self.assertIn("params", serialized_dag["dag"])
+        else:
+            self.assertNotIn("params", serialized_dag["dag"])
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
+        self.assertEqual(expected_val, deserialized_dag.params)
+        self.assertEqual(expected_val, deserialized_simple_task.params)
+
+    @parameterized.expand([
+        (None, {}),
+        ({"param_1": "value_1"}, {"param_1": "value_1"}),
+    ])
+    def test_task_params_roundtrip(self, val, expected_val):
+        """
+        Test that params work both on Serialized DAGs & Tasks
+        """
+        dag = DAG(dag_id='simple_dag')
+        BaseOperator(task_id='simple_task', dag=dag, params=val,
+                     start_date=datetime(2019, 8, 1))
+
+        serialized_dag = SerializedDAG.to_dict(dag)
+        if val:
+            self.assertIn("params", serialized_dag["dag"]["tasks"][0])
+        else:
+            self.assertNotIn("params", serialized_dag["dag"]["tasks"][0])
+
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
+        self.assertEqual(expected_val, deserialized_simple_task.params)
 
     def test_extra_serialized_field_and_operator_links(self):
         """
@@ -461,6 +530,18 @@ class TestStringifiedDAGs(unittest.TestCase):
         # Test Deserialized link registered via Airflow Plugin
         google_link_from_plugin = simple_task.get_extra_links(test_date, GoogleLink.name)
         self.assertEqual("https://www.google.com", google_link_from_plugin)
+
+    def test_dag_serialized_fields_with_schema(self):
+        """
+        Additional Properties are disabled on DAGs. This test verifies that all the
+        keys in DAG.get_serialized_fields are listed in Schema definition.
+        """
+        dag_schema: dict = load_dag_schema_dict()["definitions"]["dag"]["properties"]
+
+        # The parameters we add manually in Serialization needs to be ignored
+        ignored_keys: set = {"is_subdag", "tasks"}
+        dag_params: set = set(dag_schema.keys()) - ignored_keys
+        self.assertEqual(set(DAG.get_serialized_fields()), dag_params)
 
 
 if __name__ == '__main__':

@@ -32,12 +32,12 @@ This DAG relies on the following OS environment variables
 
 import os
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.compute import (
     ComputeEngineSetMachineTypeOperator, ComputeEngineStartInstanceOperator,
     ComputeEngineStopInstanceOperator,
 )
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_gce_args_common]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -46,7 +46,7 @@ GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')
 # [END howto_operator_gce_args_common]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1),
+    'start_date': days_ago(1),
 }
 
 # [START howto_operator_gce_args_set_machine_type]

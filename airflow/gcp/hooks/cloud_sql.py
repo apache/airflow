@@ -70,7 +70,7 @@ class CloudSqlOperationStatus:
 
 
 # noinspection PyAbstractClass
-class CloudSqlHook(CloudBaseHook):
+class CloudSQLHook(CloudBaseHook):
     """
     Hook for Google Cloud SQL APIs.
 
@@ -699,7 +699,7 @@ CLOUD_SQL_VALID_DATABASE_TYPES = ['postgres', 'mysql']
 
 
 # noinspection PyAbstractClass
-class CloudSqlDatabaseHook(BaseHook):
+class CloudSQLDatabaseHook(BaseHook):
     # pylint: disable=too-many-instance-attributes
     """
     Serves DB connection configuration for Google Cloud SQL (Connections

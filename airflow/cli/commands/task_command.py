@@ -23,6 +23,7 @@ import logging
 import os
 import textwrap
 from contextlib import redirect_stderr, redirect_stdout
+from typing import List
 
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors.executor_loader import ExecutorLoader
@@ -43,6 +44,11 @@ def _run_task_by_selected_method(args, dag, ti):
     - as raw task
     - by executor
     """
+    if args.local and args.raw:
+        raise AirflowException(
+            "Option --raw and --local are mutually exclusive. "
+            "Please remove one option to execute the command."
+        )
     if args.local:
         _run_task_by_local_task_job(args, ti)
     elif args.raw:
@@ -87,15 +93,6 @@ def _run_task_by_executor(args, dag, ti):
     executor.end()
 
 
-def _run_raw_task(args, ti):
-    """Runs the main task handling code"""
-    ti._run_raw_task(  # pylint: disable=protected-access
-        mark_success=args.mark_success,
-        job_id=args.job_id,
-        pool=args.pool,
-    )
-
-
 def _run_task_by_local_task_job(args, ti):
     """
     Run LocalTaskJob, which monitors the raw task execution process
@@ -110,6 +107,31 @@ def _run_task_by_local_task_job(args, ti):
         ignore_ti_state=args.force,
         pool=args.pool)
     run_job.run()
+
+
+RAW_TASK_UNSUPPORTED_OPTION = [
+    "ignore_all_dependencies", "ignore_depends_on_past", "ignore_dependencies", "force"
+]
+
+
+def _run_raw_task(args, ti):
+    """Runs the main task handling code"""
+    unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
+
+    if unsupported_options:
+        raise AirflowException(
+            "Option --raw does not work with some of the other options on this command. You "
+            "can't use --raw option and the following options: {}. You provided the option {}. "
+            "Delete it to execute the command".format(
+                ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION),
+                ", ".join(f"--{o}" for o in unsupported_options),
+            )
+        )
+    ti._run_raw_task(  # pylint: disable=protected-access
+        mark_success=args.mark_success,
+        job_id=args.job_id,
+        pool=args.pool,
+    )
 
 
 @cli_utils.action_logging
@@ -213,10 +235,39 @@ def task_list(args, dag=None):
         print("\n".join(sorted(tasks)))
 
 
+SUPPORTED_DEBUGGER_MODULES: List[str] = [
+    "pudb",
+    "web_pdb",
+    "ipdb",
+    "pdb",
+]
+
+
+def _guess_debugger():
+    """
+    Trying to guess the debugger used by the user. When it doesn't find any user-installed debugger,
+    returns ``pdb``.
+
+    List of supported debuggers:
+
+    * `pudb <https://github.com/inducer/pudb>`__
+    * `web_pdb <https://github.com/romanvm/python-web-pdb>`__
+    * `ipdb <https://github.com/gotcha/ipdb>`__
+    * `pdb <https://docs.python.org/3/library/pdb.html>`__
+    """
+
+    for mod in SUPPORTED_DEBUGGER_MODULES:
+        try:
+            return importlib.import_module(mod)
+        except ImportError:
+            continue
+    return importlib.import_module("pdb")
+
+
 @cli_utils.action_logging
 def task_test(args, dag=None):
     """Tests task for a given dag_id"""
-    # We want log outout from operators etc to show up here. Normally
+    # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
     handlers = logging.getLogger('airflow.task').handlers
@@ -244,10 +295,7 @@ def task_test(args, dag=None):
             ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
     except Exception:  # pylint: disable=broad-except
         if args.post_mortem:
-            try:
-                debugger = importlib.import_module("ipdb")
-            except ImportError:
-                debugger = importlib.import_module("pdb")
+            debugger = _guess_debugger()
             debugger.post_mortem()
         else:
             raise

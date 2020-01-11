@@ -133,9 +133,9 @@ them with ``sudo apt install``, on macOS - with ``brew install``.
 
 The current list of prerequisites is limited to ``xmllint``:
 
-- on Linux, install via ``sudo apt install xmllint``;
+- on Linux, install via ``sudo apt install libxml2-utils``;
 
-- on macOS, install via ``brew install xmllint``.
+- on macOS, install via ``brew install libxml2``.
 
 Enabling Pre-commit Hooks
 .........................

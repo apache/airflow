@@ -27,7 +27,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class CloudSpannerInstanceDeployOperator(BaseOperator):
+class SpannerDeployInstanceOperator(BaseOperator):
     """
     Creates a new Cloud Spanner instance, or if an instance with the same instance_id
     exists in the specified project, updates the Cloud Spanner instance.
@@ -96,14 +96,14 @@ class CloudSpannerInstanceDeployOperator(BaseOperator):
              display_name=self.display_name)
 
 
-class CloudSpannerInstanceDeleteOperator(BaseOperator):
+class SpannerDeleteInstanceOperator(BaseOperator):
     """
     Deletes a Cloud Spanner instance. If an instance does not exist,
     no action is taken and the operator succeeds.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSpannerInstanceDeleteOperator`
+        :ref:`howto/operator:SpannerDeleteInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -147,13 +147,13 @@ class CloudSpannerInstanceDeleteOperator(BaseOperator):
             return True
 
 
-class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
+class SpannerQueryDatabaseInstanceOperator(BaseOperator):
     """
     Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSpannerInstanceDatabaseQueryOperator`
+        :ref:`howto/operator:SpannerQueryDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -229,14 +229,14 @@ class CloudSpannerInstanceDatabaseQueryOperator(BaseOperator):
             del queries[-1]
 
 
-class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
+class SpannerDeployDatabaseInstanceOperator(BaseOperator):
     """
     Creates a new Cloud Spanner database, or if database exists,
     the operator does nothing.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSpannerInstanceDatabaseDeployOperator`
+        :ref:`howto/operator:SpannerDeployDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -301,13 +301,13 @@ class CloudSpannerInstanceDatabaseDeployOperator(BaseOperator):
         return True
 
 
-class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
+class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
     """
     Updates a Cloud Spanner database with the specified DDL statement.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSpannerInstanceDatabaseUpdateOperator`
+        :ref:`howto/operator:SpannerUpdateDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
     :type instance_id: str
@@ -379,13 +379,13 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
                                         operation_id=self.operation_id)
 
 
-class CloudSpannerInstanceDatabaseDeleteOperator(BaseOperator):
+class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
     """
     Deletes a Cloud Spanner database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudSpannerInstanceDatabaseDeleteOperator`
+        :ref:`howto/operator:SpannerDeleteDatabaseInstanceOperator`
 
     :param instance_id: Cloud Spanner instance ID.
     :type instance_id: str

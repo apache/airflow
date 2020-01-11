@@ -28,7 +28,6 @@ import time
 from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
-from time import sleep
 from typing import List, Set
 
 from setproctitle import setproctitle
@@ -680,7 +679,7 @@ class DagFileProcessor(LoggingMixin):
 
         1. Create appropriate DagRun(s) in the DB.
         2. Create appropriate TaskInstance(s) in the DB.
-        3. Send emails for tasks that have missed SLAs.
+        3. Send emails for tasks that have missed SLAs (if CHECK_SLAS config enabled).
 
         :param dagbag: a collection of DAGs to process
         :type dagbag: airflow.models.DagBag
@@ -690,6 +689,7 @@ class DagFileProcessor(LoggingMixin):
         :type tis_out: list[TaskInstance]
         :rtype: None
         """
+        check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
             if not dag:
@@ -715,7 +715,7 @@ class DagFileProcessor(LoggingMixin):
                             schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
-            if conf.getboolean('core', 'CHECK_SLAS', fallback=True):
+            if check_slas:
                 self.manage_slas(dag)
 
     def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]):
@@ -1074,12 +1074,18 @@ class SchedulerJob(BaseJob):
         )
 
         # Additional filters on task instance state
-        if None in states:
-            ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(states))  # noqa: E711 pylint: disable=singleton-comparison
-            )
-        else:
-            ti_query = ti_query.filter(TI.state.in_(states))
+        if states:
+            if None in states:
+                if all(x is None for x in states):
+                    ti_query = ti_query.filter(TI.state == None)  # noqa pylint: disable=singleton-comparison
+                else:
+                    not_none_states = [state for state in states if state]
+                    ti_query = ti_query.filter(
+                        or_(TI.state == None,  # noqa: E711 pylint: disable=singleton-comparison
+                            TI.state.in_(not_none_states))
+                    )
+            else:
+                ti_query = ti_query.filter(TI.state.in_(states))
 
         task_instances_to_examine = ti_query.all()
 
@@ -1242,12 +1248,18 @@ class SchedulerJob(BaseJob):
             .query(TI)
             .filter(or_(*filter_for_ti_state_change)))
 
-        if None in acceptable_states:
-            ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(acceptable_states))  # noqa pylint: disable=singleton-comparison
-            )
-        else:
-            ti_query = ti_query.filter(TI.state.in_(acceptable_states))
+        if acceptable_states:
+            if None in acceptable_states:
+                if all(x is None for x in acceptable_states):
+                    ti_query = ti_query.filter(TI.state == None)  # noqa pylint: disable=singleton-comparison
+                else:
+                    not_none_acceptable_states = [state for state in acceptable_states if state]
+                    ti_query = ti_query.filter(
+                        or_(TI.state == None,  # noqa pylint: disable=singleton-comparison
+                            TI.state.in_(not_none_acceptable_states))
+                    )
+            else:
+                ti_query = ti_query.filter(TI.state.in_(acceptable_states))
 
         tis_to_set_to_queued = (
             ti_query
@@ -1522,9 +1534,10 @@ class SchedulerJob(BaseJob):
         # Last time that self.heartbeat() was called.
         last_self_heartbeat_time = timezone.utcnow()
 
+        is_unit_test = conf.getboolean('core', 'unit_test_mode')
+
         # For the execute duration, parse and schedule DAGs
         while True:
-            self.log.debug("Starting Loop...")
             loop_start_time = time.time()
 
             if self.using_sqlite:
@@ -1535,7 +1548,6 @@ class SchedulerJob(BaseJob):
                     "Waiting for processors to finish since we're using sqlite")
                 self.processor_agent.wait_until_finished()
 
-            self.log.debug("Harvesting DAG parsing results")
             simple_dags = self._get_simple_dags()
             self.log.debug("Harvested {} SimpleDAGs".format(len(simple_dags)))
 
@@ -1553,7 +1565,6 @@ class SchedulerJob(BaseJob):
                 self.heartbeat()
                 last_self_heartbeat_time = timezone.utcnow()
 
-            is_unit_test = conf.getboolean('core', 'unit_test_mode')
             loop_end_time = time.time()
             loop_duration = loop_end_time - loop_start_time
             self.log.debug(
@@ -1561,20 +1572,12 @@ class SchedulerJob(BaseJob):
                 loop_duration)
 
             if not is_unit_test:
-                self.log.debug("Sleeping for %.2f seconds", self._processor_poll_interval)
                 time.sleep(self._processor_poll_interval)
 
             if self.processor_agent.done:
                 self.log.info("Exiting scheduler loop as all files"
                               " have been processed {} times".format(self.num_runs))
                 break
-
-            if loop_duration < 1 and not is_unit_test:
-                sleep_length = 1 - loop_duration
-                self.log.debug(
-                    "Sleeping for {0:.2f} seconds to prevent excessive logging"
-                    .format(sleep_length))
-                sleep(sleep_length)
 
         # Stop any processors
         self.processor_agent.terminate()

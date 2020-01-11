@@ -22,15 +22,15 @@
 import json
 from datetime import timedelta
 
-import airflow
 from airflow import DAG
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor
+from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
@@ -38,7 +38,7 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-dag = DAG('example_http_operator', default_args=default_args)
+dag = DAG('example_http_operator', default_args=default_args, tags=['example'])
 
 dag.doc_md = __doc__
 

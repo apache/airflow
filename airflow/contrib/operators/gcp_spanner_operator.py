@@ -20,14 +20,89 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.spanner import (  # noqa
-    CloudSpannerInstanceDatabaseDeleteOperator, CloudSpannerInstanceDatabaseDeployOperator,
-    CloudSpannerInstanceDatabaseQueryOperator, CloudSpannerInstanceDatabaseUpdateOperator,
-    CloudSpannerInstanceDeleteOperator, CloudSpannerInstanceDeployOperator,
+from airflow.gcp.operators.spanner import (
+    SpannerDeleteDatabaseInstanceOperator, SpannerDeleteInstanceOperator,
+    SpannerDeployDatabaseInstanceOperator, SpannerDeployInstanceOperator,
+    SpannerQueryDatabaseInstanceOperator, SpannerUpdateDatabaseInstanceOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.spanner`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class CloudSpannerInstanceDatabaseDeleteOperator(SpannerDeleteDatabaseInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.spanner.SpannerDeleteDatabaseInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDatabaseDeployOperator(SpannerDeployDatabaseInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.spanner.SpannerDeployDatabaseInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDatabaseQueryOperator(SpannerQueryDatabaseInstanceOperator):
+    """
+    This class is deprecated. Please use `airflow.gcp.operators.spanner.SpannerQueryDatabaseInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDatabaseUpdateOperator(SpannerUpdateDatabaseInstanceOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.spanner.SpannerUpdateDatabaseInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDeleteOperator(SpannerDeleteInstanceOperator):
+    """
+    This class is deprecated. Please use `airflow.gcp.operators.spanner.SpannerDeleteInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class CloudSpannerInstanceDeployOperator(SpannerDeployInstanceOperator):
+    """
+    This class is deprecated. Please use `airflow.gcp.operators.spanner.SpannerDeployInstanceOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            self.__doc__, DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

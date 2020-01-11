@@ -57,7 +57,8 @@ Here are some of the common causes:
   if you have set ``depends_on_past=True``, the previous task instance
   needs to have succeeded (except if it is the first run for that task).
   Also, if ``wait_for_downstream=True``, make sure you understand
-  what it means.
+  what it means - all tasks *immediately* downstream of the *previous*
+  task instance must have succeeded.
   You can view how these properties are set from the ``Task Instance Details``
   page for your task.
 

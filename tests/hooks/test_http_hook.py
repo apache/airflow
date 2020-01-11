@@ -23,6 +23,7 @@ import mock
 import requests
 import requests_mock
 import tenacity
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
@@ -333,6 +334,30 @@ class TestHttpHook(unittest.TestCase):
         hook = HttpHook()
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'http://')
+
+    @parameterized.expand([
+        'GET',
+        'POST',
+    ])
+    @requests_mock.mock()
+    def test_json_request(self, method, mock_requests):
+        obj1 = {'a': 1, 'b': 'abc', 'c': [1, 2, {"d": 10}]}
+
+        def match_obj1(request):
+            return request.json() == obj1
+
+        mock_requests.request(
+            method=method,
+            url='//test:8080/v1/test',
+            additional_matcher=match_obj1
+        )
+
+        with mock.patch(
+            'airflow.hooks.base_hook.BaseHook.get_connection',
+            side_effect=get_airflow_connection
+        ):
+            # will raise NoMockAddress exception if obj1 != request.json()
+            HttpHook(method=method).run('v1/test', json=obj1)
 
 
 send_email_test = mock.Mock()

@@ -24,7 +24,6 @@ import os
 from copy import deepcopy
 from typing import Dict, List
 
-import airflow
 from airflow import models
 from airflow.gcp.hooks.automl import CloudAutoMLHook
 from airflow.gcp.operators.automl import (
@@ -33,6 +32,7 @@ from airflow.gcp.operators.automl import (
     AutoMLListDatasetOperator, AutoMLPredictOperator, AutoMLTablesListColumnSpecsOperator,
     AutoMLTablesListTableSpecsOperator, AutoMLTablesUpdateDatasetOperator, AutoMLTrainModelOperator,
 )
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
@@ -60,7 +60,7 @@ DATASET = {
 
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DATASET_BUCKET]}}
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 

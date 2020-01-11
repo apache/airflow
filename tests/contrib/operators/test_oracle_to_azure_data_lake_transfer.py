@@ -19,13 +19,13 @@
 
 import os
 import unittest
+from tempfile import TemporaryDirectory
 
 import mock
 import unicodecsv as csv
 from mock import MagicMock
 
 from airflow.contrib.operators.oracle_to_azure_data_lake_transfer import OracleToAzureDataLakeTransfer
-from airflow.utils.file import TemporaryDirectory
 
 
 class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
