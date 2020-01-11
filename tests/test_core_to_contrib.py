@@ -849,6 +849,10 @@ OPERATOR = [
         'airflow.providers.apache.sqoop.operators.sqoop.SqoopOperator',
         'airflow.contrib.operators.sqoop_operator.SqoopOperator',
     ),
+    (
+        'airflow.providers.apache.druid.operators.druid_check.DruidCheckOperator',
+        'airflow.operators.druid_check_operator.DruidCheckOperator',
+    ),
 ]
 
 SENSOR = [

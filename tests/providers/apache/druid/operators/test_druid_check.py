@@ -25,7 +25,7 @@ import mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.operators.druid_check_operator import DruidCheckOperator
+from airflow.providers.apache.druid.operators.druid_check import DruidCheckOperator
 
 
 class TestDruidCheckOperator(unittest.TestCase):

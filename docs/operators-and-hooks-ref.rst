@@ -86,7 +86,7 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.druid.hooks.druid`
      - :mod:`airflow.providers.apache.druid.operators.druid`,
-       :mod:`airflow.operators.druid_check_operator`
+       :mod:`airflow.providers.apache.druid.operators.druid_check`
      -
 
    * - `Apache Hive <https://hive.apache.org/>`__
