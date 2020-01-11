@@ -180,7 +180,7 @@
 ./airflow/sensors/sql_sensor.py
 ./airflow/sensors/time_delta_sensor.py
 ./airflow/sensors/time_sensor.py
-./airflow/sensors/web_hdfs_sensor.py
+./airflow/providers/apache/hdfs/sensors/web_hdfs.py
 ./airflow/settings.py
 ./airflow/stats.py
 ./airflow/task/task_runner/base_task_runner.py

@@ -931,6 +931,10 @@ SENSOR = [
         'airflow.providers.apache.hive.sensors.named_hive_partition.NamedHivePartitionSensor',
         'airflow.sensors.named_hive_partition_sensor.NamedHivePartitionSensor',
     ),
+    (
+        'airflow.providers.apache.hdfs.sensors.web_hdfs.WebHdfsSensor',
+        'airflow.sensors.web_hdfs_sensor.WebHdfsSensor',
+    ),
 ]
 
 PROTOCOLS = [

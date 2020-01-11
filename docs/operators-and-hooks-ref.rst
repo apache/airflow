@@ -138,7 +138,7 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.hdfs.hooks.webhdfs`
      -
-     - :mod:`airflow.sensors.web_hdfs_sensor`
+     - :mod:`airflow.providers.apache.hdfs.sensors.web_hdfs`
 
 
 Transfer operators and hooks
