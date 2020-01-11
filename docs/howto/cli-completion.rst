@@ -147,7 +147,7 @@ The following file formats are supported:
  * ``x11``.
 
 By default, the application search for DAGs in the directory specified in ``dags_folder`` option in
-`[core]` section specified in the file ``airflow.cfg``. You can change it with the ``--subdir`` switch.
+``[core]`` section specified in the file ``airflow.cfg``. You can change it with the ``--subdir`` switch.
 
 Display DAGs structure
 ----------------------
