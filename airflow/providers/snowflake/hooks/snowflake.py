@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from snowflake import connector
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from snowflake import connector
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
