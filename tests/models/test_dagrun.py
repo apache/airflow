@@ -563,18 +563,17 @@ class TestDagRun(unittest.TestCase):
         self.assertEqual(State.NONE, flaky_ti.state)
 
     @conf_vars({
-        ('scheduler', 'removed_tasks_lead_to_dagrun_failure'): 'True'
+        ('scheduler', 'removed_tasks_lead_to_dagrun_running'): 'True'
     })
-    def test_dagrun_removed_tasks_lead_to_dagrun_failure_true(self):
+    def test_dagrun_removed_tasks_lead_to_dagrun_running_true(self):
         session = settings.Session()
         on_failure_callback = mock.MagicMock()
         dag = DAG(
-            'test_dagrun_removed_tasks_lead_to_dagrun_failure_true',
+            'test_dagrun_removed_tasks_lead_to_dagrun_running_true',
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'},
             on_failure_callback=on_failure_callback
         )
-        dag.clear()
         with dag:
             op1 = DummyOperator(task_id='A')
             op2 = DummyOperator(task_id='B')
@@ -594,24 +593,20 @@ class TestDagRun(unittest.TestCase):
         del dag.task_dict[ti_op1.task_id]
 
         dr.update_state()
-        self.assertEqual(dr.state, State.FAILED)
-        kall = on_failure_callback
-        callback_context = kall.call_args[0][0]
-        self.assertEqual('removed_tasks', callback_context['reason'])
+        self.assertEqual(dr.state, State.RUNNING)
 
     @conf_vars({
-        ('scheduler', 'removed_tasks_lead_to_dagrun_failure'): 'False'
+        ('scheduler', 'removed_tasks_lead_to_dagrun_running'): 'False'
     })
-    def test_dagrun_removed_tasks_lead_to_dagrun_failure_false(self):
+    def test_dagrun_removed_tasks_lead_to_dagrun_running_false(self):
         session = settings.Session()
         on_failure_callback = mock.MagicMock()
         dag = DAG(
-            'test_dagrun_removed_tasks_lead_to_dagrun_failure_false',
+            'test_dagrun_removed_tasks_lead_to_dagrun_running_false',
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'},
             on_success_callback=on_failure_callback
         )
-        dag.clear()
         with dag:
             op1 = DummyOperator(task_id='A')
             op2 = DummyOperator(task_id='B')
@@ -632,6 +627,3 @@ class TestDagRun(unittest.TestCase):
 
         dr.update_state()
         self.assertEqual(dr.state, State.SUCCESS)
-        kall = on_failure_callback
-        callback_context = kall.call_args[0][0]
-        self.assertEqual('success', callback_context['reason'])

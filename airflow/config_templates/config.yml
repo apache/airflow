@@ -1188,9 +1188,10 @@
       type: string
       example: ~
       default: "30"
-    - name: removed_tasks_lead_to_dagrun_failure
+    - name: removed_tasks_lead_to_dagrun_running
       description: |
-        A DagRun can have a 'removed' task instance and still lead to DagRun 'success' state when False
+        Do we keep DagRun "running" when it has a task in the "removed" state? (Tasks are marked as
+        removed when they exist at DAG run creation time but are later deleted from the file)
       version_added: ~
       type: string
       example: ~

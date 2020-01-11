@@ -313,51 +313,52 @@ class DagRun(Base, LoggingMixin):
 
         leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
 
-        if len(tis) == len(dag.tasks):
-            # if all roots finished and at least one failed, the run failed
-            if not unfinished_tasks and any(
-                leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
-            ):
-                self.log.info('Marking run %s failed', self)
-                self.set_state(State.FAILED)
-                dag.handle_callback(self, success=False, reason='task_failure',
-                                    session=session)
+        removed_tasks_lead_to_dagrun_running = conf.getboolean(
+            'scheduler', 'REMOVED_TASKS_LEAD_TO_DAGRUN_RUNNING', fallback=False)
+        if removed_tasks_lead_to_dagrun_running:
+            removed_tasks = self.get_task_instances(
+                state=State.REMOVED,
+                session=session
+            )
+            num_tis_in_dagrun = len(tis)
+            num_tis_in_dag_definition = len(dag.tasks)
 
-            # if all leafs succeeded and no unfinished tasks, the run succeeded
-            elif not unfinished_tasks and all(
-                leaf_ti.state in {State.SUCCESS, State.SKIPPED} for leaf_ti in leaf_tis
-            ):
-                # removed tasks count as FAILURE
-                if conf.getboolean('scheduler', 'REMOVED_TASKS_LEAD_TO_DAGRUN_FAILURE', fallback=False):
-                    removed_tasks = self.get_task_instances(
-                        state=State.REMOVED,
-                        session=session
-                    )
-                    if removed_tasks and len(removed_tasks) > 0:
-                        self.log.info('Removed_tasks; Marking run %s failed', self)
-                        self.set_state(State.FAILED)
-                        dag.handle_callback(self, success=False, reason='removed_tasks',
-                                            session=session)
-                    else:
-                        self.log.info('Marking run %s successful', self)
-                        self.set_state(State.SUCCESS)
-                        dag.handle_callback(self, success=True, reason='success', session=session)
-                else:
-                    self.log.info('Marking run %s successful', self)
-                    self.set_state(State.SUCCESS)
-                    dag.handle_callback(self, success=True, reason='success', session=session)
+        # if some taskInstances were in REMOVED state, then dagrun is still in progress
+        if removed_tasks_lead_to_dagrun_running and (
+            num_tis_in_dagrun != num_tis_in_dag_definition or (
+                removed_tasks and len(removed_tasks) > 0)):
+            self.log.warning(
+                "{} tasks found in dagrun but {} tasks found in dag definition. " .format(
+                    str(num_tis_in_dagrun),
+                    str(num_tis_in_dag_definition)))
+            self.set_state(State.RUNNING)
 
-            # if *all tasks* are deadlocked, the run failed
-            elif (unfinished_tasks and none_depends_on_past and
-                  none_task_concurrency and no_dependencies_met):
-                self.log.info('Deadlock; marking run %s failed', self)
-                self.set_state(State.FAILED)
-                dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
-                                    session=session)
+        # if all roots finished and at least one failed, the run failed
+        elif not unfinished_tasks and any(
+            leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
+        ):
+            self.log.info('Marking run %s failed', self)
+            self.set_state(State.FAILED)
+            dag.handle_callback(self, success=False, reason='task_failure',
+                                session=session)
 
-            # finally, if the roots aren't done, the dag is still running
-            else:
-                self.set_state(State.RUNNING)
+        # if all leafs succeeded and no unfinished tasks, the run succeeded
+        elif not unfinished_tasks and all(
+            leaf_ti.state in {State.SUCCESS, State.SKIPPED} for leaf_ti in leaf_tis
+        ):
+            self.log.info('Marking run %s successful', self)
+            self.set_state(State.SUCCESS)
+            dag.handle_callback(self, success=True, reason='success', session=session)
+
+        # if *all tasks* are deadlocked, the run failed
+        elif (unfinished_tasks and none_depends_on_past and
+              none_task_concurrency and no_dependencies_met):
+            self.log.info('Deadlock; marking run %s failed', self)
+            self.set_state(State.FAILED)
+            dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
+                                session=session)
+
+        # finally, if the roots aren't done, the dag is still running
         else:
             self.set_state(State.RUNNING)
 

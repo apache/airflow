@@ -61,4 +61,4 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 
 .. note::
 
-    Task instances in ``REMOVED`` state are treated like ``SUCCESS`` state when determining overall DAG Run state. To make ``REMOVED`` get treated like ``FAILED``, change ``removed_tasks_lead_to_dagrun_failure`` to True in scheduler section of .cfg
+    Task instances in ``REMOVED`` state are treated like ``SUCCESS`` state when determining overall DAG Run state. To make ``REMOVED`` get treated like ``RUNNING``, change ``removed_tasks_lead_to_dagrun_running`` to True in scheduler section of .cfg
