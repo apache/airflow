@@ -208,6 +208,10 @@ HOOK = [
         'airflow.providers.apache.pig.hooks.pig.PigCliHook',
         'airflow.hooks.pig_hook.PigCliHook',
     ),
+    (
+        'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook',
+        'airflow.hooks.webhdfs_hook.WebHDFSHook',
+    ),
 ]
 
 OPERATOR = [

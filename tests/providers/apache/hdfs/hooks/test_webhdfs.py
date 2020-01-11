@@ -22,8 +22,8 @@ from unittest.mock import call, patch
 
 from hdfs import HdfsError
 
-from airflow.hooks.webhdfs_hook import AirflowWebHDFSHookException, WebHDFSHook
 from airflow.models.connection import Connection
+from airflow.providers.apache.hdfs.hooks.webhdfs import AirflowWebHDFSHookException, WebHDFSHook
 
 
 class TestWebHDFSHook(unittest.TestCase):
@@ -31,8 +31,8 @@ class TestWebHDFSHook(unittest.TestCase):
     def setUp(self):
         self.webhdfs_hook = WebHDFSHook()
 
-    @patch('airflow.hooks.webhdfs_hook.InsecureClient')
-    @patch('airflow.hooks.webhdfs_hook.WebHDFSHook.get_connections', return_value=[
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient')
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections', return_value=[
         Connection(host='host_1', port=123),
         Connection(host='host_2', port=321, login='user')
     ])
@@ -48,11 +48,11 @@ class TestWebHDFSHook(unittest.TestCase):
         mock_insecure_client.return_value.status.assert_called_once_with('/')
         self.assertEqual(conn, mock_insecure_client.return_value)
 
-    @patch('airflow.hooks.webhdfs_hook.KerberosClient', create=True)
-    @patch('airflow.hooks.webhdfs_hook.WebHDFSHook.get_connections', return_value=[
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.KerberosClient', create=True)
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections', return_value=[
         Connection(host='host_1', port=123)
     ])
-    @patch('airflow.hooks.webhdfs_hook._kerberos_security_mode', return_value=True)
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs._kerberos_security_mode', return_value=True)
     def test_get_conn_kerberos_security_mode(self,
                                              mock_kerberos_security_mode,
                                              mock_get_connections,
@@ -64,12 +64,12 @@ class TestWebHDFSHook(unittest.TestCase):
             'http://{host}:{port}'.format(host=connection.host, port=connection.port))
         self.assertEqual(conn, mock_kerberos_client.return_value)
 
-    @patch('airflow.hooks.webhdfs_hook.WebHDFSHook.get_connections', return_value=[])
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connections', return_value=[])
     def test_get_conn_no_connection_found(self, mock_get_connection):
         with self.assertRaises(AirflowWebHDFSHookException):
             self.webhdfs_hook.get_conn()
 
-    @patch('airflow.hooks.webhdfs_hook.WebHDFSHook.get_conn')
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_conn')
     def test_check_for_path(self, mock_get_conn):
         hdfs_path = 'path'
 
@@ -80,7 +80,7 @@ class TestWebHDFSHook(unittest.TestCase):
         mock_status.assert_called_once_with(hdfs_path, strict=False)
         self.assertEqual(exists_path, bool(mock_status.return_value))
 
-    @patch('airflow.hooks.webhdfs_hook.WebHDFSHook.get_conn')
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_conn')
     def test_load_file(self, mock_get_conn):
         source = 'source'
         destination = 'destination'
