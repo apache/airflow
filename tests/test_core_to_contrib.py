@@ -853,6 +853,10 @@ OPERATOR = [
         'airflow.providers.apache.druid.operators.druid_check.DruidCheckOperator',
         'airflow.operators.druid_check_operator.DruidCheckOperator',
     ),
+    (
+        'airflow.providers.apache.hive.operators.hive.HiveOperator',
+        'airflow.operators.hive_operator.HiveOperator',
+    ),
 ]
 
 SENSOR = [

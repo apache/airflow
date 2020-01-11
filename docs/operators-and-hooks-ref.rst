@@ -92,7 +92,7 @@ Foundation.
    * - `Apache Hive <https://hive.apache.org/>`__
      -
      - :mod:`airflow.providers.apache.hive.hooks.hive`
-     - :mod:`airflow.operators.hive_operator`,
+     - :mod:`airflow.providers.apache.hive.operators.hive`,
        :mod:`airflow.operators.hive_stats_operator`
      - :mod:`airflow.sensors.named_hive_partition_sensor`,
        :mod:`airflow.sensors.hive_partition_sensor`,

@@ -32,8 +32,8 @@ from hmsclient import HMSClient
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
-from airflow.operators.hive_operator import HiveOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
+from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces

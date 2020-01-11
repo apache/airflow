@@ -26,12 +26,12 @@ from airflow import DAG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import TaskInstance
-from airflow.operators.hive_operator import HiveOperator
 from airflow.operators.hive_stats_operator import HiveStatsCollectionOperator
 from airflow.operators.hive_to_mysql import HiveToMySqlTransfer
 from airflow.operators.hive_to_samba_operator import Hive2SambaOperator
 from airflow.operators.presto_check_operator import PrestoCheckOperator
 from airflow.operators.presto_to_mysql import PrestoToMySqlTransfer
+from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.sensors.hdfs_sensor import HdfsSensor
 from airflow.sensors.hive_partition_sensor import HivePartitionSensor
 from airflow.sensors.metastore_partition_sensor import MetastorePartitionSensor
@@ -142,7 +142,7 @@ class HiveOperatorTest(TestHiveEnvironment):
             op.hql,
             "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});")
 
-    @mock.patch('airflow.operators.hive_operator.HiveOperator.get_hook')
+    @mock.patch('airflow.providers.apache.hive.operators.hive.HiveOperator.get_hook')
     def test_mapred_job_name(self, mock_get_hook):
         mock_hook = mock.MagicMock()
         mock_get_hook.return_value = mock_hook

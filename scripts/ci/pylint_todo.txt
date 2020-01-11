@@ -146,7 +146,7 @@
 ./airflow/operators/dummy_operator.py
 ./airflow/operators/email_operator.py
 ./airflow/operators/generic_transfer.py
-./airflow/operators/hive_operator.py
+./airflow/providers/apache/hive/operators/hive.py
 ./airflow/operators/hive_stats_operator.py
 ./airflow/operators/http_operator.py
 ./airflow/operators/jdbc_operator.py
