@@ -70,7 +70,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         self.log_id_template, self.log_id_jinja_template = \
             parse_template_string(log_id_template)
-
+        self.index = conf.get('elasticsearch', 'INDEX')
         self.client = elasticsearch.Elasticsearch([host], **es_kwargs)
 
         self.mark_end_on_close = True
@@ -171,9 +171,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :param metadata: log metadata, used for steaming log download.
         :type metadata: dict
         """
-
         # Offset is the unique key for sorting logs given log_id.
-        search = Search(using=self.client) \
+        search = Search(using=self.client, index=self.index) \
             .query('match_phrase', log_id=log_id) \
             .sort('offset')
 
@@ -254,8 +253,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             self.handler.stream = self.handler._open()  # pylint: disable=protected-access
 
         # Mark the end of file using end of log mark,
-        # so we know where to stop while auto-tailing.
-        self.handler.stream.write(self.end_of_log_mark)
+        # so we know where to stop while auto-tailing.\
+        if self.write_stdout:
+            print()
+        self.handler.emit(logging.LogRecord(None, logging.INFO, None, 0, self.end_of_log_mark, None, None))
 
         if self.write_stdout:
             self.handler.close()
