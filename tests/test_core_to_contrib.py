@@ -919,6 +919,10 @@ SENSOR = [
         'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensorRegex',
         'airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex',
     ),
+    (
+        'airflow.providers.apache.hive.sensors.hive_partition.HivePartitionSensor',
+        'airflow.sensors.hive_partition_sensor.HivePartitionSensor',
+    ),
 ]
 
 PROTOCOLS = [

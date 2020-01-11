@@ -171,7 +171,7 @@
 ./airflow/sensors/base_sensor_operator.py
 ./airflow/sensors/external_task_sensor.py
 ./airflow/sensors/hdfs_sensor.py
-./airflow/sensors/hive_partition_sensor.py
+./airflow/providers/apache/hive/sensors/hive_partition.py
 ./airflow/sensors/http_sensor.py
 ./airflow/sensors/metastore_partition_sensor.py
 ./airflow/sensors/named_hive_partition_sensor.py
