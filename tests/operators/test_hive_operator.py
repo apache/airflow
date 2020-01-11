@@ -77,7 +77,7 @@ class TestHiveCli(unittest.TestCase):
         del os.environ["AIRFLOW__CORE__SECURITY"]
 
     def test_get_proxy_user_value(self):
-        from airflow.hooks.hive_hooks import HiveCliHook
+        from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 
         hook = HiveCliHook()
         returner = mock.MagicMock()

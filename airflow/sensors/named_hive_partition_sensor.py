@@ -82,7 +82,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
     def poke_partition(self, partition):
         if not self.hook:
-            from airflow.hooks.hive_hooks import HiveMetastoreHook
+            from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
             self.hook = HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
 

@@ -192,6 +192,18 @@ HOOK = [
         'airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook',
         'airflow.hooks.hdfs_hook.HDFSHook',
     ),
+    (
+        'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook',
+        'airflow.hooks.hive_hooks.HiveMetastoreHook',
+    ),
+    (
+        'airflow.providers.apache.hive.hooks.hive.HiveCliHook',
+        'airflow.hooks.hive_hooks.HiveCliHook',
+    ),
+    (
+        'airflow.providers.apache.hive.hooks.hive.HiveServer2Hook',
+        'airflow.hooks.hive_hooks.HiveServer2Hook',
+    ),
 ]
 
 OPERATOR = [

@@ -21,7 +21,7 @@ import unittest
 from datetime import timedelta
 
 from airflow import DAG, operators
-from airflow.hooks.hive_hooks import HiveMetastoreHook
+from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.named_hive_partition_sensor import NamedHivePartitionSensor
 from airflow.utils.timezone import datetime
 

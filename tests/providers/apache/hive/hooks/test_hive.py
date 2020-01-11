@@ -31,9 +31,9 @@ from hmsclient import HMSClient
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.models.connection import Connection
 from airflow.operators.hive_operator import HiveOperator
+from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
@@ -121,7 +121,7 @@ class TestHiveCliHook(unittest.TestCase):
             self.assertIn('test_execution_date', output)
             self.assertIn('test_dag_run_id', output)
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli')
     def test_load_file_without_create_table(self, mock_run_cli):
         filepath = "/path/to/input/file"
         table = "output_table"
@@ -139,7 +139,7 @@ class TestHiveCliHook(unittest.TestCase):
         ]
         mock_run_cli.assert_has_calls(calls, any_order=True)
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli')
     def test_load_file_create_table(self, mock_run_cli):
         filepath = "/path/to/input/file"
         table = "output_table"
@@ -168,7 +168,7 @@ class TestHiveCliHook(unittest.TestCase):
         ]
         mock_run_cli.assert_has_calls(calls, any_order=True)
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file')
     @mock.patch('pandas.DataFrame.to_csv')
     def test_load_df(self, mock_to_csv, mock_load_file):
         df = pd.DataFrame({"c": ["foo", "bar", "baz"]})
@@ -195,7 +195,7 @@ class TestHiveCliHook(unittest.TestCase):
         self.assertTrue(isinstance(kwargs["field_dict"], OrderedDict))
         self.assertEqual(kwargs["table"], table)
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file')
     @mock.patch('pandas.DataFrame.to_csv')
     def test_load_df_with_optional_parameters(self, mock_to_csv, mock_load_file):
         hook = HiveCliHook()
@@ -212,7 +212,7 @@ class TestHiveCliHook(unittest.TestCase):
             self.assertEqual(kwargs["create"], create)
             self.assertEqual(kwargs["recreate"], recreate)
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli')
     def test_load_df_with_data_types(self, mock_run_cli):
         ord_dict = OrderedDict()
         ord_dict['b'] = [True]
@@ -307,9 +307,9 @@ class TestHiveMetastoreHook(TestHiveEnvironment):
     def test_get_metastore_client(self):
         self.assertIsInstance(self.hook.get_metastore_client(), HMSClient)
 
-    @mock.patch("airflow.hooks.hive_hooks.HiveMetastoreHook.get_connection",
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
                 return_value=[Connection(host="localhost", port="9802")])
-    @mock.patch("airflow.hooks.hive_hooks.socket")
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.socket")
     def test_error_metastore_client(self, socket_mock, _find_vaild_server_mock):
         socket_mock.socket.return_value.connect_ex.return_value = 0
         self.hook.get_metastore_client()
