@@ -167,7 +167,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             return self._result
 
     def processor_factory(self, file_path, zombies, pickle_dags):
-        return FakeDagFileProcessorRunner(
+        return self.FakeDagFileProcessorRunner(
             file_path,
             pickle_dags,
             [],
@@ -424,7 +424,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         dag_ids = [result.dag_id for result in parsing_result]
         self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)
-        
+
     def test_launch_process(self):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
