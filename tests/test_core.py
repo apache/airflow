@@ -41,8 +41,7 @@ from time import sleep
 from bs4 import BeautifulSoup
 
 from airflow.executors import SequentialExecutor
-from airflow.models import DagModel, Variable, TaskInstance
-
+from airflow.models import DagModel, Variable, TaskInstance, DagRun
 
 from airflow import jobs, models, DAG, utils, settings, exceptions
 from airflow.models import BaseOperator, Connection, TaskFail
@@ -123,14 +122,21 @@ class CoreTest(unittest.TestCase):
         self.run_this_last = self.dag_bash.get_task('run_this_last')
 
     def tearDown(self):
-        if os.environ.get('KUBERNETES_VERSION') is None:
-            session = Session()
-            session.query(models.TaskInstance).filter_by(
-                dag_id=TEST_DAG_ID).delete()
-            session.query(TaskFail).filter_by(
-                dag_id=TEST_DAG_ID).delete()
-            session.commit()
-            session.close()
+        if os.environ.get('ENABLE_KIND_CLUSTER') == "true":
+            return
+
+        session = Session()
+        session.query(DagRun).filter(
+            DagRun.dag_id == TEST_DAG_ID).delete(
+            synchronize_session=False)
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == TEST_DAG_ID).delete(
+            synchronize_session=False)
+        session.query(TaskFail).filter(
+            TaskFail.dag_id == TEST_DAG_ID).delete(
+            synchronize_session=False)
+        session.commit()
+        session.close()
 
     def test_schedule_dag_no_previous_runs(self):
         """

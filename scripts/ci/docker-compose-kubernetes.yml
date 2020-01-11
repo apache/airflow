@@ -14,12 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-ARG AIRFLOW_CI_IMAGE
-FROM ${AIRFLOW_CI_IMAGE}
-
-COPY airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
-
-COPY bootstrap.sh /bootstrap.sh
-RUN chmod +x /bootstrap.sh
-
-ENTRYPOINT ["/bootstrap.sh"]
+---
+version: "2.2"
+services:
+  airflow-testing:
+    environment:
+      - KUBERNETES_MODE
+      - KUBERNETES_VERSION
+      - KIND_CLUSTER_OPERATION

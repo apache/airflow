@@ -29,6 +29,10 @@ metastore_db
 CHANGELOG.txt
 .*zip
 .*lock
+unittests.cfg
+logs
+.bash_aliases
+
 # Generated doc files
 .*html
 _build/*
@@ -36,6 +40,7 @@ _static/*
 _images/*
 .buildinfo
 searchindex.js
+_api/*
 
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
@@ -57,6 +62,7 @@ coverage/*
 git_version
 flake8_diff.sh
 coverage.xml
+_sources/*
 
 rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
@@ -65,3 +71,9 @@ PULL_REQUEST_TEMPLATE.md
 
 # vendored modules
 _vendor/*
+
+# Locally mounted files
+.*egg-info/*
+.bash_history
+.bash_aliases
+.inputrc
