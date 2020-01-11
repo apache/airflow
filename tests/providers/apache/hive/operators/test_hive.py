@@ -34,8 +34,8 @@ from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
+from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
 from airflow.sensors.hdfs_sensor import HdfsSensor
-from airflow.sensors.named_hive_partition_sensor import NamedHivePartitionSensor
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.sensors.web_hdfs_sensor import WebHdfsSensor
 from airflow.utils import timezone

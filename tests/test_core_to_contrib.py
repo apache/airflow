@@ -927,6 +927,10 @@ SENSOR = [
         'airflow.providers.apache.hive.sensors.metastore_partition.MetastorePartitionSensor',
         'airflow.sensors.metastore_partition_sensor.MetastorePartitionSensor',
     ),
+    (
+        'airflow.providers.apache.hive.sensors.named_hive_partition.NamedHivePartitionSensor',
+        'airflow.sensors.named_hive_partition_sensor.NamedHivePartitionSensor',
+    ),
 ]
 
 PROTOCOLS = [
