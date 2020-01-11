@@ -22,9 +22,11 @@ from unittest.mock import Mock
 
 from freezegun import freeze_time
 
-from airflow.models import TaskInstance
+from airflow.models import DAG, TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 
 
 class TestRunnableExecDateDep(unittest.TestCase):
@@ -37,14 +39,59 @@ class TestRunnableExecDateDep(unittest.TestCase):
     @freeze_time('2016-01-01')
     def test_exec_date_after_end_date(self):
         """
+        If the dag's execution date is in the future this dep should fail
+        """
+        dag = DAG(
+            'test_localtaskjob_heartbeat',
+            start_date=datetime(2015, 1, 1),
+            end_date=datetime(2016, 11, 5),
+            schedule_interval=None)
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        ti = TaskInstance(task=op1, execution_date=datetime(2016, 11, 2))
+        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
+
+    @conf_vars({
+        ('scheduler', 'allow_trigger_in_future'): 'True'
+    })
+    @freeze_time('2016-01-01')
+    def test_exec_date_after_end_date_with_allow_config(self):
+        """
         If the dag's execution date is in the future this dep should succeed
         """
-        ti = self._get_task_instance(
-            dag_end_date=datetime(2016, 1, 3),
-            task_end_date=datetime(2016, 1, 3),
-            execution_date=datetime(2016, 1, 2),
-        )
+        dag = DAG(
+            'test_localtaskjob_heartbeat',
+            start_date=datetime(2015, 1, 1),
+            end_date=datetime(2016, 11, 5),
+            schedule_interval=None)
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        ti = TaskInstance(task=op1, execution_date=datetime(2016, 11, 3))
         self.assertTrue(RunnableExecDateDep().is_met(ti=ti))
+
+    @conf_vars({
+        ('scheduler', 'allow_trigger_in_future'): 'True'
+    })
+    @freeze_time('2016-01-01')
+    def test_exec_date_after_end_date_with_allow_config_but_sched(self):
+        """
+        If the dag's execution date is in the future this dep should fail
+        """
+        dag = DAG(
+            'test_localtaskjob_heartbeat',
+            start_date=datetime(2015, 1, 1),
+            end_date=datetime(2016, 11, 5),
+            schedule_interval='@daily')
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        ti = TaskInstance(task=op1, execution_date=datetime(2016, 11, 4))
+        self.assertFalse(RunnableExecDateDep().is_met(ti=ti))
 
     def test_exec_date_after_task_end_date(self):
         """

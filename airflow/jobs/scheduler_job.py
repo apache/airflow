@@ -631,7 +631,7 @@ class DagFileProcessor(LoggingMixin):
             self.log.info("Examining DAG run %s", run)
             # don't consider runs that are executed in the future unless
             # specified by config and schedule_interval is None
-            if run.execution_date > timezone.utcnow() and not run.dag.allow_future_exec_dates:
+            if run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
                 self.log.error(
                     "Execution date is in future: %s",
                     run.execution_date

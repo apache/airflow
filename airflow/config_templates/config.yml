@@ -1294,7 +1294,7 @@
       type: string
       example: ~
       default: "True"
-    - name: run_future_exec_dates
+    - name: allow_trigger_in_future
       description: |
         Allow externally triggered DagRuns for Execution Dates in the future
         Only has effect if schedule_interval not set in DAG

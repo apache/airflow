@@ -577,7 +577,7 @@ class DAG(BaseDag, LoggingMixin):
     def allow_future_exec_dates(self):
         return conf.getboolean(
             'scheduler',
-            'RUN_FUTURE_EXEC_DATES',
+            'ALLOW_TRIGGER_IN_FUTURE',
             fallback=False) and self.schedule_interval is None
 
     @provide_session
@@ -785,7 +785,6 @@ class DAG(BaseDag, LoggingMixin):
     def get_task_instances(
             self, start_date=None, end_date=None, state=None, session=None):
         if not start_date:
-            # TODO why 30?
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
@@ -795,7 +794,7 @@ class DAG(BaseDag, LoggingMixin):
             TaskInstance.execution_date >= start_date,
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
         )
-        # This allows RUN_FUTURE_EXEC_DATES config to take affect, rather than mandating exec_date <= UTC
+        # This allows ALLOW_TRIGGER_IN_FUTURE config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
             end_date = end_date or timezone.utcnow()
             tis = tis.filter(TaskInstance.execution_date <= end_date)
