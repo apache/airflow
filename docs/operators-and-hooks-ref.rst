@@ -101,7 +101,7 @@ Foundation.
    * - `Apache Pig <https://pig.apache.org/>`__
      -
      - :mod:`airflow.providers.apache.pig.hooks.pig`
-     - :mod:`airflow.operators.pig_operator`
+     - :mod:`airflow.providers.apache.pig.operators.pig`
      -
 
    * - `Apache Pinot <https://pinot.apache.org/>`__

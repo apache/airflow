@@ -861,6 +861,10 @@ OPERATOR = [
         'airflow.providers.apache.hive.operators.hive_stats.HiveStatsCollectionOperator',
         'airflow.operators.hive_stats_operator.HiveStatsCollectionOperator',
     ),
+    (
+        'airflow.providers.apache.pig.operators.pig.PigOperator',
+        'airflow.operators.pig_operator.PigOperator',
+    ),
 ]
 
 SENSOR = [
