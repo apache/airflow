@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import snowflake.connector
+from snowflake import connector
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
@@ -107,7 +107,7 @@ class SnowflakeHook(DbApiHook):
         Returns a snowflake.connection object
         """
         conn_config = self._get_conn_params()
-        conn = snowflake.connector.connect(**conn_config)
+        conn = connector.connect(**conn_config)
         return conn
 
     def _get_aws_credentials(self):
