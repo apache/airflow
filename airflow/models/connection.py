@@ -245,7 +245,7 @@ class Connection(Base, LoggingMixin):
             from airflow.hooks.postgres_hook import PostgresHook
             return PostgresHook(postgres_conn_id=self.conn_id)
         elif self.conn_type == 'pig_cli':
-            from airflow.hooks.pig_hook import PigCliHook
+            from airflow.providers.apache.pig.hooks.pig import PigCliHook
             return PigCliHook(pig_cli_conn_id=self.conn_id)
         elif self.conn_type == 'hive_cli':
             from airflow.providers.apache.hive.hooks.hive import HiveCliHook

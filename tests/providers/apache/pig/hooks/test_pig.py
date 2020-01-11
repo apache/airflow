@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.hooks.pig_hook import PigCliHook
+from airflow.providers.apache.pig.hooks.pig import PigCliHook
 
 
 class TestPigCliHook(unittest.TestCase):

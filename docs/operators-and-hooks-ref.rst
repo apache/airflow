@@ -100,7 +100,7 @@ Foundation.
 
    * - `Apache Pig <https://pig.apache.org/>`__
      -
-     - :mod:`airflow.hooks.pig_hook`
+     - :mod:`airflow.providers.apache.pig.hooks.pig`
      - :mod:`airflow.operators.pig_operator`
      -
 

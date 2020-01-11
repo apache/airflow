@@ -204,6 +204,10 @@ HOOK = [
         'airflow.providers.apache.hive.hooks.hive.HiveServer2Hook',
         'airflow.hooks.hive_hooks.HiveServer2Hook',
     ),
+    (
+        'airflow.providers.apache.pig.hooks.pig.PigCliHook',
+        'airflow.hooks.pig_hook.PigCliHook',
+    ),
 ]
 
 OPERATOR = [
