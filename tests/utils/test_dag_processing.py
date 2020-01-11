@@ -139,6 +139,41 @@ class TestDagFileProcessorManager(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
 
+    class FakeDagFileProcessorRunner(DagFileProcessorProcess):
+        # This fake processor will return the zombies it received in constructor
+        # as its processing result w/o actually parsing anything.
+        def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
+            super().__init__(file_path, pickle_dags, dag_id_white_list, zombies)
+
+            self._result = zombies, 0
+
+        def start(self):
+            pass
+
+        @property
+        def start_time(self):
+            return DEFAULT_DATE
+
+        @property
+        def pid(self):
+            return 1234
+
+        @property
+        def done(self):
+            return True
+
+        @property
+        def result(self):
+            return self._result
+
+    def processor_factory(self, file_path, zombies, pickle_dags):
+        return FakeDagFileProcessorRunner(
+            file_path,
+            pickle_dags,
+            [],
+            zombies
+        )
+
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
             dag_directory='directory',
@@ -246,48 +281,13 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 session.commit()
                 fake_zombies = [SimpleTaskInstance(ti)]
 
-            class FakeDagFileProcessorRunner(DagFileProcessorProcess):
-                # This fake processor will return the zombies it received in constructor
-                # as its processing result w/o actually parsing anything.
-                def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
-                    super().__init__(file_path, pickle_dags, dag_id_white_list, zombies)
-
-                    self._result = zombies, 0
-
-                def start(self):
-                    pass
-
-                @property
-                def start_time(self):
-                    return DEFAULT_DATE
-
-                @property
-                def pid(self):
-                    return 1234
-
-                @property
-                def done(self):
-                    return True
-
-                @property
-                def result(self):
-                    return self._result
-
-            def processor_factory(file_path, zombies):
-                return FakeDagFileProcessorRunner(
-                    file_path,
-                    False,
-                    [],
-                    zombies
-                )
-
             test_dag_path = os.path.join(TEST_DAG_FOLDER,
                                          'test_example_bash_operator.py')
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
             processor_agent = DagFileProcessorAgent(test_dag_path,
                                                     [],
                                                     1,
-                                                    processor_factory,
+                                                    self.processor_factory,
                                                     timedelta.max,
                                                     False,
                                                     async_mode)
@@ -353,9 +353,19 @@ class TestDagFileProcessorAgent(unittest.TestCase):
     def tearDown(self):
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
+        remove_list = []
         for mod in sys.modules:
             if mod not in self.old_modules:
-                del sys.modules[mod]
+                remove_list.append(mod)
+
+        for mod in remove_list:
+            del sys.modules[mod]
+
+    def processor_factory(self, file_path, zombies, pickle_dags):
+        return DagFileProcessorProcess(file_path,
+                                       pickle_dags,
+                                       [],
+                                       zombies)
 
     def test_reload_module(self):
         """
@@ -366,12 +376,6 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         with settings_context(SETTINGS_FILE_VALID):
             # Launch a process through DagFileProcessorAgent, which will try
             # reload the logging module.
-            def processor_factory(file_path, zombies):
-                return DagFileProcessorProcess(file_path,
-                                               False,
-                                               [],
-                                               zombies)
-
             test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
             async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
 
@@ -385,7 +389,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             processor_agent = DagFileProcessorAgent(test_dag_path,
                                                     [],
                                                     0,
-                                                    processor_factory,
+                                                    self.processor_factory,
                                                     timedelta.max,
                                                     False,
                                                     async_mode)
@@ -400,18 +404,12 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             self.assertFalse(os.path.isfile(log_file_loc))
 
     def test_parse_once(self):
-        def processor_factory(file_path, zombies):
-            return DagFileProcessorProcess(file_path,
-                                           False,
-                                           [],
-                                           zombies)
-
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
         processor_agent = DagFileProcessorAgent(test_dag_path,
                                                 [test_dag_path],
                                                 1,
-                                                processor_factory,
+                                                self.processor_factory,
                                                 timedelta.max,
                                                 False,
                                                 async_mode)
@@ -426,14 +424,8 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         dag_ids = [result.dag_id for result in parsing_result]
         self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)
-
+        
     def test_launch_process(self):
-        def processor_factory(file_path, zombies):
-            return DagFileProcessorProcess(file_path,
-                                           False,
-                                           [],
-                                           zombies)
-
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
 
@@ -447,7 +439,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         processor_agent = DagFileProcessorAgent(test_dag_path,
                                                 [],
                                                 0,
-                                                processor_factory,
+                                                self.processor_factory,
                                                 timedelta.max,
                                                 False,
                                                 async_mode)
