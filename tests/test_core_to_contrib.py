@@ -857,6 +857,10 @@ OPERATOR = [
         'airflow.providers.apache.hive.operators.hive.HiveOperator',
         'airflow.operators.hive_operator.HiveOperator',
     ),
+    (
+        'airflow.providers.apache.hive.operators.hive_stats.HiveStatsCollectionOperator',
+        'airflow.operators.hive_stats_operator.HiveStatsCollectionOperator',
+    ),
 ]
 
 SENSOR = [

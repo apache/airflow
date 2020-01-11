@@ -22,7 +22,7 @@ from collections import OrderedDict
 from unittest.mock import patch
 
 from airflow import AirflowException
-from airflow.operators.hive_stats_operator import HiveStatsCollectionOperator
+from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 
 
 class _FakeCol:
@@ -101,10 +101,10 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
             (col, 'non_null'): 'COUNT({})'.format(col)
         })
 
-    @patch('airflow.operators.hive_stats_operator.json.dumps')
-    @patch('airflow.operators.hive_stats_operator.MySqlHook')
-    @patch('airflow.operators.hive_stats_operator.PrestoHook')
-    @patch('airflow.operators.hive_stats_operator.HiveMetastoreHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.json.dumps')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.PrestoHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook')
     def test_execute(self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook, mock_json_dumps):
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
         mock_mysql_hook.return_value.get_records.return_value = False
@@ -148,10 +148,10 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
             ]
         )
 
-    @patch('airflow.operators.hive_stats_operator.json.dumps')
-    @patch('airflow.operators.hive_stats_operator.MySqlHook')
-    @patch('airflow.operators.hive_stats_operator.PrestoHook')
-    @patch('airflow.operators.hive_stats_operator.HiveMetastoreHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.json.dumps')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.PrestoHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook')
     def test_execute_with_assignment_func(self,
                                           mock_hive_metastore_hook,
                                           mock_presto_hook,
@@ -198,10 +198,10 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
             ]
         )
 
-    @patch('airflow.operators.hive_stats_operator.json.dumps')
-    @patch('airflow.operators.hive_stats_operator.MySqlHook')
-    @patch('airflow.operators.hive_stats_operator.PrestoHook')
-    @patch('airflow.operators.hive_stats_operator.HiveMetastoreHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.json.dumps')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.PrestoHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook')
     def test_execute_with_assignment_func_no_return_value(self,
                                                           mock_hive_metastore_hook,
                                                           mock_presto_hook,
@@ -246,9 +246,9 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
             ]
         )
 
-    @patch('airflow.operators.hive_stats_operator.MySqlHook')
-    @patch('airflow.operators.hive_stats_operator.PrestoHook')
-    @patch('airflow.operators.hive_stats_operator.HiveMetastoreHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.PrestoHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook')
     def test_execute_no_query_results(self, mock_hive_metastore_hook, mock_presto_hook, mock_mysql_hook):
         mock_hive_metastore_hook.return_value.get_table.return_value.sd.cols = [fake_col]
         mock_mysql_hook.return_value.get_records.return_value = False
@@ -256,10 +256,10 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
 
         self.assertRaises(AirflowException, HiveStatsCollectionOperator(**self.kwargs).execute, context={})
 
-    @patch('airflow.operators.hive_stats_operator.json.dumps')
-    @patch('airflow.operators.hive_stats_operator.MySqlHook')
-    @patch('airflow.operators.hive_stats_operator.PrestoHook')
-    @patch('airflow.operators.hive_stats_operator.HiveMetastoreHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.json.dumps')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.PrestoHook')
+    @patch('airflow.providers.apache.hive.operators.hive_stats.HiveMetastoreHook')
     def test_execute_delete_previous_runs_rows(self,
                                                mock_hive_metastore_hook,
                                                mock_presto_hook,

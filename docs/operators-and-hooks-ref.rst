@@ -93,7 +93,7 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.hive.hooks.hive`
      - :mod:`airflow.providers.apache.hive.operators.hive`,
-       :mod:`airflow.operators.hive_stats_operator`
+       :mod:`airflow.providers.apache.hive.operators.hive_stats`
      - :mod:`airflow.sensors.named_hive_partition_sensor`,
        :mod:`airflow.sensors.hive_partition_sensor`,
        :mod:`airflow.sensors.metastore_partition_sensor`
