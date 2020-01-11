@@ -80,9 +80,12 @@ def cancel_task_instances(tis,
     for ti in tis:
         ti.max_tries = 0
         ti._try_number = 1
-        ti.state = State.SHUTDOWN
-        if ti.job_id:
-            job_ids.append(ti.job_id)
+        if ti.state == State.RUNNING:
+            if ti.job_id:
+                ti.state = State.SHUTDOWN
+                job_ids.append(ti.job_id)
+        else:
+            ti.state = State.FAILED
 
     if job_ids:
         from airflow.jobs import BaseJob as BJ
