@@ -1521,6 +1521,13 @@
       type: string
       example: ~
       default: "asctime, filename, lineno, levelname, message"
+    - name: index
+      description: |
+        Index used to store airflow logs
+      version_added: ~
+      type: string
+      example: ~
+      default: "filebeat-*"
 - name: elasticsearch_configs
   description: ~
   options:
