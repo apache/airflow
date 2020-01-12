@@ -25,7 +25,7 @@
 ./airflow/contrib/hooks/snowflake_hook.py
 ./airflow/providers/apache/spark/hooks/spark_jdbc.py
 ./airflow/providers/apache/spark/hooks/spark_jdbc_script.py
-./airflow/contrib/hooks/spark_sql_hook.py
+./airflow/providers/apache/spark/hooks/spark_sql.py
 ./airflow/contrib/hooks/spark_submit_hook.py
 ./airflow/contrib/hooks/sqoop_hook.py
 ./airflow/contrib/hooks/vertica_hook.py

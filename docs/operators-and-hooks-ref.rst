@@ -114,7 +114,7 @@ Foundation.
      -
      - :mod:`airflow.providers.apache.spark.hooks.spark_jdbc`,
        :mod:`airflow.providers.apache.spark.hooks.spark_jdbc_script`,
-       :mod:`airflow.contrib.hooks.spark_sql_hook`,
+       :mod:`airflow.providers.apache.spark.hooks.spark_sql`,
        :mod:`airflow.contrib.hooks.spark_submit_hook`
      - :mod:`airflow.contrib.operators.spark_jdbc_operator`,
        :mod:`airflow.contrib.operators.spark_sql_operator`,

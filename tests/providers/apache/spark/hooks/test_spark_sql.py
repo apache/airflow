@@ -22,8 +22,8 @@ import unittest
 from itertools import dropwhile
 from unittest.mock import call, patch
 
-from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 from airflow.models import Connection
+from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 from airflow.utils import db
 
 
@@ -78,7 +78,7 @@ class TestSparkSqlHook(unittest.TestCase):
         if self._config['verbose']:
             assert "--verbose" in cmd
 
-    @patch('airflow.contrib.hooks.spark_sql_hook.subprocess.Popen')
+    @patch('airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen')
     def test_spark_process_runcmd(self, mock_popen):
         # Given
         mock_popen.return_value.stdout = io.StringIO('Spark-sql communicates using stdout')
