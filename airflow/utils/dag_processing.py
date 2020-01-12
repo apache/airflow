@@ -348,7 +348,7 @@ class DagFileProcessorAgent(LoggingMixin):
             self._async_mode
         ]
 
-        if multiprocessing.get_start_method != "fork":
+        if multiprocessing.get_start_method() != "fork":
             args_list.append(conf)
 
         self._process = multiprocessing.Process(
@@ -400,7 +400,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                signal_conn,
                                pickle_dags,
                                async_mode,
-                               inherited_conf):
+                               inherited_conf=None):
 
         # Make this process start as a new process group - that makes it easy
         # to kill all sub-process of this at the OS-level, rather than having

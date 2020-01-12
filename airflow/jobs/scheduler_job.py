@@ -103,7 +103,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                             dag_id_white_list,
                             thread_name,
                             zombies,
-                            inherited_conf):
+                            inherited_conf=None):
         """
         Process the given file.
 
