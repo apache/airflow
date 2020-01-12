@@ -275,7 +275,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             # have the log uploaded but will not be stored in elasticsearch.
             # so apply the strip() to log_file.read()
             log_line = log_file.read().strip()
-            self.assertEqual(self.end_of_log_mark.strip(), log_line)
+            self.assertEqual(self.end_of_log_mark.strip(), log_line.split(" - ")[-1])
         self.assertTrue(self.es_task_handler.closed)
 
     def test_close_no_mark_end(self):
