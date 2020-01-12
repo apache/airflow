@@ -2200,7 +2200,6 @@ class TestDecorators(TestBase):
             only_failed="false",
         )
         resp = self.client.post("clear", data=form)
-        # sometimes fail due to shared db?
         self.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
         # In mysql backend, this commit() is needed to write down the logs
         self.session.commit()
