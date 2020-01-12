@@ -107,4 +107,4 @@ class S3ToSnowflakeTransfer(BaseOperator):
 
         self.log.info('Executing COPY command...')
         snowflake_hook.run(copy_query, self.autocommit)
-        self.log.info("COPY command complete")
+        self.log.info("COPY command completed")
