@@ -935,6 +935,10 @@ SENSOR = [
         'airflow.providers.apache.hdfs.sensors.web_hdfs.WebHdfsSensor',
         'airflow.sensors.web_hdfs_sensor.WebHdfsSensor',
     ),
+    (
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensor',
+        'airflow.sensors.hdfs_sensor.HdfsSensor',
+    ),
 ]
 
 PROTOCOLS = [
