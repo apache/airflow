@@ -130,11 +130,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         set_context(log, file_path)
 
         if multiprocessing.get_start_method() != "fork":
-            for c in inherited_conf:
-                for s in inherited_conf[c]:
-                    v = inherited_conf.get(c, s)
-                    if (v not in conf):
-                        conf.set(c, s, v.replace("%", "%%"))
+            for section, key in inherited_conf.items():
+                value = inherited_conf.get(section, key)
+                if value not in conf:
+                    conf.set(section, key, value.replace("%", "%%"))
 
         setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
 

@@ -408,11 +408,10 @@ class DagFileProcessorAgent(LoggingMixin):
         os.setpgid(0, 0)
 
         if multiprocessing.get_start_method() != "fork":
-            for c in inherited_conf:
-                for s in inherited_conf[c]:
-                    v = inherited_conf.get(c, s)
-                    if (v not in conf):
-                        conf.set(c, s, v.replace("%", "%%"))
+            for section, key in inherited_conf.items():
+                value = inherited_conf.get(section, key)
+                if value not in conf:
+                    conf.set(section, key, value.replace("%", "%%"))
 
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         # Reload configurations and settings to avoid collision with parent process.
