@@ -693,63 +693,63 @@ OPERATOR = [
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocClusterCreateOperator",
+        "operators.dataproc.DataprocCreateClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocClusterDeleteOperator",
+        "operators.dataproc.DataprocDeleteClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocClusterScaleOperator",
+        "operators.dataproc.DataprocScaleClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcHadoopOperator",
+        "operators.dataproc.DataprocSubmitHadoopJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcHiveOperator",
+        "operators.dataproc.DataprocSubmitHiveJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHiveOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcJobBaseOperator",
+        "operators.dataproc.DataprocJobBaseOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcPigOperator",
+        "operators.dataproc.DataprocSubmitPigJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPigOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcPySparkOperator",
+        "operators.dataproc.DataprocSubmitPySparkJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcSparkOperator",
+        "operators.dataproc.DataprocSubmitSparkJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcSparkSqlOperator",
+        "operators.dataproc.DataprocSubmitSparkSqlJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator",
+        "operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator",
         "airflow.contrib.operators.dataproc_operator."
         "DataprocWorkflowTemplateInstantiateInlineOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocWorkflowTemplateInstantiateOperator",
+        "operators.dataproc.DataprocInstantiateWorkflowTemplateOperator",
         "airflow.contrib.operators.dataproc_operator."
         "DataprocWorkflowTemplateInstantiateOperator",
     ),

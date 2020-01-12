@@ -483,19 +483,19 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator                                                  |airflow.gcp.operators.dataflow.DataFlowJavaOperator                                                        |
 |airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator                                                |airflow.gcp.operators.dataflow.DataFlowPythonOperator                                                      |
 |airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator                                              |airflow.gcp.operators.dataflow.DataflowTemplateOperator                                                    |
-|airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator                                                |airflow.gcp.operators.dataproc.DataProcHadoopOperator                                                      |
-|airflow.contrib.operators.dataproc_operator.DataProcHiveOperator                                                  |airflow.gcp.operators.dataproc.DataProcHiveOperator                                                        |
-|airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator                                               |airflow.gcp.operators.dataproc.DataProcJobBaseOperator                                                     |
-|airflow.contrib.operators.dataproc_operator.DataProcPigOperator                                                   |airflow.gcp.operators.dataproc.DataProcPigOperator                                                         |
-|airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator                                               |airflow.gcp.operators.dataproc.DataProcPySparkOperator                                                     |
-|airflow.contrib.operators.dataproc_operator.DataProcSparkOperator                                                 |airflow.gcp.operators.dataproc.DataProcSparkOperator                                                       |
-|airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator                                              |airflow.gcp.operators.dataproc.DataProcSparkSqlOperator                                                    |
-|airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator                                         |airflow.gcp.operators.dataproc.DataprocClusterCreateOperator                                               |
-|airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator                                         |airflow.gcp.operators.dataproc.DataprocClusterDeleteOperator                                               |
-|airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator                                          |airflow.gcp.operators.dataproc.DataprocClusterScaleOperator                                                |
+|airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator                                                |airflow.gcp.operators.dataproc.DataprocSubmitHadoopJobOperator                                                      |
+|airflow.contrib.operators.dataproc_operator.DataProcHiveOperator                                                  |airflow.gcp.operators.dataproc.DataprocSubmitHiveJobOperator                                                        |
+|airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator                                               |airflow.gcp.operators.dataproc.DataprocJobBaseOperator                                                     |
+|airflow.contrib.operators.dataproc_operator.DataProcPigOperator                                                   |airflow.gcp.operators.dataproc.DataprocSubmitPigJobOperator                                                         |
+|airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator                                               |airflow.gcp.operators.dataproc.DataprocSubmitPySparkJobOperator                                                     |
+|airflow.contrib.operators.dataproc_operator.DataProcSparkOperator                                                 |airflow.gcp.operators.dataproc.DataprocSubmitSparkJobOperator                                                       |
+|airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator                                              |airflow.gcp.operators.dataproc.DataprocSubmitSparkSqlJobOperator                                                    |
+|airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator                                         |airflow.gcp.operators.dataproc.DataprocCreateClusterOperator                                               |
+|airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator                                         |airflow.gcp.operators.dataproc.DataprocDeleteClusterOperator                                               |
+|airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator                                          |airflow.gcp.operators.dataproc.DataprocScaleClusterOperator                                                |
 |airflow.contrib.operators.dataproc_operator.DataprocOperationBaseOperator                                         |airflow.gcp.operators.dataproc.DataprocOperationBaseOperator                                               |
-|airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator                     |airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator                           |
-|airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator                           |airflow.gcp.operators.dataproc.DataprocWorkflowTemplateInstantiateOperator                                 |
+|airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator                     |airflow.gcp.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator                           |
+|airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator                           |airflow.gcp.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator                                 |
 |airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator                                       |airflow.gcp.operators.datastore.DatastoreExportOperator                                                    |
 |airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator                                       |airflow.gcp.operators.datastore.DatastoreImportOperator                                                    |
 |airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator                                            |airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator                                            |
@@ -741,7 +741,7 @@ The Mesos Executor is removed from the code base as it was not widely used and n
 It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
 https://cloud.google.com/compute/docs/disks/performance
 
-Hence, the default value for `master_disk_size` in DataprocClusterCreateOperator has beeen changes from 500GB to 1TB.
+Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator has beeen changes from 500GB to 1TB.
 
 ### Changes to SalesforceHook
 
@@ -1303,7 +1303,7 @@ Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in
 `AIRFLOW_GPL_UNIDECODE=yes`. In case of the latter a GPL runtime dependency will be installed due to a
 dependency (python-nvd3 -> python-slugify -> unidecode).
 
-### Replace DataProcHook.await calls to DataProcHook.wait
+### Replace DataprocHook.await calls to DataprocHook.wait
 
 The method name was changed to be compatible with the Python 3.7 async/await keywords
 
