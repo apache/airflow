@@ -1483,7 +1483,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "{{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}"
+      default: "{dag_id}-{task_id}-{execution_date}-{try_number}"
     - name: end_of_log_mark
       description: |
         Used to mark the end of a log stream for a task
