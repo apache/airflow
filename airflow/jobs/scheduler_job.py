@@ -102,7 +102,8 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                             pickle_dags,
                             dag_id_white_list,
                             thread_name,
-                            zombies):
+                            zombies,
+                            inherited_conf):
         """
         Process the given file.
 
@@ -127,6 +128,14 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         log = logging.getLogger("airflow.processor")
 
         set_context(log, file_path)
+
+        if multiprocessing.get_start_method() != "fork":
+            for c in inherited_conf:
+                for s in inherited_conf[c]:
+                    v = inherited_conf.get(c, s)
+                    if (v not in conf):
+                        conf.set(c, s, v.replace("%", "%%"))
+
         setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
 
         try:
@@ -170,16 +179,21 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         Launch the process and start processing the DAG.
         """
         self._parent_channel, _child_channel = multiprocessing.Pipe()
+        args_list = [
+            _child_channel,
+            self.file_path,
+            self._pickle_dags,
+            self._dag_id_white_list,
+            "DagFileProcessor{}".format(self._instance_id),
+            self._zombies
+        ]
+
+        if multiprocessing.get_start_method() != "fork":
+            args_list.append(conf)
+
         self._process = multiprocessing.Process(
             target=type(self)._run_file_processor,
-            args=(
-                _child_channel,
-                self.file_path,
-                self._pickle_dags,
-                self._dag_id_white_list,
-                "DagFileProcessor{}".format(self._instance_id),
-                self._zombies
-            ),
+            args=args_list,
             name="DagFileProcessor{}-Process".format(self._instance_id)
         )
         self._start_time = timezone.utcnow()

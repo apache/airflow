@@ -117,6 +117,7 @@ class settings_context:  # pylint: disable=invalid-name
             self.module = SETTINGS_DEFAULT_NAME + '.' + name
             self.settings_file = os.path.join(self.settings_root, filename)
 
+
     def __enter__(self):
         with open(self.settings_file, 'w') as handle:
             handle.writelines(self.content)
@@ -131,48 +132,47 @@ class settings_context:  # pylint: disable=invalid-name
     def __exit__(self, *exc_info):
         # shutil.rmtree(self.settings_root)
         # Reset config
+
         conf.set('logging', 'logging_config_class', '')
         sys.path.remove(self.settings_root)
 
+class FakeDagFileProcessorRunner(DagFileProcessorProcess):
+    # This fake processor will return the zombies it received in constructor
+    # as its processing result w/o actually parsing anything.
+    def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
+        super().__init__(file_path, pickle_dags, dag_id_white_list, zombies)
+        self._result = zombies, 0
+
+    def start(self):
+        pass
+
+    @property
+    def start_time(self):
+        return DEFAULT_DATE
+
+    @property
+    def pid(self):
+        return 1234
+
+    @property
+    def done(self):
+        return True
+
+    @property
+    def result(self):
+        return self._result
+
+def fake_dag_file_processor_factory(file_path, zombies, pickle_dags):
+    return FakeDagFileProcessorRunner(
+        file_path,
+        pickle_dags,
+        [],
+        zombies
+    )
 
 class TestDagFileProcessorManager(unittest.TestCase):
     def setUp(self):
         clear_db_runs()
-
-    class FakeDagFileProcessorRunner(DagFileProcessorProcess):
-        # This fake processor will return the zombies it received in constructor
-        # as its processing result w/o actually parsing anything.
-        def __init__(self, file_path, pickle_dags, dag_id_white_list, zombies):
-            super().__init__(file_path, pickle_dags, dag_id_white_list, zombies)
-
-            self._result = zombies, 0
-
-        def start(self):
-            pass
-
-        @property
-        def start_time(self):
-            return DEFAULT_DATE
-
-        @property
-        def pid(self):
-            return 1234
-
-        @property
-        def done(self):
-            return True
-
-        @property
-        def result(self):
-            return self._result
-
-    def processor_factory(self, file_path, zombies, pickle_dags):
-        return self.FakeDagFileProcessorRunner(
-            file_path,
-            pickle_dags,
-            [],
-            zombies
-        )
 
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -287,7 +287,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_agent = DagFileProcessorAgent(test_dag_path,
                                                     [],
                                                     1,
-                                                    self.processor_factory,
+                                                    fake_dag_file_processor_factory,
                                                     timedelta.max,
                                                     False,
                                                     async_mode)
@@ -344,6 +344,11 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._kill_timed_out_processors()
         mock_dag_file_processor.kill.assert_not_called()
 
+def processor_factory(file_path, zombies, pickle_dags):
+    return DagFileProcessorProcess(file_path,
+                                   pickle_dags,
+                                   [],
+                                   zombies)
 
 class TestDagFileProcessorAgent(unittest.TestCase):
     def setUp(self):
@@ -360,12 +365,6 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         for mod in remove_list:
             del sys.modules[mod]
-
-    def processor_factory(self, file_path, zombies, pickle_dags):
-        return DagFileProcessorProcess(file_path,
-                                       pickle_dags,
-                                       [],
-                                       zombies)
 
     def test_reload_module(self):
         """
@@ -389,7 +388,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             processor_agent = DagFileProcessorAgent(test_dag_path,
                                                     [],
                                                     0,
-                                                    self.processor_factory,
+                                                    processor_factory,
                                                     timedelta.max,
                                                     False,
                                                     async_mode)
@@ -398,7 +397,6 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                 processor_agent.heartbeat()
 
             processor_agent._process.join()
-
             # Since we are reloading logging config not creating this file,
             # we should expect it to be nonexistent.
             self.assertFalse(os.path.isfile(log_file_loc))
@@ -409,7 +407,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         processor_agent = DagFileProcessorAgent(test_dag_path,
                                                 [test_dag_path],
                                                 1,
-                                                self.processor_factory,
+                                                processor_factory,
                                                 timedelta.max,
                                                 False,
                                                 async_mode)
@@ -439,7 +437,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         processor_agent = DagFileProcessorAgent(test_dag_path,
                                                 [],
                                                 0,
-                                                self.processor_factory,
+                                                processor_factory,
                                                 timedelta.max,
                                                 False,
                                                 async_mode)

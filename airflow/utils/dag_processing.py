@@ -337,18 +337,23 @@ class DagFileProcessorAgent(LoggingMixin):
         Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
         """
         self._parent_signal_conn, child_signal_conn = multiprocessing.Pipe()
+        args_list = [
+            self._dag_directory,
+            self._file_paths,
+            self._max_runs,
+            self._processor_factory,
+            self._processor_timeout,
+            child_signal_conn,
+            self._pickle_dags,
+            self._async_mode
+        ]
+
+        if multiprocessing.get_start_method != "fork":
+            args_list.append(conf)
+
         self._process = multiprocessing.Process(
             target=type(self)._run_processor_manager,
-            args=(
-                self._dag_directory,
-                self._file_paths,
-                self._max_runs,
-                self._processor_factory,
-                self._processor_timeout,
-                child_signal_conn,
-                self._pickle_dags,
-                self._async_mode,
-            )
+            args=args_list
         )
         self._process.start()
 
@@ -394,12 +399,20 @@ class DagFileProcessorAgent(LoggingMixin):
                                processor_timeout,
                                signal_conn,
                                pickle_dags,
-                               async_mode):
+                               async_mode,
+                               inherited_conf):
 
         # Make this process start as a new process group - that makes it easy
         # to kill all sub-process of this at the OS-level, rather than having
         # to iterate the child processes
         os.setpgid(0, 0)
+
+        if multiprocessing.get_start_method() != "fork":
+            for c in inherited_conf:
+                for s in inherited_conf[c]:
+                    v = inherited_conf.get(c, s)
+                    if (v not in conf):
+                        conf.set(c, s, v.replace("%", "%%"))
 
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         # Reload configurations and settings to avoid collision with parent process.
