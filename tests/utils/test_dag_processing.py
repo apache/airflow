@@ -117,7 +117,6 @@ class settings_context:  # pylint: disable=invalid-name
             self.module = SETTINGS_DEFAULT_NAME + '.' + name
             self.settings_file = os.path.join(self.settings_root, filename)
 
-
     def __enter__(self):
         with open(self.settings_file, 'w') as handle:
             handle.writelines(self.content)
@@ -135,6 +134,7 @@ class settings_context:  # pylint: disable=invalid-name
 
         conf.set('logging', 'logging_config_class', '')
         sys.path.remove(self.settings_root)
+
 
 class FakeDagFileProcessorRunner(DagFileProcessorProcess):
     # This fake processor will return the zombies it received in constructor
@@ -162,6 +162,7 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
     def result(self):
         return self._result
 
+
 def fake_dag_file_processor_factory(file_path, zombies, pickle_dags):
     return FakeDagFileProcessorRunner(
         file_path,
@@ -169,6 +170,7 @@ def fake_dag_file_processor_factory(file_path, zombies, pickle_dags):
         [],
         zombies
     )
+
 
 class TestDagFileProcessorManager(unittest.TestCase):
     def setUp(self):
@@ -344,11 +346,13 @@ class TestDagFileProcessorManager(unittest.TestCase):
         manager._kill_timed_out_processors()
         mock_dag_file_processor.kill.assert_not_called()
 
+
 def processor_factory(file_path, zombies, pickle_dags):
     return DagFileProcessorProcess(file_path,
                                    pickle_dags,
                                    [],
                                    zombies)
+
 
 class TestDagFileProcessorAgent(unittest.TestCase):
     def setUp(self):
