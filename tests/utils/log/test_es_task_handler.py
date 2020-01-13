@@ -343,7 +343,8 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.end_of_log_mark,
             self.write_stdout,
             self.json_format,
-            self.json_fields
+            self.json_fields,
+            self.index
         )
         log_id = self.es_task_handler._render_log_id(self.ti, 1)
         self.assertEqual(expected_log_id, log_id)
