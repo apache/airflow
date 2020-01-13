@@ -239,7 +239,7 @@ These integrations allow you to perform various operations within the Microsoft 
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_data_lake`
-     - :mod:`airflow.contrib.operators.adls_list_operator`
+     - :mod:`airflow.providers.microsoft.azure.operators.adls_list`
      -
 
    * - `Azure Files <https://azure.microsoft.com/en-us/services/storage/files/>`__

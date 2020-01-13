@@ -240,6 +240,7 @@ HOOK = [
         'airflow.providers.microsoft.azure.hooks.wasb.WasbHook',
         'airflow.contrib.hooks.wasb_hook.WasbHook',
     ),
+
 ]
 
 OPERATOR = [
@@ -892,6 +893,10 @@ OPERATOR = [
     (
         'airflow.providers.apache.pig.operators.pig.PigOperator',
         'airflow.operators.pig_operator.PigOperator',
+    ),
+    (
+        'airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeStorageListOperator',
+        'airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator',
     ),
 ]
 
