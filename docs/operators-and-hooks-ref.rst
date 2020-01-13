@@ -221,7 +221,7 @@ These integrations allow you to perform various operations within the Microsoft 
      - Sensors
 
    * - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
-     - :mod:`airflow.contrib.hooks.wasb_hook`
+     - :mod:`airflow.providers.microsoft.azure.hooks.wasb`
      - :mod:`airflow.contrib.operators.wasb_delete_blob_operator`
      - :mod:`airflow.contrib.sensors.wasb_sensor`
 

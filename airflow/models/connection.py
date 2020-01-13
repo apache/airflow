@@ -281,7 +281,7 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.redis_hook import RedisHook
             return RedisHook(redis_conn_id=self.conn_id)
         elif self.conn_type == 'wasb':
-            from airflow.contrib.hooks.wasb_hook import WasbHook
+            from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
             return WasbHook(wasb_conn_id=self.conn_id)
         elif self.conn_type == 'docker':
             from airflow.hooks.docker_hook import DockerHook

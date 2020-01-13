@@ -236,6 +236,10 @@ HOOK = [
         'airflow.providers.microsoft.azure.hooks.azure_fileshare.AzureFileShareHook',
         'airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook',
     ),
+    (
+        'airflow.providers.microsoft.azure.hooks.wasb.WasbHook',
+        'airflow.contrib.hooks.wasb_hook.WasbHook',
+    ),
 ]
 
 OPERATOR = [

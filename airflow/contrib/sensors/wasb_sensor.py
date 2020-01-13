@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.contrib.hooks.wasb_hook import WasbHook
+from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

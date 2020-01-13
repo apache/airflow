@@ -29,7 +29,7 @@
 ./airflow/providers/apache/spark/hooks/spark_submit.py
 ./airflow/providers/apache/sqoop/hooks/sqoop.py
 ./airflow/contrib/hooks/vertica_hook.py
-./airflow/contrib/hooks/wasb_hook.py
+./airflow/providers/microsoft/azure/hooks/wasb.py
 ./airflow/contrib/operators/adls_list_operator.py
 ./airflow/contrib/operators/azure_container_instances_operator.py
 ./airflow/contrib/operators/azure_cosmos_operator.py
