@@ -256,7 +256,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # so we know where to stop while auto-tailing.
         if self.write_stdout:
             print()
-        self.handler.emit(logging.LogRecord(None, logging.INFO, None, 0, self.end_of_log_mark, None, None))
+        self.handler.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
 
         if self.write_stdout:
             self.handler.close()
