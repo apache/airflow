@@ -57,6 +57,11 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Move methods from BiqQueryBaseCursor to BigQueryHook
+
+To simplify BigQuery operators (no need of `Cursor`) and standardize usage of hooks within all GCP methods from `BiqQueryBaseCursor`
+were moved to `BigQueryHook`. Using them by from `Cursor` object is still possible due to preserve backward compatibility but will raise `DeprecationWarning`.
+
 ### Standardize handling http exception in BigQuery
 
 Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
