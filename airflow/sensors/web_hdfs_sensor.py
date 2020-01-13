@@ -16,29 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.apache.hdfs.sensors.web_hdfs`."""
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor  # noqa
 
-class WebHdfsSensor(BaseSensorOperator):
-    """
-    Waits for a file or folder to land in HDFS
-    """
-    template_fields = ('filepath',)
-
-    @apply_defaults
-    def __init__(self,
-                 filepath,
-                 webhdfs_conn_id='webhdfs_default',
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.filepath = filepath
-        self.webhdfs_conn_id = webhdfs_conn_id
-
-    def poke(self, context):
-        from airflow.hooks.webhdfs_hook import WebHDFSHook
-        c = WebHDFSHook(self.webhdfs_conn_id)
-        self.log.info('Poking for file %s', self.filepath)
-        return c.check_for_path(hdfs_path=self.filepath)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.apache.hdfs.sensors.web_hdfs`.",
+    DeprecationWarning, stacklevel=2
+)

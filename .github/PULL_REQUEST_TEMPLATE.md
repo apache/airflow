@@ -1,6 +1,8 @@
 ---
 Issue link: WILL BE INSERTED BY [boring-cyborg](https://github.com/kaxil/boring-cyborg)
 
+Make sure to mark the boxes below before creating PR: [x]
+
 - [ ] Description above provides context of the change
 - [ ] Commit message/PR title starts with `[AIRFLOW-NNNN]`. AIRFLOW-NNNN = JIRA ID<sup>*</sup>
 - [ ] Unit tests coverage for changes (not needed for documentation changes)

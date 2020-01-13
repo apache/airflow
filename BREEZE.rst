@@ -220,7 +220,7 @@ follows:
 
 .. code-block:: bash
 
-    ./breeze --python 3.6 --backend mysql --env docker
+    ./breeze --python 3.6 --backend mysql
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -228,25 +228,6 @@ them when you run the script. You can delete the ``.build/`` directory in case y
 default settings.
 
 The defaults when you run the Breeze environment are Python 3.6, Sqlite, and Docker.
-
-Available Docker Environments
-..............................
-
-You can choose a container environment when you run Breeze with ``--env`` flag.
-Running the default ``docker`` environment takes a considerable amount of resources. You can run a
-slimmed-down version of the environment - just the Apache Airflow container - by choosing ``bare``
-environment instead.
-
-The following environments are available:
-
-* The ``docker`` environment (default): starts all dependencies required by a full integration test suite
-  (Postgres, Mysql, Celery, etc). This option is resource intensive so do not forget to
-  [stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
-  and can slow down your machine.
-* The ``kubernetes`` environment: Runs Airflow tests within a Kubernetes cluster.
-* The ``bare`` environment:  runs Airflow in the Docker without any external dependencies.
-  It only works for independent tests. You can only run it with the sqlite backend.
-
 
 Cleaning Up the Environment
 ---------------------------
@@ -528,6 +509,65 @@ As soon as you enter the Breeze environment, you can run Airflow unit tests via 
 
 For supported CI test suites, types of unit tests, and other tests, see `TESTING.rst <TESTING.rst>`_.
 
+Running Tests with Kubernetes in Breeze
+=======================================
+
+In order to run Kubernetes in Breeze you can start Breeze with ``--start-kind-cluster`` switch. This will
+automatically create a Kind Kubernetes cluster in the same ``docker`` engine that is used to run Breeze
+Setting up the Kubernetes cluster takes some time so the cluster continues running
+until the cluster is stopped with ``--stop-kind-cluster`` switch or until ``--recreate-kind-cluster``
+switch is used rather than ``--start-kind-cluster``.
+
+The cluster name follows the pattern ``airflow-python-X.Y.Z-vA.B.C`` where X.Y.Z is Python version
+and A.B.C is kubernetes version. This way you can have multiple clusters setup and running at the same
+time for different python versions and different kubernetes versions.
+
+The Control Plane is available from inside the docker image via ``<CLUSTER_NAME>-control-plane:6443``
+host:port, the worker of the kind cluster is available at  <CLUSTER_NAME>-worker
+and webserver port for the worker is 30809.
+
+The Kubernetes Cluster is started but in order to deploy airflow to Kubernetes cluster you need to:
+
+1. Build the image.
+2. Load it to Kubernetes cluster.
+3. Deploy airflow application.
+
+It can be done with single script: ``./scripts/ci/in_container/kubernetes/deploy_airflow_to_kubernetes.sh``
+
+You can, however, work separately on the image in Kubernetes and deploying the Airflow app in the cluster.
+
+Building Airflow Images and Loading them to Kubernetes cluster
+--------------------------------------------------------------
+
+This is done using ``./scripts/ci/in_container/kubernetes/docker/rebuild_airflow_image.sh`` script:
+
+1. Latest ``apache/airflow:master-pythonX.Y-ci`` images are rebuilt using latest sources.
+2. New Kubernetes image based on the  ``apache/airflow:master-pythonX.Y-ci`` is built with
+   necessary scripts added to run in kubernetes. The image is tagged with
+   ``apache/airflow:master-pythonX.Y-ci-kubernetes`` tag.
+3. The image is loaded to the kind cluster using ``kind load`` command
+
+Deploying Airflow Application in the Kubernetes cluster
+-------------------------------------------------------
+
+This is done using ``./scripts/ci/in_container/kubernetes/app/deploy_app.sh`` script:
+
+1. Kubernetes resources are prepared by processing template from ``template`` directory, replacing
+   variables with the right images and locations:
+   - configmaps.yaml
+   - airflow.yaml
+2. The existing resources are used without replacing any variables inside:
+   - secrets.yaml
+   - postgres.yaml
+   - volumes.yaml
+3. All the resources are applied in the Kind cluster
+4. The script will wait until all the applications are ready and reachable
+
+After the deployment is finished you can run Kubernetes tests immediately in the same way as other tests.
+The Kubernetes tests are in ``tests/integration/kubernetes`` folder.
+
+You can run all the integration tests for Kubernetes with ``pytest tests/integration/kubernetes``.
+
 Breeze Command-Line Interface Reference
 =======================================
 
@@ -646,21 +686,34 @@ This is the current syntax for  `./breeze <./breeze>`_:
           Python version used for the image. This is always major/minor version.
           One of [ 3.6 3.7 ]. Default is the python3 or python on the path.
 
-  -E, --env <ENVIRONMENT>
-          Environment to use for tests. It determines which types of tests can be run.
-          One of [ docker kubernetes ]. Default: docker
-
   -B, --backend <BACKEND>
           Backend to use for tests - it determines which database is used.
           One of [ sqlite mysql postgres ]. Default: sqlite
 
-  -K, --kubernetes-version <KUBERNETES_VERSION>
-          Kubernetes version - only used in case of 'kubernetes' environment.
-          One of [ v1.13.0 ]. Default: v1.13.0
+  -K, --start-kind-cluster
+          Starts kind Kubernetes cluster after entering the environment. The cluster is started using
+          Kubernetes Mode selected and Kubernetes version specifed via --kubernetes-mode and
+          --kubernetes-version flags.
+
+  -Z, --recreate-kind-cluster
+          Recreates kind Kubernetes cluster if one has already been created. By default, if you do not stop
+          environment, the Kubernetes cluster created for testing is continuously running and when
+          you start Kubernetes testing again it will be reused. You can force deletion and recreation
+          of such cluster with this flag.
+
+  -X, --stop-kind-cluster
+          Stops kind Kubernetes cluster if one has already been created. By default, if you do not stop
+          environment, the Kubernetes cluster created for testing is continuously running and when
+          you start Kubernetes testing again it will be reused. You can force deletion and recreation
+          of such cluster with this flag.
 
   -M, --kubernetes-mode <KUBERNETES_MODE>
-          Kubernetes mode - only used in case of 'kubernetes' environment.
+          Kubernetes mode - only used in case --start-kind-cluster flag is specified.
           One of [ persistent_mode git_mode ]. Default: git_mode
+
+  -V, --kubernetes-version <KUBERNETES_VERSION>
+          Kubernetes version - only used in case --start-kind-cluster flag is specified.
+          One of [ v1.15.3 v1.16.2 ]. Default: v1.15.3
 
   -s, --skip-mounting-source-volume
           Skips mounting local volume with sources - you get exactly what is in the
@@ -694,14 +747,18 @@ This is the current syntax for  `./breeze <./breeze>`_:
           automatically for the first time or when changes are detected in
           package-related files, but you can force it using this flag.
 
-  -R, --force-build-images-clean
-          Force build images without cache. This will remove the pulled or build images
-          and start building images from scratch. This might take a long time.
-
   -p, --force-pull-images
           Forces pulling of images from DockerHub before building to populate cache. The
           images are pulled by default only for the first time you run the
           environment, later the locally build images are used as cache.
+
+  -R, --force-clean-build
+          Force build images without cache at all. This will remove the pulled or build images
+          and start building images from scratch. This might take a long time.
+
+  -L, --use-local-cache
+          Uses local cache to build images. No pulled images will be used, but results of local builds in
+          the Docker cache are used instead.
 
   -u, --push-images
           After building - uploads the images to DockerHub
@@ -714,7 +771,6 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
 
  .. END BREEZE HELP MARKER
-
 
 Convenience Scripts
 -------------------

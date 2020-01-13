@@ -16,59 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.sensors.hdfs_sensor import HdfsSensor
+"""This module is deprecated. Please use `airflow.providers.apache.hdfs.sensors.hdfs`."""
 
+import warnings
 
-class HdfsSensorRegex(HdfsSensor):
-    def __init__(self,
-                 regex,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.regex = regex
+# pylint: disable=unused-import
+from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensorFolder, HdfsSensorRegex  # noqa
 
-    def poke(self, context):
-        """
-        poke matching files in a directory with self.regex
-
-        :return: Bool depending on the search criteria
-        """
-        sb = self.hook(self.hdfs_conn_id).get_conn()
-        self.log.info(
-            'Poking for %s to be a directory with files matching %s', self.filepath, self.regex.pattern
-        )
-        result = [f for f in sb.ls([self.filepath], include_toplevel=False) if
-                  f['file_type'] == 'f' and
-                  self.regex.match(f['path'].replace('%s/' % self.filepath, ''))]
-        result = self.filter_for_ignored_ext(result, self.ignored_ext,
-                                             self.ignore_copying)
-        result = self.filter_for_filesize(result, self.file_size)
-        return bool(result)
-
-
-class HdfsSensorFolder(HdfsSensor):
-    def __init__(self,
-                 be_empty=False,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.be_empty = be_empty
-
-    def poke(self, context):
-        """
-        poke for a non empty directory
-
-        :return: Bool depending on the search criteria
-        """
-        sb = self.hook(self.hdfs_conn_id).get_conn()
-        result = [f for f in sb.ls([self.filepath], include_toplevel=True)]
-        result = self.filter_for_ignored_ext(result, self.ignored_ext,
-                                             self.ignore_copying)
-        result = self.filter_for_filesize(result, self.file_size)
-        if self.be_empty:
-            self.log.info('Poking for filepath %s to a empty directory', self.filepath)
-            return len(result) == 1 and result[0]['path'] == self.filepath
-        else:
-            self.log.info('Poking for filepath %s to a non empty directory', self.filepath)
-            result.pop(0)
-            return bool(result) and result[0]['file_type'] == 'f'
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.apache.hdfs.sensors.hdfs`.",
+    DeprecationWarning, stacklevel=2
+)

@@ -24,8 +24,7 @@ import pendulum
 from airflow import DAG
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.gcp.sensors.gcs import (
-    GoogleCloudStorageObjectSensor, GoogleCloudStorageObjectUpdatedSensor, GoogleCloudStoragePrefixSensor,
-    ts_function,
+    GCSObjectExistenceSensor, GCSObjectsWtihPrefixExistenceSensor, GCSObjectUpdateSensor, ts_function,
 )
 
 TEST_BUCKET = "TEST_BUCKET"
@@ -47,9 +46,9 @@ MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
 
 
 class TestGoogleCloudStorageObjectSensor(TestCase):
-    @mock.patch("airflow.gcp.sensors.gcs.GoogleCloudStorageHook")
+    @mock.patch("airflow.gcp.sensors.gcs.GCSHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
-        task = GoogleCloudStorageObjectSensor(
+        task = GCSObjectExistenceSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,
@@ -93,9 +92,9 @@ class TestTsFunction(TestCase):
 
 
 class TestGoogleCloudStorageObjectUpdatedSensor(TestCase):
-    @mock.patch("airflow.gcp.sensors.gcs.GoogleCloudStorageHook")
+    @mock.patch("airflow.gcp.sensors.gcs.GCSHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
-        task = GoogleCloudStorageObjectUpdatedSensor(
+        task = GCSObjectUpdateSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
             object=TEST_OBJECT,
@@ -114,9 +113,9 @@ class TestGoogleCloudStorageObjectUpdatedSensor(TestCase):
 
 
 class TestGoogleCloudStoragePrefixSensor(TestCase):
-    @mock.patch("airflow.gcp.sensors.gcs.GoogleCloudStorageHook")
+    @mock.patch("airflow.gcp.sensors.gcs.GCSHook")
     def test_should_pass_arguments_to_hook(self, mock_hook):
-        task = GoogleCloudStoragePrefixSensor(
+        task = GCSObjectsWtihPrefixExistenceSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,
@@ -133,9 +132,9 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         self.assertEqual(True, result)
 
-    @mock.patch("airflow.gcp.sensors.gcs.GoogleCloudStorageHook")
+    @mock.patch("airflow.gcp.sensors.gcs.GCSHook")
     def test_should_return_false_on_empty_list(self, mock_hook):
-        task = GoogleCloudStoragePrefixSensor(
+        task = GCSObjectsWtihPrefixExistenceSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,
@@ -147,9 +146,9 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
 
         self.assertEqual(False, result)
 
-    @mock.patch('airflow.gcp.sensors.gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.gcp.sensors.gcs.GCSHook')
     def test_execute(self, mock_hook):
-        task = GoogleCloudStoragePrefixSensor(
+        task = GCSObjectsWtihPrefixExistenceSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,
@@ -168,9 +167,9 @@ class TestGoogleCloudStoragePrefixSensor(TestCase):
         mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix=TEST_PREFIX)
         self.assertEqual(response, generated_messages)
 
-    @mock.patch('airflow.gcp.sensors.gcs.GoogleCloudStorageHook')
+    @mock.patch('airflow.gcp.sensors.gcs.GCSHook')
     def test_execute_timeout(self, mock_hook):
-        task = GoogleCloudStoragePrefixSensor(
+        task = GCSObjectsWtihPrefixExistenceSensor(
             task_id="task-id",
             bucket=TEST_BUCKET,
             prefix=TEST_PREFIX,

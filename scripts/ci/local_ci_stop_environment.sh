@@ -29,12 +29,12 @@ basic_sanity_checks
 
 script_start
 
-export PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
+export PYTHON_VERSION=${PYTHON_VERSION:="3.5"}
 
 # Default branch name for triggered builds is master
 export AIRFLOW_CONTAINER_BRANCH_NAME=${AIRFLOW_CONTAINER_BRANCH_NAME:="master"}
 
-export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
+export AIRFLOW_CI_IMAGE=\
 ${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
 
 HOST_USER_ID="$(id -ur)"

@@ -47,7 +47,7 @@ def max_partition(
     >>> max_partition('airflow.static_babynames_partitioned')
     '2015-01-01'
     """
-    from airflow.hooks.hive_hooks import HiveMetastoreHook
+    from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
     if '.' in table:
         schema, table = table.split('.')
     hh = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
@@ -104,7 +104,7 @@ def closest_ds_partition(
     >>> closest_ds_partition(tbl, '2015-01-02')
     '2015-01-01'
     """
-    from airflow.hooks.hive_hooks import HiveMetastoreHook
+    from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
     if '.' in table:
         schema, table = table.split('.')
     hh = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)

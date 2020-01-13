@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 from parameterized import parameterized
+from tabulate import tabulate
 
 from airflow import AirflowException, models
 from airflow.bin import cli
@@ -156,6 +157,42 @@ class TestCliTasks(unittest.TestCase):
         task_command.task_state(self.parser.parse_args([
             'tasks', 'state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
+
+    def test_task_states_for_dag_run(self):
+
+        dag2 = DagBag().dags['example_python_operator']
+
+        task2 = dag2.get_task(task_id='print_the_context')
+        defaut_date2 = timezone.make_aware(datetime(2016, 1, 9))
+        ti2 = TaskInstance(task2, defaut_date2)
+
+        ti2.set_state(State.SUCCESS)
+        ti_start = ti2.start_date
+        ti_end = ti2.end_date
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_states_for_dag_run(self.parser.parse_args([
+                'tasks', 'states_for_dag_run', 'example_python_operator', defaut_date2.isoformat()]))
+        actual_out = stdout.getvalue()
+
+        formatted_rows = [('example_python_operator',
+                           '2016-01-09 00:00:00+00:00',
+                           'print_the_context',
+                           'success',
+                           ti_start,
+                           ti_end)]
+
+        expected = tabulate(formatted_rows,
+                            ['dag',
+                             'exec_date',
+                             'task',
+                             'state',
+                             'start_date',
+                             'end_date'],
+                            tablefmt="fancy_grid")
+
+        # Check that prints, and log messages, are shown
+        self.assertEqual(expected.replace("\n", ""), actual_out.replace("\n", ""))
 
     def test_subdag_clear(self):
         args = self.parser.parse_args([

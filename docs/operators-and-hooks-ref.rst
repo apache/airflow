@@ -84,61 +84,60 @@ Foundation.
 
    * - `Apache Druid <https://druid.apache.org/>`__
      -
-     - :mod:`airflow.hooks.druid_hook`
-     - :mod:`airflow.contrib.operators.druid_operator`,
-       :mod:`airflow.operators.druid_check_operator`
+     - :mod:`airflow.providers.apache.druid.hooks.druid`
+     - :mod:`airflow.providers.apache.druid.operators.druid`,
+       :mod:`airflow.providers.apache.druid.operators.druid_check`
      -
 
    * - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.hooks.hive_hooks`
-     - :mod:`airflow.operators.hive_operator`,
-       :mod:`airflow.operators.hive_stats_operator`
-     - :mod:`airflow.sensors.named_hive_partition_sensor`,
-       :mod:`airflow.sensors.hive_partition_sensor`,
-       :mod:`airflow.sensors.metastore_partition_sensor`
+     - :mod:`airflow.providers.apache.hive.hooks.hive`
+     - :mod:`airflow.providers.apache.hive.operators.hive`,
+       :mod:`airflow.providers.apache.hive.operators.hive_stats`
+     - :mod:`airflow.providers.apache.hive.sensors.named_hive_partition`,
+       :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
+       :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
    * - `Apache Pig <https://pig.apache.org/>`__
      -
-     - :mod:`airflow.hooks.pig_hook`
-     - :mod:`airflow.operators.pig_operator`
+     - :mod:`airflow.providers.apache.pig.hooks.pig`
+     - :mod:`airflow.providers.apache.pig.operators.pig`
      -
 
    * - `Apache Pinot <https://pinot.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.pinot_hook`
+     - :mod:`airflow.providers.apache.pinot.hooks.pinot`
      -
      -
 
    * - `Apache Spark <https://spark.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.spark_jdbc_hook`,
-       :mod:`airflow.contrib.hooks.spark_jdbc_script`,
-       :mod:`airflow.contrib.hooks.spark_sql_hook`,
-       :mod:`airflow.contrib.hooks.spark_submit_hook`
-     - :mod:`airflow.contrib.operators.spark_jdbc_operator`,
-       :mod:`airflow.contrib.operators.spark_sql_operator`,
-       :mod:`airflow.contrib.operators.spark_submit_operator`
+     - :mod:`airflow.providers.apache.spark.hooks.spark_jdbc`,
+       :mod:`airflow.providers.apache.spark.hooks.spark_jdbc_script`,
+       :mod:`airflow.providers.apache.spark.hooks.spark_sql`,
+       :mod:`airflow.providers.apache.spark.hooks.spark_submit`
+     - :mod:`airflow.providers.apache.spark.operators.spark_jdbc`,
+       :mod:`airflow.providers.apache.spark.operators.spark_sql`,
+       :mod:`airflow.providers.apache.spark.operators.spark_submit`
      -
 
    * - `Apache Sqoop <https://sqoop.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.sqoop_hook`
-     - :mod:`airflow.contrib.operators.sqoop_operator`
+     - :mod:`airflow.providers.apache.sqoop.hooks.sqoop`
+     - :mod:`airflow.providers.apache.sqoop.operators.sqoop`
      -
 
    * - `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
      -
-     - :mod:`airflow.hooks.hdfs_hook`
+     - :mod:`airflow.providers.apache.hdfs.hooks.hdfs`
      -
-     - :mod:`airflow.sensors.hdfs_sensor`,
-       :mod:`airflow.contrib.sensors.hdfs_sensor`
+     - :mod:`airflow.providers.apache.hdfs.sensors.hdfs`
 
    * - `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__
      -
-     - :mod:`airflow.hooks.webhdfs_hook`
+     - :mod:`airflow.providers.apache.hdfs.hooks.webhdfs`
      -
-     - :mod:`airflow.sensors.web_hdfs_sensor`
+     - :mod:`airflow.providers.apache.hdfs.sensors.web_hdfs`
 
 
 Transfer operators and hooks
