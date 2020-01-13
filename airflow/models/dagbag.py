@@ -199,6 +199,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         from airflow.models.dag import DAG  # Avoid circular import
 
+        max_tasks_per_dag = conf.getint('core', 'MAX_TASKS_PER_DAG', fallback=0)
+
         found_dags = []
 
         # if the source file no longer exists in the DB or in the filesystem,
@@ -300,26 +302,37 @@ class DagBag(BaseDagBag, LoggingMixin):
                         dag.full_filepath = filepath
                         if dag.fileloc != filepath and not is_zipfile:
                             dag.fileloc = filepath
-                    try:
-                        dag.is_subdag = False
-                        self.bag_dag(dag, parent_dag=dag, root_dag=dag)
-                        if isinstance(dag._schedule_interval, str):
-                            croniter(dag._schedule_interval)
-                        found_dags.append(dag)
-                        found_dags += dag.subdags
-                    except (CroniterBadCronError,
-                            CroniterBadDateError,
-                            CroniterNotAlphaError) as cron_e:
-                        self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+
+                    num_tasks = len(dag.tasks)
+                    if max_tasks_per_dag > 0 and num_tasks > max_tasks_per_dag:
+                        self.log.exception("Failed to bag_dag: %s, num_tasks (%s) > max_tasks_per_dag (%s)",
+                                           dag.full_filepath, str(num_tasks), str(max_tasks_per_dag))
                         self.import_errors[dag.full_filepath] = \
-                            "Invalid Cron expression: " + str(cron_e)
+                            "num_tasks (%s) > max_tasks_per_dag (%s)" \
+                            % (str(num_tasks), str(max_tasks_per_dag))
                         self.file_last_changed[dag.full_filepath] = \
                             file_last_changed_on_disk
-                    except AirflowDagCycleException as cycle_exception:
-                        self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
-                        self.import_errors[dag.full_filepath] = str(cycle_exception)
-                        self.file_last_changed[dag.full_filepath] = \
-                            file_last_changed_on_disk
+                    else:
+                        try:
+                            dag.is_subdag = False
+                            self.bag_dag(dag, parent_dag=dag, root_dag=dag)
+                            if isinstance(dag._schedule_interval, str):
+                                croniter(dag._schedule_interval)
+                            found_dags.append(dag)
+                            found_dags += dag.subdags
+                        except (CroniterBadCronError,
+                                CroniterBadDateError,
+                                CroniterNotAlphaError) as cron_e:
+                            self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+                            self.import_errors[dag.full_filepath] = \
+                                "Invalid Cron expression: " + str(cron_e)
+                            self.file_last_changed[dag.full_filepath] = \
+                                file_last_changed_on_disk
+                        except AirflowDagCycleException as cycle_exception:
+                            self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+                            self.import_errors[dag.full_filepath] = str(cycle_exception)
+                            self.file_last_changed[dag.full_filepath] = \
+                                file_last_changed_on_disk
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags

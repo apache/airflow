@@ -323,6 +323,13 @@
       type: string
       example: ~
       default: "True"
+    - name: max_tasks_per_dag
+      description: |
+        Maximum number of tasks in a single DAG, set to 0 for unlimited
+      version_added: ~
+      type: string
+      example: ~
+      default: "0"
 
 - name: logging
   description: ~
