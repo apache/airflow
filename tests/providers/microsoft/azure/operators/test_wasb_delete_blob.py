@@ -24,7 +24,7 @@ import unittest
 import mock
 
 from airflow import DAG
-from airflow.contrib.operators.wasb_delete_blob_operator import WasbDeleteBlobOperator
+from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
 
 
 class TestWasbDeleteBlobOperator(unittest.TestCase):
@@ -63,7 +63,7 @@ class TestWasbDeleteBlobOperator(unittest.TestCase):
         self.assertEqual(operator.is_prefix, True)
         self.assertEqual(operator.ignore_if_missing, True)
 
-    @mock.patch('airflow.contrib.operators.wasb_delete_blob_operator.WasbHook',
+    @mock.patch('airflow.providers.microsoft.azure.operators.wasb_delete_blob.WasbHook',
                 autospec=True)
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value

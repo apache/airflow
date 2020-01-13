@@ -222,7 +222,7 @@ These integrations allow you to perform various operations within the Microsoft 
 
    * - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.wasb`
-     - :mod:`airflow.contrib.operators.wasb_delete_blob_operator`
+     - :mod:`airflow.providers.microsoft.azure.operators.wasb_delete_blob`
      - :mod:`airflow.contrib.sensors.wasb_sensor`
 
    * - `Azure Container Instances <https://azure.microsoft.com/en-us/services/container-instances/>`__

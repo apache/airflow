@@ -73,7 +73,7 @@
 ./airflow/contrib/operators/ssh_operator.py
 ./airflow/contrib/operators/vertica_operator.py
 ./airflow/contrib/operators/vertica_to_mysql.py
-./airflow/contrib/operators/wasb_delete_blob_operator.py
+./airflow/providers/microsoft/azure/operators/wasb_delete_blob.py
 ./airflow/contrib/operators/winrm_operator.py
 ./airflow/contrib/sensors/aws_glue_catalog_partition_sensor.py
 ./airflow/contrib/sensors/azure_cosmos_sensor.py

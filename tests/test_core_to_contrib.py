@@ -907,6 +907,10 @@ OPERATOR = [
         'airflow.providers.microsoft.azure.operators.azure_cosmos.AzureCosmosInsertDocumentOperator',
         'airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator',
     ),
+    (
+        'airflow.providers.microsoft.azure.operators.wasb_delete_blob.WasbDeleteBlobOperator',
+        'airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator',
+    ),
 ]
 
 SENSOR = [
