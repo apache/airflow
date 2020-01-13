@@ -53,6 +53,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.write_stdout = False
         self.json_format = False
         self.json_fields = 'asctime,filename,lineno,levelname,message'
+        self.index = "test-index"
         self.es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
             self.filename_template,
@@ -60,7 +61,8 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.end_of_log_mark,
             self.write_stdout,
             self.json_format,
-            self.json_fields
+            self.json_fields,
+            self.index
         )
 
         self.es = elasticsearch.Elasticsearch(  # pylint: disable=invalid-name
@@ -104,6 +106,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.write_stdout,
             self.json_format,
             self.json_fields,
+            self.index,
             es_conf
         )
 

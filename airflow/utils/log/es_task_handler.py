@@ -55,7 +55,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
-                 write_stdout, json_format, json_fields,
+                 write_stdout, json_format, json_fields, index,
                  host='localhost:9200',
                  es_kwargs=conf.getsection("elasticsearch_configs")):
         """
@@ -70,7 +70,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         self.log_id_template, self.log_id_jinja_template = \
             parse_template_string(log_id_template)
-        self.index = conf.get('elasticsearch', 'INDEX')
+        self.index = index
         self.client = elasticsearch.Elasticsearch([host], **es_kwargs)
 
         self.mark_end_on_close = True
