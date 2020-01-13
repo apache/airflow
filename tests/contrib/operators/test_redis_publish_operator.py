@@ -19,6 +19,9 @@
 
 
 import unittest
+
+import pytest
+
 from airflow import DAG
 from airflow.contrib.operators.redis_publish_operator import RedisPublishOperator
 from airflow.contrib.hooks.redis_hook import RedisHook
@@ -28,6 +31,7 @@ from mock import MagicMock
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
+@pytest.mark.integration("redis")
 class TestRedisPublishOperator(unittest.TestCase):
 
     def setUp(self):

@@ -25,6 +25,7 @@ import sys
 
 import os
 import shutil
+import pytest
 import tempfile
 import unittest
 from tests.compat import mock
@@ -887,6 +888,7 @@ class TestTriggerDag(unittest.TestCase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
+    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
     def test_trigger_dag_button(self):
 
         test_dag_id = "example_bash_operator"

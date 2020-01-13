@@ -19,6 +19,9 @@
 
 
 import unittest
+
+import pytest
+
 from airflow import DAG
 from airflow.contrib.sensors.redis_pub_sub_sensor import RedisPubSubSensor
 from airflow.utils import timezone
@@ -79,6 +82,7 @@ class TestRedisPubSubSensor(unittest.TestCase):
         context_calls = []
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
 
+    @pytest.mark.integration("redis")
     def test_poke_true(self):
         sensor = RedisPubSubSensor(
             task_id='test_task',
@@ -103,6 +107,7 @@ class TestRedisPubSubSensor(unittest.TestCase):
         result = sensor.poke(self.mock_context)
         self.assertFalse(result)
 
+    @pytest.mark.integration("redis")
     def test_poke_false(self):
         sensor = RedisPubSubSensor(
             task_id='test_task',

@@ -18,9 +18,11 @@
 # under the License.
 
 import unittest
-import sqlalchemy
-import airflow
 from argparse import Namespace
+
+import sqlalchemy
+
+import airflow
 from tests.compat import mock, patch
 from tests.test_utils.config import conf_vars
 

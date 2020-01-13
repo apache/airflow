@@ -21,24 +21,25 @@ import unittest
 from multiprocessing import Pool
 
 import mock
+
 from celery.contrib.testing.worker import start_worker
+import pytest
+from celery import states as celery_states
 
 from airflow.executors import celery_executor
 from airflow.executors.celery_executor import (CeleryExecutor, celery_configuration,
                                                send_task_to_executor, execute_command)
 from airflow.executors.celery_executor import app
-from celery import states as celery_states
 from airflow.utils.state import State
-
-from airflow.configuration import conf
 
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=ungrouped-imports
 
 
 class CeleryExecutorTest(unittest.TestCase):
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "sqlite is configured with SequentialExecutor")
+    @pytest.mark.integration("redis")
+    @pytest.mark.integration("rabbitmq")
+    @pytest.mark.backend("mysql", "postgres")
     def test_celery_integration(self):
         executor = CeleryExecutor()
         executor.start()
@@ -88,8 +89,9 @@ class CeleryExecutorTest(unittest.TestCase):
         self.assertNotIn('success', executor.last_state)
         self.assertNotIn('fail', executor.last_state)
 
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "sqlite is configured with SequentialExecutor")
+    @pytest.mark.integration("redis")
+    @pytest.mark.integration("rabbitmq")
+    @pytest.mark.backend("mysql", "postgres")
     def test_error_sending_task(self):
         @app.task
         def fake_execute_command():
