@@ -251,7 +251,7 @@ class TestMarkTasks(unittest.TestCase):
         self.verify_state(self.dag1, [task.task_id for task in tasks], [self.execution_dates[0]],
                           State.SUCCESS, snapshot)
 
-    # TODO: this skipIf should be removed once a fixing solution is found later
+    # TODO: this backend should be removed once a fixing solution is found later
     #       We skip it here because this test case is working with Postgres & SQLite
     #       but not with MySQL
     @pytest.mark.backend("sqlite", "postgres")
