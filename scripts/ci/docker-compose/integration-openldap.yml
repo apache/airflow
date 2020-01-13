@@ -17,8 +17,17 @@
 ---
 version: "2.2"
 services:
+  openldap:
+    image: osixia/openldap:1.2.0
+    command: --copy-service
+    environment:
+      - LDAP_DOMAIN=example.com
+      - LDAP_ADMIN_PASSWORD=insecure
+      - LDAP_CONFIG_PASSWORD=insecure
+    volumes:
+      - ../openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
   airflow-testing:
     environment:
-      - KUBERNETES_MODE
-      - KUBERNETES_VERSION
-      - KIND_CLUSTER_OPERATION
+      - INTEGRATION_OPENLDAP=true
+    depends_on:
+      - openldap

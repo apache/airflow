@@ -44,10 +44,6 @@ HOST_GROUP_ID="$(id -gr)"
 export HOST_GROUP_ID
 
 docker-compose \
-    -f "${MY_DIR}/docker-compose.yml" \
-    -f "${MY_DIR}/docker-compose-local.yml" \
-    -f "${MY_DIR}/docker-compose-mysql.yml" \
-    -f "${MY_DIR}/docker-compose-postgres.yml" \
-    -f "${MY_DIR}/docker-compose-sqlite.yml" down
+    -f "${MY_DIR}/docker-compose/base.yml" --remove-orphans down
 
 script_end

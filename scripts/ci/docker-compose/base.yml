@@ -17,50 +17,6 @@
 ---
 version: "2.2"
 services:
-
-  postgres:
-    image: postgres:9.6
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
-
-  mysql:
-    image: mysql:5.6
-    environment:
-      - MYSQL_ALLOW_EMPTY_PASSWORD=true
-      - MYSQL_ROOT_HOST=%
-      - MYSQL_DATABASE=airflow
-    volumes:
-      - ./mysql/conf.d:/etc/mysql/conf.d:ro
-
-  mongo:
-    image: mongo:3
-
-  cassandra:
-    image: cassandra:3.0
-
-  rabbitmq:
-    image: rabbitmq:3.7
-
-  redis:
-    image: redis:5.0.1
-
-  openldap:
-    image: osixia/openldap:1.2.0
-    command: --copy-service
-    environment:
-      - LDAP_DOMAIN=example.com
-      - LDAP_ADMIN_PASSWORD=insecure
-      - LDAP_CONFIG_PASSWORD=insecure
-    volumes:
-      - ./openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
-
-  krb5-kdc-server:
-    image: godatadriven/krb5-kdc-server
-    hostname: krb5-kdc-server
-    domainname: example.com
-
   airflow-testing:
     image: ${AIRFLOW_CI_IMAGE}
     init: true
@@ -73,8 +29,6 @@ services:
       - HADOOP_OPTS=-D/opt/krb5.conf
       - HIVE_HOME=/opt/hive
       - MINICLUSTER_HOME=/opt/minicluster
-      - KRB5_CONFIG=/etc/krb5.conf
-      - KRB5_KTNAME=/etc/airflow.keytab
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
       - BACKEND
       - CI
@@ -93,17 +47,11 @@ services:
       - AIRFLOW_CI_VERBOSE
       - AIRFLOW_CI_SILENT
       - AIRFLOW_CI_IMAGE
+      - RUNTIME
       - ENABLE_KIND_CLUSTER
+      - ENABLED_INTEGRATIONS
+      - RUN_INTEGRATION_TESTS
       - BREEZE
-    depends_on:
-      - postgres
-      - mysql
-      - mongo
-      - cassandra
-      - rabbitmq
-      - redis
-      - openldap
-      - krb5-kdc-server
     volumes:
       # Pass docker to inside of the container so that Kind and Moto tests can use it.
       - /var/run/docker.sock:/var/run/docker.sock

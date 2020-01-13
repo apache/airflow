@@ -24,6 +24,7 @@ import logging
 import threading
 import unittest
 
+import pytest
 import sqlalchemy
 from parameterized import parameterized
 
@@ -128,8 +129,7 @@ class BackfillJobTest(unittest.TestCase):
 
         self.assertEquals(State.SUCCESS, dag_run.state)
 
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "concurrent access not supported in sqlite")
+    @pytest.mark.backend("postgres", "mysql")
     def test_trigger_controller_dag(self):
         dag = self.dagbag.get_dag('example_trigger_controller_dag')
         target_dag = self.dagbag.get_dag('example_trigger_target_dag')
@@ -154,8 +154,7 @@ class BackfillJobTest(unittest.TestCase):
 
         self.assertTrue(task_instances_list.append.called)
 
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "concurrent access not supported in sqlite")
+    @pytest.mark.backend("postgres", "mysql")
     def test_backfill_multi_dates(self):
         dag = self.dagbag.get_dag('example_bash_operator')
 
@@ -207,10 +206,7 @@ class BackfillJobTest(unittest.TestCase):
         dag.clear()
         session.close()
 
-    @unittest.skipIf(
-        "sqlite" in conf.get("core", "sql_alchemy_conn"),
-        "concurrent access not supported in sqlite",
-    )
+    @pytest.mark.backend("postgres", "mysql")
     @parameterized.expand(
         [
             [

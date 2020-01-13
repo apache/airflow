@@ -95,7 +95,10 @@ export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="false"
 # Start airflow-testing image with all the dependencies
 export AIRFLOW_CONTAINER_DEPS="true"
 
-# Do not start Kubernetes cluster by default
+# Runtime is empty initially (might be set to kubernetes in case kubernetes is chosen)
+export RUNTIME=""
+
+# Do not enable Kind Kubernetes cluster by default
 export ENABLE_KIND_CLUSTER="false"
 
 # Do not recreate Kubernetes cluster by default
@@ -197,13 +200,15 @@ function print_badge {
                                DockerHub repo:     ${DOCKERHUB_REPO}
                                Backend:            ${BACKEND}
 EOF
-        if [[ ${ENABLE_KIND_CLUSTER} == "true" ]]; then
+        if [[ ${RUNTIME} == "kubernetes" ]]; then
             cat <<EOF
 
-                               Enable kind cluster:
+                               Kubernetes RUNTIME
 
                                Kubernetes mode:    ${KUBERNETES_MODE}
                                Kubernetes version: ${KUBERNETES_VERSION}
+
+                               Enable kind:        ${ENABLE_KIND_CLUSTER}
                                Cluster operation:  ${KIND_CLUSTER_OPERATION}
 EOF
         fi
@@ -218,13 +223,15 @@ EOF
    DockerHub repo:     ${DOCKERHUB_REPO}
    Backend:            ${BACKEND}
 EOF
-        if [[ ${ENABLE_KIND_CLUSTER} == "true" ]]; then
+        if [[ ${RUNTIME} == "kubernetes" ]]; then
             cat <<EOF
 
-   Enable kind cluster:
+   Kubernetes RUNTIME
 
    Kubernetes mode:    ${KUBERNETES_MODE}
    Kubernetes version: ${KUBERNETES_VERSION}
+
+   Enable kind:        ${ENABLE_KIND_CLUSTER}
    Cluster operation:  ${KIND_CLUSTER_OPERATION}
 EOF
         fi
@@ -244,6 +251,7 @@ export DOCKERHUB_REPO=${DOCKERHUB_REPO}
 export COMPOSE_FILE="${COMPOSE_FILE}"
 export PYTHON_VERSION="${PYTHON_VERSION}"
 export BACKEND="${BACKEND}"
+export RUNTIME="${RUNTIME}"
 export ENABLE_KIND_CLUSTER="${ENABLE_KIND_CLUSTER}"
 export KUBERNETES_MODE="${KUBERNETES_MODE}"
 export KUBERNETES_VERSION="${KUBERNETES_VERSION}"
@@ -266,13 +274,15 @@ _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.15.3"
 usage() {
       echo """
 
-Usage: ${CMDNAME} [FLAGS] \\
-  [-k]|[-S <STATIC_CHECK>]|[-F <STATIC_CHECK>]|[-O]|[-e]|[-a]|[-b]|[-t <TARGET>]|[-x <COMMAND>]|[-d <COMMAND>] \\
-  -- <EXTRA_ARGS>
+*********************************************************************************************************
+
+Usage: ${CMDNAME} [FLAGS] -- <EXTRA_ARGS>
 
 The swiss-knife-army tool for Airflow testings. It allows to perform various test tasks:
 
   * Enter interactive environment when no command flags are specified (default behaviour)
+  * Start integrations if specified as extra flags
+  * Start Kind Kubernetes cluster for Kubernetes tests if specified
   * Stop the interactive environment with -k, --stop-environment command
   * Run static checks - either for currently staged change or for all files with
     -S, --static-check or -F, --static-check-all-files command
@@ -284,18 +294,35 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
   * Execute arbitrary command in the test environment with -x, --execute-command command
   * Execute arbitrary docker-compose command with -d, --docker-compose command
 
-** Commands
+*********************************************************************************************************
+**
+** Command to run
+**
+*********************************************************************************************************
 
   By default the script enters IT environment and drops you to bash shell,
-  but you can also choose one of the commands to run specific actions instead:
+  but you can choose one of the commands to run specific actions instead:
+
+-O, --build-docs
+       Build documentation.
+
+-b, --build-only
+        Only build docker images but do not enter the airflow-testing docker container.
+
+-e, --initialize-local-virtualenv
+        Initializes locally created virtualenv installing all dependencies of Airflow.
+        This local virtualenv can be used to aid autocompletion and IDE support as
+        well as run unit tests directly from the IDE. You need to have virtualenv
+        activated before running this command.
+
+-a, --setup-autocomplete
+        Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
+        shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
 
 -k, --stop-environment
         Bring down running docker compose environment. When you start the environment, the docker
         containers will continue running so that startup time is shorter. But they take quite a lot of
         memory and CPU. This command stops all running containers from the environment.
-
--O, --build-docs
-       Build documentation.
 
 -S, --static-check <STATIC_CHECK>
         Run selected static checks for currently changed files. You should specify static check that
@@ -325,19 +352,6 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 
         '${0} --static-check-all-files mypy -- --help'
 
--e, --initialize-local-virtualenv
-        Initializes locally created virtualenv installing all dependencies of Airflow.
-        This local virtualenv can be used to aid autocompletion and IDE support as
-        well as run unit tests directly from the IDE. You need to have virtualenv
-        activated before running this command.
-
--a, --setup-autocomplete
-        Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
-        shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
-
--b, --build-only
-        Only build docker images but do not enter the airflow-testing docker container.
-
 -t, --test-target <TARGET>
         Run the specified unit test target. There might be multiple
         targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
@@ -345,26 +359,20 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 
         '${0} --test-target tests/test_core.py -- --logging-level=DEBUG'
 
--x, --execute-command <COMMAND>
-        Run chosen command instead of entering the environment. The command is run using
-        'bash -c \"<command with args>\" if you need to pass arguments to your command, you need
-        to pass them together with command surrounded with \" or '. Alternatively you can pass arguments as
-         <EXTRA_ARGS> passed after --. For example:
-
-        '${0} --execute-command \"ls -la\"' or
-        '${0} --execute-command ls -- --la'
-
--d, --docker-compose <COMMAND>
-        Run docker-compose command instead of entering the environment. Use 'help' command
-        to see available commands. The <EXTRA_ARGS> passed after -- are treated
-        as additional options passed to docker-compose. For example
-
-        '${0} --docker-compose pull -- --ignore-pull-failures'
-
-** General flags
+*********************************************************************************************************
+**
+** Print help message
+**
+*********************************************************************************************************
 
 -h, --help
         Shows this help message.
+
+*********************************************************************************************************
+**
+** Choose tested Airflow variant
+**
+*********************************************************************************************************
 
 -P, --python <PYTHON_VERSION>
         Python version used for the image. This is always major/minor version.
@@ -373,6 +381,18 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 -B, --backend <BACKEND>
         Backend to use for tests - it determines which database is used.
         One of [${_BREEZE_ALLOWED_BACKENDS:=}]. Default: ${_BREEZE_DEFAULT_BACKEND:=}
+
+-I, --integration <INTEGRATION>
+        Integration to start during tests - it determines which integrations are started for integration
+        tests. There can be more than one integration started, or all to start all integrations.
+        Selected integrations are not saved for future execution.
+        One of [${_BREEZE_ALLOWED_INTEGRATIONS:=}]. Default: ${_BREEZE_DEFAULT_INTEGRATIONS:=}
+
+*********************************************************************************************************
+**
+** Manage Kind kubernetes cluster
+**
+*********************************************************************************************************
 
 -K, --start-kind-cluster
         Starts kind Kubernetes cluster after entering the environment. The cluster is started using
@@ -399,12 +419,21 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
         Kubernetes version - only used in case --start-kind-cluster flag is specified.
         One of [${_BREEZE_ALLOWED_KUBERNETES_VERSIONS:=}]. Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
 
+*********************************************************************************************************
+**
+** Manage mounting local files
+**
+*********************************************************************************************************
+
 -s, --skip-mounting-source-volume
         Skips mounting local volume with sources - you get exactly what is in the
         docker image rather than your current local sources of airflow.
 
--v, --verbose
-        Show verbose information about executed commands (enabled by default for running test)
+*********************************************************************************************************
+**
+** Assume answers to questions
+**
+*********************************************************************************************************
 
 -y, --assume-yes
         Assume 'yes' answer to all questions.
@@ -412,19 +441,32 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 -n, --assume-no
         Assume 'no' answer to all questions.
 
+*********************************************************************************************************
+**
+** Increase verbosity of the script
+**
+*********************************************************************************************************
+
+-v, --verbose
+        Show verbose information about executed commands (enabled by default for running test)
+
+*********************************************************************************************************
+**
+** Enable/Disable extra information printed at output
+**
+*********************************************************************************************************
+
 -C, --toggle-suppress-cheatsheet
         Toggles on/off cheatsheet displayed before starting bash shell
 
 -A, --toggle-suppress-asciiart
         Toggles on/off asciiart displayed before starting bash shell
 
-** Dockerfile management flags
-
--D, --dockerhub-user
-        DockerHub user used to pull, push and build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_USER:=}.
-
--H, --dockerhub-repo
-        DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
+*********************************************************************************************************
+**
+** Flags for building the docker images
+**
+*********************************************************************************************************
 
 -r, --force-build-images
         Forces building of the local docker images. The images are rebuilt
@@ -437,21 +479,64 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
         environment, later the locally build images are used as cache.
 
 -R, --force-clean-build
-        Force build images without cache at all. This will remove the pulled or build images
+        Force build images with cache disabled. This will remove the pulled or build images
         and start building images from scratch. This might take a long time.
 
 -L, --use-local-cache
         Uses local cache to build images. No pulled images will be used, but results of local builds in
         the Docker cache are used instead.
 
+-c, --cleanup-images
+        Cleanup your local docker cache of the airflow docker images. This will not reclaim space in
+        docker cache. You need to 'docker system prune' (optionally with --all) to reclaim that space.
+
+*********************************************************************************************************
+**
+** Flags for pushing the docker images
+**
+*********************************************************************************************************
+
 -u, --push-images
         After building - uploads the images to DockerHub
         It is useful in case you use your own DockerHub user to store images and you want
         to build them locally. Note that you need to use 'docker login' before you upload images.
 
--c, --cleanup-images
-        Cleanup your local docker cache of the airflow docker images. This will not reclaim space in
-        docker cache. You need to 'docker system prune' (optionally with --all) to reclaim that space.
+*********************************************************************************************************
+**
+** User and repo used to login to github registry
+**
+*********************************************************************************************************
+
+-D, --dockerhub-user
+        DockerHub user used to pull, push and build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_USER:=}.
+
+-H, --dockerhub-repo
+        DockerHub repository used to pull, push, build images. Default: ${_BREEZE_DEFAULT_DOCKERHUB_REPO:=}.
+
+*********************************************************************************************************
+**
+** Additional low-level commands that you can use to interact with the Breeze environment
+**
+*********************************************************************************************************
+
+-d, --docker-compose <COMMAND>
+        Run docker-compose command instead of entering the environment. Use 'help' command
+        to see available commands. The <EXTRA_ARGS> passed after -- are treated
+        as additional options passed to docker-compose. For example
+
+        '${0} --docker-compose pull -- --ignore-pull-failures'
+
+-x, --execute-command <COMMAND>
+        Run chosen command instead of entering the environment. The command is run using
+        'bash -c \"<command with args>\" if you need to pass arguments to your command, you need
+        to pass them together with command surrounded with \" or '. Alternatively you can pass arguments as
+         <EXTRA_ARGS> passed after --. For example:
+
+        '${0} --execute-command \"ls -la\"' or
+        '${0} --execute-command ls -- --la'
+
+*********************************************************************************************************
+
 
 """
 }
@@ -468,6 +553,8 @@ fi
 
 eval set -- "${PARAMS}"
 unset PARAMS
+
+INTEGRATIONS=()
 
 # Parse Flags.
 # Please update short and long options in the breeze-complete script
@@ -488,19 +575,39 @@ do
       echo "Backend: ${BACKEND}"
       echo
       shift 2 ;;
+    -I|--integration)
+      INTEGRATION=${2}
+      check_for_allowed_params "INTEGRATION"  "integration" "--integration"
+      echo "Integration: ${INTEGRATION}"
+      if [[ ${INTEGRATION} == "all" ]]; then
+         for _INT in ${_BREEZE_ALLOWED_INTEGRATIONS}
+         do
+             if [[ ${_INT} != "all" ]];  then
+                 echo "${_INT}"
+                 INTEGRATIONS+=("${_INT}")
+             fi
+         done
+      else
+          INTEGRATIONS+=("${INTEGRATION}");
+      fi
+      echo
+      shift 2 ;;
     -K|--start-kind-cluster)
+      export RUNTIME=kubernetes
       export ENABLE_KIND_CLUSTER="true"
       export KIND_CLUSTER_OPERATION="start"
       echo "Starting kubernetes cluster"
       echo
       shift ;;
     -z|--recreate-kind-cluster)
+      export RUNTIME=kubernetes
       export ENABLE_KIND_CLUSTER="true"
       export KIND_CLUSTER_OPERATION="recreate"
       echo "Recreating kind cluster"
       echo
       shift ;;
     -X|--stop-kind-cluster)
+      export RUNTIME=kubernetes
       export ENABLE_KIND_CLUSTER="true"
       export KIND_CLUSTER_OPERATION="stop"
       echo "Stop kind cluster"
@@ -519,11 +626,6 @@ do
     -s|--skip-mounting-local-sources)
       SKIP_MOUNTING_LOCAL_SOURCES="true"
       echo "Skip mounting local sources: ${SKIP_MOUNTING_LOCAL_SOURCES}"
-      echo
-      shift ;;
-    -N|--no-deps)
-      export AIRFLOW_CONTAINER_DEPS="false"
-      echo "Only run airflow-testing image without dependent images"
       echo
       shift ;;
     -b|--build-only)
@@ -891,10 +993,10 @@ EOF
     exit 0
 fi
 
-MAIN_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose.yml
-BACKEND_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose-${BACKEND}.yml
-LOCAL_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose-local.yml
-KUBERNETES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose-kubernetes.yml
+MAIN_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/base.yml
+BACKEND_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
+LOCAL_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/local.yml
+KUBERNETES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/runtime-kubernetes.yml
 
 COMPOSE_FILE=${MAIN_DOCKER_COMPOSE_FILE}:${BACKEND_DOCKER_COMPOSE_FILE}
 
@@ -902,9 +1004,19 @@ if [[ "${SKIP_MOUNTING_LOCAL_SOURCES}" != "true" ]]; then
     COMPOSE_FILE=${COMPOSE_FILE}:${LOCAL_DOCKER_COMPOSE_FILE}
 fi
 
-if [[ ${ENABLE_KIND_CLUSTER} == "true" ]]; then
+if [[ ${RUNTIME} == "kubernetes" ]]; then
     COMPOSE_FILE=${COMPOSE_FILE}:${KUBERNETES_DOCKER_COMPOSE_FILE}
 fi
+
+set +u
+# shellcheck disable=SC2207
+UNIQUE_INTEGRATIONS=($(echo "${INTEGRATIONS[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+
+for _INT in "${UNIQUE_INTEGRATIONS[@]}"
+do
+    COMPOSE_FILE=${COMPOSE_FILE}:${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml
+done
+set -u
 
 export COMPOSE_FILE
 
