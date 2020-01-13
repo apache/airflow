@@ -53,6 +53,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     PAGE = 0
     MAX_LINE_PER_PAGE = 1000
 
+    # pylint: disable=too-many-instance-attributes
+    # 16 is reasonable in this case
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
                  write_stdout, json_format, json_fields, index,
