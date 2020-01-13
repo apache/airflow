@@ -903,6 +903,10 @@ OPERATOR = [
         '.azure_container_instances.AzureContainerInstancesOperator',
         'airflow.contrib.operators.azure_container_instances_operator.AzureContainerInstancesOperator',
     ),
+    (
+        'airflow.providers.microsoft.azure.operators.azure_cosmos.AzureCosmosInsertDocumentOperator',
+        'airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator',
+    ),
 ]
 
 SENSOR = [

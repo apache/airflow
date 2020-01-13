@@ -234,7 +234,7 @@ These integrations allow you to perform various operations within the Microsoft 
 
    * - `Azure Cosmos DB <https://azure.microsoft.com/en-us/services/cosmos-db/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_cosmos`
-     - :mod:`airflow.contrib.operators.azure_cosmos_operator`
+     - :mod:`airflow.providers.microsoft.azure.operators.azure_cosmos`
      - :mod:`airflow.contrib.sensors.azure_cosmos_sensor`
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
