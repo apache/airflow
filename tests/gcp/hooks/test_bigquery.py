@@ -155,92 +155,6 @@ class TestBigQueryHookMethods(unittest.TestCase):
             'select 1', credentials=CREDENTIALS, dialect='legacy', project_id=PROJECT_ID, verbose=False
         )
 
-
-class TestBigQueryTableSplitter(unittest.TestCase):
-    def test_internal_need_default_project(self):
-        with self.assertRaisesRegex(Exception, "INTERNAL: No default project is specified"):
-            hook._split_tablename("dataset.table", None)
-
-    @parameterized.expand([
-        ("project", "dataset", "table", "dataset.table"),
-        ("alternative", "dataset", "table", "alternative:dataset.table"),
-        ("alternative", "dataset", "table", "alternative.dataset.table"),
-        ("alt1:alt", "dataset", "table", "alt1:alt.dataset.table"),
-        ("alt1:alt", "dataset", "table", "alt1:alt:dataset.table"),
-    ])
-    def test_split_tablename(self, project_expected, dataset_expected, table_expected, table_input):
-        default_project_id = "project"
-        project, dataset, table = hook._split_tablename(table_input, default_project_id)
-        self.assertEqual(project_expected, project)
-        self.assertEqual(dataset_expected, dataset)
-        self.assertEqual(table_expected, table)
-
-    @parameterized.expand([
-        ("alt1:alt2:alt3:dataset.table", None, "Use either : or . to specify project got {}"),
-        (
-            "alt1.alt.dataset.table", None,
-            r"Expect format of \(<project\.\|<project\:\)<dataset>\.<table>, got {}",
-        ),
-        (
-            "alt1:alt2:alt.dataset.table", "var_x",
-            "Format exception for var_x: Use either : or . to specify project got {}",
-        ),
-        (
-            "alt1:alt2:alt:dataset.table", "var_x",
-            "Format exception for var_x: Use either : or . to specify project got {}",
-        ),
-        (
-            "alt1.alt.dataset.table", "var_x",
-            r"Format exception for var_x: Expect format of "
-            r"\(<project\.\|<project:\)<dataset>.<table>, got {}",
-        ),
-    ])
-    def test_invalid_syntax(self, table_input, var_name, exception_message):
-        default_project_id = "project"
-        with self.assertRaisesRegex(Exception, exception_message.format(table_input)):
-            hook._split_tablename(table_input, default_project_id, var_name)
-
-
-class TestBigQueryHookSourceFormat(unittest.TestCase):
-    @mock.patch(
-        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
-        return_value=(CREDENTIALS, PROJECT_ID)
-    )
-    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
-    def test_invalid_source_format(self, mock_get_service, mock_get_creds_and_proj_id):
-        with self.assertRaisesRegex(
-            Exception,
-            r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
-            r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]"
-        ):
-            bq_hook = hook.BigQueryHook()
-            bq_hook.run_load(
-                "test.test", "test_schema.json", ["test_data.json"], source_format="json"
-            )
-
-
-class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
-    @mock.patch(
-        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
-        return_value=(CREDENTIALS, PROJECT_ID)
-    )
-    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
-    def test_invalid_source_format(self, mock_get_service, mock_get_creds_and_proj_id):
-        with self.assertRaisesRegex(
-            Exception,
-            r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
-            r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]"
-        ):
-            bq_hook = hook.BigQueryHook()
-            bq_hook.create_external_table(
-                external_project_dataset_table='test.test',
-                schema_fields='test_schema.json',
-                source_uris=['test_data.json'],
-                source_format='json'
-            )
-
-
-class TestBigQueryBaseCursor(unittest.TestCase):
     @mock.patch(
         'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
         return_value=("CREDENTIALS", "PROJECT_ID",)
@@ -994,6 +908,90 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method_get.assert_called_once_with(projectId=other_project, datasetId=DATASET_ID, tableId=TABLE_ID)
         assert method_execute.call_count == 1
         self.assertEqual(schema, result)
+
+
+class TestBigQueryTableSplitter(unittest.TestCase):
+    def test_internal_need_default_project(self):
+        with self.assertRaisesRegex(Exception, "INTERNAL: No default project is specified"):
+            hook._split_tablename("dataset.table", None)
+
+    @parameterized.expand([
+        ("project", "dataset", "table", "dataset.table"),
+        ("alternative", "dataset", "table", "alternative:dataset.table"),
+        ("alternative", "dataset", "table", "alternative.dataset.table"),
+        ("alt1:alt", "dataset", "table", "alt1:alt.dataset.table"),
+        ("alt1:alt", "dataset", "table", "alt1:alt:dataset.table"),
+    ])
+    def test_split_tablename(self, project_expected, dataset_expected, table_expected, table_input):
+        default_project_id = "project"
+        project, dataset, table = hook._split_tablename(table_input, default_project_id)
+        self.assertEqual(project_expected, project)
+        self.assertEqual(dataset_expected, dataset)
+        self.assertEqual(table_expected, table)
+
+    @parameterized.expand([
+        ("alt1:alt2:alt3:dataset.table", None, "Use either : or . to specify project got {}"),
+        (
+            "alt1.alt.dataset.table", None,
+            r"Expect format of \(<project\.\|<project\:\)<dataset>\.<table>, got {}",
+        ),
+        (
+            "alt1:alt2:alt.dataset.table", "var_x",
+            "Format exception for var_x: Use either : or . to specify project got {}",
+        ),
+        (
+            "alt1:alt2:alt:dataset.table", "var_x",
+            "Format exception for var_x: Use either : or . to specify project got {}",
+        ),
+        (
+            "alt1.alt.dataset.table", "var_x",
+            r"Format exception for var_x: Expect format of "
+            r"\(<project\.\|<project:\)<dataset>.<table>, got {}",
+        ),
+    ])
+    def test_invalid_syntax(self, table_input, var_name, exception_message):
+        default_project_id = "project"
+        with self.assertRaisesRegex(Exception, exception_message.format(table_input)):
+            hook._split_tablename(table_input, default_project_id, var_name)
+
+
+class TestBigQueryHookSourceFormat(unittest.TestCase):
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_invalid_source_format(self, mock_get_service, mock_get_creds_and_proj_id):
+        with self.assertRaisesRegex(
+            Exception,
+            r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
+            r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]"
+        ):
+            bq_hook = hook.BigQueryHook()
+            bq_hook.run_load(
+                "test.test", "test_schema.json", ["test_data.json"], source_format="json"
+            )
+
+
+class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_invalid_source_format(self, mock_get_service, mock_get_creds_and_proj_id):
+        with self.assertRaisesRegex(
+            Exception,
+            r"JSON is not a valid source format. Please use one of the following types: \['CSV', "
+            r"'NEWLINE_DELIMITED_JSON', 'AVRO', 'GOOGLE_SHEETS', 'DATASTORE_BACKUP', 'PARQUET'\]"
+        ):
+            bq_hook = hook.BigQueryHook()
+            bq_hook.create_external_table(
+                external_project_dataset_table='test.test',
+                schema_fields='test_schema.json',
+                source_uris=['test_data.json'],
+                source_format='json'
+            )
 
 
 class TestTableDataOperations(unittest.TestCase):
