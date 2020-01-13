@@ -251,30 +251,6 @@ class PinotDbApiHook(DbApiHook):
         return '{conn_type}://{host}/{endpoint}'.format(
             conn_type=conn_type, host=host, endpoint=endpoint)
 
-    def get_records(self, sql):
-        """
-        Executes the sql and returns a set of records.
-
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
-        :type sql: str
-        """
-        with self.get_conn() as cur:
-            cur.execute(sql)
-            return cur.fetchall()
-
-    def get_first(self, sql):
-        """
-        Executes the sql and returns the first resulting row.
-
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
-        :type sql: str or list
-        """
-        with self.get_conn() as cur:
-            cur.execute(sql)
-            return cur.fetchone()
-
     def set_autocommit(self, conn, autocommit):
         raise NotImplementedError()
 
