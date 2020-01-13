@@ -176,3 +176,23 @@ function in_container_refresh_pylint_todo() {
 }
 
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
+
+function start_output_heartbeat() {
+    MESSAGE=${1:="Still working!"}
+    INTERVAL=${2:=10}
+    echo
+    echo "Starting output heartbeat"
+    echo
+
+    bash <<EOF 2> /dev/null &
+while true; do
+  echo "\$(date): ${MESSAGE} "
+  sleep ${INTERVAL}
+done
+EOF
+    export HEARTBEAT_PID=$!
+}
+
+function stop_output_heartbeat() {
+    kill "${HEARTBEAT_PID}"
+}

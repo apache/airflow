@@ -61,15 +61,8 @@ services:
     hostname: krb5-kdc-server
     domainname: example.com
 
-  docker:
-    image: docker:19.03.2-dind
-    privileged: true
-    environment:
-      - DOCKER_TLS_CERTDIR=
-      - DOCKER_TLS_VERIFY=
-
   airflow-testing:
-    image: ${AIRFLOW_CONTAINER_DOCKER_IMAGE}
+    image: ${AIRFLOW_CI_IMAGE}
     init: true
     entrypoint: ["/bin/bash", "-c"]
     environment:
@@ -83,8 +76,6 @@ services:
       - KRB5_CONFIG=/etc/krb5.conf
       - KRB5_KTNAME=/etc/airflow.keytab
       - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
-      - DOCKER_HOST=tcp://docker:2375
-      - ENV
       - BACKEND
       - CI
       - SOURCE_BRANCH
@@ -101,9 +92,8 @@ services:
       - RUN_TESTS
       - AIRFLOW_CI_VERBOSE
       - AIRFLOW_CI_SILENT
-      - AIRFLOW_CONTAINER_DOCKER_IMAGE
-      - KUBERNETES_VERSION
-      - KUBERNETES_MODE
+      - AIRFLOW_CI_IMAGE
+      - ENABLE_KIND_CLUSTER
       - BREEZE
     depends_on:
       - postgres
@@ -114,4 +104,6 @@ services:
       - redis
       - openldap
       - krb5-kdc-server
-      - docker
+    volumes:
+      # Pass docker to inside of the container so that Kind and Moto tests can use it.
+      - /var/run/docker.sock:/var/run/docker.sock

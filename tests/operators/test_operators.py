@@ -427,7 +427,7 @@ class TestTransfer(unittest.TestCase):
 
     @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
                          "This is a MySQL test")
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file')
     def test_mysql_to_hive_type_conversion(self, mock_load_file):
         mysql_table = 'test_mysql_to_hive'
 
@@ -513,7 +513,7 @@ class TestTransfer(unittest.TestCase):
                 dag=self.dag)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-            from airflow.hooks.hive_hooks import HiveServer2Hook
+            from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
             hive_hook = HiveServer2Hook()
             result = hive_hook.get_records("SELECT * FROM {}".format(hive_table))
             self.assertEqual(result[0], db_record)
@@ -577,7 +577,7 @@ class TestTransfer(unittest.TestCase):
                 dag=self.dag)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-            from airflow.hooks.hive_hooks import HiveServer2Hook
+            from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
             hive_hook = HiveServer2Hook()
             result = hive_hook.get_records("SELECT * FROM {}".format(hive_table))
             self.assertEqual(result[0], minmax)

@@ -37,50 +37,47 @@ jobs:
       script: ./scripts/ci/ci_run_all_static_tests.sh
       env: >-
         PYTHON_VERSION=3.6
+        AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
     - name: "Build documentation"
       env: >-
         PYTHON_VERSION=3.6
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
+    - name: "Tests postgres kubernetes python 3.6 (persistent)"
+      env: >-
+        BACKEND=postgres
+        PYTHON_VERSION=3.6
+        ENABLE_KIND_CLUSTER=true
+        KUBERNETES_MODE=persistent_mode
+        KUBERNETES_VERSION=v1.15.3
+      python: "3.6"
+      stage: test
+    - name: "Tests postgres kubernetes python 3.6 (git)"
+      env: >-
+        BACKEND=postgres
+        PYTHON_VERSION=3.6
+        ENABLE_KIND_CLUSTER=true
+        KUBERNETES_MODE=git_mode
+        KUBERNETES_VERSION=v1.15.3
+      python: "3.6"
+      stage: test
     - name: "Tests postgres python 3.6"
       env: >-
         BACKEND=postgres
-        ENV=docker
         PYTHON_VERSION=3.6
       stage: test
     - name: "Tests sqlite python 3.6"
       env:
         BACKEND=sqlite
-        ENV=docker
         PYTHON_VERSION=3.6
       stage: test
     - name: "Tests mysql python 3.7"
       env:
         BACKEND=mysql
-        ENV=docker
         PYTHON_VERSION=3.7
       stage: test
-    - name: "Tests postgres kubernetes python 3.6 (persistent)"
-      env: >-
-        BACKEND=postgres
-        ENV=kubernetes
-        START_KUBERNETES_CLUSTER=true
-        KUBERNETES_VERSION=v1.15.0
-        KUBERNETES_MODE=persistent_mode
-        PYTHON_VERSION=3.6
-      stage: test
-      script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
-    - name: "Tests postgres kubernetes python 3.6 (git)"
-      env: >-
-        BACKEND=postgres
-        ENV=kubernetes
-        KUBERNETES_VERSION=v1.15.0
-        KUBERNETES_MODE=git_mode
-        PYTHON_VERSION=3.6
-      stage: test
-      script: travis_wait 30 "./scripts/ci/ci_run_airflow_testing.sh"
   services:
     - docker
 before_install:
   - ./scripts/ci/ci_before_install.sh
-script: "./scripts/ci/ci_run_airflow_testing.sh"
+script: ./scripts/ci/ci_run_airflow_testing.sh

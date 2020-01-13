@@ -33,11 +33,14 @@ services:
       - ../../.bash_aliases:/root/.bash_aliases:cached
       - ../../.bash_history:/root/.bash_history:cached
       - ../../.coveragerc:/opt/airflow/.coveragerc:cached
+      - ../../.dockerignore:/opt/airflow/.dockerignore:cached
       - ../../.flake8:/opt/airflow/.flake8:cached
       - ../../.github:/opt/airflow/.github:cached
       - ../../.inputrc:/root/.inputrc:cached
+      - ../../.kube:/root/.kube:cached
       - ../../.rat-excludes:/opt/airflow/.rat-excludes:cached
       - ../../CHANGELOG.txt:/opt/airflow/CHANGELOG:cached
+      - ../../Dockerfile:/opt/airflow/Dockerfile:cached
       - ../../LICENSE:/opt/airflow/LICENSE:cached
       - ../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
       - ../../NOTICE:/opt/airflow/NOTICE:cached
@@ -52,6 +55,7 @@ services:
       - ../../pylintrc:/opt/airflow/pylintrc:cached
       - ../../pytest.ini:/opt/airflow/pytest.ini:cached
       - ../../scripts:/opt/airflow/scripts:cached
+      - ../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached
       - ../../setup.cfg:/opt/airflow/setup.cfg:cached
       - ../../setup.py:/opt/airflow/setup.py:cached
       - ../../tests:/opt/airflow/tests:cached

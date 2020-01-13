@@ -20,7 +20,7 @@
 """Example DAG demonstrating the usage of the PigOperator."""
 
 from airflow.models import DAG
-from airflow.operators.pig_operator import PigOperator
+from airflow.providers.apache.pig.operators.pig import PigOperator
 from airflow.utils.dates import days_ago
 
 args = {

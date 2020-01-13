@@ -27,10 +27,10 @@ import pandas as pd
 from flask import Blueprint, request
 from flask_appbuilder import BaseView, expose
 
-from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
 from airflow.www.decorators import gzipped
 
 METASTORE_CONN_ID = 'metastore_default'
