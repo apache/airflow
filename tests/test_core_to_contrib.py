@@ -212,6 +212,10 @@ HOOK = [
         'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook',
         'airflow.hooks.webhdfs_hook.WebHDFSHook',
     ),
+    (
+        'airflow.hooks.filesystem.FSHook',
+        'airflow.contrib.hooks.fs_hook.FSHook',
+    ),
 ]
 
 OPERATOR = [

@@ -21,7 +21,7 @@
 import os
 from glob import glob
 
-from airflow.contrib.hooks.fs_hook import FSHook
+from airflow.hooks.filesystem import FSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -1238,7 +1238,7 @@ communication protocols or interface.
 
    * - Filesystem
      -
-     - :mod:`airflow.contrib.hooks.fs_hook`
+     - :mod:`airflow.hooks.filesystem`
      -
      - :mod:`airflow.contrib.sensors.file_sensor`
 

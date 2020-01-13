@@ -34,7 +34,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 
 class TestFileSensor(unittest.TestCase):
     def setUp(self):
-        from airflow.contrib.hooks.fs_hook import FSHook
+        from airflow.hooks.filesystem import FSHook
         hook = FSHook()
         args = {
             'owner': 'airflow',
