@@ -57,6 +57,8 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
             self.token = "Bearer %s" % status['token']  # pylint: disable=W0201
             ts_str = status.get('expirationTimestamp')
             if ts_str:
+                if ts_str[-1] == 'Z':
+                    ts_str = ts_str[:-1] + '+0000'
                 self.api_key_expire_ts = calendar.timegm(
                     datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S%z").timetuple(),
                 )
