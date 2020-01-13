@@ -232,6 +232,10 @@ HOOK = [
         'airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook',
         'airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook',
     ),
+    (
+        'airflow.providers.microsoft.azure.hooks.azure_fileshare.AzureFileShareHook',
+        'airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook',
+    ),
 ]
 
 OPERATOR = [

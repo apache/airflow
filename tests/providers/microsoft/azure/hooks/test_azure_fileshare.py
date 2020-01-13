@@ -31,8 +31,8 @@ import unittest
 
 import mock
 
-from airflow.contrib.hooks.azure_fileshare_hook import AzureFileShareHook
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
 from airflow.utils import db
 
 
@@ -64,7 +64,7 @@ class TestAzureFileshareHook(unittest.TestCase):
         self.assertEqual(hook.conn_id, 'wasb_test_sas_token')
         self.assertIsInstance(hook.connection, FileService)
 
-    @mock.patch('airflow.contrib.hooks.azure_fileshare_hook.FileService',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
     def test_check_for_file(self, mock_service):
         mock_instance = mock_service.return_value
@@ -75,7 +75,7 @@ class TestAzureFileshareHook(unittest.TestCase):
             'share', 'directory', 'file', timeout=3
         )
 
-    @mock.patch('airflow.contrib.hooks.azure_fileshare_hook.FileService',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
     def test_check_for_directory(self, mock_service):
         mock_instance = mock_service.return_value
@@ -86,7 +86,7 @@ class TestAzureFileshareHook(unittest.TestCase):
             'share', 'directory', timeout=3
         )
 
-    @mock.patch('airflow.contrib.hooks.azure_fileshare_hook.FileService',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
     def test_load_file(self, mock_service):
         mock_instance = mock_service.return_value
@@ -96,7 +96,7 @@ class TestAzureFileshareHook(unittest.TestCase):
             'share', 'directory', 'file', 'path', max_connections=1
         )
 
-    @mock.patch('airflow.contrib.hooks.azure_fileshare_hook.FileService',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
     def test_load_string(self, mock_service):
         mock_instance = mock_service.return_value
@@ -106,7 +106,7 @@ class TestAzureFileshareHook(unittest.TestCase):
             'share', 'directory', 'file', 'big string', timeout=1
         )
 
-    @mock.patch('airflow.contrib.hooks.azure_fileshare_hook.FileService',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
     def test_load_stream(self, mock_service):
         mock_instance = mock_service.return_value
@@ -116,7 +116,7 @@ class TestAzureFileshareHook(unittest.TestCase):
             'share', 'directory', 'file', 'stream', 42, timeout=1
         )
 
-    @mock.patch('airflow.contrib.hooks.azure_fileshare_hook.FileService',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
     def test_list_directories_and_files(self, mock_service):
         mock_instance = mock_service.return_value
@@ -126,7 +126,7 @@ class TestAzureFileshareHook(unittest.TestCase):
             'share', 'directory', timeout=1
         )
 
-    @mock.patch('airflow.contrib.hooks.azure_fileshare_hook.FileService',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
     def test_create_directory(self, mock_service):
         mock_instance = mock_service.return_value
@@ -136,7 +136,7 @@ class TestAzureFileshareHook(unittest.TestCase):
             'share', 'directory', timeout=1
         )
 
-    @mock.patch('airflow.contrib.hooks.azure_fileshare_hook.FileService',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
     def test_get_file(self, mock_service):
         mock_instance = mock_service.return_value
@@ -146,7 +146,7 @@ class TestAzureFileshareHook(unittest.TestCase):
             'share', 'directory', 'file', 'path', max_connections=1
         )
 
-    @mock.patch('airflow.contrib.hooks.azure_fileshare_hook.FileService',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_fileshare.FileService',
                 autospec=True)
     def test_get_file_to_stream(self, mock_service):
         mock_instance = mock_service.return_value

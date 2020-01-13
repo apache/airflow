@@ -243,7 +243,7 @@ These integrations allow you to perform various operations within the Microsoft 
      -
 
    * - `Azure Files <https://azure.microsoft.com/en-us/services/storage/files/>`__
-     - :mod:`airflow.contrib.hooks.azure_fileshare_hook`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_fileshare`
      -
      -
 
