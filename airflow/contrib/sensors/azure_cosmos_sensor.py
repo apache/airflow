@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
+from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

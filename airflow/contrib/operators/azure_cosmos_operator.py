@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
 from airflow.models import BaseOperator
+from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHook
 from airflow.utils.decorators import apply_defaults
 
 

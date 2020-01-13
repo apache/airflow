@@ -5,7 +5,7 @@
 ./airflow/contrib/auth/backends/ldap_auth.py
 ./airflow/providers/microsoft/azure/hooks/azure_container_instance.py
 ./airflow/providers/microsoft/azure/hooks/azure_container_volume.py
-./airflow/contrib/hooks/azure_cosmos_hook.py
+./airflow/providers/microsoft/azure/hooks/azure_cosmos.py
 ./airflow/contrib/hooks/azure_data_lake_hook.py
 ./airflow/contrib/hooks/azure_fileshare_hook.py
 ./airflow/contrib/hooks/datadog_hook.py

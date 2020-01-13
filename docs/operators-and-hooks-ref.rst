@@ -233,7 +233,7 @@ These integrations allow you to perform various operations within the Microsoft 
      -
 
    * - `Azure Cosmos DB <https://azure.microsoft.com/en-us/services/cosmos-db/>`__
-     - :mod:`airflow.contrib.hooks.azure_cosmos_hook`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_cosmos`
      - :mod:`airflow.contrib.operators.azure_cosmos_operator`
      - :mod:`airflow.contrib.sensors.azure_cosmos_sensor`
 

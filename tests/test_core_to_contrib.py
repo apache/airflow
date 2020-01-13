@@ -228,6 +228,10 @@ HOOK = [
         'airflow.providers.microsoft.azure.hooks.azure_container_volume.AzureContainerVolumeHook',
         'airflow.contrib.hooks.azure_container_volume_hook.AzureContainerVolumeHook',
     ),
+    (
+        'airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook',
+        'airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook',
+    ),
 ]
 
 OPERATOR = [
