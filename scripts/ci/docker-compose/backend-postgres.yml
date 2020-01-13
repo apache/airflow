@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,22 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-[logging]
-default = FILE:/var/log/kerberos_libs.log
-kdc = FILE:/var/log/kerberos_kdc.log
-admin_server = FILE:/var/log/kadmind.log
-
-[libdefaults]
-default_realm = TEST.LOCAL
-dns_lookup_realm = false
-dns_lookup_kdc = false
-ticket_lifetime = 24h
-renew_lifetime = 7d
-forwardable = true
-
-[realms]
-TEST.LOCAL = {
-  kdc = kerberos:88
-  admin_server = kerberos
-}
+---
+version: "2.2"
+services:
+  airflow-testing:
+    environment:
+      - BACKEND=postgres
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://postgres:airflow@postgres/airflow
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:9.6
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "${POSTGRES_HOST_PORT}:5432"

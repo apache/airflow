@@ -19,5 +19,7 @@ version: "2.2"
 services:
   airflow-testing:
     environment:
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////root/airflow/airflow.db
-      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - RUNTIME=kubernetes
+      - KUBERNETES_MODE
+      - KUBERNETES_VERSION
+      - KIND_CLUSTER_OPERATION

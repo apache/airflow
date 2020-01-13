@@ -22,25 +22,16 @@ import time
 import unittest
 from subprocess import check_call, check_output
 
+import pytest
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-try:
-    check_call(["/usr/local/bin/kubectl", "get", "pods"])
-except Exception as e:  # pylint: disable=broad-except
-    if os.environ.get('ENABLE_KIND_CLUSTER') == "true":
-        raise e
-    else:
-        raise unittest.SkipTest(
-            "Kubernetes integration tests require a kubernetes cluster;"
-            "Skipping tests {}".format(e)
-        )
-
 KUBERNETES_HOST = (os.environ.get('CLUSTER_NAME') or "docker") + "-worker:30809"
 
 
+@pytest.mark.runtime("kubernetes")
 class TestKubernetesExecutor(unittest.TestCase):
     @staticmethod
     def _delete_airflow_pod():

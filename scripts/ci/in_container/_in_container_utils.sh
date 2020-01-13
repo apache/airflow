@@ -130,7 +130,7 @@ function start_output_heartbeat() {
     echo "Starting output heartbeat"
     echo
 
-    bash <<EOF 2> /dev/null &
+    bash 2> /dev/null <<EOF &
 while true; do
   echo "\$(date): ${MESSAGE} "
   sleep ${INTERVAL}
@@ -141,4 +141,5 @@ EOF
 
 function stop_output_heartbeat() {
     kill "${HEARTBEAT_PID}"
+    wait "${HEARTBEAT_PID}" || true 2> /dev/null
 }
