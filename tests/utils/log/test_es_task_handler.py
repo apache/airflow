@@ -35,6 +35,7 @@ from airflow.utils.timezone import datetime
 
 from .elasticmock import elasticmock
 
+
 # pylint: disable=too-many-instance-attributes
 # 11 is reasonable in this case
 class TestElasticsearchTaskHandler(unittest.TestCase):
