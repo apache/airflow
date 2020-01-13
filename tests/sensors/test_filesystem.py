@@ -24,8 +24,8 @@ import tempfile
 import unittest
 
 from airflow import DAG
-from airflow.contrib.sensors.file_sensor import FileSensor
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.sensors.filesystem import FileSensor
 from airflow.utils.timezone import datetime
 
 TEST_DAG_ID = 'unit_tests_file_sensor'

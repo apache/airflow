@@ -947,6 +947,10 @@ SENSOR = [
         'airflow.sensors.weekday_sensor.DayOfWeekSensor',
         'airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor',
     ),
+    (
+        'airflow.sensors.filesystem.FileSensor',
+        'airflow.contrib.sensors.file_sensor.FileSensor',
+    ),
 ]
 
 PROTOCOLS = [

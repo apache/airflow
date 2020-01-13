@@ -1240,7 +1240,7 @@ communication protocols or interface.
      -
      - :mod:`airflow.hooks.filesystem`
      -
-     - :mod:`airflow.contrib.sensors.file_sensor`
+     - :mod:`airflow.sensors.filesystem`
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      -
