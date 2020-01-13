@@ -228,7 +228,7 @@ These integrations allow you to perform various operations within the Microsoft 
    * - `Azure Container Instances <https://azure.microsoft.com/en-us/services/container-instances/>`__
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_container_instance`,
        :mod:`airflow.providers.microsoft.azure.hooks.azure_container_registry`,
-       :mod:`airflow.contrib.hooks.azure_container_volume_hook`
+       :mod:`airflow.providers.microsoft.azure.hooks.azure_container_volume`
      - :mod:`airflow.contrib.operators.azure_container_instances_operator`
      -
 

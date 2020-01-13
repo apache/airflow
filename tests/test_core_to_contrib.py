@@ -224,6 +224,10 @@ HOOK = [
         'airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook',
         'airflow.contrib.hooks.azure_container_registry_hook.AzureContainerRegistryHook',
     ),
+    (
+        'airflow.providers.microsoft.azure.hooks.azure_container_volume.AzureContainerVolumeHook',
+        'airflow.contrib.hooks.azure_container_volume_hook.AzureContainerVolumeHook',
+    ),
 ]
 
 OPERATOR = [
