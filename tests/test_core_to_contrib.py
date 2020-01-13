@@ -220,6 +220,10 @@ HOOK = [
         'airflow.providers.microsoft.azure.hooks.azure_container_instance.AzureContainerInstanceHook',
         'airflow.contrib.hooks.azure_container_instance_hook.AzureContainerInstanceHook',
     ),
+    (
+        'airflow.providers.microsoft.azure.hooks.azure_container_registry.AzureContainerRegistryHook',
+        'airflow.contrib.hooks.azure_container_registry_hook.AzureContainerRegistryHook',
+    ),
 ]
 
 OPERATOR = [
