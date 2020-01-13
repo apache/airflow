@@ -42,29 +42,29 @@ class TestAzureDataLakeHook(unittest.TestCase):
             )
         )
 
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.lib', autospec=True)
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.lib', autospec=True)
     def test_conn(self, mock_lib):
-        from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+        from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
         from azure.datalake.store import core
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         self.assertEqual(hook.conn_id, 'adl_test_key')
         self.assertIsInstance(hook.connection, core.AzureDLFileSystem)
         assert mock_lib.auth.called
 
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.core.AzureDLFileSystem',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.core.AzureDLFileSystem',
                 autospec=True)
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.lib', autospec=True)
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.lib', autospec=True)
     def test_check_for_blob(self, mock_lib, mock_filesystem):
-        from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+        from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.check_for_file('file_path')
         mock_filesystem.glob.called
 
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.multithread.ADLUploader',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.multithread.ADLUploader',
                 autospec=True)
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.lib', autospec=True)
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.lib', autospec=True)
     def test_upload_file(self, mock_lib, mock_uploader):
-        from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+        from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.upload_file(local_path='tests/hooks/test_adl_hook.py',
                          remote_path='/test_adl_hook.py',
@@ -76,11 +76,11 @@ class TestAzureDataLakeHook(unittest.TestCase):
                                               nthreads=64, overwrite=True,
                                               buffersize=4194304, blocksize=4194304)
 
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.multithread.ADLDownloader',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.multithread.ADLDownloader',
                 autospec=True)
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.lib', autospec=True)
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.lib', autospec=True)
     def test_download_file(self, mock_lib, mock_downloader):
-        from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+        from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.download_file(local_path='test_adl_hook.py',
                            remote_path='/test_adl_hook.py',
@@ -92,20 +92,20 @@ class TestAzureDataLakeHook(unittest.TestCase):
                                                 nthreads=64, overwrite=True,
                                                 buffersize=4194304, blocksize=4194304)
 
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.core.AzureDLFileSystem',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.core.AzureDLFileSystem',
                 autospec=True)
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.lib', autospec=True)
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.lib', autospec=True)
     def test_list_glob(self, mock_lib, mock_fs):
-        from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+        from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.list('file_path/*')
         mock_fs.return_value.glob.assert_called_once_with('file_path/*')
 
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.core.AzureDLFileSystem',
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.core.AzureDLFileSystem',
                 autospec=True)
-    @mock.patch('airflow.contrib.hooks.azure_data_lake_hook.lib', autospec=True)
+    @mock.patch('airflow.providers.microsoft.azure.hooks.azure_data_lake.lib', autospec=True)
     def test_list_walk(self, mock_lib, mock_fs):
-        from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+        from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
         hook = AzureDataLakeHook(azure_data_lake_conn_id='adl_test_key')
         hook.list('file_path/some_folder/')
         mock_fs.return_value.walk.assert_called_once_with('file_path/some_folder/')

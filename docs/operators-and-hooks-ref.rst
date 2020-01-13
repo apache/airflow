@@ -238,7 +238,7 @@ These integrations allow you to perform various operations within the Microsoft 
      - :mod:`airflow.contrib.sensors.azure_cosmos_sensor`
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
-     - :mod:`airflow.contrib.hooks.azure_data_lake_hook`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_data_lake`
      - :mod:`airflow.contrib.operators.adls_list_operator`
      -
 

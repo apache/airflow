@@ -22,9 +22,9 @@ from tempfile import TemporaryDirectory
 
 import unicodecsv as csv
 
-from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
 from airflow.hooks.oracle_hook import OracleHook
 from airflow.models import BaseOperator
+from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
 from airflow.utils.decorators import apply_defaults
 
 
