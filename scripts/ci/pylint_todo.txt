@@ -98,7 +98,7 @@
 ./airflow/contrib/sensors/sagemaker_transform_sensor.py
 ./airflow/contrib/sensors/sagemaker_tuning_sensor.py
 ./airflow/contrib/sensors/wasb_sensor.py
-./airflow/contrib/sensors/weekday_sensor.py
+./airflow/sensors/weekday_sensor.py
 ./airflow/hooks/dbapi_hook.py
 ./airflow/hooks/docker_hook.py
 ./airflow/providers/apache/druid/hooks/druid.py

@@ -46,7 +46,7 @@ Fundamentals
 
 **Sensors:**
 
-* :mod:`airflow.contrib.sensors.weekday_sensor`
+* :mod:`airflow.sensors.weekday_sensor`
 * :mod:`airflow.sensors.external_task_sensor`
 * :mod:`airflow.sensors.sql_sensor`
 * :mod:`airflow.sensors.time_delta_sensor`

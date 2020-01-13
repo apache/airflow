@@ -939,6 +939,10 @@ SENSOR = [
         'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensor',
         'airflow.sensors.hdfs_sensor.HdfsSensor',
     ),
+    (
+        'airflow.sensors.weekday_sensor.DayOfWeekSensor',
+        'airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor',
+    ),
 ]
 
 PROTOCOLS = [
