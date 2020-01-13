@@ -54,7 +54,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.write_stdout = False
         self.json_format = False
         self.json_fields = 'asctime,filename,lineno,levelname,message'
-        self.index = "test-index"
+        self.index = "test_index"
         self.es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
             self.filename_template,
