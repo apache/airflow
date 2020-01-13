@@ -898,6 +898,11 @@ OPERATOR = [
         'airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeStorageListOperator',
         'airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator',
     ),
+    (
+        'airflow.providers.microsoft.azure.operators'
+        '.azure_container_instances.AzureContainerInstancesOperator',
+        'airflow.contrib.operators.azure_container_instances_operator.AzureContainerInstancesOperator',
+    ),
 ]
 
 SENSOR = [

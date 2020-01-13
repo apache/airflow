@@ -31,7 +31,7 @@
 ./airflow/contrib/hooks/vertica_hook.py
 ./airflow/providers/microsoft/azure/hooks/wasb.py
 ./airflow/providers/microsoft/azure/operators/adls_list.py
-./airflow/contrib/operators/azure_container_instances_operator.py
+./airflow/providers/microsoft/azure/operators/azure_container_instances.py
 ./airflow/contrib/operators/azure_cosmos_operator.py
 ./airflow/contrib/operators/dingding_operator.py
 ./airflow/contrib/operators/discord_webhook_operator.py

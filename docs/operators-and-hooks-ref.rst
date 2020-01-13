@@ -229,7 +229,7 @@ These integrations allow you to perform various operations within the Microsoft 
      - :mod:`airflow.providers.microsoft.azure.hooks.azure_container_instance`,
        :mod:`airflow.providers.microsoft.azure.hooks.azure_container_registry`,
        :mod:`airflow.providers.microsoft.azure.hooks.azure_container_volume`
-     - :mod:`airflow.contrib.operators.azure_container_instances_operator`
+     - :mod:`airflow.providers.microsoft.azure.operators.azure_container_instances`
      -
 
    * - `Azure Cosmos DB <https://azure.microsoft.com/en-us/services/cosmos-db/>`__
