@@ -83,45 +83,53 @@ class TestLocalTaskJob(unittest.TestCase):
         check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
         self.assertTrue(all(check_result_2))
 
-    def test_localtaskjob_invalid_return_code(self):
-        dag = DAG(
-            'test_localtaskjob_invalid_return_code',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'airflow'})
+    def test_invalid_return_code(self):
+        with create_session() as session:
+            dagbag = models.DagBag(
+                dag_folder=TEST_DAG_FOLDER,
+                include_examples=False,
+            )
+            dag_id = 'test_invalid_return_code'
+            valid_task_id = 'test_valid_return_code'
+            invalid_task_id = 'test_invalid_return_code'
+            dag = dagbag.get_dag(dag_id)
+            invalid_task = dag.get_task(invalid_task_id)
+            dr = dag.create_dagrun(run_id="test",
+                                   state=State.SUCCESS,
+                                   execution_date=DEFAULT_DATE,
+                                   start_date=DEFAULT_DATE,
+                                   session=session)
+            invalid_ti = TI(task=invalid_task, execution_date=DEFAULT_DATE)
+            invalid_ti.refresh_from_db()
+            invalid_ti.state = State.RUNNING
+            invalid_ti.hostname = get_hostname()
+            session.commit()
 
-        task = BashOperator(
-            task_id='test_bash',
-            bash_command='exit 1',
-            dag=dag,
-            owner='airflow')
-        session = settings.Session()
+            invalid_job = LocalTaskJob(task_instance=invalid_ti,
+                                       ignore_ti_state=True,
+                                       executor=SequentialExecutor())
+            invalid_job.run()
 
-        dag.clear()
-        dr = dag.create_dagrun(run_id="test",
-                               state=State.SUCCESS,
-                               execution_date=DEFAULT_DATE,
-                               start_date=DEFAULT_DATE,
-                               session=session)
-        ti = dr.get_task_instance(task_id=task.task_id, session=session)
-        ti.state = State.RUNNING
-        ti.hostname = get_hostname()
-        ti.pid = 1
-        session.commit()
+            invalid_ti = dr.get_task_instance(task_id=invalid_task.task_id,
+                                              session=session)
+            self.assertEqual(invalid_ti.state, State.FAILED)
+            self.assertIsNotNone(invalid_ti.pid)
 
-        ti_run = TI(task=task, execution_date=DEFAULT_DATE)
-        job1 = LocalTaskJob(task_instance=ti_run,
-                            ignore_ti_state=True,
-                            executor=SequentialExecutor())
-        with patch.object(BaseTaskRunner, 'start',
-                          return_value=None) as mock_method:
-            job1.run()
-            mock_method.assert_not_called()
+            valid_task = dag.get_task(valid_task_id)
+            valid_ti = TI(task=valid_task, execution_date=DEFAULT_DATE)
+            valid_ti.refresh_from_db()
+            valid_ti.state = State.RUNNING
+            valid_ti.hostname = get_hostname()
+            session.commit()
 
-        ti = dr.get_task_instance(task_id=task.task_id, session=session)
-        self.assertEqual(ti.pid, 1)
-        self.assertEqual(ti.state, State.RUNNING)
-        self.assertTrue(ti, State.FAILED)
-        session.close()
+            valid_job = LocalTaskJob(task_instance=valid_ti,
+                                     ignore_ti_state=True,
+                                     executor=SequentialExecutor())
+            valid_job.run()
+            valid_ti = dr.get_task_instance(task_id=valid_task.task_id,
+                                            session=session)
+            self.assertEqual(valid_ti.state, State.SUCCESS)
+            self.assertIsNotNone(valid_ti.pid)
 
     @patch('os.getpid')
     def test_localtaskjob_heartbeat(self, mock_pid):
@@ -178,6 +186,7 @@ class TestLocalTaskJob(unittest.TestCase):
             dag_id = 'test_heartbeat_failed_fast'
             task_id = 'test_heartbeat_failed_fast_op'
             dag = dagbag.get_dag(dag_id)
+            fail()
             task = dag.get_task(task_id)
 
             dag.create_dagrun(run_id="test_heartbeat_failed_fast_run",
