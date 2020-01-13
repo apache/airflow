@@ -993,6 +993,14 @@ SENSOR = [
         'airflow.sensors.filesystem.FileSensor',
         'airflow.contrib.sensors.file_sensor.FileSensor',
     ),
+    (
+        'airflow.providers.microsoft.azure.sensors.wasb.WasbBlobSensor',
+        'airflow.contrib.sensors.wasb_sensor.WasbBlobSensor',
+    ),
+    (
+        'airflow.providers.microsoft.azure.sensors.wasb.WasbPrefixSensor',
+        'airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor',
+    ),
 ]
 
 PROTOCOLS = [

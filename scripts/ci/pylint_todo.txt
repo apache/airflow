@@ -97,7 +97,7 @@
 ./airflow/contrib/sensors/sagemaker_training_sensor.py
 ./airflow/contrib/sensors/sagemaker_transform_sensor.py
 ./airflow/contrib/sensors/sagemaker_tuning_sensor.py
-./airflow/contrib/sensors/wasb_sensor.py
+./airflow/providers/microsoft/azure/sensors/wasb.py
 ./airflow/sensors/weekday_sensor.py
 ./airflow/hooks/dbapi_hook.py
 ./airflow/hooks/docker_hook.py

@@ -24,7 +24,7 @@ import unittest
 import mock
 
 from airflow import DAG
-from airflow.contrib.sensors.wasb_sensor import WasbBlobSensor, WasbPrefixSensor
+from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbPrefixSensor
 
 
 class TestWasbBlobSensor(unittest.TestCase):
@@ -62,7 +62,7 @@ class TestWasbBlobSensor(unittest.TestCase):
         )
         self.assertEqual(sensor.check_options, {'timeout': 2})
 
-    @mock.patch('airflow.contrib.sensors.wasb_sensor.WasbHook',
+    @mock.patch('airflow.providers.microsoft.azure.sensors.wasb.WasbHook',
                 autospec=True)
     def test_poke(self, mock_hook):
         mock_instance = mock_hook.return_value
@@ -113,7 +113,7 @@ class TestWasbPrefixSensor(unittest.TestCase):
         )
         self.assertEqual(sensor.check_options, {'timeout': 2})
 
-    @mock.patch('airflow.contrib.sensors.wasb_sensor.WasbHook',
+    @mock.patch('airflow.providers.microsoft.azure.sensors.wasb.WasbHook',
                 autospec=True)
     def test_poke(self, mock_hook):
         mock_instance = mock_hook.return_value
