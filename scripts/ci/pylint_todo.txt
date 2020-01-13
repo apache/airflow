@@ -3,7 +3,7 @@
 ./airflow/contrib/auth/backends/google_auth.py
 ./airflow/contrib/auth/backends/kerberos_auth.py
 ./airflow/contrib/auth/backends/ldap_auth.py
-./airflow/contrib/hooks/azure_container_instance_hook.py
+./airflow/providers/microsoft/azure/hooks/azure_container_instance.py
 ./airflow/contrib/hooks/azure_container_volume_hook.py
 ./airflow/contrib/hooks/azure_cosmos_hook.py
 ./airflow/contrib/hooks/azure_data_lake_hook.py

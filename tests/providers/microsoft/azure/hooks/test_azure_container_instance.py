@@ -25,8 +25,8 @@ from azure.mgmt.containerinstance.models import (
     Container, ContainerGroup, Logs, ResourceRequests, ResourceRequirements,
 )
 
-from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.hooks.azure_container_instance import AzureContainerInstanceHook
 from airflow.utils import db
 
 

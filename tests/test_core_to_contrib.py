@@ -216,6 +216,10 @@ HOOK = [
         'airflow.hooks.filesystem.FSHook',
         'airflow.contrib.hooks.fs_hook.FSHook',
     ),
+    (
+        'airflow.providers.microsoft.azure.hooks.azure_container_instance.AzureContainerInstanceHook',
+        'airflow.contrib.hooks.azure_container_instance_hook.AzureContainerInstanceHook',
+    ),
 ]
 
 OPERATOR = [

@@ -226,7 +226,7 @@ These integrations allow you to perform various operations within the Microsoft 
      - :mod:`airflow.contrib.sensors.wasb_sensor`
 
    * - `Azure Container Instances <https://azure.microsoft.com/en-us/services/container-instances/>`__
-     - :mod:`airflow.contrib.hooks.azure_container_instance_hook`,
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_container_instance`,
        :mod:`airflow.contrib.hooks.azure_container_registry_hook`,
        :mod:`airflow.contrib.hooks.azure_container_volume_hook`
      - :mod:`airflow.contrib.operators.azure_container_instances_operator`

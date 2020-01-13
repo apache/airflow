@@ -27,11 +27,11 @@ from azure.mgmt.containerinstance.models import (
 )
 from msrestazure.azure_exceptions import CloudError
 
-from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
 from airflow.contrib.hooks.azure_container_registry_hook import AzureContainerRegistryHook
 from airflow.contrib.hooks.azure_container_volume_hook import AzureContainerVolumeHook
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.models import BaseOperator
+from airflow.providers.microsoft.azure.hooks.azure_container_instance import AzureContainerInstanceHook
 from airflow.utils.decorators import apply_defaults
 
 Volume = namedtuple(
