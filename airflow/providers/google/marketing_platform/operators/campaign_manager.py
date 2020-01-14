@@ -20,7 +20,7 @@ This module contains Google CampaignManager operators.
 """
 import tempfile
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from googleapiclient import http
 
@@ -386,4 +386,180 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         file_id = response.get("id")
         self.xcom_push(context, key="file_id", value=file_id)
         self.log.info("Report file id: %s", file_id)
+        return response
+
+
+class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
+    """
+    Inserts conversions.
+
+    .. seealso::
+        Check official API docs:
+        https://developers.google.com/doubleclick-advertisers/v3.3/conversions/batchinsert
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCampaignManagerBatchInsertConversionsOperator`
+
+    :param profile_id: User profile ID associated with this request.
+    :type profile_id: str
+    :param conversions: Conversations to insert, should by type of Conversation:
+        https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+    :type conversions: List[Dict[str, Any]]
+    :param encryption_entity_type: The encryption entity type. This should match the encryption
+        configuration for ad serving or Data Transfer.
+    :type encryption_entity_type: str
+    :param encryption_entity_id: The encryption entity ID. This should match the encryption
+        configuration for ad serving or Data Transfer.
+    :type encryption_entity_id: int
+    :param encryption_source: Describes whether the encrypted cookie was received from ad serving
+        (the %m macro) or from Data Transfer.
+    :type encryption_source: str
+    :param max_failed_inserts: The maximum number of conversions that failed to be inserted
+    :type max_failed_inserts: int
+    :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
+        request must have  domain-wide delegation enabled.
+    :type delegate_to: Optional[str]
+    """
+
+    template_fields = (
+        "profile_id",
+        "conversions",
+        "encryption_entity_type",
+        "encryption_entity_id",
+        "encryption_source",
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        profile_id: str,
+        conversions: List[Dict[str, Any]],
+        encryption_entity_type: str,
+        encryption_entity_id: int,
+        encryption_source: str,
+        max_failed_inserts: int = 0,
+        api_version: str = "v3.3",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.profile_id = profile_id
+        self.conversions = conversions
+        self.encryption_entity_type = encryption_entity_type
+        self.encryption_entity_id = encryption_entity_id
+        self.encryption_source = encryption_source
+        self.max_failed_inserts = max_failed_inserts
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context: Dict):
+        hook = GoogleCampaignManagerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+        )
+        response = hook.conversions_batch_insert(
+            profile_id=self.profile_id,
+            conversions=self.conversions,
+            encryption_entity_type=self.encryption_entity_type,
+            encryption_entity_id=self.encryption_entity_id,
+            encryption_source=self.encryption_source,
+            max_failed_inserts=self.max_failed_inserts
+        )
+        return response
+
+
+class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
+    """
+    Updates existing conversions.
+
+    .. seealso::
+        Check official API docs:
+        https://developers.google.com/doubleclick-advertisers/v3.3/conversions/batchupdate
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCampaignManagerBatchUpdateConversionsOperator`
+
+    :param profile_id: User profile ID associated with this request.
+    :type profile_id: str
+    :param conversions: Conversations to update, should by type of Conversation:
+        https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+    :type conversions: List[Dict[str, Any]]
+    :param encryption_entity_type: The encryption entity type. This should match the encryption
+        configuration for ad serving or Data Transfer.
+    :type encryption_entity_type: str
+    :param encryption_entity_id: The encryption entity ID. This should match the encryption
+        configuration for ad serving or Data Transfer.
+    :type encryption_entity_id: int
+    :param encryption_source: Describes whether the encrypted cookie was received from ad serving
+        (the %m macro) or from Data Transfer.
+    :type encryption_source: str
+    :param max_failed_updates: The maximum number of conversions that failed to be updateed
+    :type max_failed_updates: int
+    :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
+        request must have  domain-wide delegation enabled.
+    :type delegate_to: Optional[str]
+    """
+
+    template_fields = (
+        "profile_id",
+        "conversions",
+        "encryption_entity_type",
+        "encryption_entity_id",
+        "encryption_source",
+    )
+
+    @apply_defaults
+    def __init__(
+        self,
+        profile_id: str,
+        conversions: List[Dict[str, Any]],
+        encryption_entity_type: str,
+        encryption_entity_id: int,
+        encryption_source: str,
+        max_failed_updates: int = 0,
+        api_version: str = "v3.3",
+        gcp_conn_id: str = "google_cloud_default",
+        delegate_to: Optional[str] = None,
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.profile_id = profile_id
+        self.conversions = conversions
+        self.encryption_entity_type = encryption_entity_type
+        self.encryption_entity_id = encryption_entity_id
+        self.encryption_source = encryption_source
+        self.max_failed_updates = max_failed_updates
+        self.api_version = api_version
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context: Dict):
+        hook = GoogleCampaignManagerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version=self.api_version,
+        )
+        response = hook.conversions_batch_update(
+            profile_id=self.profile_id,
+            conversions=self.conversions,
+            encryption_entity_type=self.encryption_entity_type,
+            encryption_entity_id=self.encryption_entity_id,
+            encryption_source=self.encryption_source,
+            max_failed_updates=self.max_failed_updates
+        )
         return response
