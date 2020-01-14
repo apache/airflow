@@ -36,7 +36,7 @@
 ./airflow/contrib/operators/dingding_operator.py
 ./airflow/contrib/operators/discord_webhook_operator.py
 ./airflow/providers/apache/druid/operators/druid.py
-./airflow/contrib/operators/ecs_operator.py
+./airflow/providers/amazon/aws/operators/ecs.py
 ./airflow/contrib/operators/emr_add_steps_operator.py
 ./airflow/contrib/operators/emr_create_job_flow_operator.py
 ./airflow/contrib/operators/emr_terminate_job_flow_operator.py

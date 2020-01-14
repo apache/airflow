@@ -922,6 +922,10 @@ OPERATOR = [
         'airflow.providers.microsoft.azure.operators.wasb_delete_blob.WasbDeleteBlobOperator',
         'airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.ecs.ECSOperator',
+        'airflow.contrib.operators.ecs_operator.ECSOperator',
+    ),
 ]
 
 SENSOR = [
@@ -1018,6 +1022,10 @@ PROTOCOLS = [
     (
         "airflow.providers.amazon.aws.hooks.batch_client.AwsBatchProtocol",
         "airflow.contrib.operators.awsbatch_operator.BatchProtocol",
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.ecs.ECSProtocol',
+        'airflow.contrib.operators.ecs_operator.ECSProtocol',
     ),
 ]
 

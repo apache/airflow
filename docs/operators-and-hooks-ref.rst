@@ -346,7 +346,7 @@ These integrations allow you to perform various operations within the Amazon Web
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
      -
      -
-     - :mod:`airflow.contrib.operators.ecs_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.ecs`
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
