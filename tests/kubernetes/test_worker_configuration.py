@@ -903,3 +903,14 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         pod = worker_config.as_pod()
 
         self.assertEqual(2, len(pod.spec.image_pull_secrets))
+
+    def test_get_resources(self):
+        self.kube_config.worker_resources = {'limit_cpu': 0.25, 'limit_memory': '64Mi', 'request_cpu': '250m',
+                                             'request_memory': '64Mi'}
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        resources = worker_config._get_resources()
+        self.assertEqual(resources.limits["cpu"], 0.25)
+        self.assertEqual(resources.limits["memory"], "64Mi")
+        self.assertEqual(resources.requests["cpu"], "250m")
+        self.assertEqual(resources.requests["memory"], "64Mi")

@@ -2148,6 +2148,13 @@
       type: string
       example: ~
       default: ""
+    - name: worker_resources
+      description: |
+        Worker resources configuration as a single line formatted JSON object.
+      version_added: ~
+      type: string
+      example: '{ "limit_cpu": 0.25, "limit_memory": "64Mi", "request_cpu": "250m", "request_memory": "64Mi"}'
+      default: ""
 - name: kubernetes_node_selectors
   description: |
     The Key-value pairs to be given to worker pods.

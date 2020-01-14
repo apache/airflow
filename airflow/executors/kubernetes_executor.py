@@ -114,6 +114,12 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.worker_run_as_user = self._get_security_context_val('run_as_user')
         self.worker_fs_group = self._get_security_context_val('fs_group')
 
+        kube_worker_resources = conf.get(self.kubernetes_section, 'worker_resources')
+        if kube_worker_resources:
+            self.worker_resources = json.loads(kube_worker_resources)
+        else:
+            self.worker_resources = None
+
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
         self.git_repo = conf.get(self.kubernetes_section, 'git_repo')

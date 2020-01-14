@@ -387,6 +387,29 @@ class WorkerConfiguration(LoggingMixin):
 
         return self.kube_config.git_dags_folder_mount_point
 
+    def _get_resources(self) -> k8s.V1ResourceRequirements:
+        if self.kube_config.worker_resources is None:
+            return None
+        resources_dict = self.kube_config.worker_resources
+
+        requests = {}
+        request_cpu = resources_dict.get('request_cpu', None)
+        if request_cpu is not None:
+            requests["cpu"] = request_cpu
+        request_memory = resources_dict.get('request_memory', None)
+        if request_memory is not None:
+            requests["memory"] = request_memory
+
+        limits = {}
+        limit_cpu = resources_dict.get('limit_cpu', None)
+        if limit_cpu is not None:
+            limits["cpu"] = limit_cpu
+        limit_memory = resources_dict.get('limit_memory', None)
+        if limit_memory is not None:
+            limits["memory"] = limit_memory
+
+        return k8s.V1ResourceRequirements(requests=requests, limits=limits)
+
     def as_pod(self) -> k8s.V1Pod:
         """Creates POD."""
         if self.kube_config.pod_template_file:
@@ -405,7 +428,8 @@ class WorkerConfiguration(LoggingMixin):
             envs=self._get_environment(),
             node_selectors=self.kube_config.kube_node_selectors,
             service_account_name=self.kube_config.worker_service_account_name or 'default',
-            restart_policy='Never'
+            restart_policy='Never',
+            resources=self._get_resources(),
         ).gen_pod()
 
         pod.spec.containers[0].env_from = pod.spec.containers[0].env_from or []
