@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, patch
 from dateutil.tz import tzlocal
 
 from airflow import AirflowException
-from airflow.contrib.sensors.emr_step_sensor import EmrStepSensor
+from airflow.providers.amazon.aws.sensors.emr_step import EmrStepSensor
 
 DESCRIBE_JOB_STEP_RUNNING_RETURN = {
     'ResponseMetadata': {

@@ -82,7 +82,7 @@
 ./airflow/contrib/sensors/datadog_sensor.py
 ./airflow/providers/amazon/aws/sensors/emr_base.py
 ./airflow/providers/amazon/aws/sensors/emr_job_flow.py
-./airflow/contrib/sensors/emr_step_sensor.py
+./airflow/providers/amazon/aws/sensors/emr_step.py
 ./airflow/sensors/filesystem.py
 ./airflow/contrib/sensors/ftp_sensor.py
 ./airflow/providers/apache/hdfs/sensors/hdfs.py
