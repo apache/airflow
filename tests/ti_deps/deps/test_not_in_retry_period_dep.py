@@ -33,7 +33,7 @@ class TestNotInRetryPeriodDep(unittest.TestCase):
 
     def _get_task_instance(self, state, end_date=None,
                            retry_delay=timedelta(minutes=15)):
-        task = Mock(retry_delay=retry_delay, retry_exponential_backoff=False, pool_capacity=1)
+        task = Mock(retry_delay=retry_delay, retry_exponential_backoff=False)
         ti = TaskInstance(task=task, state=state, execution_date=None)
         ti.end_date = end_date
         return ti

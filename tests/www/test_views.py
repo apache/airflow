@@ -33,6 +33,7 @@ from unittest import mock
 from urllib.parse import quote_plus
 
 import jinja2
+import pytest
 from flask import Markup, session as flask_session, url_for
 from parameterized import parameterized
 from werkzeug.test import Client
@@ -1881,8 +1882,7 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
-    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                     "flaky when run on mysql")
+    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
     def test_trigger_dag_button(self):
 
         test_dag_id = "example_bash_operator"

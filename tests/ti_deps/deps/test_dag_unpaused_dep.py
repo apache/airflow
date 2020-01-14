@@ -31,7 +31,7 @@ class TestDagUnpausedDep(unittest.TestCase):
         Test paused DAG should fail dependency
         """
         dag = Mock(is_paused=True)
-        task = Mock(dag=dag, pool_capacity=1)
+        task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 
         self.assertFalse(DagUnpausedDep().is_met(ti=ti))
@@ -41,7 +41,7 @@ class TestDagUnpausedDep(unittest.TestCase):
         Test all conditions met should pass dep
         """
         dag = Mock(is_paused=False)
-        task = Mock(dag=dag, pool_capacity=1)
+        task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 
         self.assertTrue(DagUnpausedDep().is_met(ti=ti))

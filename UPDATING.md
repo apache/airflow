@@ -57,6 +57,39 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Move methods from BiqQueryBaseCursor to BigQueryHook
+
+To simplify BigQuery operators (no need of `Cursor`) and standardize usage of hooks within all GCP integration methods from `BiqQueryBaseCursor`
+were moved to `BigQueryHook`. Using them by from `Cursor` object is still possible due to preserved backward compatibility but they will raise `DeprecationWarning`.
+The following methods were moved:
+
+| Old path                                                                    | New path                                                              |
+|-----------------------------------------------------------------------------|-----------------------------------------------------------------------|
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.cancel_query                  | airflow.gcp.hooks.bigquery.BigQueryHook.cancel_query                  |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset          | airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_dataset          |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_empty_table            | airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_table            |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_external_table         | airflow.gcp.hooks.bigquery.BigQueryHook.create_external_table         |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.delete_dataset                | airflow.gcp.hooks.bigquery.BigQueryHook.delete_dataset                |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset                   | airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset                   |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables            | airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables            |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables_list       | airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables_list       |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_datasets_list             | airflow.gcp.hooks.bigquery.BigQueryHook.get_datasets_list             |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_schema                    | airflow.gcp.hooks.bigquery.BigQueryHook.get_schema                    |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_tabledata                 | airflow.gcp.hooks.bigquery.BigQueryHook.get_tabledata                 |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.insert_all                    | airflow.gcp.hooks.bigquery.BigQueryHook.insert_all                    |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.patch_dataset                 | airflow.gcp.hooks.bigquery.BigQueryHook.patch_dataset                 |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.patch_table                   | airflow.gcp.hooks.bigquery.BigQueryHook.patch_table                   |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.poll_job_complete             | airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete             |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_copy                      | airflow.gcp.hooks.bigquery.BigQueryHook.run_copy                      |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_extract                   | airflow.gcp.hooks.bigquery.BigQueryHook.run_extract                   |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_grant_dataset_view_access | airflow.gcp.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_load                      | airflow.gcp.hooks.bigquery.BigQueryHook.run_load                      |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_query                     | airflow.gcp.hooks.bigquery.BigQueryHook.run_query                     |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_table_delete              | airflow.gcp.hooks.bigquery.BigQueryHook.run_table_delete              |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_table_upsert              | airflow.gcp.hooks.bigquery.BigQueryHook.run_table_upsert              |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.gcp.hooks.bigquery.BigQueryHook.run_with_configuration        |
+| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.gcp.hooks.bigquery.BigQueryHook.update_dataset                |
+
 ### Standardize handling http exception in BigQuery
 
 Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
@@ -446,7 +479,7 @@ The following table shows changes in import paths.
 |airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook                                                              |airflow.gcp.hooks.bigtable.BigtableHook                                                                    |
 |airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook                                                         |airflow.gcp.hooks.cloud_build.CloudBuildHook                                                               |
 |airflow.contrib.hooks.gcp_compute_hook.GceHook                                                                    |airflow.gcp.hooks.compute.ComputeEngineHook                                                                |
-|airflow.contrib.hooks.gcp_container_hook.GKEClusterHook                                                           |airflow.gcp.hooks.kubernetes_engine.GKEClusterHook                                                         |
+|airflow.contrib.hooks.gcp_container_hook.GKEClusterHook                                                           |airflow.gcp.hooks.kubernetes_engine.GKEHook                                                         |
 |airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook                                                              |airflow.gcp.hooks.dataflow.DataflowHook                                                                    |
 |airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook                                                              |airflow.gcp.hooks.dataproc.DataprocHook                                                                    |
 |airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook                                                                   |airflow.gcp.hooks.dlp.CloudDLPHook                                                                         |
@@ -512,9 +545,9 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator                                            |airflow.gcp.operators.compute.GceInstanceStopOperator                                                      |
 |airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator                                    |airflow.gcp.operators.compute.GceInstanceTemplateCopyOperator                                              |
 |airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator                                          |airflow.gcp.operators.compute.GceSetMachineTypeOperator                                                    |
-|airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator                                         |airflow.gcp.operators.kubernetes_engine.GKEClusterCreateOperator                                           |
-|airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator                                         |airflow.gcp.operators.kubernetes_engine.GKEClusterDeleteOperator                                           |
-|airflow.contrib.operators.gcp_container_operator.GKEPodOperator                                                   |airflow.gcp.operators.kubernetes_engine.GKEPodOperator                                                     |
+|airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator                                         |airflow.gcp.operators.kubernetes_engine.GKECreateClusterOperator                                           |
+|airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator                                         |airflow.gcp.operators.kubernetes_engine.GKEDeleteClusterOperator                                           |
+|airflow.contrib.operators.gcp_container_operator.GKEPodOperator                                                   |airflow.gcp.operators.kubernetes_engine.GKEStartPodOperator                                                     |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPCancelDLPJobOperator                                           |airflow.gcp.operators.dlp.CloudDLPCancelDLPJobOperator                                                     |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDLPJobOperator                                           |airflow.gcp.operators.dlp.CloudDLPCreateDLPJobOperator                                                     |
 |airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDeidentifyTemplateOperator                               |airflow.gcp.operators.dlp.CloudDLPCreateDeidentifyTemplateOperator                                         |

@@ -81,7 +81,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook",
     ),
     (
-        "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook",
+        "airflow.gcp.hooks.kubernetes_engine.GKEHook",
         "airflow.contrib.hooks.gcp_container_hook.GKEClusterHook",
     ),
     (
@@ -212,6 +212,10 @@ HOOK = [
         'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook',
         'airflow.hooks.webhdfs_hook.WebHDFSHook',
     ),
+    (
+        'airflow.hooks.filesystem.FSHook',
+        'airflow.contrib.hooks.fs_hook.FSHook',
+    ),
 ]
 
 OPERATOR = [
@@ -293,15 +297,15 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEClusterCreateOperator",
+        "airflow.gcp.operators.kubernetes_engine.GKECreateClusterOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEClusterDeleteOperator",
+        "airflow.gcp.operators.kubernetes_engine.GKEDeleteClusterOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEPodOperator",
+        "airflow.gcp.operators.kubernetes_engine.GKEStartPodOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEPodOperator",
     ),
     (
@@ -627,7 +631,7 @@ OPERATOR = [
         "CloudVisionRemoveProductFromProductSetOperator",
     ),
     (
-        "airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator",
+        "airflow.operators.gcs_to_bq.GCSToBigQueryOperator",
         "airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator",
     ),
     (
@@ -938,6 +942,14 @@ SENSOR = [
     (
         'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensor',
         'airflow.sensors.hdfs_sensor.HdfsSensor',
+    ),
+    (
+        'airflow.sensors.weekday_sensor.DayOfWeekSensor',
+        'airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor',
+    ),
+    (
+        'airflow.sensors.filesystem.FileSensor',
+        'airflow.contrib.sensors.file_sensor.FileSensor',
     ),
 ]
 

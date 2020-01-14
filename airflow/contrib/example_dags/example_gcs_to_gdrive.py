@@ -22,7 +22,7 @@ Example DAG using GoogleCloudStorageToGoogleDriveOperator.
 import os
 
 from airflow import models
-from airflow.contrib.operators.gcs_to_gdrive_operator import GcsToGDriveOperator
+from airflow.contrib.operators.gcs_to_gdrive_operator import GCSToGoogleDriveOperator
 from airflow.utils.dates import days_ago
 
 GCS_TO_GDRIVE_BUCKET = os.environ.get("GCS_TO_DRIVE_BUCKET", "example-object")
@@ -33,7 +33,7 @@ with models.DAG(
     "example_gcs_to_gdrive", default_args=default_args, schedule_interval=None  # Override to match your needs
 ) as dag:
     # [START howto_operator_gcs_to_gdrive_copy_single_file]
-    copy_single_file = GcsToGDriveOperator(
+    copy_single_file = GCSToGoogleDriveOperator(
         task_id="copy_single_file",
         source_bucket=GCS_TO_GDRIVE_BUCKET,
         source_object="sales/january.avro",
@@ -41,7 +41,7 @@ with models.DAG(
     )
     # [END howto_operator_gcs_to_gdrive_copy_single_file]
     # [START howto_operator_gcs_to_gdrive_copy_files]
-    copy_files = GcsToGDriveOperator(
+    copy_files = GCSToGoogleDriveOperator(
         task_id="copy_files",
         source_bucket=GCS_TO_GDRIVE_BUCKET,
         source_object="sales/*",
@@ -49,7 +49,7 @@ with models.DAG(
     )
     # [END howto_operator_gcs_to_gdrive_copy_files]
     # [START howto_operator_gcs_to_gdrive_move_files]
-    move_files = GcsToGDriveOperator(
+    move_files = GCSToGoogleDriveOperator(
         task_id="move_files",
         source_bucket=GCS_TO_GDRIVE_BUCKET,
         source_object="sales/*.avro",

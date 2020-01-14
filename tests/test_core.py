@@ -76,9 +76,6 @@ class TestCore(unittest.TestCase):
         self.run_this_last = self.dag_bash.get_task('run_this_last')
 
     def tearDown(self):
-        if os.environ.get('ENABLE_KIND_CLUSTER') == "true":
-            return
-
         session = Session()
         session.query(DagRun).filter(
             DagRun.dag_id == TEST_DAG_ID).delete(

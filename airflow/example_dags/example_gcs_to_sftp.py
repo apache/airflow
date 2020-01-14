@@ -23,7 +23,7 @@ Example Airflow DAG for Google Cloud Storage to SFTP transfer operators.
 import os
 
 from airflow import models
-from airflow.operators.gcs_to_sftp import GoogleCloudStorageToSFTPOperator
+from airflow.operators.gcs_to_sftp import GCSToSFTPOperator
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}
@@ -40,7 +40,7 @@ with models.DAG(
     "example_gcs_to_sftp", default_args=default_args, schedule_interval=None, tags=['example']
 ) as dag:
     # [START howto_operator_gcs_to_sftp_copy_single_file]
-    copy_file_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
+    copy_file_from_gcs_to_sftp = GCSToSFTPOperator(
         task_id="file-copy-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_1,
@@ -49,7 +49,7 @@ with models.DAG(
     # [END howto_operator_gcs_to_sftp_copy_single_file]
 
     # [START howto_operator_gcs_to_sftp_move_single_file_destination]
-    move_file_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
+    move_file_from_gcs_to_sftp = GCSToSFTPOperator(
         task_id="file-move-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_2,
@@ -59,7 +59,7 @@ with models.DAG(
     # [END howto_operator_gcs_to_sftp_move_single_file_destination]
 
     # [START howto_operator_gcs_to_sftp_copy_directory]
-    copy_dir_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
+    copy_dir_from_gcs_to_sftp = GCSToSFTPOperator(
         task_id="dir-copy-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,
@@ -68,7 +68,7 @@ with models.DAG(
     # [END howto_operator_gcs_to_sftp_copy_directory]
 
     # [START howto_operator_gcs_to_sftp_move_specific_files]
-    move_dir_from_gcs_to_sftp = GoogleCloudStorageToSFTPOperator(
+    move_dir_from_gcs_to_sftp = GCSToSFTPOperator(
         task_id="dir-move-gsc-to-sftp",
         source_bucket=BUCKET_SRC,
         source_object=OBJECT_SRC_3,

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,28 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""add pool_capacity field to task_instance
-
-Revision ID: a4c2fd67d16b
-Revises: fe461863935f
-Create Date: 2019-12-31 13:50:02.227835
-
-"""
-
-import sqlalchemy as sa
-from alembic import op
-
-# revision identifiers, used by Alembic.
-revision = 'a4c2fd67d16b'
-down_revision = 'fe461863935f'
-branch_labels = None
-depends_on = None
-
-
-def upgrade():
-    op.add_column('task_instance', sa.Column('pool_capacity', sa.Integer, default=1))
-
-
-def downgrade():
-    op.drop_column('task_instance', 'pool_capacity')
+---
+version: "2.2"
+services:
+  airflow-testing:
+    environment:
+      - BACKEND=sqlite
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////root/airflow/airflow.db
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor

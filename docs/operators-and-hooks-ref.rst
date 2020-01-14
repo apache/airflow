@@ -46,7 +46,7 @@ Fundamentals
 
 **Sensors:**
 
-* :mod:`airflow.contrib.sensors.weekday_sensor`
+* :mod:`airflow.sensors.weekday_sensor`
 * :mod:`airflow.sensors.external_task_sensor`
 * :mod:`airflow.sensors.sql_sensor`
 * :mod:`airflow.sensors.time_delta_sensor`
@@ -1238,9 +1238,9 @@ communication protocols or interface.
 
    * - Filesystem
      -
-     - :mod:`airflow.contrib.hooks.fs_hook`
+     - :mod:`airflow.hooks.filesystem`
      -
-     - :mod:`airflow.contrib.sensors.file_sensor`
+     - :mod:`airflow.sensors.filesystem`
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      -

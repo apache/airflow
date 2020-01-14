@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,26 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.kubernetes_engine`."""
-
-import warnings
-
-from airflow.gcp.hooks.kubernetes_engine import GKEHook
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.kubernetes_engine`",
-    DeprecationWarning, stacklevel=2
-)
-
-
-class GKEClusterHook(GKEHook):
-    """
-    This class is deprecated. Please use `airflow.gcp.hooks.container.GKEHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. Please use `airflow.gcp.hooks.container.GKEHook`.",
-            DeprecationWarning, stacklevel=2
-        )
-        super().__init__(*args, **kwargs)
+---
+version: "2.2"
+services:
+  airflow-testing:
+    environment:
+      - BACKEND=postgres
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://postgres:airflow@postgres/airflow
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres:9.6
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "${POSTGRES_HOST_PORT}:5432"

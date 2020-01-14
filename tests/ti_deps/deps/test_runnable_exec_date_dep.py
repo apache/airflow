@@ -31,7 +31,7 @@ class TestRunnableExecDateDep(unittest.TestCase):
 
     def _get_task_instance(self, execution_date, dag_end_date=None, task_end_date=None):
         dag = Mock(end_date=dag_end_date)
-        task = Mock(dag=dag, end_date=task_end_date, pool_capacity=1)
+        task = Mock(dag=dag, end_date=task_end_date)
         return TaskInstance(task=task, execution_date=execution_date)
 
     @freeze_time('2016-01-01')

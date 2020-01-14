@@ -31,7 +31,7 @@ from airflow.utils.decorators import apply_defaults
 WILDCARD = "*"
 
 
-class GcsToGDriveOperator(BaseOperator):
+class GCSToGoogleDriveOperator(BaseOperator):
     """
     Copies objects from a Google Cloud Storage service service to Google Drive service, with renaming
     if requested.

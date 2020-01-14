@@ -22,10 +22,24 @@ This module is deprecated. Please use `airflow.operators.gcs_to_bq`.
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.operators.gcs_to_bq import GoogleCloudStorageToBigQueryOperator  # noqa
+from airflow.operators.gcs_to_bq import GCSToBigQueryOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.gcs_to_bq`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GoogleCloudStorageToBigQueryOperator(GCSToBigQueryOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.gcs_to_bq.GCSToBigQueryOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.gcs_to_bq.GCSToBigQueryOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

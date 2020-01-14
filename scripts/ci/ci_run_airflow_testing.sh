@@ -51,7 +51,7 @@ export AIRFLOW_CI_VERBOSE=${VERBOSE}
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
-    DOCKER_COMPOSE_LOCAL=("-f" "${MY_DIR}/docker-compose-local.yml")
+    DOCKER_COMPOSE_LOCAL=("-f" "${MY_DIR}/docker-compose/local.yml")
 else
     DOCKER_COMPOSE_LOCAL=()
 fi
@@ -66,16 +66,29 @@ export HOST_USER_ID
 HOST_GROUP_ID="$(id -gr)"
 export HOST_GROUP_ID
 
-if [[ ${ENABLE_KIND_CLUSTER} == "true" ]]; then
+INTEGRATIONS=()
+
+ENABLED_INTEGRATIONS=${ENABLED_INTEGRATIONS:=""}
+
+for _INT in ${ENABLED_INTEGRATIONS}
+do
+    INTEGRATIONS+=("-f")
+    INTEGRATIONS+=("${MY_DIR}/docker-compose/integration-${_INT}.yml")
+done
+
+RUN_INTEGRATION_TESTS=${RUN_INTEGRATION_TESTS:=""}
+
+if [[ ${RUNTIME:=} == "kubernetes" ]]; then
     export KUBERNETES_MODE=${KUBERNETES_MODE:="git_mode"}
     export KUBERNETES_VERSION=${KUBERNETES_VERSION:="v1.15.3"}
 
     set +u
     # shellcheck disable=SC2016
     docker-compose --log-level INFO \
-      -f "${MY_DIR}/docker-compose.yml" \
-      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
-      -f "${MY_DIR}/docker-compose-kubernetes.yml" \
+      -f "${MY_DIR}/docker-compose/base.yml" \
+      -f "${MY_DIR}/docker-compose/backend-${BACKEND}.yml" \
+      -f "${MY_DIR}/docker-compose/runtime-kubernetes.yml" \
+      "${INTEGRATIONS[@]}" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
          run airflow-testing \
            '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \
@@ -87,8 +100,9 @@ else
     set +u
     # shellcheck disable=SC2016
     docker-compose --log-level INFO \
-      -f "${MY_DIR}/docker-compose.yml" \
-      -f "${MY_DIR}/docker-compose-${BACKEND}.yml" \
+      -f "${MY_DIR}/docker-compose/base.yml" \
+      -f "${MY_DIR}/docker-compose/backend-${BACKEND}.yml" \
+      "${INTEGRATIONS[@]}" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
          run airflow-testing \
            '/opt/airflow/scripts/ci/in_container/entrypoint_ci.sh "${@}"' \

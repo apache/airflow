@@ -19,7 +19,6 @@
 #
 
 import unittest
-from unittest import mock
 
 from airflow import DAG
 from airflow.models import TaskInstance
@@ -37,20 +36,6 @@ class TestDruidOperator(unittest.TestCase):
         }
         self.dag = DAG('test_dag_id', default_args=args)
 
-    def test_read_spec_from_file(self):
-        open_mock = mock.mock_open(read_data='{"some": "json"}')
-        with mock.patch(
-            'airflow.providers.apache.druid.operators.druid.open', open_mock, create=True
-        ) as open_mock:
-            druid = DruidOperator(
-                task_id='druid_indexing_job',
-                json_index_file='index_spec.json',
-                dag=self.dag
-            )
-
-            open_mock.assert_called_once_with('index_spec.json')
-            self.assertEqual(druid.index_spec_str, '{\n    "some": "json"\n}')
-
     def test_render_template(self):
         json_str = '''
             {
@@ -65,37 +50,31 @@ class TestDruidOperator(unittest.TestCase):
                 }
             }
         '''
-        open_mock = mock.mock_open(read_data=json_str)
-        with mock.patch(
-            'airflow.providers.apache.druid.operators.druid.open', open_mock, create=True
-        ) as open_mock:
-            operator = DruidOperator(
-                task_id='spark_submit_job',
-                json_index_file='index_spec.json',
-                params={
-                    'index_type': 'index_hadoop',
-                    'datasource': 'datasource_prd'
-                },
-                dag=self.dag
-            )
-            ti = TaskInstance(operator, DEFAULT_DATE)
-            ti.render_templates()
-
-            open_mock.assert_called_once_with('index_spec.json')
-            expected = '''{
-    "datasource": "datasource_prd",
-    "spec": {
-        "dataSchema": {
-            "granularitySpec": {
-                "intervals": [
-                    "2017-01-01/2017-01-02"
-                ]
+        operator = DruidOperator(
+            task_id='spark_submit_job',
+            json_index_file=json_str,
+            params={
+                'index_type': 'index_hadoop',
+                'datasource': 'datasource_prd'
+            },
+            dag=self.dag
+        )
+        ti = TaskInstance(operator, DEFAULT_DATE)
+        ti.render_templates()
+        expected = '''
+            {
+                "type": "index_hadoop",
+                "datasource": "datasource_prd",
+                "spec": {
+                    "dataSchema": {
+                        "granularitySpec": {
+                            "intervals": ["2017-01-01/2017-01-02"]
+                        }
+                    }
+                }
             }
-        }
-    },
-    "type": "index_hadoop"
-}'''
-            self.assertEqual(expected, getattr(operator, 'index_spec_str'))
+        '''
+        self.assertEqual(expected, getattr(operator, 'json_index_file'))
 
 
 if __name__ == '__main__':

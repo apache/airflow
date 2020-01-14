@@ -23,6 +23,7 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import psycopg2.extras
+import pytest
 
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import Connection
@@ -144,6 +145,7 @@ class TestPostgresHook(unittest.TestCase):
             with conn.cursor() as cur:
                 cur.execute("DROP TABLE IF EXISTS {}".format(self.table))
 
+    @pytest.mark.backend("postgres")
     def test_copy_expert(self):
         open_mock = mock.mock_open(read_data='{"some": "json"}')
         with mock.patch('airflow.hooks.postgres_hook.open', open_mock):
@@ -160,6 +162,7 @@ class TestPostgresHook(unittest.TestCase):
             self.cur.copy_expert.assert_called_once_with(statement, open_mock.return_value)
             self.assertEqual(open_mock.call_args[0], (filename, "r+"))
 
+    @pytest.mark.backend("postgres")
     def test_bulk_load(self):
         hook = PostgresHook()
         input_data = ["foo", "bar", "baz"]
@@ -179,6 +182,7 @@ class TestPostgresHook(unittest.TestCase):
 
         self.assertEqual(sorted(input_data), sorted(results))
 
+    @pytest.mark.backend("postgres")
     def test_bulk_dump(self):
         hook = PostgresHook()
         input_data = ["foo", "bar", "baz"]

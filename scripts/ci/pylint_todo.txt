@@ -12,7 +12,7 @@
 ./airflow/contrib/hooks/dingding_hook.py
 ./airflow/contrib/hooks/discord_webhook_hook.py
 ./airflow/contrib/hooks/emr_hook.py
-./airflow/contrib/hooks/fs_hook.py
+./airflow/hooks/filesystem.py
 ./airflow/contrib/hooks/ftp_hook.py
 ./airflow/contrib/hooks/jenkins_hook.py
 ./airflow/contrib/hooks/openfaas_hook.py
@@ -83,7 +83,7 @@
 ./airflow/contrib/sensors/emr_base_sensor.py
 ./airflow/contrib/sensors/emr_job_flow_sensor.py
 ./airflow/contrib/sensors/emr_step_sensor.py
-./airflow/contrib/sensors/file_sensor.py
+./airflow/sensors/filesystem.py
 ./airflow/contrib/sensors/ftp_sensor.py
 ./airflow/providers/apache/hdfs/sensors/hdfs.py
 ./airflow/providers/jira/sensors/jira.py
@@ -98,7 +98,7 @@
 ./airflow/contrib/sensors/sagemaker_transform_sensor.py
 ./airflow/contrib/sensors/sagemaker_tuning_sensor.py
 ./airflow/contrib/sensors/wasb_sensor.py
-./airflow/contrib/sensors/weekday_sensor.py
+./airflow/sensors/weekday_sensor.py
 ./airflow/hooks/dbapi_hook.py
 ./airflow/hooks/docker_hook.py
 ./airflow/providers/apache/druid/hooks/druid.py

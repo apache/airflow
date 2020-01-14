@@ -17,7 +17,14 @@
 ---
 version: "2.2"
 services:
+  kerberos:
+    image: godatadriven/krb5-kdc-server
+    hostname: kerberos
+    domainname: example.com
   airflow-testing:
+    depends_on:
+      - kerberos
     environment:
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root@mysql/airflow
+      - INTEGRATION_KERBEROS=true
+      - KRB5_CONFIG=/etc/krb5.conf
+      - KRB5_KTNAME=/etc/airflow.keytab

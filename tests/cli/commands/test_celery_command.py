@@ -20,6 +20,7 @@ import unittest
 from argparse import Namespace
 
 import mock
+import pytest
 import sqlalchemy
 
 import airflow
@@ -62,6 +63,8 @@ class TestWorkerPrecheck(unittest.TestCase):
         self.assertEqual(airflow.settings.validate_session(), False)
 
 
+@pytest.mark.integration("redis")
+@pytest.mark.integration("rabbitmq")
 class TestWorkerServeLogs(unittest.TestCase):
 
     @classmethod
