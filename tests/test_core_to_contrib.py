@@ -1068,6 +1068,10 @@ SENSOR = [
         'airflow.providers.microsoft.azure.sensors.wasb.WasbPrefixSensor',
         'airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor',
     ),
+    (
+        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.AwsGlueCatalogPartitionSensor',
+        'airflow.contrib.sensors.aws_glue_catalog_partition_sensor.AwsGlueCatalogPartitionSensor',
+    ),
 ]
 
 PROTOCOLS = [

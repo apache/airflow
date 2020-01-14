@@ -21,8 +21,8 @@ import unittest
 
 import mock
 
-from airflow.contrib.sensors.aws_glue_catalog_partition_sensor import AwsGlueCatalogPartitionSensor
 from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
+from airflow.providers.amazon.aws.sensors.glue_catalog_partition import AwsGlueCatalogPartitionSensor
 
 try:
     from moto import mock_glue

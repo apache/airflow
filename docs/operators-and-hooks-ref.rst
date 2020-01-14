@@ -317,7 +317,7 @@ These integrations allow you to perform various operations within the Amazon Web
      -
      - :mod:`airflow.providers.amazon.aws.hooks.glue_catalog`
      -
-     - :mod:`airflow.contrib.sensors.aws_glue_catalog_partition_sensor`
+     - :mod:`airflow.providers.amazon.aws.sensors.glue_catalog_partition`
 
    * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
      -
