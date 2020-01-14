@@ -244,6 +244,10 @@ HOOK = [
         'airflow.providers.amazon.aws.hooks.glue_catalog.AwsGlueCatalogHook',
         'airflow.contrib.hooks.aws_glue_catalog_hook.AwsGlueCatalogHook',
     ),
+    (
+        'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook',
+        'airflow.contrib.hooks.aws_logs_hook.AwsLogsHook',
+    ),
 ]
 
 OPERATOR = [

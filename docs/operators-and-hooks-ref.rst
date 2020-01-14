@@ -333,7 +333,7 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__
      -
-     - :mod:`airflow.contrib.hooks.aws_logs_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.logs`
      -
      -
 

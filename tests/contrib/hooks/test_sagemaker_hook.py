@@ -25,11 +25,11 @@ from datetime import datetime
 import mock
 from tzlocal import get_localzone
 
-from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
 from airflow.contrib.hooks.sagemaker_hook import (
     LogState, SageMakerHook, secondary_training_status_changed, secondary_training_status_message,
 )
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 role = 'arn:aws:iam:role/test-role'

@@ -20,7 +20,7 @@
 
 import unittest
 
-from airflow.contrib.hooks.aws_logs_hook import AwsLogsHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 try:
     from moto import mock_logs
