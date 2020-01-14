@@ -20,7 +20,7 @@
 import unittest
 from unittest.mock import patch
 
-from airflow.contrib.sensors.celery_queue_sensor import CeleryQueueSensor
+from airflow.providers.celery.sensors.celery import CeleryQueueSensor
 
 
 class TestCeleryQueueSensor(unittest.TestCase):

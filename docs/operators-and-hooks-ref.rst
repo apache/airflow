@@ -1031,7 +1031,7 @@ These integrations allow you to perform various operations using various softwar
      -
      -
      -
-     - :mod:`airflow.contrib.sensors.celery_queue_sensor`
+     - :mod:`airflow.providers.celery.sensors.celery`
 
    * - `Docker <https://docs.docker.com/install/>`__
      -

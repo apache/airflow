@@ -132,6 +132,8 @@ All operators are in the following packages:
 
   airflow/providers/sftp/sensors/index
 
+  airflow/providers/celery/sensors/index
+
 .. _pythonapi:hooks:
 
 Hooks
