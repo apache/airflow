@@ -19,5 +19,6 @@ version: "2.2"
 services:
   airflow-testing:
     environment:
+      - BACKEND=sqlite
       - AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////root/airflow/airflow.db
       - AIRFLOW__CORE__EXECUTOR=SequentialExecutor

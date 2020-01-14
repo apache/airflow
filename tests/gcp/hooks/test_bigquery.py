@@ -999,6 +999,26 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         assert method_execute.call_count == 1
         self.assertEqual(schema, result)
 
+    @mock.patch(
+        'airflow.gcp.hooks.base.CloudBaseHook._get_credentials_and_project_id',
+        return_value=(CREDENTIALS, PROJECT_ID)
+    )
+    @mock.patch("airflow.gcp.hooks.bigquery.BigQueryHook.get_service")
+    def test_get_schema_other_project(self, mock_get_service, mock_get_creds_and_proj_id):
+        other_project = "another-project"
+        schema = "SCHEMA"
+        method_get = mock_get_service.return_value.tables.return_value.get
+        method_execute = method_get.return_value.execute
+        method_execute.return_value = {"schema": schema}
+
+        bq_hook = hook.BigQueryHook()
+        cursor = bq_hook.get_cursor()
+        result = cursor.get_schema(dataset_id=DATASET_ID, table_id=TABLE_ID, project_id=other_project)
+
+        method_get.assert_called_once_with(projectId=other_project, datasetId=DATASET_ID, tableId=TABLE_ID)
+        assert method_execute.call_count == 1
+        self.assertEqual(schema, result)
+
 
 class TestTableDataOperations(unittest.TestCase):
     @mock.patch(

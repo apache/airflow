@@ -29,7 +29,7 @@ from enum import Enum
 from typing import List, Optional
 
 from airflow.gcp.hooks.dataflow import DataflowHook
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version
@@ -445,7 +445,7 @@ class GoogleCloudBucketHelper:
     def __init__(self,
                  gcp_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None) -> None:
-        self._gcs_hook = GoogleCloudStorageHook(gcp_conn_id, delegate_to)
+        self._gcs_hook = GCSHook(gcp_conn_id, delegate_to)
 
     def google_cloud_to_local(self, file_name: str) -> str:
         """

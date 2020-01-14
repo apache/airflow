@@ -19,6 +19,7 @@
 
 _BREEZE_ALLOWED_PYTHON_VERSIONS=" 3.6 3.7 "
 _BREEZE_ALLOWED_BACKENDS=" sqlite mysql postgres "
+_BREEZE_ALLOWED_INTEGRATIONS=" cassandra kerberos mongo openldap rabbitmq redis all "
 _BREEZE_ALLOWED_KUBERNETES_MODES=" persistent_mode git_mode "
 _BREEZE_ALLOWED_KUBERNETES_VERSIONS=" v1.15.3 v1.16.2 "
 _BREEZE_ALLOWED_STATIC_CHECKS=" all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck"
@@ -26,8 +27,8 @@ _BREEZE_DEFAULT_DOCKERHUB_USER="apache"
 _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
 
 _BREEZE_SHORT_OPTIONS="
-h P: B: K Z X
-M: V: N
+h P: B: I: K Z X
+M: V:
 s b O N
 v y n C A
 r p R L u
@@ -36,8 +37,8 @@ t: d: k x: S: F:
 "
 
 _BREEZE_LONG_OPTIONS="
-help python: backend: start-kind-cluster recreate-kind-cluster stop-kind-cluster
-kubernetes-mode: kubernetes-version: no-deps
+help python: backend: integration: start-kind-cluster recreate-kind-cluster stop-kind-cluster
+kubernetes-mode: kubernetes-version:
 skip-mounting-local-sources build-only build-docs
 verbose assume-yes assume-no toggle-suppress-cheatsheet toggle-suppress-asciiart
 force-build-images force-pull-images force-clean-images use-local-cache push-images
@@ -55,6 +56,8 @@ function _get_known_values_breeze {
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_PYTHON_VERSIONS} ;;
         -B | --backend )
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_BACKENDS} ;;
+        -I | --integration )
+            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INTEGRATIONS} ;;
         -M | --kubernetes-mode )
             _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_MODES} ;;
         -V | --kubernetes-version )

@@ -22,12 +22,39 @@ This module is deprecated. Please use `airflow.gcp.operators.gcs`.
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.gcs import (  # noqa
-    GoogleCloudStorageBucketCreateAclEntryOperator, GoogleCloudStorageObjectCreateAclEntryOperator,
-)
+from airflow.gcp.operators.gcs import GCSBucketCreateAclEntryOperator, GCSObjectCreateAclEntryOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.gcs`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GoogleCloudStorageBucketCreateAclEntryOperator(GCSBucketCreateAclEntryOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.gcs.GCSBucketCreateAclEntryOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.gcs.GCSBucketCreateAclEntryOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GoogleCloudStorageObjectCreateAclEntryOperator(GCSObjectCreateAclEntryOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.gcs.GCSObjectCreateAclEntryOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.gcs.GCSObjectCreateAclEntryOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

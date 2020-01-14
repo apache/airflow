@@ -42,8 +42,8 @@ HOST_GROUP_ID="$(id -gr)"
 export HOST_GROUP_ID
 
 docker-compose \
-    -f "${MY_DIR}/docker-compose.yml" \
-    -f "${MY_DIR}/docker-compose-local.yml" \
-    run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh
+    -f "${MY_DIR}/docker-compose/base.yml" \
+    -f "${MY_DIR}/docker-compose/local.yml" \
+    run airflow-testing /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh
 
 script_end

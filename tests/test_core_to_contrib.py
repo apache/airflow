@@ -69,7 +69,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook",
     ),
     (
-        "airflow.gcp.hooks.gcs.GoogleCloudStorageHook",
+        "airflow.gcp.hooks.gcs.GCSHook",
         "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
     ),
     (
@@ -211,6 +211,10 @@ HOOK = [
     (
         'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook',
         'airflow.hooks.webhdfs_hook.WebHDFSHook',
+    ),
+    (
+        'airflow.hooks.filesystem.FSHook',
+        'airflow.contrib.hooks.fs_hook.FSHook',
     ),
 ]
 
@@ -693,63 +697,63 @@ OPERATOR = [
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocClusterCreateOperator",
+        "operators.dataproc.DataprocCreateClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocClusterDeleteOperator",
+        "operators.dataproc.DataprocDeleteClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocClusterScaleOperator",
+        "operators.dataproc.DataprocScaleClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcHadoopOperator",
+        "operators.dataproc.DataprocSubmitHadoopJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcHiveOperator",
+        "operators.dataproc.DataprocSubmitHiveJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHiveOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcJobBaseOperator",
+        "operators.dataproc.DataprocJobBaseOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcPigOperator",
+        "operators.dataproc.DataprocSubmitPigJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPigOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcPySparkOperator",
+        "operators.dataproc.DataprocSubmitPySparkJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcSparkOperator",
+        "operators.dataproc.DataprocSubmitSparkJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcSparkSqlOperator",
+        "operators.dataproc.DataprocSubmitSparkSqlJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator",
+        "operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator",
         "airflow.contrib.operators.dataproc_operator."
         "DataprocWorkflowTemplateInstantiateInlineOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocWorkflowTemplateInstantiateOperator",
+        "operators.dataproc.DataprocInstantiateWorkflowTemplateOperator",
         "airflow.contrib.operators.dataproc_operator."
         "DataprocWorkflowTemplateInstantiateOperator",
     ),
@@ -790,27 +794,27 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator",
+        "airflow.gcp.operators.gcs.GCSBucketCreateAclEntryOperator",
         "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator",
+        "airflow.gcp.operators.gcs.GCSObjectCreateAclEntryOperator",
         "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator",
+        "airflow.gcp.operators.gcs.GCSDeleteObjectsOperator",
         "airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageDownloadOperator",
+        "airflow.gcp.operators.gcs.GCSToLocalOperator",
         "airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageListOperator",
+        "airflow.gcp.operators.gcs.GCSListObjectsOperator",
         "airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator",
+        "airflow.gcp.operators.gcs.GCSCreateBucketOperator",
         "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
     ),
     (
@@ -888,19 +892,19 @@ SENSOR = [
         "airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectSensor",
+        "airflow.gcp.sensors.gcs.GCSObjectExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectUpdatedSensor",
+        "airflow.gcp.sensors.gcs.GCSObjectUpdateSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStoragePrefixSensor",
+        "airflow.gcp.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStorageUploadSessionCompleteSensor",
+        "airflow.gcp.sensors.gcs.GCSUploadSessionCompleteSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor",
     ),
     (
@@ -938,6 +942,14 @@ SENSOR = [
     (
         'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensor',
         'airflow.sensors.hdfs_sensor.HdfsSensor',
+    ),
+    (
+        'airflow.sensors.weekday_sensor.DayOfWeekSensor',
+        'airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor',
+    ),
+    (
+        'airflow.sensors.filesystem.FileSensor',
+        'airflow.contrib.sensors.file_sensor.FileSensor',
     ),
 ]
 

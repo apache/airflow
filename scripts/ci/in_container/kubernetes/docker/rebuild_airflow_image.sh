@@ -23,6 +23,8 @@ export AIRFLOW_SOURCES
 # shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/../../_in_container_utils.sh"
 
+export OUTPUT_LOG=${AIRFLOW_SOURCES}/logs/rebuild_airflow_image.log
+
 assert_in_container
 
 in_container_script_start
@@ -36,6 +38,7 @@ cp /entrypoint.sh scripts/docker/
 echo
 echo "Building image from ${AIRFLOW_CI_IMAGE} with latest sources"
 echo
+start_output_heartbeat "Rebuilding Kubernetes image" 3
 docker build \
     --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
@@ -46,7 +49,7 @@ docker build \
     --cache-from "${AIRFLOW_CI_IMAGE}" \
     --tag="${AIRFLOW_CI_IMAGE}" \
     --target="main" \
-    -f Dockerfile .
+    -f Dockerfile . >> "${OUTPUT_LOG}"
 echo
 echo "Adding kubernetes-specific scripts to basic CI image."
 echo "Building ${AIRFLOW_KUBERNETES_IMAGE} from ${AIRFLOW_CI_IMAGE}"
@@ -55,7 +58,7 @@ docker build \
     --build-arg AIRFLOW_CI_IMAGE="${AIRFLOW_CI_IMAGE}" \
     --cache-from "${AIRFLOW_CI_IMAGE}" \
     --tag="${AIRFLOW_KUBERNETES_IMAGE}" \
-    -f- . <<EOF
+    -f- . >> "${OUTPUT_LOG}" <<EOF
 ARG AIRFLOW_CI_IMAGE
 FROM ${AIRFLOW_CI_IMAGE}
 
@@ -68,9 +71,9 @@ COPY airflow/ ${AIRFLOW_SOURCES}/airflow/
 
 ENTRYPOINT ["/bootstrap.sh"]
 EOF
+stop_output_heartbeat
 
-start_output_heartbeat "Loading image to kubernetes cluster" 10
-
+start_output_heartbeat "Loading image to Kind cluster" 10
 echo
 echo "Loading the ${AIRFLOW_KUBERNETES_IMAGE} to cluster ${CLUSTER_NAME} from docker"
 echo

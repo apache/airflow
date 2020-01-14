@@ -43,37 +43,62 @@ jobs:
         PYTHON_VERSION=3.6
       stage: pre-test
       script: ./scripts/ci/ci_docs.sh
-    - name: "Tests postgres kubernetes python 3.6 (persistent)"
+    - name: "Tests [Postgres][3.6][Kubernetes][persistent]"
       env: >-
         BACKEND=postgres
         PYTHON_VERSION=3.6
+        RUNTIME=kubernetes
         ENABLE_KIND_CLUSTER=true
         KUBERNETES_MODE=persistent_mode
         KUBERNETES_VERSION=v1.15.3
       python: "3.6"
       stage: test
-    - name: "Tests postgres kubernetes python 3.6 (git)"
+    - name: "Tests [Postgres][3.7][Kubernetes][git]"
       env: >-
         BACKEND=postgres
-        PYTHON_VERSION=3.6
+        PYTHON_VERSION=3.7
+        RUNTIME=kubernetes
         ENABLE_KIND_CLUSTER=true
         KUBERNETES_MODE=git_mode
         KUBERNETES_VERSION=v1.15.3
       python: "3.6"
       stage: test
-    - name: "Tests postgres python 3.6"
+    - name: "Tests [Postgres][3.6][integrations]"
+      env: >-
+        BACKEND=postgres
+        PYTHON_VERSION=3.6
+        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
+        RUN_INTEGRATION_TESTS=all
+      stage: test
+    - name: "Tests [Postgres][3.6]"
       env: >-
         BACKEND=postgres
         PYTHON_VERSION=3.6
       stage: test
-    - name: "Tests sqlite python 3.6"
-      env:
+    - name: "Tests [Sqlite][3.7][integrations]"
+      env: >-
+        BACKEND=sqlite
+        PYTHON_VERSION=3.7
+        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
+        RUN_INTEGRATION_TESTS=all
+      stage: test
+    - name: "Tests [Sqlite][3.6]"
+      env: >-
         BACKEND=sqlite
         PYTHON_VERSION=3.6
       stage: test
-    - name: "Tests mysql python 3.7"
-      env:
+    - name: "Tests [MySQL][3.6][integrations]"
+      env: >-
         BACKEND=mysql
+        PYTHON_VERSION=3.6
+        ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
+        RUN_INTEGRATION_TESTS=all
+      stage: test
+      script: ./scripts/ci/ci_run_airflow_testing.sh tests/tests_core.py
+    - name: "Tests [MySQL][3.7][kerberos]"
+      env: >-
+        BACKEND=mysql
+        ENABLED_INTEGRATIONS="kerberos"
         PYTHON_VERSION=3.7
       stage: test
   services:

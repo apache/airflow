@@ -26,7 +26,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.utils.decorators import apply_defaults
@@ -241,7 +241,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
             delegate_to=self.delegate_to,
             api_version=self.api_version,
         )
-        gcs_hook = GoogleCloudStorageHook(
+        gcs_hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
 

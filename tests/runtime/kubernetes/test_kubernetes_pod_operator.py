@@ -19,11 +19,11 @@ import json
 import os
 import shutil
 import unittest
-from subprocess import check_call
 from unittest import mock
 from unittest.mock import ANY
 
 import kubernetes.client.models as k8s
+import pytest
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
@@ -37,19 +37,8 @@ from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.version import version as airflow_version
 
-try:
-    check_call(["/usr/local/bin/kubectl", "get", "pods"])
-except Exception as e:  # pylint: disable=broad-except
-    if os.environ.get('ENABLE_KIND_CLUSTER') == "true":
-        raise e
-    else:
-        raise unittest.SkipTest(
-            "Kubernetes integration tests require a kubernetes cluster;"
-            "Skipping tests {}".format(e)
-        )
 
-
-# pylint: disable=unused-argument
+@pytest.mark.runtime("kubernetes")
 class TestKubernetesPodOperator(unittest.TestCase):
 
     def setUp(self):
