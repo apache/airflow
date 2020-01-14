@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

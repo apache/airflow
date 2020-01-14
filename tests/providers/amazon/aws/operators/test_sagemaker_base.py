@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
+from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
 
 config = {
     'key1': '1',

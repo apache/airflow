@@ -950,6 +950,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.s3_list.S3ListOperator',
         'airflow.contrib.operators.s3_list_operator.S3ListOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker_base.SageMakerBaseOperator',
+        'airflow.contrib.operators.sagemaker_base_operator.SageMakerBaseOperator',
+    ),
 ]
 
 SENSOR = [

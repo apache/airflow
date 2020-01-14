@@ -55,7 +55,7 @@
 ./airflow/providers/amazon/aws/operators/s3_list.py
 ./airflow/contrib/operators/s3_to_gcs_operator.py
 ./airflow/contrib/operators/s3_to_sftp_operator.py
-./airflow/contrib/operators/sagemaker_base_operator.py
+./airflow/providers/amazon/aws/operators/sagemaker_base.py
 ./airflow/contrib/operators/sagemaker_endpoint_config_operator.py
 ./airflow/contrib/operators/sagemaker_endpoint_operator.py
 ./airflow/contrib/operators/sagemaker_model_operator.py
