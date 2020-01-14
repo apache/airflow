@@ -72,7 +72,6 @@ class SnowflakeOperator(BaseOperator):
     def get_hook(self):
         """
         Create and return SnowflakeHook.
-        
         :return SnowflakeHook: An SnowflakeHook instance.
         """
         return SnowflakeHook(snowflake_conn_id=self.snowflake_conn_id,
