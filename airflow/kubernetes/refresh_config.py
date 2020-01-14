@@ -32,6 +32,15 @@ from kubernetes.config.exec_provider import ExecProvider
 from kubernetes.config.kube_config import KUBE_CONFIG_DEFAULT_LOCATION, KubeConfigLoader
 
 
+def _parse_timestamp(ts_str: str) -> int:
+    if ts_str[-1] == 'Z':
+        ts_str = ts_str[:-1] + '+0000'
+    expire_ts = calendar.timegm(
+        datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S%z").timetuple()
+    )
+    return expire_ts
+
+
 class RefreshKubeConfigLoader(KubeConfigLoader):
     """
     Patched KubeConfigLoader, this subclass takes expirationTimestamp into
@@ -57,11 +66,7 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
             self.token = "Bearer %s" % status['token']  # pylint: disable=W0201
             ts_str = status.get('expirationTimestamp')
             if ts_str:
-                if ts_str[-1] == 'Z':
-                    ts_str = ts_str[:-1] + '+0000'
-                self.api_key_expire_ts = calendar.timegm(
-                    datetime.strptime(ts_str, "%Y-%m-%dT%H:%M:%S%z").timetuple(),
-                )
+                self.api_key_expire_ts = _parse_timestamp(ts_str)
             return True
         except Exception as e:  # pylint: disable=W0703
             logging.error(str(e))
