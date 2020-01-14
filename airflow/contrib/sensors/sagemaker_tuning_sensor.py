@@ -18,7 +18,7 @@
 # under the License.
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.sensors.sagemaker_base_sensor import SageMakerBaseSensor
+from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
 from airflow.utils.decorators import apply_defaults
 
 

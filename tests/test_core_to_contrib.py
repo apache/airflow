@@ -1084,6 +1084,10 @@ SENSOR = [
         'airflow.providers.amazon.aws.sensors.emr_step.EmrStepSensor',
         'airflow.contrib.sensors.emr_step_sensor.EmrStepSensor',
     ),
+    (
+        'airflow.providers.amazon.aws.sensors.sagemaker_base.SageMakerBaseSensor',
+        'airflow.contrib.sensors.sagemaker_base_sensor.SageMakerBaseSensor',
+    ),
 ]
 
 PROTOCOLS = [
