@@ -94,15 +94,8 @@ if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     echo
 fi
 
-export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/tests/dags"
-
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
-
-export AIRFLOW__CORE__UNIT_TEST_MODE=True
-
-# Make sure all AWS API calls default to the us-east-1 region
-export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:='us-east-1'}
 
 # Fix codecov build path
 # TODO: Check this - this should be made travis-independent
