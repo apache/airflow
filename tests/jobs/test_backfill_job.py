@@ -24,13 +24,13 @@ import logging
 import threading
 import unittest
 
+import pytest
 import sqlalchemy
 from mock import Mock, patch
 from parameterized import parameterized
 
 from airflow import AirflowException, settings
 from airflow.bin import cli
-from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowTaskTimeout, DagConcurrencyLimitReached, NoAvailablePoolSlot, TaskConcurrencyLimitReached,
 )
@@ -130,8 +130,7 @@ class TestBackfillJob(unittest.TestCase):
 
         self.assertEqual(State.SUCCESS, dag_run.state)
 
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "concurrent access not supported in sqlite")
+    @pytest.mark.backend("postgres", "mysql")
     def test_trigger_controller_dag(self):
         dag = self.dagbag.get_dag('example_trigger_controller_dag')
         target_dag = self.dagbag.get_dag('example_trigger_target_dag')
@@ -160,8 +159,7 @@ class TestBackfillJob(unittest.TestCase):
 
         self.assertTrue(task_instances_list.append.called)
 
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "concurrent access not supported in sqlite")
+    @pytest.mark.backend("postgres", "mysql")
     def test_backfill_multi_dates(self):
         dag = self.dagbag.get_dag('example_bash_operator')
 
@@ -212,10 +210,7 @@ class TestBackfillJob(unittest.TestCase):
         dag.clear()
         session.close()
 
-    @unittest.skipIf(
-        "sqlite" in conf.get("core", "sql_alchemy_conn"),
-        "concurrent access not supported in sqlite",
-    )
+    @pytest.mark.backend("postgres", "mysql")
     @parameterized.expand(
         [
             [

@@ -728,6 +728,13 @@ class CLIFactory:
                 'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
                 'task_params', 'post_mortem'),
         },
+        {
+            'func': lazy_load_command('airflow.cli.commands.task_command.task_states_for_dag_run'),
+            'name': 'states_for_dag_run',
+            'help': "Get the status of all task instances in a dag run",
+            'args': (
+                'dag_id', 'execution_date', 'output'),
+        },
     )
     POOLS_COMMANDS = (
         {

@@ -67,8 +67,8 @@ function create_cluster() {
     echo
     echo "Connecting Kubernetes' worker and ccontrol plane to the network used by Breeze"
     echo
-    docker network connect ci_default "${CLUSTER_NAME}-control-plane"
-    docker network connect ci_default "${CLUSTER_NAME}-worker"
+    docker network connect docker-compose_default "${CLUSTER_NAME}-control-plane"
+    docker network connect docker-compose_default "${CLUSTER_NAME}-worker"
     echo
     echo "Connected Kubernetes' worker and ccontrol plane to the network used by Breeze"
     echo

@@ -36,7 +36,7 @@ from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.version import version
 
 
-class GoogleCloudStorageHook(CloudBaseHook):
+class GCSHook(CloudBaseHook):
     """
     Interact with Google Cloud Storage. This hook uses the Google Cloud Platform
     connection.

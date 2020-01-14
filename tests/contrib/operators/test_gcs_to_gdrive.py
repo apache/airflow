@@ -26,7 +26,7 @@ MODULE = "airflow.contrib.operators.gcs_to_gdrive_operator"
 
 
 class TestGcsToGDriveOperator(unittest.TestCase):
-    @mock.patch(MODULE + ".GoogleCloudStorageHook")
+    @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")
     @mock.patch(MODULE + ".tempfile.NamedTemporaryFile")
     def test_should_copy_single_file(self, mock_named_temporary_file, mock_gdrive, mock_gcs_hook):
@@ -61,7 +61,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
         )
 
     #
-    @mock.patch(MODULE + ".GoogleCloudStorageHook")
+    @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")
     @mock.patch(MODULE + ".tempfile.NamedTemporaryFile")
     def test_should_copy_files(self, mock_named_temporary_file, mock_gdrive, mock_gcs_hook):
@@ -97,7 +97,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
             ]
         )
 
-    @mock.patch(MODULE + ".GoogleCloudStorageHook")
+    @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")
     @mock.patch(MODULE + ".tempfile.NamedTemporaryFile")
     def test_should_move_files(self, mock_named_temporary_file, mock_gdrive, mock_gcs_hook):
@@ -135,7 +135,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
             ]
         )
 
-    @mock.patch(MODULE + ".GoogleCloudStorageHook")
+    @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")
     @mock.patch(MODULE + ".tempfile.NamedTemporaryFile")
     def test_should_raise_exception_on_multiple_wildcard(

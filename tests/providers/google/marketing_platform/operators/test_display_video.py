@@ -96,7 +96,7 @@ class TestGoogleDisplayVideo360GetReportOperator(TestCase):
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
-        "display_video.GoogleCloudStorageHook"
+        "display_video.GCSHook"
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."

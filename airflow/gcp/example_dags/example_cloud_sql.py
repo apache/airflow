@@ -37,9 +37,7 @@ from airflow.gcp.operators.cloud_sql import (
     CloudSQLDeleteInstanceDatabaseOperator, CloudSQLDeleteInstanceOperator, CloudSQLExportInstanceOperator,
     CloudSQLImportInstanceOperator, CloudSQLInstancePatchOperator, CloudSQLPatchInstanceDatabaseOperator,
 )
-from airflow.gcp.operators.gcs import (
-    GoogleCloudStorageBucketCreateAclEntryOperator, GoogleCloudStorageObjectCreateAclEntryOperator,
-)
+from airflow.gcp.operators.gcs import GCSBucketCreateAclEntryOperator, GCSObjectCreateAclEntryOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_cloudsql_arguments]
@@ -269,7 +267,7 @@ with models.DAG(
     # For export to work we need to add the Cloud SQL instance's Service Account
     # write access to the destination GCS bucket.
     # [START howto_operator_cloudsql_export_gcs_permissions]
-    sql_gcp_add_bucket_permission_task = GoogleCloudStorageBucketCreateAclEntryOperator(
+    sql_gcp_add_bucket_permission_task = GCSBucketCreateAclEntryOperator(
         entity="user-{{ task_instance.xcom_pull("
                "'sql_instance_create_task', key='service_account_email') "
                "}}",
@@ -301,7 +299,7 @@ with models.DAG(
     # For import to work we need to add the Cloud SQL instance's Service Account
     # read access to the target GCS object.
     # [START howto_operator_cloudsql_import_gcs_permissions]
-    sql_gcp_add_object_permission_task = GoogleCloudStorageObjectCreateAclEntryOperator(
+    sql_gcp_add_object_permission_task = GCSObjectCreateAclEntryOperator(
         entity="user-{{ task_instance.xcom_pull("
                "'sql_instance_create_task2', key='service_account_email')"
                " }}",
@@ -313,7 +311,7 @@ with models.DAG(
 
     # For import to work we also need to add the Cloud SQL instance's Service Account
     # write access to the whole bucket!.
-    sql_gcp_add_bucket_permission_2_task = GoogleCloudStorageBucketCreateAclEntryOperator(
+    sql_gcp_add_bucket_permission_2_task = GCSBucketCreateAclEntryOperator(
         entity="user-{{ task_instance.xcom_pull("
                "'sql_instance_create_task2', key='service_account_email') "
                "}}",
@@ -414,4 +412,4 @@ with models.DAG(
         >> sql_instance_read_replica_delete_task  # noqa
         >> sql_instance_delete_task  # noqa
         >> sql_instance_delete_2_task  # noqa
-     )
+    )

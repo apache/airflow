@@ -26,6 +26,7 @@ from unittest import mock
 # leave this it is used by the test worker
 # noinspection PyUnresolvedReferences
 import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=unused-import
+import pytest
 from celery import Celery, states as celery_states
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
@@ -71,8 +72,9 @@ class TestCeleryExecutor(unittest.TestCase):
                 set_event_loop(None)
 
     @parameterized.expand(_prepare_test_bodies())
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "sqlite is configured with SequentialExecutor")
+    @pytest.mark.integration("redis")
+    @pytest.mark.integration("rabbitmq")
+    @pytest.mark.backend("mysql", "postgres")
     def test_celery_integration(self, broker_url):
         with self._prepare_app(broker_url) as app:
             executor = celery_executor.CeleryExecutor()
@@ -127,8 +129,9 @@ class TestCeleryExecutor(unittest.TestCase):
         self.assertNotIn('success', executor.last_state)
         self.assertNotIn('fail', executor.last_state)
 
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "sqlite is configured with SequentialExecutor")
+    @pytest.mark.integration("redis")
+    @pytest.mark.integration("rabbitmq")
+    @pytest.mark.backend("mysql", "postgres")
     def test_error_sending_task(self):
         def fake_execute_command():
             pass

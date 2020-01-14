@@ -19,5 +19,7 @@ version: "2.2"
 services:
   airflow-testing:
     environment:
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow
-      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root@mysql/airflow
+      - RUNTIME=kubernetes
+      - KUBERNETES_MODE
+      - KUBERNETES_VERSION
+      - KIND_CLUSTER_OPERATION

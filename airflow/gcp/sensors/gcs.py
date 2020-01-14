@@ -25,12 +25,12 @@ from datetime import datetime
 from typing import Callable, List, Optional
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GoogleCloudStorageObjectSensor(BaseSensorOperator):
+class GCSObjectExistenceSensor(BaseSensorOperator):
     """
     Checks for the existence of a file in Google Cloud Storage.
 
@@ -66,7 +66,7 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
 
     def poke(self, context):
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
         return hook.exists(self.bucket, self.object)
@@ -81,7 +81,7 @@ def ts_function(context):
     return context['dag'].following_schedule(context['execution_date'])
 
 
-class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
+class GCSObjectUpdateSensor(BaseSensorOperator):
     """
     Checks if an object is updated in Google Cloud Storage.
 
@@ -123,13 +123,13 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
 
     def poke(self, context):
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
         return hook.is_updated_after(self.bucket, self.object, self.ts_func(context))
 
 
-class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
+class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
     """
     Checks for the existence of GCS objects at a given prefix, passing matches via XCom.
 
@@ -170,7 +170,7 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
     def poke(self, context):
         self.log.info('Sensor checks existence of objects: %s, %s',
                       self.bucket, self.prefix)
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
         self._matches = hook.list(self.bucket, prefix=self.prefix)
@@ -178,7 +178,7 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
 
     def execute(self, context):
         """Overridden to allow matches to be passed"""
-        super(GoogleCloudStoragePrefixSensor, self).execute(context)
+        super(GCSObjectsWtihPrefixExistenceSensor, self).execute(context)
         return self._matches
 
 
@@ -190,7 +190,7 @@ def get_time():
     return datetime.now()
 
 
-class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
+class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     """
     Checks for changes in the number of objects at prefix in Google Cloud Storage
     bucket and returns True if the inactivity period has passed with no
@@ -315,5 +315,5 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         return False
 
     def poke(self, context):
-        hook = GoogleCloudStorageHook()
+        hook = GCSHook()
         return self.is_bucket_updated(len(hook.list(self.bucket, prefix=self.prefix)))
