@@ -22,7 +22,6 @@ from builtins import str
 import requests
 import tenacity
 
-from airflow import conf
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
