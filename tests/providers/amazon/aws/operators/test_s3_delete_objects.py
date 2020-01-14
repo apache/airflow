@@ -23,7 +23,7 @@ import unittest
 import boto3
 from moto import mock_s3
 
-from airflow.contrib.operators.s3_delete_objects_operator import S3DeleteObjectsOperator
+from airflow.providers.amazon.aws.operators.s3_delete_objects import S3DeleteObjectsOperator
 
 
 class TestS3DeleteObjectsOperator(unittest.TestCase):

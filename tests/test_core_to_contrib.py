@@ -942,6 +942,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.s3_copy_object.S3CopyObjectOperator',
         'airflow.contrib.operators.s3_copy_object_operator.S3CopyObjectOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.s3_delete_objects.S3DeleteObjectsOperator',
+        'airflow.contrib.operators.s3_delete_objects_operator.S3DeleteObjectsOperator',
+    ),
 ]
 
 SENSOR = [
