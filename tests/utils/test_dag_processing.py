@@ -163,11 +163,11 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
         return self._result
 
 
-def fake_dag_file_processor_factory(file_path, zombies, pickle_dags):
+def fake_dag_file_processor_factory(file_path, zombies, dag_ids, pickle_dags):
     return FakeDagFileProcessorRunner(
         file_path,
         pickle_dags,
-        [],
+        dag_ids,
         zombies
     )
 
@@ -184,6 +184,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
+            dag_ids=[],
             pickle_dags=False,
             async_mode=True)
 
@@ -206,6 +207,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
+            dag_ids=[],
             pickle_dags=False,
             async_mode=True)
 
@@ -227,6 +229,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta.max,
             signal_conn=MagicMock(),
+            dag_ids=[],
             pickle_dags=False,
             async_mode=True)
 
@@ -291,6 +294,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                                                     1,
                                                     fake_dag_file_processor_factory,
                                                     timedelta.max,
+                                                    [],
                                                     False,
                                                     async_mode)
             processor_agent.start()
@@ -317,6 +321,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta(seconds=5),
             signal_conn=MagicMock(),
+            dag_ids=[],
             pickle_dags=False,
             async_mode=True)
 
@@ -337,6 +342,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_factory=MagicMock().return_value,
             processor_timeout=timedelta(seconds=5),
             signal_conn=MagicMock(),
+            dag_ids=[],
             pickle_dags=False,
             async_mode=True)
 
@@ -347,10 +353,10 @@ class TestDagFileProcessorManager(unittest.TestCase):
         mock_dag_file_processor.kill.assert_not_called()
 
 
-def processor_factory(file_path, zombies, pickle_dags):
+def processor_factory(file_path, zombies, dag_ids, pickle_dags):
     return DagFileProcessorProcess(file_path,
                                    pickle_dags,
-                                   [],
+                                   dag_ids,
                                    zombies)
 
 
@@ -394,6 +400,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                     0,
                                                     processor_factory,
                                                     timedelta.max,
+                                                    [],
                                                     False,
                                                     async_mode)
             processor_agent.start()
@@ -413,6 +420,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 1,
                                                 processor_factory,
                                                 timedelta.max,
+                                                [],
                                                 False,
                                                 async_mode)
         processor_agent.start()
@@ -443,6 +451,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 0,
                                                 processor_factory,
                                                 timedelta.max,
+                                                [],
                                                 False,
                                                 async_mode)
         processor_agent.start()

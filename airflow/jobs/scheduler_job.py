@@ -19,7 +19,7 @@
 #
 
 import logging
-import multiprocessing
+import multiprocessing as mp
 import os
 import signal
 import sys
@@ -37,7 +37,7 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
@@ -129,13 +129,13 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
 
         set_context(log, file_path)
 
-        if multiprocessing.get_start_method() != "fork":
-            for section, key in inherited_conf.items():
-                value = inherited_conf.get(section, key)
-                if value not in conf:
-                    conf.set(section, key, value.replace("%", "%%"))
+        if inherited_conf is not None:  # pylint: disable=too-many-nested-blocks
+            for section in inherited_conf:
+                for key, value in inherited_conf[section].items():
+                    if value not in conf:
+                        conf.set(section, key, value.replace("%", "%%"))
 
-        setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
+                    setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
 
         try:
             # redirect stdout/stderr to log
@@ -177,7 +177,19 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         """
         Launch the process and start processing the DAG.
         """
-        self._parent_channel, _child_channel = multiprocessing.Pipe()
+        if conf.has_option('core', 'mp_start_method'):
+            mp_start_method = conf.get('core', 'mp_start_method')
+        else:
+            mp_start_method = mp.get_start_method()
+
+        possible_value_list = mp.get_all_start_methods()
+        if mp_start_method not in possible_value_list:
+            raise AirflowConfigException(
+                "mp_start_method should not be " + mp_start_method +
+                ". Possible value is one of " + str(possible_value_list))
+        cxt = mp.get_context(mp_start_method)
+
+        self._parent_channel, _child_channel = cxt.Pipe()
         args_list = [
             _child_channel,
             self.file_path,
@@ -187,10 +199,10 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
             self._zombies
         ]
 
-        if multiprocessing.get_start_method() != "fork":
+        if cxt.get_start_method() != "fork":
             args_list.append(conf)
 
-        self._process = multiprocessing.Process(
+        self._process = cxt.Process(
             target=type(self)._run_file_processor,
             args=args_list,
             name="DagFileProcessor{}-Process".format(self._instance_id)
@@ -862,6 +874,19 @@ class DagFileProcessor(LoggingMixin):
         return simple_dags, len(dagbag.import_errors)
 
 
+# To be picklable for both Linux and macOS,
+# this function is needed to be defined at module scope.
+# SchedulerJob is not pickleable for Linux for now so
+# this function can't be a member of the class.
+def processor_factory(file_path, zombies, dag_ids, pickle_dags):
+    return DagFileProcessorProcess(
+        file_path=file_path,
+        pickle_dags=pickle_dags,
+        dag_id_white_list=dag_ids,
+        zombies=zombies
+    )
+
+
 class SchedulerJob(BaseJob):
     """
     This SchedulerJob runs for a specific time interval and schedules the jobs
@@ -1471,14 +1496,6 @@ class SchedulerJob(BaseJob):
                         session.merge(ti)
                         session.commit()
 
-    def processor_factory(self, file_path, zombies, pickle_dags):
-        return DagFileProcessorProcess(
-            file_path=file_path,
-            pickle_dags=pickle_dags,
-            dag_id_white_list=self.dag_ids,
-            zombies=zombies
-        )
-
     def _execute(self):
         self.log.info("Starting the scheduler")
 
@@ -1503,8 +1520,9 @@ class SchedulerJob(BaseJob):
         self.processor_agent = DagFileProcessorAgent(self.subdir,
                                                      known_file_paths,
                                                      self.num_runs,
-                                                     self.processor_factory,
+                                                     processor_factory,
                                                      processor_timeout,
+                                                     self.dag_ids,
                                                      pickle_dags,
                                                      async_mode)
 

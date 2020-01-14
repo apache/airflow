@@ -19,7 +19,7 @@
 import enum
 import importlib
 import logging
-import multiprocessing
+import multiprocessing as mp
 import os
 import signal
 import sys
@@ -37,7 +37,7 @@ from tabulate import tabulate
 import airflow.models
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import Connection, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
@@ -292,6 +292,7 @@ class DagFileProcessorAgent(LoggingMixin):
                  max_runs,
                  processor_factory,
                  processor_timeout,
+                 dag_ids,
                  pickle_dags,
                  async_mode):
         """
@@ -308,6 +309,8 @@ class DagFileProcessorAgent(LoggingMixin):
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessorProcess)
         :param processor_timeout: How long to wait before timing out a DAG file processor
         :type processor_timeout: timedelta
+        :param dag_ids: if specified, only schedule tasks with these DAG IDs
+        :type dag_ids: list[str]
         :param pickle_dags: whether to pickle DAGs.
         :type: pickle_dags: bool
         :param async_mode: Whether to start agent in async mode
@@ -319,6 +322,7 @@ class DagFileProcessorAgent(LoggingMixin):
         self._max_runs = max_runs
         self._processor_factory = processor_factory
         self._processor_timeout = processor_timeout
+        self._dag_ids = dag_ids
         self._pickle_dags = pickle_dags
         self._async_mode = async_mode
         # Map from file path to the processor
@@ -336,7 +340,19 @@ class DagFileProcessorAgent(LoggingMixin):
         """
         Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
         """
-        self._parent_signal_conn, child_signal_conn = multiprocessing.Pipe()
+        if conf.has_option('core', 'mp_start_method'):
+            mp_start_method = conf.get('core', 'mp_start_method')
+        else:
+            mp_start_method = mp.get_start_method()
+
+        possible_value_list = mp.get_all_start_methods()
+        if mp_start_method not in possible_value_list:
+            raise AirflowConfigException(
+                "mp_start_method should not be " + mp_start_method +
+                ". Possible value is one of " + str(possible_value_list))
+        cxt = mp.get_context(mp_start_method)
+
+        self._parent_signal_conn, child_signal_conn = cxt.Pipe()
         args_list = [
             self._dag_directory,
             self._file_paths,
@@ -344,14 +360,15 @@ class DagFileProcessorAgent(LoggingMixin):
             self._processor_factory,
             self._processor_timeout,
             child_signal_conn,
+            self._dag_ids,
             self._pickle_dags,
             self._async_mode
         ]
 
-        if multiprocessing.get_start_method() != "fork":
+        if cxt.get_start_method() != "fork":
             args_list.append(conf)
 
-        self._process = multiprocessing.Process(
+        self._process = cxt.Process(
             target=type(self)._run_processor_manager,
             args=args_list
         )
@@ -398,6 +415,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                processor_factory,
                                processor_timeout,
                                signal_conn,
+                               dag_ids,
                                pickle_dags,
                                async_mode,
                                inherited_conf=None):
@@ -406,12 +424,11 @@ class DagFileProcessorAgent(LoggingMixin):
         # to kill all sub-process of this at the OS-level, rather than having
         # to iterate the child processes
         os.setpgid(0, 0)
-
-        if multiprocessing.get_start_method() != "fork":
-            for section, key in inherited_conf.items():
-                value = inherited_conf.get(section, key)
-                if value not in conf:
-                    conf.set(section, key, value.replace("%", "%%"))
+        if inherited_conf is not None:  # pylint: disable=too-many-nested-blocks
+            for section in inherited_conf:
+                for key, value in inherited_conf[section].items():
+                    if value not in conf:
+                        conf.set(section, key, value.replace("%", "%%"))
 
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         # Reload configurations and settings to avoid collision with parent process.
@@ -432,6 +449,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                                     processor_factory,
                                                     processor_timeout,
                                                     signal_conn,
+                                                    dag_ids,
                                                     pickle_dags,
                                                     async_mode)
 
@@ -546,6 +564,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
     :type processor_timeout: timedelta
     :param signal_conn: connection to communicate signal with processor agent.
     :type signal_conn: airflow.models.connection.Connection
+    :param dag_ids: if specified, only schedule tasks with these DAG IDs
+    :type dag_ids: list[str]
     :param pickle_dags: whether to pickle DAGs.
     :type pickle_dags: bool
     :param async_mode: whether to start the manager in async mode
@@ -559,6 +579,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                  processor_factory: Callable[[str, List[Any]], AbstractDagFileProcessorProcess],
                  processor_timeout: timedelta,
                  signal_conn: Connection,
+                 dag_ids: List[str],
                  pickle_dags: bool,
                  async_mode: bool = True):
         self._file_paths = file_paths
@@ -568,6 +589,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         self._processor_factory = processor_factory
         self._signal_conn = signal_conn
         self._pickle_dags = pickle_dags
+        self._dag_ids = dag_ids
         self._async_mode = async_mode
         self._parsing_start_time: Optional[datetime] = None
 
@@ -1077,7 +1099,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         # Start more processors if we have enough slots and files to process
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.pop(0)
-            processor = self._processor_factory(file_path, self._zombies, self._pickle_dags)
+            processor = self._processor_factory(file_path, self._zombies, self._dag_ids, self._pickle_dags)
             Stats.incr('dag_processing.processes')
 
             processor.start()
