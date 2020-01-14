@@ -22,8 +22,8 @@ import unittest
 import mock
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.operators.sagemaker_endpoint_operator import SageMakerEndpointOperator
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.operators.sagemaker_endpoint import SageMakerEndpointOperator
 
 role = 'arn:aws:iam:role/test-role'
 bucket = 'test-bucket'
