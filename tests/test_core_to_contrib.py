@@ -926,6 +926,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.ecs.ECSOperator',
         'airflow.contrib.operators.ecs_operator.ECSOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator',
+        'airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator',
+    ),
 ]
 
 SENSOR = [
