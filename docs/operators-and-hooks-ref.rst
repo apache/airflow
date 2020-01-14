@@ -380,7 +380,7 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_model`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_training`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_transform`,
-       :mod:`airflow.contrib.operators.sagemaker_tuning_operator`
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_tuning`
      - :mod:`airflow.contrib.sensors.sagemaker_base_sensor`,
        :mod:`airflow.contrib.sensors.sagemaker_endpoint_sensor`,
        :mod:`airflow.contrib.sensors.sagemaker_training_sensor`,

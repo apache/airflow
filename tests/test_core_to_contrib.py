@@ -974,6 +974,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.sagemaker_transform.SageMakerTransformOperator',
         'airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker_tuning.SageMakerTuningOperator',
+        'airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator',
+    ),
 ]
 
 SENSOR = [
