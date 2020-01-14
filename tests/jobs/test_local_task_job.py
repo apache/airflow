@@ -110,6 +110,7 @@ class TestLocalTaskJob(unittest.TestCase):
 
             invalid_ti = dr.get_task_instance(task_id=invalid_task.task_id,
                                               session=session)
+            # task that returns invalid return code should fail.
             self.assertEqual(invalid_ti.state, State.FAILED)
             self.assertIsNotNone(invalid_ti.pid)
 
@@ -126,6 +127,7 @@ class TestLocalTaskJob(unittest.TestCase):
             valid_job.run()
             valid_ti = dr.get_task_instance(task_id=valid_task.task_id,
                                             session=session)
+            # task that returns valid return code should succeed.
             self.assertEqual(valid_ti.state, State.SUCCESS)
             self.assertIsNotNone(valid_ti.pid)
 
