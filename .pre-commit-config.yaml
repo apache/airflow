@@ -151,7 +151,7 @@ repos:
       - id: check-xml
       - id: trailing-whitespace
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.4.2
+    rev: v1.4.4
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn

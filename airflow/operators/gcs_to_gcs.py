@@ -23,7 +23,7 @@ import warnings
 from typing import Optional
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -160,7 +160,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
 
     def execute(self, context):
 
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -292,7 +292,7 @@ class GoogleCloudStorageSynchronizeBuckets(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )

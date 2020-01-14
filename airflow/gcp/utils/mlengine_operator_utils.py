@@ -29,7 +29,7 @@ from urllib.parse import urlsplit
 import dill
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.gcp.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.gcp.operators.mlengine import MLEngineStartBatchPredictionJobOperator
 from airflow.operators.python_operator import PythonOperator
@@ -244,7 +244,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
             raise ValueError("Wrong format prediction_path: {}".format(prediction_path))
         summary = os.path.join(obj.strip("/"),
                                "prediction.summary.json")
-        gcs_hook = GoogleCloudStorageHook()
+        gcs_hook = GCSHook()
         summary = json.loads(gcs_hook.download(bucket, summary))
         return validate_fn(summary)
 

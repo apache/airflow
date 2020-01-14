@@ -16,12 +16,12 @@
 # under the License.
 import contextlib
 import io
-import textwrap
 import unittest
 from unittest import mock
 
 from airflow.bin import cli
 from airflow.cli.commands import config_command
+from tests.test_utils.config import conf_vars
 
 
 class TestCliConfig(unittest.TestCase):
@@ -29,24 +29,17 @@ class TestCliConfig(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = cli.CLIFactory.get_parser()
 
+    @mock.patch("airflow.cli.commands.config_command.io.StringIO")
     @mock.patch("airflow.cli.commands.config_command.conf")
-    def test_cli_initdb(self, mock_conf):
-        mock_conf.as_dict.return_value = {
-            "SECTION1": {"KEY1": "VAL1", "KEY2": "VAL2"},
-            "SECTION2": {"KEY3": "VAL3", "KEY4": "VAL4"},
-        }
+    def test_cli_show_config_should_write_data(self, mock_conf, mock_stringio):
+        config_command.show_config(self.parser.parse_args(['config']))
+        mock_conf.write.assert_called_once_with(mock_stringio.return_value.__enter__.return_value)
+
+    @conf_vars({
+        ('core', 'testkey'): 'test_value'
+    })
+    def test_cli_show_config_should_display_key(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(['config']))
-
-        stdout = temp_stdout.getvalue()
-        mock_conf.as_dict.assert_called_once_with(display_sensitive=True, raw=True)
-        ini_file = textwrap.dedent("""
-        [SECTION1]
-        KEY1=VAL1
-        KEY2=VAL2
-
-        [SECTION2]
-        KEY3=VAL3
-        KEY4=VAL4
-        """).strip()
-        self.assertIn(ini_file, stdout)
+        self.assertIn('[core]', temp_stdout.getvalue())
+        self.assertIn('testkey = test_value', temp_stdout.getvalue())

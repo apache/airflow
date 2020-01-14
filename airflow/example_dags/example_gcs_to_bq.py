@@ -31,7 +31,7 @@ args = {
 
 dag = models.DAG(
     dag_id='example_gcs_to_bq_operator', default_args=args,
-    schedule_interval=None)
+    schedule_interval=None, tags=['example'])
 
 create_test_dataset = bash_operator.BashOperator(
     task_id='create_airflow_test_dataset',

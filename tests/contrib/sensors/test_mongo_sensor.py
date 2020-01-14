@@ -20,6 +20,8 @@
 
 import unittest
 
+import pytest
+
 from airflow import DAG
 from airflow.contrib.hooks.mongo_hook import MongoHook
 from airflow.contrib.sensors.mongo_sensor import MongoSensor
@@ -29,6 +31,7 @@ from airflow.utils import db, timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
+@pytest.mark.integration("mongo")
 class TestMongoSensor(unittest.TestCase):
 
     def setUp(self):

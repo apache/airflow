@@ -32,7 +32,7 @@ script_start
 
 export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
-export AIRFLOW_CONTAINER_DOCKER_IMAGE=\
+export AIRFLOW_CI_IMAGE=\
 ${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
 
 HOST_USER_ID="$(id -ur)"
@@ -42,8 +42,8 @@ HOST_GROUP_ID="$(id -gr)"
 export HOST_GROUP_ID
 
 docker-compose \
-    -f "${MY_DIR}/docker-compose.yml" \
-    -f "${MY_DIR}/docker-compose-local.yml" \
-    run --no-deps airflow-testing /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh
+    -f "${MY_DIR}/docker-compose/base.yml" \
+    -f "${MY_DIR}/docker-compose/local.yml" \
+    run airflow-testing /opt/airflow/scripts/ci/in_container/run_fix_ownership.sh
 
 script_end

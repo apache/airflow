@@ -67,8 +67,6 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -91,8 +89,6 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -123,8 +119,6 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .create_external_table \
             .assert_called_once_with(
                 external_project_dataset_table='{}.{}'.format(
@@ -159,8 +153,6 @@ class TestBigQueryDeleteDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .delete_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -181,8 +173,6 @@ class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .create_empty_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -203,8 +193,6 @@ class TestBigQueryGetDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .get_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -225,8 +213,6 @@ class TestBigQueryPatchDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .patch_dataset \
             .assert_called_once_with(
                 dataset_resource=dataset_resource,
@@ -248,8 +234,6 @@ class TestBigQueryUpdateDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .update_dataset \
             .assert_called_once_with(
                 dataset_resource=dataset_resource,
@@ -303,8 +287,6 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',
@@ -356,8 +338,6 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_query \
             .assert_has_calls([
                 mock.call(
@@ -439,8 +419,6 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',
@@ -647,8 +625,6 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
                                            )
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .get_tabledata \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -672,8 +648,6 @@ class TestBigQueryTableDeleteOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_table_delete \
             .assert_called_once_with(
                 deletion_dataset_table=deletion_dataset_table,
@@ -693,8 +667,6 @@ class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .get_dataset_tables \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,

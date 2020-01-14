@@ -37,6 +37,7 @@ dag = DAG(
     dag_id='example_branch_dop_operator_v3',
     schedule_interval='*/1 * * * *',
     default_args=args,
+    tags=['example']
 )
 
 

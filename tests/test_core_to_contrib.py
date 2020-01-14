@@ -69,7 +69,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook",
     ),
     (
-        "airflow.gcp.hooks.gcs.GoogleCloudStorageHook",
+        "airflow.gcp.hooks.gcs.GCSHook",
         "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
     ),
     (
@@ -81,7 +81,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook",
     ),
     (
-        "airflow.gcp.hooks.kubernetes_engine.GKEClusterHook",
+        "airflow.gcp.hooks.kubernetes_engine.GKEHook",
         "airflow.contrib.hooks.gcp_container_hook.GKEClusterHook",
     ),
     (
@@ -151,6 +151,70 @@ HOOK = [
     (
         "airflow.providers.amazon.aws.hooks.sns.AwsSnsHook",
         "airflow.contrib.hooks.aws_sns_hook.AwsSnsHook",
+    ),
+    (
+        'airflow.providers.apache.pinot.hooks.pinot.PinotDbApiHook',
+        'airflow.contrib.hooks.pinot_hook.PinotDbApiHook',
+    ),
+    (
+        'airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook',
+        'airflow.contrib.hooks.pinot_hook.PinotAdminHook',
+    ),
+    (
+        'airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook',
+        'airflow.contrib.hooks.spark_jdbc_hook.SparkJDBCHook',
+    ),
+    (
+        'airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook',
+        'airflow.contrib.hooks.spark_sql_hook.SparkSqlHook',
+    ),
+    (
+        'airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook',
+        'airflow.contrib.hooks.spark_submit_hook.SparkSubmitHook',
+    ),
+    (
+        'airflow.providers.apache.sqoop.hooks.sqoop.SqoopHook',
+        'airflow.contrib.hooks.sqoop_hook.SqoopHook',
+    ),
+    (
+        'airflow.providers.apache.druid.hooks.druid.DruidHook',
+        'airflow.hooks.druid_hook.DruidHook',
+    ),
+    (
+        'airflow.providers.apache.druid.hooks.druid.DruidDbApiHook',
+        'airflow.hooks.druid_hook.DruidDbApiHook',
+    ),
+    (
+        'airflow.providers.apache.hdfs.hooks.hdfs.HDFSHookException',
+        'airflow.hooks.hdfs_hook.HDFSHookException',
+    ),
+    (
+        'airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook',
+        'airflow.hooks.hdfs_hook.HDFSHook',
+    ),
+    (
+        'airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook',
+        'airflow.hooks.hive_hooks.HiveMetastoreHook',
+    ),
+    (
+        'airflow.providers.apache.hive.hooks.hive.HiveCliHook',
+        'airflow.hooks.hive_hooks.HiveCliHook',
+    ),
+    (
+        'airflow.providers.apache.hive.hooks.hive.HiveServer2Hook',
+        'airflow.hooks.hive_hooks.HiveServer2Hook',
+    ),
+    (
+        'airflow.providers.apache.pig.hooks.pig.PigCliHook',
+        'airflow.hooks.pig_hook.PigCliHook',
+    ),
+    (
+        'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook',
+        'airflow.hooks.webhdfs_hook.WebHDFSHook',
+    ),
+    (
+        'airflow.hooks.filesystem.FSHook',
+        'airflow.contrib.hooks.fs_hook.FSHook',
     ),
 ]
 
@@ -233,15 +297,15 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEClusterCreateOperator",
+        "airflow.gcp.operators.kubernetes_engine.GKECreateClusterOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEClusterDeleteOperator",
+        "airflow.gcp.operators.kubernetes_engine.GKEDeleteClusterOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEPodOperator",
+        "airflow.gcp.operators.kubernetes_engine.GKEStartPodOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEPodOperator",
     ),
     (
@@ -633,63 +697,63 @@ OPERATOR = [
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocClusterCreateOperator",
+        "operators.dataproc.DataprocCreateClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocClusterDeleteOperator",
+        "operators.dataproc.DataprocDeleteClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocClusterScaleOperator",
+        "operators.dataproc.DataprocScaleClusterOperator",
         "airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcHadoopOperator",
+        "operators.dataproc.DataprocSubmitHadoopJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcHiveOperator",
+        "operators.dataproc.DataprocSubmitHiveJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcHiveOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcJobBaseOperator",
+        "operators.dataproc.DataprocJobBaseOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcPigOperator",
+        "operators.dataproc.DataprocSubmitPigJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPigOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcPySparkOperator",
+        "operators.dataproc.DataprocSubmitPySparkJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcSparkOperator",
+        "operators.dataproc.DataprocSubmitSparkJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataProcSparkSqlOperator",
+        "operators.dataproc.DataprocSubmitSparkSqlJobOperator",
         "airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocWorkflowTemplateInstantiateInlineOperator",
+        "operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator",
         "airflow.contrib.operators.dataproc_operator."
         "DataprocWorkflowTemplateInstantiateInlineOperator",
     ),
     (
         "airflow.providers.google.cloud."
-        "operators.dataproc.DataprocWorkflowTemplateInstantiateOperator",
+        "operators.dataproc.DataprocInstantiateWorkflowTemplateOperator",
         "airflow.contrib.operators.dataproc_operator."
         "DataprocWorkflowTemplateInstantiateOperator",
     ),
@@ -730,27 +794,27 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator",
+        "airflow.gcp.operators.gcs.GCSBucketCreateAclEntryOperator",
         "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator",
+        "airflow.gcp.operators.gcs.GCSObjectCreateAclEntryOperator",
         "airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator",
+        "airflow.gcp.operators.gcs.GCSDeleteObjectsOperator",
         "airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageDownloadOperator",
+        "airflow.gcp.operators.gcs.GCSToLocalOperator",
         "airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageListOperator",
+        "airflow.gcp.operators.gcs.GCSListObjectsOperator",
         "airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator",
     ),
     (
-        "airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator",
+        "airflow.gcp.operators.gcs.GCSCreateBucketOperator",
         "airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator",
     ),
     (
@@ -768,7 +832,43 @@ OPERATOR = [
     (
         "airflow.providers.amazon.aws.operators.sns.SnsPublishOperator",
         "airflow.contrib.operators.sns_publish_operator.SnsPublishOperator",
-    )
+    ),
+    (
+        'airflow.providers.apache.druid.operators.druid.DruidOperator',
+        'airflow.contrib.operators.druid_operator.DruidOperator',
+    ),
+    (
+        'airflow.providers.apache.spark.operators.spark_jdbc.SparkSubmitOperator',
+        'airflow.contrib.operators.spark_jdbc_operator.SparkSubmitOperator',
+    ),
+    (
+        'airflow.providers.apache.spark.operators.spark_sql.SparkSqlOperator',
+        'airflow.contrib.operators.spark_sql_operator.SparkSqlOperator',
+    ),
+    (
+        'airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator',
+        'airflow.contrib.operators.spark_submit_operator.SparkSubmitOperator',
+    ),
+    (
+        'airflow.providers.apache.sqoop.operators.sqoop.SqoopOperator',
+        'airflow.contrib.operators.sqoop_operator.SqoopOperator',
+    ),
+    (
+        'airflow.providers.apache.druid.operators.druid_check.DruidCheckOperator',
+        'airflow.operators.druid_check_operator.DruidCheckOperator',
+    ),
+    (
+        'airflow.providers.apache.hive.operators.hive.HiveOperator',
+        'airflow.operators.hive_operator.HiveOperator',
+    ),
+    (
+        'airflow.providers.apache.hive.operators.hive_stats.HiveStatsCollectionOperator',
+        'airflow.operators.hive_stats_operator.HiveStatsCollectionOperator',
+    ),
+    (
+        'airflow.providers.apache.pig.operators.pig.PigOperator',
+        'airflow.operators.pig_operator.PigOperator',
+    ),
 ]
 
 SENSOR = [
@@ -792,19 +892,19 @@ SENSOR = [
         "airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectSensor",
+        "airflow.gcp.sensors.gcs.GCSObjectExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStorageObjectUpdatedSensor",
+        "airflow.gcp.sensors.gcs.GCSObjectUpdateSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStoragePrefixSensor",
+        "airflow.gcp.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GoogleCloudStorageUploadSessionCompleteSensor",
+        "airflow.gcp.sensors.gcs.GCSUploadSessionCompleteSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor",
     ),
     (
@@ -814,6 +914,42 @@ SENSOR = [
     (
         "airflow.providers.amazon.aws.sensors.sqs.SQSSensor",
         "airflow.contrib.sensors.aws_sqs_sensor.SQSSensor",
+    ),
+    (
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensorFolder',
+        'airflow.contrib.sensors.hdfs_sensor.HdfsSensorFolder',
+    ),
+    (
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensorRegex',
+        'airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex',
+    ),
+    (
+        'airflow.providers.apache.hive.sensors.hive_partition.HivePartitionSensor',
+        'airflow.sensors.hive_partition_sensor.HivePartitionSensor',
+    ),
+    (
+        'airflow.providers.apache.hive.sensors.metastore_partition.MetastorePartitionSensor',
+        'airflow.sensors.metastore_partition_sensor.MetastorePartitionSensor',
+    ),
+    (
+        'airflow.providers.apache.hive.sensors.named_hive_partition.NamedHivePartitionSensor',
+        'airflow.sensors.named_hive_partition_sensor.NamedHivePartitionSensor',
+    ),
+    (
+        'airflow.providers.apache.hdfs.sensors.web_hdfs.WebHdfsSensor',
+        'airflow.sensors.web_hdfs_sensor.WebHdfsSensor',
+    ),
+    (
+        'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensor',
+        'airflow.sensors.hdfs_sensor.HdfsSensor',
+    ),
+    (
+        'airflow.sensors.weekday_sensor.DayOfWeekSensor',
+        'airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor',
+    ),
+    (
+        'airflow.sensors.filesystem.FileSensor',
+        'airflow.contrib.sensors.file_sensor.FileSensor',
     ),
 ]
 

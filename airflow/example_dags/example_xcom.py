@@ -28,7 +28,7 @@ args = {
     'start_date': days_ago(2),
 }
 
-dag = DAG('example_xcom', schedule_interval="@once", default_args=args)
+dag = DAG('example_xcom', schedule_interval="@once", default_args=args, tags=['example'])
 
 value_1 = [1, 2, 3]
 value_2 = {'a': 'b'}

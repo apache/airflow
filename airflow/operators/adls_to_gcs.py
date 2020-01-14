@@ -27,7 +27,7 @@ from typing import Optional
 
 from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
 from airflow.contrib.operators.adls_list_operator import AzureDataLakeStorageListOperator
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
+from airflow.gcp.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
 
 
@@ -134,7 +134,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
     def execute(self, context):
         # use the super to list all files in an Azure Data Lake path
         files = super().execute(context)
-        g_hook = GoogleCloudStorageHook(
+        g_hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
 

@@ -24,7 +24,7 @@ import json
 
 from airflow import AirflowException
 from airflow.gcp.hooks.bigquery import BigQueryHook
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -238,7 +238,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
 
         if not self.schema_fields:
             if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
-                gcs_hook = GoogleCloudStorageHook(
+                gcs_hook = GCSHook(
                     google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                     delegate_to=self.delegate_to)
                 schema_fields = json.loads(gcs_hook.download(

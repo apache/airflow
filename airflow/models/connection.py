@@ -245,16 +245,16 @@ class Connection(Base, LoggingMixin):
             from airflow.hooks.postgres_hook import PostgresHook
             return PostgresHook(postgres_conn_id=self.conn_id)
         elif self.conn_type == 'pig_cli':
-            from airflow.hooks.pig_hook import PigCliHook
+            from airflow.providers.apache.pig.hooks.pig import PigCliHook
             return PigCliHook(pig_cli_conn_id=self.conn_id)
         elif self.conn_type == 'hive_cli':
-            from airflow.hooks.hive_hooks import HiveCliHook
+            from airflow.providers.apache.hive.hooks.hive import HiveCliHook
             return HiveCliHook(hive_cli_conn_id=self.conn_id)
         elif self.conn_type == 'presto':
             from airflow.hooks.presto_hook import PrestoHook
             return PrestoHook(presto_conn_id=self.conn_id)
         elif self.conn_type == 'hiveserver2':
-            from airflow.hooks.hive_hooks import HiveServer2Hook
+            from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
             return HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
         elif self.conn_type == 'sqlite':
             from airflow.hooks.sqlite_hook import SqliteHook

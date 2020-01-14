@@ -95,7 +95,8 @@
         "doc_md": { "type" : "string"},
         "_default_view": { "type" : "string"},
         "_access_control": {"$ref": "#/definitions/dict" },
-        "is_paused_upon_creation":  { "type": "boolean" }
+        "is_paused_upon_creation":  { "type": "boolean" },
+        "tags": { "type": "array" }
       },
       "required": [
         "_dag_id",

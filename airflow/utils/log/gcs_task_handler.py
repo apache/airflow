@@ -49,8 +49,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-            return GoogleCloudStorageHook(
+            from airflow.gcp.hooks.gcs import GCSHook
+            return GCSHook(
                 google_cloud_storage_conn_id=remote_conn_id
             )
         except Exception as e:  # pylint: disable=broad-except
