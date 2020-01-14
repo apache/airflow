@@ -25,6 +25,7 @@ import sys
 import types
 from inspect import signature
 from itertools import islice
+from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import Callable, Dict, Iterable, List, Optional
 
@@ -33,7 +34,6 @@ import dill
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.file import TemporaryDirectory
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -164,6 +164,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     def execute(self, context: Dict):
         branch = super().execute(context)
         self.skip_all_except(context['ti'], branch)
+        return branch
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):

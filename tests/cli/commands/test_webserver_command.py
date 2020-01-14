@@ -24,12 +24,13 @@ from unittest import mock
 
 import psutil
 
+from airflow import settings
 from airflow.bin import cli
 from airflow.cli.commands import webserver_command
 from airflow.cli.commands.webserver_command import get_num_ready_workers_running
 from airflow.models import DagBag
 from airflow.utils.cli import setup_locations
-from tests import conf_vars, settings
+from tests.test_utils.config import conf_vars
 
 
 class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):

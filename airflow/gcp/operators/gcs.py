@@ -26,13 +26,13 @@ from tempfile import NamedTemporaryFile
 from typing import Dict, Iterable, List, Optional, Union
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils.decorators import apply_defaults
 
 
-class GoogleCloudStorageCreateBucketOperator(BaseOperator):
+class GCSCreateBucketOperator(BaseOperator):
     """
     Creates a new bucket. Google Cloud Storage uses a flat namespace,
     so you can't create a bucket with a name that is already in use.
@@ -130,7 +130,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -143,14 +143,14 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
                            labels=self.labels)
 
 
-class GoogleCloudStorageListOperator(BaseOperator):
+class GCSListObjectsOperator(BaseOperator):
     """
     List all objects from the bucket with the give string prefix and delimiter in name.
 
     This operator returns a python list with the name of objects which can be used by
      `xcom` in the downstream task.
 
-    :param bucket: The Google cloud storage bucket to find the objects. (templated)
+    :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
     :type bucket: str
     :param prefix: Prefix string which filters objects whose name begin with
            this prefix. (templated)
@@ -211,7 +211,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
 
     def execute(self, context):
 
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -224,7 +224,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
                          delimiter=self.delimiter)
 
 
-class GoogleCloudStorageDownloadOperator(BaseOperator):
+class GCSToLocalOperator(BaseOperator):
     """
     Downloads a file from Google Cloud Storage.
 
@@ -232,7 +232,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     set the ``store_to_xcom_key`` parameter to True push the file content into xcom. When the file size
     exceeds the maximum size for xcom it is recommended to write to a file.
 
-    :param bucket: The Google cloud storage bucket where the object is.
+    :param bucket: The Google Cloud Storage bucket where the object is.
         Must not contain 'gs://' prefix. (templated)
     :type bucket: str
     :param object: The name of the object to download in the Google cloud
@@ -300,7 +300,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Executing download: %s, %s, %s', self.bucket,
                       self.object, self.filename)
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -320,7 +320,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
                           filename=self.filename)
 
 
-class GoogleCloudStorageDeleteOperator(BaseOperator):
+class GCSDeleteObjectsOperator(BaseOperator):
     """
     Deletes objects from a Google Cloud Storage bucket, either
     from an explicit list of object names or all objects
@@ -368,12 +368,13 @@ class GoogleCloudStorageDeleteOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
 
-        assert objects is not None or prefix is not None
+        if not objects and not prefix:
+            raise ValueError("Either object or prefix should be set. Both are None")
 
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -391,7 +392,7 @@ class GoogleCloudStorageDeleteOperator(BaseOperator):
                         object_name=object_name)
 
 
-class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
+class GCSBucketCreateAclEntryOperator(BaseOperator):
     """
     Creates a new ACL entry on the specified bucket.
 
@@ -448,14 +449,14 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id
         )
         hook.insert_bucket_acl(bucket_name=self.bucket, entity=self.entity, role=self.role,
                                user_project=self.user_project)
 
 
-class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
+class GCSObjectCreateAclEntryOperator(BaseOperator):
     """
     Creates a new ACL entry on the specified object.
 
@@ -519,7 +520,7 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id
         )
         hook.insert_object_acl(bucket_name=self.bucket,
@@ -580,7 +581,7 @@ class GcsFileTransformOperator(BaseOperator):
         self.output_encoding = sys.getdefaultencoding()
 
     def execute(self, context: Dict):
-        hook = GoogleCloudStorageHook(gcp_conn_id=self.gcp_conn_id)
+        hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
             self.log.info("Downloading file from %s", self.source_bucket)

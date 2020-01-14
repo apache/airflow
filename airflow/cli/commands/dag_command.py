@@ -22,15 +22,34 @@ import logging
 import signal
 import subprocess
 import textwrap
+from typing import List
 
 from tabulate import tabulate
 
-from airflow import DAG, AirflowException, LoggingMixin, conf, jobs, settings
+from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.utils import cli as cli_utils, db
-from airflow.utils.cli import get_dag, process_subdir, sigint_handler
+from airflow.utils import cli as cli_utils
+from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
+from airflow.utils.session import create_session
+
+
+def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt="fancy_grid"):
+    tabulat_data = (
+        {
+            'ID': dag_run.id,
+            'Run ID': dag_run.run_id,
+            'State': dag_run.state,
+            'DAG ID': dag_run.dag_id,
+            'Execution date': dag_run.execution_date.isoformat(),
+            'Start date': dag_run.start_date.isoformat() if dag_run.start_date else '',
+        } for dag_run in dag_runs
+    )
+    return "\n%s" % tabulate(
+        tabular_data=tabulat_data,
+        tablefmt=tablefmt
+    )
 
 
 @cli_utils.action_logging
@@ -42,7 +61,7 @@ def dag_backfill(args, dag=None):
 
     signal.signal(signal.SIGTERM, sigint_handler)
 
-    dag = dag or get_dag(args)
+    dag = dag or get_dag(args.subdir, args.dag_id)
 
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
@@ -101,16 +120,14 @@ def dag_trigger(args):
     Creates a dag run for the specified dag
     """
     api_client = get_current_api_client()
-    log = LoggingMixin().log
     try:
         message = api_client.trigger_dag(dag_id=args.dag_id,
                                          run_id=args.run_id,
                                          conf=args.conf,
                                          execution_date=args.exec_date)
+        print(message)
     except OSError as err:
-        log.error(err)
         raise AirflowException(err)
-    log.info(message)
 
 
 @cli_utils.action_logging
@@ -119,16 +136,14 @@ def dag_delete(args):
     Deletes all DB records related to the specified dag
     """
     api_client = get_current_api_client()
-    log = LoggingMixin().log
     if args.yes or input(
             "This will drop all existing records related to the specified DAG. "
             "Proceed? (y/n)").upper() == "Y":
         try:
             message = api_client.delete_dag(dag_id=args.dag_id)
+            print(message)
         except OSError as err:
-            log.error(err)
             raise AirflowException(err)
-        log.info(message)
     else:
         print("Bail.")
 
@@ -156,7 +171,7 @@ def set_is_paused(is_paused, args):
 
 def dag_show(args):
     """Displays DAG or saves it's graphic representation to the file"""
-    dag = get_dag(args)
+    dag = get_dag(args.subdir, args.dag_id)
     dot = render_dag(dag)
     if args.save:
         filename, _, fileformat = args.save.rpartition('.')
@@ -189,7 +204,10 @@ def dag_state(args):
     >>> airflow dags state tutorial 2015-01-01T00:00:00.000000
     running
     """
-    dag = get_dag(args)
+    if args.subdir:
+        dag = get_dag(args.subdir, args.dag_id)
+    else:
+        dag = get_dag_by_file_location(args.dag_id)
     dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
     print(dr[0].state if len(dr) > 0 else None)  # pylint: disable=len-as-condition
 
@@ -201,7 +219,7 @@ def dag_next_execution(args):
     >>> airflow dags next_execution tutorial
     2018-08-31 10:38:00
     """
-    dag = get_dag(args)
+    dag = get_dag(args.subdir, args.dag_id)
 
     if dag.is_paused:
         print("[INFO] Please be reminded this DAG is PAUSED now.")
@@ -252,7 +270,7 @@ def dag_list_jobs(args, dag=None):
     if args.state:
         queries.append(jobs.BaseJob.state == args.state)
 
-    with db.create_session() as session:
+    with create_session() as session:
         all_jobs = (session
                     .query(jobs.BaseJob)
                     .filter(*queries)
@@ -279,42 +297,20 @@ def dag_list_dag_runs(args, dag=None):
         error_message = "Dag id {} not found".format(args.dag_id)
         raise AirflowException(error_message)
 
-    dag_runs = []
     state = args.state.lower() if args.state else None
-    for dag_run in DagRun.find(dag_id=args.dag_id,
-                               state=state,
-                               no_backfills=args.no_backfill):
-        dag_runs.append({
-            'id': dag_run.id,
-            'run_id': dag_run.run_id,
-            'state': dag_run.state,
-            'dag_id': dag_run.dag_id,
-            'execution_date': dag_run.execution_date.isoformat(),
-            'start_date': ((dag_run.start_date or '') and
-                           dag_run.start_date.isoformat()),
-        })
+    dag_runs = DagRun.find(
+        dag_id=args.dag_id,
+        state=state,
+        no_backfills=args.no_backfill
+    )
+
     if not dag_runs:
         print('No dag runs for {dag_id}'.format(dag_id=args.dag_id))
+        return
 
-    header_template = textwrap.dedent("""\n
-    {line}
-    DAG RUNS
-    {line}
-    {dag_run_header}
-    """)
-
-    dag_runs.sort(key=lambda x: x['execution_date'], reverse=True)
-    dag_run_header = '%-3s | %-20s | %-10s | %-20s | %-20s |' % ('id',
-                                                                 'run_id',
-                                                                 'state',
-                                                                 'execution_date',
-                                                                 'start_date')
-    print(header_template.format(dag_run_header=dag_run_header,
-                                 line='-' * 120))
-    for dag_run in dag_runs:
-        record = '%-3s | %-20s | %-10s | %-20s | %-20s |' % (dag_run['id'],
-                                                             dag_run['run_id'],
-                                                             dag_run['state'],
-                                                             dag_run['execution_date'],
-                                                             dag_run['start_date'])
-        print(record)
+    dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
+    table = _tabulate_dag_runs(
+        dag_runs,
+        tablefmt=args.output
+    )
+    print(table)

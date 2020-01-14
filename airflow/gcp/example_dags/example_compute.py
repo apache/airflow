@@ -32,11 +32,12 @@ This DAG relies on the following OS environment variables
 
 import os
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.compute import (
-    GceInstanceStartOperator, GceInstanceStopOperator, GceSetMachineTypeOperator,
+    ComputeEngineSetMachineTypeOperator, ComputeEngineStartInstanceOperator,
+    ComputeEngineStopInstanceOperator,
 )
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_gce_args_common]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -45,7 +46,7 @@ GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')
 # [END howto_operator_gce_args_common]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1),
+    'start_date': days_ago(1),
 }
 
 # [START howto_operator_gce_args_set_machine_type]
@@ -62,7 +63,7 @@ with models.DAG(
     schedule_interval=None  # Override to match your needs
 ) as dag:
     # [START howto_operator_gce_start]
-    gce_instance_start = GceInstanceStartOperator(
+    gce_instance_start = ComputeEngineStartInstanceOperator(
         project_id=GCP_PROJECT_ID,
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
@@ -71,14 +72,14 @@ with models.DAG(
     # [END howto_operator_gce_start]
     # Duplicate start for idempotence testing
     # [START howto_operator_gce_start_no_project_id]
-    gce_instance_start2 = GceInstanceStartOperator(
+    gce_instance_start2 = ComputeEngineStartInstanceOperator(
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
         task_id='gcp_compute_start_task2'
     )
     # [END howto_operator_gce_start_no_project_id]
     # [START howto_operator_gce_stop]
-    gce_instance_stop = GceInstanceStopOperator(
+    gce_instance_stop = ComputeEngineStopInstanceOperator(
         project_id=GCP_PROJECT_ID,
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
@@ -87,14 +88,14 @@ with models.DAG(
     # [END howto_operator_gce_stop]
     # Duplicate stop for idempotence testing
     # [START howto_operator_gce_stop_no_project_id]
-    gce_instance_stop2 = GceInstanceStopOperator(
+    gce_instance_stop2 = ComputeEngineStopInstanceOperator(
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
         task_id='gcp_compute_stop_task2'
     )
     # [END howto_operator_gce_stop_no_project_id]
     # [START howto_operator_gce_set_machine_type]
-    gce_set_machine_type = GceSetMachineTypeOperator(
+    gce_set_machine_type = ComputeEngineSetMachineTypeOperator(
         project_id=GCP_PROJECT_ID,
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
@@ -104,7 +105,7 @@ with models.DAG(
     # [END howto_operator_gce_set_machine_type]
     # Duplicate set machine type for idempotence testing
     # [START howto_operator_gce_set_machine_type_no_project_id]
-    gce_set_machine_type2 = GceSetMachineTypeOperator(
+    gce_set_machine_type2 = ComputeEngineSetMachineTypeOperator(
         zone=GCE_ZONE,
         resource_id=GCE_INSTANCE,
         body=SET_MACHINE_TYPE_BODY,

@@ -21,14 +21,15 @@
 import copy
 import unittest
 
+import mock
+from mock import MagicMock
 from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.gcp.hooks.dataflow import (
-    DataFlowHook, DataflowJobStatus, DataflowJobType, _DataflowJobsController, _DataflowRunner,
+    DataflowHook, DataflowJobStatus, DataflowJobType, _DataflowJobsController, _DataflowRunner,
     _fallback_to_project_id_from_variables,
 )
-from tests.compat import MagicMock, mock
 
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'
@@ -79,7 +80,7 @@ TEST_PROJECT = 'test-project'
 TEST_JOB_NAME = 'test-job-name'
 TEST_JOB_ID = 'test-job-id'
 TEST_LOCATION = 'us-central1'
-DEFAULT_PY_INTERPRETER = 'python2'
+DEFAULT_PY_INTERPRETER = 'python3'
 
 
 class TestFallbackToVariables(unittest.TestCase):
@@ -142,14 +143,14 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
     pass
 
 
-class TestDataFlowHook(unittest.TestCase):
+class TestDataflowHook(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
+        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__'),
                         new=mock_init):
-            self.dataflow_hook = DataFlowHook(gcp_conn_id='test')
+            self.dataflow_hook = DataflowHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.gcp.hooks.dataflow.DataFlowHook._authorize")
+    @mock.patch("airflow.gcp.hooks.dataflow.DataflowHook._authorize")
     @mock.patch("airflow.gcp.hooks.dataflow.build")
     def test_dataflow_client_creation(self, mock_build, mock_authorize):
         result = self.dataflow_hook.get_conn()
@@ -161,7 +162,7 @@ class TestDataFlowHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_python_dataflow(
         self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
     ):
@@ -174,7 +175,7 @@ class TestDataFlowHook(unittest.TestCase):
         self.dataflow_hook.start_python_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS)
-        expected_cmd = ["python2", '-m', PY_FILE,
+        expected_cmd = ["python3", '-m', PY_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
@@ -184,7 +185,7 @@ class TestDataFlowHook(unittest.TestCase):
                              sorted(expected_cmd))
 
     @parameterized.expand([
-        ('default_to_python2', "python2"),
+        ('default_to_python3', 'python3'),
         ('major_version_2', 'python2'),
         ('major_version_3', 'python3'),
         ('minor_version', 'python3.6')
@@ -192,7 +193,7 @@ class TestDataFlowHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_python_dataflow_with_custom_interpreter(
         self, name, py_interpreter, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid
     ):
@@ -219,7 +220,7 @@ class TestDataFlowHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_java_dataflow(self, mock_conn,
                                  mock_dataflow, mock_dataflowjob, mock_uuid):
         mock_uuid.return_value = MOCK_UUID
@@ -243,7 +244,7 @@ class TestDataFlowHook(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowRunner'))
-    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_java_dataflow_with_job_class(self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid):
         mock_uuid.return_value = MOCK_UUID
         mock_conn.return_value = None
@@ -294,14 +295,14 @@ class TestDataFlowHook(unittest.TestCase):
         )
 
 
-class TestDataFlowTemplateHook(unittest.TestCase):
+class TestDataflowTemplateHook(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
+        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__'),
                         new=mock_init):
-            self.dataflow_hook = DataFlowHook(gcp_conn_id='test')
+            self.dataflow_hook = DataflowHook(gcp_conn_id='test')
 
-    @mock.patch(DATAFLOW_STRING.format('DataFlowHook._start_template_dataflow'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook._start_template_dataflow'))
     def test_start_template_dataflow(self, internal_dataflow_mock):
         self.dataflow_hook.start_template_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_TEMPLATE, parameters=PARAMETERS,
@@ -317,7 +318,7 @@ class TestDataFlowTemplateHook(unittest.TestCase):
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
-    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    @mock.patch(DATAFLOW_STRING.format('DataflowHook.get_conn'))
     def test_start_template_dataflow_with_runtime_env(self, mock_conn, mock_dataflowjob, mock_uuid):
         dataflow_options_template = copy.deepcopy(DATAFLOW_OPTIONS_TEMPLATE)
         options_with_runtime_env = copy.deepcopy(RUNTIME_ENV)
@@ -360,7 +361,7 @@ class TestDataFlowTemplateHook(unittest.TestCase):
         mock_uuid.assert_called_once_with()
 
 
-class TestDataFlowJob(unittest.TestCase):
+class TestDataflowJob(unittest.TestCase):
 
     def setUp(self):
         self.mock_dataflow = MagicMock()
@@ -622,7 +623,7 @@ class TestDataflow(unittest.TestCase):
         cmd = [
             'echo', 'additional unit test lines.\n' +
             'https://console.cloud.google.com/dataflow/jobsDetail/locations/us-central1/'
-            'jobs/test-job-id?project=XXX'.format(TEST_JOB_ID)
+            'jobs/{}?project=XXX'.format(TEST_JOB_ID)
         ]
         self.assertEqual(_DataflowRunner(cmd).wait_for_done(), TEST_JOB_ID)
 

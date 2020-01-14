@@ -17,6 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains operator to move data from MSSQL to Hive.
+"""
+
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 from typing import Dict, Optional
@@ -24,9 +28,9 @@ from typing import Dict, Optional
 import pymssql
 import unicodecsv as csv
 
-from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import BaseOperator
+from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -97,15 +101,18 @@ class MsSqlToHiveTransfer(BaseOperator):
         self.tblproperties = tblproperties
 
     @classmethod
-    def type_map(cls, mssql_type):
+    def type_map(cls, mssql_type: int) -> str:
+        """
+        Maps MsSQL type to Hive type.
+        """
         map_dict = {
-            pymssql.BINARY.value: 'INT',
-            pymssql.DECIMAL.value: 'FLOAT',
-            pymssql.NUMBER.value: 'INT',
+            pymssql.BINARY.value: 'INT',  # pylint: disable=c-extension-no-member
+            pymssql.DECIMAL.value: 'FLOAT',  # pylint: disable=c-extension-no-member
+            pymssql.NUMBER.value: 'INT',  # pylint: disable=c-extension-no-member
         }
-        return map_dict[mssql_type] if mssql_type in map_dict else 'STRING'
+        return map_dict.get(mssql_type, 'STRING')
 
-    def execute(self, context):
+    def execute(self, context: Dict[str, str]):
         mssql = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
         self.log.info("Dumping Microsoft SQL Server query results to local file")
         with mssql.get_conn() as conn:
@@ -113,7 +120,7 @@ class MsSqlToHiveTransfer(BaseOperator):
                 cursor.execute(self.sql)
                 with NamedTemporaryFile("w") as tmp_file:
                     csv_writer = csv.writer(tmp_file, delimiter=self.delimiter, encoding='utf-8')
-                    field_dict = OrderedDict()
+                    field_dict = OrderedDict()  # type:ignore
                     col_count = 0
                     for field in cursor.description:
                         col_count += 1

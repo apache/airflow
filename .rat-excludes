@@ -31,6 +31,7 @@ CHANGELOG.txt
 .*lock
 unittests.cfg
 logs
+.bash_aliases
 
 # Generated doc files
 .*html
@@ -73,3 +74,9 @@ _vendor/*
 
 # Temporary list of files to make compatible with Pylint
 pylint_todo.txt
+
+# Locally mounted files
+.*egg-info/*
+.bash_history
+.bash_aliases
+.inputrc

@@ -21,6 +21,8 @@
 import unittest
 from unittest.mock import MagicMock, call, patch
 
+import pytest
+
 from airflow import DAG
 from airflow.contrib.hooks.redis_hook import RedisHook
 from airflow.contrib.sensors.redis_pub_sub_sensor import RedisPubSubSensor
@@ -50,8 +52,7 @@ class TestRedisPubSubSensor(unittest.TestCase):
             redis_conn_id='redis_default'
         )
 
-        self.mock_redis_conn = mock_redis_conn
-        self.mock_redis_conn().pubsub().get_message.return_value = \
+        mock_redis_conn().pubsub().get_message.return_value = \
             {'type': 'message', 'channel': b'test', 'data': b'd1'}
 
         result = sensor.poke(self.mock_context)
@@ -70,8 +71,8 @@ class TestRedisPubSubSensor(unittest.TestCase):
             channels='test',
             redis_conn_id='redis_default'
         )
-        self.mock_redis_conn = mock_redis_conn
-        self.mock_redis_conn().pubsub().get_message.return_value = \
+
+        mock_redis_conn().pubsub().get_message.return_value = \
             {'type': 'subscribe', 'channel': b'test', 'data': b'd1'}
 
         result = sensor.poke(self.mock_context)
@@ -80,6 +81,7 @@ class TestRedisPubSubSensor(unittest.TestCase):
         context_calls = []
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
 
+    @pytest.mark.integration("redis")
     def test_poke_true(self):
         sensor = RedisPubSubSensor(
             task_id='test_task',
@@ -104,6 +106,7 @@ class TestRedisPubSubSensor(unittest.TestCase):
         result = sensor.poke(self.mock_context)
         self.assertFalse(result)
 
+    @pytest.mark.integration("redis")
     def test_poke_false(self):
         sensor = RedisPubSubSensor(
             task_id='test_task',

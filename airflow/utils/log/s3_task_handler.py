@@ -41,11 +41,14 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
+        """
+        Returns S3Hook.
+        """
+        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
             return S3Hook(remote_conn_id)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.log.error(
                 'Could not create an S3Hook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
@@ -122,7 +125,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             return self.hook.get_key(remote_log_location) is not None
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         return False
 
@@ -139,7 +142,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             return self.hook.read_key(remote_log_location)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             msg = 'Could not read logs from {}'.format(remote_log_location)
             self.log.exception(msg)
             # return error if needed
@@ -168,7 +171,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 log,
                 key=remote_log_location,
                 replace=True,
-                encrypt=conf.getboolean('core', 'ENCRYPT_S3_LOGS'),
+                encrypt=conf.getboolean('logging', 'ENCRYPT_S3_LOGS'),
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.log.exception('Could not write logs to %s', remote_log_location)

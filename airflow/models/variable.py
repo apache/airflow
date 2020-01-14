@@ -27,8 +27,8 @@ from sqlalchemy.orm import synonym
 
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 
 class Variable(Base, LoggingMixin):
@@ -132,7 +132,7 @@ class Variable(Base, LoggingMixin):
         else:
             stored_value = str(value)
 
-        Variable.delete(key)
+        Variable.delete(key, session=session)
         session.add(Variable(key=key, val=stored_value))  # type: ignore
         session.flush()
 

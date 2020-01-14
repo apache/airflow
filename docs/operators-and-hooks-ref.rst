@@ -46,7 +46,7 @@ Fundamentals
 
 **Sensors:**
 
-* :mod:`airflow.contrib.sensors.weekday_sensor`
+* :mod:`airflow.sensors.weekday_sensor`
 * :mod:`airflow.sensors.external_task_sensor`
 * :mod:`airflow.sensors.sql_sensor`
 * :mod:`airflow.sensors.time_delta_sensor`
@@ -77,68 +77,67 @@ Foundation.
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.cassandra_hook`
+     - :mod:`airflow.providers.apache.cassandra.hooks.cassandra`
      -
-     - :mod:`airflow.contrib.sensors.cassandra_record_sensor`,
-       :mod:`airflow.contrib.sensors.cassandra_table_sensor`
+     - :mod:`airflow.providers.apache.cassandra.sensors.record`,
+       :mod:`airflow.providers.apache.cassandra.sensors.table`
 
    * - `Apache Druid <https://druid.apache.org/>`__
      -
-     - :mod:`airflow.hooks.druid_hook`
-     - :mod:`airflow.contrib.operators.druid_operator`,
-       :mod:`airflow.operators.druid_check_operator`
+     - :mod:`airflow.providers.apache.druid.hooks.druid`
+     - :mod:`airflow.providers.apache.druid.operators.druid`,
+       :mod:`airflow.providers.apache.druid.operators.druid_check`
      -
 
    * - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.hooks.hive_hooks`
-     - :mod:`airflow.operators.hive_operator`,
-       :mod:`airflow.operators.hive_stats_operator`
-     - :mod:`airflow.sensors.named_hive_partition_sensor`,
-       :mod:`airflow.sensors.hive_partition_sensor`,
-       :mod:`airflow.sensors.metastore_partition_sensor`
+     - :mod:`airflow.providers.apache.hive.hooks.hive`
+     - :mod:`airflow.providers.apache.hive.operators.hive`,
+       :mod:`airflow.providers.apache.hive.operators.hive_stats`
+     - :mod:`airflow.providers.apache.hive.sensors.named_hive_partition`,
+       :mod:`airflow.providers.apache.hive.sensors.hive_partition`,
+       :mod:`airflow.providers.apache.hive.sensors.metastore_partition`
 
    * - `Apache Pig <https://pig.apache.org/>`__
      -
-     - :mod:`airflow.hooks.pig_hook`
-     - :mod:`airflow.operators.pig_operator`
+     - :mod:`airflow.providers.apache.pig.hooks.pig`
+     - :mod:`airflow.providers.apache.pig.operators.pig`
      -
 
    * - `Apache Pinot <https://pinot.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.pinot_hook`
+     - :mod:`airflow.providers.apache.pinot.hooks.pinot`
      -
      -
 
    * - `Apache Spark <https://spark.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.spark_jdbc_hook`,
-       :mod:`airflow.contrib.hooks.spark_jdbc_script`,
-       :mod:`airflow.contrib.hooks.spark_sql_hook`,
-       :mod:`airflow.contrib.hooks.spark_submit_hook`
-     - :mod:`airflow.contrib.operators.spark_jdbc_operator`,
-       :mod:`airflow.contrib.operators.spark_sql_operator`,
-       :mod:`airflow.contrib.operators.spark_submit_operator`
+     - :mod:`airflow.providers.apache.spark.hooks.spark_jdbc`,
+       :mod:`airflow.providers.apache.spark.hooks.spark_jdbc_script`,
+       :mod:`airflow.providers.apache.spark.hooks.spark_sql`,
+       :mod:`airflow.providers.apache.spark.hooks.spark_submit`
+     - :mod:`airflow.providers.apache.spark.operators.spark_jdbc`,
+       :mod:`airflow.providers.apache.spark.operators.spark_sql`,
+       :mod:`airflow.providers.apache.spark.operators.spark_submit`
      -
 
    * - `Apache Sqoop <https://sqoop.apache.org/>`__
      -
-     - :mod:`airflow.contrib.hooks.sqoop_hook`
-     - :mod:`airflow.contrib.operators.sqoop_operator`
+     - :mod:`airflow.providers.apache.sqoop.hooks.sqoop`
+     - :mod:`airflow.providers.apache.sqoop.operators.sqoop`
      -
 
    * - `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
      -
-     - :mod:`airflow.hooks.hdfs_hook`
+     - :mod:`airflow.providers.apache.hdfs.hooks.hdfs`
      -
-     - :mod:`airflow.sensors.hdfs_sensor`,
-       :mod:`airflow.contrib.sensors.hdfs_sensor`
+     - :mod:`airflow.providers.apache.hdfs.sensors.hdfs`
 
    * - `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__
      -
-     - :mod:`airflow.hooks.webhdfs_hook`
+     - :mod:`airflow.providers.apache.hdfs.hooks.webhdfs`
      -
-     - :mod:`airflow.sensors.web_hdfs_sensor`
+     - :mod:`airflow.providers.apache.hdfs.sensors.web_hdfs`
 
 
 Transfer operators and hooks
@@ -296,51 +295,62 @@ These integrations allow you to perform various operations within the Amazon Web
    :header-rows: 1
 
    * - Service name
+     - Guide
      - Hook
      - Operators
      - Sensors
 
    * - `AWS Batch <https://aws.amazon.com/batch/>`__
      -
-     - :mod:`airflow.contrib.operators.awsbatch_operator`
+     - :mod:`airflow.providers.amazon.aws.hooks.batch_client`,
+       :mod:`airflow.providers.amazon.aws.hooks.batch_waiters`
+     - :mod:`airflow.providers.amazon.aws.operators.batch`
      -
 
    * - `AWS DataSync <https://aws.amazon.com/datasync/>`__
+     - :doc:`How to use <howto/operator/amazon/aws/datasync>`
      - :mod:`airflow.providers.amazon.aws.hooks.datasync`
      - :mod:`airflow.providers.amazon.aws.operators.datasync`
      -
 
    * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
+     -
      - :mod:`airflow.contrib.hooks.aws_glue_catalog_hook`
      -
      - :mod:`airflow.contrib.sensors.aws_glue_catalog_partition_sensor`
 
    * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.lambda_function`
      -
      -
 
    * - `Amazon Athena <https://aws.amazon.com/athena/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.athena`
      - :mod:`airflow.providers.amazon.aws.operators.athena`
      - :mod:`airflow.providers.amazon.aws.sensors.athena`
 
    * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__
+     -
      - :mod:`airflow.contrib.hooks.aws_logs_hook`
      -
      -
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
+     -
      - :mod:`airflow.contrib.hooks.aws_dynamodb_hook`
      -
      -
 
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
      -
+     -
      - :mod:`airflow.contrib.operators.ecs_operator`
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
+     -
      - :mod:`airflow.contrib.hooks.emr_hook`
      - :mod:`airflow.contrib.operators.emr_add_steps_operator`,
        :mod:`airflow.contrib.operators.emr_create_job_flow_operator`,
@@ -350,16 +360,19 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.contrib.sensors.emr_step_sensor`
 
    * - `Amazon Kinesis Data Firehose <https://aws.amazon.com/kinesis/data-firehose/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.kinesis`
      -
      -
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.redshift`
      -
      - :mod:`airflow.providers.amazon.aws.sensors.redshift`
 
    * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
+     -
      - :mod:`airflow.contrib.hooks.sagemaker_hook`
      - :mod:`airflow.contrib.operators.sagemaker_base_operator`,
        :mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`,
@@ -375,16 +388,19 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.sns`
      - :mod:`airflow.providers.amazon.aws.operators.sns`
      -
 
    * - `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sns/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.sqs`
      - :mod:`airflow.providers.amazon.aws.operators.sqs`
      - :mod:`airflow.providers.amazon.aws.sensors.sqs`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
+     -
      - :mod:`airflow.providers.amazon.aws.hooks.s3`
      - :mod:`airflow.operators.s3_file_transform_operator`,
        :mod:`airflow.contrib.operators.s3_copy_object_operator`,
@@ -416,7 +432,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
 
    * - `Amazon DataSync <https://aws.amazon.com/datasync/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
-     -
+     - :doc:`How to use <howto/operator/amazon/aws/datasync>`
      - :mod:`airflow.providers.amazon.aws.operators.datasync`
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
@@ -565,8 +581,8 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
      -
-     - :mod:`airflow.gcp.hooks.dataproc`
-     - :mod:`airflow.gcp.operators.dataproc`
+     - :mod:`airflow.providers.google.cloud.hooks.dataproc`
+     - :mod:`airflow.providers.google.cloud.operators.dataproc`
      -
 
    * - `Datastore <https://cloud.google.com/datastore/>`__
@@ -613,9 +629,9 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Pub/Sub <https://cloud.google.com/pubsub/>`__
      - :doc:`How to use <howto/operator/gcp/pubsub>`
-     - :mod:`airflow.providers.google.cloud..hooks.pubsub`
-     - :mod:`airflow.providers.google.cloud..operators.pubsub`
-     - :mod:`airflow.providers.google.cloud..sensors.pubsub`
+     - :mod:`airflow.providers.google.cloud.hooks.pubsub`
+     - :mod:`airflow.providers.google.cloud.operators.pubsub`
+     - :mod:`airflow.providers.google.cloud.sensors.pubsub`
 
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`
@@ -1222,9 +1238,9 @@ communication protocols or interface.
 
    * - Filesystem
      -
-     - :mod:`airflow.contrib.hooks.fs_hook`
+     - :mod:`airflow.hooks.filesystem`
      -
-     - :mod:`airflow.contrib.sensors.file_sensor`
+     - :mod:`airflow.sensors.filesystem`
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      -
@@ -1246,9 +1262,9 @@ communication protocols or interface.
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.contrib.hooks.sftp_hook`
-     - :mod:`airflow.contrib.operators.sftp_operator`
-     - :mod:`airflow.contrib.sensors.sftp_sensor`
+     - :mod:`airflow.providers.sftp.hooks.sftp_hook`
+     - :mod:`airflow.providers.sftp.operators.sftp_operator`
+     - :mod:`airflow.providers.sftp.sensors.sftp_sensor`
 
    * - `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
      -

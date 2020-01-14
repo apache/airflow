@@ -20,9 +20,10 @@
 import json
 import unittest
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.operators.slack_operator import SlackAPIPostOperator
-from tests.compat import mock
 
 
 class TestSlackAPIPostOperator(unittest.TestCase):
@@ -169,6 +170,31 @@ class TestSlackAPIPostOperator(unittest.TestCase):
         slack_api_post_operator = self.__construct_operator(None, test_slack_conn_id)
         self.assertEqual(slack_api_post_operator.token, None)
         self.assertEqual(slack_api_post_operator.slack_conn_id, test_slack_conn_id)
+
+    @mock.patch('airflow.operators.slack_operator.SlackHook')
+    def test_api_call_params_with_default_args(self, mock_hook):
+        test_slack_conn_id = 'test_slack_conn_id'
+
+        slack_api_post_operator = SlackAPIPostOperator(
+            task_id='slack',
+            username=self.test_username,
+            slack_conn_id=test_slack_conn_id,
+        )
+
+        slack_api_post_operator.execute()
+
+        expected_api_params = {
+            'channel': "#general",
+            'username': self.test_username,
+            'text': 'No message has been set.\n'
+                    'Here is a cat video instead\n'
+                    'https://www.youtube.com/watch?v=J---aiyznGQ',
+            'icon_url': "https://raw.githubusercontent.com/apache/"
+                        "airflow/master/airflow/www/static/pin_100.png",
+            'attachments': '[]',
+            'blocks': '[]',
+        }
+        self.assertEqual(expected_api_params, slack_api_post_operator.api_params)
 
 
 if __name__ == "__main__":

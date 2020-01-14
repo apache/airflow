@@ -162,6 +162,7 @@ Currently **officially** using Airflow:
 1. [Betterment](https://www.betterment.com/) [[@betterment](https://github.com/Betterment)]
 1. [Bexs Bank](https://www.bexs.com.br/en) [[@felipefb](https://github.com/felipefb) & [@ilarsen](https://github.com/ishvann)]
 1. [BigQuant](https://bigquant.com/) [[@bigquant](https://github.com/bigquant)]
+1. [Birdz by Veolia](https://www.birdz.com/en/) [[@benjamingrenier](https://github.com/benjamingrenier)]
 1. [BlaBlaCar](https://www.blablacar.com) [[@puckel](https://github.com/puckel) & [@wmorin](https://github.com/wmorin)]
 1. [Blacklane](https://www.blacklane.com) [[@serkef](https://github.com/serkef)]
 1. [Bloc](https://www.bloc.io) [[@dpaola2](https://github.com/dpaola2)]
@@ -220,11 +221,13 @@ Currently **officially** using Airflow:
 1. [Dentsu Inc.](http://www.dentsu.com/) [[@bryan831](https://github.com/bryan831) & [@loozhengyuan](https://github.com/loozhengyuan)]
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
 1. [DigitalOcean](https://digitalocean.com/) [[@ajbosco](https://github.com/ajbosco)]
+1. [Digitas Pixelpark](https://www.digitaspixelpark.com/) [[@feluelle](https://github.com/feluelle)]
 1. [DoorDash](https://www.doordash.com/)
 1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@diraol](https://github.com/diraol)]
 1. [EllisDon](http://www.ellisdon.com/) [[@d2kalra](https://github.com/d2kalra) & [@zbasama](https://github.com/zbasama)]
+1. [Endesa](https://www.endesa.com) [[@drexpp](https://github.com/drexpp)]
 1. [Enigma](https://www.enigma.com) [[@hydrosquall](https://github.com/hydrosquall)]
 1. [Datamaran](https://www.datamaran.com) [[@valexharo](https://github.com/valexharo)]
 1. [Etsy](https://www.etsy.com) [[@mchalek](https://github.com/mchalek)]
@@ -352,7 +355,6 @@ Currently **officially** using Airflow:
 1. [Premise](http://www.premise.com) [[@jmccallum-premise](https://github.com/jmccallum-premise)]
 1. [Pronto Tools](http://www.prontotools.io/) [[@zkan](https://github.com/zkan) & [@mesodiar](https://github.com/mesodiar)]
 1. [proton.ai](https://proton.ai/) [[@prmsolutions](https://github.com/prmsolutions)]
-1. [Publicis Pixelpark](https://www.publicispixelpark.de/) [[@feluelle](https://github.com/feluelle)]
 1. [PubNub](https://pubnub.com) [[@jzucker2](https://github.com/jzucker2)]
 1. [PXYData](https://www.pxydata.com) [[@patchus](http://github.com/patchus)]
 1. [Qplum](https://qplum.co) [[@manti](https://github.com/manti)]
@@ -411,6 +413,7 @@ Currently **officially** using Airflow:
 1. [Twine Labs](https://www.twinelabs.com/) [[@ivorpeles](https://github.com/ivorpeles)]
 1. [Twitter](https://www.twitter.com/) [[@aoen](https://github.com/aoen)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]
+1. [Udacity](https://www.udacity.com/) [[@dandikunited](https://github.com/DandikUnited), [@simon-uc](https://github.com/simon-uc)]
 1. [United Airlines](https://www.united.com/) [[@ilopezfr](https://github.com/ilopezfr)]
 1. [Upsight](https://www.upsight.com)
 1. [VeeR VR](https://veer.tv) [[@pishilong](https://github.com/pishilong)]
@@ -427,6 +430,7 @@ Currently **officially** using Airflow:
 1. [Whistle Labs](http://www.whistle.com) [[@ananya77041](https://github.com/ananya77041)]
 1. [WiseBanyan](https://wisebanyan.com/)
 1. [Wooga](https://www.wooga.com/)
+1. [Wrike](https://www.wrike.com) [[@eliseealex](https://github.com/eliseealex) & [teoretic6](https://github.com/Teoretic6)]
 1. [Xero](https://www.xero.com/) [[@yan9yu](https://github.com/yan9yu) & [adamantnz](https://github.com/adamantnz/)]
 1. [Xoom](https://www.xoom.com/)
 1. [Yahoo!](https://www.yahoo.com/)

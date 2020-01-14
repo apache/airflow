@@ -21,6 +21,7 @@ import datetime
 import sys
 import unittest
 from subprocess import CalledProcessError
+from typing import List
 
 import funcsigs
 
@@ -33,6 +34,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
 INTERVAL = datetime.timedelta(hours=12)
 FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
+virtualenv_string_args: List[str] = []
 
 
 class TestPythonVirtualenvOperator(unittest.TestCase):
@@ -76,7 +78,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_no_system_site_packages(self):
         def f():
             try:
-                import funcsigs  # noqa: F401
+                import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
             except ImportError:
                 return True
             raise Exception
@@ -84,7 +86,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_system_site_packages(self):
         def f():
-            import funcsigs  # noqa: F401
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
         self._run_as_operator(f, requirements=['funcsigs'], system_site_packages=True)
 
     def test_with_requirements_pinned(self):
@@ -92,7 +94,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             '0.4', funcsigs.__version__, 'Please update this string if this fails')
 
         def f():
-            import funcsigs  # noqa: F401
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported
             if funcsigs.__version__ != '0.4':
                 raise Exception
 
@@ -100,13 +102,13 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_unpinned_requirements(self):
         def f():
-            import funcsigs  # noqa: F401
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
         self._run_as_operator(
             f, requirements=['funcsigs', 'dill'], system_site_packages=False)
 
     def test_range_requirements(self):
         def f():
-            import funcsigs  # noqa: F401
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
         self._run_as_operator(
             f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
 
@@ -118,21 +120,21 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_python_2(self):
         def f():
-            {}.iteritems()
+            {}.iteritems()  # pylint: disable=no-member
         self._run_as_operator(f, python_version=2, requirements=['dill'])
 
     def test_python_2_7(self):
         def f():
-            {}.iteritems()
+            {}.iteritems()  # pylint: disable=no-member
             return True
         self._run_as_operator(f, python_version='2.7', requirements=['dill'])
 
     def test_python_3(self):
         def f():
-            import sys
+            import sys  # pylint: disable=reimported,unused-import,redefined-outer-name
             print(sys.version)
             try:
-                {}.iteritems()
+                {}.iteritems()  # pylint: disable=no-member
             except AttributeError:
                 return
             raise Exception
@@ -164,7 +166,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_string_args(self):
         def f():
-            global virtualenv_string_args
+            global virtualenv_string_args  # pylint: disable=global-statement
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception

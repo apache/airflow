@@ -28,9 +28,10 @@ from gzip import GzipFile
 from itertools import product
 from tempfile import NamedTemporaryFile, mkdtemp
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
-from tests.compat import mock
 
 try:
     import boto3
@@ -42,7 +43,7 @@ except ImportError:
 class TestS3ToHiveTransfer(unittest.TestCase):
 
     def setUp(self):
-        self.fn = {}
+        self.file_names = {}
         self.task_id = 'S3ToHiveTransferTest'
         self.s3_key = 'S32hive_test_file'
         self.field_dict = OrderedDict([('Sno', 'BIGINT'), ('Some,Text', 'STRING')])
@@ -124,13 +125,13 @@ class TestS3ToHiveTransfer(unittest.TestCase):
     # file types (file extension and header)
     def _set_fn(self, fn, ext, header):
         key = self._get_key(ext, header)
-        self.fn[key] = fn
+        self.file_names[key] = fn
 
     # Helper method to fetch a file of a
     # certain format (file extension and header)
     def _get_fn(self, ext, header):
         key = self._get_key(ext, header)
-        return self.fn[key]
+        return self.file_names[key]
 
     @staticmethod
     def _get_key(ext, header):

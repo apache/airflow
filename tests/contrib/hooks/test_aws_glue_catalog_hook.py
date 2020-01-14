@@ -19,9 +19,9 @@
 import unittest
 
 import boto3
+import mock
 
 from airflow.contrib.hooks.aws_glue_catalog_hook import AwsGlueCatalogHook
-from tests.compat import mock
 
 try:
     from moto import mock_glue

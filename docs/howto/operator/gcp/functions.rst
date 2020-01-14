@@ -29,15 +29,15 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GcfFunctionDeleteOperator:
+.. _howto/operator:CloudFunctionDeleteFunctionOperator:
 
-GcfFunctionDeleteOperator
--------------------------
+CloudFunctionDeleteFunctionOperator
+-----------------------------------
 
 Use the operator to delete a function from Google Cloud Functions.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.functions.GcfFunctionDeleteOperator`.
+:class:`~airflow.gcp.operators.functions.CloudFunctionDeleteFunctionOperator`.
 
 Arguments
 """""""""
@@ -74,16 +74,16 @@ More information
 See Google Cloud Functions API documentation to `delete a function
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_.
 
-.. _howto/operator:GcfFunctionDeployOperator:
+.. _howto/operator:CloudFunctionDeployFunctionOperator:
 
-GcfFunctionDeployOperator
--------------------------
+CloudFunctionDeployFunctionOperator
+-----------------------------------
 
 Use the operator to deploy a function to Google Cloud Functions.
 If a function with this name already exists, it will be updated.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.functions.GcfFunctionDeployOperator`.
+:class:`~airflow.gcp.operators.functions.CloudFunctionDeployFunctionOperator`.
 
 
 Arguments

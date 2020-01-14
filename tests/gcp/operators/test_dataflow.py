@@ -20,12 +20,13 @@
 
 import unittest
 
+import mock
+
 from airflow.gcp.operators.dataflow import (
-    CheckJobRunning, DataFlowJavaOperator, DataFlowPythonOperator, DataflowTemplateOperator,
-    GoogleCloudBucketHelper,
+    CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
+    DataflowTemplatedJobStartOperator, GoogleCloudBucketHelper,
 )
 from airflow.version import version
-from tests.compat import mock
 
 TASK_ID = 'test-dataflow-operator'
 JOB_NAME = 'test-dataflow-pipeline'
@@ -35,7 +36,7 @@ PARAMETERS = {
     'output': 'gs://test/output/my_output'
 }
 PY_FILE = 'gs://my-bucket/my-object.py'
-PY_INTERPRETER = 'python2'
+PY_INTERPRETER = 'python3'
 JAR_FILE = 'example/test.jar'
 JOB_CLASS = 'com.test.NotMain'
 PY_OPTIONS = ['-m']
@@ -62,10 +63,10 @@ POLL_SLEEP = 30
 GCS_HOOK_STRING = 'airflow.gcp.operators.dataflow.{}'
 
 
-class TestDataFlowPythonOperator(unittest.TestCase):
+class TestDataflowPythonOperator(unittest.TestCase):
 
     def setUp(self):
-        self.dataflow = DataFlowPythonOperator(
+        self.dataflow = DataflowCreatePythonJobOperator(
             task_id=TASK_ID,
             py_file=PY_FILE,
             job_name=JOB_NAME,
@@ -87,10 +88,10 @@ class TestDataFlowPythonOperator(unittest.TestCase):
         self.assertEqual(self.dataflow.options,
                          EXPECTED_ADDITIONAL_OPTIONS)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataFlowHook')
+    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_exec(self, gcs_hook, dataflow_mock):
-        """Test DataFlowHook is created and the right args are passed to
+        """Test DataflowHook is created and the right args are passed to
         start_python_workflow.
 
         """
@@ -115,10 +116,10 @@ class TestDataFlowPythonOperator(unittest.TestCase):
         self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
 
 
-class TestDataFlowJavaOperator(unittest.TestCase):
+class TestDataflowJavaOperator(unittest.TestCase):
 
     def setUp(self):
-        self.dataflow = DataFlowJavaOperator(
+        self.dataflow = DataflowCreateJavaJobOperator(
             task_id=TASK_ID,
             jar=JAR_FILE,
             job_name=JOB_NAME,
@@ -140,10 +141,10 @@ class TestDataFlowJavaOperator(unittest.TestCase):
                          EXPECTED_ADDITIONAL_OPTIONS)
         self.assertEqual(self.dataflow.check_if_running, CheckJobRunning.WaitForRun)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataFlowHook')
+    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_exec(self, gcs_hook, dataflow_mock):
-        """Test DataFlowHook is created and the right args are passed to
+        """Test DataflowHook is created and the right args are passed to
         start_java_workflow.
 
         """
@@ -162,10 +163,10 @@ class TestDataFlowJavaOperator(unittest.TestCase):
             multiple_jobs=None
         )
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataFlowHook')
+    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_check_job_running_exec(self, gcs_hook, dataflow_mock):
-        """Test DataFlowHook is created and the right args are passed to
+        """Test DataflowHook is created and the right args are passed to
         start_java_workflow.
 
         """
@@ -180,10 +181,10 @@ class TestDataFlowJavaOperator(unittest.TestCase):
         start_java_hook.assert_not_called()
         dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataFlowHook')
+    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_check_job_not_running_exec(self, gcs_hook, dataflow_mock):
-        """Test DataFlowHook is created and the right args are passed to
+        """Test DataflowHook is created and the right args are passed to
         start_java_workflow with option to check if job is running
 
         """
@@ -205,10 +206,10 @@ class TestDataFlowJavaOperator(unittest.TestCase):
         )
         dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataFlowHook')
+    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_check_multiple_job_exec(self, gcs_hook, dataflow_mock):
-        """Test DataFlowHook is created and the right args are passed to
+        """Test DataflowHook is created and the right args are passed to
         start_java_workflow with option to check multiple jobs
 
         """
@@ -232,10 +233,10 @@ class TestDataFlowJavaOperator(unittest.TestCase):
         dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
 
 
-class TestDataFlowTemplateOperator(unittest.TestCase):
+class TestDataflowTemplateOperator(unittest.TestCase):
 
     def setUp(self):
-        self.dataflow = DataflowTemplateOperator(
+        self.dataflow = DataflowTemplatedJobStartOperator(
             task_id=TASK_ID,
             template=TEMPLATE,
             job_name=JOB_NAME,
@@ -253,9 +254,9 @@ class TestDataFlowTemplateOperator(unittest.TestCase):
         self.assertEqual(self.dataflow.dataflow_default_options,
                          DEFAULT_OPTIONS_TEMPLATE)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataFlowHook')
+    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
     def test_exec(self, dataflow_mock):
-        """Test DataFlowHook is created and the right args are passed to
+        """Test DataflowHook is created and the right args are passed to
         start_template_workflow.
 
         """
@@ -306,7 +307,7 @@ class TestGoogleCloudBucketHelper(unittest.TestCase):
         gcs_bucket_helper = GoogleCloudBucketHelper()
         gcs_bucket_helper._gcs_hook = mock.Mock()
 
-        # pylint:disable=redefined-builtin,unused-argument
+        # pylint: disable=redefined-builtin,unused-argument
         def _mock_download(bucket, object, filename=None):
             text_file_contents = 'text file contents'
             with open(filename, 'w') as text_file:
@@ -328,7 +329,7 @@ class TestGoogleCloudBucketHelper(unittest.TestCase):
         gcs_bucket_helper = GoogleCloudBucketHelper()
         gcs_bucket_helper._gcs_hook = mock.Mock()
 
-        # pylint:disable=redefined-builtin,unused-argument
+        # pylint: disable=redefined-builtin,unused-argument
         def _mock_download(bucket, object, filename=None):
             text_file_contents = ''
             with open(filename, 'w') as text_file:

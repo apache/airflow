@@ -20,8 +20,9 @@
 
 import unittest
 
+from mock import PropertyMock, patch
+
 from airflow.gcp.hooks.speech_to_text import CloudSpeechToTextHook
-from tests.compat import PropertyMock, patch
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID = "project-id"
@@ -32,7 +33,7 @@ AUDIO = {"uri": "gs://bucket/object"}
 class TestTextToSpeechOperator(unittest.TestCase):
     def setUp(self):
         with patch(
-            "airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__",
+            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcp_speech_to_text_hook = CloudSpeechToTextHook(gcp_conn_id="test")

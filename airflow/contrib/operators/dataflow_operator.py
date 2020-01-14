@@ -20,12 +20,50 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.dataflow import (  # noqa
-    DataFlowJavaOperator, DataFlowPythonOperator, DataflowTemplateOperator,
+from airflow.gcp.operators.dataflow import (
+    DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator, DataflowTemplatedJobStartOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.dataflow`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class DataFlowJavaOperator(DataflowCreateJavaJobOperator):
+    """
+    This class is deprecated. Please use `airflow.gcp.operators.dataflow.DataflowCreateJavaJobOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataflow.DataflowCreateJavaJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataFlowPythonOperator(DataflowCreatePythonJobOperator):
+    """
+    This class is deprecated. Please use `airflow.gcp.operators.dataflow.DataflowCreatePythonJobOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataflow.DataflowCreatePythonJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataflowTemplateOperator(DataflowTemplatedJobStartOperator):
+    """
+    This class is deprecated. Please use `airflow.gcp.operators.dataflow.DataflowTemplatedJobStartOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataflow.DataflowTemplatedJobStartOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

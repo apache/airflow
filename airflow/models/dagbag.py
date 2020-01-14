@@ -18,14 +18,13 @@
 # under the License.
 
 import hashlib
-import imp
 import importlib
 import os
 import sys
 import textwrap
 import zipfile
-from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import NamedTuple
 
 from croniter import CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError, croniter
 
@@ -33,15 +32,24 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
-from airflow.executors import get_default_executor
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dag_processing import correct_maybe_zipped, list_py_file_paths
-from airflow.utils.db import provide_session
+from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
+
+
+class FileLoadStat(NamedTuple):
+    """
+    Information about single file
+    """
+    file: str
+    duration: timedelta
+    dag_num: int
+    task_num: int
+    dags: str
 
 
 class DagBag(BaseDagBag, LoggingMixin):
@@ -89,7 +97,8 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
-            executor = get_default_executor()
+            from airflow.executors.executor_loader import ExecutorLoader
+            executor = ExecutorLoader.get_default_executor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags = {}
@@ -124,7 +133,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         :param from_file_only: returns a DAG loaded from file.
         :type from_file_only: bool
         """
-        from airflow.models.dag import DagModel  # Avoid circular import
+        # Avoid circular import
+        from airflow.models.dag import DagModel
 
         # Only read DAGs from DB if this dagbag is store_serialized_dags.
         # from_file_only is an exception, currently it is for renderring templates
@@ -133,6 +143,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         # FIXME: this exception should be removed in future, then webserver can be
         # decoupled from DAG files.
         if self.store_serialized_dags and not from_file_only:
+            # Import here so that serialized dag is only imported when serialization is enabled
+            from airflow.models.serialized_dag import SerializedDagModel
             if dag_id not in self.dags:
                 # Load from DB if not (yet) in the bag
                 row = SerializedDagModel.get(dag_id)
@@ -157,7 +169,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         # Needs to load from file for a store_serialized_dags dagbag.
         enforce_from_file = False
         if self.store_serialized_dags and dag is not None:
-            from airflow.serialization.serialized_dag import SerializedDAG
+            from airflow.serialization.serialized_objects import SerializedDAG
             enforce_from_file = isinstance(dag, SerializedDAG)
 
         # If the dag corresponding to root_dag_id is absent or expired
@@ -235,7 +247,11 @@ class DagBag(BaseDagBag, LoggingMixin):
 
             with timeout(self.DAGBAG_IMPORT_TIMEOUT):
                 try:
-                    m = imp.load_source(mod_name, filepath)
+                    loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
+                    spec = importlib.util.spec_from_loader(mod_name, loader)
+                    m = importlib.util.module_from_spec(spec)
+                    sys.modules[spec.name] = m
+                    loader.exec_module(m)
                     mods.append(m)
                 except Exception as e:
                     self.log.exception("Failed to import: %s", filepath)
@@ -315,9 +331,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         had a heartbeat for too long, in the current DagBag.
 
         :param zombies: zombie task instances to kill.
-        :type zombies: airflow.utils.dag_processing.SimpleTaskInstance
+        :type zombies: List[airflow.models.taskinstance.SimpleTaskInstance]
         :param session: DB session.
-        :type session: sqlalchemy.orm.session.Session
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
@@ -401,11 +416,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         dag_folder = dag_folder or self.dag_folder
         # Used to store stats around DagBag processing
         stats = []
-        FileLoadStat = namedtuple(
-            'FileLoadStat', "file duration dag_num task_num dags")
 
+        from airflow.utils.file import correct_maybe_zipped, list_py_file_paths
         dag_folder = correct_maybe_zipped(dag_folder)
-
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
             try:
@@ -417,8 +430,6 @@ class DagBag(BaseDagBag, LoggingMixin):
                 dag_id_names = str(dag_ids)
 
                 td = timezone.utcnow() - ts
-                td = td.total_seconds() + (
-                    float(td.microseconds) / 1000000)
                 stats.append(FileLoadStat(
                     filepath.replace(settings.DAGS_FOLDER, ''),
                     td,
@@ -444,6 +455,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
     def collect_dags_from_db(self):
         """Collects DAGs from database."""
+        from airflow.models.serialized_dag import SerializedDagModel
         start_dttm = timezone.utcnow()
         self.log.info("Filling up the DagBag from database")
 
@@ -476,7 +488,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = self.dagbag_stats
         return report.format(
             dag_folder=self.dag_folder,
-            duration=sum([o.duration for o in stats]),
+            duration=sum([o.duration for o in stats], timedelta()).total_seconds(),
             dag_num=sum([o.dag_num for o in stats]),
             task_num=sum([o.task_num for o in stats]),
             table=pprinttable(stats),

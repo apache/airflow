@@ -21,10 +21,21 @@ This module is deprecated. Please use `airflow.gcp.hooks.gcs`.
 """
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url  # noqa
+from airflow.gcp.hooks.gcs import GCSHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.gcs`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GoogleCloudStorageHook(GCSHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.gcs.GCSHook`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.gcp.hooks.gcs.GCSHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

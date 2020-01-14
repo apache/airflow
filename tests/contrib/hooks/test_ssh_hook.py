@@ -21,13 +21,13 @@ import json
 import unittest
 from io import StringIO
 
+import mock
 import paramiko
 
 from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.models import Connection
 from airflow.utils import db
-from airflow.utils.db import create_session
-from tests.compat import mock
+from airflow.utils.session import create_session
 
 HELLO_SERVER_CMD = """
 import socket, sys
@@ -199,7 +199,8 @@ class TestSSHHook(unittest.TestCase):
     def test_ssh_connection(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
         with hook.get_conn() as client:
-            (_, stdout, _) = client.exec_command('ls')
+            # Note - Pylint will fail with no-member here due to https://github.com/PyCQA/pylint/issues/1437
+            (_, stdout, _) = client.exec_command('ls')  # pylint: disable=no-member
             self.assertIsNotNone(stdout.read())
 
     def test_ssh_connection_old_cm(self):

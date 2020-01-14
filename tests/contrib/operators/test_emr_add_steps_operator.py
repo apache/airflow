@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 
 from airflow import DAG
 from airflow.contrib.operators.emr_add_steps_operator import EmrAddStepsOperator
+from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.utils import timezone
 
@@ -52,19 +53,27 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     }]
 
     def setUp(self):
-        args = {
+        self.args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
         }
 
         # Mock out the emr_client (moto has incorrect response)
         self.emr_client_mock = MagicMock()
+
+        # Mock out the emr_client creator
+        emr_session_mock = MagicMock()
+        emr_session_mock.client.return_value = self.emr_client_mock
+        self.boto3_session_mock = MagicMock(return_value=emr_session_mock)
+
+        self.mock_context = MagicMock()
+
         self.operator = EmrAddStepsOperator(
             task_id='test_task',
             job_flow_id='j-8989898989',
             aws_conn_id='aws_default',
             steps=self._config,
-            dag=DAG('test_dag_id', default_args=args)
+            dag=DAG('test_dag_id', default_args=self.args)
         )
 
     def test_init(self):
@@ -93,13 +102,51 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     def test_execute_returns_step_id(self):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
-        # Mock out the emr_client creator
-        emr_session_mock = MagicMock()
-        emr_session_mock.client.return_value = self.emr_client_mock
-        self.boto3_session_mock = MagicMock(return_value=emr_session_mock)
+        with patch('boto3.session.Session', self.boto3_session_mock):
+            self.assertEqual(self.operator.execute(self.mock_context), ['s-2LH3R5GW3A53T'])
+
+    def test_init_with_cluster_name(self):
+        expected_job_flow_id = 'j-1231231234'
+
+        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):
-            self.assertEqual(self.operator.execute(None), ['s-2LH3R5GW3A53T'])
+            with patch('airflow.contrib.hooks.emr_hook.EmrHook.get_cluster_id_by_name') \
+                    as mock_get_cluster_id_by_name:
+                mock_get_cluster_id_by_name.return_value = expected_job_flow_id
+
+                operator = EmrAddStepsOperator(
+                    task_id='test_task',
+                    job_flow_name='test_cluster',
+                    cluster_states=['RUNNING', 'WAITING'],
+                    aws_conn_id='aws_default',
+                    dag=DAG('test_dag_id', default_args=self.args)
+                )
+
+                operator.execute(self.mock_context)
+
+        ti = self.mock_context['ti']
+
+        ti.xcom_push.assert_called_once_with(key='job_flow_id', value=expected_job_flow_id)
+
+    def test_init_with_nonexistent_cluster_name(self):
+        cluster_name = 'test_cluster'
+
+        with patch('airflow.contrib.hooks.emr_hook.EmrHook.get_cluster_id_by_name') \
+                as mock_get_cluster_id_by_name:
+            mock_get_cluster_id_by_name.return_value = None
+
+            operator = EmrAddStepsOperator(
+                task_id='test_task',
+                job_flow_name=cluster_name,
+                cluster_states=['RUNNING', 'WAITING'],
+                aws_conn_id='aws_default',
+                dag=DAG('test_dag_id', default_args=self.args)
+            )
+
+            with self.assertRaises(AirflowException) as error:
+                operator.execute(self.mock_context)
+            self.assertEqual(str(error.exception), f'No cluster found for name: {cluster_name}')
 
 
 if __name__ == '__main__':

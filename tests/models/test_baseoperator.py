@@ -17,38 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import datetime
 import unittest
 import uuid
-from collections import namedtuple
+from datetime import date, datetime
 from unittest import mock
 
 import jinja2
 from parameterized import parameterized
 
-from airflow.models import DAG, BaseOperator
+from airflow.exceptions import AirflowException
+from airflow.models import DAG
+from airflow.models.baseoperator import chain, cross_downstream
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.decorators import apply_defaults
 from tests.models import DEFAULT_DATE
-
-
-class TestOperator(BaseOperator):
-    """Operator for testing purposes."""
-
-    template_fields = ("arg1", "arg2")
-
-    @apply_defaults
-    def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
-        super().__init__(**kwargs)
-        self.arg1 = arg1
-        self.arg2 = arg2
-
-    def execute(self, context):
-        pass
-
-
-# Namedtuple for testing purposes
-TestNamedTuple = namedtuple("TestNamedTuple", ["var1", "var2"])
+from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
 
 
 class ClassWithCustomAttributes:
@@ -101,9 +83,9 @@ class TestBaseOperator(unittest.TestCase):
                 {"foo": "bar"},
                 {"key_{{ foo }}_1": 1, "key_2": "bar_2"},
             ),
-            (datetime.date(2018, 12, 6), {"foo": "bar"}, datetime.date(2018, 12, 6)),
-            (datetime.datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime.datetime(2018, 12, 6, 10, 55)),
-            (TestNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, TestNamedTuple("bar_1", "bar_2")),
+            (date(2018, 12, 6), {"foo": "bar"}, date(2018, 12, 6)),
+            (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
+            (MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, MockNamedTuple("bar_1", "bar_2")),
             ({"{{ foo }}_1", "{{ foo }}_2"}, {"foo": "bar"}, {"bar_1", "bar_2"}),
             (None, {}, None),
             ([], {}, []),
@@ -161,7 +143,7 @@ class TestBaseOperator(unittest.TestCase):
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
-            task = TestOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
+            task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
 
         # Assert nothing is templated yet
         self.assertEqual(task.arg1, "{{ foo }}")
@@ -232,7 +214,7 @@ class TestBaseOperator(unittest.TestCase):
     def test_jinja_env_creation(self, mock_jinja_env):
         """Verify if a Jinja environment is created only once when templating."""
         with DAG("test-dag", start_date=DEFAULT_DATE):
-            task = TestOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
+            task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
 
         task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
         self.assertEqual(mock_jinja_env.call_count, 1)
@@ -265,3 +247,41 @@ class TestBaseOperator(unittest.TestCase):
         task = DummyOperator(task_id="custom-resources", resources={"cpus": 1, "ram": 1024})
         self.assertEqual(task.resources.cpus.qty, 1)
         self.assertEqual(task.resources.ram.qty, 1024)
+
+
+class TestBaseOperatorMethods(unittest.TestCase):
+    def test_cross_downstream(self):
+        """Test if all dependencies between tasks are all set correctly."""
+        dag = DAG(dag_id="test_dag", start_date=datetime.now())
+        start_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(1, 4)]
+        end_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(4, 7)]
+        cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
+
+        for start_task in start_tasks:
+            self.assertCountEqual(start_task.get_direct_relatives(upstream=False), end_tasks)
+
+    def test_chain(self):
+        dag = DAG(dag_id='test_chain', start_date=datetime.now())
+        [op1, op2, op3, op4, op5, op6] = [
+            DummyOperator(task_id='t{i}'.format(i=i), dag=dag)
+            for i in range(1, 7)
+        ]
+        chain(op1, [op2, op3], [op4, op5], op6)
+
+        self.assertCountEqual([op2, op3], op1.get_direct_relatives(upstream=False))
+        self.assertEqual([op4], op2.get_direct_relatives(upstream=False))
+        self.assertEqual([op5], op3.get_direct_relatives(upstream=False))
+        self.assertCountEqual([op4, op5], op6.get_direct_relatives(upstream=True))
+
+    def test_chain_not_support_type(self):
+        dag = DAG(dag_id='test_chain', start_date=datetime.now())
+        [op1, op2] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 3)]
+        with self.assertRaises(TypeError):
+            # noinspection PyTypeChecker
+            chain([op1, op2], 1)
+
+    def test_chain_different_length_iterable(self):
+        dag = DAG(dag_id='test_chain', start_date=datetime.now())
+        [op1, op2, op3, op4, op5] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 6)]
+        with self.assertRaises(AirflowException):
+            chain([op1, op2], [op3, op4, op5])

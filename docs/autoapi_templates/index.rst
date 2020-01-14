@@ -20,6 +20,8 @@
 Python API Reference
 ====================
 
+.. _pythonapi:operators:
+
 Operators
 ---------
 Operators allow for generation of certain types of tasks that become nodes in
@@ -76,6 +78,44 @@ All operators are in the following packages:
 
   airflow/providers/amazon/aws/sensors/index
 
+  airflow/providers/apache/cassandra/sensors/index
+
+  airflow/providers/apache/cassandra/sensors/index
+
+  airflow/providers/apache/druid/operators/index
+
+  airflow/providers/apache/druid/operators/index
+
+  airflow/providers/apache/hdfs/sensors/index
+
+  airflow/providers/apache/hdfs/sensors/index
+
+  airflow/providers/apache/hdfs/sensors/index
+
+  airflow/providers/apache/hive/operators/index
+
+  airflow/providers/apache/hive/operators/index
+
+  airflow/providers/apache/hive/sensors/index
+
+  airflow/providers/apache/hive/sensors/index
+
+  airflow/providers/apache/hive/sensors/index
+
+  airflow/providers/apache/pig/operators/index
+
+  airflow/providers/apache/pinot/hooks/index
+
+  airflow/providers/apache/spark/hooks/index
+
+  airflow/providers/apache/spark/operators/index
+
+  airflow/providers/apache/spark/operators/index
+
+  airflow/providers/apache/spark/operators/index
+
+  airflow/providers/apache/sqoop/operators/index
+
   airflow/providers/google/cloud/operators/index
 
   airflow/providers/google/cloud/sensors/index
@@ -83,6 +123,12 @@ All operators are in the following packages:
   airflow/providers/google/marketing_platform/operators/index
 
   airflow/providers/google/marketing_platform/sensors/index
+
+  airflow/providers/sftp/operators/index
+
+  airflow/providers/sftp/sensors/index
+
+.. _pythonapi:hooks:
 
 Hooks
 -----
@@ -113,6 +159,25 @@ All hooks are in the following packages:
 
   airflow/providers/google/cloud/hooks/index
 
+  airflow/providers/apache/cassandra/hooks/index
+
+  airflow/providers/apache/druid/hooks/index
+
+  airflow/providers/apache/hdfs/hooks/index
+
+  airflow/providers/apache/hdfs/hooks/index
+
+  airflow/providers/apache/hive/hooks/index
+
+  airflow/providers/apache/pig/hooks/index
+
+  airflow/providers/apache/pinot/hooks/index
+
+  airflow/providers/apache/spark/hooks/index
+
+  airflow/providers/apache/sqoop/hooks/index
+
+  airflow/providers/sftp/hooks/index
 
 Executors
 ---------

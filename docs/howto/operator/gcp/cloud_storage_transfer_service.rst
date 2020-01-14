@@ -29,10 +29,10 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GcpTransferServiceJobCreateOperator:
+.. _howto/operator:CloudDataTransferServiceCreateJobOperator:
 
-GcpTransferServiceJobCreateOperator
------------------------------------
+CloudDataTransferServiceCreateJobOperator
+-----------------------------------------
 
 Create a transfer job.
 
@@ -56,7 +56,7 @@ If you want to create a job transfer that copies data from AWS S3 then you must 
 The selected connection for AWS can be indicated by the parameter ``aws_conn_id``.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobCreateOperator`.
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator`.
 
 Arguments
 """""""""
@@ -102,15 +102,15 @@ More information
 See `Google Cloud Transfer Service - Method: transferJobs.create
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/create>`_.
 
-.. _howto/operator:GcpTransferServiceJobDeleteOperator:
+.. _howto/operator:CloudDataTransferServiceDeleteJobOperator:
 
-GcpTransferServiceJobDeleteOperator
------------------------------------
+CloudDataTransferServiceDeleteJobOperator
+-----------------------------------------
 
 Deletes a transfer job.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobDeleteOperator`.
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceDeleteJobOperator`.
 
 Arguments
 """""""""
@@ -146,15 +146,15 @@ More information
 See `Google Cloud Transfer Service - REST Resource: transferJobs - Status
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs#Status>`_
 
-.. _howto/operator:GcpTransferServiceJobUpdateOperator:
+.. _howto/operator:CloudDataTransferServiceUpdateJobOperator:
 
-GcpTransferServiceJobUpdateOperator
------------------------------------
+CloudDataTransferServiceUpdateJobOperator
+-----------------------------------------
 
 Updates a transfer job.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceJobUpdateOperator`.
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceUpdateJobOperator`.
 
 Arguments
 """""""""
@@ -195,15 +195,15 @@ More information
 See `Google Cloud Transfer Service - Method: transferJobs.patch
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/patch>`_
 
-.. _howto/operator:GcpTransferServiceOperationCancelOperator:
+.. _howto/operator:CloudDataTransferServiceCancelOperationOperator:
 
-GcpTransferServiceOperationCancelOperator
------------------------------------------
+CloudDataTransferServiceCancelOperationOperator
+-----------------------------------------------
 
 Gets a transfer operation. The result is returned to XCOM.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationCancelOperator`.
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceCancelOperationOperator`.
 
 Arguments
 """""""""
@@ -240,15 +240,15 @@ See `Google Cloud Transfer Service - Method: transferOperations.cancel
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations/cancel>`_
 
 
-.. _howto/operator:GcpTransferServiceOperationGetOperator:
+.. _howto/operator:CloudDataTransferServiceGetOperationOperator:
 
-GcpTransferServiceOperationGetOperator
---------------------------------------
+CloudDataTransferServiceGetOperationOperator
+--------------------------------------------
 
 Gets a transfer operation. The result is returned to XCOM.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationGetOperator`.
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceGetOperationOperator`.
 
 Arguments
 """""""""
@@ -284,15 +284,15 @@ More information
 See `Google Cloud Transfer Service - Method: transferOperations.get
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations/get>`_
 
-.. _howto/operator:GcpTransferServiceOperationsListOperator:
+.. _howto/operator:CloudDataTransferServiceListOperationsOperator:
 
-GcpTransferServiceOperationsListOperator
-----------------------------------------
+CloudDataTransferServiceListOperationsOperator
+----------------------------------------------
 
 List a transfer operations. The result is returned to XCOM.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationsListOperator`.
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceListOperationsOperator`.
 
 Arguments
 """""""""
@@ -328,15 +328,15 @@ More information
 See `Google Cloud Transfer Service - Method: transferOperations.list
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations/list>`_
 
-.. _howto/operator:GcpTransferServiceOperationPauseOperator:
+.. _howto/operator:CloudDataTransferServicePauseOperationOperator:
 
-GcpTransferServiceOperationPauseOperator
-----------------------------------------
+CloudDataTransferServicePauseOperationOperator
+----------------------------------------------
 
 Pauses a transfer operations.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationPauseOperator`.
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServicePauseOperationOperator`.
 
 Arguments
 """""""""
@@ -372,15 +372,15 @@ More information
 See `Google Cloud Transfer Service - Method: transferOperations.pause
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations/pause>`_
 
-.. _howto/operator:GcpTransferServiceOperationResumeOperator:
+.. _howto/operator:CloudDataTransferServiceResumeOperationOperator:
 
-GcpTransferServiceOperationResumeOperator
------------------------------------------
+CloudDataTransferServiceResumeOperationOperator
+-----------------------------------------------
 
 Resumes a transfer operations.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.GcpTransferServiceOperationResumeOperator`.
+:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceResumeOperationOperator`.
 
 Arguments
 """""""""
@@ -416,15 +416,15 @@ More information
 See `Google Cloud Transfer Service - Method: transferOperations.resume
 <https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations/resume>`_
 
-.. _howto/operator:GCPTransferServiceWaitForJobStatusSensor:
+.. _howto/operator:CloudDataTransferServiceJobStatusSensor:
 
-GCPTransferServiceWaitForJobStatusSensor
-----------------------------------------
+CloudDataTransferServiceJobStatusSensor
+---------------------------------------
 
 Waits for at least one operation belonging to the job to have the expected status.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.sensors.cloud_storage_transfer_service.GCPTransferServiceWaitForJobStatusSensor`.
+:class:`~airflow.gcp.sensors.cloud_storage_transfer_service.CloudDataTransferServiceJobStatusSensor`.
 
 Arguments
 """""""""

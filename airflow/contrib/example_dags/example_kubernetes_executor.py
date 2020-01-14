@@ -21,13 +21,13 @@ This is an example dag for using the Kubernetes Executor.
 """
 import os
 
-import airflow
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 args = {
-    'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'owner': 'airflow',
+    'start_date': days_ago(2)
 }
 
 with DAG(
@@ -72,7 +72,8 @@ with DAG(
         :rtype: bool
         """
         return_code = os.system("zip")
-        assert return_code == 0
+        if return_code != 0:
+            raise SystemError("The zip binary is missing")
 
     # You don't have to use any special KubernetesExecutor configuration if you don't want to
     start_task = PythonOperator(

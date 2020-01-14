@@ -21,19 +21,21 @@
 
 .. contents:: :local:
 
-About Airflow Breeze
-====================
+Airflow Breeze CI Environment
+=============================
 
-Airflow Breeze is an easy-to-use integration test environment managed via
+Airflow Breeze is an easy-to-use development environment using
 `Docker Compose <https://docs.docker.com/compose/>`_.
-The environment is available for local use and is also integrated into Airflow's CI Travis tests.
+The environment is available for local use and is also used in Airflow's CI tests.
 
 We called it *Airflow Breeze* as **It's a Breeze to develop Airflow**.
 
 The advantages and disadvantages of using the Breeze environment vs. other ways of testing Airflow
 are described in `CONTRIBUTING.rst <CONTRIBUTING.rst#integration-test-development-environment>`_.
 
-Here is a short 10-minute video about Airflow Breeze:
+Here is a short 10-minute video about Airflow Breeze (note that it shows an old version of Breeze. Some
+of the points in the video are not valid any more. The video will be updated shortly with more up-to-date
+version):
 
 .. image:: http://img.youtube.com/vi/ffKFHV6f3PQ/0.jpg
    :width: 480px
@@ -74,26 +76,22 @@ Docker Compose
 Docker Images Used by Breeze
 ----------------------------
 
-For all development tasks, related integration tests and static code checks, we use Docker
-images maintained on the Docker Hub in the ``apache/airflow`` repository.
-
-There are three images that we are currently managing:
-
-* **CI image*** that is used for testing od both Unit tests and static check tests.
-  It contains a lot test-related packages (size of ~1GB).
-  Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
-  (for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
-  `<Dockerfile>`_ Dockerfile.
+For all development tasks, unit tests, integration tests and static code checks, we use the
+**CI image** maintained on the Docker Hub in the ``apache/airflow`` repository.
+This Docker image contains a lot test-related packages (size of ~1GB).
+Its tag follows the pattern of ``<BRANCH>-python<PYTHON_VERSION>-ci``
+(for example, ``apache/airflow:master-python3.6-ci``). The image is built using the
+`<Dockerfile>`_ Dockerfile.
 
 Before you run tests, enter the environment or run local static checks, the necessary local images should be
 pulled and built from Docker Hub. This happens automatically for the test environment but you need to
-manually trigger it for static checks as described in `Building the images <#bulding-the-images>`_
+manually trigger it for static checks as described in `Building the images <#building-the-images>`_
 and `Pulling the latest images <#pulling-the-latest-images>`_.
 The static checks will fail and inform what to do if the image is not yet built.
 
 Building the image first time pulls a pre-built version of images from the Docker Hub, which may take some
 time. But for subsequent source code changes, no wait time is expected.
-However, changes to sensitive files like setup.py or Dockerfile will trigger a rebuild
+However, changes to sensitive files like ``setup.py`` or ``Dockerfile`` will trigger a rebuild
 that may take more time though it is highly optimized to only rebuild what is needed.
 
 In most cases, rebuilding an image requires network connectivity (for example, to download new
@@ -106,28 +104,29 @@ See `Troubleshooting section <#troubleshooting>`_ for steps you can make to clea
 Getopt and gstat
 ----------------
 
+* For Linux, run ``apt install util-linux coreutils`` or an equivalent if your system is not Debian-based.
 * For macOS, install GNU ``getopt`` and ``gstat`` utilities to get Airflow Breeze running.
 
   Run ``brew install gnu-getopt coreutils`` and then follow instructions to link the gnu-getopt version to
   become the first on the PATH. Make sure to re-login after you make the suggested changes.
 
-  If you use bash, run this command and re-login:
+**Examples:**
+
+If you use bash, run this command and re-login:
 
 .. code-block:: bash
 
     echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.bash_profile
     . ~/.bash_profile
 
-..
 
-  If you use zsh, run this command and re-login:
+If you use zsh, run this command and re-login:
 
 .. code-block:: bash
 
     echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zprofile
     . ~/.zprofile
 
-* For Linux, run ``apt install util-linux coreutils`` or an equivalent if your system is not Debian-based.
 
 Memory
 ------
@@ -158,7 +157,6 @@ from your ``logs`` directory in the Airflow sources, so all logs created in the 
 visible in the host as well. Every time you enter the container, the ``logs`` directory is
 cleaned so that logs do not accumulate.
 
-
 Using the Airflow Breeze Environment
 =====================================
 
@@ -183,13 +181,13 @@ Breeze script allows performing the following tasks:
 Entering Breeze
 ---------------
 
-You enter the Breeze integration test environment by running the ``./breeze`` script. You can run it with
+You enter the Breeze test environment by running the ``./breeze`` script. You can run it with
 the ``--help`` option to see the list of available flags. See `Airflow Breeze flags <#airflow-breeze-flags>`_
 for details.
 
-  .. code-block:: bash
+.. code-block:: bash
 
-   ./breeze
+  ./breeze
 
 First time you run Breeze, it pulls and builds a local version of Docker images.
 It pulls the latest Airflow CI images from `Airflow DockerHub <https://hub.docker.com/r/apache/airflow>`_
@@ -200,7 +198,7 @@ Once you enter the environment, you are dropped into bash shell of the Airflow c
 run tests immediately.
 
 You can `set up autocomplete <#setting-up-autocomplete>`_ for commands and add the
-checked-out Airflow repository to your PATH to run Breeze without the ./ and from any directory.
+checked-out Airflow repository to your PATH to run Breeze without the ``./`` and from any directory.
 
 Stopping Breeze
 ---------------
@@ -208,9 +206,9 @@ Stopping Breeze
 After starting up, the environment runs in the background and takes precious memory.
 You can always stop it via:
 
-  .. code-block:: bash
+.. code-block:: bash
 
-    ./breeze --stop-environment
+   ./breeze --stop-environment
 
 Choosing a Breeze Environment
 -----------------------------
@@ -222,9 +220,9 @@ environments as we have in matrix builds in Travis CI.
 For example, you can choose to run Python 3.6 tests with MySQL as backend and in the Docker environment as
 follows:
 
-  .. code-block:: bash
+.. code-block:: bash
 
-    ./breeze --python 3.6 --backend mysql --env docker
+    ./breeze --python 3.6 --backend mysql
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -233,27 +231,27 @@ default settings.
 
 The defaults when you run the Breeze environment are Python 3.6, Sqlite, and Docker.
 
-Available Docker Environments
-..............................
+Launching Breeze Integrations
+-----------------------------
 
-You can choose a container environment when you run Breeze with ``--env`` flag.
-Running the default ``docker`` environment takes a considerable amount of resources. You can run a
-slimmed-down version of the environment - just the Apache Airflow container - by choosing ``bare``
-environment instead.
+When Breeze starts, it can start additional integrations. Those are additional docker containers
+that are started in the same docker-compose command. Those are required by some of the tests
+as described in `TESTING.rst <TESTING.rst#airflow-integration-tests>`_.
 
-The following environments are available:
+By default Breeze starts only airflow-testing container without any integration enabled. If you selected
+``postgres` or ``mysql`` backend, also container with the selected backend is started (but only the one
+that is selected). You can start the additional integrations by passing ``--integration`` flag
+with appropriate integration name when starting Breeze. You can specify several ``--integration`` flags
+to start more than one integration at a time.
+Finally you can specify ``--integration all`` to start all integrations.
 
- * The ``docker`` environment (default): starts all dependencies required by a full integration test suite
-   (Postgres, Mysql, Celery, etc). This option is resource intensive so do not forget to
-   [stop environment](#stopping-the-environment) when you are finished. This option is also RAM intensive
-   and can slow down your machine.
- * The ``kubernetes`` environment: Runs Airflow tests within a Kubernetes cluster.
- * The ``bare`` environment:  runs Airflow in the Docker without any external dependencies.
-   It only works for independent tests. You can only run it with the sqlite backend.
+Once integration is started, it will continue to run until the environment is stopped with
+``breeze --stop-environment`` flag.
 
+Note that running integrations uses significant resources - CPU and memory - by your docker engine.
 
-Cleaning Up the Environment
----------------------------
+Stopping the Environment
+------------------------
 
 You may need to clean up your Docker environment occasionally. The images are quite big
 (1.5GB for both images needed for static code analysis and CI tests) and, if you often rebuild/update
@@ -313,7 +311,7 @@ Running Arbitrary Commands in the Breeze Environment
 
 To run other commands/executables inside the Breeze Docker-based environment, use the
 ``-x``, ``--execute-command`` flag. To add arguments, specify them
-together with the command surrounded with either ``"`` or ``'``, or pass them after -- as extra arguments.
+together with the command surrounded with either ``"`` or ``'``, or pass them after ``--`` as extra arguments.
 
 .. code-block:: bash
 
@@ -329,7 +327,7 @@ Running Docker Compose Commands
 
 To run Docker Compose commands (such as ``help``, ``pull``, etc), use the
 ``-d``, ``--docker-compose`` flag. To add extra arguments, specify them
-after -- as extra arguments.
+after ``--`` as extra arguments.
 
 .. code-block:: bash
 
@@ -361,9 +359,9 @@ Installing Dependencies for a Single Breeze Session
 ...................................................
 
 You can install dependencies inside the container using ``sudo apt install``, ``pip install`` or
-``npm install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
+``yarn install`` (in ``airflow/www`` folder) respectively. This is useful if you want to test something
 quickly while you are in the container. However, these changes are not retained: they disappear once you
-exit the container (except for theh npm dependencies if your sources are mounted to the container).
+exit the container (except for the node.js dependencies if your sources are mounted to the container).
 Therefore, if you want to retain a new dependency, follow the second option described below.
 
 Adding Dependencies Permanently
@@ -377,7 +375,7 @@ if you do not confirm). After rebuilding is done, Breeze drops you to shell. You
 ``--build-only`` flag to only rebuild images and not to go into shell.
 
 Changing apt Dependencies in the Dockerfile
-....................................................
+............................................
 
 During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile``
 invalidates cache for most of the image. It takes long time for Breeze to rebuild the image.
@@ -430,7 +428,7 @@ values of parameters that you can use.
 
 You can set up the autocomplete option automatically by running:
 
-  .. code-block:: bash
+.. code-block:: bash
 
    ./breeze --setup-autocomplete
 
@@ -485,344 +483,52 @@ Often errors during documentation generation come from the docstrings of auto-ap
 During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
 easily identify the location the problems with documentation originated from.
 
-Testing and Debugging in Breeze
+Using Your Host IDE
+===================
+
+You can set up your host IDE (for example, IntelliJ's PyCharm/Idea) to work with Breeze
+and benefit from all the features provided by your IDE, such as local and remote debugging,
+autocompletion, documentation support, etc.
+
+To use your host IDE with Breeze:
+
+1. Create a local virtual environment as follows:
+
+   ``mkvirtualenv <ENV_NAME> --python=python<VERSION>``
+
+   You can use any of the following wrappers to create and manage your virtual environemnts:
+   `pyenv <https://github.com/pyenv/pyenv>`_, `pyenv-virtualenv <https://github.com/pyenv/pyenv-virtualenv>`_,
+   or `virtualenvwrapper <https://virtualenvwrapper.readthedocs.io/en/latest/>`_.
+
+   Ideally, you should have virtualenvs for all Python versions supported by Airflow (3.5, 3.6, 3.7)
+   and switch between them with the ``workon`` command.
+
+2. Use the ``workon`` command to enter the Breeze environment.
+
+3. Initialize the created local virtualenv:
+
+   ``./breeze --initialize-local-virtualenv``
+
+4. Select the virtualenv you created as the project's default virtualenv in your IDE.
+
+Note that you can also use the local virtualenv for Airflow development without Breeze.
+This is a lightweight solution that has its own limitations.
+
+More details on using the local virtualenv are available in the `LOCAL_VIRTUALENV.rst <LOCAL_VIRTUALENV.rst>`_.
+
+Running static checks in Breeze
 ===============================
 
-Debugging with ipdb
--------------------
+The Breeze environment is also used to run some of the static checks as described in
+`STATIC_CODE_CHECKS.rst <STATIC_CODE_CHECKS.rst>`_.
 
-You can debug any code you run in the container using ``ipdb`` debugger if you prefer console debugging.
-It is as easy as copy&pasting this line into your code:
 
-.. code-block:: python
+Running Tests in Breeze
+=======================
 
-   import ipdb; ipdb.set_trace()
+As soon as you enter the Breeze environment, you can run Airflow unit tests via the ``pytest`` command.
 
-Once you hit the line, you will be dropped into an interactive ``ipdb`` debugger where you have colors
-and autocompletion to guide your debugging. This works from the console where you started your program.
-Note that in case of ``nosetest`` you need to provide the ``--nocapture`` flag to avoid nosetests
-capturing the stdout of your process.
-
-Running Unit Tests in Airflow Breeze
-------------------------------------
-
-Once you enter Airflow Breeze environment, you can simply use
-``run-tests`` at will. Note that if you want to pass extra parameters to ``nose``,
-you should do it after '--'.
-
-For example, to execute the "core" unit tests, run the following:
-
-.. code-block:: bash
-
-   run-tests tests.core:TestCore -- -s --logging-level=DEBUG
-
-For a single test method, run:
-
-.. code-block:: bash
-
-   run-tests tests.core:TestCore.test_check_operators -- -s --logging-level=DEBUG
-
-The tests run ``airflow db reset`` and ``airflow db init`` the first time you
-launch them in a running container, so you can count on the database being initialized.
-
-All subsequent test executions within the same container will run without database
-initialization.
-
-You can also optionally add the ``--with-db-init`` flag if you want to re-initialize
-the database.
-
-.. code-block:: bash
-
-   run-tests --with-db-init tests.core:TestCore.test_check_operators -- -s --logging-level=DEBUG
-
-Running Tests for a Specified Target
-------------------------------------
-
-If you wish to only run tests and not to drop into shell, you can do this by providing the
--t, --test-target flag. You can add extra nosetest flags after -- in the command line.
-
-.. code-block:: bash
-
-     ./breeze --test-target tests/hooks/test_druid_hook.py -- --logging-level=DEBUG
-
-You can run the whole test suite with a special '.' test target:
-
-.. code-block:: bash
-
-    ./breeze --test-target .
-
-You can also specify individual tests or a group of tests:
-
-.. code-block:: bash
-
-    ./breeze --test-target tests.core:TestCore
-
-Running Static Code Checks
---------------------------
-
-We have a number of static code checks that are run in Travis CI but you can also run them locally
-in the Docker environment. All these tests run in Python 3.6 environment.
-
-The first time you run the checks, it may take some time to rebuild the Docker images. But all the
-subsequent runs will be much faster since the build phase will just check whether your code has changed
-and rebuild as needed.
-
-The static code checks launched in the Breeze Docker-based environment do not need a special environment
-preparation and provide the same results as the similar tests launched in Travis CI.
-
-You run the checks via ``-S``, ``--static-check`` flags or ``-F``, ``--static-check-all-files``.
-The former ones run appropriate checks only for files changed and staged locally, the latter ones run checks
-on all files.
-
-Note that it may take a lot of time to run checks for all files with pylint on macOS due to a slow
-filesystem for macOS Docker. As a workaround, you can add their arguments after ``--`` as extra arguments.
-You cannot pass the ``--files`` flag if you select the ``--static-check-all-files`` option.
-
-You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
-option. Note that the ``all`` static check runs all configured static checks. Also since pylint tests take
-a lot of time, you can run a special ``all-but-pylint`` check that skips pylint checks.
-
-Run the ``mypy`` check for the currently staged changes:
-
-.. code-block:: bash
-
-     ./breeze  --static-check mypy
-
-Run the ``mypy`` check for all files:
-
-.. code-block:: bash
-
-     ./breeze --static-check-all-files mypy
-
-Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
-
-.. code-block:: bash
-
-     ./breeze  --static-check flake8 -- --files tests/core.py --verbose
-
-Run the ``flake8`` check for the ``tests.core`` package with verbose output:
-
-.. code-block:: bash
-
-     ./breeze  --static-check mypy -- --files tests/hooks/test_druid_hook.py
-
-Run all tests for the currently staged files:
-
-.. code-block:: bash
-
-     ./breeze  --static-check all
-
-Run all tests for all files:
-
-.. code-block:: bash
-
-     ./breeze  --static-check-all-files all
-
-Run all tests but pylint for all files:
-
-.. code-block:: bash
-
-     ./breeze  --static-check-all-files all-but-pylint
-
-Run pylint checks for all changed files:
-
-.. code-block:: bash
-
-     ./breeze  --static-check pylint
-
-Run pylint checks for selected files:
-
-.. code-block:: bash
-
-     ./breeze  --static-check pylint -- --files airflow/configuration.py
-
-
-Run pylint checks for all files:
-
-.. code-block:: bash
-
-     ./breeze --static-check-all-files pylint
-
-
-The ``license`` check is run via a separate script and a separate Docker image containing the
-Apache RAT verification tool that checks for Apache-compatibility of licenses within the codebase.
-It does not take pre-commit parameters as extra arguments.
-
-.. code-block:: bash
-
-     ./breeze --static-check-all-files licenses
-
-Running Static Code Checks from the Host
-----------------------------------------
-
-You can trigger the static checks from the host environment, without entering the Docker container. To do
-this, run the following scripts (the same is done in Travis CI):
-
-* `<scripts/ci/ci_check_license.sh>`_ - checks the licenses.
-* `<scripts/ci/ci_docs.sh>`_ - checks that documentation can be built without warnings.
-* `<scripts/ci/ci_flake8.sh>`_ - runs Flake8 source code style enforcement tool.
-* `<scripts/ci/ci_lint_dockerfile.sh>`_ - runs lint checker for the Dockerfile.
-* `<scripts/ci/ci_mypy.sh>`_ - runs a check for mypy type annotation consistency.
-* `<scripts/ci/ci_pylint_main.sh>`_ - runs pylint static code checker for main files.
-* '`<scripts/ci/ci_pylint_tests.sh>`_ - runs pylint static code checker for tests.
-
-The scripts may ask you to rebuild the images, if needed.
-
-You can force rebuilding the images by deleting the [.build](./build) directory. This directory keeps cached
-information about the images already built and you can safely delete it if you want to start from scratch.
-
-After documentation is built, the HTML results are available in the [docs/_build/html](docs/_build/html)
-folder. This folder is mounted from the host so you can access those files on your host as well.
-
-Running Static Code Checks in the Docker
-------------------------------------------
-
-If you are already in the Breeze Docker environment (by running the ``./breeze`` command),
-you can also run the same static checks from the container:
-
-* Mypy: ``./scripts/ci/in_container/run_mypy.sh airflow tests``
-* Pylint for main files: ``./scripts/ci/in_container/run_pylint_main.sh``
-* Pylint for test files: ``./scripts/ci/in_container/run_pylint_tests.sh``
-* Flake8: ``./scripts/ci/in_container/run_flake8.sh``
-* License check: ``./scripts/ci/in_container/run_check_licence.sh``
-* Documentation: ``./scripts/ci/in_container/run_docs_build.sh``
-
-Running Static Code Analysis for Selected Files
------------------------------------------------
-
-In all static check scripts, both in the container and host versions, you can also pass a module/file path as
-parameters of the scripts to only check selected modules or files. For example:
-
-In the Docker container:
-
-.. code-block::
-
-  ./scripts/ci/in_container/run_pylint.sh ./airflow/example_dags/
-
-or
-
-.. code-block::
-
-  ./scripts/ci/in_container/run_pylint.sh ./airflow/example_dags/test_utils.py
-
-On the host:
-
-.. code-block::
-
-  ./scripts/ci/ci_pylint.sh ./airflow/example_dags/
-
-
-.. code-block::
-
-  ./scripts/ci/ci_pylint.sh ./airflow/example_dags/test_utils.py
-
-Running Test Suites via Scripts
---------------------------------------------
-
-To run all tests with default settings (Python 3.6, Sqlite backend, "docker" environment), enter:
-
-.. code-block::
-
-  ./scripts/ci/local_ci_run_airflow_testing.sh
-
-
-To select Python 3.6 version, Postgres backend, and a "docker" environment, specify:
-
-.. code-block::
-
-  PYTHON_VERSION=3.6 BACKEND=postgres ENV=docker ./scripts/ci/local_ci_run_airflow_testing.sh
-
-To run Kubernetes tests, enter:
-
-.. code-block::
-
-  KUBERNETES_VERSION==v1.13.0 KUBERNETES_MODE=persistent_mode BACKEND=postgres ENV=kubernetes \
-    ./scripts/ci/local_ci_run_airflow_testing.sh
-
-* PYTHON_VERSION is one of 3.6/3.7
-* BACKEND is one of postgres/sqlite/mysql
-* ENV is one of docker/kubernetes/bare
-* KUBERNETES_VERSION is required for Kubernetes tests. Currently, it is KUBERNETES_VERSION=v1.13.0.
-* KUBERNETES_MODE is a mode of kubernetes: either persistent_mode or git_mode.
-
-Using Your Host IDE with Breeze
-===============================
-
-Configuring local virtualenv
-----------------------------
-
-To use your host IDE (for example, IntelliJ's PyCharm/Idea), you need to set up virtual environments.
-Ideally, you should have virtualenvs for all Python versions supported by Airflow (3.6, 3.7).
-You can create a virtualenv using ``virtualenvwrapper``. This allows you to easily switch between
-virtualenvs using the ``workon`` command and manage your virtual environments more easily.
-
-Typically creating the environment can be done by:
-
-.. code-block:: bash
-
-  mkvirtualenv <ENV_NAME> --python=python<VERSION>
-
-After the virtualenv is created, you need to initialize it. Simply enter the environment by
-using ``workon`` and, once you are in it, run:
-
-.. code-block:: bash
-
-  ./breeze --initialize-local-virtualenv
-
-Once initialization is done, select the virtualenv you initialized as a default project
-virtualenv in your IDE.
-
-Running Unit Tests via IDE
---------------------------
-
-When setup is done, you can use the usual **Run Test** option of the IDE, have all the
-autocomplete and documentation support from IDE as well as you can debug and click-through
-the sources of Airflow, which is very helpful during development. Usually you can also run most
-of the unit tests (those that do not have dependencies) directly from the IDE:
-
-Running unit tests from IDE is as simple as:
-
-.. image:: images/running_unittests.png
-    :align: center
-    :alt: Running unit tests
-
-Some of the core tests use dags defined in ``tests/dags`` folder. Those tests should have
-``AIRFLOW__CORE__UNIT_TEST_MODE`` set to True. You can set it up in your test configuration:
-
-.. image:: images/airflow_unit_test_mode.png
-    :align: center
-    :alt: Airflow Unit test mode
-
-
-You cannot run all the tests this way but only unit tests that do not require external dependencies
-such as Postgres/MySQL/Hadoop/etc. You should use the
-`run-tests <#running-tests-in-airflow-breeze>`_ command for these tests. You can
-still use your IDE to debug those tests as explained in the next section.
-
-Debugging Airflow Breeze Tests in IDE
--------------------------------------
-
-When you run example DAGs, even if you run them using unit tests within IDE, they are run in a separate
-container. This makes it a little harder to use with IDE built-in debuggers.
-Fortunately, IntelliJ/PyCharm provides an effective remote debugging feature (but only in paid versions).
-See additional details on
-`remote debugging <https://www.jetbrains.com/help/pycharm/remote-debugging-with-product.html>`_.
-
-You can set up your remote debugging session as follows:
-
-.. image:: images/setup_remote_debugging.png
-    :align: center
-    :alt: Setup remote debugging
-
-Note that on macOS, you have to use a real IP address of your host rather than default
-localhost because on macOS the container runs in a virtual machine with a different IP address.
-
-Make sure to configure source code mapping in the remote debugging configuration to map
-your local sources to the ``/opt/airflow`` location of the sources within the container:
-
-.. image:: images/source_code_mapping_ide.png
-    :align: center
-    :alt: Source code mapping
+For supported CI test suites, types of unit tests, and other tests, see `TESTING.rst <TESTING.rst>`_.
 
 Breeze Command-Line Interface Reference
 =======================================
@@ -838,41 +544,60 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
 
 
-  Usage: breeze [FLAGS] \
-    [-k]|[-S <STATIC_CHECK>]|[-F <STATIC_CHECK>]|[-O]|[-e]|[-a]|[-b]|[-t <TARGET>]|[-x <COMMAND>]|[-d <COMMAND>] \
-    -- <EXTRA_ARGS>
+  *********************************************************************************************************
+
+  Usage: breeze [FLAGS] -- <EXTRA_ARGS>
 
   The swiss-knife-army tool for Airflow testings. It allows to perform various test tasks:
 
     * Enter interactive environment when no command flags are specified (default behaviour)
+    * Start integrations if specified as extra flags
+    * Start Kind Kubernetes cluster for Kubernetes tests if specified
     * Stop the interactive environment with -k, --stop-environment command
     * Run static checks - either for currently staged change or for all files with
-      -S, --static-check or -F, --static-check-all-files commanbd
+      -S, --static-check or -F, --static-check-all-files command
     * Build documentation with -O, --build-docs command
     * Setup local virtualenv with -e, --setup-virtualenv command
     * Setup autocomplete for itself with -a, --setup-autocomplete command
     * Build docker image with -b, --build-only command
-    * Run test target specified with -t, --test-target connad
-    * Execute arbitrary command in the test environmenrt with -x, --execute-command command
+    * Run test target specified with -t, --test-target command
+    * Execute arbitrary command in the test environment with -x, --execute-command command
     * Execute arbitrary docker-compose command with -d, --docker-compose command
 
-  ** Commands
+  *********************************************************************************************************
+  **
+  ** Command to run
+  **
+  *********************************************************************************************************
 
     By default the script enters IT environment and drops you to bash shell,
-    but you can also choose one of the commands to run specific actions instead:
+    but you can choose one of the commands to run specific actions instead:
+
+  -O, --build-docs
+         Build documentation.
+
+  -b, --build-only
+          Only build docker images but do not enter the airflow-testing docker container.
+
+  -e, --initialize-local-virtualenv
+          Initializes locally created virtualenv installing all dependencies of Airflow.
+          This local virtualenv can be used to aid autocompletion and IDE support as
+          well as run unit tests directly from the IDE. You need to have virtualenv
+          activated before running this command.
+
+  -a, --setup-autocomplete
+          Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
+          shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
 
   -k, --stop-environment
           Bring down running docker compose environment. When you start the environment, the docker
           containers will continue running so that startup time is shorter. But they take quite a lot of
           memory and CPU. This command stops all running containers from the environment.
 
-  -O, --build-docs
-         Build documentation.
-
   -S, --static-check <STATIC_CHECK>
           Run selected static checks for currently changed files. You should specify static check that
           you would like to run or 'all' to run all checks. One of
-          [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
+          [ all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck].
           You can pass extra arguments including options to to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 
@@ -886,7 +611,7 @@ This is the current syntax for  `./breeze <./breeze>`_:
   -F, --static-check-all-files <STATIC_CHECK>
           Run selected static checks for all applicable files. You should specify static check that
           you would like to run or 'all' to run all checks. One of
-          [ all all-but-pylint check-hooks-apply check-merge-conflict check-executables-have-shebangs check-xml detect-private-key doctoc end-of-file-fixer flake8 forbid-tabs insert-license check-apache-license lint-dockerfile mixed-line-ending mypy pylint shellcheck].
+          [ all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck].
           You can pass extra arguments including options to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 
@@ -897,25 +622,179 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
           './breeze --static-check-all-files mypy -- --help'
 
-  -e, --initialize-local-virtualenv
-          Initializes locally created virtualenv installing all dependencies of Airflow.
-          This local virtualenv can be used to aid autocompletion and IDE support as
-          well as run unit tests directly from the IDE. You need to have virtualenv
-          activated before running this command.
-
-  -a, --setup-autocomplete
-          Sets up autocomplete for breeze commands. Once you do it you need to re-enter the bash
-          shell and when typing breeze command <TAB> will provide autocomplete for parameters and values.
-
-  -b, --build-only
-          Only build docker images but do not enter the airflow-testing docker container.
-
   -t, --test-target <TARGET>
           Run the specified unit test target. There might be multiple
           targets specified separated with comas. The <EXTRA_ARGS> passed after -- are treated
-          as additional options passed to nosetest. For example:
+          as additional options passed to pytest. For example:
 
-          './breeze --test-target tests.core -- --logging-level=DEBUG'
+          './breeze --test-target tests/test_core.py -- --logging-level=DEBUG'
+
+  *********************************************************************************************************
+  **
+  ** Print help message
+  **
+  *********************************************************************************************************
+
+  -h, --help
+          Shows this help message.
+
+  *********************************************************************************************************
+  **
+  ** Choose tested Airflow variant
+  **
+  *********************************************************************************************************
+
+  -P, --python <PYTHON_VERSION>
+          Python version used for the image. This is always major/minor version.
+          One of [ 3.6 3.7 ]. Default is the python3 or python on the path.
+
+  -B, --backend <BACKEND>
+          Backend to use for tests - it determines which database is used.
+          One of [ sqlite mysql postgres ]. Default: sqlite
+
+  -I, --integration <INTEGRATION>
+          Integration to start during tests - it determines which integrations are started for integration
+          tests. There can be more than one integration started, or all to start all integrations.
+          Selected integrations are not saved for future execution.
+          One of [ cassandra kerberos mongo openldap rabbitmq redis all ]. Default:
+
+  *********************************************************************************************************
+  **
+  ** Manage Kind kubernetes cluster
+  **
+  *********************************************************************************************************
+
+  -K, --start-kind-cluster
+          Starts kind Kubernetes cluster after entering the environment. The cluster is started using
+          Kubernetes Mode selected and Kubernetes version specifed via --kubernetes-mode and
+          --kubernetes-version flags.
+
+  -Z, --recreate-kind-cluster
+          Recreates kind Kubernetes cluster if one has already been created. By default, if you do not stop
+          environment, the Kubernetes cluster created for testing is continuously running and when
+          you start Kubernetes testing again it will be reused. You can force deletion and recreation
+          of such cluster with this flag.
+
+  -X, --stop-kind-cluster
+          Stops kind Kubernetes cluster if one has already been created. By default, if you do not stop
+          environment, the Kubernetes cluster created for testing is continuously running and when
+          you start Kubernetes testing again it will be reused. You can force deletion and recreation
+          of such cluster with this flag.
+
+  -M, --kubernetes-mode <KUBERNETES_MODE>
+          Kubernetes mode - only used in case --start-kind-cluster flag is specified.
+          One of [ persistent_mode git_mode ]. Default: git_mode
+
+  -V, --kubernetes-version <KUBERNETES_VERSION>
+          Kubernetes version - only used in case --start-kind-cluster flag is specified.
+          One of [ v1.15.3 v1.16.2 ]. Default: v1.15.3
+
+  *********************************************************************************************************
+  **
+  ** Manage mounting local files
+  **
+  *********************************************************************************************************
+
+  -s, --skip-mounting-source-volume
+          Skips mounting local volume with sources - you get exactly what is in the
+          docker image rather than your current local sources of airflow.
+
+  *********************************************************************************************************
+  **
+  ** Assume answers to questions
+  **
+  *********************************************************************************************************
+
+  -y, --assume-yes
+          Assume 'yes' answer to all questions.
+
+  -n, --assume-no
+          Assume 'no' answer to all questions.
+
+  *********************************************************************************************************
+  **
+  ** Increase verbosity of the script
+  **
+  *********************************************************************************************************
+
+  -v, --verbose
+          Show verbose information about executed commands (enabled by default for running test)
+
+  *********************************************************************************************************
+  **
+  ** Enable/Disable extra information printed at output
+  **
+  *********************************************************************************************************
+
+  -C, --toggle-suppress-cheatsheet
+          Toggles on/off cheatsheet displayed before starting bash shell
+
+  -A, --toggle-suppress-asciiart
+          Toggles on/off asciiart displayed before starting bash shell
+
+  *********************************************************************************************************
+  **
+  ** Flags for building the docker images
+  **
+  *********************************************************************************************************
+
+  -r, --force-build-images
+          Forces building of the local docker images. The images are rebuilt
+          automatically for the first time or when changes are detected in
+          package-related files, but you can force it using this flag.
+
+  -p, --force-pull-images
+          Forces pulling of images from DockerHub before building to populate cache. The
+          images are pulled by default only for the first time you run the
+          environment, later the locally build images are used as cache.
+
+  -R, --force-clean-build
+          Force build images with cache disabled. This will remove the pulled or build images
+          and start building images from scratch. This might take a long time.
+
+  -L, --use-local-cache
+          Uses local cache to build images. No pulled images will be used, but results of local builds in
+          the Docker cache are used instead.
+
+  -c, --cleanup-images
+          Cleanup your local docker cache of the airflow docker images. This will not reclaim space in
+          docker cache. You need to 'docker system prune' (optionally with --all) to reclaim that space.
+
+  *********************************************************************************************************
+  **
+  ** Flags for pushing the docker images
+  **
+  *********************************************************************************************************
+
+  -u, --push-images
+          After building - uploads the images to DockerHub
+          It is useful in case you use your own DockerHub user to store images and you want
+          to build them locally. Note that you need to use 'docker login' before you upload images.
+
+  *********************************************************************************************************
+  **
+  ** User and repo used to login to github registry
+  **
+  *********************************************************************************************************
+
+  -D, --dockerhub-user
+          DockerHub user used to pull, push and build images. Default: apache.
+
+  -H, --dockerhub-repo
+          DockerHub repository used to pull, push, build images. Default: airflow.
+
+  *********************************************************************************************************
+  **
+  ** Additional low-level commands that you can use to interact with the Breeze environment
+  **
+  *********************************************************************************************************
+
+  -d, --docker-compose <COMMAND>
+          Run docker-compose command instead of entering the environment. Use 'help' command
+          to see available commands. The <EXTRA_ARGS> passed after -- are treated
+          as additional options passed to docker-compose. For example
+
+          './breeze --docker-compose pull -- --ignore-pull-failures'
 
   -x, --execute-command <COMMAND>
           Run chosen command instead of entering the environment. The command is run using
@@ -926,91 +805,11 @@ This is the current syntax for  `./breeze <./breeze>`_:
           './breeze --execute-command "ls -la"' or
           './breeze --execute-command ls -- --la'
 
-  -d, --docker-compose <COMMAND>
-          Run docker-compose command instead of entering the environment. Use 'help' command
-          to see available commands. The <EXTRA_ARGS> passed after -- are treated
-          as additional options passed to docker-compose. For example
+  *********************************************************************************************************
 
-          './breeze --docker-compose pull -- --ignore-pull-failures'
-
-  ** General flags
-
-  -h, --help
-          Shows this help message.
-
-  -P, --python <PYTHON_VERSION>
-          Python version used for the image. This is always major/minor version.
-          One of [ 3.6 3.7 ]. Default is the python3 or python on the path.
-
-  -E, --env <ENVIRONMENT>
-          Environment to use for tests. It determines which types of tests can be run.
-          One of [ docker kubernetes ]. Default: docker
-
-  -B, --backend <BACKEND>
-          Backend to use for tests - it determines which database is used.
-          One of [ sqlite mysql postgres ]. Default: sqlite
-
-  -K, --kubernetes-version <KUBERNETES_VERSION>
-          Kubernetes version - only used in case of 'kubernetes' environment.
-          One of [ v1.13.0 ]. Default: v1.13.0
-
-  -M, --kubernetes-mode <KUBERNETES_MODE>
-          Kubernetes mode - only used in case of 'kubernetes' environment.
-          One of [ persistent_mode git_mode ]. Default: git_mode
-
-  -s, --skip-mounting-source-volume
-          Skips mounting local volume with sources - you get exactly what is in the
-          docker image rather than your current local sources of airflow.
-
-  -v, --verbose
-          Show verbose information about executed commands (enabled by default for running test)
-
-  -y, --assume-yes
-          Assume 'yes' answer to all questions.
-
-  -n, --assume-no
-          Assume 'no' answer to all questions.
-
-  -C, --toggle-suppress-cheatsheet
-          Toggles on/off cheatsheet displayed before starting bash shell
-
-  -A, --toggle-suppress-asciiart
-          Toggles on/off asciiart displayed before starting bash shell
-
-  ** Dockerfile management flags
-
-  -D, --dockerhub-user
-          DockerHub user used to pull, push and build images. Default: apache.
-
-  -H, --dockerhub-repo
-          DockerHub repository used to pull, push, build images. Default: airflow.
-
-  -r, --force-build-images
-          Forces building of the local docker images. The images are rebuilt
-          automatically for the first time or when changes are detected in
-          package-related files, but you can force it using this flag.
-
-  -R, --force-build-images-clean
-          Force build images without cache. This will remove the pulled or build images
-          and start building images from scratch. This might take a long time.
-
-  -p, --force-pull-images
-          Forces pulling of images from DockerHub before building to populate cache. The
-          images are pulled by default only for the first time you run the
-          environment, later the locally build images are used as cache.
-
-  -u, --push-images
-          After building - uploads the images to DockerHub
-          It is useful in case you use your own DockerHub user to store images and you want
-          to build them locally. Note that you need to use 'docker login' before you upload images.
-
-  -c, --cleanup-images
-          Cleanup your local docker cache of the airflow docker images. This will not reclaim space in
-          docker cache. You need to 'docker system prune' (optionally with --all) to reclaim that space.
 
 
  .. END BREEZE HELP MARKER
-
 
 Convenience Scripts
 -------------------
@@ -1021,7 +820,7 @@ Once you run ``./breeze`` you can also execute various actions via generated con
 
    Enter the environment          : ./.build/cmd_run
    Run command in the environment : ./.build/cmd_run "[command with args]" [bash options]
-   Run tests in the environment   : ./.build/test_run [test-target] [nosetest options]
+   Run tests in the environment   : ./.build/test_run [test-target] [pytest options]
    Run Docker compose command     : ./.build/dc [help/pull/...] [docker-compose options]
 
 Troubleshooting

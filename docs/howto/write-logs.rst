@@ -27,6 +27,9 @@ Users can specify the directory to place log files in ``airflow.cfg`` using
 ``base_log_folder``. By default, logs are placed in the ``AIRFLOW_HOME``
 directory.
 
+.. note::
+    For more information on setting the configuration, see :doc:`set-config`
+
 The following convention is followed while naming logs: ``{dag_id}/{task_id}/{execution_date}/{try_number}.log``
 
 In addition, users can supply a remote location to store current logs and backups.
@@ -55,7 +58,7 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
 
 .. code-block:: ini
 
-    [core]
+    [logging]
     # Airflow can store logs remotely in AWS S3. Users must supply a remote
     # location URL (starting with either 's3://...') and an Airflow connection
     # id that provides access to the storage location.
@@ -94,8 +97,9 @@ Follow the steps below to enable Azure Blob Storage logging:
 
 #. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
 
-    .. code-block:: bash
+    .. code-block:: ini
 
+        [logging]
         remote_logging = True
         logging_config_class = log_config.LOGGING_CONFIG
         remote_log_conn_id = <name of the Azure Blob Storage connection>
@@ -115,7 +119,7 @@ example:
 
 .. code-block:: ini
 
-    [core]
+    [logging]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional
@@ -154,7 +158,7 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
 
 .. code-block:: ini
 
-    [core]
+    [logging]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional
@@ -171,7 +175,7 @@ To output task logs to stdout in JSON format, the following config could be used
 
 .. code-block:: ini
 
-    [core]
+    [logging]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional
@@ -194,7 +198,7 @@ To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, a
 
 .. code-block:: ini
 
-    [core]
+    [logging]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional

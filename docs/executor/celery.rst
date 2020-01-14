@@ -50,13 +50,13 @@ subcommand
 
 .. code-block:: bash
 
-    airflow worker
+    airflow celery worker
 
 Your worker should start picking up tasks as soon as they get fired in
 its direction.
 
 Note that you can also run "Celery Flower", a web UI built on top of Celery,
-to monitor your workers. You can use the shortcut command ``airflow flower``
+to monitor your workers. You can use the shortcut command ``airflow celery flower``
 to start a Flower web server.
 
 Please note that you must have the ``flower`` python library already installed on your system. The recommend way is to install the airflow celery bundle.
@@ -139,7 +139,7 @@ The components communicate with each other in many places
 * [5] **Workers** --> **Database** - Gets and stores information about connection configuration, variables and XCOM.
 * [6] **Workers** --> **Celery's result backend** - Saves the status of tasks
 * [7] **Workers** --> **Celery's broker** - Stores commands for execution
-* [8] **Scheduler** --> **Database** - Store a DAG run and related tasks
-* [9] **Scheduler** --> **DAG files** - Reveal the DAG structure and execute the tasks
+* [8] **Scheduler** --> **DAG files** - Reveal the DAG structure and execute the tasks
+* [9] **Scheduler** --> **Database** - Store a DAG run and related tasks
 * [10] **Scheduler** --> **Celery's result backend** - Gets information about the status of completed tasks
 * [11] **Scheduler** --> **Celery's broker** - Put the commands to be executed

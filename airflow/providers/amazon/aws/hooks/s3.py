@@ -608,9 +608,7 @@ class S3Hook(AwsHook):
             keys to delete.
         :type keys: str or list
         """
-        if isinstance(keys, list):
-            keys = keys
-        else:
+        if isinstance(keys, str):
             keys = [keys]
 
         delete_dict = {"Objects": [{"Key": k} for k in keys]}

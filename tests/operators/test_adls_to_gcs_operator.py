@@ -19,8 +19,9 @@
 
 import unittest
 
+import mock
+
 from airflow.operators.adls_to_gcs import AdlsToGoogleCloudStorageOperator
-from tests.compat import mock
 
 TASK_ID = 'test-adls-gcs-operator'
 ADLS_PATH_1 = '*'
@@ -54,7 +55,7 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch('airflow.operators.adls_to_gcs.AzureDataLakeHook')
     @mock.patch('airflow.contrib.operators.adls_list_operator.AzureDataLakeHook')
     @mock.patch(
-        'airflow.operators.adls_to_gcs.GoogleCloudStorageHook')
+        'airflow.operators.adls_to_gcs.GCSHook')
     def test_execute(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -103,7 +104,7 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch('airflow.operators.adls_to_gcs.AzureDataLakeHook')
     @mock.patch('airflow.contrib.operators.adls_list_operator.AzureDataLakeHook')
     @mock.patch(
-        'airflow.operators.adls_to_gcs.GoogleCloudStorageHook')
+        'airflow.operators.adls_to_gcs.GCSHook')
     def test_execute_with_gzip(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
         """Test the execute function when the run is successful."""
 

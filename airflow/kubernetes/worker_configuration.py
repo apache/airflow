@@ -35,7 +35,6 @@ class WorkerConfiguration(LoggingMixin):
     git_sync_ssh_secret_volume_name = 'git-sync-ssh-key'
     git_ssh_key_secret_key = 'gitSshKey'
     git_sync_ssh_known_hosts_volume_name = 'git-sync-known-hosts'
-    git_ssh_known_hosts_configmap_key = 'known_hosts'
 
     def __init__(self, kube_config):
         self.kube_config = kube_config
@@ -64,6 +63,9 @@ class WorkerConfiguration(LoggingMixin):
         ), k8s.V1EnvVar(
             name='GIT_SYNC_DEST',
             value=self.kube_config.git_sync_dest
+        ), k8s.V1EnvVar(
+            name='GIT_SYNC_REV',
+            value=self.kube_config.git_sync_rev
         ), k8s.V1EnvVar(
             name='GIT_SYNC_DEPTH',
             value='1'
@@ -220,13 +222,6 @@ class WorkerConfiguration(LoggingMixin):
 
         return worker_secrets
 
-    def _get_image_pull_secrets(self) -> List[k8s.V1LocalObjectReference]:
-        """Extracts any image pull secrets for fetching container(s)"""
-        if not self.kube_config.image_pull_secrets:
-            return []
-        pull_secrets = self.kube_config.image_pull_secrets.split(',')
-        return list(map(k8s.V1LocalObjectReference, pull_secrets))
-
     def _get_security_context(self) -> k8s.V1PodSecurityContext:
         """Defines the security context"""
 
@@ -280,6 +275,17 @@ class WorkerConfiguration(LoggingMixin):
                 name=config_volume_name,
                 mount_path=config_path,
                 sub_path='airflow.cfg',
+                read_only=True
+            )
+
+        # Mount the airflow_local_settings.py file via a configmap the user has specified
+        if self.kube_config.airflow_local_settings_configmap:
+            config_volume_name = 'airflow-local-settings'
+            config_path = '{}/config/airflow_local_settings.py'.format(self.worker_airflow_home)
+            volume_mounts[config_volume_name] = k8s.V1VolumeMount(
+                name='airflow-config',
+                mount_path=config_path,
+                sub_path='airflow_local_settings.py',
                 read_only=True
             )
 
@@ -342,6 +348,16 @@ class WorkerConfiguration(LoggingMixin):
                 )
             )
 
+        # Mount the airflow_local_settings.py file via a configmap the user has specified
+        if self.kube_config.airflow_local_settings_configmap:
+            config_volume_name = 'airflow-config'
+            volumes[config_volume_name] = k8s.V1Volume(
+                name=config_volume_name,
+                config_map=k8s.V1ConfigMapVolumeSource(
+                    name=self.kube_config.airflow_local_settings_configmap
+                )
+            )
+
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
             config_volume_name = 'airflow-config'
@@ -361,22 +377,12 @@ class WorkerConfiguration(LoggingMixin):
 
         return self.kube_config.git_dags_folder_mount_point
 
-    def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
-                 try_number, airflow_command) -> k8s.V1Pod:
+    def as_pod(self) -> k8s.V1Pod:
         """Creates POD."""
         pod_generator = PodGenerator(
-            namespace=namespace,
-            name=pod_id,
             image=self.kube_config.kube_image,
             image_pull_policy=self.kube_config.kube_image_pull_policy,
-            labels={
-                'airflow-worker': worker_uuid,
-                'dag_id': dag_id,
-                'task_id': task_id,
-                'execution_date': execution_date,
-                'try_number': str(try_number),
-            },
-            cmds=airflow_command,
+            image_pull_secrets=self.kube_config.image_pull_secrets,
             volumes=self._get_volumes(),
             volume_mounts=self._get_volume_mounts(),
             init_containers=self._get_init_containers(),

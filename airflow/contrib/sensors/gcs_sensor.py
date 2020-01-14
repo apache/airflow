@@ -20,13 +20,72 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.sensors.gcs import (  # noqa
-    GoogleCloudStorageObjectSensor, GoogleCloudStorageObjectUpdatedSensor, GoogleCloudStoragePrefixSensor,
-    GoogleCloudStorageUploadSessionCompleteSensor,
+from airflow.gcp.sensors.gcs import (
+    GCSObjectExistenceSensor, GCSObjectsWtihPrefixExistenceSensor, GCSObjectUpdateSensor,
+    GCSUploadSessionCompleteSensor,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.sensors.gcs`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GoogleCloudStorageObjectSensor(GCSObjectExistenceSensor):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.sensors.gcs.GCSObjectExistenceSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.sensors.gcs.GCSObjectExistenceSensor`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GoogleCloudStorageObjectUpdatedSensor(GCSObjectUpdateSensor):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.sensors.gcs.GCSObjectUpdateSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.sensors.gcs.GCSObjectUpdateSensor`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GoogleCloudStoragePrefixSensor(GCSObjectsWtihPrefixExistenceSensor):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class GoogleCloudStorageUploadSessionCompleteSensor(GCSUploadSessionCompleteSensor):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.sensors.gcs.GCSUploadSessionCompleteSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.sensors.gcs.GCSUploadSessionCompleteSensor`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

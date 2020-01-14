@@ -19,8 +19,9 @@
 
 import unittest
 
+import mock
+
 from airflow.gcp.operators.translate import CloudTranslateTextOperator
-from tests.compat import mock
 
 GCP_CONN_ID = 'google_cloud_default'
 

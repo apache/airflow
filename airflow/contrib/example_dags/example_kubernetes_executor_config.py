@@ -21,14 +21,14 @@ This is an example dag for using a Kubernetes Executor Configuration.
 """
 import os
 
-import airflow
 from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 default_args = {
-    'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'owner': 'airflow',
+    'start_date': days_ago(2)
 }
 
 with DAG(
@@ -45,7 +45,8 @@ with DAG(
             foo.write('Hello')
 
         return_code = os.system("cat /foo/volume_mount_test.txt")
-        assert return_code == 0
+        if return_code != 0:
+            raise ValueError(f"Error when checking volume mount. Return code {return_code}")
 
     # You can use annotations on your kubernetes pods!
     start_task = PythonOperator(

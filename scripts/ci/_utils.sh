@@ -60,6 +60,8 @@ export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
 # Python version and avoids problems with root-owned .pyc files in host
 export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 
+# By default we assume the kubernetes cluster is not being started
+export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
 #
 # Sets mounting of host volumes to container for static checks
 # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
@@ -78,10 +80,76 @@ function print_info() {
     fi
 }
 
+# shellcheck disable=SC1087
+# Simple (?) no-dependency needed Yaml PARSER
+# From https://stackoverflow.com/questions/5014632/how-can-i-parse-a-yaml-file-from-a-linux-shell-script
+function parse_yaml {
+
+    if [[ -z $1 ]]; then
+        echo "Please provide yaml filename as first parameter."
+        exit 1
+    fi
+    local prefix=$2
+    local s='[[:space:]]*' w='[a-zA-Z0-9_-]*' FS
+    FS=$(echo @|tr @ '\034')
+    sed -ne "s|,$s\]$s\$|]|" \
+         -e ":1;s|^\($s\)\($w\)$s:$s\[$s\(.*\)$s,$s\(.*\)$s\]|\1\2: [\3]\n\1  - \4|;t1" \
+         -e "s|^\($s\)\($w\)$s:$s\[$s\(.*\)$s\]|\1\2:\n\1  - \3|;p" "${1}" | \
+    sed -ne "s|,$s}$s\$|}|" \
+         -e ":1;s|^\($s\)-$s{$s\(.*\)$s,$s\($w\)$s:$s\(.*\)$s}|\1- {\2}\n\1  \3: \4|;t1" \
+         -e    "s|^\($s\)-$s{$s\(.*\)$s}|\1-\n\1  \2|;p" | \
+    sed -ne "s|^\($s\):|\1|" \
+         -e "s|^\($s\)-$s[\"']\(.*\)[\"']$s\$|\1$FS$FS\2|p" \
+         -e "s|^\($s\)-$s\(.*\)$s\$|\1$FS$FS\2|p" \
+         -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$FS\2$FS\3|p" \
+         -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$FS\2$FS\3|p" | \
+    awk -F"${FS}" '{
+       indent = length($1)/2;
+       vname[indent] = $2;
+       for (i in vname) {if (i > indent) {delete vname[i]; idx[i]=0}}
+       if(length($2)== 0){  vname[indent]= ++idx[indent] };
+       if (length($3) > 0) {
+          vn=""; for (i=0; i<indent; i++) { vn=(vn)(vname[i])("_")}
+          printf("%s%s%s=\"%s\"\n", "'"${prefix}"'",vn, vname[indent], $3);
+       }
+    }'
+}
+
+# parse docker-compose-local.yaml file to convert volumes entries
+# from airflow-testing section to "-v" "volume mapping" series of options
+function convert_docker_mounts_to_docker_params() {
+    ESCAPED_AIRFLOW_SOURCES=$(echo "${AIRFLOW_SOURCES}" | sed -e 's/[\/&]/\\&/g')
+    # shellcheck disable=2046
+    while IFS= read -r LINE; do
+        echo "-v"
+        echo "${LINE}"
+    done < <(parse_yaml scripts/ci/docker-compose/local.yml COMPOSE_ | \
+            grep "COMPOSE_services_airflow-testing_volumes_" | \
+            sed "s/..\/..\/../${ESCAPED_AIRFLOW_SOURCES}/" | \
+            sed "s/COMPOSE_services_airflow-testing_volumes_//" | \
+            sort -t "=" -k 1 -n | \
+            cut -d "=" -f 2- | \
+            sed -e 's/^"//' -e 's/"$//')
+}
+
+
+function sanitize_file() {
+    if [[ -d "${1}" ]]; then
+        rm -rf "${1}"
+    fi
+    touch "${1}"
+
+}
+function sanitize_mounted_files() {
+    sanitize_file "${AIRFLOW_SOURCES}/.bash_history"
+    sanitize_file "${AIRFLOW_SOURCES}/.bash_aliases"
+    sanitize_file "${AIRFLOW_SOURCES}/.inputrc"
+}
+
 declare -a AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS
 if [[ ${AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
-    print_info "Mount whole sourcce directory for static checks"
+    print_info "Mount whole airflow source directory for static checks (make sure all files are in container)"
     print_info
     AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
       "-v" "${AIRFLOW_SOURCES}:/opt/airflow" \
@@ -91,29 +159,12 @@ elif [[ ${AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS} == "true" ]]; then
     print_info
     print_info "Mounting necessary host volumes to Docker"
     print_info
-    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=( \
-      "-v" "${AIRFLOW_SOURCES}/airflow:/opt/airflow/airflow:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache:cached" \
-      "-v" "${AIRFLOW_SOURCES}/dev:/opt/airflow/dev:cached" \
-      "-v" "${AIRFLOW_SOURCES}/docs:/opt/airflow/docs:cached" \
-      "-v" "${AIRFLOW_SOURCES}/scripts:/opt/airflow/scripts:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.bash_history:/root/.bash_history:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.bash_aliases:/root/.bash_aliases:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.inputrc:/root/.inputrc:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.bash_completion.d:/root/.bash_completion.d:cached" \
-      "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
-      "-v" "${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.flake8:/opt/airflow/.flake8:cached" \
-      "-v" "${AIRFLOW_SOURCES}/pylintrc:/opt/airflow/pylintrc:cached" \
-      "-v" "${AIRFLOW_SOURCES}/setup.cfg:/opt/airflow/setup.cfg:cached" \
-      "-v" "${AIRFLOW_SOURCES}/setup.py:/opt/airflow/setup.py:cached" \
-      "-v" "${AIRFLOW_SOURCES}/.rat-excludes:/opt/airflow/.rat-excludes:cached" \
-      "-v" "${AIRFLOW_SOURCES}/logs:/opt/airflow/logs:cached" \
-      "-v" "${AIRFLOW_SOURCES}/logs:/root/logs:cached" \
-      "-v" "${AIRFLOW_SOURCES}/files:/files:cached" \
-      "-v" "${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached" \
-      "--env" "PYTHONDONTWRITEBYTECODE" \
-    )
+
+    AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS=()
+
+    while IFS= read -r LINE; do
+        AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS+=( "${LINE}")
+    done < <(convert_docker_mounts_to_docker_params)
 else
     print_info
     print_info "Skip mounting host volumes to Docker"
@@ -147,8 +198,8 @@ function create_cache_directory() {
 }
 
 function remove_cache_directory() {
-    if [[ -z "${CACHE_TMP_FILE_DIR}" ]]; then
-        rm -rf -- "${CACHE_TMP_FILE_DIR}"
+    if [[ -d ${CACHE_TMP_FILE_DIR} ]]; then
+        rm -rf "${CACHE_TMP_FILE_DIR}"
     fi
 }
 
@@ -160,7 +211,7 @@ function remove_cache_directory() {
 function check_file_md5sum {
     local FILE="${1}"
     local MD5SUM
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM=$(md5sum "${FILE}")
     local MD5SUM_FILE
@@ -190,7 +241,7 @@ function check_file_md5sum {
 function move_file_md5sum {
     local FILE="${1}"
     local MD5SUM_FILE
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
@@ -498,9 +549,9 @@ function rebuild_ci_image_if_needed() {
 
     export THE_IMAGE_TYPE="CI"
 
-    rebuild_image_if_needed
-
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
+
+    rebuild_image_if_needed
 }
 
 
@@ -577,6 +628,7 @@ function basic_sanity_checks() {
     check_if_coreutils_installed
     create_cache_directory
     forget_last_answer
+    sanitize_mounted_files
 }
 
 
@@ -609,6 +661,18 @@ function run_flake8() {
             | tee -a "${OUTPUT_LOG}"
     fi
 }
+
+function run_bats_tests() {
+    FILES=("$@")
+    if [[ "${#FILES[@]}" == "0" ]]; then
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r /airflow/tests/bats | tee -a "${OUTPUT_LOG}"
+    else
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
+            bats/bats:latest --tap -r "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
+    fi
+}
+
 
 function run_docs() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
@@ -871,16 +935,18 @@ function build_image_on_ci() {
     echo "${CHANGED_FILE_NAMES}"
     echo
 
-    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"kubernetes"* ]]; then
+    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"Kubernetes"* ]]; then
         match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/kubernetes/.*\.py' \
-            'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+            'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
+            'scripts/ci/.*'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
             rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
         fi
     elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
-        match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+        match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' \
+            'airflow/www/.*\.html' 'scripts/ci/.*'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
             rebuild_ci_image_if_needed
         else
@@ -913,4 +979,39 @@ function build_image_on_ci() {
     # Disable force pulling forced above
     unset AIRFLOW_CONTAINER_FORCE_PULL_IMAGES
     unset FORCE_BUILD
+}
+
+function read_from_file {
+    cat "${BUILD_CACHE_DIR}/.$1" 2>/dev/null || true
+}
+
+function save_to_file {
+    # shellcheck disable=SC2005
+    echo "$(eval echo "\$$1")" > "${BUILD_CACHE_DIR}/.$1"
+}
+
+function check_for_allowed_params {
+    _VARIABLE_NAME="${1}"
+    _VARIABLE_DESCRIPTIVE_NAME="${2}"
+    _FLAG="${3}"
+    _ALLOWED_VALUES_ENV_NAME="_BREEZE_ALLOWED_${_VARIABLE_NAME}S"
+    _ALLOWED_VALUES=${!_ALLOWED_VALUES_ENV_NAME}
+    _VALUE=${!_VARIABLE_NAME}
+    if [[ ${_ALLOWED_VALUES:=} != *" ${_VALUE} "* ]]; then
+        echo >&2
+        echo >&2 "ERROR:  Allowed ${_VARIABLE_DESCRIPTIVE_NAME}: [${_ALLOWED_VALUES}]. Is: '${!_VARIABLE_NAME}'."
+        echo >&2
+        echo >&2 "Switch to supported value with ${_FLAG} flag."
+
+        if [[ -n ${!_VARIABLE_NAME} && \
+            -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}" && \
+            ${!_VARIABLE_NAME} == $(cat "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}" ) ]]; then
+            echo >&2
+            echo >&2 "Removing ${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}. Next time you run it, it should be OK."
+            echo >&2
+            rm -f "${BUILD_CACHE_DIR}/.${_VARIABLE_NAME}"
+        fi
+        exit 1
+    fi
+    save_to_file "${_VARIABLE_NAME}"
 }

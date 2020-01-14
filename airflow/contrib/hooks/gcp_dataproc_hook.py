@@ -20,8 +20,7 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.providers.google.cloud.hooks.dataproc import DataprocHook  # noqa
+from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.dataproc`.",
@@ -31,13 +30,14 @@ warnings.warn(
 
 class DataProcHook(DataprocHook):
     """
-    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.dataproc.DataprocHook`.
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.hooks.dataproc.DataprocHook`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "This class is deprecated. Please use `airflow.providers.google."
-            "cloud.hooks.dataproc.DataprocHook`.",
+            """This class is deprecated.
+            Please use `airflow.providers.google.cloud.hooks.dataproc.DataprocHook`.""",
             DeprecationWarning, stacklevel=2
         )
 

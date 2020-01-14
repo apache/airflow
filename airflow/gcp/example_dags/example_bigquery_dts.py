@@ -26,13 +26,12 @@ import time
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from google.protobuf.json_format import ParseDict
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator, BigQueryDataTransferServiceStartTransferRunsOperator,
-    BigQueryDeleteDataTransferConfigOperator,
 )
 from airflow.gcp.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET_URI = os.environ.get(
@@ -70,7 +69,7 @@ TRANSFER_CONFIG = ParseDict(
 
 # [END howto_bigquery_dts_create_args]
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 
 with models.DAG(
     "example_gcp_bigquery_dts",
@@ -111,7 +110,7 @@ with models.DAG(
     # [END howto_bigquery_dts_sensor]
 
     # [START howto_bigquery_delete_data_transfer]
-    gcp_bigquery_delete_transfer = BigQueryDeleteDataTransferConfigOperator(
+    gcp_bigquery_delete_transfer = BigQueryDataTransferServiceStartTransferRunsOperator(
         transfer_config_id=transfer_config_id, task_id="gcp_bigquery_delete_transfer"
     )
     # [END howto_bigquery_delete_data_transfer]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,9 +19,10 @@
 import unittest
 from datetime import datetime
 
-from airflow.models import BaseOperator, TaskInstance
+from airflow.models import TaskInstance
+from airflow.models.baseoperator import BaseOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 

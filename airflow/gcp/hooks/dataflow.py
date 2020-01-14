@@ -32,7 +32,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 # This is the default location
@@ -56,7 +56,7 @@ def _fallback_to_project_id_from_variables(func: Callable[..., RT]) -> Callable[
     :return: result of the function call
     """
     @functools.wraps(func)
-    def inner_wrapper(self: "DataFlowHook", *args, **kwargs) -> RT:
+    def inner_wrapper(self: "DataflowHook", *args, **kwargs) -> RT:
         if args:
             raise AirflowException(
                 "You must use keyword arguments in this methods rather than positional")
@@ -133,7 +133,8 @@ class _DataflowJobsController(LoggingMixin):
         :rtype: bool
         """
         self._refresh_jobs()
-        assert self._jobs is not None
+        if not self._jobs:
+            raise ValueError("Could not read _jobs")
 
         for job in self._jobs:
             if job['currentState'] not in DataflowJobStatus.END_STATES:
@@ -255,7 +256,8 @@ class _DataflowJobsController(LoggingMixin):
         """
         if not self._jobs:
             self._refresh_jobs()
-        assert self._jobs is not None
+        if not self._jobs:
+            raise ValueError("Could nit read _jobs")
 
         return self._jobs
 
@@ -339,7 +341,7 @@ class _DataflowRunner(LoggingMixin):
         return job_id
 
 
-class DataFlowHook(GoogleCloudBaseHook):
+class DataflowHook(CloudBaseHook):
     """
     Hook for Google Dataflow.
 
@@ -364,7 +366,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return build(
             'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
-    @GoogleCloudBaseHook.provide_gcp_credential_file
+    @CloudBaseHook.provide_gcp_credential_file
     def _start_dataflow(
         self,
         variables: Dict,
@@ -397,7 +399,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return variables
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_java_dataflow(
         self,
         job_name: str,
@@ -426,7 +428,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         :param multiple_jobs: True if to check for multiple job in dataflow
         :type multiple_jobs: bool
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['jobName'] = name
@@ -440,7 +443,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         self._start_dataflow(variables, name, command_prefix, label_formatter, project_id, multiple_jobs)
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_template_dataflow(
         self,
         job_name: str,
@@ -466,7 +469,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         :param append_job_name: True if unique suffix has to be appended to job name.
         :type append_job_name: bool
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         variables = self._set_variables(variables)
         name = self._build_dataflow_job_name(job_name, append_job_name)
@@ -474,7 +478,7 @@ class DataFlowHook(GoogleCloudBaseHook):
             name, variables, parameters, dataflow_template, project_id)
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def start_python_dataflow(
         self,
         job_name: str,
@@ -483,7 +487,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         py_options: List[str],
         project_id: Optional[str] = None,
         append_job_name: bool = True,
-        py_interpreter: str = "python2"
+        py_interpreter: str = "python3"
     ):
         """
         Starts Dataflow job.
@@ -501,12 +505,13 @@ class DataFlowHook(GoogleCloudBaseHook):
         :param project_id: Optional, the GCP project ID in which to start a job.
             If set to None or missing, the default project_id from the GCP connection is used.
         :param py_interpreter: Python version of the beam pipeline.
-            If None, this defaults to the python2.
+            If None, this defaults to the python3.
             To track python versions supported by beam and related
             issues check: https://issues.apache.org/jira/browse/BEAM-1251
         :type py_interpreter: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['job_name'] = name
@@ -591,7 +596,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return response
 
     @_fallback_to_project_id_from_variables
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def is_job_dataflow_running(self, name: str, variables: Dict, project_id: Optional[str] = None) -> bool:
         """
         Helper method to check if jos is still running in dataflow
@@ -605,7 +610,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         :return: True if job is running.
         :rtype: bool
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         variables = self._set_variables(variables)
         jobs_controller = _DataflowJobsController(
