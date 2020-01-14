@@ -59,7 +59,7 @@
 ./airflow/providers/amazon/aws/operators/sagemaker_endpoint_config.py
 ./airflow/providers/amazon/aws/operators/sagemaker_endpoint.py
 ./airflow/providers/amazon/aws/operators/sagemaker_model.py
-./airflow/contrib/operators/sagemaker_training_operator.py
+./airflow/providers/amazon/aws/operators/sagemaker_training.py
 ./airflow/contrib/operators/sagemaker_transform_operator.py
 ./airflow/contrib/operators/sagemaker_tuning_operator.py
 ./airflow/contrib/operators/segment_track_event_operator.py
