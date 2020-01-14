@@ -106,6 +106,8 @@ class TestMarkTasks(unittest.TestCase):
         for ti in tis:  # pylint: disable=too-many-nested-blocks
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
                 self.assertEqual(ti.state, state)
+                if state in State.finished():
+                    self.assertIsNotNone(ti.end_date)
             else:
                 for old_ti in old_tis:
                     if old_ti.task_id == ti.task_id and old_ti.execution_date == ti.execution_date:
