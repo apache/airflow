@@ -23,7 +23,7 @@ import unittest
 import boto3
 from moto import mock_s3
 
-from airflow.contrib.operators.s3_copy_object_operator import S3CopyObjectOperator
+from airflow.providers.amazon.aws.operators.s3_copy_object import S3CopyObjectOperator
 
 
 class TestS3CopyObjectOperator(unittest.TestCase):

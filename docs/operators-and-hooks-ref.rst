@@ -403,7 +403,7 @@ These integrations allow you to perform various operations within the Amazon Web
      -
      - :mod:`airflow.providers.amazon.aws.hooks.s3`
      - :mod:`airflow.operators.s3_file_transform_operator`,
-       :mod:`airflow.contrib.operators.s3_copy_object_operator`,
+       :mod:`airflow.providers.amazon.aws.operators.s3_copy_object`,
        :mod:`airflow.contrib.operators.s3_delete_objects_operator`,
        :mod:`airflow.contrib.operators.s3_list_operator`
      - :mod:`airflow.sensors.s3_key_sensor`,
