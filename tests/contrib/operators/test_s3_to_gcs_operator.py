@@ -53,7 +53,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(operator.dest_gcs, GCS_PATH_PREFIX)
 
     @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
-    @mock.patch('airflow.contrib.operators.s3_list_operator.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
     @mock.patch(
         'airflow.contrib.operators.s3_to_gcs_operator.GCSHook')
     def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
@@ -88,7 +88,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
 
     @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
-    @mock.patch('airflow.contrib.operators.s3_list_operator.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
     @mock.patch(
         'airflow.contrib.operators.s3_to_gcs_operator.GCSHook')
     def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
