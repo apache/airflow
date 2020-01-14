@@ -102,6 +102,10 @@ def set_state(
     if dag is None:
         raise ValueError("Received tasks with no DAG")
 
+    latest_execution_date = dag.latest_execution_date
+    if latest_execution_date is None:
+        return []
+
     dates = get_execution_dates(dag, execution_date, future, past)
 
     task_ids = list(find_task_relatives(tasks, downstream, upstream))
