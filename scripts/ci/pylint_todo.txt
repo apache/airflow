@@ -166,7 +166,6 @@
 ./airflow/providers/amazon/aws/operators/athena.py
 ./airflow/providers/amazon/aws/sensors/athena.py
 ./airflow/providers/amazon/aws/sensors/redshift.py
-./airflow/providers/snowflake/hooks/snowflake.py
 ./airflow/sensors/base_sensor_operator.py
 ./airflow/sensors/external_task_sensor.py
 ./airflow/sensors/hdfs_sensor.py

@@ -19,6 +19,7 @@
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+# pylint: disable=no-name-in-module
 from snowflake import connector
 
 from airflow.hooks.dbapi_hook import DbApiHook
