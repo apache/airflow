@@ -20,7 +20,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from airflow.contrib.operators.emr_terminate_job_flow_operator import EmrTerminateJobFlowOperator
+from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTerminateJobFlowOperator
 
 TERMINATE_SUCCESS_RETURN = {
     'ResponseMetadata': {

@@ -934,6 +934,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator',
         'airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.emr_terminate_job_flow.EmrTerminateJobFlowOperator',
+        'airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator',
+    ),
 ]
 
 SENSOR = [

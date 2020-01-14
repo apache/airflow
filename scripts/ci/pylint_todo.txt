@@ -39,7 +39,7 @@
 ./airflow/providers/amazon/aws/operators/ecs.py
 ./airflow/providers/amazon/aws/operators/emr_add_steps.py
 ./airflow/providers/amazon/aws/operators/emr_create_job_flow.py
-./airflow/contrib/operators/emr_terminate_job_flow_operator.py
+./airflow/providers/amazon/aws/operators/emr_terminate_job_flow.py
 ./airflow/contrib/operators/file_to_wasb.py
 ./airflow/contrib/operators/grpc_operator.py
 ./airflow/contrib/operators/jenkins_job_trigger_operator.py
