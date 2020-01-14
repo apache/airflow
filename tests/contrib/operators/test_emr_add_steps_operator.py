@@ -111,7 +111,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         with patch('boto3.session.Session', self.boto3_session_mock):
-            with patch('airflow.contrib.hooks.emr_hook.EmrHook.get_cluster_id_by_name') \
+            with patch('airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name') \
                     as mock_get_cluster_id_by_name:
                 mock_get_cluster_id_by_name.return_value = expected_job_flow_id
 
@@ -132,7 +132,7 @@ class TestEmrAddStepsOperator(unittest.TestCase):
     def test_init_with_nonexistent_cluster_name(self):
         cluster_name = 'test_cluster'
 
-        with patch('airflow.contrib.hooks.emr_hook.EmrHook.get_cluster_id_by_name') \
+        with patch('airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name') \
                 as mock_get_cluster_id_by_name:
             mock_get_cluster_id_by_name.return_value = None
 

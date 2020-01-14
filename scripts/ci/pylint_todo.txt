@@ -11,7 +11,7 @@
 ./airflow/contrib/hooks/datadog_hook.py
 ./airflow/contrib/hooks/dingding_hook.py
 ./airflow/contrib/hooks/discord_webhook_hook.py
-./airflow/contrib/hooks/emr_hook.py
+./airflow/providers/amazon/aws/hooks/emr.py
 ./airflow/hooks/filesystem.py
 ./airflow/contrib/hooks/ftp_hook.py
 ./airflow/contrib/hooks/jenkins_hook.py

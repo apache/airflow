@@ -248,6 +248,10 @@ HOOK = [
         'airflow.providers.amazon.aws.hooks.logs.AwsLogsHook',
         'airflow.contrib.hooks.aws_logs_hook.AwsLogsHook',
     ),
+    (
+        'airflow.providers.amazon.aws.hooks.emr.EmrHook',
+        'airflow.contrib.hooks.emr_hook.EmrHook',
+    ),
 ]
 
 OPERATOR = [

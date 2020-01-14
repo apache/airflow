@@ -351,7 +351,7 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
      -
-     - :mod:`airflow.contrib.hooks.emr_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.emr`
      - :mod:`airflow.contrib.operators.emr_add_steps_operator`,
        :mod:`airflow.contrib.operators.emr_create_job_flow_operator`,
        :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`

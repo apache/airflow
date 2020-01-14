@@ -22,7 +22,7 @@ import unittest
 
 import boto3
 
-from airflow.contrib.hooks.emr_hook import EmrHook
+from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
 try:
     from moto import mock_emr
