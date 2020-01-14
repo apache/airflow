@@ -1076,6 +1076,10 @@ SENSOR = [
         'airflow.providers.amazon.aws.sensors.emr_base.EmrBaseSensor',
         'airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor',
     ),
+    (
+        'airflow.providers.amazon.aws.sensors.emr_job_flow.EmrJobFlowSensor',
+        'airflow.contrib.sensors.emr_job_flow_sensor.EmrJobFlowSensor',
+    ),
 ]
 
 PROTOCOLS = [
