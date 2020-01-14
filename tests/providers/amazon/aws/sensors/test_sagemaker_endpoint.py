@@ -22,8 +22,8 @@ import unittest
 import mock
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.sensors.sagemaker_endpoint_sensor import SageMakerEndpointSensor
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.sensors.sagemaker_endpoint import SageMakerEndpointSensor
 
 DESCRIBE_ENDPOINT_CREATING_RESPONSE = {
     'EndpointStatus': 'Creating',
