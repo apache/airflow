@@ -16,45 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.exceptions import AirflowException
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr_base`."""
 
+import warnings
 
-class EmrBaseSensor(BaseSensorOperator):
-    """
-    Contains general sensor behavior for EMR.
-    Subclasses should implement get_emr_response() and state_from_response() methods.
-    Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE constants.
-    """
-    ui_color = '#66c3ff'
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor  # noqa
 
-    @apply_defaults
-    def __init__(
-            self,
-            aws_conn_id='aws_default',
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.aws_conn_id = aws_conn_id
-
-    def poke(self, context):
-        response = self.get_emr_response()
-
-        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            self.log.info('Bad HTTP response: %s', response)
-            return False
-
-        state = self.state_from_response(response)
-        self.log.info('Job flow currently %s', state)
-
-        if state in self.NON_TERMINAL_STATES:
-            return False
-
-        if state in self.FAILED_STATE:
-            final_message = 'EMR job failed'
-            failure_message = self.failure_message_from_response(response)
-            if failure_message:
-                final_message += ' ' + failure_message
-            raise AirflowException(final_message)
-
-        return True
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr_base`.",
+    DeprecationWarning, stacklevel=2
+)

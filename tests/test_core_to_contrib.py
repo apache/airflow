@@ -1072,6 +1072,10 @@ SENSOR = [
         'airflow.providers.amazon.aws.sensors.glue_catalog_partition.AwsGlueCatalogPartitionSensor',
         'airflow.contrib.sensors.aws_glue_catalog_partition_sensor.AwsGlueCatalogPartitionSensor',
     ),
+    (
+        'airflow.providers.amazon.aws.sensors.emr_base.EmrBaseSensor',
+        'airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor',
+    ),
 ]
 
 PROTOCOLS = [

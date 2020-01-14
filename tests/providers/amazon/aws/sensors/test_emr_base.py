@@ -19,8 +19,8 @@
 
 import unittest
 
-from airflow.contrib.sensors.emr_base_sensor import EmrBaseSensor
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
 
 
 class TestEmrBaseSensor(unittest.TestCase):

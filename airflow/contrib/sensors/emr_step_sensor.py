@@ -16,8 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.sensors.emr_base_sensor import EmrBaseSensor
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
+from airflow.providers.amazon.aws.sensors.emr_base import EmrBaseSensor
 from airflow.utils.decorators import apply_defaults
 
 
