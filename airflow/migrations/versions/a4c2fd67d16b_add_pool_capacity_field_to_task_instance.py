@@ -19,8 +19,8 @@
 """add pool_capacity field to task_instance
 
 Revision ID: a4c2fd67d16b
-Revises: fe461863935f
-Create Date: 2019-12-31 13:50:02.227835
+Revises: 7939bcff74ba
+Create Date: 2020-01-14 03:35:01.161519
 
 """
 
@@ -29,7 +29,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'a4c2fd67d16b'
-down_revision = 'fe461863935f'
+down_revision = '7939bcff74ba'
 branch_labels = None
 depends_on = None
 
