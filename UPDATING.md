@@ -26,6 +26,8 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 1.10.7](#airflow-1107)
+- [Airflow 1.10.6](#airflow-1106)
 - [Airflow 1.10.5](#airflow-1105)
 - [Airflow 1.10.4](#airflow-1104)
 - [Airflow 1.10.3](#airflow-1103)
@@ -56,6 +58,11 @@ More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
 
 -->
+
+### Failure callback will be called when task is marked failed
+When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
+
+See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
 
 ### Move methods from BiqQueryBaseCursor to BigQueryHook
 
@@ -252,19 +259,6 @@ changes the previous response receiving `NULL` or `'0'`. Earlier `'0'` has been 
 criteria. `NULL` has been treated depending on value of `allow_null`parameter.  But all the previous
 behaviour is still achievable setting param `success` to `lambda x: x is None or str(x) not in ('0', '')`.
 
-### BaseOperator::render_template function signature changed
-
-Previous versions of the `BaseOperator::render_template` function required an `attr` argument as the first
-positional argument, along with `content` and `context`. This function signature was changed in 1.10.6 and
-the `attr` argument is no longer required (or accepted).
-
-In order to use this function in subclasses of the `BaseOperator`, the `attr` argument must be removed:
-```python
-result = self.render_template('myattr', self.myattr, context)  # Pre-1.10.6 call
-...
-result = self.render_template(self.myattr, context)  # Post-1.10.6 call
-```
-
 ### Idempotency in BigQuery operators
 Idempotency was added to `BigQueryCreateEmptyTableOperator` and `BigQueryCreateEmptyDatasetOperator`.
 But to achieve that try / except clause was removed from `create_empty_dataset` and `create_empty_table`
@@ -325,14 +319,6 @@ delete this option.
 The TriggerDagRunOperator now takes a `conf` argument to which a dict can be provided as conf for the DagRun.
 As a result, the `python_callable` argument was removed. PR: https://github.com/apache/airflow/pull/6317.
 
-### Changes in experimental API execution_date microseconds replacement
-
-The default behavior was to strip the microseconds (and milliseconds, etc) off of all dag runs triggered by
-by the experimental REST API.  The default behavior will change when an explicit execution_date is
-passed in the request body.  It will also now be possible to have the execution_date generated, but
-keep the microseconds by sending `replace_microseconds=false` in the request body.  The default
-behavior can be overridden by sending `replace_microseconds=true` along with an explicit execution_date
-
 ### Changes in Google Cloud Platform related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
@@ -377,31 +363,12 @@ Affected components:
  * airflow.providers.google.cloud.operators.pubsub.PubSubPublishOperator
  * airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor
 
-### Changes to `aws_default` Connection's default region
-
-The region of Airflow's default connection to AWS (`aws_default`) was previously
-set to `us-east-1` during installation.
-
-The region now needs to be set manually, either in the connection screens in
-Airflow, via the `~/.aws` config files, or via the `AWS_DEFAULT_REGION` environment
-variable.
-
 ### Removed Hipchat integration
 
 Hipchat has reached end of life and is no longer available.
 
 For more information please see
 https://community.atlassian.com/t5/Stride-articles/Stride-and-Hipchat-Cloud-have-reached-End-of-Life-updated/ba-p/940248
-
-### Some DAG Processing metrics have been renamed
-
-The following metrics are deprecated and won't be emitted in Airflow 2.0:
-
-- `scheduler.dagbag.errors` and `dagbag_import_errors` -- use `dag_processing.import_errors` instead
-- `dag_file_processor_timeouts` -- use `dag_processing.processor_timeouts` instead
-- `collect_dags` -- use `dag_processing.total_parse_time` instead
-- `dag.loading-duration.<basename>` -- use `dag_processing.last_duration.<basename>` instead
-- `dag_processing.last_runtime.<basename>` -- use `dag_processing.last_duration.<basename>` instead
 
 ### The gcp_conn_id parameter in GKEPodOperator is required
 
@@ -750,14 +717,6 @@ has been renamed to `request_filter`.
  To obtain pylint compatibility the `filter` argument in `GCPTransferServiceHook.list_transfer_job` and
  `GCPTransferServiceHook.list_transfer_operations` has been renamed to `request_filter`.
 
-### Export MySQL timestamps as UTC
-
-`MySqlToGoogleCloudStorageOperator` now exports TIMESTAMP columns as UTC
-by default, rather than using the default timezone of the MySQL server.
-This is the correct behavior for use with BigQuery, since BigQuery
-assumes that TIMESTAMP columns without time zones are in UTC. To
-preserve the previous behavior, set `ensure_utc` to `False.`
-
 ### CLI reorganization
 
 The Airflow CLI has been organized so that related commands are grouped
@@ -784,14 +743,6 @@ Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator
 
 The HTTPHook is now secured by default: `verify=True`.
 This can be overwriten by using the extra_options param as `{'verify': False}`.
-
-### Changes to GoogleCloudStorageHook
-
-* The following parameters have been replaced in all the methods in GCSHook:
-  * `bucket` is changed to `bucket_name`
-  * `object` is changed to `object_name`
-
-* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
 
 ### Changes to CloudantHook
 
@@ -820,48 +771,8 @@ deprecated GCP conn_id, you need to explicitly pass their conn_id into
 operators/hooks. Otherwise, ``google_cloud_default`` will be used as GCP's conn_id
 by default.
 
-### Viewer won't have edit permissions on DAG view.
-
-### New `dag_discovery_safe_mode` config option
-
-If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
-they contain the strings "airflow" and "DAG". For backwards
-compatibility, this option is enabled by default.
-
-### Removed deprecated import mechanism
-
-The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
-
-For example: `from airflow.operators import BashOperator`
-becomes `from airflow.operators.bash_operator import BashOperator`
-
-### Changes to sensor imports
-
-Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
-
-For example: `from airflow.operators.sensors import BaseSensorOperator`
-becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
-
-### Renamed "extra" requirements for cloud providers
-
-Subpackages for specific services have been combined into one variant for
-each cloud provider. The name of the subpackage for the Google Cloud Platform
-has changed to follow style.
-
-If you want to install integration for Microsoft Azure, then instead of
-```
-pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
-```
-you should execute `pip install 'apache-airflow[azure]'`
-
-If you want to install integration for Amazon Web Services, then instead of
-`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
-
-If you want to install integration for Google Cloud Platform, then instead of
-`pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
-The old way will work until the release of Airflow 2.1.
-
 ### Deprecate legacy UI in favor of FAB RBAC UI
+
 Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
 in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
 RBAC UI explicitly in the configuration now as this is the only default UI.
@@ -870,20 +781,9 @@ Please note that that custom auth backends will need re-writing to target new FA
 As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
 including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
 
-
 #### Remove run_duration
 
 We should not use the `run_duration` option anymore. This used to be for restarting the scheduler from time to time, but right now the scheduler is getting more stable and therefore using this setting is considered bad and might cause an inconsistent state.
-
-### New `dag_processor_manager_log_location` config option
-
-The DAG parsing manager log now by default will be log into a file, where its location is
-controlled by the new `dag_processor_manager_log_location` config option in core section.
-
-### min_file_parsing_loop_time config option temporarily disabled
-
-The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
-some bugs.
 
 ### CLI Changes
 
@@ -938,16 +838,92 @@ The 'properties' and 'jars' properties for the Dataproc related operators (`Data
 and `dataproc_jars`respectively.
 Arguments for dataproc_properties dataproc_jars
 
-### Failure callback will be called when task is marked failed
-When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
+## Airflow 1.10.7
 
-See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
+### Changes in experimental API execution_date microseconds replacement
+
+The default behavior was to strip the microseconds (and milliseconds, etc) off of all dag runs triggered by
+by the experimental REST API.  The default behavior will change when an explicit execution_date is
+passed in the request body.  It will also now be possible to have the execution_date generated, but
+keep the microseconds by sending `replace_microseconds=false` in the request body.  The default
+behavior can be overridden by sending `replace_microseconds=true` along with an explicit execution_date
+
+### Viewer won't have edit permissions on DAG view.
+
+### Renamed "extra" requirements for cloud providers
+
+Subpackages for specific services have been combined into one variant for
+each cloud provider. The name of the subpackage for the Google Cloud Platform
+has changed to follow style.
+
+If you want to install integration for Microsoft Azure, then instead of
+```
+pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
+```
+you should execute `pip install 'apache-airflow[azure]'`
+
+If you want to install integration for Amazon Web Services, then instead of
+`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
+
+If you want to install integration for Google Cloud Platform, then instead of
+`pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
+The old way will work until the release of Airflow 2.1.
+
+## Airflow 1.10.6
+
+### BaseOperator::render_template function signature changed
+
+Previous versions of the `BaseOperator::render_template` function required an `attr` argument as the first
+positional argument, along with `content` and `context`. This function signature was changed in 1.10.6 and
+the `attr` argument is no longer required (or accepted).
+
+In order to use this function in subclasses of the `BaseOperator`, the `attr` argument must be removed:
+```python
+result = self.render_template('myattr', self.myattr, context)  # Pre-1.10.6 call
+...
+result = self.render_template(self.myattr, context)  # Post-1.10.6 call
+```
+
+### Changes to `aws_default` Connection's default region
+
+The region of Airflow's default connection to AWS (`aws_default`) was previously
+set to `us-east-1` during installation.
+
+The region now needs to be set manually, either in the connection screens in
+Airflow, via the `~/.aws` config files, or via the `AWS_DEFAULT_REGION` environment
+variable.
+
+### Some DAG Processing metrics have been renamed
+
+The following metrics are deprecated and won't be emitted in Airflow 2.0:
+
+- `scheduler.dagbag.errors` and `dagbag_import_errors` -- use `dag_processing.import_errors` instead
+- `dag_file_processor_timeouts` -- use `dag_processing.processor_timeouts` instead
+- `collect_dags` -- use `dag_processing.total_parse_time` instead
+- `dag.loading-duration.<basename>` -- use `dag_processing.last_duration.<basename>` instead
+- `dag_processing.last_runtime.<basename>` -- use `dag_processing.last_duration.<basename>` instead
 
 ## Airflow 1.10.5
 
 No breaking changes.
 
 ## Airflow 1.10.4
+
+### Export MySQL timestamps as UTC
+
+`MySqlToGoogleCloudStorageOperator` now exports TIMESTAMP columns as UTC
+by default, rather than using the default timezone of the MySQL server.
+This is the correct behavior for use with BigQuery, since BigQuery
+assumes that TIMESTAMP columns without time zones are in UTC. To
+preserve the previous behavior, set `ensure_utc` to `False.`
+
+### Changes to GoogleCloudStorageHook
+
+* The following parameters have been replaced in all the methods in GCSHook:
+  * `bucket` is changed to `bucket_name`
+  * `object` is changed to `object_name`
+
+* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
 
 ### Python 2 support is going away
 
@@ -1042,6 +1018,12 @@ dag.get_task_instances(session=your_session)
 ```
 
 ## Airflow 1.10.3
+
+### New `dag_discovery_safe_mode` config option
+
+If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
+they contain the strings "airflow" and "DAG". For backwards
+compatibility, this option is enabled by default.
 
 ### RedisPy dependency updated to v3 series
 If you are using the Redis Sensor or Hook you may have to update your code. See
@@ -1226,6 +1208,11 @@ generates has been fixed.
 
 ## Airflow 1.10.2
 
+### New `dag_processor_manager_log_location` config option
+
+The DAG parsing manager log now by default will be log into a file, where its location is
+controlled by the new `dag_processor_manager_log_location` config option in core section.
+
 ### DAG level Access Control for new RBAC UI
 
 Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
@@ -1305,6 +1292,11 @@ or enabled autodetect of schema:
 
 ## Airflow 1.10.1
 
+### min_file_parsing_loop_time config option temporarily disabled
+
+The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
+some bugs.
+
 ### StatsD Metrics
 
 The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). The scheduler's activity status can be determined by graphing and alerting using a rate of change of the counter. If the scheduler goes down, the rate will drop to 0.
@@ -1335,6 +1327,20 @@ https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
 `AIRFLOW_GPL_UNIDECODE=yes`. In case of the latter a GPL runtime dependency will be installed due to a
 dependency (python-nvd3 -> python-slugify -> unidecode).
+
+### Removed deprecated import mechanism
+
+The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+
+For example: `from airflow.operators import BashOperator`
+becomes `from airflow.operators.bash_operator import BashOperator`
+
+### Changes to sensor imports
+
+Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+
+For example: `from airflow.operators.sensors import BaseSensorOperator`
+becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
 
 ### Replace DataprocHook.await calls to DataprocHook.wait
 
