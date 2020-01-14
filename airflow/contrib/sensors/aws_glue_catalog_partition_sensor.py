@@ -85,7 +85,7 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         Gets the AwsGlueCatalogHook
         """
         if not hasattr(self, 'hook'):
-            from airflow.contrib.hooks.aws_glue_catalog_hook import AwsGlueCatalogHook
+            from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
             self.hook = AwsGlueCatalogHook(
                 aws_conn_id=self.aws_conn_id,
                 region_name=self.region_name)

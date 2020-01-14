@@ -315,7 +315,7 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
      -
-     - :mod:`airflow.contrib.hooks.aws_glue_catalog_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.glue_catalog`
      -
      - :mod:`airflow.contrib.sensors.aws_glue_catalog_partition_sensor`
 

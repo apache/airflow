@@ -240,7 +240,10 @@ HOOK = [
         'airflow.providers.microsoft.azure.hooks.wasb.WasbHook',
         'airflow.contrib.hooks.wasb_hook.WasbHook',
     ),
-
+    (
+        'airflow.providers.amazon.aws.hooks.glue_catalog.AwsGlueCatalogHook',
+        'airflow.contrib.hooks.aws_glue_catalog_hook.AwsGlueCatalogHook',
+    ),
 ]
 
 OPERATOR = [
