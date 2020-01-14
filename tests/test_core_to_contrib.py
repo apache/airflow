@@ -970,6 +970,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.sagemaker_training.SageMakerTrainingOperator',
         'airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.sagemaker_transform.SageMakerTransformOperator',
+        'airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator',
+    ),
 ]
 
 SENSOR = [
