@@ -29,9 +29,7 @@ from airflow import AirflowException, models, settings
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs import LocalTaskJob
 from airflow.models import DAG, TaskInstance as TI
-from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
@@ -186,7 +184,6 @@ class TestLocalTaskJob(unittest.TestCase):
             dag_id = 'test_heartbeat_failed_fast'
             task_id = 'test_heartbeat_failed_fast_op'
             dag = dagbag.get_dag(dag_id)
-            fail()
             task = dag.get_task(task_id)
 
             dag.create_dagrun(run_id="test_heartbeat_failed_fast_run",
