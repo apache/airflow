@@ -930,6 +930,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.emr_add_steps.EmrAddStepsOperator',
         'airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrCreateJobFlowOperator',
+        'airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator',
+    ),
 ]
 
 SENSOR = [

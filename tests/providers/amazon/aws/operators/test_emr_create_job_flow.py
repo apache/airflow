@@ -23,8 +23,8 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from airflow import DAG
-from airflow.contrib.operators.emr_create_job_flow_operator import EmrCreateJobFlowOperator
 from airflow.models import TaskInstance
+from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
