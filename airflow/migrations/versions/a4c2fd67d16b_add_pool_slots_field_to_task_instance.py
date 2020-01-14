@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add pool_capacity field to task_instance
+"""add pool_slots field to task_instance
 
 Revision ID: a4c2fd67d16b
 Revises: 7939bcff74ba
@@ -35,8 +35,8 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('task_instance', sa.Column('pool_capacity', sa.Integer, default=1))
+    op.add_column('task_instance', sa.Column('pool_slots', sa.Integer, default=1))
 
 
 def downgrade():
-    op.drop_column('task_instance', 'pool_capacity')
+    op.drop_column('task_instance', 'pool_slots')
