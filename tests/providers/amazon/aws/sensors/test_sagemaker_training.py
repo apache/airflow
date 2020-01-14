@@ -23,9 +23,9 @@ from datetime import datetime
 import mock
 
 from airflow.contrib.hooks.sagemaker_hook import LogState, SageMakerHook
-from airflow.contrib.sensors.sagemaker_training_sensor import SageMakerTrainingSensor
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.sensors.sagemaker_training import SageMakerTrainingSensor
 
 DESCRIBE_TRAINING_COMPELETED_RESPONSE = {
     'TrainingJobStatus': 'Completed',

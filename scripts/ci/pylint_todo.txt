@@ -94,7 +94,7 @@
 ./airflow/contrib/sensors/redis_pub_sub_sensor.py
 ./airflow/providers/amazon/aws/sensors/sagemaker_base.py
 ./airflow/providers/amazon/aws/sensors/sagemaker_endpoint.py
-./airflow/contrib/sensors/sagemaker_training_sensor.py
+./airflow/providers/amazon/aws/sensors/sagemaker_training.py
 ./airflow/contrib/sensors/sagemaker_transform_sensor.py
 ./airflow/contrib/sensors/sagemaker_tuning_sensor.py
 ./airflow/providers/microsoft/azure/sensors/wasb.py
