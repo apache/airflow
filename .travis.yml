@@ -54,6 +54,13 @@ jobs:
         ENV=docker
         PYTHON_VERSION=3.6
       stage: test
+    - name: "Tests sqlite python 3.6 with spawn-multiprocessing method"
+      env:
+        AIRFLOW__CORE__MP_START_METHOD=spawn
+        BACKEND=sqlite
+        ENV=docker
+        PYTHON_VERSION=3.6
+      stage: test
     - name: "Tests mysql python 3.7"
       env:
         BACKEND=mysql

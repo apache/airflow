@@ -218,7 +218,12 @@ fi
 
 
 if [[ -z "${KUBERNETES_VERSION}" ]]; then
-    ARGS=("${TRAVIS_ARGS[@]}" "tests/")
+    if [[ -n "${AIRFLOW__CORE__MP_START_METHOD}" ]]; then
+        ARGS=("${TRAVIS_ARGS[@]}" "tests/utils" "tests/jobs")
+    else
+        ARGS=("${TRAVIS_ARGS[@]}" "tests/")
+    fi
+
     "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 else
     export SKIP_INIT_DB=true
