@@ -1073,7 +1073,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      -
-     - :mod:`airflow.contrib.hooks.mongo_hook`
+     - :mod:`airflow.providers.mongo.hooks.mongo`
      -
      - :mod:`airflow.contrib.sensors.mongo_sensor`
 

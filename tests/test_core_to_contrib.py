@@ -256,6 +256,11 @@ HOOK = [
     (
         'airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook',
         'airflow.contrib.hooks.sagemaker_hook.SageMakerHook',
+
+    ),
+    (
+        'airflow.providers.mongo.hooks.mongo.MongoHook',
+        'airflow.contrib.hooks.mongo_hook.MongoHook',
     ),
 ]
 

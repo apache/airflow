@@ -23,9 +23,9 @@ import unittest
 import pytest
 
 from airflow import DAG
-from airflow.contrib.hooks.mongo_hook import MongoHook
 from airflow.contrib.sensors.mongo_sensor import MongoSensor
 from airflow.models import Connection
+from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)

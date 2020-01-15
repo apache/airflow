@@ -300,7 +300,7 @@ class Connection(Base, LoggingMixin):
             from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
             return CassandraHook(cassandra_conn_id=self.conn_id)
         elif self.conn_type == 'mongo':
-            from airflow.contrib.hooks.mongo_hook import MongoHook
+            from airflow.providers.mongo.hooks.mongo import MongoHook
             return MongoHook(conn_id=self.conn_id)
         elif self.conn_type == 'gcpcloudsql':
             from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook
