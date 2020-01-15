@@ -21,8 +21,8 @@
 from collections import namedtuple
 from datetime import date
 
-from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.sensors.python import PythonSensor
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.operators.test_python_operator import Call, TestPythonBase, build_recording_function

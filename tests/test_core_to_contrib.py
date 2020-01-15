@@ -1154,6 +1154,10 @@ SENSOR = [
         'airflow.providers.mongo.sensors.mongo.MongoSensor',
         'airflow.contrib.sensors.mongo_sensor.MongoSensor',
     ),
+    (
+        'airflow.sensors.python.PythonSensor',
+        'airflow.contrib.sensors.python_sensor.PythonSensor',
+    ),
 ]
 
 PROTOCOLS = [

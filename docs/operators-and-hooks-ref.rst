@@ -1118,7 +1118,7 @@ These integrations allow you to perform various operations using various softwar
      -
      -
      - :mod:`airflow.operators.python_operator`
-     - :mod:`airflow.contrib.sensors.python_sensor`
+     - :mod:`airflow.sensors.python`
 
    * - `Redis <https://redis.io/>`__
      -
