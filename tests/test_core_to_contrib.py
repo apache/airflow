@@ -1108,6 +1108,10 @@ SENSOR = [
         'airflow.providers.amazon.aws.sensors.s3_key.S3KeySensor',
         'airflow.sensors.s3_key_sensor.S3KeySensor',
     ),
+    (
+        'airflow.providers.amazon.aws.sensors.s3_prefix.S3PrefixSensor',
+        'airflow.sensors.s3_prefix_sensor.S3PrefixSensor',
+    ),
 ]
 
 PROTOCOLS = [

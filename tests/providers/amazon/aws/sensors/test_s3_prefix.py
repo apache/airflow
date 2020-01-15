@@ -20,7 +20,7 @@
 import unittest
 from unittest import mock
 
-from airflow.sensors.s3_prefix_sensor import S3PrefixSensor
+from airflow.providers.amazon.aws.sensors.s3_prefix import S3PrefixSensor
 
 
 class TestS3PrefixSensor(unittest.TestCase):

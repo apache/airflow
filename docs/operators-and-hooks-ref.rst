@@ -407,7 +407,7 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`,
        :mod:`airflow.providers.amazon.aws.operators.s3_list`
      - :mod:`airflow.providers.amazon.aws.sensors.s3_key`,
-       :mod:`airflow.sensors.s3_prefix_sensor`
+       :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''
