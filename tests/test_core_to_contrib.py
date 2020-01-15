@@ -1004,6 +1004,10 @@ OPERATOR = [
         'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator',
         'airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator',
     ),
+    (
+        'airflow.providers.redis.operators.redis_publish.RedisPublishOperator',
+        'airflow.contrib.operators.redis_publish_operator.RedisPublishOperator',
+    ),
 ]
 
 SENSOR = [
