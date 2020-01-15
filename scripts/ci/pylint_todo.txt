@@ -154,7 +154,7 @@
 ./airflow/providers/oracle/operators/oracle.py
 ./airflow/providers/papermill/operators/papermill.py
 ./airflow/providers/apache/pig/operators/pig.py
-./airflow/operators/postgres_operator.py
+./airflow/providers/postgres/operators/postgres.py
 ./airflow/operators/presto_check_operator.py
 ./airflow/operators/presto_to_mysql.py
 ./airflow/operators/python_operator.py

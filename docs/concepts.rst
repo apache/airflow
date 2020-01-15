@@ -269,7 +269,7 @@ Airflow provides operators for many common tasks, including:
 - :class:`~airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`,
   :class:`~airflow.operators.sqlite_operator.SqliteOperator`,
-  :class:`~airflow.operators.postgres_operator.PostgresOperator`,
+  :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`,
   :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`,
   :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`,
   :class:`~airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command

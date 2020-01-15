@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import DAG, operators
+from airflow import DAG
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -189,11 +189,11 @@ class TestPostgres(unittest.TestCase):
             dummy VARCHAR(50)
         );
         """
-        from airflow.operators.postgres_operator import PostgresOperator
+        from airflow.providers.postgres.operators.postgres import PostgresOperator
         op = PostgresOperator(task_id='basic_postgres', sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        autocommit_task = operators.postgres_operator.PostgresOperator(
+        autocommit_task = PostgresOperator(
             task_id='basic_postgres_with_autocommit',
             sql=sql,
             dag=self.dag,
@@ -209,7 +209,7 @@ class TestPostgres(unittest.TestCase):
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        from airflow.operators.postgres_operator import PostgresOperator
+        from airflow.providers.postgres.operators.postgres import PostgresOperator
         op = PostgresOperator(
             task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -235,7 +235,7 @@ class TestPostgres(unittest.TestCase):
         """
         Verifies the VACUUM operation runs well with the PostgresOperator
         """
-        from airflow.operators.postgres_operator import PostgresOperator
+        from airflow.providers.postgres.operators.postgres import PostgresOperator
 
         sql = "VACUUM ANALYZE;"
         op = PostgresOperator(
@@ -249,7 +249,7 @@ class TestPostgres(unittest.TestCase):
         """
         Verifies option to overwrite connection schema
         """
-        from airflow.operators.postgres_operator import PostgresOperator
+        from airflow.providers.postgres.operators.postgres import PostgresOperator
 
         sql = "SELECT 1;"
         op = PostgresOperator(
