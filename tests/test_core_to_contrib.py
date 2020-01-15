@@ -1060,6 +1060,10 @@ OPERATOR = [
         'airflow.providers.oracle.operators.oracle.OracleOperator',
         'airflow.operators.oracle_operator.OracleOperator',
     ),
+    (
+        'airflow.providers.papermill.operators.papermill.PapermillOperator',
+        'airflow.operators.papermill_operator.PapermillOperator',
+    ),
 ]
 
 SENSOR = [

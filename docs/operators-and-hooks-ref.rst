@@ -1099,7 +1099,7 @@ These integrations allow you to perform various operations using various softwar
    * - `Papermill <https://github.com/nteract/papermill>`__
      - :doc:`How to use <howto/operator/papermill>`
      -
-     - :mod:`airflow.operators.papermill_operator`
+     - :mod:`airflow.providers.papermill.operators.papermill`
      -
 
    * - `PostgresSQL <https://www.postgresql.org/>`__

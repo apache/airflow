@@ -19,11 +19,11 @@
 import unittest
 from unittest.mock import patch
 
-from airflow.operators.papermill_operator import PapermillOperator
+from airflow.providers.papermill.operators.papermill import PapermillOperator
 
 
 class TestPapermillOperator(unittest.TestCase):
-    @patch('airflow.operators.papermill_operator.pm')
+    @patch('airflow.providers.papermill.operators.papermill.pm')
     def test_execute(self, mock_papermill):
         in_nb = "/tmp/does_not_exist"
         out_nb = "/tmp/will_not_exist"

@@ -25,7 +25,7 @@ templated.
 from datetime import timedelta
 
 from airflow.models import DAG
-from airflow.operators.papermill_operator import PapermillOperator
+from airflow.providers.papermill.operators.papermill import PapermillOperator
 from airflow.utils.dates import days_ago
 
 default_args = {
