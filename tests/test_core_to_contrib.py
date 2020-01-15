@@ -294,6 +294,10 @@ HOOK = [
         'airflow.providers.presto.hooks.presto.PrestoHook',
         'airflow.hooks.presto_hook.PrestoHook',
     ),
+    (
+        'airflow.providers.samba.hooks.samba.SambaHook',
+        'airflow.hooks.samba_hook.SambaHook',
+    ),
 ]
 
 OPERATOR = [

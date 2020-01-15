@@ -109,7 +109,7 @@
 ./airflow/providers/apache/pig/hooks/pig.py
 ./airflow/providers/postgres/hooks/postgres.py
 ./airflow/providers/presto/hooks/presto.py
-./airflow/hooks/samba_hook.py
+./airflow/providers/samba/hooks/samba.py
 ./airflow/hooks/sqlite_hook.py
 ./airflow/hooks/zendesk_hook.py
 ./airflow/jobs/backfill_job.py

@@ -1129,7 +1129,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Samba <https://www.samba.org/>`__
      -
-     - :mod:`airflow.hooks.samba_hook`
+     - :mod:`airflow.providers.samba.hooks.samba`
      -
      -
 
