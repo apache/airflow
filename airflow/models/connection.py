@@ -282,7 +282,7 @@ class Connection(Base, LoggingMixin):
             from airflow.providers.jira.hooks.jira import JiraHook
             return JiraHook(jira_conn_id=self.conn_id)
         elif self.conn_type == 'redis':
-            from airflow.contrib.hooks.redis_hook import RedisHook
+            from airflow.providers.redis.hooks.redis import RedisHook
             return RedisHook(redis_conn_id=self.conn_id)
         elif self.conn_type == 'wasb':
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook

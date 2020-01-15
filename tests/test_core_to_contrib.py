@@ -266,6 +266,10 @@ HOOK = [
         'airflow.providers.openfass.hooks.openfaas.OpenFaasHook',
         'airflow.contrib.hooks.openfaas_hook.OpenFaasHook',
     ),
+    (
+        'airflow.providers.redis.hooks.redis.RedisHook',
+        'airflow.contrib.hooks.redis_hook.RedisHook',
+    ),
 ]
 
 OPERATOR = [

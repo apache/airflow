@@ -24,8 +24,8 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 
 from airflow import DAG
-from airflow.contrib.hooks.redis_hook import RedisHook
 from airflow.contrib.sensors.redis_pub_sub_sensor import RedisPubSubSensor
+from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -43,7 +43,7 @@ class TestRedisPubSubSensor(unittest.TestCase):
 
         self.mock_context = MagicMock()
 
-    @patch('airflow.contrib.hooks.redis_hook.RedisHook.get_conn')
+    @patch('airflow.providers.redis.hooks.redis.RedisHook.get_conn')
     def test_poke_mock_true(self, mock_redis_conn):
         sensor = RedisPubSubSensor(
             task_id='test_task',
@@ -63,7 +63,7 @@ class TestRedisPubSubSensor(unittest.TestCase):
 
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
 
-    @patch('airflow.contrib.hooks.redis_hook.RedisHook.get_conn')
+    @patch('airflow.providers.redis.hooks.redis.RedisHook.get_conn')
     def test_poke_mock_false(self, mock_redis_conn):
         sensor = RedisPubSubSensor(
             task_id='test_task',

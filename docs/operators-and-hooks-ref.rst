@@ -1122,7 +1122,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Redis <https://redis.io/>`__
      -
-     - :mod:`airflow.contrib.hooks.redis_hook`
+     - :mod:`airflow.providers.redis.hooks.redis`
      - :mod:`airflow.contrib.operators.redis_publish_operator`
      - :mod:`airflow.contrib.sensors.redis_pub_sub_sensor`,
        :mod:`airflow.contrib.sensors.redis_key_sensor`

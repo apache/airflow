@@ -22,7 +22,7 @@ import unittest
 
 import pytest
 
-from airflow.contrib.hooks.redis_hook import RedisHook
+from airflow.providers.redis.hooks.redis import RedisHook
 
 
 class TestRedisHook(unittest.TestCase):
