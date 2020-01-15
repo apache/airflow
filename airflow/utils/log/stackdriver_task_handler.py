@@ -92,9 +92,9 @@ class StackdriverTaskHandler(logging.Handler):
     def _client(self) -> gcp_logging.Client:
         """Google Cloud Library API client"""
         if self.gcp_conn_id:
-            from airflow.gcp.hooks.base import GoogleCloudBaseHook
+            from airflow.gcp.hooks.base import CloudBaseHook
 
-            hook = GoogleCloudBaseHook(gcp_conn_id=self.gcp_conn_id)
+            hook = CloudBaseHook(gcp_conn_id=self.gcp_conn_id)
             credentials = hook._get_credentials()  # pylint: disable=protected-access
         else:
             # Use Application Default Credentials

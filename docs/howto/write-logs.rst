@@ -263,7 +263,7 @@ example:
 
 .. code-block:: ini
 
-    [core]
+    [logging]
     # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional
@@ -272,7 +272,7 @@ example:
     remote_base_log_folder = stackdriver://logs-name
     remote_log_conn_id = custom-conn-id
 
-All configuration options are in the ``[core]`` section.
+All configuration options are in the ``[logging]`` section.
 
 The value of field ``remote_logging`` must always be set to ``True`` for this feature to work.
 Turning this option off will result in data not being sent to Stackdriver.
