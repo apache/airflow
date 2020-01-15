@@ -59,6 +59,19 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### BigQueryExecuteQueryOperator drops support for api_resource_configs
+
+The `BigQueryExecuteQueryOperator` do not accepted `api_resource_configs` parameter that was
+
+> a dictionary that contain params 'configuration' applied for Google BigQuery Jobs API:
+> https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs for example, {'query': {'useQueryCache': False
+> }}. You could use it if you need to provide some params that are not supported by BigQueryOperator like
+> args."
+
+Instead user should use `job_config` of `google.cloud.bigquery.job.QueryJobConfig` type and that has
+no limitation for defining job configuration. For more information on using `QueryJobConfig` check official
+[documentation](https://googleapis.dev/python/bigquery/latest/generated/google.cloud.bigquery.job.QueryJobConfig.html#google.cloud.bigquery.job.QueryJobConfig)
+
 ### Failure callback will be called when task is marked failed
 When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
 

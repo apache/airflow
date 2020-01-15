@@ -27,6 +27,9 @@ import warnings
 from typing import Any, Dict, FrozenSet, Iterable, List, Optional, SupportsAbs, Union
 
 import attr
+from google.api_core.retry import Retry
+from google.cloud.bigquery.job import QueryJobConfig
+from google.cloud.bigquery.query import ArrayQueryParameter, ScalarQueryParameter
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
@@ -365,95 +368,26 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     Executes BigQuery SQL queries in a specific BigQuery database.
     This operator does not assert idempotency.
 
-    :param sql: the sql code to be executed (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'.
-    :param destination_dataset_table: A dotted
-        ``(<project>.|<project>:)<dataset>.<table>`` that, if set, will store the results
-        of the query. (templated)
-    :type destination_dataset_table: str
-    :param write_disposition: Specifies the action that occurs if the destination table
-        already exists. (default: 'WRITE_EMPTY')
-    :type write_disposition: str
-    :param create_disposition: Specifies whether the job is allowed to create new tables.
-        (default: 'CREATE_IF_NEEDED')
-    :type create_disposition: str
-    :param allow_large_results: Whether to allow large results.
-    :type allow_large_results: bool
-    :param flatten_results: If true and query uses legacy SQL dialect, flattens
-        all nested and repeated fields in the query results. ``allow_large_results``
-        must be ``true`` if this is set to ``false``. For standard SQL queries, this
-        flag is ignored and results are never flattened.
-    :type flatten_results: bool
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
-    :type gcp_conn_id: str
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud Platform.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type bigquery_conn_id: str
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide
-        delegation enabled.
-    :type delegate_to: str
-    :param udf_config: The User Defined Function configuration for the query.
-        See https://cloud.google.com/bigquery/user-defined-functions for details.
-    :type udf_config: list
-    :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
-    :type use_legacy_sql: bool
-    :param maximum_billing_tier: Positive integer that serves as a multiplier
-        of the basic price.
-        Defaults to None, in which case it uses the value set in the project.
-    :type maximum_billing_tier: int
-    :param maximum_bytes_billed: Limits the bytes billed for this job.
-        Queries that will have bytes billed beyond this limit will fail
-        (without incurring a charge). If unspecified, this will be
-        set to your project default.
-    :type maximum_bytes_billed: float
-    :param api_resource_configs: a dictionary that contain params
-        'configuration' applied for Google BigQuery Jobs API:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
-        for example, {'query': {'useQueryCache': False}}. You could use it
-        if you need to provide some params that are not supported by BigQueryOperator
-        like args.
-    :type api_resource_configs: dict
-    :param schema_update_options: Allows the schema of the destination
-        table to be updated as a side effect of the load job.
-    :type schema_update_options: Optional[Union[list, tuple, set]]
-    :param query_params: a list of dictionary containing query parameter types and
-        values, passed to BigQuery. The structure of dictionary should look like
-        'queryParameters' in Google BigQuery Jobs API:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs.
-        For example, [{ 'name': 'corpus', 'parameterType': { 'type': 'STRING' },
-        'parameterValue': { 'value': 'romeoandjuliet' } }].
-    :type query_params: list
-    :param labels: a dictionary containing labels for the job/query,
-        passed to BigQuery
-    :type labels: dict
-    :param priority: Specifies a priority for the query.
-        Possible values include INTERACTIVE and BATCH.
-        The default value is INTERACTIVE.
-    :type priority: str
-    :param time_partitioning: configure optional time partitioning fields i.e.
-        partition by field, type and expiration as per API specifications.
-    :type time_partitioning: dict
-    :param cluster_fields: Request that the result of this query be stored sorted
-        by one or more columns. This is only available in conjunction with
-        time_partitioning. The order of columns given determines the sort order.
-    :type cluster_fields: list[str]
+    :param query: SQL query to be executed. Defaults to the standard SQL dialect. Use the job_config
+        parameter to change dialects. Can receive a str representing a sql statement, a list of str
+        (sql statements), or reference to a template file. Template reference are recognized by str
+        ending in '.sql'.
+    :param job_config: Extra configuration options for the job. To override any options that were
+        previously set in the default_query_job_config given to the Client constructor, manually set
+        those options to None, or whatever value is preferred.
+    :param job_id: ID to use for the query job. In case of many queries each of them will be executed
+        with job_id suffixed with order index of the query ex. job_id_0, job_id_1.
+    :param job_id_prefix: The prefix to use for a randomly generated job ID. This parameter will be
+        ignored if a job_id is also given.
+    :param location: Location where to run the job. Must match the location of the any table used in
+        the query as well as the destination table.
+    :param project_id: Project ID of the project of where to run the job. Defaults to the client’s project.
+    :param retry: How to retry the RPC.
     :param location: The geographic location of the job. Required except for
-        US and EU. See details at
-        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
-    :type location: str
-    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**: ::
-
-            encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
-            }
-    :type encryption_configuration: dict
+        US and EU. See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     """
 
-    template_fields = ('sql', 'destination_dataset_table', 'labels')
+    template_fields = ('sql', 'destination_dataset_table', 'labels', 'job_config')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
@@ -477,13 +411,13 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  sql: Union[str, Iterable],
+                 job_config: Optional[QueryJobConfig] = None,
                  destination_dataset_table: Optional[str] = None,
                  write_disposition: Optional[str] = 'WRITE_EMPTY',
                  allow_large_results: Optional[bool] = False,
                  flatten_results: Optional[bool] = None,
                  gcp_conn_id: Optional[str] = 'google_cloud_default',
                  bigquery_conn_id: Optional[str] = None,
-                 delegate_to: Optional[str] = None,
                  udf_config: Optional[list] = None,
                  use_legacy_sql: Optional[bool] = True,
                  maximum_billing_tier: Optional[int] = None,
@@ -494,10 +428,14 @@ class BigQueryExecuteQueryOperator(BaseOperator):
                  labels: Optional[dict] = None,
                  priority: Optional[str] = 'INTERACTIVE',
                  time_partitioning: Optional[dict] = None,
-                 api_resource_configs: Optional[dict] = None,
                  cluster_fields: Optional[List[str]] = None,
                  location: Optional[str] = None,
                  encryption_configuration: Optional[dict] = None,
+                 project_id: Optional[str] = None,
+                 job_id: Optional[str] = None,
+                 job_id_prefix: Optional[str] = None,
+                 retry: Optional[Retry] = None,
+                 api_resource_configs: Optional[dict] = None,
                  *args,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -505,93 +443,125 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         if bigquery_conn_id:
             warnings.warn(
                 "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=3)
+                "the gcp_conn_id parameter.", DeprecationWarning, stacklevel=2)
             gcp_conn_id = bigquery_conn_id
 
+        if api_resource_configs:
+            warnings.warn(
+                "The parameter `api_resource_configs` is deprecated. Please use `job_config` "
+                "to provide full configuration of the job.",
+                DeprecationWarning, stacklevel=2
+            )
+
+        if not job_config:
+            warnings.warn("BigQueryExecuteQueryOperator now accepts `job_config` argument. "
+                          "Passing job arguments by keywords will be deprecated. You can access "
+                          "job configuration via `get_job_config` method of this operator.",
+                          DeprecationWarning, stacklevel=2)
+
+            self.attr_map = dict(
+                allow_large_results=allow_large_results,
+                cluster_fields=cluster_fields,
+                create_disposition=create_disposition,
+                destination_encryption_configuration=encryption_configuration,
+                flatten_results=flatten_results,
+                maximum_billing_tier=maximum_billing_tier,
+                maximum_bytes_billed=maximum_bytes_billed,
+                priority=priority,
+                query_parameters=[ScalarQueryParameter.from_api_repr(q) for q in query_params] if query_params else None,
+                schema_update_options=schema_update_options,
+                time_partitioning=time_partitioning,
+                udf_resources=udf_config,
+                use_legacy_sql=use_legacy_sql,
+                write_disposition=write_disposition,
+            )
+
         self.sql = sql
-        self.destination_dataset_table = destination_dataset_table
-        self.write_disposition = write_disposition
-        self.create_disposition = create_disposition
-        self.allow_large_results = allow_large_results
-        self.flatten_results = flatten_results
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
-        self.udf_config = udf_config
-        self.use_legacy_sql = use_legacy_sql
-        self.maximum_billing_tier = maximum_billing_tier
-        self.maximum_bytes_billed = maximum_bytes_billed
-        self.schema_update_options = schema_update_options
-        self.query_params = query_params
-        self.labels = labels
-        self.priority = priority
-        self.time_partitioning = time_partitioning
-        self.api_resource_configs = api_resource_configs
-        self.cluster_fields = cluster_fields
         self.location = location
-        self.encryption_configuration = encryption_configuration
+        self.gcp_conn_id = gcp_conn_id
+        self.project_id = project_id
+        self.job_id = job_id
+        self.job_id_prefix = job_id_prefix
+        self.retry = retry
+
+        # Left for templating purposes
+        self.labels = labels
+        self.destination_dataset_table = destination_dataset_table
+
+        self.job_config = job_config
         self.hook = None  # type: Optional[BigQueryHook]
+        self._job_ids: List[str] = []
+
+    def get_job_config(self) -> QueryJobConfig:
+        """Helper method to ease migration to new interface of operator. Returns job config dictionary."""
+        return self.job_config
+
+    def _job_config(self) -> QueryJobConfig:
+        """Generates unique config for a single job"""
+        job_config = QueryJobConfig()
+        # Done like that to omit errors generated by QueryJobConfig setters
+        for attr_name, value in self.attr_map.items():
+            if value is not None:
+                setattr(job_config, attr_name, value)
+        return job_config
+
+    @staticmethod
+    def _resolve_dataset_path(hook: BigQueryHook, dataset_table: str) -> str:
+        parts = dataset_table.split(".")
+        if len(parts) == 3:
+            return dataset_table
+        elif len(parts) == 2:
+            dataset, table = parts
+            return f"{hook.project_id}.{dataset}.{table}"
+        else:
+            AirflowException("Parameter `destination_dataset_table` must be in form of "
+                             "`project.dataset.table` or `dataset.table`.")
 
     def execute(self, context):
         if self.hook is None:
-            self.log.info('Executing: %s', self.sql)
             self.hook = BigQueryHook(
                 gcp_conn_id=self.gcp_conn_id,
-                use_legacy_sql=self.use_legacy_sql,
-                delegate_to=self.delegate_to,
                 location=self.location,
             )
-        if isinstance(self.sql, str):
-            job_id = self.hook.run_query(
-                sql=self.sql,
-                destination_dataset_table=self.destination_dataset_table,
-                write_disposition=self.write_disposition,
-                allow_large_results=self.allow_large_results,
-                flatten_results=self.flatten_results,
-                udf_config=self.udf_config,
-                maximum_billing_tier=self.maximum_billing_tier,
-                maximum_bytes_billed=self.maximum_bytes_billed,
-                create_disposition=self.create_disposition,
-                query_params=self.query_params,
-                labels=self.labels,
-                schema_update_options=self.schema_update_options,
-                priority=self.priority,
-                time_partitioning=self.time_partitioning,
-                api_resource_configs=self.api_resource_configs,
-                cluster_fields=self.cluster_fields,
-                encryption_configuration=self.encryption_configuration
+
+        # Update templated fields in job_config
+        if self.destination_dataset_table:
+            # TODO: remove to broke backward compatibility
+            destination_dataset_table = self._resolve_dataset_path(
+                hook=self.hook,
+                dataset_table=self.destination_dataset_table
             )
-        elif isinstance(self.sql, Iterable):
-            job_id = [
-                self.hook.run_query(
-                    sql=s,
-                    destination_dataset_table=self.destination_dataset_table,
-                    write_disposition=self.write_disposition,
-                    allow_large_results=self.allow_large_results,
-                    flatten_results=self.flatten_results,
-                    udf_config=self.udf_config,
-                    maximum_billing_tier=self.maximum_billing_tier,
-                    maximum_bytes_billed=self.maximum_bytes_billed,
-                    create_disposition=self.create_disposition,
-                    query_params=self.query_params,
-                    labels=self.labels,
-                    schema_update_options=self.schema_update_options,
-                    priority=self.priority,
-                    time_partitioning=self.time_partitioning,
-                    api_resource_configs=self.api_resource_configs,
-                    cluster_fields=self.cluster_fields,
-                    encryption_configuration=self.encryption_configuration
-                )
-                for s in self.sql]
-        else:
-            raise AirflowException(
-                "argument 'sql' of type {} is neither a string nor an iterable".format(type(str)))
-        context['task_instance'].xcom_push(key='job_id', value=job_id)
+        labels = self.labels or {}
+
+        if not isinstance(self.sql, (str, Iterable)):
+            raise AirflowException(f"Argument `sql` has to be a string or Iterable but is {type(self.sql)}")
+
+        queries = [self.sql] if isinstance(self.sql, str) else self.sql
+
+        self.log.info('Executing: %s', self.sql)
+        for idx, qry in enumerate(queries):
+            query_job_id = f"{self.job_id}_{idx}" if (self.job_id and len(queries) > 1) else self.job_id
+            job_config = self._job_config()
+            job_config.labels = labels
+            if self.destination_dataset_table:
+                job_config.destination = destination_dataset_table
+            job_id = self.hook.execute_query(
+                query=qry,
+                job_config=job_config,
+                job_id=query_job_id,
+                job_id_prefix=self.job_id_prefix,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry
+            )
+            self._job_ids.append(job_id)
+        context['task_instance'].xcom_push(key='job_id', value=self._job_ids[0])
 
     def on_kill(self):
-        super().on_kill()
         if self.hook is not None:
             self.log.info('Cancelling running query')
-            self.hook.cancel_query()
+            for job_id in self._job_ids:
+                self.hook.cancel_job(job_id=job_id, location=self.location, project_id=self.project_id)
 
     @classmethod
     def get_serialized_fields(cls):

@@ -27,6 +27,10 @@ import warnings
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Tuple, Type, Union
 
+from cached_property import cached_property
+from google.api_core.retry import Retry
+from google.cloud.bigquery import Client
+from google.cloud.bigquery.job import QueryJobConfig
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pandas import DataFrame
@@ -71,6 +75,81 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         self.running_job_id = None  # type: Optional[str]
         self.api_resource_configs = api_resource_configs \
             if api_resource_configs else {}  # type Dict
+
+    @cached_property
+    def get_client(self) -> Client:
+        """Return authenticated BigQuery Client."""
+        return Client(
+            credentials=self._get_credentials(),
+            client_info=self.client_info,
+        )
+
+    @CloudBaseHook.fallback_to_default_project_id
+    def execute_query(
+        self,
+        query: str,
+        job_config: Optional[QueryJobConfig] = None,
+        job_id: Optional[str] = None,
+        job_id_prefix: Optional[str] = None,
+        location: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+    ) -> str:
+        """
+        Run a SQL query.
+
+        :param query: SQL query to be executed. Defaults to the standard SQL dialect. Use the job_config
+            parameter to change dialects.
+        :param job_config: Extra configuration options for the job. To override any options that were
+            previously set in the default_query_job_config given to the Client constructor, manually set
+            those options to None, or whatever value is preferred.
+        :param job_id:  ID to use for the query job.
+        :param job_id_prefix: The prefix to use for a randomly generated job ID. This parameter will be
+            ignored if a job_id is also given.
+        :param location: Location where to run the job. Must match the location of the any table used in
+            the query as well as the destination table.
+        :param project_id: Project ID of the project of where to run the job. Defaults to the client’s
+            project.
+        :param retry: How to retry the RPC.
+        :return: The job’s ID, within the project belonging to client.
+        """
+        bigquery = self.get_client
+        query_job = bigquery.query(
+            query=query,
+            job_config=job_config,
+            job_id=job_id,
+            job_id_prefix=job_id_prefix,
+            location=location,
+            project=project_id,
+            retry=retry
+        )
+
+        query_job.result()
+        return query_job.job_id
+
+    @CloudBaseHook.fallback_to_default_project_id
+    def cancel_job(
+        self,
+        job_id: str,
+        location: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+    ) -> None:
+        """
+        Attempt to cancel a job from a job ID.
+        See https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/cancel
+
+        :param job_id: Unique job identifier.
+        :param project_id: ID of the project which owns the job (defaults to the client's project).
+        :param location: Location where the job was run.
+        :param retry: How to retry the RPC.
+        """
+        self.get_client.cancel_job(
+            job_id=job_id,
+            location=location,
+            project=project_id,
+            retry=retry
+        )
 
     def get_conn(self) -> "BigQueryConnection":
         """

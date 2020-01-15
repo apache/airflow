@@ -22,7 +22,7 @@ Example Airflow DAG for Google BigQuery service.
 """
 import os
 from urllib.parse import urlparse
-
+import uuid
 from airflow import models
 from airflow.gcp.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
@@ -106,6 +106,7 @@ with models.DAG(
 
     bigquery_execute_multi_query = BigQueryExecuteQueryOperator(
         task_id="execute_multi_query",
+        job_id=f"airflow-test-job-{uuid.uuid4()}",
         sql=[MOST_VALUABLE_INCOMING_TRANSACTIONS, MOST_ACTIVE_PLAYERS],
         use_legacy_sql=False,
         query_params=[
@@ -201,10 +202,10 @@ with models.DAG(
 
     create_view = BigQueryCreateEmptyTableOperator(
         task_id="create_view",
-        dataset_id=LOCATION_DATASET_NAME,
+        dataset_id=DATASET_NAME,
         table_id="test_view",
         view={
-            "query": "SELECT * FROM `{}.test_table`".format(DATASET_NAME),
+            "query": f"SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
             "useLegacySql": False
         }
     )
@@ -245,7 +246,7 @@ with models.DAG(
     )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset", dataset_id=DATASET_NAME, delete_contents=True
+        task_id="delete_dataset", dataset_id=DATASET_NAME, delete_contents=True,
     )
 
     delete_dataset_with_location = BigQueryDeleteDatasetOperator(
@@ -265,3 +266,7 @@ with models.DAG(
     execute_query_external_table >> bigquery_to_gcs >> delete_dataset
     create_table >> create_view >> delete_view >> delete_table >> delete_dataset
     create_dataset_with_location >> create_table_with_location >> delete_dataset_with_location
+
+if __name__ == '__main__':
+    dag.clear(reset_dag_runs=True)
+    dag.run()

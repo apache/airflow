@@ -22,6 +22,9 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 import mock
+from google.cloud.bigquery.dataset import DatasetReference
+from google.cloud.bigquery.encryption_configuration import EncryptionConfiguration
+from google.cloud.bigquery.table import TableReference, TimePartitioning
 from parameterized import parameterized
 
 from airflow import models
@@ -242,7 +245,7 @@ class TestBigQueryUpdateDatasetOperator(unittest.TestCase):
             )
 
 
-class TestBigQueryOperator(unittest.TestCase):
+class TestBigQueryExecuteQueryOperator(unittest.TestCase):
     def setUp(self):
         self.dagbag = models.DagBag(
             dag_folder='/dev/null', include_examples=True)
@@ -260,7 +263,7 @@ class TestBigQueryOperator(unittest.TestCase):
 
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
-        encryption_configuration = {'key': 'kk'}
+        encryption_configuration = EncryptionConfiguration(kms_key_name='kk')
 
         operator = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
@@ -287,35 +290,24 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .run_query \
+            .execute_query \
             .assert_called_once_with(
-                sql='Select * from test_table',
-                destination_dataset_table=None,
-                write_disposition='WRITE_EMPTY',
-                allow_large_results=False,
-                flatten_results=None,
-                udf_config=None,
-                maximum_billing_tier=None,
-                maximum_bytes_billed=None,
-                create_disposition='CREATE_IF_NEEDED',
-                schema_update_options=(),
-                query_params=None,
-                labels=None,
-                priority='INTERACTIVE',
-                time_partitioning=None,
-                api_resource_configs=None,
-                cluster_fields=None,
-                encryption_configuration=encryption_configuration
+                query='Select * from test_table',
+                job_config=operator.job_config,
+                job_id=None,
+                job_id_prefix=None,
+                location=None,
+                project_id=None,
+                retry=None
             )
 
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
     def test_execute_list(self, mock_hook):
+        qry1 = 'Select * from test_table'
+        qry2 = 'Select * from other_test_table'
         operator = BigQueryExecuteQueryOperator(
             task_id=TASK_ID,
-            sql=[
-                'Select * from test_table',
-                'Select * from other_test_table',
-            ],
+            sql=[qry1, qry2],
             destination_dataset_table=None,
             write_disposition='WRITE_EMPTY',
             allow_large_results=False,
@@ -338,45 +330,25 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .run_query \
+            .execute_query \
             .assert_has_calls([
                 mock.call(
-                    sql='Select * from test_table',
-                    destination_dataset_table=None,
-                    write_disposition='WRITE_EMPTY',
-                    allow_large_results=False,
-                    flatten_results=None,
-                    udf_config=None,
-                    maximum_billing_tier=None,
-                    maximum_bytes_billed=None,
-                    create_disposition='CREATE_IF_NEEDED',
-                    schema_update_options=(),
-                    query_params=None,
-                    labels=None,
-                    priority='INTERACTIVE',
-                    time_partitioning=None,
-                    api_resource_configs=None,
-                    cluster_fields=None,
-                    encryption_configuration=None,
+                    query=qry1,
+                    job_config=operator.job_config,
+                    job_id=None,
+                    job_id_prefix=None,
+                    location=None,
+                    project_id=None,
+                    retry=None
                 ),
                 mock.call(
-                    sql='Select * from other_test_table',
-                    destination_dataset_table=None,
-                    write_disposition='WRITE_EMPTY',
-                    allow_large_results=False,
-                    flatten_results=None,
-                    udf_config=None,
-                    maximum_billing_tier=None,
-                    maximum_bytes_billed=None,
-                    create_disposition='CREATE_IF_NEEDED',
-                    schema_update_options=(),
-                    query_params=None,
-                    labels=None,
-                    priority='INTERACTIVE',
-                    time_partitioning=None,
-                    api_resource_configs=None,
-                    cluster_fields=None,
-                    encryption_configuration=None,
+                    query=qry2,
+                    job_config=operator.job_config,
+                    job_id=None,
+                    job_id_prefix=None,
+                    location=None,
+                    project_id=None,
+                    retry=None
                 ),
             ])
 
@@ -408,41 +380,55 @@ class TestBigQueryOperator(unittest.TestCase):
             operator.execute(MagicMock())
 
     @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
-    def test_bigquery_operator_defaults(self, mock_hook):
-        operator = BigQueryExecuteQueryOperator(
-            task_id=TASK_ID,
-            sql='Select * from test_table',
-            dag=self.dag,
-            default_args=self.args,
-            schema_update_options=None
+    def test_bigquery_operator_backward_compatibility(self, mock_hook):
+        old_args = dict(
+            destination_dataset_table="project_id.dataset.table",
+            write_disposition='WRITE_EMPTY',
+            allow_large_results=True,
+            flatten_results=False,
+            udf_config=[],
+            maximum_billing_tier=123,
+            maximum_bytes_billed=321,
+            create_disposition='CREATE_IF_NEEDED',
+            schema_update_options={},
+            query_params={},
+            labels={},
+            priority='INTERACTIVE',
+            time_partitioning=TimePartitioning(),
+            api_resource_configs={'some': 'value'},
+            cluster_fields={},
+            encryption_configuration=None,
         )
 
-        operator.execute(MagicMock())
-        mock_hook.return_value \
-            .run_query \
-            .assert_called_once_with(
+        with self.assertWarnsRegex(DeprecationWarning, 'parameter `api_resource_configs`'):
+            BigQueryExecuteQueryOperator(
+                task_id=TASK_ID,
                 sql='Select * from test_table',
-                destination_dataset_table=None,
-                write_disposition='WRITE_EMPTY',
-                allow_large_results=False,
-                flatten_results=None,
-                udf_config=None,
-                maximum_billing_tier=None,
-                maximum_bytes_billed=None,
-                create_disposition='CREATE_IF_NEEDED',
-                schema_update_options=None,
-                query_params=None,
-                labels=None,
-                priority='INTERACTIVE',
-                time_partitioning=None,
-                api_resource_configs=None,
-                cluster_fields=None,
-                encryption_configuration=None
+                job_config=None,
+                **old_args
             )
-        self.assertTrue(isinstance(operator.sql, str))
-        ti = TaskInstance(task=operator, execution_date=DEFAULT_DATE)
-        ti.render_templates()
-        self.assertTrue(isinstance(ti.task.sql, str))
+
+        with self.assertWarnsRegex(DeprecationWarning, 'now accepts `job_config`'):
+            op = BigQueryExecuteQueryOperator(
+                task_id=TASK_ID,
+                sql='Select * from test_table',
+                job_config=None,
+                **old_args
+            )
+
+        assert op.job_config.write_disposition == old_args['write_disposition']
+        assert op.job_config.destination == TableReference(DatasetReference('project_id', 'dataset'), 'table')
+        assert op.job_config.flatten_results == old_args['flatten_results']
+        assert op.job_config.udf_resources == old_args['udf_config']
+        assert op.job_config.maximum_billing_tier == old_args['maximum_billing_tier']
+        assert op.job_config.maximum_bytes_billed == old_args['maximum_bytes_billed']
+        assert op.job_config.create_disposition == old_args['create_disposition']
+        assert op.job_config.query_params == old_args['query_params']
+        assert op.job_config.labels == old_args['labels']
+        assert op.job_config.priority == old_args['priority']
+        assert op.job_config.time_partitioning == old_args['time_partitioning']
+        assert op.job_config.cluster_fields == old_args['cluster_fields']
+        assert op.job_config.destination_encryption_configuration == old_args['encryption_configuration']
 
     def test_bigquery_operator_extra_serialized_field_when_single_query(self):
         with self.dag:
