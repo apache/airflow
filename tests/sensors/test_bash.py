@@ -22,8 +22,8 @@ import datetime
 import unittest
 
 from airflow import DAG
-from airflow.contrib.sensors.bash_sensor import BashSensor
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.sensors.bash import BashSensor
 
 
 class TestBashSensor(unittest.TestCase):

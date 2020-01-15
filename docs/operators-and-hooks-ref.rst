@@ -1049,7 +1049,7 @@ These integrations allow you to perform various operations using various softwar
      - :doc:`How to use <howto/operator/bash>`
      -
      - :mod:`airflow.operators.bash_operator`
-     - :mod:`airflow.contrib.sensors.bash_sensor`
+     - :mod:`airflow.sensors.bash`
 
    * - `Kubernetes <https://kubernetes.io/>`__
      - :doc:`How to use <howto/operator/kubernetes>`
