@@ -15,7 +15,7 @@
 ./airflow/hooks/filesystem.py
 ./airflow/contrib/hooks/ftp_hook.py
 ./airflow/contrib/hooks/jenkins_hook.py
-./airflow/contrib/hooks/openfaas_hook.py
+./airflow/providers/openfass/hooks/openfaas.py
 ./airflow/contrib/hooks/opsgenie_alert_hook.py
 ./airflow/providers/apache/pinot/hooks/pinot.py
 ./airflow/contrib/hooks/qubole_check_hook.py

@@ -1086,7 +1086,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `OpenFaaS <https://www.openfaas.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.openfaas_hook`
+     - :mod:`airflow.providers.openfass.hooks.openfaas`
      -
      -
 

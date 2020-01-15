@@ -24,9 +24,9 @@ import mock
 import requests_mock
 
 from airflow import AirflowException
-from airflow.contrib.hooks.openfaas_hook import OpenFaasHook
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection
+from airflow.providers.openfass.hooks.openfaas import OpenFaasHook
 
 FUNCTION_NAME = "function_name"
 

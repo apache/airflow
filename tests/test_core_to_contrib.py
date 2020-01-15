@@ -262,6 +262,10 @@ HOOK = [
         'airflow.providers.mongo.hooks.mongo.MongoHook',
         'airflow.contrib.hooks.mongo_hook.MongoHook',
     ),
+    (
+        'airflow.providers.openfass.hooks.openfaas.OpenFaasHook',
+        'airflow.contrib.hooks.openfaas_hook.OpenFaasHook',
+    ),
 ]
 
 OPERATOR = [
