@@ -56,7 +56,7 @@ class TestFileToGcsOperator(unittest.TestCase):
         self.assertEqual(operator.mime_type, self._config['mime_type'])
         self.assertEqual(operator.gzip, self._config['gzip'])
 
-    @mock.patch('airflow.operators.local_to_gcs.GoogleCloudStorageHook',
+    @mock.patch('airflow.operators.local_to_gcs.GCSHook',
                 autospec=True)
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value

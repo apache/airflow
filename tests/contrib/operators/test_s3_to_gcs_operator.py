@@ -55,7 +55,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
     @mock.patch('airflow.contrib.operators.s3_list_operator.S3Hook')
     @mock.patch(
-        'airflow.contrib.operators.s3_to_gcs_operator.GoogleCloudStorageHook')
+        'airflow.contrib.operators.s3_to_gcs_operator.GCSHook')
     def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -90,7 +90,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
     @mock.patch('airflow.contrib.operators.s3_list_operator.S3Hook')
     @mock.patch(
-        'airflow.contrib.operators.s3_to_gcs_operator.GoogleCloudStorageHook')
+        'airflow.contrib.operators.s3_to_gcs_operator.GCSHook')
     def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 

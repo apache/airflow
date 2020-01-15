@@ -39,7 +39,7 @@ from airflow.gcp.hooks.base import CloudBaseHook
 OPERATIONAL_POLL_INTERVAL = 15
 
 
-class GKEClusterHook(CloudBaseHook):
+class GKEHook(CloudBaseHook):
     """
     Hook for Google Kubernetes Engine APIs.
 

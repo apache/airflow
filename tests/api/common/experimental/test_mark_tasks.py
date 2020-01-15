@@ -21,12 +21,13 @@ import time
 import unittest
 from datetime import datetime, timedelta
 
+import pytest
+
 from airflow import models
 from airflow.api.common.experimental.mark_tasks import (
     _create_dagruns, set_dag_run_state_to_failed, set_dag_run_state_to_running, set_dag_run_state_to_success,
     set_state,
 )
-from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
@@ -250,10 +251,10 @@ class TestMarkTasks(unittest.TestCase):
         self.verify_state(self.dag1, [task.task_id for task in tasks], [self.execution_dates[0]],
                           State.SUCCESS, snapshot)
 
-    # TODO: this skipIf should be removed once a fixing solution is found later
+    # TODO: this backend should be removed once a fixing solution is found later
     #       We skip it here because this test case is working with Postgres & SQLite
     #       but not with MySQL
-    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'), "Flaky with MySQL")
+    @pytest.mark.backend("sqlite", "postgres")
     def test_mark_tasks_subdag(self):
         # set one task to success towards end of scheduled dag runs
         task = self.dag2.get_task("section-1")

@@ -23,7 +23,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Optional
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
 from airflow.utils.decorators import apply_defaults
@@ -170,7 +170,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
             api_version=self.api_version,
         )
 
-        gcs_hook = GoogleCloudStorageHook(
+        gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
 

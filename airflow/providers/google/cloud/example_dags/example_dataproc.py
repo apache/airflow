@@ -25,7 +25,7 @@ import os
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataproc import (
-    DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocSubmitJobOperator,
+    DataprocCreateClusterOperator, DataprocDeleteClusterOperator, DataprocSubmitJobOperator,
     DataprocUpdateClusterOperator,
 )
 from airflow.utils.dates import days_ago
@@ -125,7 +125,7 @@ with models.DAG(
     default_args={"start_date": days_ago(1)},
     schedule_interval=None,
 ) as dag:
-    create_cluster = DataprocClusterCreateOperator(
+    create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster", project_id=PROJECT_ID, cluster=CLUSTER, region=REGION
     )
 
@@ -166,7 +166,7 @@ with models.DAG(
         task_id="hadoop_task", job=HADOOP_JOB, location=REGION, project_id=PROJECT_ID
     )
 
-    delete_cluster = DataprocClusterDeleteOperator(
+    delete_cluster = DataprocDeleteClusterOperator(
         task_id="delete_cluster",
         project_id=PROJECT_ID,
         cluster_name=CLUSTER_NAME,

@@ -25,6 +25,8 @@ import textwrap
 from contextlib import redirect_stderr, redirect_stdout
 from typing import List
 
+from tabulate import tabulate
+
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import DagPickle, TaskInstance
@@ -262,6 +264,43 @@ def _guess_debugger():
         except ImportError:
             continue
     return importlib.import_module("pdb")
+
+
+@cli_utils.action_logging
+def task_states_for_dag_run(args):
+    """Get the status of all task instances in a DagRun"""
+    session = settings.Session()
+
+    tis = session.query(
+        TaskInstance.dag_id,
+        TaskInstance.execution_date,
+        TaskInstance.task_id,
+        TaskInstance.state,
+        TaskInstance.start_date,
+        TaskInstance.end_date).filter(
+        TaskInstance.dag_id == args.dag_id,
+        TaskInstance.execution_date == args.execution_date).all()
+
+    if len(tis) == 0:
+        raise AirflowException("DagRun does not exist.")
+
+    formatted_rows = []
+
+    for ti in tis:
+        formatted_rows.append((ti.dag_id,
+                               ti.execution_date,
+                               ti.task_id,
+                               ti.state,
+                               ti.start_date,
+                               ti.end_date))
+
+    print(
+        "\n%s" %
+        tabulate(
+            formatted_rows, [
+                'dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'], tablefmt=args.output))
+
+    session.close()
 
 
 @cli_utils.action_logging
