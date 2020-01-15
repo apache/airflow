@@ -1080,7 +1080,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `MySQL <https://www.mysql.com/products/>`__
      -
-     - :mod:`airflow.hooks.mysql_hook`
+     - :mod:`airflow.providers.mysql.hooks.mysql`
      - :mod:`airflow.operators.mysql_operator`
      -
 

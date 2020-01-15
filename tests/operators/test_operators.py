@@ -44,7 +44,7 @@ class TestMySql(unittest.TestCase):
         self.dag = dag
 
     def tearDown(self):
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
         with MySqlHook().get_conn() as conn:
             for table in drop_tables:
@@ -85,7 +85,7 @@ class TestMySql(unittest.TestCase):
             f.write("\n".join(records).encode('utf8'))
             f.flush()
 
-            from airflow.hooks.mysql_hook import MySqlHook
+            from airflow.providers.mysql.hooks.mysql import MySqlHook
             hook = MySqlHook('airflow_db')
             with hook.get_conn() as conn:
                 conn.execute("""
@@ -100,7 +100,7 @@ class TestMySql(unittest.TestCase):
                 self.assertEqual(sorted(results), sorted(records))
 
     def test_mysql_hook_test_bulk_dump(self):
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook('airflow_db')
         priv = hook.get_first("SELECT @@global.secure_file_priv")
         if priv and priv[0]:
@@ -110,12 +110,12 @@ class TestMySql(unittest.TestCase):
             self.skipTest("Skip test_mysql_hook_test_bulk_load "
                           "since file output is not permitted")
 
-    @mock.patch('airflow.hooks.mysql_hook.MySqlHook.get_conn')
+    @mock.patch('airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn')
     def test_mysql_hook_test_bulk_dump_mock(self, mock_get_conn):
         mock_execute = mock.MagicMock()
         mock_get_conn.return_value.cursor.return_value.execute = mock_execute
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook('airflow_db')
         table = "INFORMATION_SCHEMA.TABLES"
         tmp_file = "/path/to/output/file"
@@ -331,7 +331,7 @@ class TestTransfer(unittest.TestCase):
             (1880, "Eugene", 0.00277, "boy"),
         ]
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         with MySqlHook().get_conn() as cur:
             cur.execute('''
             CREATE TABLE IF NOT EXISTS baby_names (
@@ -346,7 +346,7 @@ class TestTransfer(unittest.TestCase):
             cur.execute("INSERT INTO baby_names VALUES(%s, %s, %s, %s);", row)
 
     def tearDown(self):
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         with MySqlHook().get_conn() as cur:
             cur.execute("DROP TABLE IF EXISTS baby_names CASCADE;")
 
@@ -401,7 +401,7 @@ class TestTransfer(unittest.TestCase):
     def test_mysql_to_hive_type_conversion(self, mock_load_file):
         mysql_table = 'test_mysql_to_hive'
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook()
 
         try:
@@ -444,7 +444,7 @@ class TestTransfer(unittest.TestCase):
         mysql_table = 'test_mysql_to_hive'
         hive_table = 'test_mysql_to_hive'
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook()
 
         try:
@@ -493,7 +493,7 @@ class TestTransfer(unittest.TestCase):
         mysql_table = 'test_mysql_to_hive'
         hive_table = 'test_mysql_to_hive'
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook()
 
         try:

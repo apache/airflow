@@ -237,7 +237,7 @@ class Connection(Base, LoggingMixin):
 
     def get_hook(self):
         if self.conn_type == 'mysql':
-            from airflow.hooks.mysql_hook import MySqlHook
+            from airflow.providers.mysql.hooks.mysql import MySqlHook
             return MySqlHook(mysql_conn_id=self.conn_id)
         elif self.conn_type == 'google_cloud_platform':
             from airflow.gcp.hooks.bigquery import BigQueryHook

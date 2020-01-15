@@ -104,7 +104,7 @@
 ./airflow/hooks/http_hook.py
 ./airflow/hooks/jdbc_hook.py
 ./airflow/providers/microsoft/mssql/hooks/mssql.py
-./airflow/hooks/mysql_hook.py
+./airflow/providers/mysql/hooks/mysql.py
 ./airflow/hooks/oracle_hook.py
 ./airflow/providers/apache/pig/hooks/pig.py
 ./airflow/hooks/postgres_hook.py

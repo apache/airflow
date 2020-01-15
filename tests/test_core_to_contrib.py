@@ -278,6 +278,10 @@ HOOK = [
         'airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook',
         'airflow.hooks.mssql_hook.MsSqlHook',
     ),
+    (
+        'airflow.providers.mysql.hooks.mysql.MySqlHook',
+        'airflow.hooks.mysql_hook.MySqlHook',
+    ),
 ]
 
 OPERATOR = [

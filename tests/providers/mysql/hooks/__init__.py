@@ -16,14 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.mysql.hooks.mysql`."""
-
-import warnings
-
-# pylint: disable=unused-import
-from airflow.providers.mysql.hooks.mysql import MySqlHook  # noqa
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.mysql.hooks.mysql`.",
-    DeprecationWarning, stacklevel=2
-)
