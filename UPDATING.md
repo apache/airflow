@@ -889,7 +889,18 @@ passed in the request body.  It will also now be possible to have the execution_
 keep the microseconds by sending `replace_microseconds=false` in the request body.  The default
 behavior can be overridden by sending `replace_microseconds=true` along with an explicit execution_date
 
+### Infinite pool size and pool size query optimisation
+
+Pool size can now be set to -1 to indicate infinite size (it also includes
+optimisation of pool query which lead to poor task n^2 performance of task
+pool queries in MySQL).
+
 ### Viewer won't have edit permissions on DAG view.
+
+### Google Cloud Storage Hook
+
+The `GoogleCloudStorageDownloadOperator` can either write to a supplied `filename` or
+return the content of a file via xcom through `store_to_xcom_key` - both options are mutually exclusive.
 
 ## Airflow 1.10.6
 
@@ -1090,12 +1101,12 @@ Operators involved:
   * GCP Function Operators
     * GcfFunctionDeployOperator
   * GCP Cloud SQL Operators
-    * CloudSQLCreateInstanceOperator
-    * CloudSQLInstancePatchOperator
-    * CloudSQLDeleteInstanceOperator
-    * CloudSQLCreateInstanceDatabaseOperator
-    * CloudSQLPatchInstanceDatabaseOperator
-    * CloudSQLDeleteInstanceDatabaseOperator
+    * CloudSqlInstanceCreateOperator
+    * CloudSqlInstancePatchOperator
+    * CloudSqlInstanceDeleteOperator
+    * CloudSqlInstanceDatabaseCreateOperator
+    * CloudSqlInstanceDatabasePatchOperator
+    * CloudSqlInstanceDatabaseDeleteOperator
 
 Other GCP operators are unaffected.
 
@@ -1197,7 +1208,7 @@ The default value of `expected_statuses` is SUCCESS so that change is backwards 
 The class `GoogleCloudStorageToGoogleCloudStorageTransferOperator` has been moved from
 `airflow.contrib.operators.gcs_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
 
-the class `CloudDataTransferServiceS3ToGCSOperator` has been moved from
+the class `S3ToGoogleCloudStorageTransferOperator` has been moved from
 `airflow.contrib.operators.s3_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
 
 The change was made to keep all the operators related to GCS Transfer Services in one file.
@@ -1212,7 +1223,6 @@ valid option to spark.
 
 The argument has been renamed to `driver_class_path`  and  the option it
 generates has been fixed.
-
 
 ## Airflow 1.10.2
 
@@ -1336,7 +1346,7 @@ Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in
 `AIRFLOW_GPL_UNIDECODE=yes`. In case of the latter a GPL runtime dependency will be installed due to a
 dependency (python-nvd3 -> python-slugify -> unidecode).
 
-### Replace DataprocHook.await calls to DataprocHook.wait
+### Replace DataProcHook.await calls to DataProcHook.wait
 
 The method name was changed to be compatible with the Python 3.7 async/await keywords
 
@@ -1410,10 +1420,6 @@ Resulting in the same config parameters as Celery 4, with more transparency.
 Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a default
 "airflow-version" label, please upgrade your google-cloud-dataflow or apache-beam version
 to 2.2.0 or greater.
-
-### Google Cloud Storage Hook
-
-The `GoogleCloudStorageDownloadOperator` can either write to a supplied `filename` or return the content of a file via xcom through `store_to_xcom_key` - both options are mutually exclusive.
 
 ### BigQuery Hooks and Operator
 
