@@ -155,7 +155,7 @@
 ./airflow/providers/papermill/operators/papermill.py
 ./airflow/providers/apache/pig/operators/pig.py
 ./airflow/providers/postgres/operators/postgres.py
-./airflow/operators/presto_check_operator.py
+./airflow/providers/presto/operators/presto_check.py
 ./airflow/operators/presto_to_mysql.py
 ./airflow/operators/python_operator.py
 ./airflow/providers/amazon/aws/operators/s3_file_transform.py

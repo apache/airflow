@@ -1111,7 +1111,7 @@ These integrations allow you to perform various operations using various softwar
    * - `Presto <http://prestodb.github.io/>`__
      -
      - :mod:`airflow.providers.presto.hooks.presto`
-     - :mod:`airflow.operators.presto_check_operator`
+     - :mod:`airflow.providers.presto.operators.presto_check`
      -
 
    * - `Python <https://www.python.org>`__

@@ -1064,6 +1064,18 @@ OPERATOR = [
         'airflow.providers.papermill.operators.papermill.PapermillOperator',
         'airflow.operators.papermill_operator.PapermillOperator',
     ),
+    (
+        'airflow.providers.presto.operators.presto_check.PrestoCheckOperator',
+        'airflow.operators.presto_check_operator.PrestoCheckOperator',
+    ),
+    (
+        'airflow.providers.presto.operators.presto_check.PrestoIntervalCheckOperator',
+        'airflow.operators.presto_check_operator.PrestoIntervalCheckOperator',
+    ),
+    (
+        'airflow.providers.presto.operators.presto_check.PrestoValueCheckOperator',
+        'airflow.operators.presto_check_operator.PrestoValueCheckOperator',
+    ),
 ]
 
 SENSOR = [

@@ -16,16 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.presto.operators.presto_check`."""
-
-import warnings
-
-# pylint: disable=unused-import
-from airflow.providers.presto.operators.presto_check import (  # noqa
-    PrestoCheckOperator, PrestoIntervalCheckOperator, PrestoValueCheckOperator,
-)
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.presto.operators.presto_check`.",
-    DeprecationWarning, stacklevel=2
-)
