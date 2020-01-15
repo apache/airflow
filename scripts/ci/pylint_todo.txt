@@ -110,7 +110,7 @@
 ./airflow/providers/postgres/hooks/postgres.py
 ./airflow/providers/presto/hooks/presto.py
 ./airflow/providers/samba/hooks/samba.py
-./airflow/hooks/sqlite_hook.py
+./airflow/providers/sqlite/hooks/sqlite.py
 ./airflow/hooks/zendesk_hook.py
 ./airflow/jobs/backfill_job.py
 ./airflow/jobs/base_job.py

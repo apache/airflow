@@ -298,6 +298,10 @@ HOOK = [
         'airflow.providers.samba.hooks.samba.SambaHook',
         'airflow.hooks.samba_hook.SambaHook',
     ),
+    (
+        'airflow.providers.sqlite.hooks.sqlite.SqliteHook',
+        'airflow.hooks.sqlite_hook.SqliteHook',
+    ),
 ]
 
 OPERATOR = [

@@ -22,8 +22,8 @@ import unittest
 from unittest import mock
 from unittest.mock import patch
 
-from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import Connection
+from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
 
 class TestSqliteHookConn(unittest.TestCase):
@@ -39,7 +39,7 @@ class TestSqliteHookConn(unittest.TestCase):
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
-    @patch('airflow.hooks.sqlite_hook.sqlite3.connect')
+    @patch('airflow.providers.sqlite.hooks.sqlite.sqlite3.connect')
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with('host')

@@ -258,7 +258,7 @@ class Connection(Base, LoggingMixin):
             from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
             return HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
         elif self.conn_type == 'sqlite':
-            from airflow.hooks.sqlite_hook import SqliteHook
+            from airflow.providers.sqlite.hooks.sqlite import SqliteHook
             return SqliteHook(sqlite_conn_id=self.conn_id)
         elif self.conn_type == 'jdbc':
             from airflow.hooks.jdbc_hook import JdbcHook
