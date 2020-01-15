@@ -2193,6 +2193,31 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)
 
+    def test_scheduler_multiprocessing_with_spawn_method(self):
+        """
+        Test that the scheduler can successfully queue multiple dags in parallel
+        """
+        try:
+            conf.set('core', 'mp_start_method', 'spawn')
+            dag_ids = ['test_start_date_scheduling', 'test_dagrun_states_success']
+            for dag_id in dag_ids:
+                dag = self.dagbag.get_dag(dag_id)
+                dag.clear()
+
+            scheduler = SchedulerJob(dag_ids=dag_ids,
+                                     executor=self.null_exec,
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
+            scheduler.run()
+
+            # zero tasks ran
+            dag_id = 'test_start_date_scheduling'
+            session = settings.Session()
+            self.assertEqual(
+                len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)
+        finally:
+            conf.remove_option('core', 'mp_start_method')
+
     @patch.object(TI, 'pool_full')
     def test_scheduler_verify_pool_full(self, mock_pool_full):
         """

@@ -94,15 +94,8 @@ if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
     echo
 fi
 
-export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_SOURCES}/tests/dags"
-
 # Added to have run-tests on path
 export PATH=${PATH}:${AIRFLOW_SOURCES}
-
-export AIRFLOW__CORE__UNIT_TEST_MODE=True
-
-# Make sure all AWS API calls default to the us-east-1 region
-export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:='us-east-1'}
 
 # Fix codecov build path
 # TODO: Check this - this should be made travis-independent
@@ -241,7 +234,7 @@ if [[ "${TRAVIS}" == "true" ]]; then
         "--cov-report=html:airflow/www/static/coverage/"
         "--pythonwarnings=ignore::DeprecationWarning"
         "--pythonwarnings=ignore::PendingDeprecationWarning"
-    )
+        )
 else
     CI_ARGS=()
 fi
@@ -250,11 +243,7 @@ if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
     CI_ARGS+=("--integrations" "${RUN_INTEGRATION_TESTS}" "-rpfExX")
 fi
 
-if [[ -n "${AIRFLOW__CORE__MP_START_METHOD}" ]]; then
-    TEST_DIR="tests/utils/ tests/jobs/"
-else
-    TEST_DIR=("tests/")
-fi
+TEST_DIR="tests/"
 
 if [[ -n ${RUNTIME} ]]; then
     CI_ARGS+=("--runtime" "${RUNTIME}" "-rpfExX")
@@ -267,7 +256,7 @@ fi
 
 export PYTHONPATH=${AIRFLOW_SOURCES}
 
-ARGS=("${CI_ARGS[@]}" "${TEST_DIR[@]}")
+ARGS=("${CI_ARGS[@]}" "${TEST_DIR}")
 "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 
 in_container_script_end

@@ -412,6 +412,46 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             # we should expect it to be nonexistent.
             self.assertFalse(os.path.isfile(log_file_loc))
 
+    def test_reload_module_with_spawn_method(self):
+        """
+        Configure the context to have logging.logging_config_class set to a fake logging
+        class path, thus when reloading logging module the airflow.processor_manager
+        logger should not be configured.
+        """
+        try:
+            conf.set('core', 'mp_start_method', 'spawn')
+            with settings_context(SETTINGS_FILE_VALID):
+                # Launch a process through DagFileProcessorAgent, which will try
+                # reload the logging module.
+                test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
+                async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+
+                log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
+                try:
+                    os.remove(log_file_loc)
+                except OSError:
+                    pass
+
+                # Starting dag processing with 0 max_runs to avoid redundant operations.
+                processor_agent = DagFileProcessorAgent(test_dag_path,
+                                                        [],
+                                                        0,
+                                                        processor_factory,
+                                                        timedelta.max,
+                                                        [],
+                                                        False,
+                                                        async_mode)
+                processor_agent.start()
+                if not async_mode:
+                    processor_agent.heartbeat()
+
+                processor_agent._process.join()
+                # Since we are reloading logging config not creating this file,
+                # we should expect it to be nonexistent.
+                self.assertFalse(os.path.isfile(log_file_loc))
+        finally:
+            conf.remove_option('core', 'mp_start_method')
+
     def test_parse_once(self):
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
