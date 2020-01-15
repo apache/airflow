@@ -22,9 +22,9 @@ from datetime import datetime
 
 import mock
 
-from airflow.contrib.hooks.sagemaker_hook import LogState, SageMakerHook
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_training import SageMakerTrainingSensor
 
 DESCRIBE_TRAINING_COMPELETED_RESPONSE = {

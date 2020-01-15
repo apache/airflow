@@ -21,8 +21,8 @@ import unittest
 
 import mock
 
-from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators.sagemaker_endpoint_config import SageMakerEndpointConfigOperator
 
 model_name = 'test-model-name'

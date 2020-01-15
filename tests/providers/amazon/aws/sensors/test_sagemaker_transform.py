@@ -21,8 +21,8 @@ import unittest
 
 import mock
 
-from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_transform import SageMakerTransformSensor
 
 DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE = {

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
 from airflow.utils.decorators import apply_defaults
 

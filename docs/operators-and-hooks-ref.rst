@@ -373,7 +373,7 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
      -
-     - :mod:`airflow.contrib.hooks.sagemaker_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.sagemaker`
      - :mod:`airflow.providers.amazon.aws.operators.sagemaker_base`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint_config`,
        :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint`,

@@ -20,8 +20,8 @@
 import json
 from typing import Iterable
 
-from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.utils.decorators import apply_defaults
 
 

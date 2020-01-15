@@ -252,6 +252,10 @@ HOOK = [
         'airflow.providers.amazon.aws.hooks.emr.EmrHook',
         'airflow.contrib.hooks.emr_hook.EmrHook',
     ),
+    (
+        'airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook',
+        'airflow.contrib.hooks.sagemaker_hook.SageMakerHook',
+    ),
 ]
 
 OPERATOR = [

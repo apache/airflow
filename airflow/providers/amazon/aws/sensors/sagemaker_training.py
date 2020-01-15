@@ -19,7 +19,7 @@
 
 import time
 
-from airflow.contrib.hooks.sagemaker_hook import LogState, SageMakerHook
+from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
 from airflow.utils.decorators import apply_defaults
 
