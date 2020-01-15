@@ -270,7 +270,7 @@ class Connection(Base, LoggingMixin):
             from airflow.providers.odbc.hooks.odbc import OdbcHook
             return OdbcHook(odbc_conn_id=self.conn_id)
         elif self.conn_type == 'oracle':
-            from airflow.hooks.oracle_hook import OracleHook
+            from airflow.providers.oracle.hooks.oracle import OracleHook
             return OracleHook(oracle_conn_id=self.conn_id)
         elif self.conn_type == 'vertica':
             from airflow.contrib.hooks.vertica_hook import VerticaHook

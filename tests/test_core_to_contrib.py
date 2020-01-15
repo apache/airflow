@@ -282,6 +282,10 @@ HOOK = [
         'airflow.providers.mysql.hooks.mysql.MySqlHook',
         'airflow.hooks.mysql_hook.MySqlHook',
     ),
+    (
+        'airflow.providers.oracle.hooks.oracle.OracleHook',
+        'airflow.hooks.oracle_hook.OracleHook',
+    ),
 ]
 
 OPERATOR = [
