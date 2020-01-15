@@ -217,8 +217,8 @@ class TestCore(unittest.TestCase):
         op.dry_run()
 
     def test_sqlite(self):
-        import airflow.operators.sqlite_operator
-        op = airflow.operators.sqlite_operator.SqliteOperator(
+        import airflow.providers.sqlite.operators.sqlite
+        op = airflow.providers.sqlite.operators.sqlite.SqliteOperator(
             task_id='time_sqlite',
             sql="CREATE TABLE IF NOT EXISTS unitest (dummy VARCHAR(20))",
             dag=self.dag)

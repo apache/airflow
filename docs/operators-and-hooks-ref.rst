@@ -1136,7 +1136,7 @@ These integrations allow you to perform various operations using various softwar
    * - `SQLite <https://www.sqlite.org/index.html>`__
      -
      - :mod:`airflow.providers.sqlite.hooks.sqlite`
-     - :mod:`airflow.operators.sqlite_operator`
+     - :mod:`airflow.providers.sqlite.operators.sqlite`
      -
 
 

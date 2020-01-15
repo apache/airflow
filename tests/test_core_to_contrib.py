@@ -1092,6 +1092,10 @@ OPERATOR = [
         'airflow.operators.python.PythonVirtualenvOperator',
         'airflow.operators.python_operator.PythonVirtualenvOperator',
     ),
+    (
+        'airflow.providers.sqlite.operators.sqlite.SqliteOperator',
+        'airflow.operators.sqlite_operator.SqliteOperator',
+    ),
 ]
 
 SENSOR = [
