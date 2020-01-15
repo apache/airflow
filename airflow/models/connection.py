@@ -243,7 +243,7 @@ class Connection(Base, LoggingMixin):
             from airflow.gcp.hooks.bigquery import BigQueryHook
             return BigQueryHook(bigquery_conn_id=self.conn_id)
         elif self.conn_type == 'postgres':
-            from airflow.hooks.postgres_hook import PostgresHook
+            from airflow.providers.postgres.hooks.postgres import PostgresHook
             return PostgresHook(postgres_conn_id=self.conn_id)
         elif self.conn_type == 'pig_cli':
             from airflow.providers.apache.pig.hooks.pig import PigCliHook

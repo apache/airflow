@@ -286,6 +286,10 @@ HOOK = [
         'airflow.providers.oracle.hooks.oracle.OracleHook',
         'airflow.hooks.oracle_hook.OracleHook',
     ),
+    (
+        'airflow.providers.postgres.hooks.postgres.PostgresHook',
+        'airflow.hooks.postgres_hook.PostgresHook',
+    ),
 ]
 
 OPERATOR = [

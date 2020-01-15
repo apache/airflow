@@ -591,7 +591,7 @@ before it starts to search in metadata database).
 
 Many hooks have a default ``conn_id``, where operators using that hook do not
 need to supply an explicit connection ID. For example, the default
-``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
+``conn_id`` for the :class:`~airflow.providers.postgres.hooks.postgres.PostgresHook` is
 ``postgres_default``.
 
 See :doc:`howto/connection/index` for how to create and manage connections.

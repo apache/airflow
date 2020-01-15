@@ -177,7 +177,7 @@ class TestPostgres(unittest.TestCase):
 
     def tearDown(self):
         tables_to_drop = ['test_postgres_to_postgres', 'test_airflow']
-        from airflow.hooks.postgres_hook import PostgresHook
+        from airflow.providers.postgres.hooks.postgres import PostgresHook
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:
                 for table in tables_to_drop:

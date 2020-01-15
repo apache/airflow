@@ -1104,7 +1104,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `PostgresSQL <https://www.postgresql.org/>`__
      -
-     - :mod:`airflow.hooks.postgres_hook`
+     - :mod:`airflow.providers.postgres.hooks.postgres`
      - :mod:`airflow.operators.postgres_operator`
      -
 

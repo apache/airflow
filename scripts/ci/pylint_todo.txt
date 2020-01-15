@@ -107,7 +107,7 @@
 ./airflow/providers/mysql/hooks/mysql.py
 ./airflow/providers/oracle/hooks/oracle.py
 ./airflow/providers/apache/pig/hooks/pig.py
-./airflow/hooks/postgres_hook.py
+./airflow/providers/postgres/hooks/postgres.py
 ./airflow/hooks/presto_hook.py
 ./airflow/hooks/samba_hook.py
 ./airflow/hooks/sqlite_hook.py

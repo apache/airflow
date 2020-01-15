@@ -25,8 +25,8 @@ from unittest import mock
 import psycopg2.extras
 import pytest
 
-from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import Connection
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
 class TestPostgresHookConn(unittest.TestCase):
@@ -48,7 +48,7 @@ class TestPostgresHookConn(unittest.TestCase):
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
-    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_non_default_id(self, mock_connect):
         self.db_hook.test_conn_id = 'non_default'  # pylint: disable=attribute-defined-outside-init
         self.db_hook.get_conn()
@@ -57,13 +57,13 @@ class TestPostgresHookConn(unittest.TestCase):
                                              port=None)
         self.db_hook.get_connection.assert_called_once_with('non_default')
 
-    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn(self, mock_connect):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(user='login', password='password', host='host',
                                              dbname='schema', port=None)
 
-    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_cursor(self, mock_connect):
         self.connection.extra = '{"cursor": "dictcursor"}'
         self.db_hook.get_conn()
@@ -71,13 +71,13 @@ class TestPostgresHookConn(unittest.TestCase):
                                              user='login', password='password', host='host',
                                              dbname='schema', port=None)
 
-    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_with_invalid_cursor(self, mock_connect):
         self.connection.extra = '{"cursor": "mycursor"}'
         with self.assertRaises(ValueError):
             self.db_hook.get_conn()
 
-    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_from_connection(self, mock_connect):
         conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
         hook = PostgresHook(connection=conn)
@@ -86,7 +86,7 @@ class TestPostgresHookConn(unittest.TestCase):
             user='login-conn', password='password-conn', host='host', dbname='schema', port=None
         )
 
-    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     def test_get_conn_from_connection_with_schema(self, mock_connect):
         conn = Connection(login='login-conn', password='password-conn', host='host', schema='schema')
         hook = PostgresHook(connection=conn, schema='schema-override')
@@ -95,7 +95,7 @@ class TestPostgresHookConn(unittest.TestCase):
             user='login-conn', password='password-conn', host='host', dbname='schema-override', port=None
         )
 
-    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
     def test_get_conn_rds_iam_postgres(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true}'
@@ -104,7 +104,7 @@ class TestPostgresHookConn(unittest.TestCase):
         mock_connect.assert_called_once_with(user='login', password='aws_token', host='host',
                                              dbname='schema', port=5432)
 
-    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.providers.postgres.hooks.postgres.psycopg2.connect')
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
     def test_get_conn_rds_iam_redshift(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true, "redshift":true}'
@@ -148,7 +148,7 @@ class TestPostgresHook(unittest.TestCase):
     @pytest.mark.backend("postgres")
     def test_copy_expert(self):
         open_mock = mock.mock_open(read_data='{"some": "json"}')
-        with mock.patch('airflow.hooks.postgres_hook.open', open_mock):
+        with mock.patch('airflow.providers.postgres.hooks.postgres.open', open_mock):
             statement = "SQL"
             filename = "filename"
 
