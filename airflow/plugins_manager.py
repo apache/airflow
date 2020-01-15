@@ -17,7 +17,7 @@
 # under the License.
 """Manages all plugins."""
 # noinspection PyDeprecation
-import imp  # pylint: disable=deprecated-module
+import importlib
 import inspect
 import os
 import re
