@@ -290,6 +290,10 @@ HOOK = [
         'airflow.providers.postgres.hooks.postgres.PostgresHook',
         'airflow.hooks.postgres_hook.PostgresHook',
     ),
+    (
+        'airflow.providers.presto.hooks.presto.PrestoHook',
+        'airflow.hooks.presto_hook.PrestoHook',
+    ),
 ]
 
 OPERATOR = [

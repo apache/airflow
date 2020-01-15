@@ -24,8 +24,8 @@ from unittest.mock import patch
 
 from prestodb.transaction import IsolationLevel
 
-from airflow.hooks.presto_hook import PrestoHook
 from airflow.models import Connection
+from airflow.providers.presto.hooks.presto import PrestoHook
 
 
 class TestPrestoHookConn(unittest.TestCase):
@@ -47,8 +47,8 @@ class TestPrestoHookConn(unittest.TestCase):
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
-    @patch('airflow.hooks.presto_hook.prestodb.auth.BasicAuthentication')
-    @patch('airflow.hooks.presto_hook.prestodb.dbapi.connect')
+    @patch('airflow.providers.presto.hooks.presto.prestodb.auth.BasicAuthentication')
+    @patch('airflow.providers.presto.hooks.presto.prestodb.dbapi.connect')
     def test_get_conn(self, mock_connect, mock_basic_auth):
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(catalog='hive', host='host', port=None, http_scheme='http',

@@ -18,8 +18,8 @@
 # under the License.
 from typing import Any, Dict
 
-from airflow.hooks.presto_hook import PrestoHook
 from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
+from airflow.providers.presto.hooks.presto import PrestoHook
 from airflow.utils.decorators import apply_defaults
 
 

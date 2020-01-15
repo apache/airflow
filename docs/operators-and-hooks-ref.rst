@@ -1110,7 +1110,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Presto <http://prestodb.github.io/>`__
      -
-     - :mod:`airflow.hooks.presto_hook`
+     - :mod:`airflow.providers.presto.hooks.presto`
      - :mod:`airflow.operators.presto_check_operator`
      -
 

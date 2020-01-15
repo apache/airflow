@@ -252,7 +252,7 @@ class Connection(Base, LoggingMixin):
             from airflow.providers.apache.hive.hooks.hive import HiveCliHook
             return HiveCliHook(hive_cli_conn_id=self.conn_id)
         elif self.conn_type == 'presto':
-            from airflow.hooks.presto_hook import PrestoHook
+            from airflow.providers.presto.hooks.presto import PrestoHook
             return PrestoHook(presto_conn_id=self.conn_id)
         elif self.conn_type == 'hiveserver2':
             from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
