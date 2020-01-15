@@ -160,7 +160,7 @@
 ./airflow/operators/presto_check_operator.py
 ./airflow/operators/presto_to_mysql.py
 ./airflow/operators/python_operator.py
-./airflow/operators/s3_file_transform_operator.py
+./airflow/providers/amazon/aws/operators/s3_file_transform.py
 ./airflow/operators/s3_to_redshift_operator.py
 ./airflow/operators/slack_operator.py
 ./airflow/operators/sqlite_operator.py

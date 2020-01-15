@@ -402,7 +402,7 @@ These integrations allow you to perform various operations within the Amazon Web
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.s3`
-     - :mod:`airflow.operators.s3_file_transform_operator`,
+     - :mod:`airflow.providers.amazon.aws.operators.s3_file_transform`,
        :mod:`airflow.providers.amazon.aws.operators.s3_copy_object`,
        :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`,
        :mod:`airflow.providers.amazon.aws.operators.s3_list`

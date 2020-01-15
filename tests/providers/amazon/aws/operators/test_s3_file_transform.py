@@ -31,7 +31,7 @@ import boto3
 from moto import mock_s3
 
 from airflow.exceptions import AirflowException
-from airflow.operators.s3_file_transform_operator import S3FileTransformOperator
+from airflow.providers.amazon.aws.operators.s3_file_transform import S3FileTransformOperator
 
 
 class TestS3FileTransformOperator(unittest.TestCase):

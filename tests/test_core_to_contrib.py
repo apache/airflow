@@ -1100,6 +1100,10 @@ SENSOR = [
         'airflow.providers.amazon.aws.sensors.sagemaker_tuning.SageMakerTuningSensor',
         'airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator',
+        'airflow.operators.s3_file_transform_operator.S3FileTransformOperator',
+    ),
 ]
 
 PROTOCOLS = [
