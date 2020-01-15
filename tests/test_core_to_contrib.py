@@ -1158,6 +1158,10 @@ SENSOR = [
         'airflow.sensors.python.PythonSensor',
         'airflow.contrib.sensors.python_sensor.PythonSensor',
     ),
+    (
+        'airflow.providers.redis.sensors.redis_key.RedisKeySensor',
+        'airflow.contrib.sensors.redis_key_sensor.RedisKeySensor',
+    ),
 ]
 
 PROTOCOLS = [
