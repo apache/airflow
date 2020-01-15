@@ -151,24 +151,24 @@ class TestDagBag(unittest.TestCase):
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         self.assertTrue(dagbag.get_dag("test_zip_dag"))
 
-    @conf_vars({('core', 'max_tasks_per_dag'): '5'})
+    @conf_vars({('core', 'max_tasks_per_dag'): '4'})
     def test_process_file_max_task_check(self):
         """
         test if num_tasks > max_tasks_per_dag can be identified
         """
-        a_dag_id = "example_short_circuit_operator"
+        a_dag_id = "test_example_bash_operator"
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         self.assertEqual(len(dagbag.import_errors), 0)
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, a_dag_id + ".py"))
         self.assertIsNone(dagbag.get_dag(a_dag_id))
         self.assertEqual(len(dagbag.import_errors), 1)
 
-    @conf_vars({('core', 'max_tasks_per_dag'): '7'})
+    @conf_vars({('core', 'max_tasks_per_dag'): '20'})
     def test_process_file_max_task_check2(self):
         """
         test if num_tasks > max_tasks_per_dag not met
         """
-        a_dag_id = "example_short_circuit_operator"
+        a_dag_id = "test_example_bash_operator"
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         self.assertEqual(len(dagbag.import_errors), 0)
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, a_dag_id + ".py"))
@@ -180,7 +180,7 @@ class TestDagBag(unittest.TestCase):
         """
         test if max_tasks_per_dag is 0 then num_tasks > max_tasks_per_dag not considered
         """
-        a_dag_id = "example_skip_dag"
+        a_dag_id = "test_task_view_type_check"
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         self.assertEqual(len(dagbag.import_errors), 0)
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, a_dag_id + ".py"))
