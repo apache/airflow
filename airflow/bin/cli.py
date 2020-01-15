@@ -1193,6 +1193,13 @@ def upgradedb(args):  # noqa
     db.upgradedb()
 
 
+@cli_utils.action_logging
+def checkdb(args):  # noqa
+    py2_deprecation_waring()
+    print("DB: " + repr(settings.engine.url))
+    db.checkdb()
+
+
 def version(args):  # noqa
     py2_deprecation_waring()
     print(settings.HEADER + "  v" + airflow.__version__)
@@ -2174,6 +2181,10 @@ class CLIFactory(object):
         }, {
             'func': upgradedb,
             'help': "Upgrade the metadata database to latest version",
+            'args': tuple(),
+        }, {
+            'func': checkdb,
+            'help': "Check if the database can be reached.",
             'args': tuple(),
         }, {
             'func': shell,

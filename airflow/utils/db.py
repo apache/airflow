@@ -408,3 +408,13 @@ def resetdb(rbac):
     Base.metadata.drop_all(connection)
 
     initdb(rbac)
+
+
+@provide_session
+def checkdb(session=None):
+    """
+    Checks if the database works.
+    :param session: session of the sqlalchemy
+    """
+    session.execute('select 1 as is_alive;')
+    log.info("Connection successful.")
