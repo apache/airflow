@@ -76,7 +76,7 @@
 ./airflow/providers/amazon/aws/sensors/glue_catalog_partition.py
 ./airflow/providers/microsoft/azure/sensors/azure_cosmos.py
 ./airflow/sensors/bash.py
-./airflow/contrib/sensors/celery_queue_sensor.py
+./airflow/providers/celery/sensors/celery_queue.py
 ./airflow/contrib/sensors/datadog_sensor.py
 ./airflow/providers/amazon/aws/sensors/emr_base.py
 ./airflow/providers/amazon/aws/sensors/emr_job_flow.py

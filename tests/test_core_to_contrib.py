@@ -1146,6 +1146,10 @@ SENSOR = [
         'airflow.sensors.bash.BashSensor',
         'airflow.contrib.sensors.bash_sensor.BashSensor',
     ),
+    (
+        'airflow.providers.celery.sensors.celery_queue.CeleryQueueSensor',
+        'airflow.contrib.sensors.celery_queue_sensor.CeleryQueueSensor',
+    ),
 ]
 
 PROTOCOLS = [
