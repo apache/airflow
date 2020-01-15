@@ -744,6 +744,14 @@ Hence, the default value for `master_disk_size` in DataprocCreateClusterOperator
 The HTTPHook is now secured by default: `verify=True`.
 This can be overwriten by using the extra_options param as `{'verify': False}`.
 
+### Changes to GoogleCloudStorageHook
+
+* The following parameters have been replaced in all the methods in GCSHook:
+  * `bucket` is changed to `bucket_name`
+  * `object` is changed to `object_name`
+
+* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
+
 ### Changes to CloudantHook
 
 * upgraded cloudant version from `>=0.5.9,<2.0` to `>=2.0`
@@ -770,6 +778,39 @@ existing relevant connections in the database have been preserved. To use those
 deprecated GCP conn_id, you need to explicitly pass their conn_id into
 operators/hooks. Otherwise, ``google_cloud_default`` will be used as GCP's conn_id
 by default.
+
+### Removed deprecated import mechanism
+
+The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+
+For example: `from airflow.operators import BashOperator`
+becomes `from airflow.operators.bash_operator import BashOperator`
+
+### Changes to sensor imports
+
+Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+
+For example: `from airflow.operators.sensors import BaseSensorOperator`
+becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+
+### Renamed "extra" requirements for cloud providers
+
+Subpackages for specific services have been combined into one variant for
+each cloud provider. The name of the subpackage for the Google Cloud Platform
+has changed to follow style.
+
+If you want to install integration for Microsoft Azure, then instead of
+```
+pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
+```
+you should execute `pip install 'apache-airflow[azure]'`
+
+If you want to install integration for Amazon Web Services, then instead of
+`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
+
+If you want to install integration for Google Cloud Platform, then instead of
+`pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
+The old way will work until the release of Airflow 2.1.
 
 ### Deprecate legacy UI in favor of FAB RBAC UI
 
@@ -850,25 +891,6 @@ behavior can be overridden by sending `replace_microseconds=true` along with an 
 
 ### Viewer won't have edit permissions on DAG view.
 
-### Renamed "extra" requirements for cloud providers
-
-Subpackages for specific services have been combined into one variant for
-each cloud provider. The name of the subpackage for the Google Cloud Platform
-has changed to follow style.
-
-If you want to install integration for Microsoft Azure, then instead of
-```
-pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
-```
-you should execute `pip install 'apache-airflow[azure]'`
-
-If you want to install integration for Amazon Web Services, then instead of
-`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
-
-If you want to install integration for Google Cloud Platform, then instead of
-`pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
-The old way will work until the release of Airflow 2.1.
-
 ## Airflow 1.10.6
 
 ### BaseOperator::render_template function signature changed
@@ -916,14 +938,6 @@ by default, rather than using the default timezone of the MySQL server.
 This is the correct behavior for use with BigQuery, since BigQuery
 assumes that TIMESTAMP columns without time zones are in UTC. To
 preserve the previous behavior, set `ensure_utc` to `False.`
-
-### Changes to GoogleCloudStorageHook
-
-* The following parameters have been replaced in all the methods in GCSHook:
-  * `bucket` is changed to `bucket_name`
-  * `object` is changed to `object_name`
-
-* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
 
 ### Python 2 support is going away
 
@@ -1057,12 +1071,6 @@ If the `AIRFLOW_CONFIG` environment variable was not set and the
 `~/airflow/airflow.cfg` instead of `$AIRFLOW_HOME/airflow.cfg`. Now airflow
 will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
 environment variables rather than checking for the presence of a file.
-
-### New `dag_discovery_safe_mode` config option
-
-If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
-they contain the strings "airflow" and "DAG". For backwards
-compatibility, this option is enabled by default.
 
 ### Changes in Google Cloud Platform related operators
 
@@ -1327,20 +1335,6 @@ https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
 `AIRFLOW_GPL_UNIDECODE=yes`. In case of the latter a GPL runtime dependency will be installed due to a
 dependency (python-nvd3 -> python-slugify -> unidecode).
-
-### Removed deprecated import mechanism
-
-The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
-
-For example: `from airflow.operators import BashOperator`
-becomes `from airflow.operators.bash_operator import BashOperator`
-
-### Changes to sensor imports
-
-Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
-
-For example: `from airflow.operators.sensors import BaseSensorOperator`
-becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
 
 ### Replace DataprocHook.await calls to DataprocHook.wait
 
