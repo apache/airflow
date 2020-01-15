@@ -76,12 +76,27 @@ Pool size can now be set to -1 to indicate infinite size (it also includes
 optimisation of pool query which lead to poor task n^2 performance of task
 pool queries in MySQL).
 
+### Viewer won't have edit permissions on DAG view.
+
 ### Google Cloud Storage Hook
 
 The `GoogleCloudStorageDownloadOperator` can either write to a supplied `filename` or
 return the content of a file via xcom through `store_to_xcom_key` - both options are mutually exclusive.
 
 ## Airflow 1.10.6
+
+### BaseOperator::render_template function signature changed
+
+Previous versions of the `BaseOperator::render_template` function required an `attr` argument as the first
+positional argument, along with `content` and `context`. This function signature was changed in 1.10.6 and
+the `attr` argument is no longer required (or accepted).
+
+In order to use this function in subclasses of the `BaseOperator`, the `attr` argument must be removed:
+```python
+result = self.render_template('myattr', self.myattr, context)  # Pre-1.10.6 call
+...
+result = self.render_template(self.myattr, context)  # Post-1.10.6 call
+```
 
 ### Changes to `aws_default` Connection's default region
 
@@ -107,6 +122,14 @@ The following metrics are deprecated and won't be emitted in Airflow 2.0:
 No breaking changes.
 
 ## Airflow 1.10.4
+
+### Export MySQL timestamps as UTC
+
+`MySqlToGoogleCloudStorageOperator` now exports TIMESTAMP columns as UTC
+by default, rather than using the default timezone of the MySQL server.
+This is the correct behavior for use with BigQuery, since BigQuery
+assumes that TIMESTAMP columns without time zones are in UTC. To
+preserve the previous behavior, set `ensure_utc` to `False.`
 
 ### Python 2 support is going away
 
@@ -202,6 +225,12 @@ dag.get_task_instances(session=your_session)
 
 ## Airflow 1.10.3
 
+### New `dag_discovery_safe_mode` config option
+
+If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
+they contain the strings "airflow" and "DAG". For backwards
+compatibility, this option is enabled by default.
+
 ### RedisPy dependency updated to v3 series
 If you are using the Redis Sensor or Hook you may have to update your code. See
 [redis-py porting instructions] to check if your code might be affected (MSET,
@@ -234,12 +263,6 @@ If the `AIRFLOW_CONFIG` environment variable was not set and the
 `~/airflow/airflow.cfg` instead of `$AIRFLOW_HOME/airflow.cfg`. Now airflow
 will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
 environment variables rather than checking for the presence of a file.
-
-### New `dag_discovery_safe_mode` config option
-
-If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
-they contain the strings "airflow" and "DAG". For backwards
-compatibility, this option is enabled by default.
 
 ### Changes in Google Cloud Platform related operators
 
@@ -384,6 +407,11 @@ generates has been fixed.
 
 ## Airflow 1.10.2
 
+### New `dag_processor_manager_log_location` config option
+
+The DAG parsing manager log now by default will be log into a file, where its location is
+controlled by the new `dag_processor_manager_log_location` config option in core section.
+
 ### DAG level Access Control for new RBAC UI
 
 Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
@@ -463,10 +491,10 @@ or enabled autodetect of schema:
 
 ## Airflow 1.10.1
 
-### New `dag_processor_manager_log_location` config option
+### min_file_parsing_loop_time config option temporarily disabled
 
-The DAG parsing manager log now by default will be log into a file, where its location is
-controlled by the new `dag_processor_manager_log_location` config option in core section.
+The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
+some bugs.
 
 ### StatsD Metrics
 
@@ -493,22 +521,6 @@ If you want to use LDAP auth backend without TLS then you will have to create a
 custom-auth backend based on
 https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
 
-### Custom auth backends interface change
-
-We have updated the version of flask-login we depend upon, and as a result any
-custom auth backends might need a small change: `is_active`,
-`is_authenticated`, and `is_anonymous` should now be properties. What this means is if
-previously you had this in your user class
-
-    def is_active(self):
-      return self.active
-
-then you need to change it like this
-
-    @property
-    def is_active(self):
-      return self.active
-
 ## Airflow 1.10
 
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
@@ -518,14 +530,6 @@ dependency (python-nvd3 -> python-slugify -> unidecode).
 ### Replace DataProcHook.await calls to DataProcHook.wait
 
 The method name was changed to be compatible with the Python 3.7 async/await keywords
-
-### DAG level Access Control for new RBAC UI
-
-Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
-The admin will create new role, associate the dag permission with the target dag and assign that role to users. That user can only access / view the certain dags on the UI
-that he has permissions on. If a new role wants to access all the dags, the admin could associate dag permissions on an artificial view(``all_dags``) with that role.
-
-We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
 
 ### Setting UTF-8 as default mime_charset in email utils
 
