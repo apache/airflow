@@ -631,7 +631,7 @@ OPERATOR = [
         "CloudVisionRemoveProductFromProductSetOperator",
     ),
     (
-        "airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator",
+        "airflow.operators.gcs_to_bq.GCSToBigQueryOperator",
         "airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator",
     ),
     (

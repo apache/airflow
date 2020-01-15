@@ -32,13 +32,13 @@ from airflow.utils.decorators import apply_defaults
 WILDCARD = "*"
 
 
-class GoogleCloudStorageToSFTPOperator(BaseOperator):
+class GCSToSFTPOperator(BaseOperator):
     """
     Transfer files from a Google Cloud Storage bucket to SFTP server.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageToSFTPOperator`
+        :ref:`howto/operator:GCSToSFTPOperator`
 
     :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)

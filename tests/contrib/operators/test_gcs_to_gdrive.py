@@ -20,7 +20,7 @@ import unittest
 from unittest import mock
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcs_to_gdrive_operator import GcsToGDriveOperator
+from airflow.contrib.operators.gcs_to_gdrive_operator import GCSToGoogleDriveOperator
 
 MODULE = "airflow.contrib.operators.gcs_to_gdrive_operator"
 
@@ -33,7 +33,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
         type(mock_named_temporary_file.return_value.__enter__.return_value).name = mock.PropertyMock(
             side_effect=["TMP1"]
         )
-        task = GcsToGDriveOperator(
+        task = GCSToGoogleDriveOperator(
             task_id="copy_single_file",
             source_bucket="data",
             source_object="sales/sales-2017/january.avro",
@@ -70,7 +70,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
             side_effect=["TMP1", "TMP2", "TMP3"]
         )
 
-        task = GcsToGDriveOperator(
+        task = GCSToGoogleDriveOperator(
             task_id="copy_files",
             source_bucket="data",
             source_object="sales/sales-2017/*.avro",
@@ -105,7 +105,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
             side_effect=["TMP1", "TMP2", "TMP3"]
         )
         mock_gcs_hook.return_value.list.return_value = ["sales/A.avro", "sales/B.avro", "sales/C.avro"]
-        task = GcsToGDriveOperator(
+        task = GCSToGoogleDriveOperator(
             task_id="move_files",
             source_bucket="data",
             source_object="sales/sales-2017/*.avro",
@@ -141,7 +141,7 @@ class TestGcsToGDriveOperator(unittest.TestCase):
     def test_should_raise_exception_on_multiple_wildcard(
         self, mock_named_temporary_file, mock_gdrive, mock_gcs_hook
     ):
-        task = GcsToGDriveOperator(
+        task = GCSToGoogleDriveOperator(
             task_id="move_files", source_bucket="data", source_object="sales/*/*.avro", move_object=True
         )
         with self.assertRaisesRegex(AirflowException, "Only one wildcard"):

@@ -30,7 +30,7 @@ from airflow.utils.decorators import apply_defaults
 
 
 # pylint: disable=too-many-instance-attributes
-class GoogleCloudStorageToBigQueryOperator(BaseOperator):
+class GCSToBigQueryOperator(BaseOperator):
     """
     Loads files from Google Cloud Storage into BigQuery.
 

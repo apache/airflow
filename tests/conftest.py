@@ -21,7 +21,13 @@ import sys
 
 import pytest
 
-from airflow.utils import db
+# We should set these before loading _any_ of the rest of airlow so that the
+# unit test mode config is set as early as possible.
+tests_directory = os.path.dirname(os.path.realpath(__file__))
+
+os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
+os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
+os.environ["AWS_DEFAULT_REGION"] = (os.environ.get("AWS_DEFAULT_REGION") or "us-east-1")
 
 
 @pytest.fixture()
@@ -44,6 +50,8 @@ def reset_db():
     """
     Resets Airflow db.
     """
+
+    from airflow.utils import db
     db.resetdb()
     yield
 
@@ -98,15 +106,10 @@ def breeze_test_helper(request):
     # Setup test environment for breeze
     home = os.path.expanduser("~")
     airflow_home = os.environ.get("AIRFLOW_HOME") or os.path.join(home, "airflow")
-    tests_directory = os.path.dirname(os.path.realpath(__file__))
-
-    os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
-    os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
-    os.environ["AWS_DEFAULT_REGION"] = (
-        os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
-    )
 
     print(f"Home of the user: {home}\nAirflow home {airflow_home}")
+
+    from airflow.utils import db
 
     # Initialize Airflow db if required
     lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
