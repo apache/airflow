@@ -23,7 +23,7 @@ from unittest import mock
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.sensors.s3_key_sensor import S3KeySensor
+from airflow.providers.amazon.aws.sensors.s3_key import S3KeySensor
 
 
 class TestS3KeySensor(unittest.TestCase):

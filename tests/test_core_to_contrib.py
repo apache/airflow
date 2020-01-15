@@ -1104,6 +1104,10 @@ SENSOR = [
         'airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator',
         'airflow.operators.s3_file_transform_operator.S3FileTransformOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.sensors.s3_key.S3KeySensor',
+        'airflow.sensors.s3_key_sensor.S3KeySensor',
+    ),
 ]
 
 PROTOCOLS = [
