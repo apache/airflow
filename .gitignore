@@ -157,7 +157,6 @@ node_modules
 npm-debug.log*
 derby.log
 metastore_db
-yarn.lock
 
 # Airflow log files when airflow is run locally
 airflow-*.err
