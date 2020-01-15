@@ -1042,7 +1042,7 @@ These integrations allow you to perform various operations using various softwar
      -
      - :mod:`airflow.hooks.docker_hook`
      - :mod:`airflow.operators.docker_operator`,
-       :mod:`airflow.contrib.operators.docker_swarm_operator`
+       :mod:`airflow.providers.docker.operators.docker_swarm`
      -
 
    * - `GNU Bash <https://www.gnu.org/software/bash/>`__
