@@ -32,5 +32,6 @@ services:
       - MYSQL_DATABASE=airflow
     volumes:
       - ../mysql/conf.d:/etc/mysql/conf.d:ro
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
     ports:
       - "${MYSQL_HOST_PORT}:3306"
