@@ -1075,7 +1075,7 @@ These integrations allow you to perform various operations using various softwar
      -
      - :mod:`airflow.providers.mongo.hooks.mongo`
      -
-     - :mod:`airflow.contrib.sensors.mongo_sensor`
+     - :mod:`airflow.providers.mongo.sensors.mongo`
 
 
    * - `MySQL <https://www.mysql.com/products/>`__

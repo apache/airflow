@@ -1150,6 +1150,10 @@ SENSOR = [
         'airflow.providers.celery.sensors.celery_queue.CeleryQueueSensor',
         'airflow.contrib.sensors.celery_queue_sensor.CeleryQueueSensor',
     ),
+    (
+        'airflow.providers.mongo.sensors.mongo.MongoSensor',
+        'airflow.contrib.sensors.mongo_sensor.MongoSensor',
+    ),
 ]
 
 PROTOCOLS = [

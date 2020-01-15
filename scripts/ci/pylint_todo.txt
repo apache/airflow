@@ -85,7 +85,7 @@
 ./airflow/contrib/sensors/ftp_sensor.py
 ./airflow/providers/apache/hdfs/sensors/hdfs.py
 ./airflow/providers/jira/sensors/jira.py
-./airflow/contrib/sensors/mongo_sensor.py
+./airflow/providers/mongo/sensors/mongo.py
 ./airflow/contrib/sensors/python_sensor.py
 ./airflow/contrib/sensors/qubole_sensor.py
 ./airflow/contrib/sensors/redis_key_sensor.py
