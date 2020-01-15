@@ -96,7 +96,7 @@
 ./airflow/providers/amazon/aws/sensors/sagemaker_endpoint.py
 ./airflow/providers/amazon/aws/sensors/sagemaker_training.py
 ./airflow/providers/amazon/aws/sensors/sagemaker_transform.py
-./airflow/contrib/sensors/sagemaker_tuning_sensor.py
+./airflow/providers/amazon/aws/sensors/sagemaker_tuning.py
 ./airflow/providers/microsoft/azure/sensors/wasb.py
 ./airflow/sensors/weekday_sensor.py
 ./airflow/hooks/dbapi_hook.py

@@ -385,7 +385,7 @@ These integrations allow you to perform various operations within the Amazon Web
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_endpoint`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_training`,
        :mod:`airflow.providers.amazon.aws.sensors.sagemaker_transform`,
-       :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`
+       :mod:`airflow.providers.amazon.aws.sensors.sagemaker_tuning`
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
      -

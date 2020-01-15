@@ -22,8 +22,8 @@ import unittest
 import mock
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.sensors.sagemaker_tuning_sensor import SageMakerTuningSensor
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.sensors.sagemaker_tuning import SageMakerTuningSensor
 
 DESCRIBE_TUNING_INPROGRESS_RESPONSE = {
     'HyperParameterTuningJobStatus': 'InProgress',

@@ -1096,6 +1096,10 @@ SENSOR = [
         'airflow.providers.amazon.aws.sensors.sagemaker_transform.SageMakerTransformSensor',
         'airflow.contrib.sensors.sagemaker_transform_sensor.SageMakerTransformSensor',
     ),
+    (
+        'airflow.providers.amazon.aws.sensors.sagemaker_tuning.SageMakerTuningSensor',
+        'airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor',
+    ),
 ]
 
 PROTOCOLS = [
