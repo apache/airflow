@@ -1056,6 +1056,10 @@ OPERATOR = [
         'airflow.providers.mysql.operators.mysql.MySqlOperator',
         'airflow.operators.mysql_operator.MySqlOperator',
     ),
+    (
+        'airflow.providers.oracle.operators.oracle.OracleOperator',
+        'airflow.operators.oracle_operator.OracleOperator',
+    ),
 ]
 
 SENSOR = [

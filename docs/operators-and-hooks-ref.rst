@@ -1093,7 +1093,7 @@ These integrations allow you to perform various operations using various softwar
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      -
      - :mod:`airflow.providers.oracle.hooks.oracle`
-     - :mod:`airflow.operators.oracle_operator`
+     - :mod:`airflow.providers.oracle.operators.oracle`
      -
 
    * - `Papermill <https://github.com/nteract/papermill>`__

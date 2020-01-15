@@ -151,7 +151,7 @@
 ./airflow/operators/latest_only_operator.py
 ./airflow/providers/microsoft/mssql/operators/mssql.py
 ./airflow/providers/mssql/operators/mysql.py
-./airflow/operators/oracle_operator.py
+./airflow/providers/oracle/operators/oracle.py
 ./airflow/operators/papermill_operator.py
 ./airflow/providers/apache/pig/operators/pig.py
 ./airflow/operators/postgres_operator.py
