@@ -19,6 +19,7 @@
 
 import hashlib
 import importlib
+import importlib.util
 import os
 import sys
 import textwrap
