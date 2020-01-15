@@ -1162,6 +1162,10 @@ SENSOR = [
         'airflow.providers.redis.sensors.redis_key.RedisKeySensor',
         'airflow.contrib.sensors.redis_key_sensor.RedisKeySensor',
     ),
+    (
+        'airflow.providers.redis.sensors.redis_pub_sub.RedisPubSubSensor',
+        'airflow.contrib.sensors.redis_pub_sub_sensor.RedisPubSubSensor',
+    ),
 ]
 
 PROTOCOLS = [
