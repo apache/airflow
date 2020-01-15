@@ -50,7 +50,7 @@ Make sure it contains the following information:
 - [ ] New behaviors
 - [ ] If possible, a simple example of how to migrate. This may include a simple code example.
 - [ ] If possible, the benefit for the user after migration e.g. "we want to make these changes to unify class names."
-- [ ] If possible, the reason for the change, which adds more context to that interested, e.g. reference for Airflow Improvment Proposal.
+- [ ] If possible, the reason for the change, which adds more context to that interested, e.g. reference for Airflow Improvement Proposal.
 
 More tips can be found in the guide:
 https://developers.google.com/style/inclusive-documentation
