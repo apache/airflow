@@ -568,9 +568,7 @@ class TestMarkDAGRun(unittest.TestCase):
                           timezone.make_naive(self.execution_dates[0]))
         # altered = set_dag_run_state_to_success(self.dag1, self.execution_dates[0])
         # DagRun does not exist
-        # This will throw ValueError since dag.latest_execution_date does not exist
-        self.assertRaises(ValueError, set_dag_run_state_to_success,
-                          self.dag2, self.execution_dates[0])
+        self.assertEqual(len(set_dag_run_state_to_success(self.dag2, self.execution_dates[0])), 0)
 
     def test_set_dag_run_state_to_failed_no_running_tasks(self):
         """
