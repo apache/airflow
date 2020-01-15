@@ -56,7 +56,7 @@ class TestMySql(unittest.TestCase):
             dummy VARCHAR(50)
         );
         """
-        from airflow.operators.mysql_operator import MySqlOperator
+        from airflow.providers.mysql.operators.mysql import MySqlOperator
         op = MySqlOperator(
             task_id='basic_mysql',
             sql=sql,
@@ -69,7 +69,7 @@ class TestMySql(unittest.TestCase):
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        from airflow.operators.mysql_operator import MySqlOperator
+        from airflow.providers.mysql.operators.mysql import MySqlOperator
         op = MySqlOperator(
             task_id='mysql_operator_test_multi',
             sql=sql,
@@ -150,7 +150,7 @@ class TestMySql(unittest.TestCase):
         """
         Verifies option to overwrite connection schema
         """
-        from airflow.operators.mysql_operator import MySqlOperator
+        from airflow.providers.mysql.operators.mysql import MySqlOperator
 
         sql = "SELECT 1;"
         op = MySqlOperator(

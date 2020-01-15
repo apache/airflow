@@ -1081,7 +1081,7 @@ These integrations allow you to perform various operations using various softwar
    * - `MySQL <https://www.mysql.com/products/>`__
      -
      - :mod:`airflow.providers.mysql.hooks.mysql`
-     - :mod:`airflow.operators.mysql_operator`
+     - :mod:`airflow.providers.mssql.operators.mysql`
      -
 
    * - `OpenFaaS <https://www.openfaas.com/>`__

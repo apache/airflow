@@ -1052,6 +1052,10 @@ OPERATOR = [
         'airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator',
         'airflow.operators.mssql_operator.MsSqlOperator',
     ),
+    (
+        'airflow.providers.mysql.operators.mysql.MySqlOperator',
+        'airflow.operators.mysql_operator.MySqlOperator',
+    ),
 ]
 
 SENSOR = [
