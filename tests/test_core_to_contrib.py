@@ -1044,6 +1044,10 @@ OPERATOR = [
         'airflow.operators.bash.BashOperator',
         'airflow.operators.bash_operator.BashOperator',
     ),
+    (
+        'airflow.providers.docker.operators.docker.DockerOperator',
+        'airflow.operators.docker_operator.DockerOperator',
+    ),
 ]
 
 SENSOR = [

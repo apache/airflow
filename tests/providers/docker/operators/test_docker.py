@@ -25,7 +25,7 @@ import mock
 from airflow.exceptions import AirflowException
 
 try:
-    from airflow.operators.docker_operator import DockerOperator
+    from airflow.providers.docker.operators.docker import DockerOperator
     from airflow.providers.docker.hooks.docker import DockerHook
     from docker import APIClient
 except ImportError:
@@ -33,8 +33,8 @@ except ImportError:
 
 
 class TestDockerOperator(unittest.TestCase):
-    @mock.patch('airflow.operators.docker_operator.TemporaryDirectory')
-    @mock.patch('airflow.operators.docker_operator.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker.TemporaryDirectory')
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     def test_execute(self, client_class_mock, tempdir_mock):
         host_config = mock.Mock()
         tempdir_mock.return_value.__enter__.return_value = '/mkdtemp'
@@ -89,8 +89,8 @@ class TestDockerOperator(unittest.TestCase):
         client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True)
         client_mock.wait.assert_called_once_with('some_id')
 
-    @mock.patch('airflow.operators.docker_operator.tls.TLSConfig')
-    @mock.patch('airflow.operators.docker_operator.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker.tls.TLSConfig')
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     def test_execute_tls(self, client_class_mock, tls_class_mock):
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_container.return_value = {'Id': 'some_id'}
@@ -116,7 +116,7 @@ class TestDockerOperator(unittest.TestCase):
         client_class_mock.assert_called_once_with(base_url='https://127.0.0.1:2376',
                                                   tls=tls_mock, version=None)
 
-    @mock.patch('airflow.operators.docker_operator.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     def test_execute_unicode_logs(self, client_class_mock):
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_container.return_value = {'Id': 'some_id'}
@@ -138,7 +138,7 @@ class TestDockerOperator(unittest.TestCase):
             logging.raiseExceptions = originalRaiseExceptions
             print_exception_mock.assert_not_called()
 
-    @mock.patch('airflow.operators.docker_operator.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     def test_execute_container_fails(self, client_class_mock):
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_container.return_value = {'Id': 'some_id'}
@@ -167,7 +167,7 @@ class TestDockerOperator(unittest.TestCase):
 
         client_mock.stop.assert_called_once_with('some_id')
 
-    @mock.patch('airflow.operators.docker_operator.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     def test_execute_no_docker_conn_id_no_hook(self, operator_client_mock):
         # Mock out a Docker client, so operations don't raise errors
         client_mock = mock.Mock(name='DockerOperator.APIClient mock', spec=APIClient)
@@ -200,8 +200,8 @@ class TestDockerOperator(unittest.TestCase):
             'Hook called though no docker_conn_id configured'
         )
 
-    @mock.patch('airflow.operators.docker_operator.DockerHook')
-    @mock.patch('airflow.operators.docker_operator.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker.DockerHook')
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     def test_execute_with_docker_conn_id_use_hook(self, operator_client_mock,
                                                   operator_docker_hook):
         # Mock out a Docker client, so operations don't raise errors
@@ -241,8 +241,8 @@ class TestDockerOperator(unittest.TestCase):
             'Image was not pulled using operator client'
         )
 
-    @mock.patch('airflow.operators.docker_operator.TemporaryDirectory')
-    @mock.patch('airflow.operators.docker_operator.APIClient')
+    @mock.patch('airflow.providers.docker.operators.docker.TemporaryDirectory')
+    @mock.patch('airflow.providers.docker.operators.docker.APIClient')
     def test_execute_xcom_behavior(self, client_class_mock, tempdir_mock):
         tempdir_mock.return_value.__enter__.return_value = '/mkdtemp'
 

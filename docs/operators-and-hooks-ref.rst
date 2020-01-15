@@ -1041,7 +1041,7 @@ These integrations allow you to perform various operations using various softwar
    * - `Docker <https://docs.docker.com/install/>`__
      -
      - :mod:`airflow.providers.docker.hooks.docker`
-     - :mod:`airflow.operators.docker_operator`,
+     - :mod:`airflow.providers.docker.operators.docker`,
        :mod:`airflow.providers.docker.operators.docker_swarm`
      -
 
