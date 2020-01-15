@@ -439,7 +439,7 @@ Basic authentication for Celery Flower is supported.
 
 You can specify the details either as an optional argument in the Flower process launching
 command, or as a configuration item in your ``airflow.cfg``. For both cases, please provide
-`user:password` pairs separated by a comma.
+``user:password`` pairs separated by a comma.
 
 .. code-block:: bash
 
@@ -542,7 +542,7 @@ The first time Airflow is started, the ``airflow.cfg`` file is generated with th
 key. The key is saved to option ``fernet_key`` of section ``[core]``.
 
 You can also configure a fernet key using environment variables. This will overwrite the value from the
-`airflow.cfg` file
+``airflow.cfg`` file
 
     .. code-block:: bash
 

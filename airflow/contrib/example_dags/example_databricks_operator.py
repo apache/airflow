@@ -46,7 +46,8 @@ default_args = {
 with DAG(
     dag_id='example_databricks_operator',
     default_args=default_args,
-    schedule_interval='@daily'
+    schedule_interval='@daily',
+    tags=['example'],
 ) as dag:
     new_cluster = {
         'spark_version': '2.1.0-db3-scala2.11',

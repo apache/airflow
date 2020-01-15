@@ -38,3 +38,4 @@ determine what actually executes when your DAG runs.
     kubernetes
     papermill
     python
+    external

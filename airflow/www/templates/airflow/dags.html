@@ -518,7 +518,7 @@
 
       if (encoded_dag_ids.length > 0) {
         // dags on page fetch stats
-        d3.json("{{ url_for('Airflow.blocked') }}", blockedHandler);
+        d3.json("{{ url_for('Airflow.blocked') }}?dag_ids="  + (encoded_dag_ids.join(',')), blockedHandler);
         d3.json("{{ url_for('Airflow.last_dagruns') }}?dag_ids=" + (encoded_dag_ids.join(',')), lastDagRunsHandler);
         d3.json("{{ url_for('Airflow.dag_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), dagStatsHandler);
         d3.json("{{ url_for('Airflow.task_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), taskStatsHandler);

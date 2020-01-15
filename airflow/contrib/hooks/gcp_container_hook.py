@@ -20,10 +20,22 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.kubernetes_engine import GKEClusterHook  # noqa
+from airflow.gcp.hooks.kubernetes_engine import GKEHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.kubernetes_engine`",
     DeprecationWarning, stacklevel=2
 )
+
+
+class GKEClusterHook(GKEHook):
+    """
+    This class is deprecated. Please use `airflow.gcp.hooks.container.GKEHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. Please use `airflow.gcp.hooks.container.GKEHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

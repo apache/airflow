@@ -31,12 +31,12 @@ from google.cloud.container_v1.types import Cluster
 from airflow import AirflowException
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow.gcp.hooks.base import CloudBaseHook
-from airflow.gcp.hooks.kubernetes_engine import GKEClusterHook
+from airflow.gcp.hooks.kubernetes_engine import GKEHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GKEClusterDeleteOperator(BaseOperator):
+class GKEDeleteClusterOperator(BaseOperator):
     """
     Deletes the cluster, including the Kubernetes endpoint and all worker nodes.
 
@@ -94,12 +94,12 @@ class GKEClusterDeleteOperator(BaseOperator):
             raise AirflowException('Operator has incorrect or missing input.')
 
     def execute(self, context):
-        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        hook = GKEHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
         delete_result = hook.delete_cluster(name=self.name, project_id=self.project_id)
         return delete_result
 
 
-class GKEClusterCreateOperator(BaseOperator):
+class GKECreateClusterOperator(BaseOperator):
     """
     Create a Google Kubernetes Engine Cluster of specified dimensions
     The operator will wait until the cluster is created.
@@ -174,7 +174,7 @@ class GKEClusterCreateOperator(BaseOperator):
             raise AirflowException("Operator has incorrect or missing input.")
 
     def execute(self, context):
-        hook = GKEClusterHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
+        hook = GKEHook(gcp_conn_id=self.gcp_conn_id, location=self.location)
         create_op = hook.create_cluster(cluster=self.body, project_id=self.project_id)
         return create_op
 
@@ -182,7 +182,7 @@ class GKEClusterCreateOperator(BaseOperator):
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 
-class GKEPodOperator(KubernetesPodOperator):
+class GKEStartPodOperator(KubernetesPodOperator):
     """
     Executes a task in a Kubernetes pod in the specified Google Kubernetes
     Engine cluster

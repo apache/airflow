@@ -44,7 +44,8 @@ default_args = {
 with DAG(
     dag_id='example_azure_cosmosdb_sensor',
     default_args=default_args,
-    doc_md=__doc__
+    doc_md=__doc__,
+    tags=['example'],
 ) as dag:
 
     t1 = AzureCosmosDocumentSensor(

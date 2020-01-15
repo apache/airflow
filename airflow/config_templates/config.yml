@@ -316,13 +316,6 @@
       type: string
       example: ~
       default: "30"
-    - name: print_dag_processing_stats
-      description: |
-        Print stats about DAG processing progress
-      version_added: ~
-      type: string
-      example: ~
-      default: "True"
     - name: check_slas
       description: |
         On each dagrun check against defined SLAs

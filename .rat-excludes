@@ -31,6 +31,7 @@ CHANGELOG.txt
 .*lock
 unittests.cfg
 logs
+.bash_aliases
 
 # Generated doc files
 .*html

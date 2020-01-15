@@ -24,7 +24,7 @@ from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.datastore import DatastoreHook
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -94,7 +94,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         self.log.info('Exporting data to Cloud Storage bucket %s', self.bucket)
 
         if self.overwrite_existing and self.namespace:
-            gcs_hook = GoogleCloudStorageHook(self.cloud_storage_conn_id)
+            gcs_hook = GCSHook(self.cloud_storage_conn_id)
             objects = gcs_hook.list(self.bucket, prefix=self.namespace)
             for obj in objects:
                 gcs_hook.delete(self.bucket, obj)
