@@ -535,7 +535,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         if self.hook is None:
             self.log.info('Executing: %s', self.sql)
             self.hook = BigQueryHook(
-                bigquery_conn_id=self.gcp_conn_id,
+                gcp_conn_id=self.gcp_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
                 delegate_to=self.delegate_to,
                 location=self.location,
@@ -741,7 +741,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.location = location
 
     def execute(self, context):
-        bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+        bq_hook = BigQueryHook(gcp_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to,
                                location=self.location)
 
@@ -922,7 +922,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.location = location
 
     def execute(self, context):
-        bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+        bq_hook = BigQueryHook(gcp_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to,
                                location=self.location)
 
@@ -1021,7 +1021,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
 
-        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
 
         bq_hook.delete_dataset(
@@ -1099,7 +1099,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Dataset id: %s Project id: %s', self.dataset_id, self.project_id)
 
-        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to,
                                location=self.location)
 
@@ -1150,7 +1150,7 @@ class BigQueryGetDatasetOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
 
         self.log.info('Start getting dataset: %s:%s', self.project_id, self.dataset_id)
@@ -1205,7 +1205,7 @@ class BigQueryGetDatasetTablesOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
 
         self.log.info('Start getting tables list from dataset: %s:%s', self.project_id, self.dataset_id)
@@ -1256,7 +1256,7 @@ class BigQueryPatchDatasetOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
 
         self.log.info('Start patching dataset: %s:%s', self.project_id, self.dataset_id)
@@ -1307,7 +1307,7 @@ class BigQueryUpdateDatasetOperator(BaseOperator):
         super().__init__(*args, **kwargs)
 
     def execute(self, context):
-        bq_hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+        bq_hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
                                delegate_to=self.delegate_to)
 
         self.log.info('Start updating dataset: %s:%s', self.project_id, self.dataset_id)
@@ -1370,7 +1370,7 @@ class BigQueryDeleteTableOperator(BaseOperator):
 
     def execute(self, context):
         self.log.info('Deleting: %s', self.deletion_dataset_table)
-        hook = BigQueryHook(bigquery_conn_id=self.gcp_conn_id,
+        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             location=self.location)
         hook.run_table_delete(
