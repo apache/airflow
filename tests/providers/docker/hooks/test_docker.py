@@ -26,12 +26,12 @@ from airflow.models import Connection
 from airflow.utils import db
 
 try:
-    from airflow.hooks.docker_hook import DockerHook
+    from airflow.providers.docker.hooks.docker import DockerHook
 except ImportError:
     pass
 
 
-@mock.patch('airflow.hooks.docker_hook.APIClient', autospec=True)
+@mock.patch('airflow.providers.docker.hooks.docker.APIClient', autospec=True)
 class TestDockerHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(

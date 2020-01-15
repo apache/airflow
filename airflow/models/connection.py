@@ -288,7 +288,7 @@ class Connection(Base, LoggingMixin):
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
             return WasbHook(wasb_conn_id=self.conn_id)
         elif self.conn_type == 'docker':
-            from airflow.hooks.docker_hook import DockerHook
+            from airflow.providers.docker.hooks.docker import DockerHook
             return DockerHook(docker_conn_id=self.conn_id)
         elif self.conn_type == 'azure_data_lake':
             from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook

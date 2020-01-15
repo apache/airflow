@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 
 try:
     from airflow.operators.docker_operator import DockerOperator
-    from airflow.hooks.docker_hook import DockerHook
+    from airflow.providers.docker.hooks.docker import DockerHook
     from docker import APIClient
 except ImportError:
     pass

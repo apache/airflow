@@ -270,6 +270,10 @@ HOOK = [
         'airflow.providers.redis.hooks.redis.RedisHook',
         'airflow.contrib.hooks.redis_hook.RedisHook',
     ),
+    (
+        'airflow.providers.docker.hooks.docker.DockerHook',
+        'airflow.hooks.docker_hook.DockerHook',
+    ),
 ]
 
 OPERATOR = [

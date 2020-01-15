@@ -98,7 +98,7 @@
 ./airflow/providers/microsoft/azure/sensors/wasb.py
 ./airflow/sensors/weekday_sensor.py
 ./airflow/hooks/dbapi_hook.py
-./airflow/hooks/docker_hook.py
+./airflow/providers/docker/hooks/docker.py
 ./airflow/providers/apache/druid/hooks/druid.py
 ./airflow/providers/apache/hive/hooks/hive.py
 ./airflow/hooks/http_hook.py
