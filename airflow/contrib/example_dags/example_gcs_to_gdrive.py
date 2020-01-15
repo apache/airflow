@@ -30,7 +30,10 @@ GCS_TO_GDRIVE_BUCKET = os.environ.get("GCS_TO_DRIVE_BUCKET", "example-object")
 default_args = {"start_date": days_ago(1)}
 
 with models.DAG(
-    "example_gcs_to_gdrive", default_args=default_args, schedule_interval=None  # Override to match your needs
+    "example_gcs_to_gdrive",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
     # [START howto_operator_gcs_to_gdrive_copy_single_file]
     copy_single_file = GCSToGoogleDriveOperator(

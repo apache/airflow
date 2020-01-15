@@ -89,7 +89,8 @@ default_args = {
 with DAG(
     dag_id='example_twitter_dag',
     default_args=default_args,
-    schedule_interval="@daily"
+    schedule_interval="@daily",
+    tags=['example'],
 ) as dag:
 
     # --------------------------------------------------------------------------------

@@ -63,7 +63,8 @@ with DAG(
     dag_id='emr_job_flow_manual_steps_dag',
     default_args=DEFAULT_ARGS,
     dagrun_timeout=timedelta(hours=2),
-    schedule_interval='0 3 * * *'
+    schedule_interval='0 3 * * *',
+    tags=['example'],
 ) as dag:
 
     cluster_creator = EmrCreateJobFlowOperator(

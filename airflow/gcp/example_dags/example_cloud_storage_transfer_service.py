@@ -125,7 +125,10 @@ default_args = {'start_date': days_ago(1)}
 # [END howto_operator_gcp_transfer_default_args]
 
 with models.DAG(
-    'example_gcp_transfer', default_args=default_args, schedule_interval=None  # Override to match your needs
+    'example_gcp_transfer',
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_gcp_transfer_create_job]

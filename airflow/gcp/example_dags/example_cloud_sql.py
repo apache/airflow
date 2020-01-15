@@ -180,7 +180,8 @@ default_args = {
 with models.DAG(
     'example_gcp_sql',
     default_args=default_args,
-    schedule_interval=None  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
     # ############################################## #
     # ### INSTANCES SET UP ######################### #

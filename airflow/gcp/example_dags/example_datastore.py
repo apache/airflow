@@ -40,6 +40,7 @@ with models.DAG(
     "example_gcp_datastore",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
     export_task = CloudDatastoreExportEntitiesOperator(
         task_id="export_task",

@@ -57,7 +57,7 @@ PATH_TO_SAVED_FILE = os.environ.get(
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 
 with models.DAG(
-    "example_gcs", default_args=default_args, schedule_interval=None
+    "example_gcs", default_args=default_args, schedule_interval=None, tags=['example'],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(
         task_id="create_bucket1", bucket_name=BUCKET_1, project_id=PROJECT_ID

@@ -33,6 +33,7 @@ with models.DAG(
     dag_id='example_postgres_to_gcs',
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
     upload_data = PostgresToGoogleCloudStorageOperator(
         task_id="get_data",
