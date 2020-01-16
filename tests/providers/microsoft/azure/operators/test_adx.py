@@ -19,13 +19,13 @@
 #
 
 import unittest
+from unittest import mock
 
 from airflow.models import DAG, TaskInstance
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-from tests.compat import mock
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2019, 1, 1)
