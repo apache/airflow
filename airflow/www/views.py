@@ -339,9 +339,6 @@ class Airflow(AirflowBaseView):
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
-        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state))\
-            .group_by(dr.dag_id, dr.state)
-
         # Filter by get parameters
         selected_dag_ids = {
             unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
@@ -355,9 +352,11 @@ class Airflow(AirflowBaseView):
         if not filter_dag_ids:
             return wwwutils.json_response({})
 
-        payload = {}
-        dag_state_stats = dag_state_stats.filter(dr.dag_id.in_(filter_dag_ids))
+        dag_state_stats = session.query(
+            dr.dag_id, dr.state, sqla.func.count(dr.state)
+            ).filter(dr.dag_id.in_(filter_dag_ids)).group_by(dr.dag_id, dr.state)
         data = {}
+        payload = {}
 
         for dag_id, state, count in dag_state_stats:
             if dag_id not in data:
