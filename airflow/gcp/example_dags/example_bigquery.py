@@ -201,10 +201,10 @@ with models.DAG(
 
     create_view = BigQueryCreateEmptyTableOperator(
         task_id="create_view",
-        dataset_id=LOCATION_DATASET_NAME,
+        dataset_id=DATASET_NAME,
         table_id="test_view",
         view={
-            "query": "SELECT * FROM `{}.test_table`".format(DATASET_NAME),
+            "query": f"SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
             "useLegacySql": False
         }
     )
@@ -265,3 +265,7 @@ with models.DAG(
     execute_query_external_table >> bigquery_to_gcs >> delete_dataset
     create_table >> create_view >> delete_view >> delete_table >> delete_dataset
     create_dataset_with_location >> create_table_with_location >> delete_dataset_with_location
+
+if __name__ == '__main__':
+    dag.clear(reset_dag_runs=True)
+    dag.run()
