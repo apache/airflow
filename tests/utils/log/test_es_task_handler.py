@@ -95,7 +95,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             True,  # json_format
             self.json_fields,
             self.index_name2
-            )
+        )
 
     def tearDown(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
