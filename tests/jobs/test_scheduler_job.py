@@ -2034,8 +2034,8 @@ class TestSchedulerJob(unittest.TestCase):
             ti = dr.get_task_instance('test_dagrun_unfinished', session=session)
             ti.state = State.NONE
             session.commit()
-        dr_state = dr.update_state()
-        self.assertEqual(dr_state, State.RUNNING)
+        dr.update_state()
+        self.assertEqual(dr.state, State.RUNNING)
 
     def test_dagrun_root_after_dagrun_unfinished(self):
         """
