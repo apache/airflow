@@ -51,8 +51,9 @@ class TestDockerOperator(unittest.TestCase):
         client_class_mock.return_value = client_mock
 
         operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
-                                  image='ubuntu:latest', network_mode='bridge', owner='unittest',
-                                  task_id='unittest', volumes=['/host/path:/container/path'],
+                                  private_environment={'SUPER':'SECRET'}, image='ubuntu:latest',
+                                  network_mode='bridge', owner='unittest', task_id='unittest',
+                                  volumes=['/host/path:/container/path'],
                                   working_dir='/container/path', shm_size=1000,
                                   host_tmp_dir='/host/airflow', container_name='test_container',
                                   tty=True)
@@ -65,7 +66,8 @@ class TestDockerOperator(unittest.TestCase):
                                                              name='test_container',
                                                              environment={
                                                                  'AIRFLOW_TMP_DIR': '/tmp/airflow',
-                                                                 'UNIT': 'TEST'
+                                                                 'UNIT': 'TEST',
+                                                                 'SUPER': 'SECRET'
                                                              },
                                                              host_config=host_config,
                                                              image='ubuntu:latest',
@@ -259,6 +261,7 @@ class TestDockerOperator(unittest.TestCase):
             'api_version': '1.19',
             'command': 'env',
             'environment': {'UNIT': 'TEST'},
+            'private_environment': {'SUPER': 'SECRET'},
             'image': 'ubuntu:latest',
             'network_mode': 'bridge',
             'owner': 'unittest',
