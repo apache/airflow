@@ -101,8 +101,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                             pickle_dags,
                             dag_id_white_list,
                             thread_name,
-                            zombies,
-                            inherited_conf=None):
+                            zombies):
         """
         Process the given file.
 
@@ -127,14 +126,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         log = logging.getLogger("airflow.processor")
 
         set_context(log, file_path)
-
-        if inherited_conf is not None:  # pylint: disable=too-many-nested-blocks
-            for section in inherited_conf:
-                for key, value in inherited_conf[section].items():
-                    if value not in conf:
-                        conf.set(section, key, value.replace("%", "%%"))
-
-                    setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
+        setproctitle("airflow scheduler - DagFileProcessor {}".format(file_path))
 
         try:
             # redirect stdout/stderr to log
@@ -189,21 +181,16 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
         cxt = mp.get_context(mp_start_method)
 
         self._parent_channel, _child_channel = cxt.Pipe()
-        args_list = [
-            _child_channel,
-            self.file_path,
-            self._pickle_dags,
-            self._dag_id_white_list,
-            "DagFileProcessor{}".format(self._instance_id),
-            self._zombies
-        ]
-
-        if cxt.get_start_method() != "fork":
-            args_list.append(conf)
-
         self._process = cxt.Process(
             target=type(self)._run_file_processor,
-            args=args_list,
+            args=(
+                _child_channel,
+                self.file_path,
+                self._pickle_dags,
+                self._dag_id_white_list,
+               "DagFileProcessor{}".format(self._instance_id),
+                self._zombies
+            ),
             name="DagFileProcessor{}-Process".format(self._instance_id)
         )
         self._start_time = timezone.utcnow()

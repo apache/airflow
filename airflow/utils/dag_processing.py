@@ -353,24 +353,19 @@ class DagFileProcessorAgent(LoggingMixin):
         cxt = mp.get_context(mp_start_method)
 
         self._parent_signal_conn, child_signal_conn = cxt.Pipe()
-        args_list = [
-            self._dag_directory,
-            self._file_paths,
-            self._max_runs,
-            self._processor_factory,
-            self._processor_timeout,
-            child_signal_conn,
-            self._dag_ids,
-            self._pickle_dags,
-            self._async_mode
-        ]
-
-        if cxt.get_start_method() != "fork":
-            args_list.append(conf)
-
         self._process = cxt.Process(
             target=type(self)._run_processor_manager,
-            args=args_list
+            args=(
+                self._dag_directory,
+                self._file_paths,
+                self._max_runs,
+                self._processor_factory,
+                self._processor_timeout,
+                child_signal_conn,
+                self._dag_ids,
+                self._pickle_dags,
+                self._async_mode
+            )
         )
         self._process.start()
 
@@ -417,18 +412,12 @@ class DagFileProcessorAgent(LoggingMixin):
                                signal_conn,
                                dag_ids,
                                pickle_dags,
-                               async_mode,
-                               inherited_conf=None):
+                               async_mode):
 
         # Make this process start as a new process group - that makes it easy
         # to kill all sub-process of this at the OS-level, rather than having
         # to iterate the child processes
         os.setpgid(0, 0)
-        if inherited_conf is not None:  # pylint: disable=too-many-nested-blocks
-            for section in inherited_conf:
-                for key, value in inherited_conf[section].items():
-                    if value not in conf:
-                        conf.set(section, key, value.replace("%", "%%"))
 
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         # Reload configurations and settings to avoid collision with parent process.
