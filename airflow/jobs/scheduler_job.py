@@ -188,7 +188,7 @@ class DagFileProcessorProcess(AbstractDagFileProcessorProcess, LoggingMixin):
                 self.file_path,
                 self._pickle_dags,
                 self._dag_id_white_list,
-               "DagFileProcessor{}".format(self._instance_id),
+                "DagFileProcessor{}".format(self._instance_id),
                 self._zombies
             ),
             name="DagFileProcessor{}-Process".format(self._instance_id)
