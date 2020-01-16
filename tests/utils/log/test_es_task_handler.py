@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import os
 import shutil
 import unittest
@@ -84,7 +85,17 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
         self.addCleanup(self.dag.clear)
-
+        self.index_name2 = "test_index2"
+        self.es_task_handler2 = ElasticsearchTaskHandler(
+            self.local_log_location,
+            self.filename_template,
+            self.log_id_template,
+            self.end_of_log_mark,
+            self.write_stdout,
+            True, # json_format
+            self.json_fields,
+            self.index_name2
+            )
     def tearDown(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
 
@@ -266,14 +277,55 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.es_task_handler.json_format = True
         self.es_task_handler.set_context(self.ti)
 
-    def test_close(self):
-        self.es_task_handler.set_context(self.ti)
-        self.es_task_handler.close()
+    def test_close_with_log_id(self):
+        es_task_handler = ElasticsearchTaskHandler(
+            self.local_log_location,
+            self.filename_template,
+            self.log_id_template,
+            self.end_of_log_mark,
+            self.write_stdout,
+            True, # json_format
+            self.json_fields,
+            self.index
+        )
+        es_task_handler.set_context(self.ti)
+        es_task_handler.close()
+
+        log_id = self.log_id_template.format(
+            dag_id=TestElasticsearchTaskHandler.DAG_ID,
+            task_id=TestElasticsearchTaskHandler.TASK_ID,
+            execution_date=ElasticsearchTaskHandler._clean_execution_date(self.ti.execution_date),
+            try_number=self.ti.try_number)
+        log_id_test_message = 'test_close_with_log_id message'
+        another_body = {'message': log_id_test_message, 'log_id': log_id, 'offset': 1}
+        self.es.index(index=self.index_name2, doc_type=self.doc_type,
+                      body=another_body, id=1)
+
         with open(os.path.join(self.local_log_location,
-                               self.filename_template.format(try_number=1)),
+                               self.filename_template.format(try_number=self.ti.try_number)),
                   'r') as log_file:
-            self.assertIn(self.end_of_log_mark, log_file.read())
-        self.assertTrue(self.es_task_handler.closed)
+            msg = json.loads(log_file.read())
+            self.assertEqual(self.end_of_log_mark, msg['message'])
+            msg['log_id'] = self.log_id_template.format(
+                dag_id=msg['dag_id'],
+                task_id=msg['task_id'],
+                execution_date=msg['execution_date'],
+                try_number=msg['try_number'])
+            msg['message'] = msg['message'].strip()
+            msg['offset'] = 100
+            self.es.index(index=self.index_name2, doc_type=self.doc_type,
+                          body=msg, id=2)
+        self.assertTrue(es_task_handler.closed)
+
+        logs, metadatas = self.es_task_handler2.read(self.ti,
+                                                self.ti.try_number,
+                                                {'offset': 0,
+                                                 'last_log_timestamp': str(pendulum.now()),
+                                                 'end_of_log': False})
+
+        self.assertEqual(1, len(logs))
+        self.assertEqual(log_id_test_message, logs[0])
+        self.assertTrue(metadatas[0]['end_of_log'])
 
     def test_close_no_mark_end(self):
         self.ti.raw = True
