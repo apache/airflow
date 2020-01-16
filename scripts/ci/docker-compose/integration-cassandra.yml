@@ -19,6 +19,8 @@ version: "2.2"
 services:
   cassandra:
     image: cassandra:3.0
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
   airflow-testing:
     environment:
       - INTEGRATION_CASSANDRA=true
