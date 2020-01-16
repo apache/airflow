@@ -30,5 +30,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
     ports:
       - "${POSTGRES_HOST_PORT}:5432"

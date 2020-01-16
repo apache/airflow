@@ -26,6 +26,7 @@ services:
       - LDAP_CONFIG_PASSWORD=insecure
     volumes:
       - ../openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
   airflow-testing:
     environment:
       - INTEGRATION_OPENLDAP=true
