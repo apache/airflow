@@ -46,7 +46,7 @@ class TestDockerOperator(unittest.TestCase):
         client_mock.attach.return_value = ['container log']
         client_mock.logs.return_value = ['container log']
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.wait.return_value = {"StatusCode": 0}
+        client_mock.wait.return_value = {'StatusCode': 0}
 
         client_class_mock.return_value = client_mock
 
