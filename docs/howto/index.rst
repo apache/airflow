@@ -42,5 +42,6 @@ configuring an Airflow environment.
     use-test-config
     check-health
     define_extra_link
+    email-config
     tracking-user-activity
     cli-completion
