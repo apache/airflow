@@ -28,8 +28,8 @@ This DAG relies on the following OS environment variables
 import os
 
 from airflow import models
-from airflow.gcp.operators.speech_to_text import GcpSpeechToTextRecognizeSpeechOperator
-from airflow.gcp.operators.text_to_speech import GcpTextToSpeechSynthesizeOperator
+from airflow.gcp.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
+from airflow.gcp.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator
 from airflow.utils import dates
 
@@ -63,11 +63,14 @@ SOURCE_LANGUAGE = None  # type: None
 default_args = {"start_date": dates.days_ago(1)}
 
 with models.DAG(
-    "example_gcp_speech", default_args=default_args, schedule_interval=None  # Override to match your needs
+    "example_gcp_speech",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_text_to_speech_synthesize]
-    text_to_speech_synthesize_task = GcpTextToSpeechSynthesizeOperator(
+    text_to_speech_synthesize_task = CloudTextToSpeechSynthesizeOperator(
         project_id=GCP_PROJECT_ID,
         input_data=INPUT,
         voice=VOICE,
@@ -79,7 +82,7 @@ with models.DAG(
     # [END howto_operator_text_to_speech_synthesize]
 
     # [START howto_operator_speech_to_text_recognize]
-    speech_to_text_recognize_task = GcpSpeechToTextRecognizeSpeechOperator(
+    speech_to_text_recognize_task = CloudSpeechToTextRecognizeSpeechOperator(
         project_id=GCP_PROJECT_ID, config=CONFIG, audio=AUDIO, task_id="speech_to_text_recognize_task"
     )
     # [END howto_operator_speech_to_text_recognize]

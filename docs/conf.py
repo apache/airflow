@@ -37,6 +37,7 @@ import sys
 from typing import Dict
 
 import airflow
+from airflow.configuration import default_config_yaml
 
 try:
     import sphinx_airflow_theme  # pylint: disable=unused-import
@@ -125,15 +126,21 @@ extensions = [
     'sphinx.ext.graphviz',
     'sphinxarg.ext',
     'sphinxcontrib.httpdomain',
+    'sphinxcontrib.jinja',
     'sphinx.ext.intersphinx',
     'autoapi.extension',
     'exampleinclude',
-    'docroles'
+    'docroles',
+    'removemarktransform',
 ]
 
 autodoc_default_options = {
     'show-inheritance': True,
     'members': True
+}
+
+jinja_contexts = {
+    'config_ctx': {"configs": default_config_yaml()}
 }
 
 viewcode_follow_imported_members = True
@@ -233,7 +240,16 @@ exclude_patterns = [
     '_api/airflow/providers/amazon/aws/index.rst',
     '_api/airflow/providers/amazon/aws/example_dags',
     '_api/airflow/providers/apache/index.rst',
+    "_api/airflow/providers/apache/druid/index.rst",
+    "_api/airflow/providers/apache/hdfs/index.rst",
+    "_api/airflow/providers/apache/hive/index.rst",
+    "_api/airflow/providers/apache/pig/index.rst",
+    "_api/airflow/providers/apache/pinot/index.rst",
+    "_api/airflow/providers/apache/spark/index.rst",
+    "_api/airflow/providers/apache/sqoop/index.rst",
     '_api/airflow/providers/apache/cassandra/index.rst',
+    '_api/airflow/providers/apache/pinot/index.rst',
+    '_api/airflow/providers/apache/spark/index.rst',
     '_api/airflow/providers/microsoft/index.rst',
     '_api/airflow/providers/microsoft/azure/index.rst',
     '_api/airflow/providers/sftp/index.rst',

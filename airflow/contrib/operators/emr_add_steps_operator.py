@@ -27,11 +27,11 @@ class EmrAddStepsOperator(BaseOperator):
     An operator that adds steps to an existing EMR job_flow.
 
     :param job_flow_id: id of the JobFlow to add steps to. (templated)
-    :type job_flow_id: str
+    :type job_flow_id: Optional[str]
     :param job_flow_name: name of the JobFlow to add steps to. Use as an alternative to passing
         job_flow_id. will search for id of JobFlow with matching name in one of the states in
         param cluster_states. Exactly one cluster like this should exist or will fail. (templated)
-    :type job_flow_name: str
+    :type job_flow_name: Optional[str]
     :param cluster_states: Acceptable cluster states when searching for JobFlow id by job_flow_name.
         (templated)
     :type cluster_states: list
@@ -68,12 +68,14 @@ class EmrAddStepsOperator(BaseOperator):
         self.steps = steps
 
     def execute(self, context):
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
 
-        job_flow_id = self.job_flow_id
+        emr = emr_hook.get_conn()
 
+        job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(self.job_flow_name,
+                                                                          self.cluster_states)
         if not job_flow_id:
-            job_flow_id = emr.get_cluster_id_by_name(self.job_flow_name, self.cluster_states)
+            raise AirflowException(f'No cluster found for name: {self.job_flow_name}')
 
         if self.do_xcom_push:
             context['ti'].xcom_push(key='job_flow_id', value=job_flow_id)

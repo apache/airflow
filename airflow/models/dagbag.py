@@ -18,8 +18,8 @@
 # under the License.
 
 import hashlib
-import imp
 import importlib
+import importlib.util
 import os
 import sys
 import textwrap
@@ -35,10 +35,10 @@ from airflow.dag.base_dag import BaseDagBag
 from airflow.exceptions import AirflowDagCycleException
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 
 
@@ -248,7 +248,11 @@ class DagBag(BaseDagBag, LoggingMixin):
 
             with timeout(self.DAGBAG_IMPORT_TIMEOUT):
                 try:
-                    m = imp.load_source(mod_name, filepath)
+                    loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
+                    spec = importlib.util.spec_from_loader(mod_name, loader)
+                    m = importlib.util.module_from_spec(spec)
+                    sys.modules[spec.name] = m
+                    loader.exec_module(m)
                     mods.append(m)
                 except Exception as e:
                     self.log.exception("Failed to import: %s", filepath)

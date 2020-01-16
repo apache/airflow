@@ -18,6 +18,7 @@
 # under the License.
 import unittest
 
+import mock
 from google.cloud.vision import enums
 from google.cloud.vision_v1 import ProductSearchClient
 from google.cloud.vision_v1.proto.image_annotator_pb2 import (
@@ -29,7 +30,6 @@ from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.vision import ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE, CloudVisionHook
-from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID_TEST = 'project-id'

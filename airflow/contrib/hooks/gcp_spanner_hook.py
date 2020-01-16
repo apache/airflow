@@ -20,12 +20,12 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.spanner import SpannerHook  # noqa
+from airflow.gcp.hooks.spanner import SpannerHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.hooks.spanner`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
@@ -35,9 +35,5 @@ class CloudSpannerHook(SpannerHook):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. Please use `airflow.gcp.hooks.spanner.SpannerHook`.",
-            DeprecationWarning, stacklevel=2
-        )
-
+        warnings.warn(self.__doc__, DeprecationWarning, stacklevel=2)
         super().__init__(*args, **kwargs)

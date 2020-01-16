@@ -16,26 +16,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Azure Container Registry"""
+"""
+This module is deprecated.
+Please use `airflow.providers.microsoft.azure.hooks.azure_container_registry`.
+"""
 
-from azure.mgmt.containerinstance.models import ImageRegistryCredential
+import warnings
 
-from airflow.hooks.base_hook import BaseHook
+# pylint: disable=unused-import
+from airflow.providers.microsoft.azure.hooks.azure_container_registry import (  # noqa
+    AzureContainerRegistryHook,
+)
 
-
-class AzureContainerRegistryHook(BaseHook):
-    """
-    A hook to communicate with a Azure Container Registry.
-
-    :param conn_id: connection id of a service principal which will be used
-        to start the container instance
-    :type conn_id: str
-    """
-
-    def __init__(self, conn_id='azure_registry'):
-        self.conn_id = conn_id
-        self.connection = self.get_conn()
-
-    def get_conn(self):
-        conn = self.get_connection(self.conn_id)
-        return ImageRegistryCredential(server=conn.host, username=conn.login, password=conn.password)
+warnings.warn(
+    "This module is deprecated. "
+    "Please use `airflow.providers.microsoft.azure.hooks.azure_container_registry`.",
+    DeprecationWarning, stacklevel=2
+)

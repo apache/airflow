@@ -17,11 +17,12 @@
 # under the License.
 """Manages all plugins."""
 # noinspection PyDeprecation
-import imp  # pylint: disable=deprecated-module
+import importlib
 import inspect
 import os
 import re
 import sys
+import types
 from typing import Any, Callable, Dict, List, Optional, Set, Type
 
 import pkg_resources
@@ -182,7 +183,11 @@ for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
             # normalize root path as namespace
             namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
-            m = imp.load_source(namespace, filepath)
+            loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
+            spec = importlib.util.spec_from_loader(mod_name, loader)
+            m = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = m
+            loader.exec_module(m)
             for obj in list(m.__dict__.values()):
                 if is_valid_plugin(obj, plugins):
                     plugins.append(obj)
@@ -204,7 +209,7 @@ def make_module(name: str, objects: List[Any]):
     """Creates new module."""
     log.debug('Creating module %s', name)
     name = name.lower()
-    module = imp.new_module(name)
+    module = types.ModuleType(name)
     module._name = name.split('.')[-1]  # type: ignore
     module._objects = objects           # type: ignore
     module.__dict__.update((o.__name__, o) for o in objects)
@@ -261,7 +266,7 @@ for p in plugins:
     if p.stat_name_handler:
         stat_name_handlers.append(p.stat_name_handler)
     global_operator_extra_links.extend(p.global_operator_extra_links)
-    operator_extra_links.extend([ope for ope in p.operator_extra_links])
+    operator_extra_links.extend(list(p.operator_extra_links))
 
     registered_operator_link_classes.update({
         "{}.{}".format(link.__class__.__module__,

@@ -246,16 +246,16 @@ class Connection(Base, LoggingMixin):
             from airflow.hooks.postgres_hook import PostgresHook
             return PostgresHook(postgres_conn_id=self.conn_id)
         elif self.conn_type == 'pig_cli':
-            from airflow.hooks.pig_hook import PigCliHook
+            from airflow.providers.apache.pig.hooks.pig import PigCliHook
             return PigCliHook(pig_cli_conn_id=self.conn_id)
         elif self.conn_type == 'hive_cli':
-            from airflow.hooks.hive_hooks import HiveCliHook
+            from airflow.providers.apache.hive.hooks.hive import HiveCliHook
             return HiveCliHook(hive_cli_conn_id=self.conn_id)
         elif self.conn_type == 'presto':
             from airflow.hooks.presto_hook import PrestoHook
             return PrestoHook(presto_conn_id=self.conn_id)
         elif self.conn_type == 'hiveserver2':
-            from airflow.hooks.hive_hooks import HiveServer2Hook
+            from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
             return HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
         elif self.conn_type == 'sqlite':
             from airflow.hooks.sqlite_hook import SqliteHook
@@ -282,16 +282,16 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.redis_hook import RedisHook
             return RedisHook(redis_conn_id=self.conn_id)
         elif self.conn_type == 'wasb':
-            from airflow.contrib.hooks.wasb_hook import WasbHook
+            from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
             return WasbHook(wasb_conn_id=self.conn_id)
         elif self.conn_type == 'docker':
             from airflow.hooks.docker_hook import DockerHook
             return DockerHook(docker_conn_id=self.conn_id)
         elif self.conn_type == 'azure_data_lake':
-            from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+            from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
             return AzureDataLakeHook(azure_data_lake_conn_id=self.conn_id)
         elif self.conn_type == 'azure_cosmos':
-            from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
+            from airflow.providers.microsoft.azure.hooks.azure_cosmos import AzureCosmosDBHook
             return AzureCosmosDBHook(azure_cosmos_conn_id=self.conn_id)
         elif self.conn_type == 'cassandra':
             from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
@@ -300,8 +300,8 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.mongo_hook import MongoHook
             return MongoHook(conn_id=self.conn_id)
         elif self.conn_type == 'gcpcloudsql':
-            from airflow.gcp.hooks.cloud_sql import CloudSqlDatabaseHook
-            return CloudSqlDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
+            from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook
+            return CloudSQLDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
         elif self.conn_type == 'grpc':
             from airflow.contrib.hooks.grpc_hook import GrpcHook
             return GrpcHook(grpc_conn_id=self.conn_id)

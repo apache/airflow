@@ -30,7 +30,7 @@ from celery.result import AsyncResult
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import BaseExecutor, CommandType, QueuedTaskInstanceType
+from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType, TaskInstanceStateType
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
@@ -43,7 +43,7 @@ CELERY_SEND_ERR_MSG_HEADER = 'Error sending Celery task'
 
 '''
 To start the celery worker, run the command:
-airflow worker
+airflow celery worker
 '''
 
 if conf.has_option('celery', 'celery_config_options'):
@@ -59,7 +59,7 @@ app = Celery(
 
 
 @app.task
-def execute_command(command_to_exec: str) -> None:
+def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
     log = LoggingMixin().log
     log.info("Executing command in Celery: %s", command_to_exec)
@@ -233,17 +233,6 @@ class CeleryExecutor(BaseExecutor):
                     self.running.add(key)
                     self.tasks[key] = result
                     self.last_state[key] = celery_states.PENDING
-
-    def order_queued_tasks_by_priority(self) -> List[Tuple[TaskInstanceKeyType, QueuedTaskInstanceType]]:
-        """
-        Orders the queued tasks by priority.
-
-        :return: List of tuples from the queued_tasks according to the priority.
-        """
-        return sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
-            key=lambda x: x[1][1],
-            reverse=True)
 
     def sync(self) -> None:
         num_processes = min(len(self.tasks), self._sync_parallelism)

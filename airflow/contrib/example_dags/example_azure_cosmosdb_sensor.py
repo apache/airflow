@@ -28,12 +28,12 @@ this example.*
 """
 
 from airflow import DAG
-from airflow.contrib.operators.azure_cosmos_operator import AzureCosmosInsertDocumentOperator
-from airflow.contrib.sensors.azure_cosmos_sensor import AzureCosmosDocumentSensor
+from airflow.providers.microsoft.azure.operators.azure_cosmos import AzureCosmosInsertDocumentOperator
+from airflow.providers.microsoft.azure.sensors.azure_cosmos import AzureCosmosDocumentSensor
 from airflow.utils import dates
 
 default_args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'depends_on_past': False,
     'start_date': dates.days_ago(2),
     'email': ['airflow@example.com'],
@@ -44,7 +44,8 @@ default_args = {
 with DAG(
     dag_id='example_azure_cosmosdb_sensor',
     default_args=default_args,
-    doc_md=__doc__
+    doc_md=__doc__,
+    tags=['example'],
 ) as dag:
 
     t1 = AzureCosmosDocumentSensor(

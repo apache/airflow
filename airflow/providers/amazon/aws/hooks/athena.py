@@ -54,7 +54,8 @@ class AWSAthenaHook(AwsHook):
             self.conn = self.get_client_type('athena')
         return self.conn
 
-    def run_query(self, query, query_context, result_configuration, client_request_token=None):
+    def run_query(self, query, query_context, result_configuration, client_request_token=None,
+                  workgroup='default'):
         """
         Run Presto query on athena with provided config and return submitted query_execution_id
 
@@ -66,12 +67,15 @@ class AWSAthenaHook(AwsHook):
         :type result_configuration: dict
         :param client_request_token: Unique token created by user to avoid multiple executions of same query
         :type client_request_token: str
+        :param workgroup: Athena workgroup name, when not specified, will be 'default'
+        :type workgroup: str
         :return: str
         """
         response = self.get_conn().start_query_execution(QueryString=query,
                                                          ClientRequestToken=client_request_token,
                                                          QueryExecutionContext=query_context,
-                                                         ResultConfiguration=result_configuration)
+                                                         ResultConfiguration=result_configuration,
+                                                         Workgroup=workgroup)
         query_execution_id = response['QueryExecutionId']
         return query_execution_id
 

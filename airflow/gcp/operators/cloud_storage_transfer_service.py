@@ -30,7 +30,7 @@ from airflow.gcp.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, DAY, DESCRIPTION, GCS_DATA_SINK,
     GCS_DATA_SOURCE, HOURS, HTTP_DATA_SOURCE, MINUTES, MONTH, OBJECT_CONDITIONS, PROJECT_ID, SCHEDULE,
     SCHEDULE_END_DATE, SCHEDULE_START_DATE, SECONDS, SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS,
-    TRANSFER_OPTIONS, TRANSFER_SPEC, YEAR, GcpTransferJobsStatus, GCPTransferServiceHook,
+    TRANSFER_OPTIONS, TRANSFER_SPEC, YEAR, CloudDataTransferServiceHook, GcpTransferJobsStatus,
 )
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -160,7 +160,7 @@ class TransferJobValidator:
             self._verify_data_source()
 
 
-class GcpTransferServiceJobCreateOperator(BaseOperator):
+class CloudDataTransferServiceCreateJobOperator(BaseOperator):
     """
     Creates a transfer job that runs periodically.
 
@@ -171,7 +171,7 @@ class GcpTransferServiceJobCreateOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTransferServiceJobCreateOperator`
+        :ref:`howto/operator:CloudDataTransferServiceCreateJobOperator`
 
     :param body: (Required) The request body, as described in
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/create#request-body
@@ -218,17 +218,17 @@ class GcpTransferServiceJobCreateOperator(BaseOperator):
 
     def execute(self, context):
         TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
-        hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         return hook.create_transfer_job(body=self.body)
 
 
-class GcpTransferServiceJobUpdateOperator(BaseOperator):
+class CloudDataTransferServiceUpdateJobOperator(BaseOperator):
     """
     Updates a transfer job that runs periodically.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTransferServiceJobUpdateOperator`
+        :ref:`howto/operator:CloudDataTransferServiceUpdateJobOperator`
 
     :param job_name: (Required) Name of the job to be updated
     :type job_name: str
@@ -281,11 +281,11 @@ class GcpTransferServiceJobUpdateOperator(BaseOperator):
 
     def execute(self, context):
         TransferJobPreprocessor(body=self.body, aws_conn_id=self.aws_conn_id).process_body()
-        hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         return hook.update_transfer_job(job_name=self.job_name, body=self.body)
 
 
-class GcpTransferServiceJobDeleteOperator(BaseOperator):
+class CloudDataTransferServiceDeleteJobOperator(BaseOperator):
     """
     Delete a transfer job. This is a soft delete. After a transfer job is
     deleted, the job and all the transfer executions are subject to garbage
@@ -294,7 +294,7 @@ class GcpTransferServiceJobDeleteOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTransferServiceJobDeleteOperator`
+        :ref:`howto/operator:CloudDataTransferServiceDeleteJobOperator`
 
     :param job_name: (Required) Name of the TRANSFER operation
     :type job_name: str
@@ -335,18 +335,18 @@ class GcpTransferServiceJobDeleteOperator(BaseOperator):
 
     def execute(self, context):
         self._validate_inputs()
-        hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         hook.delete_transfer_job(job_name=self.job_name, project_id=self.project_id)
 
 
-class GcpTransferServiceOperationGetOperator(BaseOperator):
+class CloudDataTransferServiceGetOperationOperator(BaseOperator):
     """
     Gets the latest state of a long-running operation in Google Storage Transfer
     Service.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTransferServiceOperationGetOperator`
+        :ref:`howto/operator:CloudDataTransferServiceGetOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
@@ -380,19 +380,19 @@ class GcpTransferServiceOperationGetOperator(BaseOperator):
             raise AirflowException("The required parameter 'operation_name' is empty or None")
 
     def execute(self, context):
-        hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         operation = hook.get_transfer_operation(operation_name=self.operation_name)
         return operation
 
 
-class GcpTransferServiceOperationsListOperator(BaseOperator):
+class CloudDataTransferServiceListOperationsOperator(BaseOperator):
     """
     Lists long-running operations in Google Storage Transfer
     Service that match the specified filter.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTransferServiceOperationsListOperator`
+        :ref:`howto/operator:CloudDataTransferServiceListOperationsOperator`
 
     :param request_filter: (Required) A request filter, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
@@ -433,19 +433,19 @@ class GcpTransferServiceOperationsListOperator(BaseOperator):
             raise AirflowException("The required parameter 'filter' is empty or None")
 
     def execute(self, context):
-        hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         operations_list = hook.list_transfer_operations(request_filter=self.filter)
         self.log.info(operations_list)
         return operations_list
 
 
-class GcpTransferServiceOperationPauseOperator(BaseOperator):
+class CloudDataTransferServicePauseOperationOperator(BaseOperator):
     """
     Pauses a transfer operation in Google Storage Transfer Service.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTransferServiceOperationPauseOperator`
+        :ref:`howto/operator:CloudDataTransferServicePauseOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
@@ -478,17 +478,17 @@ class GcpTransferServiceOperationPauseOperator(BaseOperator):
             raise AirflowException("The required parameter 'operation_name' is empty or None")
 
     def execute(self, context):
-        hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         hook.pause_transfer_operation(operation_name=self.operation_name)
 
 
-class GcpTransferServiceOperationResumeOperator(BaseOperator):
+class CloudDataTransferServiceResumeOperationOperator(BaseOperator):
     """
     Resumes a transfer operation in Google Storage Transfer Service.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTransferServiceOperationResumeOperator`
+        :ref:`howto/operator:CloudDataTransferServiceResumeOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
@@ -521,17 +521,17 @@ class GcpTransferServiceOperationResumeOperator(BaseOperator):
             raise AirflowException("The required parameter 'operation_name' is empty or None")
 
     def execute(self, context):
-        hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         hook.resume_transfer_operation(operation_name=self.operation_name)
 
 
-class GcpTransferServiceOperationCancelOperator(BaseOperator):
+class CloudDataTransferServiceCancelOperationOperator(BaseOperator):
     """
     Cancels a transfer operation in Google Storage Transfer Service.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpTransferServiceOperationCancelOperator`
+        :ref:`howto/operator:CloudDataTransferServiceCancelOperationOperator`
 
     :param operation_name: (Required) Name of the transfer operation.
     :type operation_name: str
@@ -565,11 +565,11 @@ class GcpTransferServiceOperationCancelOperator(BaseOperator):
             raise AirflowException("The required parameter 'operation_name' is empty or None")
 
     def execute(self, context):
-        hook = GCPTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
+        hook = CloudDataTransferServiceHook(api_version=self.api_version, gcp_conn_id=self.gcp_conn_id)
         hook.cancel_transfer_operation(operation_name=self.operation_name)
 
 
-class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
+class CloudDataTransferServiceS3ToGCSOperator(BaseOperator):
     """
     Synchronizes an S3 bucket with a Google Cloud Storage bucket using the
     GCP Storage Transfer Service.
@@ -668,7 +668,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
         self.timeout = timeout
 
     def execute(self, context):
-        hook = GCPTransferServiceHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        hook = CloudDataTransferServiceHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
         body = self._create_body()
 
         TransferJobPreprocessor(body=body, aws_conn_id=self.aws_conn_id, default_schedule=True).process_body()
@@ -703,7 +703,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
         return body
 
 
-class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
+class CloudDataTransferServiceGCSToGCSOperator(BaseOperator):
     """
     Copies objects from a bucket to another using the GCP Storage Transfer
     Service.
@@ -809,7 +809,7 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
         self.timeout = timeout
 
     def execute(self, context):
-        hook = GCPTransferServiceHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        hook = CloudDataTransferServiceHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
 
         body = self._create_body()
 

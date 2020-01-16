@@ -16,8 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.models import Connection, DagModel, DagRun, Pool, SlaMiss, TaskInstance, errors
-from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, create_session
+from airflow.models import Connection, DagModel, DagRun, DagTag, Pool, SlaMiss, TaskInstance, errors
+from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections
+from airflow.utils.session import create_session
 
 
 def clear_db_runs():
@@ -28,6 +29,7 @@ def clear_db_runs():
 
 def clear_db_dags():
     with create_session() as session:
+        session.query(DagTag).delete()
         session.query(DagModel).delete()
 
 

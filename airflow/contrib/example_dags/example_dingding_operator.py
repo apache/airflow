@@ -21,14 +21,14 @@ This is an example dag for using the DingdingOperator.
 """
 from datetime import timedelta
 
-import airflow
 from airflow import DAG
 from airflow.contrib.operators.dingding_operator import DingdingOperator
+from airflow.utils.dates import days_ago
 
 args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'retries': 3,
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': days_ago(2)
 }
 
 
@@ -63,7 +63,8 @@ with DAG(
     dag_id='example_dingding_operator',
     default_args=args,
     schedule_interval='@once',
-    dagrun_timeout=timedelta(minutes=60)
+    dagrun_timeout=timedelta(minutes=60),
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_dingding]

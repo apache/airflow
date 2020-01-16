@@ -20,10 +20,25 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.sensors.bigquery import BigQueryTableSensor  # noqa
+from airflow.gcp.sensors.bigquery import BigQueryTableExistenceSensor
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.sensors.bigquery`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class BigQueryTableSensor(BigQueryTableExistenceSensor):
+    """
+    This class is deprecated. Please use `airflow.gcp.sensors.bigquery.BigQueryTableExistenceSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.sensors.bigquery.BigQueryTableExistenceSensor`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

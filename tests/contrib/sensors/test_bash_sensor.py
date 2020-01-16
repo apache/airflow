@@ -36,7 +36,7 @@ class TestBashSensor(unittest.TestCase):
         self.dag = dag
 
     def test_true_condition(self):
-        t = BashSensor(
+        op = BashSensor(
             task_id='test_true_condition',
             bash_command='freturn() { return "$1"; }; freturn 0',
             output_encoding='utf-8',
@@ -44,10 +44,10 @@ class TestBashSensor(unittest.TestCase):
             timeout=2,
             dag=self.dag
         )
-        t.execute(None)
+        op.execute(None)
 
     def test_false_condition(self):
-        t = BashSensor(
+        op = BashSensor(
             task_id='test_false_condition',
             bash_command='freturn() { return "$1"; }; freturn 1',
             output_encoding='utf-8',
@@ -56,4 +56,4 @@ class TestBashSensor(unittest.TestCase):
             dag=self.dag
         )
         with self.assertRaises(AirflowSensorTimeout):
-            t.execute(None)
+            op.execute(None)

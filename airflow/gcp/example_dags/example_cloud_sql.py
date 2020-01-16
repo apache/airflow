@@ -31,17 +31,14 @@ https://airflow.apache.org/concepts.html#variables
 import os
 from urllib.parse import urlsplit
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.cloud_sql import (
-    CloudSqlInstanceCreateOperator, CloudSqlInstanceDatabaseCreateOperator,
-    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceDatabasePatchOperator,
-    CloudSqlInstanceDeleteOperator, CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator,
-    CloudSqlInstancePatchOperator,
+    CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,
+    CloudSQLDeleteInstanceDatabaseOperator, CloudSQLDeleteInstanceOperator, CloudSQLExportInstanceOperator,
+    CloudSQLImportInstanceOperator, CloudSQLInstancePatchOperator, CloudSQLPatchInstanceDatabaseOperator,
 )
-from airflow.gcp.operators.gcs import (
-    GoogleCloudStorageBucketCreateAclEntryOperator, GoogleCloudStorageObjectCreateAclEntryOperator,
-)
+from airflow.gcp.operators.gcs import GCSBucketCreateAclEntryOperator, GCSObjectCreateAclEntryOperator
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_cloudsql_arguments]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -177,20 +174,21 @@ db_patch_body = {
 # [END howto_operator_cloudsql_db_patch_body]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1)
+    'start_date': days_ago(1)
 }
 
 with models.DAG(
     'example_gcp_sql',
     default_args=default_args,
-    schedule_interval=None  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
     # ############################################## #
     # ### INSTANCES SET UP ######################### #
     # ############################################## #
 
     # [START howto_operator_cloudsql_create]
-    sql_instance_create_task = CloudSqlInstanceCreateOperator(
+    sql_instance_create_task = CloudSQLCreateInstanceOperator(
         project_id=GCP_PROJECT_ID,
         body=body,
         instance=INSTANCE_NAME,
@@ -198,7 +196,7 @@ with models.DAG(
     )
     # [END howto_operator_cloudsql_create]
 
-    sql_instance_create_2_task = CloudSqlInstanceCreateOperator(
+    sql_instance_create_2_task = CloudSQLCreateInstanceOperator(
         project_id=GCP_PROJECT_ID,
         body=body2,
         instance=INSTANCE_NAME2,
@@ -206,7 +204,7 @@ with models.DAG(
     )
     # [END howto_operator_cloudsql_create]
 
-    sql_instance_read_replica_create = CloudSqlInstanceCreateOperator(
+    sql_instance_read_replica_create = CloudSQLCreateInstanceOperator(
         project_id=GCP_PROJECT_ID,
         body=read_replica_body,
         instance=INSTANCE_NAME2,
@@ -218,14 +216,14 @@ with models.DAG(
     # ############################################## #
 
     # [START howto_operator_cloudsql_patch]
-    sql_instance_patch_task = CloudSqlInstancePatchOperator(
+    sql_instance_patch_task = CloudSQLInstancePatchOperator(
         project_id=GCP_PROJECT_ID,
         body=patch_body,
         instance=INSTANCE_NAME,
         task_id='sql_instance_patch_task'
     )
 
-    sql_instance_patch_task2 = CloudSqlInstancePatchOperator(
+    sql_instance_patch_task2 = CloudSQLInstancePatchOperator(
         body=patch_body,
         instance=INSTANCE_NAME,
         task_id='sql_instance_patch_task2'
@@ -233,13 +231,13 @@ with models.DAG(
     # [END howto_operator_cloudsql_patch]
 
     # [START howto_operator_cloudsql_db_create]
-    sql_db_create_task = CloudSqlInstanceDatabaseCreateOperator(
+    sql_db_create_task = CloudSQLCreateInstanceDatabaseOperator(
         project_id=GCP_PROJECT_ID,
         body=db_create_body,
         instance=INSTANCE_NAME,
         task_id='sql_db_create_task'
     )
-    sql_db_create_task2 = CloudSqlInstanceDatabaseCreateOperator(
+    sql_db_create_task2 = CloudSQLCreateInstanceDatabaseOperator(
         body=db_create_body,
         instance=INSTANCE_NAME,
         task_id='sql_db_create_task2'
@@ -247,14 +245,14 @@ with models.DAG(
     # [END howto_operator_cloudsql_db_create]
 
     # [START howto_operator_cloudsql_db_patch]
-    sql_db_patch_task = CloudSqlInstanceDatabasePatchOperator(
+    sql_db_patch_task = CloudSQLPatchInstanceDatabaseOperator(
         project_id=GCP_PROJECT_ID,
         body=db_patch_body,
         instance=INSTANCE_NAME,
         database=DB_NAME,
         task_id='sql_db_patch_task'
     )
-    sql_db_patch_task2 = CloudSqlInstanceDatabasePatchOperator(
+    sql_db_patch_task2 = CloudSQLPatchInstanceDatabaseOperator(
         body=db_patch_body,
         instance=INSTANCE_NAME,
         database=DB_NAME,
@@ -270,7 +268,7 @@ with models.DAG(
     # For export to work we need to add the Cloud SQL instance's Service Account
     # write access to the destination GCS bucket.
     # [START howto_operator_cloudsql_export_gcs_permissions]
-    sql_gcp_add_bucket_permission_task = GoogleCloudStorageBucketCreateAclEntryOperator(
+    sql_gcp_add_bucket_permission_task = GCSBucketCreateAclEntryOperator(
         entity="user-{{ task_instance.xcom_pull("
                "'sql_instance_create_task', key='service_account_email') "
                "}}",
@@ -281,13 +279,13 @@ with models.DAG(
     # [END howto_operator_cloudsql_export_gcs_permissions]
 
     # [START howto_operator_cloudsql_export]
-    sql_export_task = CloudSqlInstanceExportOperator(
+    sql_export_task = CloudSQLExportInstanceOperator(
         project_id=GCP_PROJECT_ID,
         body=export_body,
         instance=INSTANCE_NAME,
         task_id='sql_export_task'
     )
-    sql_export_task2 = CloudSqlInstanceExportOperator(
+    sql_export_task2 = CloudSQLExportInstanceOperator(
         body=export_body,
         instance=INSTANCE_NAME,
         task_id='sql_export_task2'
@@ -302,7 +300,7 @@ with models.DAG(
     # For import to work we need to add the Cloud SQL instance's Service Account
     # read access to the target GCS object.
     # [START howto_operator_cloudsql_import_gcs_permissions]
-    sql_gcp_add_object_permission_task = GoogleCloudStorageObjectCreateAclEntryOperator(
+    sql_gcp_add_object_permission_task = GCSObjectCreateAclEntryOperator(
         entity="user-{{ task_instance.xcom_pull("
                "'sql_instance_create_task2', key='service_account_email')"
                " }}",
@@ -314,7 +312,7 @@ with models.DAG(
 
     # For import to work we also need to add the Cloud SQL instance's Service Account
     # write access to the whole bucket!.
-    sql_gcp_add_bucket_permission_2_task = GoogleCloudStorageBucketCreateAclEntryOperator(
+    sql_gcp_add_bucket_permission_2_task = GCSBucketCreateAclEntryOperator(
         entity="user-{{ task_instance.xcom_pull("
                "'sql_instance_create_task2', key='service_account_email') "
                "}}",
@@ -325,13 +323,13 @@ with models.DAG(
     # [END howto_operator_cloudsql_import_gcs_permissions]
 
     # [START howto_operator_cloudsql_import]
-    sql_import_task = CloudSqlInstanceImportOperator(
+    sql_import_task = CloudSQLImportInstanceOperator(
         project_id=GCP_PROJECT_ID,
         body=import_body,
         instance=INSTANCE_NAME2,
         task_id='sql_import_task'
     )
-    sql_import_task2 = CloudSqlInstanceImportOperator(
+    sql_import_task2 = CloudSQLImportInstanceOperator(
         body=import_body,
         instance=INSTANCE_NAME2,
         task_id='sql_import_task2'
@@ -343,13 +341,13 @@ with models.DAG(
     # ############################################## #
 
     # [START howto_operator_cloudsql_db_delete]
-    sql_db_delete_task = CloudSqlInstanceDatabaseDeleteOperator(
+    sql_db_delete_task = CloudSQLDeleteInstanceDatabaseOperator(
         project_id=GCP_PROJECT_ID,
         instance=INSTANCE_NAME,
         database=DB_NAME,
         task_id='sql_db_delete_task'
     )
-    sql_db_delete_task2 = CloudSqlInstanceDatabaseDeleteOperator(
+    sql_db_delete_task2 = CloudSQLDeleteInstanceDatabaseOperator(
         instance=INSTANCE_NAME,
         database=DB_NAME,
         task_id='sql_db_delete_task2'
@@ -361,13 +359,13 @@ with models.DAG(
     # ############################################## #
 
     # [START howto_operator_cloudsql_replicas_delete]
-    sql_instance_failover_replica_delete_task = CloudSqlInstanceDeleteOperator(
+    sql_instance_failover_replica_delete_task = CloudSQLDeleteInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance=FAILOVER_REPLICA_NAME,
         task_id='sql_instance_failover_replica_delete_task'
     )
 
-    sql_instance_read_replica_delete_task = CloudSqlInstanceDeleteOperator(
+    sql_instance_read_replica_delete_task = CloudSQLDeleteInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance=READ_REPLICA_NAME,
         task_id='sql_instance_read_replica_delete_task'
@@ -375,18 +373,18 @@ with models.DAG(
     # [END howto_operator_cloudsql_replicas_delete]
 
     # [START howto_operator_cloudsql_delete]
-    sql_instance_delete_task = CloudSqlInstanceDeleteOperator(
+    sql_instance_delete_task = CloudSQLDeleteInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance=INSTANCE_NAME,
         task_id='sql_instance_delete_task'
     )
-    sql_instance_delete_task2 = CloudSqlInstanceDeleteOperator(
+    sql_instance_delete_task2 = CloudSQLDeleteInstanceOperator(
         instance=INSTANCE_NAME2,
         task_id='sql_instance_delete_task2'
     )
     # [END howto_operator_cloudsql_delete]
 
-    sql_instance_delete_2_task = CloudSqlInstanceDeleteOperator(
+    sql_instance_delete_2_task = CloudSQLDeleteInstanceOperator(
         project_id=GCP_PROJECT_ID,
         instance=INSTANCE_NAME2,
         task_id='sql_instance_delete_2_task'
@@ -415,4 +413,4 @@ with models.DAG(
         >> sql_instance_read_replica_delete_task  # noqa
         >> sql_instance_delete_task  # noqa
         >> sql_instance_delete_2_task  # noqa
-     )
+    )

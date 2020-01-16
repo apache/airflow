@@ -24,14 +24,14 @@ from typing import Optional
 
 from airflow.contrib.hooks.gdrive_hook import GoogleDriveHook
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"
 
 
-class GcsToGDriveOperator(BaseOperator):
+class GCSToGoogleDriveOperator(BaseOperator):
     """
     Copies objects from a Google Cloud Storage service service to Google Drive service, with renaming
     if requested.
@@ -93,12 +93,12 @@ class GcsToGDriveOperator(BaseOperator):
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        self.gcs_hook = None  # type: Optional[GoogleCloudStorageHook]
+        self.gcs_hook = None  # type: Optional[GCSHook]
         self.gdrive_hook = None  # type: Optional[GoogleDriveHook]
 
     def execute(self, context):
 
-        self.gcs_hook = GoogleCloudStorageHook(
+        self.gcs_hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to
         )
         self.gdrive_hook = GoogleDriveHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)

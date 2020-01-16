@@ -24,5 +24,5 @@ FILES_FOR_REBUILD_CHECK=(
  ".dockerignore"
  "airflow/version.py"
  "airflow/www/package.json"
- "airflow/www/package-lock.json" )
+ "airflow/www/yarn.lock" )
 export FILES_FOR_REBUILD_CHECK

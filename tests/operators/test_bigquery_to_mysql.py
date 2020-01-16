@@ -18,8 +18,9 @@
 # under the License.
 import unittest
 
+import mock
+
 from airflow.operators.bigquery_to_mysql import BigQueryToMySqlOperator
-from tests.compat import mock
 
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'

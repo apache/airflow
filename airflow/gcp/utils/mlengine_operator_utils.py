@@ -29,9 +29,9 @@ from urllib.parse import urlsplit
 import dill
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-from airflow.gcp.operators.dataflow import DataFlowPythonOperator
-from airflow.gcp.operators.mlengine import MLEngineBatchPredictionOperator
+from airflow.gcp.hooks.gcs import GCSHook
+from airflow.gcp.operators.dataflow import DataflowCreatePythonJobOperator
+from airflow.gcp.operators.mlengine import MLEngineStartBatchPredictionJobOperator
 from airflow.operators.python_operator import PythonOperator
 
 
@@ -49,7 +49,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
                         model_name=None,
                         version_name=None,
                         dag=None,
-                        py_interpreter="python2"):
+                        py_interpreter="python3"):
     """
     Creates Operators needed for model evaluation and returns.
 
@@ -177,7 +177,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
     :type dag: airflow.models.DAG
 
     :param py_interpreter: Python version of the beam pipeline.
-        If None, this defaults to the python2.
+        If None, this defaults to the python3.
         To track python versions supported by beam and related
         issues check: https://issues.apache.org/jira/browse/BEAM-1251
     :type py_interpreter: str
@@ -209,7 +209,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
         dataflow_options = dataflow_options or \
             default_args.get('dataflow_default_options')
 
-    evaluate_prediction = MLEngineBatchPredictionOperator(
+    evaluate_prediction = MLEngineStartBatchPredictionJobOperator(
         task_id=(task_prefix + "-prediction"),
         project_id=project_id,
         job_id=batch_prediction_job_id,
@@ -223,7 +223,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
         dag=dag)
 
     metric_fn_encoded = base64.b64encode(dill.dumps(metric_fn, recurse=True)).decode()
-    evaluate_summary = DataFlowPythonOperator(
+    evaluate_summary = DataflowCreatePythonJobOperator(
         task_id=(task_prefix + "-summary"),
         py_options=["-m"],
         py_file="airflow.gcp.utils.mlengine_prediction_summary",
@@ -244,7 +244,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
             raise ValueError("Wrong format prediction_path: {}".format(prediction_path))
         summary = os.path.join(obj.strip("/"),
                                "prediction.summary.json")
-        gcs_hook = GoogleCloudStorageHook()
+        gcs_hook = GCSHook()
         summary = json.loads(gcs_hook.download(bucket, summary))
         return validate_fn(summary)
 

@@ -51,7 +51,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import Connection
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 UNIX_PATH_MAX = 108
 
@@ -70,7 +70,7 @@ class CloudSqlOperationStatus:
 
 
 # noinspection PyAbstractClass
-class CloudSqlHook(CloudBaseHook):
+class CloudSQLHook(CloudBaseHook):
     """
     Hook for Google Cloud SQL APIs.
 
@@ -699,7 +699,7 @@ CLOUD_SQL_VALID_DATABASE_TYPES = ['postgres', 'mysql']
 
 
 # noinspection PyAbstractClass
-class CloudSqlDatabaseHook(BaseHook):
+class CloudSQLDatabaseHook(BaseHook):
     # pylint: disable=too-many-instance-attributes
     """
     Serves DB connection configuration for Google Cloud SQL (Connections

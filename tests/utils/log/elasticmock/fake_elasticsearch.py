@@ -138,10 +138,7 @@ class FakeElasticsearch(Elasticsearch):
     def find_document(self, doc_type, id, index, result):
         for document in self.__documents_dict[index]:
             if document.get('_id') == id:
-                if doc_type == '_all':
-                    result = document
-                    break
-                elif document.get('_type') == doc_type:
+                if doc_type == '_all' or document.get('_type') == doc_type:
                     result = document
                     break
         return result

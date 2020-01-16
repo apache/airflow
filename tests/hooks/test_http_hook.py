@@ -19,14 +19,15 @@
 import json
 import unittest
 
+import mock
 import requests
 import requests_mock
 import tenacity
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.models import Connection
-from tests.compat import mock
 
 
 def get_airflow_connection(unused_conn_id=None):
@@ -281,43 +282,43 @@ class TestHttpHook(unittest.TestCase):
                 'airflow.hooks.base_hook.BaseHook.get_connection',
                 side_effect=get_airflow_connection
             ):
-                pr = self.get_hook.run('v1/test', headers={'some_other_header': 'test'})
-                actual = dict(pr.headers)
+                prepared_request = self.get_hook.run('v1/test', headers={'some_other_header': 'test'})
+                actual = dict(prepared_request.headers)
                 self.assertEqual(actual.get('bareer'), 'test')
                 self.assertEqual(actual.get('some_other_header'), 'test')
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_http_connection(self, mock_get_connection):
-        c = Connection(conn_id='http_default', conn_type='http',
-                       host='localhost', schema='http')
-        mock_get_connection.return_value = c
+        conn = Connection(conn_id='http_default', conn_type='http',
+                          host='localhost', schema='http')
+        mock_get_connection.return_value = conn
         hook = HttpHook()
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'http://localhost')
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_https_connection(self, mock_get_connection):
-        c = Connection(conn_id='http_default', conn_type='http',
-                       host='localhost', schema='https')
-        mock_get_connection.return_value = c
+        conn = Connection(conn_id='http_default', conn_type='http',
+                          host='localhost', schema='https')
+        mock_get_connection.return_value = conn
         hook = HttpHook()
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'https://localhost')
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_host_encoded_http_connection(self, mock_get_connection):
-        c = Connection(conn_id='http_default', conn_type='http',
-                       host='http://localhost')
-        mock_get_connection.return_value = c
+        conn = Connection(conn_id='http_default', conn_type='http',
+                          host='http://localhost')
+        mock_get_connection.return_value = conn
         hook = HttpHook()
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'http://localhost')
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_host_encoded_https_connection(self, mock_get_connection):
-        c = Connection(conn_id='http_default', conn_type='http',
-                       host='https://localhost')
-        mock_get_connection.return_value = c
+        conn = Connection(conn_id='http_default', conn_type='http',
+                          host='https://localhost')
+        mock_get_connection.return_value = conn
         hook = HttpHook()
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'https://localhost')
@@ -327,12 +328,36 @@ class TestHttpHook(unittest.TestCase):
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_connection_without_host(self, mock_get_connection):
-        c = Connection(conn_id='http_default', conn_type='http')
-        mock_get_connection.return_value = c
+        conn = Connection(conn_id='http_default', conn_type='http')
+        mock_get_connection.return_value = conn
 
         hook = HttpHook()
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'http://')
+
+    @parameterized.expand([
+        'GET',
+        'POST',
+    ])
+    @requests_mock.mock()
+    def test_json_request(self, method, mock_requests):
+        obj1 = {'a': 1, 'b': 'abc', 'c': [1, 2, {"d": 10}]}
+
+        def match_obj1(request):
+            return request.json() == obj1
+
+        mock_requests.request(
+            method=method,
+            url='//test:8080/v1/test',
+            additional_matcher=match_obj1
+        )
+
+        with mock.patch(
+            'airflow.hooks.base_hook.BaseHook.get_connection',
+            side_effect=get_airflow_connection
+        ):
+            # will raise NoMockAddress exception if obj1 != request.json()
+            HttpHook(method=method).run('v1/test', json=obj1)
 
 
 send_email_test = mock.Mock()

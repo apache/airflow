@@ -30,13 +30,13 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GcpSpeechToTextRecognizeSpeechOperator(BaseOperator):
+class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
     """
     Recognizes speech from audio file and returns it as text.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GcpSpeechToTextRecognizeSpeechOperator`
+        :ref:`howto/operator:CloudSpeechToTextRecognizeSpeechOperator`
 
     :param config: information to the recognizer that specifies how to process the request. See more:
         https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionConfig

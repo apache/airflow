@@ -21,6 +21,7 @@ Implements Docker operator
 """
 import ast
 import json
+from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Union
 
 from docker import APIClient, tls
@@ -29,7 +30,6 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.docker_hook import DockerHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.file import TemporaryDirectory
 
 
 # pylint: disable=too-many-instance-attributes
@@ -234,13 +234,16 @@ class DockerOperator(BaseOperator):
                 working_dir=self.working_dir,
                 tty=self.tty,
             )
+
+            lines = self.cli.attach(container=self.container['Id'],
+                                    stdout=True,
+                                    stderr=True,
+                                    stream=True)
+
             self.cli.start(self.container['Id'])
 
             line = ''
-            for line in self.cli.attach(container=self.container['Id'],
-                                        stdout=True,
-                                        stderr=True,
-                                        stream=True):
+            for line in lines:
                 line = line.strip()
                 if hasattr(line, 'decode'):
                     line = line.decode('utf-8')
@@ -280,7 +283,7 @@ class DockerOperator(BaseOperator):
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
 
-        self._run_image()
+        return self._run_image()
 
     def get_command(self):
         """

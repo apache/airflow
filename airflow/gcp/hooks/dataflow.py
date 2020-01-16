@@ -56,7 +56,7 @@ def _fallback_to_project_id_from_variables(func: Callable[..., RT]) -> Callable[
     :return: result of the function call
     """
     @functools.wraps(func)
-    def inner_wrapper(self: "DataFlowHook", *args, **kwargs) -> RT:
+    def inner_wrapper(self: "DataflowHook", *args, **kwargs) -> RT:
         if args:
             raise AirflowException(
                 "You must use keyword arguments in this methods rather than positional")
@@ -341,7 +341,7 @@ class _DataflowRunner(LoggingMixin):
         return job_id
 
 
-class DataFlowHook(CloudBaseHook):
+class DataflowHook(CloudBaseHook):
     """
     Hook for Google Dataflow.
 
@@ -487,7 +487,7 @@ class DataFlowHook(CloudBaseHook):
         py_options: List[str],
         project_id: Optional[str] = None,
         append_job_name: bool = True,
-        py_interpreter: str = "python2"
+        py_interpreter: str = "python3"
     ):
         """
         Starts Dataflow job.
@@ -505,7 +505,7 @@ class DataFlowHook(CloudBaseHook):
         :param project_id: Optional, the GCP project ID in which to start a job.
             If set to None or missing, the default project_id from the GCP connection is used.
         :param py_interpreter: Python version of the beam pipeline.
-            If None, this defaults to the python2.
+            If None, this defaults to the python3.
             To track python versions supported by beam and related
             issues check: https://issues.apache.org/jira/browse/BEAM-1251
         :type py_interpreter: str

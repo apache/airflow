@@ -39,12 +39,14 @@
 !.coveragerc
 !.rat-excludes
 !.flake8
+!.dockerignore
 !pylintrc
 !pytest.ini
+!CHANGELOG.txt
+!Dockerfile
 !LICENSE
 !MANIFEST.in
 !NOTICE
-!CHANGELOG.txt
 !.github
 
 # Avoid triggering context change on README change (new companies using Airflow)
@@ -54,15 +56,10 @@
 # Run tests command with bash completion
 !.bash_completion
 !.bash_completion.d
-!run-tests
-!run-tests-complete
 
 # Setup/version configuration
 !setup.cfg
 !setup.py
-
-# Entrypoint script
-!scripts/docker/entrypoint.sh
 
 # Now - ignore unnecessary files inside allowed directories
 # This goes after the allowed directories

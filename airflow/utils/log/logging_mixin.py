@@ -42,6 +42,9 @@ class LoggingMixin:
 
     @property
     def log(self) -> Logger:
+        """
+        Returns a logger.
+        """
         try:
             # FIXME: LoggingMixin should have a default _log field.
             return self._log  # type: ignore
@@ -133,10 +136,13 @@ class RedirectStdHandler(StreamHandler):
             self._use_stderr = False
 
         # StreamHandler tries to set self.stream
-        Handler.__init__(self)
+        Handler.__init__(self)  # pylint: disable=non-parent-init-called
 
     @property
     def stream(self):
+        """
+        Returns current stream.
+        """
         if self._use_stderr:
             return sys.stderr
 

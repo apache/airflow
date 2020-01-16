@@ -20,13 +20,13 @@
 import unittest
 from copy import deepcopy
 
+import mock
 from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from google.protobuf.json_format import ParseDict
 
 from airflow.gcp.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.version import version
-from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"

@@ -21,20 +21,21 @@ This is an example dag for using a Kubernetes Executor Configuration.
 """
 import os
 
-import airflow
 from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.dates import days_ago
 
 default_args = {
-    'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'owner': 'airflow',
+    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='example_kubernetes_executor_config',
     default_args=default_args,
-    schedule_interval=None
+    schedule_interval=None,
+    tags=['example'],
 ) as dag:
 
     def test_volume_mount():

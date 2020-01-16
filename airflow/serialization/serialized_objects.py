@@ -252,8 +252,13 @@ class BaseSerialization:
         user explicitly specifies an attribute with the same "value" as the
         default. (This is because ``"default" is "default"`` will be False as
         they are different strings with the same characters.)
+
+        Also returns True if the value is an empty list or empty dict. This is done
+        to account for the case where the default value of the field is None but has the
+        ``field = field or {}`` set.
         """
-        if attrname in cls._CONSTRUCTOR_PARAMS and cls._CONSTRUCTOR_PARAMS[attrname].default is value:
+        if attrname in cls._CONSTRUCTOR_PARAMS and \
+                (cls._CONSTRUCTOR_PARAMS[attrname].default is value or (value in [{}, []])):
             return True
         return False
 
@@ -265,11 +270,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     Class specific attributes used by UI are move to object attributes.
     """
 
-    _decorated_fields = {'executor_config', }
+    _decorated_fields = {'executor_config'}
 
     _CONSTRUCTOR_PARAMS = {
         k: v for k, v in signature(BaseOperator).parameters.items()
-        if v.default is not v.empty and v.default is not None
+        if v.default is not v.empty
     }
 
     def __init__(self, *args, **kwargs):
@@ -366,9 +371,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             dag_date = getattr(op.dag, attrname, None)
             if var is dag_date or var == dag_date:
                 return True
-        if attrname in {"executor_config", "params"} and not var:
-            # Don't store empty executor config or params dicts.
-            return True
         return super()._is_excluded(var, attrname, op)
 
     @classmethod
@@ -470,7 +472,7 @@ class SerializedDAG(DAG, BaseSerialization):
         }
         return {
             param_to_attr.get(k, k): v for k, v in signature(DAG).parameters.items()
-            if v.default is not v.empty and v.default is not None
+            if v.default is not v.empty
         }
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore
     del __get_constructor_defaults

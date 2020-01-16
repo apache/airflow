@@ -70,7 +70,7 @@ class TestImapHook(unittest.TestCase):
             pass
 
         mock_imaplib.IMAP4_SSL.assert_called_once_with('imap_server_address')
-        mock_conn.login.assert_called_once_with('imap_user', 'imap_password')
+        mock_conn.login.assert_called_once_with('imap_user', 'imap_password')  # pylint: disable=no-member
         assert mock_conn.logout.call_count == 1
 
     @patch(imaplib_string)

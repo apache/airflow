@@ -29,14 +29,14 @@ import os
 
 from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplate
 
-import airflow
 from airflow.gcp.operators.dlp import (
     CloudDLPCreateInspectTemplateOperator, CloudDLPDeleteInspectTemplateOperator,
     CloudDLPInspectContentOperator,
 )
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 
 
 GCP_PROJECT = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -53,7 +53,12 @@ INSPECT_CONFIG = InspectConfig(
 INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
 
 
-with DAG("example_gcp_dlp", default_args=default_args, schedule_interval=None) as dag:
+with DAG(
+    "example_gcp_dlp",
+    default_args=default_args,
+    schedule_interval=None,
+    tags=['example'],
+) as dag:
     create_template = CloudDLPCreateInspectTemplateOperator(
         project_id=GCP_PROJECT,
         inspect_template=INSPECT_TEMPLATE,

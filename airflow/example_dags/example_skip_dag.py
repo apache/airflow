@@ -19,14 +19,14 @@
 
 """Example DAG demonstrating the DummyOperator and a custom DummySkipOperator which skips by default."""
 
-import airflow
 from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.dates import days_ago
 
 args = {
-    'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'owner': 'airflow',
+    'start_date': days_ago(2),
 }
 
 
@@ -58,6 +58,6 @@ def create_test_pipeline(suffix, trigger_rule, dag_):
     join >> final
 
 
-dag = DAG(dag_id='example_skip_dag', default_args=args)
+dag = DAG(dag_id='example_skip_dag', default_args=args, tags=['example'])
 create_test_pipeline('1', 'all_success', dag)
 create_test_pipeline('2', 'one_success', dag)

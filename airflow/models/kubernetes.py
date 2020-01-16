@@ -23,7 +23,7 @@ from sqlalchemy import Boolean, Column, String, true as sqltrue
 from sqlalchemy.orm import Session
 
 from airflow.models.base import Base
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 class KubeResourceVersion(Base):

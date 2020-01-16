@@ -31,22 +31,23 @@ This is an example dag for using the WinRMOperator.
 """
 from datetime import timedelta
 
-import airflow
 from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.contrib.operators.winrm_operator import WinRMOperator
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.dates import days_ago
 
 default_args = {
-    'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'owner': 'airflow',
+    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='POC_winrm_parallel',
     default_args=default_args,
     schedule_interval='0 0 * * *',
-    dagrun_timeout=timedelta(minutes=60)
+    dagrun_timeout=timedelta(minutes=60),
+    tags=['example'],
 ) as dag:
 
     cmd = 'ls -l'

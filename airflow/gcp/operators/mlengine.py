@@ -66,7 +66,7 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     return cleansed_job_id
 
 
-class MLEngineBatchPredictionOperator(BaseOperator):
+class MLEngineStartBatchPredictionJobOperator(BaseOperator):
     """
     Start a Google Cloud ML Engine prediction job.
 
@@ -275,7 +275,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         return finished_prediction_job['predictionOutput']
 
 
-class MLEngineModelOperator(BaseOperator):
+class MLEngineManageModelOperator(BaseOperator):
     """
     Operator for managing a Google Cloud ML Engine model.
 
@@ -485,7 +485,7 @@ class MLEngineDeleteModelOperator(BaseOperator):
         )
 
 
-class MLEngineVersionOperator(BaseOperator):
+class MLEngineManageVersionOperator(BaseOperator):
     """
     Operator for managing a Google Cloud ML Engine version.
 
@@ -852,7 +852,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         )
 
 
-class MLEngineTrainingOperator(BaseOperator):
+class MLEngineStartTrainingJobOperator(BaseOperator):
     """
     Operator for launching a MLEngine training job.
 

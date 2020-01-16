@@ -19,10 +19,11 @@
 
 import unittest
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
-from tests.compat import mock
 
 try:
     from airflow.hooks.docker_hook import DockerHook
@@ -93,7 +94,7 @@ class TestDockerHook(unittest.TestCase):
             )
             client = hook.get_conn()
             self.assertIsNotNone(client)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.fail('Could not get connection from Airflow')
 
     def test_get_conn_with_extra_config(self, _):
@@ -105,7 +106,7 @@ class TestDockerHook(unittest.TestCase):
             )
             client = hook.get_conn()
             self.assertIsNotNone(client)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             self.fail('Could not get connection from Airflow')
 
     def test_conn_with_standard_config_passes_parameters(self, _):
@@ -115,7 +116,7 @@ class TestDockerHook(unittest.TestCase):
             version='auto'
         )
         client = hook.get_conn()
-        client.login.assert_called_once_with(
+        client.login.assert_called_once_with(  # pylint: disable=no-member
             username='some_user',
             password='some_p4$$w0rd',
             registry='some.docker.registry.com',
@@ -130,7 +131,7 @@ class TestDockerHook(unittest.TestCase):
             version='auto'
         )
         client = hook.get_conn()
-        client.login.assert_called_once_with(
+        client.login.assert_called_once_with(  # pylint: disable=no-member
             username='some_user',
             password='some_p4$$w0rd',
             registry='another.docker.registry.com:9876',
