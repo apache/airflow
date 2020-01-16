@@ -227,6 +227,24 @@ class TestTriggerRuleDep(unittest.TestCase):
             session="Fake Session"))
         self.assertEqual(len(dep_statuses), 0)
 
+    def test_none_failed_tr_skipped(self):
+        """
+        All success including all upstream skips trigger rule success
+        """
+        ti = self._get_task_instance(TriggerRule.NONE_FAILED,
+                                     upstream_task_ids=["FakeTaskID",
+                                                        "OtherFakeTaskID"])
+        dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            successes=0,
+            skipped=2,
+            failed=0,
+            upstream_failed=0,
+            done=2,
+            flag_upstream_failed=False,
+            session="Fake Session"))
+        self.assertEqual(len(dep_statuses), 0)
+
     def test_none_failed_tr_failure(self):
         """
         All success including skip trigger rule failure
