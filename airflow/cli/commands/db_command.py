@@ -81,3 +81,9 @@ def shell(args):
         subprocess.Popen(["psql"], env=env).wait()
     else:
         raise AirflowException(f"Unknown driver: {url.drivername}")
+
+
+@cli_utils.action_logging
+def check(_):
+    """Runs a check command that checks if db is available."""
+    db.check()

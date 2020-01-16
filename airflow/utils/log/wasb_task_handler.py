@@ -52,7 +52,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.contrib.hooks.wasb_hook import WasbHook
+            from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
             return WasbHook(remote_conn_id)
         except AzureHttpError:
             self.log.error(

@@ -35,16 +35,16 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GcsToGDriveOperator:
+.. _howto/operator:GCSToGoogleDriveOperator:
 
 Operator
 ^^^^^^^^
 
 Transfer files between Google Storage and Google Drive is performed with the
-:class:`~airflow.contrib.operators.gcs_to_gdrive_operator.GcsToGDriveOperator` operator.
+:class:`~airflow.contrib.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator` operator.
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.contrib.operators.gcs_to_gdrive_operator.GcsToGDriveOperator`
+:template-fields:`airflow.contrib.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator`
 parameters which allows you to dynamically determine values.
 
 Copy single files

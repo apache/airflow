@@ -501,3 +501,13 @@ def resetdb():
     Base.metadata.drop_all(connection)  # pylint: disable=no-member
 
     initdb()
+
+
+@provide_session
+def check(session=None):
+    """
+    Checks if the database works.
+    :param session: session of the sqlalchemy
+    """
+    session.execute('select 1 as is_alive;')
+    log.info("Connection successful.")

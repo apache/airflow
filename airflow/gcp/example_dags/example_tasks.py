@@ -54,7 +54,7 @@ TASK = {
     "schedule_time": timestamp,
 }
 
-with DAG("example_gcp_tasks", default_args=default_args, schedule_interval=None) as dag:
+with DAG("example_gcp_tasks", default_args=default_args, schedule_interval=None, tags=['example'],) as dag:
 
     create_queue = CloudTasksQueueCreateOperator(
         location=LOCATION,

@@ -30,6 +30,15 @@ List of the DAGs in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
 running at a glance. To hide completed tasks set show_recent_stats_for_completed_runs = False
 
+In order to filter DAGs (e.g by team), you can add tags in each dag.
+The filter is saved in a cookie and can be reset by the reset button.
+For example:
+
+.. code:: python
+
+   dag = DAG('dag', tags=['team1', 'sql'])
+
+
 ------------
 
 .. image:: img/dags.png

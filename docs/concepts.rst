@@ -277,7 +277,7 @@ Airflow provides operators for many common tasks, including:
 
 In addition to these basic building blocks, there are many more specific
 operators: :class:`~airflow.operators.docker_operator.DockerOperator`,
-:class:`~airflow.operators.hive_operator.HiveOperator`, :class:`~airflow.operators.s3_file_transform_operator.S3FileTransformOperator`,
+:class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`, :class:`~airflow.operators.s3_file_transform_operator.S3FileTransformOperator`,
 :class:`~airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
 :class:`~airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
 
@@ -607,8 +607,8 @@ the queue that tasks get assigned to when not specified, as well as which
 queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow worker``), a set of comma-delimited
-queue names can be specified (e.g. ``airflow worker -q spark``). This worker
+started (using the command ``airflow celery worker``), a set of comma-delimited
+queue names can be specified (e.g. ``airflow celery worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 
 This can be useful if you need specialized workers, either from a
@@ -1124,7 +1124,7 @@ and is expected to alter its attributes.
 For example, this function could apply a specific queue property when
 using a specific operator, or enforce a task timeout policy, making sure
 that no tasks run for more than 48 hours. Here's an example of what this
-may look like inside your ``airflow_settings.py``:
+may look like inside your ``airflow_local_settings.py``:
 
 
 .. code:: python

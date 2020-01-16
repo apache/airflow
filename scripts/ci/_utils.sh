@@ -60,6 +60,8 @@ export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
 # Python version and avoids problems with root-owned .pyc files in host
 export PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE:="true"}
 
+# By default we assume the kubernetes cluster is not being started
+export ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
 #
 # Sets mounting of host volumes to container for static checks
 # unless AIRFLOW_MOUNT_HOST_VOLUMES_FOR_STATIC_CHECKS is not true
@@ -121,9 +123,9 @@ function convert_docker_mounts_to_docker_params() {
     while IFS= read -r LINE; do
         echo "-v"
         echo "${LINE}"
-    done < <(parse_yaml scripts/ci/docker-compose-local.yml COMPOSE_ | \
+    done < <(parse_yaml scripts/ci/docker-compose/local.yml COMPOSE_ | \
             grep "COMPOSE_services_airflow-testing_volumes_" | \
-            sed "s/..\/../${ESCAPED_AIRFLOW_SOURCES}/" | \
+            sed "s/..\/..\/../${ESCAPED_AIRFLOW_SOURCES}/" | \
             sed "s/COMPOSE_services_airflow-testing_volumes_//" | \
             sort -t "=" -k 1 -n | \
             cut -d "=" -f 2- | \
@@ -196,8 +198,8 @@ function create_cache_directory() {
 }
 
 function remove_cache_directory() {
-    if [[ -z "${CACHE_TMP_FILE_DIR}" ]]; then
-        rm -rf -- "${CACHE_TMP_FILE_DIR}"
+    if [[ -d ${CACHE_TMP_FILE_DIR} ]]; then
+        rm -rf "${CACHE_TMP_FILE_DIR}"
     fi
 }
 
@@ -209,7 +211,7 @@ function remove_cache_directory() {
 function check_file_md5sum {
     local FILE="${1}"
     local MD5SUM
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM=$(md5sum "${FILE}")
     local MD5SUM_FILE
@@ -239,7 +241,7 @@ function check_file_md5sum {
 function move_file_md5sum {
     local FILE="${1}"
     local MD5SUM_FILE
-    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${THE_IMAGE_TYPE}"
+    local MD5SUM_CACHE_DIR="${BUILD_CACHE_DIR}/${DEFAULT_BRANCH}/${PYTHON_VERSION}/${THE_IMAGE_TYPE}"
     mkdir -pv "${MD5SUM_CACHE_DIR}"
     MD5SUM_FILE="${MD5SUM_CACHE_DIR}"/$(basename "${FILE}").md5sum
     local MD5SUM_FILE_NEW
@@ -547,9 +549,9 @@ function rebuild_ci_image_if_needed() {
 
     export THE_IMAGE_TYPE="CI"
 
-    rebuild_image_if_needed
-
     export AIRFLOW_CI_IMAGE="${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${DEFAULT_BRANCH}-python${PYTHON_VERSION}-ci"
+
+    rebuild_image_if_needed
 }
 
 
@@ -663,10 +665,10 @@ function run_flake8() {
 function run_bats_tests() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run --workdir /airflow -v "$(pwd):/airflow"  \
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
             bats/bats:latest --tap -r /airflow/tests/bats | tee -a "${OUTPUT_LOG}"
     else
-        docker run --workdir /airflow -v "$(pwd):/airflow" \
+        docker run --workdir /airflow -v "$(pwd):/airflow" --rm \
             bats/bats:latest --tap -r "${FILES[@]}" | tee -a "${OUTPUT_LOG}"
     fi
 }
@@ -933,16 +935,18 @@ function build_image_on_ci() {
     echo "${CHANGED_FILE_NAMES}"
     echo
 
-    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"kubernetes"* ]]; then
+    if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"Kubernetes"* ]]; then
         match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/kubernetes/.*\.py' \
-            'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+            'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
+            'scripts/ci/.*'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
             rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
         fi
     elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
-        match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html'
+        match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' \
+            'airflow/www/.*\.html' 'scripts/ci/.*'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
             rebuild_ci_image_if_needed
         else

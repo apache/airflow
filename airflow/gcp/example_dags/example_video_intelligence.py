@@ -59,6 +59,7 @@ with models.DAG(
     "example_gcp_video_intelligence",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_video_intelligence_detect_labels]

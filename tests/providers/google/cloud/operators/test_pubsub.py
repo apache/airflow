@@ -22,8 +22,8 @@ import unittest
 import mock
 
 from airflow.providers.google.cloud.operators.pubsub import (
-    PubSubPublishOperator, PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
-    PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
+    PubSubCreateSubscriptionOperator, PubSubCreateTopicOperator, PubSubDeleteSubscriptionOperator,
+    PubSubDeleteTopicOperator, PubSubPublishMessageOperator,
 )
 
 TASK_ID = 'test-task-id'
@@ -44,7 +44,7 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_failifexists(self, mock_hook):
-        operator = PubSubTopicCreateOperator(
+        operator = PubSubCreateTopicOperator(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -66,7 +66,7 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_succeedifexists(self, mock_hook):
-        operator = PubSubTopicCreateOperator(
+        operator = PubSubCreateTopicOperator(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -91,7 +91,7 @@ class TestPubSubTopicDeleteOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
-        operator = PubSubTopicDeleteOperator(
+        operator = PubSubDeleteTopicOperator(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC
@@ -112,7 +112,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
-        operator = PubSubSubscriptionCreateOperator(
+        operator = PubSubCreateSubscriptionOperator(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
@@ -140,7 +140,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_different_project_ids(self, mock_hook):
         another_project = 'another-project'
-        operator = PubSubSubscriptionCreateOperator(
+        operator = PubSubCreateSubscriptionOperator(
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
             subscription=TEST_SUBSCRIPTION,
@@ -168,7 +168,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute_no_subscription(self, mock_hook):
-        operator = PubSubSubscriptionCreateOperator(
+        operator = PubSubCreateSubscriptionOperator(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC
@@ -197,7 +197,7 @@ class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_execute(self, mock_hook):
-        operator = PubSubSubscriptionDeleteOperator(
+        operator = PubSubDeleteSubscriptionOperator(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION
@@ -218,10 +218,10 @@ class TestPubSubPublishOperator(unittest.TestCase):
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
     def test_publish(self, mock_hook):
-        operator = PubSubPublishOperator(task_id=TASK_ID,
-                                         project_id=TEST_PROJECT,
-                                         topic=TEST_TOPIC,
-                                         messages=TEST_MESSAGES)
+        operator = PubSubPublishMessageOperator(task_id=TASK_ID,
+                                                project_id=TEST_PROJECT,
+                                                topic=TEST_TOPIC,
+                                                messages=TEST_MESSAGES)
 
         operator.execute(None)
         mock_hook.return_value.publish.assert_called_once_with(

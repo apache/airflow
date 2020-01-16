@@ -53,9 +53,9 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(operator.azure_data_lake_conn_id, AZURE_CONN_ID)
 
     @mock.patch('airflow.operators.adls_to_gcs.AzureDataLakeHook')
-    @mock.patch('airflow.contrib.operators.adls_list_operator.AzureDataLakeHook')
+    @mock.patch('airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeHook')
     @mock.patch(
-        'airflow.operators.adls_to_gcs.GoogleCloudStorageHook')
+        'airflow.operators.adls_to_gcs.GCSHook')
     def test_execute(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -102,9 +102,9 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
 
     @mock.patch('airflow.operators.adls_to_gcs.AzureDataLakeHook')
-    @mock.patch('airflow.contrib.operators.adls_list_operator.AzureDataLakeHook')
+    @mock.patch('airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeHook')
     @mock.patch(
-        'airflow.operators.adls_to_gcs.GoogleCloudStorageHook')
+        'airflow.operators.adls_to_gcs.GCSHook')
     def test_execute_with_gzip(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
         """Test the execute function when the run is successful."""
 

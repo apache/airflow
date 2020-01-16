@@ -16,49 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+"""This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.azure_cosmos`."""
 
+import warnings
 
-class AzureCosmosDocumentSensor(BaseSensorOperator):
-    """
-    Checks for the existence of a document which
-    matches the given query in CosmosDB. Example:
+# pylint: disable=unused-import
+from airflow.providers.microsoft.azure.sensors.azure_cosmos import AzureCosmosDocumentSensor  # noqa
 
-    >>> azure_cosmos_sensor = AzureCosmosDocumentSensor(database_name="somedatabase_name",
-    ...                            collection_name="somecollection_name",
-    ...                            document_id="unique-doc-id",
-    ...                            azure_cosmos_conn_id="azure_cosmos_default",
-    ...                            task_id="azure_cosmos_sensor")
-
-    :param database_name: Target CosmosDB database_name.
-    :type database_name: str
-    :param collection_name: Target CosmosDB collection_name.
-    :type collection_name: str
-    :param document_id: The ID of the target document.
-    :type query: str
-    :param azure_cosmos_conn_id: Reference to the Azure CosmosDB connection.
-    :type azure_cosmos_conn_id: str
-    """
-    template_fields = ('database_name', 'collection_name', 'document_id')
-
-    @apply_defaults
-    def __init__(
-            self,
-            database_name,
-            collection_name,
-            document_id,
-            azure_cosmos_conn_id="azure_cosmos_default",
-            *args,
-            **kwargs):
-        super().__init__(*args, **kwargs)
-        self.azure_cosmos_conn_id = azure_cosmos_conn_id
-        self.database_name = database_name
-        self.collection_name = collection_name
-        self.document_id = document_id
-
-    def poke(self, context):
-        self.log.info("*** Intering poke")
-        hook = AzureCosmosDBHook(self.azure_cosmos_conn_id)
-        return hook.get_document(self.document_id, self.database_name, self.collection_name) is not None
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.azure_cosmos`.",
+    DeprecationWarning, stacklevel=2
+)

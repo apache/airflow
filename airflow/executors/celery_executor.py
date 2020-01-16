@@ -43,7 +43,7 @@ CELERY_SEND_ERR_MSG_HEADER = 'Error sending Celery task'
 
 '''
 To start the celery worker, run the command:
-airflow worker
+airflow celery worker
 '''
 
 if conf.has_option('celery', 'celery_config_options'):

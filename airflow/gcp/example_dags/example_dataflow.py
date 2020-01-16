@@ -48,6 +48,7 @@ with models.DAG(
     "example_gcp_dataflow",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_start_java_job]

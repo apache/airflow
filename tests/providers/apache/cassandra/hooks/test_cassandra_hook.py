@@ -20,7 +20,8 @@
 import unittest
 
 import mock
-from cassandra.cluster import Cluster, UnresolvableContactPoints
+import pytest
+from cassandra.cluster import Cluster
 from cassandra.policies import (
     DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy,
 )
@@ -30,15 +31,7 @@ from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.utils import db
 
 
-def cassandra_is_not_up():
-    try:
-        Cluster(["cassandra"])
-        return False
-    except UnresolvableContactPoints:
-        return True
-
-
-@unittest.skipIf(cassandra_is_not_up(), "Cassandra is not up.")
+@pytest.mark.integration("cassandra")
 class TestCassandraHook(unittest.TestCase):
     def setUp(self):
         db.merge_conn(

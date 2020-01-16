@@ -26,7 +26,7 @@ EnvironmentFile=/etc/sysconfig/airflow
 User=airflow
 Group=airflow
 Type=simple
-ExecStart=/bin/airflow worker
+ExecStart=/bin/airflow celery worker
 Restart=on-failure
 RestartSec=10s
 

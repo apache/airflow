@@ -34,17 +34,17 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:GoogleCloudStorageToSFTPOperator:
+.. _howto/operator:GCSToSFTPOperator:
 
 
 Operator
 ^^^^^^^^
 
 Transfer files between SFTP and Google Storage is performed with the
-:class:`~airflow.operators.gcs_to_sftp.GoogleCloudStorageToSFTPOperator` operator.
+:class:`~airflow.operators.gcs_to_sftp.GCSToSFTPOperator` operator.
 
 Use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.operators.gcs_to_sftp.GoogleCloudStorageToSFTPOperator`
+:template-fields:`airflow.operators.gcs_to_sftp.GCSToSFTPOperator`
 to define values dynamically.
 
 

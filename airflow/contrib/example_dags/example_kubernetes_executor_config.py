@@ -34,7 +34,8 @@ default_args = {
 with DAG(
     dag_id='example_kubernetes_executor_config',
     default_args=default_args,
-    schedule_interval=None
+    schedule_interval=None,
+    tags=['example'],
 ) as dag:
 
     def test_volume_mount():
