@@ -19,6 +19,8 @@ version: "2.2"
 services:
   rabbitmq:
     image: rabbitmq:3.7
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
   airflow-testing:
     environment:
       - INTEGRATION_RABBITMQ=true
