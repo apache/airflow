@@ -429,7 +429,18 @@ class DagFileProcessor(LoggingMixin):
             """.format(task_list=task_list, blocking_task_list=blocking_task_list,
                        bug=asciiart.bug)
 
-            tasks_missed_sla = [dag.get_task(sla.task_id) for sla in slas]
+            tasks_missed_sla = []
+            for sla in slas:
+                try:
+                    task = dag.get_task(sla.task_id)
+                except AirflowException:
+                    # task already deleted from DAG, skip it
+                    self.log.warning(
+                        "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.",
+                        sla.task_id)
+                    continue
+                tasks_missed_sla.append(task)
+
             emails = set()
             for task in tasks_missed_sla:
                 if task.email:
