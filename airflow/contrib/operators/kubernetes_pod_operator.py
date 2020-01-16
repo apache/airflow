@@ -300,4 +300,3 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     def _set_name(name):
         validate_key(name, max_length=63)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
-
