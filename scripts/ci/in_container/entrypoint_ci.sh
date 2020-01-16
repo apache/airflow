@@ -200,7 +200,6 @@ if [[ ${RUNTIME:=""} == "kubernetes" ]]; then
     export AIRFLOW_KUBERNETES_IMAGE_TAG
 fi
 
-
 if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     export CLUSTER_NAME="airflow-python-${PYTHON_VERSION}-${KUBERNETES_VERSION}"
     "${MY_DIR}/kubernetes/setup_kind_cluster.sh"
