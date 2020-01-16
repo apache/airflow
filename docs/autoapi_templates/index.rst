@@ -80,25 +80,11 @@ All operators are in the following packages:
 
   airflow/providers/apache/cassandra/sensors/index
 
-  airflow/providers/apache/cassandra/sensors/index
-
-  airflow/providers/apache/druid/operators/index
-
   airflow/providers/apache/druid/operators/index
 
   airflow/providers/apache/hdfs/sensors/index
 
-  airflow/providers/apache/hdfs/sensors/index
-
-  airflow/providers/apache/hdfs/sensors/index
-
   airflow/providers/apache/hive/operators/index
-
-  airflow/providers/apache/hive/operators/index
-
-  airflow/providers/apache/hive/sensors/index
-
-  airflow/providers/apache/hive/sensors/index
 
   airflow/providers/apache/hive/sensors/index
 
@@ -110,11 +96,13 @@ All operators are in the following packages:
 
   airflow/providers/apache/spark/operators/index
 
-  airflow/providers/apache/spark/operators/index
-
-  airflow/providers/apache/spark/operators/index
-
   airflow/providers/apache/sqoop/operators/index
+
+  airflow/providers/celery/sensors/index
+
+  airflow/providers/cncf/kubernetes/operators/index
+
+  airflow/providers/docker/operators/index
 
   airflow/providers/google/cloud/operators/index
 
@@ -124,13 +112,33 @@ All operators are in the following packages:
 
   airflow/providers/google/marketing_platform/sensors/index
 
+  airflow/providers/microsoft/azure/operators/index
+
   airflow/providers/microsoft/azure/sensors/index
 
-  airflow/providers/microsoft/azure/operators/index
+  airflow/providers/microsoft/mssql/operators/index
+
+  airflow/providers/mongo/sensors/index
+
+  airflow/providers/mysql/operators/index
+
+  airflow/providers/oracle/operators/index
+
+  airflow/providers/papermill/operators/index
+
+  airflow/providers/postgres/operators/index
+
+  airflow/providers/presto/operators/index
+
+  airflow/providers/redis/operators/index
+
+  airflow/providers/redis/sensors/index
 
   airflow/providers/sftp/operators/index
 
   airflow/providers/sftp/sensors/index
+
+  airflow/providers/sqlite/operators/index
 
 .. _pythonapi:hooks:
 
@@ -157,17 +165,9 @@ All hooks are in the following packages:
 
   airflow/providers/amazon/aws/hooks/index
 
-  airflow/providers/google/cloud/hooks/index
-
-  airflow/providers/google/marketing_platform/hooks/index
-
-  airflow/providers/google/cloud/hooks/index
-
   airflow/providers/apache/cassandra/hooks/index
 
   airflow/providers/apache/druid/hooks/index
-
-  airflow/providers/apache/hdfs/hooks/index
 
   airflow/providers/apache/hdfs/hooks/index
 
@@ -181,11 +181,37 @@ All hooks are in the following packages:
 
   airflow/providers/apache/sqoop/hooks/index
 
+  airflow/providers/docker/hooks/index
+
+  airflow/providers/google/cloud/hooks/index
+
+  airflow/providers/google/marketing_platform/hooks/index
+
   airflow/providers/microsoft/azure/hooks/index
+
+  airflow/providers/microsoft/mssql/hooks/index
+
+  airflow/providers/mongo/hooks/index
+
+  airflow/providers/mysql/hooks/index
 
   airflow/providers/odbc/hooks/index
 
+  airflow/providers/openfass/hooks/index
+
+  airflow/providers/oracle/hooks/index
+
+  airflow/providers/postgres/hooks/index
+
+  airflow/providers/presto/hooks/index
+
+  airflow/providers/redis/hooks/index
+
+  airflow/providers/samba/hooks/index
+
   airflow/providers/sftp/hooks/index
+
+  airflow/providers/sqlite/hooks/index
 
 Executors
 ---------
