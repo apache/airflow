@@ -598,8 +598,7 @@ class TestStringifiedDAGs(unittest.TestCase):
  you add support for DAG serialization - you should add the field to
  `airflow/serialization/schema.json` - they should have correct type defined there.
 
- Note that we do not support versioning yet so you should only add optional fields. We do not support
- versioning yet so you should make sure all fields added to the BaseOperator should be optional.
+ Note that we do not support versioning yet so you should only add optional fields to BaseOperator.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                          """
