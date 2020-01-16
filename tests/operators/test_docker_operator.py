@@ -51,7 +51,7 @@ class TestDockerOperator(unittest.TestCase):
         client_class_mock.return_value = client_mock
 
         operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
-                                  private_environment={'SUPER':'SECRET'}, image='ubuntu:latest',
+                                  private_environment={'SUPER': 'SECRET'}, image='ubuntu:latest',
                                   network_mode='bridge', owner='unittest', task_id='unittest',
                                   volumes=['/host/path:/container/path'],
                                   working_dir='/container/path', shm_size=1000,

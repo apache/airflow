@@ -67,7 +67,7 @@ class DockerOperator(BaseOperator):
     :param environment: Environment variables to set in the container. (templated)
     :type environment: dict
     :param private_environment: Private environment variables to set in the container.
-        These variables will not be shown on the task instance view in the browser. (templated)
+        These variables will not be shown on the task instance view in the browser.
     :type private_environment: dict
     :param force_pull: Pull the docker image on every run. Default is False.
     :type force_pull: bool
