@@ -92,10 +92,11 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.log_id_template,
             self.end_of_log_mark,
             self.write_stdout,
-            True, # json_format
+            True,  # json_format
             self.json_fields,
             self.index_name2
             )
+
     def tearDown(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
 
@@ -119,8 +120,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.json_format,
             self.json_fields,
             self.index,
-            es_conf
-        )
+            es_conf)
 
     def test_read(self):
         ts = pendulum.now()
@@ -284,7 +284,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.log_id_template,
             self.end_of_log_mark,
             self.write_stdout,
-            True, # json_format
+            True,  # json_format
             self.json_fields,
             self.index
         )
@@ -318,10 +318,10 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertTrue(es_task_handler.closed)
 
         logs, metadatas = self.es_task_handler2.read(self.ti,
-                                                self.ti.try_number,
-                                                {'offset': 0,
-                                                 'last_log_timestamp': str(pendulum.now()),
-                                                 'end_of_log': False})
+                                                     self.ti.try_number,
+                                                     {'offset': 0,
+                                                      'last_log_timestamp': str(pendulum.now()),
+                                                      'end_of_log': False})
 
         self.assertEqual(1, len(logs))
         self.assertEqual(log_id_test_message, logs[0])
