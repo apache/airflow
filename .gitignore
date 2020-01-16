@@ -129,6 +129,16 @@ ENV/
 # vim
 *.swp
 
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
 # OSX
 .DS_Store
 
