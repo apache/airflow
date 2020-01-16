@@ -1000,6 +1000,10 @@ OPERATOR = [
         'airflow.providers.docker.operators.docker_swarm.DockerSwarmOperator',
         'airflow.contrib.operators.docker_swarm_operator.DockerSwarmOperator',
     ),
+    (
+        'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator',
+        'airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator',
+    ),
 ]
 
 SENSOR = [

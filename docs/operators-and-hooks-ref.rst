@@ -1054,7 +1054,7 @@ These integrations allow you to perform various operations using various softwar
    * - `Kubernetes <https://kubernetes.io/>`__
      - :doc:`How to use <howto/operator/kubernetes>`
      -
-     - :mod:`airflow.contrib.operators.kubernetes_pod_operator`
+     - :mod:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod`
      -
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__

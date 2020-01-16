@@ -22,14 +22,14 @@
 Kubernetes Operator
 ===================
 
-The :class:`airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator` allows you to create
+The :class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` allows you to create
 Pods on Kubernetes. It works with any type of executor.
 
 .. code:: python
 
     import kubernetes.client.models as k8s
 
-    from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
     from airflow.contrib.kubernetes.secret import Secret
     from airflow.contrib.kubernetes.volume import Volume
     from airflow.contrib.kubernetes.volume_mount import VolumeMount

@@ -26,11 +26,11 @@ from mock import PropertyMock
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow.gcp.operators.kubernetes_engine import (
     GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator,
 )
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 TEST_GCP_PROJECT_ID = 'test-id'
 PROJECT_LOCATION = 'test-location'
@@ -159,7 +159,7 @@ class TestGKEPodOperator(unittest.TestCase):
         )]
     )
     @mock.patch(
-        'airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator.execute')
+        'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch('tempfile.NamedTemporaryFile')
     @mock.patch("subprocess.check_call")
     @mock.patch.dict(os.environ, {CREDENTIALS: '/tmp/local-creds'})
@@ -197,7 +197,7 @@ class TestGKEPodOperator(unittest.TestCase):
         )]
     )
     @mock.patch(
-        'airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator.execute')
+        'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch('tempfile.NamedTemporaryFile')
     @mock.patch("subprocess.check_call")
     @mock.patch.dict(os.environ, {})
@@ -235,7 +235,7 @@ class TestGKEPodOperator(unittest.TestCase):
         )]
     )
     @mock.patch(
-        'airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator.execute')
+        'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute')
     @mock.patch('tempfile.NamedTemporaryFile')
     @mock.patch("subprocess.check_call")
     def test_execute_conn_id_dict(self, proc_mock, file_mock, exec_mock, get_con_mock):

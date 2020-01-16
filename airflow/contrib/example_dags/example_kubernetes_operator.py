@@ -28,7 +28,7 @@ log = LoggingMixin().log
 try:
     # Kubernetes is optional, so not available in vanilla Airflow
     # pip install 'apache-airflow[kubernetes]'
-    from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
     default_args = {
         'owner': 'airflow',
