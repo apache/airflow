@@ -250,7 +250,7 @@ def create_default_connections(session=None):
         session
     )
     merge_conn(
-        Connection(conn_id="cassandra_default", conn_type="cassandra", host="cassandra", port=9042), session
+        Connection(
             conn_id="http_default",
             conn_type="http",
             host="https://www.httpbin.org/",
