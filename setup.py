@@ -166,7 +166,7 @@ azure = [
     'azure-storage-blob<12.0',
 ]
 cassandra = [
-    'cassandra-driver>=3.13.0',
+    'cassandra-driver>=3.13.0,<3.21.0',
 ]
 celery = [
     'celery~=4.3',
