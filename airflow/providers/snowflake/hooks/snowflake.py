@@ -49,21 +49,22 @@ class SnowflakeHook(DbApiHook):
         used in get_uri() and get_connection()
         """
         conn = self.get_connection(self.snowflake_conn_id)
-        account = conn.extra_dejson.get('account', None)
-        warehouse = conn.extra_dejson.get('warehouse', None)
-        database = conn.extra_dejson.get('database', None)
-        region = conn.extra_dejson.get("region", None)
-        role = conn.extra_dejson.get('role', None)
+        account = conn.extra_dejson.get('account', '')
+        warehouse = conn.extra_dejson.get('warehouse', '')
+        database = conn.extra_dejson.get('database', '')
+        region = conn.extra_dejson.get("region", '')
+        role = conn.extra_dejson.get('role', '')
+        schema = conn.schema or ''
 
         conn_config = {
             "user": conn.login,
             "password": conn.password or '',
-            "schema": self.schema or conn.schema or '',
-            "database": self.database or database or '',
-            "account": self.account or account or '',
-            "warehouse": self.warehouse or warehouse or '',
-            "region": self.region or region or '',
-            "role": self.role or role or ''
+            "schema": self.schema or schema,
+            "database": self.database or database,
+            "account": self.account or account,
+            "warehouse": self.warehouse or warehouse,
+            "region": self.region or region,
+            "role": self.role or role
 
         }
 
