@@ -170,7 +170,7 @@ azure_data_lake = [
     'azure-mgmt-resource>=2.2.0',
 ]
 cassandra = [
-    'cassandra-driver>=3.13.0',
+    'cassandra-driver>=3.13.0,<3.21.0',
 ]
 celery = [
     'celery~=4.3',
