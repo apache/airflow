@@ -157,7 +157,7 @@ Airflow Integration Tests
 =========================
 
 Some of the tests in Airflow are Integration tests. Those tests require not only airflow-testing docker
-image but also extra images with integrations (such as redis/mongodb etc.).
+image but also extra containers running with integrations (such as redis/mongodb etc.).
 
 
 Enabling integrations

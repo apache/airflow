@@ -320,8 +320,8 @@ We support the following types of tests:
 
 * **Integration tests** are available in the Breeze development environment
   that is also used for Airflow Travis CI tests. Integration test are special tests that require
-  additional services running, such as Postgres,Mysql, Kerberos, etc. These tests are not yet
-  clearly marked as integration tests but soon they will be clearly separated by the ``pytest`` annotations.
+  additional services running, such as Postgres, Mysql, Kerberos, etc. They are marked using
+  custom ``pytest`` markers as described in `Testing document <TESTING.rst#airflow-integration-tests>`_
 
 * **System tests** are automatic tests that use external systems like
   Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
