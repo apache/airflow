@@ -67,7 +67,7 @@ class DockerOperator(BaseOperator):
     :param environment: Environment variables to set in the container. (templated)
     :type environment: dict
     :param private_environment: Private environment variables to set in the container.
-        These variables will not be shown on the task instance view in the browser.
+        These are not templated, and hidden from the website.
     :type private_environment: dict
     :param force_pull: Pull the docker image on every run. Default is False.
     :type force_pull: bool
@@ -194,7 +194,8 @@ class DockerOperator(BaseOperator):
         self.shm_size = shm_size
         self.tty = tty
         if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
+            raise AirflowException(
+                "'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
         self.cli = None
         self.container = None
@@ -256,7 +257,8 @@ class DockerOperator(BaseOperator):
 
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
-                raise AirflowException('docker container failed: ' + repr(result))
+                raise AirflowException(
+                    'docker container failed: ' + repr(result))
 
             # duplicated conditional logic because of expensive operation
             if self.do_xcom_push:

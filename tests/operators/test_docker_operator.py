@@ -51,7 +51,7 @@ class TestDockerOperator(unittest.TestCase):
         client_class_mock.return_value = client_mock
 
         operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
-                                  private_environment={'SUPER': 'SECRET'}, image='ubuntu:latest',
+                                  private_environment={'PRIVATE': 'MESSAGE'}, image='ubuntu:latest',
                                   network_mode='bridge', owner='unittest', task_id='unittest',
                                   volumes=['/host/path:/container/path'],
                                   working_dir='/container/path', shm_size=1000,
@@ -67,7 +67,7 @@ class TestDockerOperator(unittest.TestCase):
                                                              environment={
                                                                  'AIRFLOW_TMP_DIR': '/tmp/airflow',
                                                                  'UNIT': 'TEST',
-                                                                 'SUPER': 'SECRET'
+                                                                 'PRIVATE': 'MESSAGE'
                                                              },
                                                              host_config=host_config,
                                                              image='ubuntu:latest',
@@ -90,6 +90,16 @@ class TestDockerOperator(unittest.TestCase):
                                                    stderr=True, stream=True)
         client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True)
         client_mock.wait.assert_called_once_with('some_id')
+
+    def test_private_environment_is_private(self):
+        operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
+                                  private_environment={'PRIVATE': 'MESSAGE'}, image='ubuntu:latest',
+                                  network_mode='bridge', owner='unittest', task_id='unittest',
+                                  volumes=['/host/path:/container/path'],
+                                  working_dir='/container/path', shm_size=1000,
+                                  host_tmp_dir='/host/airflow', container_name='test_container',
+                                  tty=True)
+        self.assertEqual(getattr(operator, '_private_environment'), {'PRIVATE': 'MESSAGE'})
 
     @mock.patch('airflow.operators.docker_operator.tls.TLSConfig')
     @mock.patch('airflow.operators.docker_operator.APIClient')
@@ -253,7 +263,7 @@ class TestDockerOperator(unittest.TestCase):
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.attach.return_value = ['container log']
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.wait.return_value = {"StatusCode": 0}
+        client_mock.wait.return_value = {'StatusCode': 0}
 
         client_class_mock.return_value = client_mock
 
@@ -261,7 +271,7 @@ class TestDockerOperator(unittest.TestCase):
             'api_version': '1.19',
             'command': 'env',
             'environment': {'UNIT': 'TEST'},
-            'private_environment': {'SUPER': 'SECRET'},
+            'private_environment': {'PRIVATE': 'MESSAGE'},
             'image': 'ubuntu:latest',
             'network_mode': 'bridge',
             'owner': 'unittest',
