@@ -81,15 +81,15 @@ class TestLocalTaskJob(unittest.TestCase):
         check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
         self.assertTrue(all(check_result_2))
 
-    def test_invalid_return_code(self):
+    def test_invalid_return_code_with_bash_operator(self):
         with create_session() as session:
             dagbag = models.DagBag(
                 dag_folder=TEST_DAG_FOLDER,
                 include_examples=False,
             )
             dag_id = 'test_invalid_return_code'
-            valid_task_id = 'test_valid_return_code'
-            invalid_task_id = 'test_invalid_return_code'
+            valid_task_id = 'test_valid_return_code_bash_operator'
+            invalid_task_id = 'test_invalid_return_code_bash_operator'
             dag = dagbag.get_dag(dag_id)
             invalid_task = dag.get_task(invalid_task_id)
             dr = dag.create_dagrun(run_id="test",
@@ -106,7 +106,9 @@ class TestLocalTaskJob(unittest.TestCase):
             invalid_job = LocalTaskJob(task_instance=invalid_ti,
                                        ignore_ti_state=True,
                                        executor=SequentialExecutor())
-            invalid_job.run()
+            with self.assertRaisesRegex(AirflowException,
+                "LocalTaskJob process exited with non zero status"):
+                invalid_job.run()
 
             invalid_ti = dr.get_task_instance(task_id=invalid_task.task_id,
                                               session=session)
@@ -129,6 +131,58 @@ class TestLocalTaskJob(unittest.TestCase):
                                             session=session)
             # task that returns valid return code should succeed.
             self.assertEqual(valid_ti.state, State.SUCCESS)
+            self.assertIsNotNone(valid_ti.pid)
+
+    def test_invalid_return_code_with_python_operator(self):
+        with create_session() as session:
+            dagbag = models.DagBag(
+                dag_folder=TEST_DAG_FOLDER,
+                include_examples=False,
+            )
+            dag_id = 'test_invalid_return_code'
+            valid_task_id = 'test_valid_return_code_python_operator'
+            invalid_task_id = 'test_invalid_return_code_python_operator'
+            dag = dagbag.get_dag(dag_id)
+            invalid_task = dag.get_task(invalid_task_id)
+            dr = dag.create_dagrun(run_id="test",
+                                   state=State.SUCCESS,
+                                   execution_date=DEFAULT_DATE,
+                                   start_date=DEFAULT_DATE,
+                                   session=session)
+            invalid_ti = TI(task=invalid_task, execution_date=DEFAULT_DATE)
+            invalid_ti.refresh_from_db()
+            invalid_ti.state = State.RUNNING
+            invalid_ti.hostname = get_hostname()
+            session.commit()
+
+            invalid_job = LocalTaskJob(task_instance=invalid_ti,
+                                       ignore_ti_state=True,
+                                       executor=SequentialExecutor())
+            with self.assertRaisesRegex(AirflowException,
+                "LocalTaskJob process exited with non zero status"):
+                invalid_job.run()
+
+            invalid_ti = dr.get_task_instance(task_id=invalid_task.task_id,
+                                              session=session)
+            # task that returns invalid return code should fail.
+            self.assertEqual(invalid_ti.state, State.FAILED)
+            self.assertIsNotNone(invalid_ti.pid)
+
+            valid_task = dag.get_task(valid_task_id)
+            valid_ti = TI(task=valid_task, execution_date=DEFAULT_DATE)
+            valid_ti.refresh_from_db()
+            valid_ti.state = State.RUNNING
+            valid_ti.hostname = get_hostname()
+            session.commit()
+
+            valid_job = LocalTaskJob(task_instance=valid_ti,
+                                     ignore_ti_state=True,
+                                     executor=SequentialExecutor())
+            valid_job.run()
+            valid_ti = dr.get_task_instance(task_id=valid_task.task_id,
+                                            session=session)
+            # task that returns valid return code should succeed.
+            self.assertEqual(valid_ti.state, State.RUNNING)
             self.assertIsNotNone(valid_ti.pid)
 
     @patch('os.getpid')

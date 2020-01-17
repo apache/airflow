@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
+from airflow.operators.python_operator import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -29,12 +30,27 @@ args = {
 }
 
 dag = DAG(dag_id='test_invalid_return_code', default_args=args)
-valid_task = BashOperator(
-    task_id='test_valid_return_code',
+valid_bash_task = BashOperator(
+    task_id='test_valid_return_code_bash_operator',
     bash_command='exit 0',
     dag=dag)
 
-invalid_task = BashOperator(
-    task_id='test_invalid_return_code',
+invalid_bash_task = BashOperator(
+    task_id='test_invalid_return_code_bash_operator',
     bash_command='exit 1',
+    dag=dag)
+
+def os_exit(return_code):
+    import os;
+    os._exit(return_code)
+
+valid_python_task = PythonOperator(
+    task_id='test_valid_return_code_python_operator',
+    python_callable=lambda : os_exit(0),
+    dag=dag)
+
+
+invalid_python_task = PythonOperator(
+    task_id='test_invalid_return_code_python_operator',
+    python_callable=lambda : os_exit(1),
     dag=dag)

@@ -28,6 +28,7 @@ from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
+
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -95,12 +96,10 @@ class LocalTaskJob(BaseJob):
                 # Monitor the task to see if it's done
                 return_code = self.task_runner.return_code()
                 if return_code is not None:
-                    # if this job is terminating, we should ignore the return
-                    # code here.
-                    if return_code != 0 and not self.terminating:
+                    if return_code != 0:
                         msg = ("LocalTaskJob process exited with non zero "
                                "status {}".format(return_code))
-                        self.on_failure(AirflowException(msg))
+                        raise AirflowException(msg)
                     self.log.info("Task exited with return code %s", return_code)
                     return
 
@@ -130,6 +129,7 @@ class LocalTaskJob(BaseJob):
         self.task_instance.refresh_from_db()
         if self.task_instance.state not in State.unsuccessful():
             self.task_instance.handle_failure(e)
+        raise
 
     @provide_session
     def heartbeat_callback(self, session=None):
@@ -171,7 +171,7 @@ class LocalTaskJob(BaseJob):
             if ti.state == State.FAILED and ti.task.on_failure_callback:
                 context = ti.get_template_context()
                 ti.task.on_failure_callback(context)
-                
+
             # need to set self.terminating first to let the job know not to
             # treat non zero return code as invalid.
             self.terminating = True
