@@ -26,7 +26,7 @@ from dateutil.tz import tzlocal
 from airflow import AirflowException
 from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
 
-DESCRIBE_CLUSTER_RUNNING_RETURN = {
+DESCRIBE_CLUSTER_STARTING_RETURN = {
     'Cluster': {
         'Applications': [
             {'Name': 'Spark', 'Version': '1.6.1'}
@@ -42,6 +42,105 @@ DESCRIBE_CLUSTER_RUNNING_RETURN = {
         'ServiceRole': 'EMR_DefaultRole',
         'Status': {
             'State': 'STARTING',
+            'StateChangeReason': {},
+            'Timeline': {
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+        },
+        'Tags': [
+            {'Key': 'app', 'Value': 'analytics'},
+            {'Key': 'environment', 'Value': 'development'}
+        ],
+        'TerminationProtected': False,
+        'VisibleToAllUsers': True
+    },
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+        'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'
+    }
+}
+
+DESCRIBE_CLUSTER_BOOTSTRAPPING_RETURN = {
+    'Cluster': {
+        'Applications': [
+            {'Name': 'Spark', 'Version': '1.6.1'}
+        ],
+        'AutoTerminate': True,
+        'Configurations': [],
+        'Ec2InstanceAttributes': {'IamInstanceProfile': 'EMR_EC2_DefaultRole'},
+        'Id': 'j-27ZY9GBEEU2GU',
+        'LogUri': 's3n://some-location/',
+        'Name': 'PiCalc',
+        'NormalizedInstanceHours': 0,
+        'ReleaseLabel': 'emr-4.6.0',
+        'ServiceRole': 'EMR_DefaultRole',
+        'Status': {
+            'State': 'BOOTSTRAPPING',
+            'StateChangeReason': {},
+            'Timeline': {
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+        },
+        'Tags': [
+            {'Key': 'app', 'Value': 'analytics'},
+            {'Key': 'environment', 'Value': 'development'}
+        ],
+        'TerminationProtected': False,
+        'VisibleToAllUsers': True
+    },
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+        'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'
+    }
+}
+
+DESCRIBE_CLUSTER_RUNNING_RETURN = {
+    'Cluster': {
+        'Applications': [
+            {'Name': 'Spark', 'Version': '1.6.1'}
+        ],
+        'AutoTerminate': True,
+        'Configurations': [],
+        'Ec2InstanceAttributes': {'IamInstanceProfile': 'EMR_EC2_DefaultRole'},
+        'Id': 'j-27ZY9GBEEU2GU',
+        'LogUri': 's3n://some-location/',
+        'Name': 'PiCalc',
+        'NormalizedInstanceHours': 0,
+        'ReleaseLabel': 'emr-4.6.0',
+        'ServiceRole': 'EMR_DefaultRole',
+        'Status': {
+            'State': 'RUNNING',
+            'StateChangeReason': {},
+            'Timeline': {
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+        },
+        'Tags': [
+            {'Key': 'app', 'Value': 'analytics'},
+            {'Key': 'environment', 'Value': 'development'}
+        ],
+        'TerminationProtected': False,
+        'VisibleToAllUsers': True
+    },
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+        'RequestId': 'd5456308-3caa-11e6-9d46-951401f04e0e'
+    }
+}
+
+DESCRIBE_CLUSTER_WAITING_RETURN = {
+    'Cluster': {
+        'Applications': [
+            {'Name': 'Spark', 'Version': '1.6.1'}
+        ],
+        'AutoTerminate': True,
+        'Configurations': [],
+        'Ec2InstanceAttributes': {'IamInstanceProfile': 'EMR_EC2_DefaultRole'},
+        'Id': 'j-27ZY9GBEEU2GU',
+        'LogUri': 's3n://some-location/',
+        'Name': 'PiCalc',
+        'NormalizedInstanceHours': 0,
+        'ReleaseLabel': 'emr-4.6.0',
+        'ServiceRole': 'EMR_DefaultRole',
+        'Status': {
+            'State': 'WAITING',
             'StateChangeReason': {},
             'Timeline': {
                 'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
@@ -134,10 +233,6 @@ class TestEmrJobFlowSensor(unittest.TestCase):
     def setUp(self):
         # Mock out the emr_client (moto has incorrect response)
         self.mock_emr_client = MagicMock()
-        self.mock_emr_client.describe_cluster.side_effect = [
-            DESCRIBE_CLUSTER_RUNNING_RETURN,
-            DESCRIBE_CLUSTER_TERMINATED_RETURN
-        ]
 
         mock_emr_session = MagicMock()
         mock_emr_session.client.return_value = self.mock_emr_client
@@ -145,8 +240,9 @@ class TestEmrJobFlowSensor(unittest.TestCase):
         # Mock out the emr_client creator
         self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
 
-    def test_execute_calls_with_the_job_flow_id_until_it_reaches_a_terminal_state(self):
+    def test_execute_calls_with_the_job_flow_id_until_it_reaches_a_target_state(self):
         self.mock_emr_client.describe_cluster.side_effect = [
+            DESCRIBE_CLUSTER_STARTING_RETURN,
             DESCRIBE_CLUSTER_RUNNING_RETURN,
             DESCRIBE_CLUSTER_TERMINATED_RETURN
         ]
@@ -161,13 +257,10 @@ class TestEmrJobFlowSensor(unittest.TestCase):
             operator.execute(None)
 
             # make sure we called twice
-            self.assertEqual(self.mock_emr_client.describe_cluster.call_count, 2)
+            self.assertEqual(self.mock_emr_client.describe_cluster.call_count, 3)
 
             # make sure it was called with the job_flow_id
-            calls = [
-                unittest.mock.call(ClusterId='j-8989898989'),
-                unittest.mock.call(ClusterId='j-8989898989')
-            ]
+            calls = [unittest.mock.call(ClusterId='j-8989898989')]
             self.mock_emr_client.describe_cluster.assert_has_calls(calls)
 
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_failed_state_with_exception(self):
@@ -178,7 +271,7 @@ class TestEmrJobFlowSensor(unittest.TestCase):
         with patch('boto3.session.Session', self.boto3_session_mock):
             operator = EmrJobFlowSensor(
                 task_id='test_task',
-                poke_interval=2,
+                poke_interval=0,
                 job_flow_id='j-8989898989',
                 aws_conn_id='aws_default'
             )
@@ -191,6 +284,33 @@ class TestEmrJobFlowSensor(unittest.TestCase):
 
                 # make sure it was called with the job_flow_id
                 self.mock_emr_client.describe_cluster.assert_called_once_with(ClusterId='j-8989898989')
+
+    def test_different_target_states(self):
+        self.mock_emr_client.describe_cluster.side_effect = [
+            DESCRIBE_CLUSTER_STARTING_RETURN,  # return False
+            DESCRIBE_CLUSTER_BOOTSTRAPPING_RETURN,  # return False
+            DESCRIBE_CLUSTER_RUNNING_RETURN,  # return True
+            DESCRIBE_CLUSTER_WAITING_RETURN,  # will not be used
+            DESCRIBE_CLUSTER_TERMINATED_RETURN,  # will not be used
+            DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN,  # will not be used
+        ]
+        with patch('boto3.session.Session', self.boto3_session_mock):
+            operator = EmrJobFlowSensor(
+                task_id='test_task',
+                poke_interval=0,
+                job_flow_id='j-8989898989',
+                aws_conn_id='aws_default',
+                target_states=['RUNNING', 'WAITING']
+            )
+
+            operator.execute(None)
+
+            # make sure we called twice
+            self.assertEqual(self.mock_emr_client.describe_cluster.call_count, 3)
+
+            # make sure it was called with the job_flow_id
+            calls = [unittest.mock.call(ClusterId='j-8989898989')]
+            self.mock_emr_client.describe_cluster.assert_has_calls(calls)
 
 
 if __name__ == '__main__':
