@@ -157,10 +157,14 @@ Airflow Git Branches
 
 All new development in Airflow happens in ``master`` branch. All PRs should target that branch.
 We also have ``v1-10-test`` branch which is used to test ``1.10.x`` series of Airflow and where committers
-(and only committers) cherry-pick selected commits from the master branch. The ``v1-10-test`` branch might be
-broken at times - during testing. Expect force-pushes there so committers should coordinate between themselves
-on who is working on the ``v1-10-test`` branch - usually those will be people with the role of the
-release manager. Once the branch is stable - the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
+(and only committers) cherry-pick selected commits from the master branch. 
+Cherry-picking is done with -x flag.
+
+The ``v1-10-test`` branch might be broken at times during testing. Expect force-pushes there so 
+committers should coordinate between themselves on who is working on the ``v1-10-test`` branch - 
+usually those will be people with the role of the release manager.
+
+Once the branch is stable - the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
 The ``v1-10-stable`` branch is used to relsease ``1.10.x`` releases.
 
 Development Environments
