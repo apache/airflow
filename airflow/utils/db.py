@@ -454,6 +454,14 @@ def create_default_connections(session=None):
         ),
         session
     )
+    merge_conn(
+        Connection(
+            conn_id='yandexcloud_default',
+            conn_type='yandexcloud',
+            schema='default',
+        ),
+        session
+    )
 
 
 def initdb():

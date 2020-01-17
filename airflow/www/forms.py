@@ -162,3 +162,12 @@ class ConnectionForm(DynamicForm):
     extra__grpc__scopes = StringField(
         lazy_gettext('Scopes (comma separated)'),
         widget=BS3TextFieldWidget())
+    extra__yandexcloud__oauth = PasswordField(
+        lazy_gettext('OAuth Token'),
+        widget=BS3PasswordFieldWidget())
+    extra__yandexcloud__folder_id = StringField(
+        lazy_gettext('Folder ID'),
+        widget=BS3TextFieldWidget())
+    extra__yandexcloud__public_ssh_key = StringField(
+        lazy_gettext('Public SSH key'),
+        widget=BS3TextFieldWidget())
