@@ -211,7 +211,7 @@ def dag_state(args):
     else:
         dag = get_dag_by_file_location(args.dag_id)
     dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
-    out = dr[0].state if len(dr) > 0 else None  # pylint: disable=len-as-condition
+    out = dr[0].state if dr else None
     confout = ''
     if out and dr[0].conf:
         confout = ', ' + json.dumps(dr[0].conf)
