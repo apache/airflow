@@ -165,7 +165,7 @@ committers should coordinate between themselves on who is working on the ``v1-10
 usually those will be people with the role of the release manager.
 
 Once the branch is stable - the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
-The ``v1-10-stable`` branch is used to relsease ``1.10.x`` releases.
+The ``v1-10-stable`` branch is used to release ``1.10.x`` releases.
 
 Development Environments
 ========================
