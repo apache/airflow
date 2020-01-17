@@ -574,6 +574,7 @@ class TestStringifiedDAGs(unittest.TestCase):
                           'owner': 'airflow',
                           'params': {},
                           'pool': 'default_pool',
+                          'pool_slots': 1,
                           'priority_weight': 1,
                           'queue': 'default',
                           'resources': None,
