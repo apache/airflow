@@ -107,7 +107,7 @@ class TestLocalTaskJob(unittest.TestCase):
                                        ignore_ti_state=True,
                                        executor=SequentialExecutor())
             with self.assertRaisesRegex(AirflowException,
-                "LocalTaskJob process exited with non zero status"):
+                                        "LocalTaskJob process exited with non zero status"):
                 invalid_job.run()
 
             invalid_ti = dr.get_task_instance(task_id=invalid_task.task_id,
@@ -159,7 +159,7 @@ class TestLocalTaskJob(unittest.TestCase):
                                        ignore_ti_state=True,
                                        executor=SequentialExecutor())
             with self.assertRaisesRegex(AirflowException,
-                "LocalTaskJob process exited with non zero status"):
+                                        "LocalTaskJob process exited with non zero status"):
                 invalid_job.run()
 
             invalid_ti = dr.get_task_instance(task_id=invalid_task.task_id,

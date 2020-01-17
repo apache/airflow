@@ -33,10 +33,10 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
-from airflow.utils.session import create_session, provide_session
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
@@ -142,10 +142,10 @@ class BaseJob(Base, LoggingMixin):
 
     def on_failure(self, e):
         """
-        Will be called when an exception happens during _execute
-        default just raise exception again
+        Will be called when an exception happens during _execute.
+        default just do nothing.
         """
-        raise
+        pass
 
     def heartbeat_callback(self, session=None):
         pass
@@ -229,6 +229,7 @@ class BaseJob(Base, LoggingMixin):
             except Exception as e:
                 self.state = State.FAILED
                 self.on_failure(e)
+                raise
             finally:
                 self.end_date = timezone.utcnow()
                 session.merge(self)

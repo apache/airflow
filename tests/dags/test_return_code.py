@@ -40,17 +40,18 @@ invalid_bash_task = BashOperator(
     bash_command='exit 1',
     dag=dag)
 
+
 def os_exit(return_code):
-    import os;
+    import os
     os._exit(return_code)
+
 
 valid_python_task = PythonOperator(
     task_id='test_valid_return_code_python_operator',
-    python_callable=lambda : os_exit(0),
+    python_callable=lambda: os_exit(0),
     dag=dag)
-
 
 invalid_python_task = PythonOperator(
     task_id='test_invalid_return_code_python_operator',
-    python_callable=lambda : os_exit(1),
+    python_callable=lambda: os_exit(1),
     dag=dag)
