@@ -81,7 +81,9 @@ class StandardTaskRunner(BaseTaskRunner):
             try:
                 args.func(args, dag=self.dag)
                 os._exit(0)
-            except Exception:
+            except Exception as e:
+                print("here")
+                print(str(e))
                 os._exit(1)
 
     def return_code(self, timeout=0):

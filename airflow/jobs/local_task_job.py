@@ -95,9 +95,11 @@ class LocalTaskJob(BaseJob):
                 # Monitor the task to see if it's done
                 return_code = self.task_runner.return_code()
                 if return_code is not None:
-                    # if this job is terminating, we should ignore the return
-                    # code here.
-                    if return_code != 0 and not self.terminating:
+                    # there is one case we should not treat non zero return
+                    # code as failed: the job has been killed externally.
+                    if return_code != 0 and ((not self.terminating) or
+                                             self.task_instance ==
+                                             State.FAILED) :
                         msg = ("LocalTaskJob process exited with non zero "
                                "status {}".format(return_code))
                         raise AirflowException(msg)
