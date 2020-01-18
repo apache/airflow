@@ -57,7 +57,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     # pylint: disable-msg=too-many-arguments
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
-                 write_stdout, json_format, json_fields, index,
+                 write_stdout, json_format, json_fields,
+                 index = '*',
                  host='localhost:9200',
                  es_kwargs=conf.getsection("elasticsearch_configs")):
         """
