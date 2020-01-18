@@ -200,11 +200,11 @@ if REMOTE_LOGGING:
     elif ELASTICSEARCH_HOST:
         ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get('elasticsearch', 'LOG_ID_TEMPLATE')
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get('elasticsearch', 'END_OF_LOG_MARK')
-        ELASTICSEARCH_WRITE_STDOUT: str = conf.get('elasticsearch', 'WRITE_STDOUT')
-        ELASTICSEARCH_JSON_FORMAT: str = conf.get('elasticsearch', 'JSON_FORMAT')
+        ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean('elasticsearch', 'WRITE_STDOUT')
+        ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean('elasticsearch', 'JSON_FORMAT')
         ELASTICSEARCH_JSON_FIELDS: str = conf.get('elasticsearch', 'JSON_FIELDS')
 
-        ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
             'task': {
                 'class': 'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
                 'formatter': 'airflow',
