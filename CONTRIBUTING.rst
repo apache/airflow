@@ -344,7 +344,7 @@ Make sure you are using recent versions of node and yarn. No problems have been
 found with node\>=8.11.3 and yarn\>=1.19.1
 
 Installing yarn and its packages
--------------------------------
+--------------------------------
 
 Make sure yarn is available in your environment.
 
@@ -385,9 +385,8 @@ These commands install the libraries in a new ``node_modules/`` folder within
 ``www/``.
 
 Should you add or upgrade an node package, you should run:
- ``yarn add --dev <package>`` for packages needed in development
- or
- ``yarn add <package>`` for packages used by the code
+``yarn add --dev <package>`` for packages needed in development or
+``yarn add <package>`` for packages used by the code
 and push the newly generated ``package.json`` and ``yarn.lock`` file so that we
 get a reproducible build. See the `Yarn docs
 <https://yarnpkg.com/en/docs/cli/add#adding-dependencies->`_ for more info
@@ -532,13 +531,27 @@ Step 4: Prepare PR
 
    * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/concepts.html#email-configuration>`__.
 
-   * Find the class you should modify. For the example ticket, this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
+   * Find the class you should modify. For the example ticket,
+     this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
 
-   * Find the test class where you should add tests. For the example ticket, this is `test_email.py <https://github.com/apache/airflow/blob/master/tests/utils/test_email.py>`__.
+   * Find the test class where you should add tests. For the example ticket,
+     this is `test_email.py <https://github.com/apache/airflow/blob/master/tests/utils/test_email.py>`__.
+
+   * Create a local branch for your development. Make sure to use latest
+     ``apache/master`` as base for the branch. See `How to Rebase PR <#how-to-rebase-pr>`_ for some details
+     on setting up the ``apache`` remote. Note - some people develop their changes directy in their own
+     ``master`` branches - this is OK and you can make PR from your master to ``apache/master`` but we
+     recommend to always create a local branch for your development. This allows you to easily compare
+     changes, have several changes that you work on at the same time and many more.
+     If you have ``apache`` set as remote then you can make sure that you have latest changes in your master
+     by ``git pull apache master`` when you are in the local ``master`` branch. If you have conflicts and
+     want to override your locally changed master you can override your local changes with
+     ``git fetch apache; git reset --hard apache/master``.
 
    * Modify the class and add necessary code and unit tests.
 
-   * Run the unit tests from the `IDE <TESTING.rst#running-unit-tests-from-ide>`__ or `local virtualenv <TESTING.rst#running-unit-tests-from-local-virtualenv>`__ as you see fit.
+   * Run the unit tests from the `IDE <TESTING.rst#running-unit-tests-from-ide>`__
+     or `local virtualenv <TESTING.rst#running-unit-tests-from-local-virtualenv>`__ as you see fit.
 
    * Run the tests in `Breeze <TESTING.rst#running-unit-tests-inside-breeze>`__.
 
@@ -547,7 +560,10 @@ Step 4: Prepare PR
      this step is automatically run while you are committing your code. If not, you can do it manually
      via ``git add`` and then ``pre-commit run``.
 
-2. Rebase your fork, squash commits, and resolve all conflicts.
+2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
+   if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to
+   review/fix. This will make rebase process much easier and less painful - and the more often you do it,
+   the more comfortable you will feel doing it.
 
 3. Re-run static code checks again.
 
@@ -566,6 +582,71 @@ Step 5: Pass PR Review
 
 Note that committers will use **Squash and Merge** instead of **Rebase and Merge**
 when merging PRs and your commit will be squashed to single commit.
+
+How to rebase PR
+================
+
+A lot of people are unfamiliar with rebase workflow in Git, but we think it is an excellent workflow,
+much better than merge workflow, so here is a short guide for those who would like to learn it. It's really
+worth to spend a few minutes learning it. As opposed to merge workflow, the rebase workflow allows to
+clearly separate your changes from changes of others, puts responsibility of proper rebase on the
+author of the change. It also produces a "single-line" series of commits in master branch which
+makes it much easier to understand what was going on and to find reasons for problems (it is especially
+useful for "bisecting" when looking for a commit that introduced some bugs.
+
+
+First of all - you can read about rebase workflow here:
+`Merging vs. rebasing <https://www.atlassian.com/git/tutorials/merging-vs-rebasing>`_ - this is an
+excellent article that describes all ins/outs of rebase. I recommend reading it and keeping it as reference.
+
+The goal of rebasing your PR on top of ``apache/master`` is to "transplant" your change on top of
+the latest changes that are merged by others. It also allows you to fix all the conflicts
+that are result of other people changing the same files as you and merging the changes to ``apache/master``.
+
+Here is how rebase looks in practice:
+
+1. You need to add Apache remote to your git repository. You can add it as "apache" remote so that
+   you can refer to it easily:
+
+``git remote add apache git@github.com:apache/airflow.git`` if you use ssh or
+``git remote add apache https://github.com/apache/airflow.git`` if you use https.
+
+Later on
+
+2. You need to make sure that you have the latest master fetched from ``apache`` repository. You can do it
+   by ``git fetch apache`` for apache remote or ``git fetch --all`` to fetch all remotes.
+
+3. Assuming that your feature is in a branch in your repository called ``my-branch`` you can check easily
+   what is the base commit you should rebase from by: ``git merge-base my-branch apache/master``.
+   This will print the HASH of the base commit which you should use to rebase your feature from -
+   for example: ``5abce471e0690c6b8d06ca25685b0845c5fd270f``. You can also find this commit hash manually -
+   if you want better control. Run ``git log`` and find the first commit that you DO NOT want to "transplant".
+   ``git rebase HASH`` will "trasplant" all commits after the commit with the HASH.
+
+4. Make sure you checked out your branch locally:
+
+``git checkout my-branch``
+
+5. Rebase:
+   Run: ``git rebase HASH --onto apache/master``
+   for example: ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/master``
+
+6. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
+   push your changes to your repository. That should trigger the build in CI if you have a
+   Pull Request opened already.
+
+7. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
+   about the conflicts. You need to solve the conflicts manually. This is sometimes the most difficult
+   part and requires deliberate correcting your code looking what has changed since you developed your
+   changes. There are various tools that can help you with that. You can use ``git mergetool`` (and you can
+   configure different merge tools with it). Also you can use IntelliJ/PyCharm excellent merge tool.
+   When you open project in PyCharm which has conflict you can go to VCS->Git->Resolve Conflicts and there
+   you have a very intuitive and helpful merge tool. You can see more information
+   about it in `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html.>`_
+
+8. After you solved conflicts simply run ``git rebase --continue`` and go either to point 6. or 7.
+   above depending if you have more commits that cause conflicts in your PR (rebasing applies each
+   commit from your PR one-by-one).
 
 Resources & Links
 =================
