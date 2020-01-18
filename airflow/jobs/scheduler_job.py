@@ -677,7 +677,7 @@ class DagFileProcessor(LoggingMixin):
         :param dagbag: a collection of DAGs to process
         :type dagbag: airflow.models.DagBag
         :param dags: the DAGs from the DagBag to process
-        :type dags: airflow.models.DAG
+        :type dags: List[airflow.models.DAG]
         :param tis_out: A list to add generated TaskInstance objects
         :type tis_out: list[TaskInstance]
         :rtype: None
@@ -796,15 +796,22 @@ class DagFileProcessor(LoggingMixin):
         # process and due to some unusual behavior. (empty() incorrectly
         # returns true as described in https://bugs.python.org/issue23582 )
         ti_keys_to_schedule = []
+        refreshed_tis = []
 
         self._process_dags(dagbag, dags, ti_keys_to_schedule)
 
-        for ti_key in ti_keys_to_schedule:
-            dag = dagbag.dags[ti_key[0]]
-            task = dag.get_task(ti_key[1])
-            ti = models.TaskInstance(task, ti_key[2])
+        # Refresh all task instances that will be scheduled
+        TI = models.TaskInstance
+        filter_for_tis = TI.filter_for_tis(ti_keys_to_schedule)
 
-            ti.refresh_from_db(session=session, lock_for_update=True)
+        if filter_for_tis is not None:
+            refreshed_tis = session.query(TI).filter(filter_for_tis).with_for_update().all()
+
+        for ti in refreshed_tis:
+            # Add task to task instance
+            dag = dagbag.dags[ti.key[0]]
+            ti.task = dag.get_task(ti.key[1])
+
             # We check only deps needed to set TI to SCHEDULED state here.
             # Deps needed to set TI to QUEUED state will be batch checked later
             # by the scheduler for better performance.
@@ -994,8 +1001,7 @@ class SchedulerJob(BaseJob):
                     models.TaskInstance.task_id == subq.c.task_id,
                     models.TaskInstance.execution_date ==
                     subq.c.execution_date)) \
-                .update({models.TaskInstance.state: new_state},
-                        synchronize_session=False)
+                .update({models.TaskInstance.state: new_state}, synchronize_session=False)
             session.commit()
 
         if tis_changed > 0:
@@ -1270,20 +1276,17 @@ class SchedulerJob(BaseJob):
             return []
 
         # set TIs to queued state
-        for task_instance in tis_to_set_to_queued:
-            task_instance.state = State.QUEUED
-            task_instance.queued_dttm = timezone.utcnow()
-            session.merge(task_instance)
+        filter_for_tis = TI.filter_for_tis(tis_to_set_to_queued)
+        session.query(TI).filter(filter_for_tis).update(
+            {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow()}, synchronize_session=False
+        )
+        session.commit()
 
         # Generate a list of SimpleTaskInstance for the use of queuing
         # them in the executor.
-        simple_task_instances = [SimpleTaskInstance(ti) for ti in
-                                 tis_to_set_to_queued]
+        simple_task_instances = [SimpleTaskInstance(ti) for ti in tis_to_set_to_queued]
 
-        task_instance_str = "\n\t".join(
-            [repr(x) for x in tis_to_set_to_queued])
-
-        session.commit()
+        task_instance_str = "\n\t".join([repr(x) for x in tis_to_set_to_queued])
         self.log.info("Setting the following %s tasks to queued state:\n\t%s",
                       len(tis_to_set_to_queued), task_instance_str)
         return simple_task_instances
@@ -1398,9 +1401,12 @@ class SchedulerJob(BaseJob):
                 return
 
             # set TIs to queued state
+            filter_for_tis = TI.filter_for_tis(tis_to_set_to_scheduled)
+            session.query(TI).filter(filter_for_tis).update(
+                {TI.state: State.SCHEDULED, TI.queued_dttm: None}, synchronize_session=False
+            )
+
             for task_instance in tis_to_set_to_scheduled:
-                task_instance.state = State.SCHEDULED
-                task_instance.queued_dttm = None
                 self.executor.queued_tasks.pop(task_instance.key)
 
             task_instance_str = "\n\t".join(

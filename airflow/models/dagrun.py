@@ -26,6 +26,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import ID_LEN, Base
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, DepContext
 from airflow.utils import timezone
@@ -338,15 +339,36 @@ class DagRun(Base, LoggingMixin):
     def _get_ready_tis(self, scheduleable_tasks, finished_tasks, session):
         ready_tis = []
         changed_tis = False
-        for st in scheduleable_tasks:
-            st_old_state = st.state
-            if st.are_dependencies_met(
+
+        if not scheduleable_tasks:
+            return ready_tis, changed_tis
+
+        # Refresh states
+        filter_for_tis = TI.filter_for_tis(scheduleable_tasks)
+        fresh_tis = session.query(TI).filter(filter_for_tis).order_by(
+            TI.dag_id.desc(),
+            TI.task_id.desc(),
+            TI.execution_date.desc(),
+        ).all()
+        fresh_tis = list(fresh_tis)
+
+        # Sort scheduleable_tasks
+        scheduleable_tasks.sort(key=lambda ti: (ti.dag_id, ti.task_id, ti.execution_date))
+
+        # Assert same length
+        if len(fresh_tis) != len(scheduleable_tasks):
+            raise AirflowException(
+                "Result number of tasks from db differs from number of schedule task instances."
+            )
+
+        for stale_ti, fresh_ti in zip(scheduleable_tasks, fresh_tis):
+            if stale_ti.are_dependencies_met(
                 dep_context=DepContext(
                     flag_upstream_failed=True,
                     finished_tasks=finished_tasks),
                     session=session):
-                ready_tis.append(st)
-            elif st_old_state != st.current_state(session=session):
+                ready_tis.append(stale_ti)
+            elif stale_ti.state != fresh_ti.state:
                 changed_tis = True
         return ready_tis, changed_tis
 
