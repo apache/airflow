@@ -171,16 +171,16 @@ these guidelines:
 Airflow Git Branches
 ====================
 
-All new development in Airflow happens in ``master`` branch. All PRs should target that branch.
-We also have ``v1-10-test`` branch which is used to test ``1.10.x`` series of Airflow and where committers
-(and only committers) cherry-pick selected commits from the master branch.
-Cherry-picking is done with -x flag.
+All new development in Airflow happens in the ``master`` branch. All PRs should target that branch.
+We also have a ``v1-10-test`` branch that is used to test ``1.10.x`` series of Airflow and where committers
+cherry-pick selected commits from the master branch.
+Cherry-picking is done with the ``-x`` flag.
 
 The ``v1-10-test`` branch might be broken at times during testing. Expect force-pushes there so
 committers should coordinate between themselves on who is working on the ``v1-10-test`` branch -
-usually those will be people with the role of the release manager.
+usually these are developers with the release manager permissions.
 
-Once the branch is stable - the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
+Once the branch is stable, the ``v1-10-stable`` branch is synchronized with ``v1-10-test``.
 The ``v1-10-stable`` branch is used to release ``1.10.x`` releases.
 
 Development Environments
@@ -357,14 +357,14 @@ itself comes bundled with jQuery and bootstrap. While they may be phased out
 over time, these packages are currently not managed with yarn.
 
 Make sure you are using recent versions of node and yarn. No problems have been
-found with node\>=8.11.3 and yarn\>=1.19.1
+found with node\>=8.11.3 and yarn\>=1.19.1.
 
 Installing yarn and its packages
 --------------------------------
 
 Make sure yarn is available in your environment.
 
-To install it on macOS:
+To install yarn on macOS:
 
 1.  Run the following commands (taken from `this source <https://gist.github.com/DanHerbert/9520689>`__):
 
@@ -375,8 +375,8 @@ To install it on macOS:
     yarn config set prefix ~/.yarn
 
 
-2.  Add ``~/.yarn/bin`` to your ``PATH`` so that commands you install
-    globally are usable.
+2.  Add ``~/.yarn/bin`` to your ``PATH`` so that commands you are installing
+    could be used globally.
 
 3.  Set up your ``.bashrc`` file and then ``source ~/.bashrc`` to reflect the
     change.
@@ -385,7 +385,7 @@ To install it on macOS:
 
     export PATH="$HOME/.yarn/bin:$PATH"
 
-4.  Install third party libraries defined in ``package.json`` by running the
+4.  Install third-party libraries defined in ``package.json`` by running the
     following commands within the ``airflow/www/`` directory:
 
 
@@ -400,15 +400,15 @@ To install it on macOS:
 These commands install the libraries in a new ``node_modules/`` folder within
 ``www/``.
 
-Should you add or upgrade an node package, you should run:
+Should you add or upgrade a node package, run
 ``yarn add --dev <package>`` for packages needed in development or
-``yarn add <package>`` for packages used by the code
-and push the newly generated ``package.json`` and ``yarn.lock`` file so that we
-get a reproducible build. See the `Yarn docs
-<https://yarnpkg.com/en/docs/cli/add#adding-dependencies->`_ for more info
+``yarn add <package>`` for packages used by the code.
+Then push the newly generated ``package.json`` and ``yarn.lock`` file so that we
+could get a reproducible build. See the `Yarn docs
+<https://yarnpkg.com/en/docs/cli/add#adding-dependencies->`_ for more details.
 
 
-Generating Bundled Files with yarn
+Generate Bundled Files with yarn
 ----------------------------------
 
 To parse and generate bundled files for Airflow, run either of the following
@@ -423,8 +423,8 @@ commands:
     yarn run dev
 
 
-Javascript Style Guide
-~~~~~~~~~~~~~~~~~~~~~~
+Follow Javascript Style Guide
+-----------------------------
 
 We try to enforce a more consistent style and follow the JS community
 guidelines.
