@@ -4,6 +4,7 @@
 .github/*
 .gitignore
 .gitattributes
+.airflow_db_initialised
 .airflowignore
 .coverage
 .coveragerc
