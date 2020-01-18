@@ -469,6 +469,7 @@ def do_setup():
             'json-merge-patch==0.2',
             'jsonschema~=3.0',
             'lazy_object_proxy~=1.3',
+            'lockfile>=0.12.2',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',

@@ -23,8 +23,10 @@ from multiprocessing import Process
 from typing import Optional
 
 import daemon
+import psutil
 from celery.bin import worker as worker_bin
 from daemon.pidfile import TimeoutPIDLockFile
+from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
@@ -32,6 +34,8 @@ from airflow.executors.celery_executor import app as celery_app
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging, sigint_handler
 from airflow.utils.serve_logs import serve_logs
+
+WORKER_PROCESS_NAME = "worker"
 
 
 @cli_utils.action_logging
@@ -93,9 +97,6 @@ def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
 @cli_utils.action_logging
 def worker(args):
     """Starts Airflow Celery worker"""
-    env = os.environ.copy()
-    env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
-
     if not settings.validate_session():
         print("Worker exiting... database connection precheck failed! ")
         sys.exit(1)
@@ -106,6 +107,16 @@ def worker(args):
     if autoscale is None and conf.has_option("celery", "worker_autoscale"):
         autoscale = conf.get("celery", "worker_autoscale")
 
+    # Setup locations
+    pid_file_path, stdout, stderr, log_file = setup_locations(
+        process=WORKER_PROCESS_NAME,
+        pid=args.pid,
+        stdout=args.stdout,
+        stderr=args.stderr,
+        log=args.log_file,
+    )
+
+    # Setup Celery worker
     worker_instance = worker_bin.worker(app=celery_app)
     options = {
         'optimization': 'fair',
@@ -115,23 +126,19 @@ def worker(args):
         'autoscale': autoscale,
         'hostname': args.celery_hostname,
         'loglevel': conf.get('logging', 'LOGGING_LEVEL'),
+        'pidfile': pid_file_path,
     }
 
     if conf.has_option("celery", "pool"):
         options["pool"] = conf.get("celery", "pool")
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("worker",
-                                                        args.pid,
-                                                        args.stdout,
-                                                        args.stderr,
-                                                        args.log_file)
+        # Run Celery worker as daemon
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
         ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
             files_preserve=[handle],
             stdout=stdout,
             stderr=stderr,
@@ -143,11 +150,25 @@ def worker(args):
         stdout.close()
         stderr.close()
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
+        # Run Celery worker in the same process
         sub_proc = _serve_logs(skip_serve_logs)
         worker_instance.run(**options)
 
     if sub_proc:
         sub_proc.terminate()
+
+
+@cli_utils.action_logging
+def stop_worker(args):  # pylint: disable=unused-argument
+    """Sends SIGTERM to Celery worker"""
+    # Read PID from file
+    pid_file_path, _, _, _ = setup_locations(process=WORKER_PROCESS_NAME)
+    pid = read_pid_from_pidfile(pid_file_path)
+
+    # Send SIGTERM
+    if pid:
+        worker_process = psutil.Process(pid)
+        worker_process.terminate()
+
+    # Remove pid file
+    remove_existing_pidfile(pid_file_path)

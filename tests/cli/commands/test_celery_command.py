@@ -18,6 +18,7 @@
 import importlib
 import unittest
 from argparse import Namespace
+from tempfile import NamedTemporaryFile
 
 import mock
 import pytest
@@ -93,3 +94,56 @@ class TestWorkerServeLogs(unittest.TestCase):
                 mock_privil.return_value = 0
                 celery_command.worker(args)
                 mock_popen.assert_not_called()
+
+
+class TestCeleryStopCommand(unittest.TestCase):
+    @classmethod
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
+    def setUpClass(cls):
+        importlib.reload(cli)
+        cls.parser = cli.CLIFactory.get_parser()
+
+    @mock.patch("airflow.cli.commands.celery_command.setup_locations")
+    @mock.patch("airflow.cli.commands.celery_command.psutil.Process")
+    def test_if_right_pid_is_read(self, mock_process, mock_setup_locations):
+        args = self.parser.parse_args(['celery', 'stop'])
+        pid = "123"
+
+        # Calling stop_worker should delete the temporary pid file
+        with self.assertRaises(FileNotFoundError):
+            with NamedTemporaryFile("w+") as f:
+                # Create pid file
+                f.write(pid)
+                f.flush()
+                # Setup mock
+                mock_setup_locations.return_value = (f.name, None, None, None)
+                # Check if works as expected
+                celery_command.stop_worker(args)
+                mock_process.assert_called_once_with(int(pid))
+                mock_process.return_value.terminate.assert_called_once_with()
+
+    @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
+    @mock.patch("airflow.cli.commands.celery_command.worker_bin.worker")
+    @mock.patch("airflow.cli.commands.celery_command.setup_locations")
+    def test_same_pid_file_is_used_in_start_and_stop(
+        self,
+        mock_setup_locations,
+        mock_celery_worker,
+        mock_read_pid_from_pidfile
+    ):
+        pid_file = "test_pid_file"
+        mock_setup_locations.return_value = (pid_file, None, None, None)
+        mock_read_pid_from_pidfile.return_value = None
+
+        # Call worker
+        worker_args = self.parser.parse_args(['celery', 'worker', '-s'])
+        celery_command.worker(worker_args)
+        run_mock = mock_celery_worker.return_value.run
+        assert run_mock.call_args
+        assert 'pidfile' in run_mock.call_args.kwargs
+        assert run_mock.call_args.kwargs['pidfile'] == pid_file
+
+        # Call stop
+        stop_args = self.parser.parse_args(['celery', 'stop'])
+        celery_command.stop_worker(stop_args)
+        mock_read_pid_from_pidfile.assert_called_once_with(pid_file)
