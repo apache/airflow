@@ -16,65 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.emr`."""
 
-from airflow.contrib.hooks.aws_hook import AwsHook
-from airflow.exceptions import AirflowException
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.hooks.emr import EmrHook  # noqa
 
-class EmrHook(AwsHook):
-    """
-    Interact with AWS EMR. emr_conn_id is only necessary for using the
-    create_job_flow method.
-    """
-
-    def __init__(self, emr_conn_id=None, region_name=None, *args, **kwargs):
-        self.emr_conn_id = emr_conn_id
-        self.region_name = region_name
-        self.conn = None
-        super().__init__(*args, **kwargs)
-
-    def get_conn(self):
-        if not self.conn:
-            self.conn = self.get_client_type('emr', self.region_name)
-        return self.conn
-
-    def get_cluster_id_by_name(self, emr_cluster_name, cluster_states):
-        conn = self.get_conn()
-
-        response = conn.list_clusters(
-            ClusterStates=cluster_states
-        )
-
-        matching_clusters = list(
-            filter(lambda cluster: cluster['Name'] == emr_cluster_name, response['Clusters'])
-        )
-
-        if len(matching_clusters) == 1:
-            cluster_id = matching_clusters[0]['Id']
-            self.log.info('Found cluster name = %s id = %s', emr_cluster_name, cluster_id)
-            return cluster_id
-        elif len(matching_clusters) > 1:
-            raise AirflowException('More than one cluster found for name %s', emr_cluster_name)
-        else:
-            self.log.info('No cluster found for name %s', emr_cluster_name)
-            return None
-
-    def create_job_flow(self, job_flow_overrides):
-        """
-        Creates a job flow using the config from the EMR connection.
-        Keys of the json extra hash may have the arguments of the boto3
-        run_job_flow method.
-        Overrides for this config may be passed as the job_flow_overrides.
-        """
-
-        if not self.emr_conn_id:
-            raise AirflowException('emr_conn_id must be present to use create_job_flow')
-
-        emr_conn = self.get_connection(self.emr_conn_id)
-
-        config = emr_conn.extra_dejson.copy()
-        config.update(job_flow_overrides)
-
-        response = self.get_conn().run_job_flow(**config)
-
-        return response
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.emr`.",
+    DeprecationWarning, stacklevel=2
+)

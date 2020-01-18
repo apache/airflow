@@ -221,29 +221,29 @@ These integrations allow you to perform various operations within the Microsoft 
      - Sensors
 
    * - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
-     - :mod:`airflow.contrib.hooks.wasb_hook`
-     - :mod:`airflow.contrib.operators.wasb_delete_blob_operator`
-     - :mod:`airflow.contrib.sensors.wasb_sensor`
+     - :mod:`airflow.providers.microsoft.azure.hooks.wasb`
+     - :mod:`airflow.providers.microsoft.azure.operators.wasb_delete_blob`
+     - :mod:`airflow.providers.microsoft.azure.sensors.wasb`
 
    * - `Azure Container Instances <https://azure.microsoft.com/en-us/services/container-instances/>`__
-     - :mod:`airflow.contrib.hooks.azure_container_instance_hook`,
-       :mod:`airflow.contrib.hooks.azure_container_registry_hook`,
-       :mod:`airflow.contrib.hooks.azure_container_volume_hook`
-     - :mod:`airflow.contrib.operators.azure_container_instances_operator`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_container_instance`,
+       :mod:`airflow.providers.microsoft.azure.hooks.azure_container_registry`,
+       :mod:`airflow.providers.microsoft.azure.hooks.azure_container_volume`
+     - :mod:`airflow.providers.microsoft.azure.operators.azure_container_instances`
      -
 
    * - `Azure Cosmos DB <https://azure.microsoft.com/en-us/services/cosmos-db/>`__
-     - :mod:`airflow.contrib.hooks.azure_cosmos_hook`
-     - :mod:`airflow.contrib.operators.azure_cosmos_operator`
-     - :mod:`airflow.contrib.sensors.azure_cosmos_sensor`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_cosmos`
+     - :mod:`airflow.providers.microsoft.azure.operators.azure_cosmos`
+     - :mod:`airflow.providers.microsoft.azure.sensors.azure_cosmos`
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
-     - :mod:`airflow.contrib.hooks.azure_data_lake_hook`
-     - :mod:`airflow.contrib.operators.adls_list_operator`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_data_lake`
+     - :mod:`airflow.providers.microsoft.azure.operators.adls_list`
      -
 
    * - `Azure Files <https://azure.microsoft.com/en-us/services/storage/files/>`__
-     - :mod:`airflow.contrib.hooks.azure_fileshare_hook`
+     - :mod:`airflow.providers.microsoft.azure.hooks.azure_fileshare`
      -
      -
 
@@ -315,9 +315,9 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `AWS Glue Catalog <https://aws.amazon.com/glue/>`__
      -
-     - :mod:`airflow.contrib.hooks.aws_glue_catalog_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.glue_catalog`
      -
-     - :mod:`airflow.contrib.sensors.aws_glue_catalog_partition_sensor`
+     - :mod:`airflow.providers.amazon.aws.sensors.glue_catalog_partition`
 
    * - `AWS Lambda <https://aws.amazon.com/lambda/>`__
      -
@@ -333,7 +333,7 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon CloudWatch Logs <https://aws.amazon.com/cloudwatch/>`__
      -
-     - :mod:`airflow.contrib.hooks.aws_logs_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.logs`
      -
      -
 
@@ -346,18 +346,18 @@ These integrations allow you to perform various operations within the Amazon Web
    * - `Amazon EC2 <https://aws.amazon.com/ec2/>`__
      -
      -
-     - :mod:`airflow.contrib.operators.ecs_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.ecs`
      -
 
    * - `Amazon EMR <https://aws.amazon.com/emr/>`__
      -
-     - :mod:`airflow.contrib.hooks.emr_hook`
-     - :mod:`airflow.contrib.operators.emr_add_steps_operator`,
-       :mod:`airflow.contrib.operators.emr_create_job_flow_operator`,
-       :mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`
-     - :mod:`airflow.contrib.sensors.emr_base_sensor`,
-       :mod:`airflow.contrib.sensors.emr_job_flow_sensor`,
-       :mod:`airflow.contrib.sensors.emr_step_sensor`
+     - :mod:`airflow.providers.amazon.aws.hooks.emr`
+     - :mod:`airflow.providers.amazon.aws.operators.emr_add_steps`,
+       :mod:`airflow.providers.amazon.aws.operators.emr_create_job_flow`,
+       :mod:`airflow.providers.amazon.aws.operators.emr_terminate_job_flow`
+     - :mod:`airflow.providers.amazon.aws.sensors.emr_base`,
+       :mod:`airflow.providers.amazon.aws.sensors.emr_job_flow`,
+       :mod:`airflow.providers.amazon.aws.sensors.emr_step`
 
    * - `Amazon Kinesis Data Firehose <https://aws.amazon.com/kinesis/data-firehose/>`__
      -
@@ -373,19 +373,19 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon SageMaker <https://aws.amazon.com/sagemaker/>`__
      -
-     - :mod:`airflow.contrib.hooks.sagemaker_hook`
-     - :mod:`airflow.contrib.operators.sagemaker_base_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_endpoint_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_model_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_training_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_transform_operator`,
-       :mod:`airflow.contrib.operators.sagemaker_tuning_operator`
-     - :mod:`airflow.contrib.sensors.sagemaker_base_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_endpoint_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_training_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_transform_sensor`,
-       :mod:`airflow.contrib.sensors.sagemaker_tuning_sensor`
+     - :mod:`airflow.providers.amazon.aws.hooks.sagemaker`
+     - :mod:`airflow.providers.amazon.aws.operators.sagemaker_base`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint_config`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_endpoint`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_model`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_training`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_transform`,
+       :mod:`airflow.providers.amazon.aws.operators.sagemaker_tuning`
+     - :mod:`airflow.providers.amazon.aws.sensors.sagemaker_base`,
+       :mod:`airflow.providers.amazon.aws.sensors.sagemaker_endpoint`,
+       :mod:`airflow.providers.amazon.aws.sensors.sagemaker_training`,
+       :mod:`airflow.providers.amazon.aws.sensors.sagemaker_transform`,
+       :mod:`airflow.providers.amazon.aws.sensors.sagemaker_tuning`
 
    * - `Amazon Simple Notification Service (SNS) <https://aws.amazon.com/sns/>`__
      -
@@ -402,12 +402,12 @@ These integrations allow you to perform various operations within the Amazon Web
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
      - :mod:`airflow.providers.amazon.aws.hooks.s3`
-     - :mod:`airflow.operators.s3_file_transform_operator`,
-       :mod:`airflow.contrib.operators.s3_copy_object_operator`,
-       :mod:`airflow.contrib.operators.s3_delete_objects_operator`,
-       :mod:`airflow.contrib.operators.s3_list_operator`
-     - :mod:`airflow.sensors.s3_key_sensor`,
-       :mod:`airflow.sensors.s3_prefix_sensor`
+     - :mod:`airflow.providers.amazon.aws.operators.s3_file_transform`,
+       :mod:`airflow.providers.amazon.aws.operators.s3_copy_object`,
+       :mod:`airflow.providers.amazon.aws.operators.s3_delete_objects`,
+       :mod:`airflow.providers.amazon.aws.operators.s3_list`
+     - :mod:`airflow.providers.amazon.aws.sensors.s3_key`,
+       :mod:`airflow.providers.amazon.aws.sensors.s3_prefix`
 
 Transfer operators and hooks
 ''''''''''''''''''''''''''''

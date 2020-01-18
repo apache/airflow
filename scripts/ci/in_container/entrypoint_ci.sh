@@ -223,6 +223,8 @@ set -u
 
 KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
+"${MY_DIR}/check_environment.sh"
+
 if [[ "${TRAVIS}" == "true" ]]; then
     CI_ARGS=(
         "--verbosity=0"

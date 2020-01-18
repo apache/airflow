@@ -53,7 +53,12 @@ INSPECT_CONFIG = InspectConfig(
 INSPECT_TEMPLATE = InspectTemplate(inspect_config=INSPECT_CONFIG)
 
 
-with DAG("example_gcp_dlp", default_args=default_args, schedule_interval=None) as dag:
+with DAG(
+    "example_gcp_dlp",
+    default_args=default_args,
+    schedule_interval=None,
+    tags=['example'],
+) as dag:
     create_template = CloudDLPCreateInspectTemplateOperator(
         project_id=GCP_PROJECT,
         inspect_template=INSPECT_TEMPLATE,

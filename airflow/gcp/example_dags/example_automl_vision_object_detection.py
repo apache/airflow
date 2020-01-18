@@ -64,6 +64,7 @@ with models.DAG(
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
     user_defined_macros={"extract_object_id": extract_object_id},
+    tags=['example'],
 ) as example_dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION

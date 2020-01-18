@@ -37,7 +37,8 @@ with DAG(
     dag_id='example_papermill_operator',
     default_args=default_args,
     schedule_interval='0 0 * * *',
-    dagrun_timeout=timedelta(minutes=60)
+    dagrun_timeout=timedelta(minutes=60),
+    tags=['example'],
 ) as dag:
     # [START howto_operator_papermill]
     run_this = PapermillOperator(

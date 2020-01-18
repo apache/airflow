@@ -41,6 +41,7 @@ with models.DAG(
     "example_gcp_gke",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
     create_cluster = GKECreateClusterOperator(
         task_id="create_cluster",

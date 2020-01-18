@@ -43,7 +43,7 @@ from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, SCHEDULED_DEPS, DepContext
+from airflow.ti_deps.dep_context import SCHEDULED_DEPS, DepContext
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
@@ -648,28 +648,10 @@ class DagFileProcessor(LoggingMixin):
             run.dag = dag
             # todo: preferably the integrity check happens at dag collection time
             run.verify_integrity(session=session)
-            run.update_state(session=session)
+            ready_tis = run.update_state(session=session)
             if run.state == State.RUNNING:
-                make_transient(run)
-                active_dag_runs.append(run)
-
-        for run in active_dag_runs:
-            self.log.debug("Examining active DAG run: %s", run)
-            tis = run.get_task_instances(state=SCHEDULEABLE_STATES)
-
-            # this loop is quite slow as it uses are_dependencies_met for
-            # every task (in ti.is_runnable). This is also called in
-            # update_state above which has already checked these tasks
-            for ti in tis:
-                task = dag.get_task(ti.task_id)
-
-                # fixme: ti.task is transient but needs to be set
-                ti.task = task
-
-                if ti.are_dependencies_met(
-                    dep_context=DepContext(flag_upstream_failed=True),
-                    session=session
-                ):
+                self.log.debug("Examining active DAG run: %s", run)
+                for ti in ready_tis:
                     self.log.debug('Queuing task: %s', ti)
                     task_instances_list.append(ti.key)
 

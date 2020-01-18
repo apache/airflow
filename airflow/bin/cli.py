@@ -837,6 +837,12 @@ class CLIFactory:
             'help': "Runs a shell to access the database",
             'args': tuple(),
         },
+        {
+            'func': lazy_load_command('airflow.cli.commands.db_command.check'),
+            'name': 'check',
+            'help': "Check if the database can be reached.",
+            'args': tuple(),
+        },
     )
     CONNECTIONS_COMMANDS = (
         {

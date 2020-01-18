@@ -84,6 +84,7 @@ with models.DAG(
         "target": TARGET,
         "extract_object_id": extract_object_id,
     },
+    tags=['example'],
 ) as create_deploy_dag:
     # [START howto_operator_automl_create_dataset]
     create_dataset_task = AutoMLCreateDatasetOperator(

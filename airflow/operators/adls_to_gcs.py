@@ -25,9 +25,9 @@ import warnings
 from tempfile import NamedTemporaryFile
 from typing import Optional
 
-from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
-from airflow.contrib.operators.adls_list_operator import AzureDataLakeStorageListOperator
 from airflow.gcp.hooks.gcs import GCSHook, _parse_gcs_url
+from airflow.providers.microsoft.azure.hooks.azure_data_lake import AzureDataLakeHook
+from airflow.providers.microsoft.azure.operators.adls_list import AzureDataLakeStorageListOperator
 from airflow.utils.decorators import apply_defaults
 
 

@@ -166,7 +166,7 @@ azure = [
     'azure-storage-blob<12.0',
 ]
 cassandra = [
-    'cassandra-driver>=3.13.0',
+    'cassandra-driver>=3.13.0,<3.21.0',
 ]
 celery = [
     'celery~=4.3',
@@ -483,7 +483,7 @@ def do_setup():
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
             'termcolor==1.1.0',
-            'text-unidecode==1.2',
+            'text-unidecode==1.3',
             'thrift>=0.9.2',
             'typing;python_version<"3.6"',
             'typing-extensions>=3.7.4;python_version<"3.8"',

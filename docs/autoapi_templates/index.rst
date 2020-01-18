@@ -124,6 +124,10 @@ All operators are in the following packages:
 
   airflow/providers/google/marketing_platform/sensors/index
 
+  airflow/providers/microsoft/azure/sensors/index
+
+  airflow/providers/microsoft/azure/operators/index
+
   airflow/providers/sftp/operators/index
 
   airflow/providers/sftp/sensors/index
@@ -176,6 +180,8 @@ All hooks are in the following packages:
   airflow/providers/apache/spark/hooks/index
 
   airflow/providers/apache/sqoop/hooks/index
+
+  airflow/providers/microsoft/azure/hooks/index
 
   airflow/providers/sftp/hooks/index
 

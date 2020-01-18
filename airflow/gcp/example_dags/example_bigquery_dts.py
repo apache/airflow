@@ -75,6 +75,7 @@ with models.DAG(
     "example_gcp_bigquery_dts",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
     # [START howto_bigquery_create_data_transfer]
     gcp_bigquery_create_transfer = BigQueryCreateDataTransferOperator(

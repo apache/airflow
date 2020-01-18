@@ -121,6 +121,9 @@ def set_state(
             tis_altered += qry_sub_dag.with_for_update().all()
         for task_instance in tis_altered:
             task_instance.state = state
+            if state in State.finished():
+                task_instance.end_date = timezone.utcnow()
+                task_instance.set_duration()
     else:
         tis_altered = qry_dag.all()
         if sub_dag_run_ids:
