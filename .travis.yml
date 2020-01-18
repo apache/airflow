@@ -41,7 +41,7 @@ jobs:
     - name: "Build documentation"
       env: >-
         PYTHON_VERSION=3.6
-      stage: pre-test
+      stage: test
       script: ./scripts/ci/ci_docs.sh
     - name: "Tests [Postgres][3.6][Kubernetes][persistent]"
       env: >-
