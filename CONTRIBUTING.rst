@@ -23,6 +23,22 @@ Contributions
 Contributions are welcome and are greatly appreciated! Every little bit helps,
 and credit will always be given.
 
+Get Mentoring Support
+---------------------
+
+If you are new to the project, you might need some help in understanding how the dynamics
+of the community works and you might need to get some mentorship from other members of the
+community - mostly committers. Mentoring new members of the community is part of committers
+job so do not be afraid of asking committers to help you. You can do it
+via comments in your Pull Request, asking on a devlist or via Slack. For your convenience,
+we have a dedicated #newbie-questions Slack channel where you can ask any questions
+you want - it's a safe space where it is expected that people asking questions do not know
+a lot about Airflow (yet!).
+
+If you look for more structured mentoring experience, you can apply to Apache Software Foundation's
+`Official Mentoring Programme <http://community.apache.org/mentoringprogramme.html>`_. Feel free
+to follow it and apply to the programme and follow up with the community.
+
 Report Bugs
 -----------
 
