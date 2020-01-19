@@ -42,9 +42,11 @@ from sqlalchemy import Boolean, Column, Index, Integer, String, Text, func, or_
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowException, AirflowDagCycleException, DagNotFound
 from airflow.executors import LocalExecutor, get_default_executor
 from airflow.models.base import Base, ID_LEN
+from airflow.exceptions import (
+    AirflowDagCycleException, AirflowException, DagNotFound, TaskNotFound,
+)
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
@@ -1208,7 +1210,7 @@ class DAG(BaseDag, LoggingMixin):
     def get_task(self, task_id):
         if task_id in self.task_dict:
             return self.task_dict[task_id]
-        raise AirflowException("Task {task_id} not found".format(task_id=task_id))
+        raise TaskNotFound("Task {task_id} not found".format(task_id=task_id))
 
     def pickle_info(self):
         d = dict()

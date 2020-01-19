@@ -41,7 +41,7 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow.configuration import conf
 from airflow import executors, models, settings
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagRun, SlaMiss, errors
 from airflow.settings import Stats
@@ -551,7 +551,7 @@ class SchedulerJob(BaseJob):
             for sla in slas:
                 try:
                     task = dag.get_task(sla.task_id)
-                except AirflowException:
+                except TaskNotFound:
                     # task already deleted from DAG, skip it
                     self.log.warning(
                         "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.",
