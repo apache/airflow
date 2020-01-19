@@ -306,6 +306,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
                   'r') as log_file:
             msg = json.loads(log_file.read())
             self.assertEqual(self.end_of_log_mark, msg['message'])
+
             # create log_id based on log_id_template
             msg['log_id'] = self.log_id_template.format(
                 dag_id=msg['dag_id'],
@@ -314,6 +315,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
                 try_number=msg['try_number'])
             msg['message'] = msg['message'].strip()
             msg['offset'] = 100
+
             self.es.index(index=self.index_name2, doc_type=self.doc_type,
                           body=msg, id=2)
         self.assertTrue(es_task_handler.closed)
