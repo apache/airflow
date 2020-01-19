@@ -32,6 +32,9 @@ class TestExecuteInSubProcess(unittest.TestCase):
             process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
 
         msgs = [record.getMessage() for record in logs.records]
+        print(logs)
+        print(logs.output)
+        print(logs.records)
         self.assertEqual([
             "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
             'Output:',
