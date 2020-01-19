@@ -39,7 +39,7 @@ jobs:
         PYTHON_VERSION=3.5
         AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
     - name: "Build documentation"
-      stage: pre-test
+      stage: test
       script: ./scripts/ci/ci_docs.sh
       env: >-
         PYTHON_VERSION=3.5
