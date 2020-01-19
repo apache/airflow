@@ -22,8 +22,8 @@ MsSQL to GCS operator.
 
 import decimal
 
-from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.operators.sql_to_gcs import BaseSQLToGCSOperator
+from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.utils.decorators import apply_defaults
 
 

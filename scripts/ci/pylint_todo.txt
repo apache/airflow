@@ -103,7 +103,7 @@
 ./airflow/providers/apache/hive/hooks/hive.py
 ./airflow/hooks/http_hook.py
 ./airflow/hooks/jdbc_hook.py
-./airflow/hooks/mssql_hook.py
+./airflow/providers/microsoft/mssql/hooks/mssql.py
 ./airflow/hooks/mysql_hook.py
 ./airflow/hooks/oracle_hook.py
 ./airflow/providers/apache/pig/hooks/pig.py

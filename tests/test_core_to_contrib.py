@@ -274,6 +274,10 @@ HOOK = [
         'airflow.providers.docker.hooks.docker.DockerHook',
         'airflow.hooks.docker_hook.DockerHook',
     ),
+    (
+        'airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook',
+        'airflow.hooks.mssql_hook.MsSqlHook',
+    ),
 ]
 
 OPERATOR = [

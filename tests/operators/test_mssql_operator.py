@@ -20,9 +20,9 @@
 import mock
 from parameterized import parameterized
 
-from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import Connection
 from airflow.operators.mssql_operator import MsSqlOperator
+from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.providers.odbc.hooks.odbc import OdbcHook
 
 ODBC_CONN = Connection(conn_id='test-odbc', conn_type='odbc', )

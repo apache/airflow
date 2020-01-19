@@ -1059,7 +1059,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      -
-     - :mod:`airflow.hooks.mssql_hook`,
+     - :mod:`airflow.providers.microsoft.mssql.hooks.mssql`,
        :mod:`airflow.providers.odbc.hooks.odbc`
      - :mod:`airflow.operators.mssql_operator`
      -

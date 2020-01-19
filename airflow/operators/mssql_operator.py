@@ -19,8 +19,8 @@
 from typing import Iterable, Mapping, Optional, Union
 
 from airflow import AirflowException
-from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import BaseOperator
+from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.providers.odbc.hooks.odbc import OdbcHook
 from airflow.utils.decorators import apply_defaults
 
@@ -32,7 +32,7 @@ class MsSqlOperator(BaseOperator):
     This operator may use one of two hooks, depending on the ``conn_type`` of the connection.
 
     If conn_type is ``'odbc'``, then :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`
-    is used.  Otherwise, :py:class:`~airflow.hooks.mssql_hook.MsSqlHook` is used.
+    is used.  Otherwise, :py:class:`~airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook` is used.
 
     :param sql: the sql code to be executed
     :type sql: str or string pointing to a template file with .sql
@@ -75,7 +75,7 @@ class MsSqlOperator(BaseOperator):
 
         If conn_type is ``'odbc'``, will use
         :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`.
-        Otherwise, :py:class:`~airflow.hooks.mssql_hook.MsSqlHook` will be used.
+        Otherwise, :py:class:`~airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook` will be used.
         """
         if not self._hook:
             conn = MsSqlHook.get_connection(conn_id=self.mssql_conn_id)
