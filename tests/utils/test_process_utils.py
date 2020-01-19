@@ -32,7 +32,7 @@ class TestExecuteInSubProcess(unittest.TestCase):
 
         msgs = [record.getMessage() for record in logs.records]
         self.assertEqual([
-            "Executing cmd: ['bash', '-c', 'echo CAT; echo KITTY;']",
+            "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
             'Output:',
             'CAT',
             'KITTY'

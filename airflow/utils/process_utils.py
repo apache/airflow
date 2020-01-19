@@ -20,6 +20,7 @@
 """
 Utilities for running process with writing output to logger
 """
+import shlex
 import subprocess
 from typing import List
 
@@ -35,7 +36,7 @@ def execute_in_subprocess(cmd: List[str]):
     :param cmd: command and arguments to run
     :type cmd: List[str]
     """
-    log.info("Executing cmd: %s", cmd)
+    log.info("Executing cmd: %s", " ".join([shlex.quote(c) for c in cmd]))
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
