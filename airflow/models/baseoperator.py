@@ -172,6 +172,9 @@ class BaseOperator(LoggingMixin):
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
     :type pool: str
+    :param pool_slots: the number of pool slots this task should use (>= 1)
+        Values less than 1 are not allowed.
+    :type pool_slots: int
     :param sla: time by which the job is expected to succeed. Note that
         this represents the ``timedelta`` after the period is closed. For
         example if you set an SLA of 1 hour, the scheduler would send an email
@@ -306,6 +309,7 @@ class BaseOperator(LoggingMixin):
         weight_rule=WeightRule.DOWNSTREAM,  # type: str
         queue=conf.get('celery', 'default_queue'),  # type: str
         pool=Pool.DEFAULT_POOL_NAME,  # type: str
+        pool_slots=1,  # type: int
         sla=None,  # type: Optional[timedelta]
         execution_timeout=None,  # type: Optional[timedelta]
         on_failure_callback=None,  # type: Optional[Callable]
@@ -375,6 +379,10 @@ class BaseOperator(LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
+        self.pool_slots = pool_slots
+        if self.pool_slots < 1:
+            raise AirflowException("pool slots for %s in dag %s cannot be less than 1"
+                                   % (self.task_id, self.dag_id))
         self.sla = sla
         self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
