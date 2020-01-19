@@ -392,7 +392,6 @@ devel = [
     'pysftp',
     'pytest',
     'pytest-cov',
-    'pytest-forked',
     'pytest-instafail',
     'pywinrm',
     'qds-sdk>=1.9.6',

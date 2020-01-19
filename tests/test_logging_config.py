@@ -24,7 +24,6 @@ import sys
 import tempfile
 import unittest
 
-import pytest
 from mock import patch
 
 from airflow.configuration import conf
@@ -169,9 +168,8 @@ class TestLoggingSettings(unittest.TestCase):
         importlib.reload(airflow_local_settings)
         configure_logging()
 
-    @pytest.mark.forked
+    # When we try to load an invalid config file, we expect an error
     def test_loading_invalid_local_settings(self):
-        """When we try to load an invalid config file, we expect an error"""
         from airflow.logging_config import configure_logging, log
         with settings_context(SETTINGS_FILE_INVALID):
             with patch.object(log, 'warning') as mock_info:
@@ -183,9 +181,8 @@ class TestLoggingSettings(unittest.TestCase):
                     'Unable to load the config, contains a configuration error.'
                 )
 
-    @pytest.mark.forked
     def test_loading_valid_complex_local_settings(self):
-        """Test what happens when the config is somewhere in a subfolder"""
+        # Test what happens when the config is somewhere in a subfolder
         module_structure = 'etc.airflow.config'
         dir_structure = module_structure.replace('.', '/')
         with settings_context(SETTINGS_FILE_VALID, dir_structure):
@@ -199,9 +196,8 @@ class TestLoggingSettings(unittest.TestCase):
                     )
                 )
 
-    @pytest.mark.forked
+    # When we try to load a valid config
     def test_loading_valid_local_settings(self):
-        """When we try to load a valid config"""
         with settings_context(SETTINGS_FILE_VALID):
             from airflow.logging_config import configure_logging, log
             with patch.object(log, 'info') as mock_info:
@@ -213,17 +209,15 @@ class TestLoggingSettings(unittest.TestCase):
                     )
                 )
 
-    @pytest.mark.forked
+    # When we load an empty file, it should go to default
     def test_loading_no_local_settings(self):
-        """# When we load an empty file, it should go to default"""
         with settings_context(SETTINGS_FILE_EMPTY):
             from airflow.logging_config import configure_logging
             with self.assertRaises(ImportError):
                 configure_logging()
 
-    @pytest.mark.forked
+    # When the key is not available in the configuration
     def test_when_the_config_key_does_not_exists(self):
-        """When the key is not available in the configuration"""
         from airflow import logging_config
         with conf_vars({('logging', 'logging_config_class'): None}):
             with patch.object(logging_config.log, 'debug') as mock_debug:
@@ -232,9 +226,8 @@ class TestLoggingSettings(unittest.TestCase):
                     'Could not find key logging_config_class in config'
                 )
 
-    @pytest.mark.forked
+    # Just default
     def test_loading_local_settings_without_logging_config(self):
-        """Just default"""
         from airflow.logging_config import configure_logging, log
         with patch.object(log, 'debug') as mock_info:
             configure_logging()
@@ -242,7 +235,6 @@ class TestLoggingSettings(unittest.TestCase):
                 'Unable to load custom logging, using default config instead'
             )
 
-    @pytest.mark.forked
     def test_1_9_config(self):
         from airflow.logging_config import configure_logging
         with conf_vars({('logging', 'task_log_reader'): 'file.task'}):
@@ -250,7 +242,6 @@ class TestLoggingSettings(unittest.TestCase):
                 configure_logging()
             self.assertEqual(conf.get('logging', 'task_log_reader'), 'task')
 
-    @pytest.mark.forked
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
         import logging
