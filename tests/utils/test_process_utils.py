@@ -26,7 +26,37 @@ from airflow.utils import process_utils
 
 class TestExecuteInSubProcess(unittest.TestCase):
 
-    def test_should_print_all_messages(self):
+    def test_should_print_all_messages1(self):
+        with self.assertLogs() as logs:
+            process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
+
+        msgs = [record.getMessage() for record in logs.records]
+        print(logs)
+        print(logs.output)
+        print(logs.records)
+        self.assertEqual([
+            "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
+            'Output:',
+            'CAT',
+            'KITTY'
+        ], msgs)
+
+    def test_should_print_all_messages2(self):
+        with self.assertLogs() as logs:
+            process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
+
+            msgs = [record.getMessage() for record in logs.records]
+            print(logs)
+            print(logs.output)
+            print(logs.records)
+            self.assertEqual([
+                "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
+                'Output:',
+                'CAT',
+                'KITTY'
+            ], msgs)
+
+    def test_should_print_all_messages3(self):
         with self.assertLogs() as logs:
             importlib.reload(process_utils)
             process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
@@ -41,6 +71,84 @@ class TestExecuteInSubProcess(unittest.TestCase):
             'CAT',
             'KITTY'
         ], msgs)
+
+    def test_should_print_all_message4(self):
+        with self.assertLogs() as logs:
+            importlib.reload(process_utils)
+            process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
+
+            msgs = [record.getMessage() for record in logs.records]
+            print(logs)
+            print(logs.output)
+            print(logs.records)
+            self.assertEqual([
+                "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
+                'Output:',
+                'CAT',
+                'KITTY'
+            ], msgs)
+
+    def test_should_print_all_messages1a(self):
+        with self.assertLogs("airflow.utils.log.logging_mixin.LoggingMixin") as logs:
+            process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
+
+        msgs = [record.getMessage() for record in logs.records]
+        print(logs)
+        print(logs.output)
+        print(logs.records)
+        self.assertEqual([
+            "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
+            'Output:',
+            'CAT',
+            'KITTY'
+        ], msgs)
+
+    def test_should_print_all_messages2a(self):
+        with self.assertLogs("airflow.utils.log.logging_mixin.LoggingMixin") as logs:
+            process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
+
+            msgs = [record.getMessage() for record in logs.records]
+            print(logs)
+            print(logs.output)
+            print(logs.records)
+            self.assertEqual([
+                "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
+                'Output:',
+                'CAT',
+                'KITTY'
+            ], msgs)
+
+    def test_should_print_all_messages3a(self):
+        with self.assertLogs("airflow.utils.log.logging_mixin.LoggingMixin") as logs:
+            importlib.reload(process_utils)
+            process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
+
+        msgs = [record.getMessage() for record in logs.records]
+        print(logs)
+        print(logs.output)
+        print(logs.records)
+        self.assertEqual([
+            "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
+            'Output:',
+            'CAT',
+            'KITTY'
+        ], msgs)
+
+    def test_should_print_all_message4a(self):
+        with self.assertLogs("airflow.utils.log.logging_mixin.LoggingMixin") as logs:
+            importlib.reload(process_utils)
+            process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
+
+            msgs = [record.getMessage() for record in logs.records]
+            print(logs)
+            print(logs.output)
+            print(logs.records)
+            self.assertEqual([
+                "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
+                'Output:',
+                'CAT',
+                'KITTY'
+            ], msgs)
 
     def test_should_raise_exception(self):
         with self.assertRaises(CalledProcessError):
