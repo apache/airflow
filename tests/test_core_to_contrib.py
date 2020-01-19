@@ -1048,6 +1048,10 @@ OPERATOR = [
         'airflow.providers.docker.operators.docker.DockerOperator',
         'airflow.operators.docker_operator.DockerOperator',
     ),
+    (
+        'airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator',
+        'airflow.operators.mssql_operator.MsSqlOperator',
+    ),
 ]
 
 SENSOR = [

@@ -1061,7 +1061,7 @@ These integrations allow you to perform various operations using various softwar
      -
      - :mod:`airflow.providers.microsoft.mssql.hooks.mssql`,
        :mod:`airflow.providers.odbc.hooks.odbc`
-     - :mod:`airflow.operators.mssql_operator`
+     - :mod:`airflow.providers.microsoft.mssql.operators.mssql`
      -
 
 
