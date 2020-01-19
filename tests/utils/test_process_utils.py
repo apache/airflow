@@ -17,18 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import importlib
 import unittest
 from subprocess import CalledProcessError
 
-from airflow.logging_config import configure_logging
-from airflow.utils.process_utils import execute_in_subprocess
+from airflow.utils import process_utils
 
 
 class TestExecuteInSubProcess(unittest.TestCase):
 
     def test_should_print_all_messages(self):
         with self.assertLogs() as logs:
-            execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
+            importlib.reload(process_utils)
+            process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
 
         msgs = [record.getMessage() for record in logs.records]
         self.assertEqual([
@@ -40,4 +41,4 @@ class TestExecuteInSubProcess(unittest.TestCase):
 
     def test_should_raise_exception(self):
         with self.assertRaises(CalledProcessError):
-            execute_in_subprocess(["bash", "-c", "exit 1"])
+            process_utils.execute_in_subprocess(["bash", "-c", "exit 1"])
