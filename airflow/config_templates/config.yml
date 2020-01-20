@@ -1297,7 +1297,7 @@
     - name: allow_trigger_in_future
       description: |
         Allow externally triggered DagRuns for Execution Dates in the future
-        Only has effect if schedule_interval not set in DAG
+        Only has effect if schedule_interval is set to None in DAG
       version_added: ~
       type: string
       example: ~
