@@ -20,6 +20,7 @@
 """This module contains Azure Data Explorer hook"""
 from typing import Dict, Optional
 
+from azure.kusto.data._response import KustoResponseDataSetV2
 from azure.kusto.data.exceptions import KustoServiceError
 from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 
@@ -125,7 +126,7 @@ class AzureDataExplorerHook(BaseHook):
     def run_query(self,
                   query: str,
                   database: str,
-                  options: Optional[Dict] = None) -> dict:
+                  options: Optional[Dict] = None) -> KustoResponseDataSetV2:
         """
         Run KQL query using provided configuration, and return
         `azure.kusto.data._response.KustoResponseDataSet` instance.
