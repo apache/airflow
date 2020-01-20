@@ -55,7 +55,7 @@ with models.DAG(
     start_java_job = DataflowCreateJavaJobOperator(
         task_id="start-java-job",
         jar=GCS_JAR,
-        job_name='{{task.task_id}}22222255sss{{ macros.uuid.uuid4() }}',
+        job_name='{{task.task_id}}-{{ macros.uuid.uuid4() }}',
         options={
             'output': GCS_OUTPUT,
         },
@@ -70,7 +70,7 @@ with models.DAG(
         task_id="start-python-job",
         py_file='apache_beam.examples.wordcount',
         py_options=['-m'],
-        job_name='{{task.task_id}}',
+        job_name='{{task.task_id}}-{{ macros.uuid.uuid4() }}',
         options={
             'output': GCS_OUTPUT,
         },
