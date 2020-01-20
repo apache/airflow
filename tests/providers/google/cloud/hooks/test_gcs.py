@@ -22,9 +22,9 @@ import os
 import tempfile
 import unittest
 from datetime import datetime
+from unittest import mock
 
 import dateutil
-import mock
 from google.cloud import exceptions, storage
 
 from airflow.exceptions import AirflowException
@@ -333,6 +333,26 @@ class TestGCSHook(unittest.TestCase):
 
         with self.assertRaises(exceptions.NotFound):
             self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_delete_bucket(self, mock_service):
+        test_bucket = "test bucket"
+
+        self.gcs_hook.delete_bucket(bucket_name=test_bucket)
+
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
+        mock_service.return_value.bucket.return_value.delete.assert_called_once()
+
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'), **{
+        'return_value.bucket.return_value.delete.side_effect': exceptions.NotFound(message="Not Found")
+    })
+    def test_delete_nonexisting_bucket(self, mock_service):
+        test_bucket = "test bucket"
+
+        self.gcs_hook.delete_bucket(bucket_name=test_bucket)
+
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
+        mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
     @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_object_get_size(self, mock_service):

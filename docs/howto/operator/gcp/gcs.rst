@@ -138,3 +138,30 @@ For further information, look at:
 
 * `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/storage/index.html>`__
 * `Product Documentation <https://cloud.google.com/storage/docs/>`__
+
+.. _howto/operator:GCSDeleteBucketOperator:
+
+Deleting Bucket
+^^^^^^^^^^^^^^^
+
+Deleting Bucket allows you to remove bucket object from the Google Cloud Storage.
+It is performed through the
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_delete_bucket]
+    :end-before: [END howto_operator_gcs_delete_bucket]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator`
+parameters which allows you to dynamically determine values.
+
+Reference
+^^^^^^^^^
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.dev/python/storage/latest/buckets.html>`__
+* `Product Documentation <https://cloud.google.com/storage/docs/json_api/v1/buckets>`__

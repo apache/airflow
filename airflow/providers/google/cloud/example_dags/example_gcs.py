@@ -24,8 +24,9 @@ import os
 from airflow import models
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import (
-    GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteObjectsOperator,
-    GcsFileTransformOperator, GCSListObjectsOperator, GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
+    GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,
+    GCSDeleteObjectsOperator, GcsFileTransformOperator, GCSListObjectsOperator,
+    GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
 )
 from airflow.providers.google.cloud.operators.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.operators.local_to_gcs import LocalFilesystemToGCSOperator
@@ -126,7 +127,32 @@ with models.DAG(
         task_id="delete_files", bucket_name=BUCKET_1, objects=[BUCKET_FILE_LOCATION]
     )
 
+    # [START howto_operator_gcs_delete_bucket]
+    delete_bucket_1 = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=BUCKET_1)
+    delete_bucket_2 = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=BUCKET_2)
+    # [END howto_operator_gcs_delete_bucket]
+
     [create_bucket1, create_bucket2] >> list_buckets >> list_buckets_result
     [create_bucket1, create_bucket2] >> upload_file
     upload_file >> [download_file, copy_file]
     upload_file >> gcs_bucket_create_acl_entry_task >> gcs_object_create_acl_entry_task >> delete_files
+
+    create_bucket1 >> delete_bucket_1
+    create_bucket2 >> delete_bucket_2
+    create_bucket2 >> copy_file
+    create_bucket1 >> copy_file
+    list_buckets >> delete_bucket_1
+    upload_file >> delete_bucket_1
+    create_bucket1 >> upload_file >> delete_bucket_1
+    transform_file >> delete_bucket_1
+    gcs_bucket_create_acl_entry_task >> delete_bucket_1
+    gcs_object_create_acl_entry_task >> delete_bucket_1
+    download_file >> delete_bucket_1
+    copy_file >> delete_bucket_1
+    copy_file >> delete_bucket_2
+    delete_files >> delete_bucket_1
+
+
+if __name__ == '__main__':
+    dag.clear(reset_dag_runs=True)
+    dag.run()

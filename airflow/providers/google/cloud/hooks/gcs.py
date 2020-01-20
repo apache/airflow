@@ -28,6 +28,7 @@ from os import path
 from typing import Optional, Set, Tuple, Union
 from urllib.parse import urlparse
 
+from google.api_core.exceptions import NotFound
 from google.cloud import storage
 
 from airflow.exceptions import AirflowException
@@ -321,6 +322,27 @@ class GCSHook(CloudBaseHook):
         blob.delete()
 
         self.log.info('Blob %s deleted.', object_name)
+
+    def delete_bucket(self, bucket_name: str, force: bool = False):
+        """
+        Delete a bucket object from the Google Cloud Storage.
+
+        :param bucket_name: name of the bucket which will be deleted
+        :type bucket_name: str
+        :param force: false not allow to delete non empty bucket, set force=True
+            allows to delete non empty bucket
+        :type: bool
+        """
+
+        client = self.get_conn()
+        bucket = client.bucket(bucket_name)
+
+        self.log.info("Deleting %s bucket", bucket_name)
+        try:
+            bucket.delete(force=force)
+            self.log.info("Bucket %s has been deleted", bucket_name)
+        except NotFound:
+            self.log.info("Bucket %s not exists", bucket_name)
 
     def list(self, bucket_name, versions=None, max_results=None, prefix=None, delimiter=None):
         """

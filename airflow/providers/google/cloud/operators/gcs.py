@@ -624,3 +624,37 @@ class GcsFileTransformOperator(BaseOperator):
                 object_name=self.destination_object,
                 filename=destination_file.name
             )
+
+
+class GCSDeleteBucketOperator(BaseOperator):
+    """
+    Deletes bucket from a Google Cloud Storage.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GCSDeleteBucketOperator`
+
+    :param bucket_name: name of the bucket which will be deleted
+    :type bucket_name: str
+    :param force: false not allow to delete non empty bucket, set force=True
+        allows to delete non empty bucket
+    :type: bool
+    """
+
+    template_fields = ('bucket_name', "gcp_conn_id")
+
+    @apply_defaults
+    def __init__(self,
+                 bucket_name: str,
+                 force: bool = True,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.bucket_name = bucket_name
+        self.force: bool = force
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context):
+        hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
+        hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
