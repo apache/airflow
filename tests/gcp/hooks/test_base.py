@@ -19,6 +19,7 @@
 #
 import json
 import os
+import re
 import unittest
 from io import StringIO
 
@@ -440,6 +441,19 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         result = self.instance._get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=self.instance.scopes)
         self.assertEqual(("CREDENTIALS", 'SECOND_PROJECT_ID'), result)
+
+    def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(
+        self,
+    ):
+        self.instance.extras = {
+            'extra__google_cloud_platform__project': "PROJECT_ID",
+            'extra__google_cloud_platform__key_path': "KEY_PATH",
+            'extra__google_cloud_platform__keyfile_dict': "KEYFILE_DICT",
+        }
+        with self.assertRaisesRegex(AirflowException, re.escape(
+            'The `keyfile_dict` and `key_path` fields are mutually exclusive.'
+        )):
+            self.instance._get_credentials_and_project_id()
 
     @unittest.skipIf(not default_creds_available, 'Default GCP credentials not available to run tests')
     def test_default_creds_with_scopes(self):

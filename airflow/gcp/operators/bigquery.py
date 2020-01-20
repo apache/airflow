@@ -424,7 +424,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
         'queryParameters' in Google BigQuery Jobs API:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs.
         For example, [{ 'name': 'corpus', 'parameterType': { 'type': 'STRING' },
-        'parameterValue': { 'value': 'romeoandjuliet' } }].
+        'parameterValue': { 'value': 'romeoandjuliet' } }]. (templated)
     :type query_params: list
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
@@ -453,7 +453,7 @@ class BigQueryExecuteQueryOperator(BaseOperator):
     :type encryption_configuration: dict
     """
 
-    template_fields = ('sql', 'destination_dataset_table', 'labels')
+    template_fields = ('sql', 'destination_dataset_table', 'labels', 'query_params')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 

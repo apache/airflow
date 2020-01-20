@@ -72,6 +72,18 @@ You can now use the derived custom operator as follows:
     with dag:
         hello_task = HelloOperator(task_id='sample-task', name='foo_bar')
 
+If an operator communicates with an external service (API, database, etc) it's a good idea
+to implement the communication layer using a :ref:`custom-operator/hook`. In this way the implemented logic
+can be reused by other users in different operators. Such approach provides better decoupling and
+utilization of added integration than using ``CustomServiceBaseOperator`` for each external service.
+
+Other consideration is the temporary state. If an operation requires an in-memory state (for example
+a job id that should be used in ``on_kill`` method to cancel a request) then the state should be keep
+in the operator not in a hook. In this way the service hook can be completely state-less and whole
+logic of an operation is in one place - in the operator.
+
+.. _custom-operator/hook:
+
 Hooks
 ^^^^^
 Hooks act as an interface to communicate with the external shared resources in a DAG.
@@ -111,8 +123,10 @@ When the operator invokes the query on the hook object, a new connection gets cr
 The hook retrieves the auth parameters such as username and password from Airflow
 backend and passes the params to the :py:func:`airflow.hooks.base_hook.BaseHook.get_connection`.
 You should create hook only in the ``execute`` method or any method which is called from ``execute``.
-The constructor gets called whenever Airflow parses a DAG which happens frequently.
+The constructor gets called whenever Airflow parses a DAG which happens frequently. And instantiating a hook
+there will result in many unnecessary database connections.
 The ``execute`` gets called only during a DAG run.
+
 
 User interface
 ^^^^^^^^^^^^^^^

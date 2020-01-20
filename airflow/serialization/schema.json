@@ -134,6 +134,7 @@
         "retries": { "type": "number" },
         "queue": { "type": "string" },
         "pool": { "type": "string" },
+        "pool_slots": { "type": "number" },
         "execution_timeout": { "$ref": "#/definitions/timedelta" },
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },

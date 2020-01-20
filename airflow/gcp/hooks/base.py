@@ -144,6 +144,11 @@ class CloudBaseHook(BaseHook):
         """
         key_path = self._get_field('key_path', None)  # type: Optional[str]
         keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
+        if key_path and keyfile_dict:
+            raise AirflowException(
+                "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
+                "Please provide only one value."
+            )
         if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `google.auth.default()` '
                           'since no key file is defined for hook.')

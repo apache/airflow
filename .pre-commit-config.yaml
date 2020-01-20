@@ -293,8 +293,8 @@ repos:
         files: \.py$
         pass_filenames: true
       - id: bat-tests
-        name: Run BATS bash tests
+        name: Run BATS bash tests for changed bash files
         language: system
         entry: "./scripts/ci/pre_commit_bat_tests.sh"
-        files: ^tests/bats/.*\.bats$
-        pass_filenames: true
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
+        pass_filenames: false

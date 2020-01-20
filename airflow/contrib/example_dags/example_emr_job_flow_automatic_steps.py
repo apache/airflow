@@ -22,8 +22,8 @@ This is an example dag for a AWS EMR Pipeline with auto steps.
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.contrib.operators.emr_create_job_flow_operator import EmrCreateJobFlowOperator
-from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor
+from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
+from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
 from airflow.utils.dates import days_ago
 
 DEFAULT_ARGS = {

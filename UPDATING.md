@@ -185,6 +185,13 @@ Some commands have been grouped to improve UX of CLI. New commands are available
 The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
 and there is no need for it to be accessible from the CLI interface.
 
+### dag_state CLI command
+
+If the DAGRun was triggered with conf key/values passed in, they will also be printed in the dag_state CLI response
+ie. running, {"name": "bob"}
+whereas in in prior releases it just printed the state:
+ie. running
+
 ### Remove gcp_service_account_keys option in airflow.cfg file
 
 This option has been removed because it is no longer supported by the Google Kubernetes Engine. The new

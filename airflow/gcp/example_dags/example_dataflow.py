@@ -74,6 +74,11 @@ with models.DAG(
         options={
             'output': GCS_OUTPUT,
         },
+        py_requirements=[
+            'apache-beam[gcp]>=2.14.0'
+        ],
+        py_interpreter='python3',
+        py_system_site_packages=False
     )
     # [END howto_operator_start_python_job]
 

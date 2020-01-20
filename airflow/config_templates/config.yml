@@ -990,7 +990,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "16"
+      default: "8"
     - name: worker_autoscale
       description: |
         The maximum and minimum concurrency that will be used when starting workers with the
@@ -1023,7 +1023,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "sqla+mysql://airflow:airflow@localhost:3306/airflow"
+      default: "redis://redis:6379/0"
     - name: result_backend
       description: |
         The Celery result_backend. When a job finishes, it needs to update the
@@ -1035,7 +1035,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "db+mysql://airflow:airflow@localhost:3306/airflow"
+      default: "db+postgresql://postgres:airflow@postgres/airflow"
     - name: flower_host
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start

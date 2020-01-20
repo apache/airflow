@@ -1261,6 +1261,7 @@ class TestBackfillJob(unittest.TestCase):
 
         session = settings.Session()
         session.merge(removed_task_ti)
+        session.commit()
 
         with timeout(seconds=30):
             job.run()

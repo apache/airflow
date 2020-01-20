@@ -154,6 +154,7 @@ class TaskInstance(Base, LoggingMixin):
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(50), nullable=False)
+    pool_slots = Column(Integer, default=1)
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
@@ -194,6 +195,7 @@ class TaskInstance(Base, LoggingMixin):
 
         self.queue = task.queue
         self.pool = task.pool
+        self.pool_slots = task.pool_slots
         self.priority_weight = task.priority_weight_total
         self.try_number = 0
         self.max_tries = self.task.retries
@@ -458,6 +460,7 @@ class TaskInstance(Base, LoggingMixin):
             self.unixname = ti.unixname
             self.job_id = ti.job_id
             self.pool = ti.pool
+            self.pool_slots = ti.pool_slots
             self.queue = ti.queue
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
@@ -770,6 +773,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         task = self.task
         self.pool = pool or task.pool
+        self.pool_slots = task.pool_slots
         self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
@@ -885,6 +889,7 @@ class TaskInstance(Base, LoggingMixin):
 
         task = self.task
         self.pool = pool or task.pool
+        self.pool_slots = task.pool_slots
         self.test_mode = test_mode
         self.refresh_from_db(session=session)
         self.job_id = job_id

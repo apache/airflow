@@ -39,6 +39,9 @@ mergeable:
           message: There are incomplete TODO task(s) unchecked.
         no_empty:
           enabled: true
+        must_include:
+          regex: ^(\w+)
+          message: Must include description for the PR
         or:
           - must_include:
               regex: (\[AIRFLOW-XXXX\])

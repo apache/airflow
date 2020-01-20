@@ -38,7 +38,9 @@ from sqlalchemy.orm import backref, relationship
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
+from airflow.exceptions import (
+    AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound, TaskNotFound,
+)
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -1211,7 +1213,7 @@ class DAG(BaseDag, LoggingMixin):
             for dag in self.subdags:
                 if task_id in dag.task_dict:
                     return dag.task_dict[task_id]
-        raise AirflowException("Task {task_id} not found".format(task_id=task_id))
+        raise TaskNotFound("Task {task_id} not found".format(task_id=task_id))
 
     def pickle_info(self):
         d = dict()

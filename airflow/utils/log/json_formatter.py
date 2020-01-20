@@ -24,20 +24,7 @@ json_formatter module stores all related to ElasticSearch specific logger classe
 import json
 import logging
 
-
-def merge_dicts(dict1, dict2):
-    """
-    Merge two dicts recursively, returning new dict (input dict is not mutated).
-
-    Lists are not concatenated. Items in dict2 overwrite those also found in dict1.
-    """
-    merged = dict1.copy()
-    for k, v in dict2.items():
-        if k in merged and isinstance(v, dict):
-            merged[k] = merge_dicts(merged.get(k, {}), v)
-        else:
-            merged[k] = v
-    return merged
+from airflow.utils.helpers import merge_dicts
 
 
 class JSONFormatter(logging.Formatter):
