@@ -16,9 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.emr_hook import EmrHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -31,7 +31,7 @@ class EmrModifyClusterOperator(BaseOperator):
     :type step_concurrency_level: int
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
-    :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
+    :param do_xcom_push: if True, cluster_id is pushed to XCom with key cluster_id.
     :type do_xcom_push: bool
     """
     template_fields = ['cluster_id', 'step_concurrency_level']
@@ -41,12 +41,14 @@ class EmrModifyClusterOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            cluster_id=None,
-            step_concurrency_level=None,
-            aws_conn_id='aws_default',
+            cluster_id: str,
+            step_concurrency_level: int,
+            aws_conn_id: str = 'aws_default',
             *args, **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
+        if cluster_id is None or step_concurrency_level is None:
+            raise AirflowException("'cluster_id' or 'step_concurrency_level' not passed")
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.cluster_id = cluster_id
@@ -64,7 +66,7 @@ class EmrModifyClusterOperator(BaseOperator):
         response = emr.modify_cluster(ClusterId=self.cluster_id,
                                       StepConcurrencyLevel=self.step_concurrency_level)
 
-        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException('Modify cluster failed: %s' % response)
         else:
             self.log.info('Steps concurrency level %d', response['StepConcurrencyLevel'])

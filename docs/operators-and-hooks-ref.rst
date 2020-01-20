@@ -354,7 +354,8 @@ These integrations allow you to perform various operations within the Amazon Web
      - :mod:`airflow.providers.amazon.aws.hooks.emr`
      - :mod:`airflow.providers.amazon.aws.operators.emr_add_steps`,
        :mod:`airflow.providers.amazon.aws.operators.emr_create_job_flow`,
-       :mod:`airflow.providers.amazon.aws.operators.emr_terminate_job_flow`
+       :mod:`airflow.providers.amazon.aws.operators.emr_terminate_job_flow`,
+       :mod:`airflow.providers.amazon.aws.operators.emr_modify_cluster`
      - :mod:`airflow.providers.amazon.aws.sensors.emr_base`,
        :mod:`airflow.providers.amazon.aws.sensors.emr_job_flow`,
        :mod:`airflow.providers.amazon.aws.sensors.emr_step`

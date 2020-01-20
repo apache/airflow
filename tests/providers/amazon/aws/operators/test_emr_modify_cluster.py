@@ -42,8 +42,6 @@ MODIFY_CLUSTER_ERROR_RETURN = {
 
 
 class TestEmrModifyClusterOperator(unittest.TestCase):
-    # When
-
     def setUp(self):
         self.args = {
             'owner': 'airflow',
