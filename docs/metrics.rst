@@ -49,6 +49,15 @@ the metrics that start with the elements of the list:
     [scheduler]
     statsd_allow_list = scheduler,executor,dagrun
 
+If you want to use a custom Statsd client outwith the default one provided by Airflow the following key must be added
+to the configuration file alongside the module path of your custom Statsd client. This module must be available on
+your PYTHONPATH.
+
+.. code-block:: ini
+
+    [scheduler]
+    statsd_custom_client_path = x.y.customclient
+
 Counters
 --------
 
