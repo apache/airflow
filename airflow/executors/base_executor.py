@@ -35,7 +35,6 @@ NOT_STARTED_MESSAGE = "The executor should be started first!"
 # It should be result of TaskInstance.generate_command method.q
 CommandType = List[str]
 
-
 # Task that is queued. It contains all the information that is
 # needed to run the task.
 #
@@ -51,6 +50,7 @@ class BaseExecutor(LoggingMixin):
     :param parallelism: how many jobs should run at one time. Set to
         ``0`` for infinity
     """
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
@@ -77,16 +77,16 @@ class BaseExecutor(LoggingMixin):
             self.log.info("could not queue task %s", simple_task_instance.key)
 
     def queue_task_instance(
-            self,
-            task_instance: TaskInstance,
-            mark_success: bool = False,
-            pickle_id: Optional[str] = None,
-            ignore_all_deps: bool = False,
-            ignore_depends_on_past: bool = False,
-            ignore_task_deps: bool = False,
-            ignore_ti_state: bool = False,
-            pool: Optional[str] = None,
-            cfg_path: Optional[str] = None) -> None:
+        self,
+        task_instance: TaskInstance,
+        mark_success: bool = False,
+        pickle_id: Optional[str] = None,
+        ignore_all_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_ti_state: bool = False,
+        pool: Optional[str] = None,
+        cfg_path: Optional[str] = None) -> None:
         """Queues task instance."""
         pool = pool or task_instance.pool
 
@@ -104,6 +104,24 @@ class BaseExecutor(LoggingMixin):
             pool=pool,
             pickle_id=pickle_id,
             cfg_path=cfg_path)
+
+        # if the task has 'executor_config' as template field, we should render it as we might have to render it
+        # so that the specific executor could start correctly (e.g kubernetes executor)
+        if 'executor_config' in task_instance.task.template_fields:
+            task = task_instance.task
+            context = task_instance.get_template_context()
+            env = task.get_template_env()
+
+            # to minimize the impact, we only render executor_config if applicable
+            rendered_content = task.render_template(content=getattr(task, 'executor_config'),
+                                                    context=context,
+                                                    jinja_env=env,
+                                                    seen_oids=set())
+            setattr(task, 'executor_config', rendered_content)
+
+            # update the executor_config in the task_instance to keep them in sync
+            task_instance.executor_config = task_instance.task.executor_config
+
         self.queue_command(
             SimpleTaskInstance(task_instance),
             command_list_to_run,

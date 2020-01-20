@@ -20,7 +20,10 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
+from airflow import DAG
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models import TaskInstance
+from airflow.operators.bash_operator import BashOperator
 from airflow.utils.state import State
 
 
@@ -52,3 +55,54 @@ class TestBaseExecutor(unittest.TestCase):
                  mock.call('executor.queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
+
+    @mock.patch('airflow.executors.base_executor.BaseExecutor.execute_async')
+    def test_execute_async_is_called_with_rendered_executor_config(self, mock_execute_async):
+        executor = BaseExecutor()
+        dag = DAG(dag_id='foo', start_date=datetime(2019, 11, 5), end_date=datetime(2019, 11, 5))
+
+        class MyBashOperator(BashOperator):
+            template_fields = ('bash_command', 'env', 'executor_config')
+
+        executor_config = {
+            "KubernetesExecutor": {
+                "image": "ubuntu:16.04",
+                "request_memory": "2Gi",
+                "request_cpu": '1',
+                "volumes": [
+                    {
+                        "name": "data",
+                        "persistentVolumeClaim": {"claimName": "some_claim_name"},
+                    },
+                ],
+                "volume_mounts": [
+                    {
+                        "mountPath": "/data",
+                        "name": "data",
+                        "subPath": "{{ ds }}"
+                    },
+                ]
+            }
+        }
+        operator = MyBashOperator(
+            task_id='task_id',
+            bash_command='echo {{ run_id }}',
+            executor_config=executor_config,
+            dag=dag,
+        )
+
+        ti = TaskInstance(task=operator, execution_date=datetime(2020, 1, 1))
+        executor.queue_task_instance(task_instance=ti)
+        executor.heartbeat()
+        actual_executor_config = mock_execute_async.call_args_list[0][1]['executor_config']
+
+        # the execute_async is called with rendered executor_config
+        self.assertEqual('2020-01-01', actual_executor_config['KubernetesExecutor']['volume_mounts'][0]['subPath'])
+
+        # bash_command template field is not rendered (backward compatible)
+        self.assertEqual('echo {{ run_id }}', ti.task.bash_command)
+
+        self.assertEqual(ti.executor_config,
+                         ti.task.executor_config,
+                         "executor_config in task instance and the task must be the same")
+        self.assertEqual('2020-01-01', ti.executor_config['KubernetesExecutor']['volume_mounts'][0]['subPath'])
