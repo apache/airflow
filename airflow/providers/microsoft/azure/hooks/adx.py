@@ -18,6 +18,7 @@
 # under the License.
 #
 """This module contains Azure Data Explorer hook"""
+from typing import Dict, Optional
 
 from azure.kusto.data.exceptions import KustoServiceError
 from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
@@ -75,12 +76,14 @@ class AzureDataExplorerHook(BaseHook):
     :param azure_data_explorer_conn_id: Reference to the Azure Data Explorer connection.
     :type azure_data_explorer_conn_id: str
     """
-    def __init__(self,
-                 azure_data_explorer_conn_id='azure_data_explorer_default'):
+
+    def __init__(
+            self,
+            azure_data_explorer_conn_id: str = 'azure_data_explorer_default'):
         self.conn_id = azure_data_explorer_conn_id
         self.connection = self.get_conn()
 
-    def get_conn(self):
+    def get_conn(self) -> KustoClient:
         """Return a KustoClient object."""
         conn = self.get_connection(self.conn_id)
         cluster = conn.host
@@ -92,7 +95,8 @@ class AzureDataExplorerHook(BaseHook):
             value = conn.extra_dejson.get(name)
             if not value:
                 raise AirflowException(
-                    'Extra connection option is missing required parameter: `{}`'.format(name))
+                    'Extra connection option is missing required parameter: `{}`'.
+                    format(name))
             return value
 
         auth_method = get_required_param('auth_method')
@@ -118,7 +122,10 @@ class AzureDataExplorerHook(BaseHook):
 
         return KustoClient(kcsb)
 
-    def run_query(self, query, database, options=None):
+    def run_query(self,
+                  query: str,
+                  database: str,
+                  options: Optional[Dict] = None) -> dict:
         """
         Run KQL query using provided configuration, and return
         `azure.kusto.data._response.KustoResponseDataSet` instance.
@@ -138,9 +145,8 @@ class AzureDataExplorerHook(BaseHook):
             for k, v in options.items():
                 properties.set_option(k, v)
         try:
-            return self.connection.execute(database,
-                                           query,
-                                           properties=properties)
+            return self.connection.execute(
+                database, query, properties=properties)
         except KustoServiceError as error:
             raise AirflowException(
                 'Error running Kusto query: {}'.format(error))
