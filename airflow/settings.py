@@ -114,7 +114,11 @@ class SafeStatsdLogger:
 Stats = DummyStatsLogger  # type: Any
 
 if conf.getboolean('scheduler', 'statsd_on'):
-    from statsd import StatsClient
+
+    if conf.has_option('scheduler', 'statsd_custom_client_path'):
+        StatsClient = import_string(conf.get('scheduler', 'statsd_custom_client_path'))
+    else:
+        StatsClient = import_string('statsd.StatsClient')
 
     statsd = StatsClient(
         host=conf.get('scheduler', 'statsd_host'),
@@ -122,6 +126,11 @@ if conf.getboolean('scheduler', 'statsd_on'):
         prefix=conf.get('scheduler', 'statsd_prefix'))
 
     allow_list_validator = AllowListValidator(conf.get('scheduler', 'statsd_allow_list', fallback=None))
+
+    if not issubclass(statsd, StatsClient):
+        raise Exception(
+            """Your custom Statsd client must extend the statsd.StatsClient in order to ensure backwards
+            compatibility.""")
 
     Stats = SafeStatsdLogger(statsd, allow_list_validator)
 else:
