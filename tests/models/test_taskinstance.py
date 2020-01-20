@@ -21,7 +21,7 @@ import datetime
 import time
 import unittest
 import urllib
-from typing import List, Union
+from typing import List, Optional, Union
 from unittest.mock import mock_open, patch
 
 import pendulum
@@ -49,10 +49,10 @@ from tests.test_utils import db
 
 
 class CallbackWrapper:
-    task_id = None
-    dag_id = None
-    execution_date = None
-    task_state_in_callback = None
+    task_id: Optional[str] = None
+    dag_id: Optional[str] = None
+    execution_date: Optional[datetime.datetime] = None
+    task_state_in_callback: Optional[str] = None
     callback_ran = False
 
     def wrap_task_instance(self, ti):
