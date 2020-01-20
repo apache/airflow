@@ -22,8 +22,9 @@ import unittest
 import mock
 
 from airflow.gcp.operators.gcs import (
-    GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteObjectsOperator,
-    GcsFileTransformOperator, GCSListObjectsOperator, GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
+    GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteBucketOperator,
+    GCSDeleteObjectsOperator, GcsFileTransformOperator, GCSListObjectsOperator,
+    GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
 )
 
 TASK_ID = "test-gcs-operator"
@@ -231,3 +232,13 @@ class TestGcsFileTransformOperator(unittest.TestCase):
             object_name=destination_object,
             filename=destination,
         )
+
+
+class TestGCSDeleteBucketOperator(unittest.TestCase):
+    @mock.patch("airflow.gcp.operators.gcs.GCSHook")
+    def test_delete_bucket(self, mock_hook):
+        operator = GCSDeleteBucketOperator(
+            task_id=TASK_ID, bucket_name=TEST_BUCKET)
+
+        operator.execute(None)
+        mock_hook.return_value.delete_bucket.assert_called_once_with(TEST_BUCKET)
