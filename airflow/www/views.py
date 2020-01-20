@@ -1450,44 +1450,42 @@ class Airflow(AirflowBaseView):
             return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
+        arrange = request.args.get('arrange', dag.orientation)
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dt_nr_dr_data['arrange'] = arrange
+        dttm = dt_nr_dr_data['dttm']
+
         if root:
             dag = dag.sub_dag(
                 task_regex=root,
                 include_upstream=True,
                 include_downstream=False)
 
-        arrange = request.args.get('arrange', dag.orientation)
+        dag_run = models.DagRun(dag_id=dag_id, execution_date=dttm)
+        tis = dag_run.get_task_instances()
 
         nodes = []
         edges = []
-        for task in dag.tasks:
+        for ti in tis:
             nodes.append({
-                'id': task.task_id,
+                'id': ti.task_id,
                 'value': {
-                    'label': task.task_id,
-                    'labelStyle': "fill:{0};".format(task.ui_fgcolor),
-                    'style': "fill:{0};".format(task.ui_color),
+                    'label': ti.task_id,
+                    'labelStyle': "fill:{0};".format(ti.data.ui_fgcolor),
+                    'style': "fill:{0};".format(ti.data.ui_color),
                     'rx': 5,
-                    'ry': 5,
+                    'ry': 5
                 }
             })
 
-        def get_downstream(task):
-            for t in task.downstream_list:
+            for downstream_task in ti.downstream_tasks.split(','):
+                if downstream_task == "":
+                    continue
                 edge = {
-                    'source_id': task.task_id,
-                    'target_id': t.task_id,
+                    'source_id': ti.task_id,
+                    'target_id': downstream_task,
                 }
-                if edge not in edges:
-                    edges.append(edge)
-                    get_downstream(t)
-
-        for t in dag.roots:
-            get_downstream(t)
-
-        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
-        dt_nr_dr_data['arrange'] = arrange
-        dttm = dt_nr_dr_data['dttm']
+                edges.append(edge)
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             arrange = SelectField("Layout", choices=(
@@ -1502,14 +1500,14 @@ class Airflow(AirflowBaseView):
 
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
-            for ti in dag.get_task_instances(dttm, dttm)}
+            for ti in tis}
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
-                'task_type': t.task_type,
-                'extra_links': t.extra_links,
+                'task_type': t.data.task_type,
+                'extra_links': t.data.extra_links,
             }
-            for t in dag.tasks}
+            for t in tis}
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
@@ -2008,9 +2006,12 @@ class Airflow(AirflowBaseView):
         else:
             return "Error: Invalid execution_date"
 
+        dag_run = models.DagRun(dag_id=dag_id, execution_date=dttm)
+        tis = dag_run.get_task_instances()
+
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
-            for ti in dag.get_task_instances(dttm, dttm)}
+            for ti in tis}
 
         return json.dumps(task_instances)
 

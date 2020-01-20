@@ -34,6 +34,7 @@ import pendulum
 from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
+import sqlalchemy_jsonfield
 
 from airflow import settings
 from airflow.configuration import conf
@@ -161,6 +162,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+    data = Column(sqlalchemy_jsonfield.JSONField(json=settings.json), nullable=True)
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they wont display in the UI correctly
 
@@ -209,6 +211,9 @@ class TaskInstance(Base, LoggingMixin):
         # Is this TaskInstance being currently running within `airflow tasks run --raw`.
         # Not persisted to the database so only valid for the current process
         self.raw = False
+        # fill serialized task instance information in data field. to enable the correct
+        # representation of task instances within a dag run
+        self.data = self.metadata_to_dict()
 
     @reconstructor
     def init_on_load(self):
@@ -468,6 +473,7 @@ class TaskInstance(Base, LoggingMixin):
             self.pid = ti.pid
             if refresh_executor_config:
                 self.executor_config = ti.executor_config
+            self.data = ti.data
         else:
             self.state = None
 
@@ -1492,6 +1498,32 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.raw = raw
         self._set_context(self)
+
+    def metadata_to_dict(self):
+        """
+        serialize the meta data information from baseoperator to be stored along with
+        task instance
+        * ui_color
+        * ui_fgcolor
+        * downstream_tasks
+        * task_type
+        * extra_links
+        """
+        ui_color = self.task.__class__.ui_color
+        ui_fgcolor = self.task.__class__.ui_fgcolor
+        downstream_tasks = list(self.task.downstream_task_ids)
+        extra_links = self.task.extra_links
+
+        json_dict = {
+            "ui_color": ui_color,
+            "ui_fgcolor": ui_fgcolor,
+            "downstream_tasks": downstream_tasks,
+            "task_type": self.task.__class__.__name__,
+            "extra_links": extra_links
+        }
+        # todo: add validation for json_dict for task instance
+        return json_dict
+
 
 
 # State of the task instance.
