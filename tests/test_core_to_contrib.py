@@ -322,6 +322,10 @@ HOOK = [
         'airflow.providers.dingding.hooks.dingding.DingdingHook',
         'airflow.contrib.hooks.dingding_hook.DingdingHook',
     ),
+    (
+        'airflow.providers.ddiscord.hooks.discord_webhook.DiscordWebhookHook',
+        'airflow.contrib.hooks.discord_webhook_hook.DiscordWebhookHook',
+    ),
 ]
 
 OPERATOR = [

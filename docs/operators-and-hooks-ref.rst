@@ -887,7 +887,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Discord <https://discordapp.com>`__
      -
-     - :mod:`airflow.contrib.hooks.discord_webhook_hook`
+     - :mod:`airflow.providers.ddiscord.hooks.discord_webhook`
      - :mod:`airflow.contrib.operators.discord_webhook_operator`
      -
 

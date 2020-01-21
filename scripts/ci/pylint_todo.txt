@@ -10,7 +10,7 @@
 ./airflow/providers/microsoft/azure/hooks/azure_fileshare.py
 ./airflow/providers/datadog/hooks/datadog.py
 ./airflow/providers/dingding/hooks/dingding.py
-./airflow/contrib/hooks/discord_webhook_hook.py
+./airflow/providers/ddiscord/hooks/discord_webhook.py
 ./airflow/providers/amazon/aws/hooks/emr.py
 ./airflow/hooks/filesystem.py
 ./airflow/contrib/hooks/ftp_hook.py

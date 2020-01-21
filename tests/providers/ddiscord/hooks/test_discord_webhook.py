@@ -21,8 +21,8 @@ import json
 import unittest
 
 from airflow import AirflowException
-from airflow.contrib.hooks.discord_webhook_hook import DiscordWebhookHook
 from airflow.models import Connection
+from airflow.providers.ddiscord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.utils import db
 
 

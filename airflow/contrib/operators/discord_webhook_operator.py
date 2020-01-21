@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.contrib.hooks.discord_webhook_hook import DiscordWebhookHook
 from airflow.exceptions import AirflowException
 from airflow.operators.http_operator import SimpleHttpOperator
+from airflow.providers.ddiscord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.utils.decorators import apply_defaults
 
 
