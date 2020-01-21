@@ -280,7 +280,7 @@ You can manually trigger building the local images using the script:
 
 .. code-block::
 
-  ./scripts/ci/local_ci_build.sh
+  ./breeze --build-only
 
 The scripts that build the images are optimized to minimize the time needed to rebuild the image when
 the source code of Airflow evolves. This means that if you already have the image locally downloaded and
@@ -302,7 +302,7 @@ To manually force pulling the images for static checks, use the script:
 
 .. code-block::
 
-  ./scripts/ci/local_ci_pull_and_build.sh
+  ./breeze --build-only --force-pull-images
 
 In the future Breeze will warn you when you are recommended to pull images.
 
@@ -853,4 +853,4 @@ y the root user, you can fix the ownership of those files by running this script
 
 .. code-block::
 
-  ./scripts/ci/local_ci_fix_ownership.sh
+  ./scripts/ci/ci_fix_ownership.sh

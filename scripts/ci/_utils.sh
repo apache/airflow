@@ -473,8 +473,11 @@ function confirm_image_rebuild() {
         echo >&2
         echo >&2 "ERROR: The image needs ${ACTION} for ${THE_IMAGE_TYPE} - it is outdated. "
         echo >&2 "   Make sure you build the images bu running run one of:"
-        echo >&2 "         * ./scripts/ci/local_ci_build.sh"
-        echo >&2 "         * ./scripts/ci/local_ci_pull_and_build.sh"
+        echo >&2 "         * ./breeze --build-only"
+        echo >&2 "         * ./breeze --build-only --force-pull-images"
+        echo >&2
+        echo >&2 "   The first command works incrementally from your last local build."
+        echo >&2 "   The second command you use if you want to completely refresh your images from dockerhub."
         echo >&2
         echo >&2 "   If you run it via pre-commit separately, run 'pre-commit run build' first."
         echo >&2
@@ -873,9 +876,12 @@ function rebuild_all_images_if_needed_and_confirmed() {
         echo "You have those options:"
         echo "   * Rebuild the images now by answering 'y' (this might take some time!)"
         echo "   * Skip rebuilding the images and hope changes are not big (you will be asked again)"
-        echo "   * Quit and manually rebuild the images using"
-        echo "        * scripts/local_ci_build.sh or"
-        echo "        * scripts/local_ci_pull_and_build.sh or"
+        echo "   * Quit and manually rebuild the images using one of the following commmands"
+        echo "        * ./breeze --build-only"
+        echo "        * ./breeze --build-only --force-pull-images"
+        echo
+        echo "   The first command works incrementally from your last local build."
+        echo "   The second command you use if you want to completely refresh your images from dockerhub."
         echo
         export ACTION="rebuild"
         export THE_IMAGE_TYPE="${IMAGES_TO_REBUILD[*]}"
