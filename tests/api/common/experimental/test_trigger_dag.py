@@ -16,8 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import timezone
-
 import mock
 import unittest
 import json
@@ -25,6 +23,7 @@ import json
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun
 from airflow.api.common.experimental.trigger_dag import _trigger_dag
+from airflow.utils import timezone
 
 
 class TriggerDagTests(unittest.TestCase):
