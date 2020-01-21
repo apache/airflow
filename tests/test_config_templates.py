@@ -28,7 +28,6 @@ CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_t
 DEFAULT_AIRFLOW_SECTIONS = [
     'core',
     'cli',
-    'debug',
     'api',
     'lineage',
     'atlas',
@@ -43,6 +42,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'dask',
     'scheduler',
     'ldap',
+    'mesos',
     'kerberos',
     'github_enterprise',
     'admin',
@@ -50,6 +50,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'elasticsearch_configs',
     'kubernetes',
     'kubernetes_node_selectors',
+    'kubernetes_annotations',
     'kubernetes_environment_variables',
     'kubernetes_secrets',
     'kubernetes_labels'
@@ -65,6 +66,7 @@ DEFAULT_TEST_SECTIONS = [
     'email',
     'smtp',
     'celery',
+    'mesos',
     'scheduler',
     'admin',
     'elasticsearch',
