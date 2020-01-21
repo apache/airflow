@@ -202,8 +202,29 @@ class _Stats(type):
                 log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
 
     def get_statsd_logger(self):
-        from statsd import StatsClient
-        statsd = StatsClient(
+        if conf.getboolean('scheduler', 'statsd_on'):
+
+            from statsd import StatsClient
+
+            if conf.has_option('scheduler', 'statsd_custom_client_path'):
+
+                custom_statsd_module_path = conf.get('scheduler', 'statsd_custom_client_path')
+
+                try:
+                    stats_class = import_string(custom_statsd_module_path)
+
+                    if not issubclass(stats_class, StatsClient):
+                        raise Exception(
+                            """Your custom Statsd client must extend the statsd.StatsClient in order to ensure backwards
+                            compatibility.""")
+
+                except Exception as err:
+                    raise ImportError('Unable to load custom Statsd client from '
+                                      f'{custom_statsd_module_path} due to {err}')
+            else:
+                stats_class = StatsClient
+
+        statsd = stats_class(
             host=conf.get('scheduler', 'statsd_host'),
             port=conf.getint('scheduler', 'statsd_port'),
             prefix=conf.get('scheduler', 'statsd_prefix'))
