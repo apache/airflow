@@ -22,12 +22,12 @@ Using the Command Line Interface
 This document is meant to give an overview of all common tasks while using the CLI.
 
 .. note::
-    For more information on CLI commands, see :doc:`cli-ref`
+    For more information on CLI commands, see :doc:`../cli`
 
 Set Up connection to a remote Airflow instance
 ----------------------------------------------
 
-For some functions the CLI can use :doc:`the REST API <rest-api-ref>`. To configure the CLI to use the API
+For some functions the CLI can use the REST API. To configure the CLI to use the API
 when available configure as follows:
 
 .. code-block:: ini
@@ -74,7 +74,7 @@ If you’re using ``zsh``, add the following to your ``.zshrc``:
 Creating a Connection
 ---------------------
 
-For information on creating connection using CLI, see :ref:`connection/cli`
+For information on creating connection using CLI, see :ref:`cli`
 
 Exporting DAGs structure to images
 ----------------------------------
@@ -101,10 +101,7 @@ If you want to save files as PNG, you can use the following command:
 
 An example image file may look as follow:
 
-.. figure:: img/usage_cli_export.png
-    :width: 100%
-
-    Example DAG representation
+.. image:: ../img/usage_cli_export.png
 
 The following file formats are supported:
 
@@ -171,6 +168,4 @@ want to display ``example_bash_operator`` DAG  then you can use the following co
 
 You will see a similar result as in the screenshot below.
 
-.. figure:: img/usage_cli_imgcat.png
-
-    Preview of DAG in iTerm2
+.. image:: ../img/usage_cli_imgcat.png
