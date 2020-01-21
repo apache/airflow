@@ -923,7 +923,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
      -
-     - :mod:`airflow.contrib.hooks.cloudant_hook`
+     - :mod:`airflow.providers.cloudant.hooks.cloudant`
      -
      -
 

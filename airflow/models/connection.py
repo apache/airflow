@@ -276,7 +276,7 @@ class Connection(Base, LoggingMixin):
             from airflow.contrib.hooks.vertica_hook import VerticaHook
             return VerticaHook(vertica_conn_id=self.conn_id)
         elif self.conn_type == 'cloudant':
-            from airflow.contrib.hooks.cloudant_hook import CloudantHook
+            from airflow.providers.cloudant.hooks.cloudant import CloudantHook
             return CloudantHook(cloudant_conn_id=self.conn_id)
         elif self.conn_type == 'jira':
             from airflow.providers.jira.hooks.jira import JiraHook

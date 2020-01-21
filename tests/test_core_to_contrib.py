@@ -302,6 +302,10 @@ HOOK = [
         'airflow.providers.sqlite.hooks.sqlite.SqliteHook',
         'airflow.hooks.sqlite_hook.SqliteHook',
     ),
+    (
+        'airflow.providers.cloudant.hooks.cloudant.CloudantHook',
+        'airflow.contrib.hooks.cloudant_hook.CloudantHook',
+    ),
 ]
 
 OPERATOR = [
