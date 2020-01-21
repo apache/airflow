@@ -27,7 +27,7 @@ from airflow.gcp.operators.gcs import (
     GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteObjectsOperator,
     GcsFileTransformOperator, GCSListObjectsOperator, GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
 )
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.gcs_to_gcs import GCSToGCSOperator
 from airflow.operators.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.dates import days_ago

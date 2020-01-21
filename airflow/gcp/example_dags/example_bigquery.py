@@ -30,7 +30,7 @@ from airflow.gcp.operators.bigquery import (
     BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator,
     BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
 )
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
 from airflow.operators.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.utils.dates import days_ago

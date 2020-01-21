@@ -1040,6 +1040,10 @@ OPERATOR = [
         'airflow.providers.redis.operators.redis_publish.RedisPublishOperator',
         'airflow.contrib.operators.redis_publish_operator.RedisPublishOperator',
     ),
+    (
+        'airflow.operators.bash.BashOperator',
+        'airflow.operators.bash_operator.BashOperator',
+    ),
 ]
 
 SENSOR = [

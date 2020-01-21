@@ -34,7 +34,7 @@ from airflow.gcp.operators.cloud_memorystore import (
     CloudMemorystoreUpdateInstanceOperator,
 )
 from airflow.gcp.operators.gcs import GCSBucketCreateAclEntryOperator
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

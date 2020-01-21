@@ -33,7 +33,7 @@ from airflow import models, settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator

@@ -39,7 +39,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, TaskInstance as TI, errors
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.dag_processing import SimpleDag, SimpleDagBag

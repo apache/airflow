@@ -137,7 +137,7 @@
 ./airflow/models/taskinstance.py
 ./airflow/models/variable.py
 ./airflow/models/xcom.py
-./airflow/operators/bash_operator.py
+./airflow/operators/bash.py
 ./airflow/operators/check_operator.py
 ./airflow/operators/dagrun_operator.py
 ./airflow/providers/apache/druid/operators/druid_check.py

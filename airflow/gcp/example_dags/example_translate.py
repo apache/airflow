@@ -25,7 +25,7 @@ service in the Google Cloud Platform.
 
 from airflow import models
 from airflow.gcp.operators.translate import CloudTranslateTextOperator
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 
 default_args = {'start_date': days_ago(1)}

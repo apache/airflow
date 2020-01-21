@@ -35,7 +35,7 @@ from airflow.gcp.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 
 # [END howto_operator_vision_retry_import]

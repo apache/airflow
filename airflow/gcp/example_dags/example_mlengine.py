@@ -30,7 +30,7 @@ from airflow.gcp.operators.mlengine import (
     MLEngineStartBatchPredictionJobOperator, MLEngineStartTrainingJobOperator,
 )
 from airflow.gcp.utils import mlengine_operator_utils
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

@@ -32,7 +32,7 @@ This is an example dag for managing twitter data.
 from datetime import date, timedelta
 
 from airflow import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils.dates import days_ago

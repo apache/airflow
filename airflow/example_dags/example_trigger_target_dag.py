@@ -24,7 +24,7 @@ Example usage of the TriggerDagRunOperator. This example holds 2 DAGs:
 """
 
 from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
 

@@ -23,7 +23,7 @@ Example Airflow DAG that shows the complex DAG structure.
 
 from airflow import models
 from airflow.models.baseoperator import chain
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
 

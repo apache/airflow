@@ -30,7 +30,7 @@ works.
 
 .. code:: python
 
-    from airflow.operators.bash_operator import BashOperator
+    from airflow.operators.bash import BashOperator
     from airflow.operators.dummy_operator import DummyOperator
     from airflow.lineage import AUTO
     from airflow.lineage.entities import File

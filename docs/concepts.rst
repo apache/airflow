@@ -263,7 +263,7 @@ described in the section :ref:`XComs <concepts:xcom>`
 
 Airflow provides operators for many common tasks, including:
 
-- :class:`~airflow.operators.bash_operator.BashOperator` - executes a bash command
+- :class:`~airflow.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email_operator.EmailOperator` - sends an email
 - :class:`~airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request

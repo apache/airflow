@@ -18,7 +18,7 @@
 # under the License.
 
 from airflow.contrib.hooks.dingding_hook import DingdingHook
-from airflow.operators.bash_operator import BaseOperator
+from airflow.operators.bash import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

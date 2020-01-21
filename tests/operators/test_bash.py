@@ -26,7 +26,7 @@ from tempfile import NamedTemporaryFile
 import mock
 
 from airflow import DAG, AirflowException
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -133,10 +133,10 @@ class TestBashOperator(unittest.TestCase):
         self.assertEqual(bash_operator.retries, 0)
 
     @mock.patch.dict('os.environ', clear=True)
-    @mock.patch("airflow.operators.bash_operator.TemporaryDirectory", **{  # type: ignore
+    @mock.patch("airflow.operators.bash.TemporaryDirectory", **{  # type: ignore
         'return_value.__enter__.return_value': '/tmp/airflowtmpcatcat'
     })
-    @mock.patch("airflow.operators.bash_operator.Popen", **{  # type: ignore
+    @mock.patch("airflow.operators.bash.Popen", **{  # type: ignore
         'return_value.stdout.readline.side_effect': [b'BAR', b'BAZ'],
         'return_value.returncode': 0
     })
