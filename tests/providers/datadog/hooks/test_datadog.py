@@ -21,9 +21,9 @@ import json
 import unittest
 from unittest import mock
 
-from airflow.contrib.hooks.datadog_hook import DatadogHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.datadog.hooks.datadog import DatadogHook
 
 APP_KEY = 'app_key'
 API_KEY = 'api_key'
@@ -45,8 +45,8 @@ DEVICE_NAME = 'device-name'
 
 class TestDatadogHook(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.hooks.datadog_hook.initialize')
-    @mock.patch('airflow.contrib.hooks.datadog_hook.DatadogHook.get_connection')
+    @mock.patch('airflow.providers.datadog.hooks.datadog.initialize')
+    @mock.patch('airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection')
     def setUp(self, mock_get_connection, mock_initialize):
         mock_get_connection.return_value = Connection(extra=json.dumps({
             'app_key': APP_KEY,
@@ -54,8 +54,8 @@ class TestDatadogHook(unittest.TestCase):
         }))
         self.hook = DatadogHook()
 
-    @mock.patch('airflow.contrib.hooks.datadog_hook.initialize')
-    @mock.patch('airflow.contrib.hooks.datadog_hook.DatadogHook.get_connection')
+    @mock.patch('airflow.providers.datadog.hooks.datadog.initialize')
+    @mock.patch('airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection')
     def test_api_key_required(self, mock_get_connection, mock_initialize):
         mock_get_connection.return_value = Connection()
         with self.assertRaises(AirflowException) as ctx:
@@ -73,7 +73,7 @@ class TestDatadogHook(unittest.TestCase):
         with self.assertRaises(AirflowException):
             self.hook.validate_response({'status': 'error'})
 
-    @mock.patch('airflow.contrib.hooks.datadog_hook.api.Metric.send')
+    @mock.patch('airflow.providers.datadog.hooks.datadog.api.Metric.send')
     def test_send_metric(self, mock_send):
         mock_send.return_value = {'status': 'ok'}
         self.hook.send_metric(
@@ -92,8 +92,8 @@ class TestDatadogHook(unittest.TestCase):
             interval=INTERVAL,
         )
 
-    @mock.patch('airflow.contrib.hooks.datadog_hook.api.Metric.query')
-    @mock.patch('airflow.contrib.hooks.datadog_hook.time.time')
+    @mock.patch('airflow.providers.datadog.hooks.datadog.api.Metric.query')
+    @mock.patch('airflow.providers.datadog.hooks.datadog.time.time')
     def test_query_metric(self, mock_time, mock_query):
         now = 12345
         mock_time.return_value = now
@@ -105,7 +105,7 @@ class TestDatadogHook(unittest.TestCase):
             query='query',
         )
 
-    @mock.patch('airflow.contrib.hooks.datadog_hook.api.Event.create')
+    @mock.patch('airflow.providers.datadog.hooks.datadog.api.Event.create')
     def test_post_event(self, mock_create):
         mock_create.return_value = {'status': 'ok'}
         self.hook.post_event(

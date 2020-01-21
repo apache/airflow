@@ -869,7 +869,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Datadog <https://www.datadoghq.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.datadog_hook`
+     - :mod:`airflow.providers.datadog.hooks.datadog`
      -
      - :mod:`airflow.contrib.sensors.datadog_sensor`
 

@@ -314,6 +314,10 @@ HOOK = [
         'airflow.providers.databricks.hooks.databricks.DatabricksHook',
         'airflow.contrib.hooks.databricks_hook.DatabricksHook',
     ),
+    (
+        'airflow.providers.datadog.hooks.datadog.DatadogHook',
+        'airflow.contrib.hooks.datadog_hook.DatadogHook',
+    ),
 ]
 
 OPERATOR = [

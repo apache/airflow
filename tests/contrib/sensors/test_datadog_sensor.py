@@ -70,7 +70,7 @@ class TestDatadogSensor(unittest.TestCase):
             )
         )
 
-    @patch('airflow.contrib.hooks.datadog_hook.api.Event.query')
+    @patch('airflow.providers.datadog.hooks.datadog.api.Event.query')
     @patch('airflow.contrib.sensors.datadog_sensor.api.Event.query')
     def test_sensor_ok(self, api1, api2):
         api1.return_value = at_least_one_event
@@ -88,7 +88,7 @@ class TestDatadogSensor(unittest.TestCase):
 
         self.assertTrue(sensor.poke({}))
 
-    @patch('airflow.contrib.hooks.datadog_hook.api.Event.query')
+    @patch('airflow.providers.datadog.hooks.datadog.api.Event.query')
     @patch('airflow.contrib.sensors.datadog_sensor.api.Event.query')
     def test_sensor_fail(self, api1, api2):
         api1.return_value = zero_events
