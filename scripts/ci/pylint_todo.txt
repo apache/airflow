@@ -9,7 +9,7 @@
 ./airflow/providers/microsoft/azure/hooks/azure_data_lake.py
 ./airflow/providers/microsoft/azure/hooks/azure_fileshare.py
 ./airflow/providers/datadog/hooks/datadog.py
-./airflow/contrib/hooks/dingding_hook.py
+./airflow/providers/dingding/hooks/dingding.py
 ./airflow/contrib/hooks/discord_webhook_hook.py
 ./airflow/providers/amazon/aws/hooks/emr.py
 ./airflow/hooks/filesystem.py

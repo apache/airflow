@@ -318,6 +318,10 @@ HOOK = [
         'airflow.providers.datadog.hooks.datadog.DatadogHook',
         'airflow.contrib.hooks.datadog_hook.DatadogHook',
     ),
+    (
+        'airflow.providers.dingding.hooks.dingding.DingdingHook',
+        'airflow.contrib.hooks.dingding_hook.DingdingHook',
+    ),
 ]
 
 OPERATOR = [
