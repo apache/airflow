@@ -15,8 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
-from unittest.mock import MagicMock
+from tests.compat import MagicMock, mock
 
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.utils.state import State
