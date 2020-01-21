@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Celery command"""
-import os
-import signal
 import sys
 from multiprocessing import Process
 from typing import Optional
@@ -26,13 +24,14 @@ import daemon
 import psutil
 from celery.bin import worker as worker_bin
 from daemon.pidfile import TimeoutPIDLockFile
+from flower.command import FlowerCommand
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.executors.celery_executor import app as celery_app
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging, sigint_handler
+from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
@@ -41,48 +40,44 @@ WORKER_PROCESS_NAME = "worker"
 @cli_utils.action_logging
 def flower(args):
     """Starts Flower, Celery monitoring tool"""
-    broker = conf.get('celery', 'BROKER_URL')
-    address = '--address={}'.format(args.hostname)
-    port = '--port={}'.format(args.port)
-    api = ''  # pylint: disable=redefined-outer-name
+    options = [
+        conf.get('celery', 'BROKER_URL'),
+        f"--address={args.hostname}",
+        f"--port={args.port}",
+    ]
+
     if args.broker_api:
-        api = '--broker_api=' + args.broker_api
+        options.append(f"--broker_api={args.broker_api}")
 
-    url_prefix = ''
     if args.url_prefix:
-        url_prefix = '--url-prefix=' + args.url_prefix
+        options.append(f"--url-prefix={args.url_prefix}")
 
-    basic_auth = ''
     if args.basic_auth:
-        basic_auth = '--basic_auth=' + args.basic_auth
+        options.append(f"--basic_auth={args.basic_auth}")
 
-    flower_conf = ''
     if args.flower_conf:
-        flower_conf = '--conf=' + args.flower_conf
+        options.append(f"--conf={args.flower_conf}")
+
+    flower_cmd = FlowerCommand()
 
     if args.daemon:
-        pid, stdout, stderr, _ = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
-        stdout = open(stdout, 'w+')
-        stderr = open(stderr, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(pid, -1),
-            stdout=stdout,
-            stderr=stderr,
+        pidfile, stdout, stderr, _ = setup_locations(
+            process="flower",
+            pid=args.pid,
+            stdout=args.stdout,
+            stderr=args.stderr,
+            log=args.log_file,
         )
-
-        with ctx:
-            os.execvp("flower", ['flower', '-b',
-                                 broker, address, port, api, flower_conf, url_prefix, basic_auth])
-
-        stdout.close()
-        stderr.close()
+        with open(stdout, "w+") as stdout, open(stderr, "w+") as stderr:
+            ctx = daemon.DaemonContext(
+                pidfile=TimeoutPIDLockFile(pidfile, -1),
+                stdout=stdout,
+                stderr=stderr,
+            )
+            with ctx:
+                flower_cmd.execute_from_commandline(argv=options)
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
-        os.execvp("flower", ['flower', '-b',
-                             broker, address, port, api, flower_conf, url_prefix, basic_auth])
+        flower_cmd.execute_from_commandline(argv=options)
 
 
 def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
