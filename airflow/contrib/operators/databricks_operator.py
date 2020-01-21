@@ -23,9 +23,9 @@ This module contains Databricks operators.
 
 import time
 
-from airflow.contrib.hooks.databricks_hook import DatabricksHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.utils.decorators import apply_defaults
 
 XCOM_RUN_ID_KEY = 'run_id'

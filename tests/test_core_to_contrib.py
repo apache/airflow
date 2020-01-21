@@ -306,6 +306,14 @@ HOOK = [
         'airflow.providers.cloudant.hooks.cloudant.CloudantHook',
         'airflow.contrib.hooks.cloudant_hook.CloudantHook',
     ),
+    (
+        'airflow.providers.databricks.hooks.databricks.DatabricksHook',
+        'airflow.contrib.hooks.databricks_hook.DatabricksHook',
+    ),
+    (
+        'airflow.providers.databricks.hooks.databricks.DatabricksHook',
+        'airflow.contrib.hooks.databricks_hook.DatabricksHook',
+    ),
 ]
 
 OPERATOR = [

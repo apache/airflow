@@ -863,7 +863,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Databricks <https://databricks.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.databricks_hook`
+     - :mod:`airflow.providers.databricks.hooks.databricks`
      - :mod:`airflow.contrib.operators.databricks_operator`
      -
 
