@@ -456,6 +456,17 @@
       type: string
       example: ~
       default: "http://localhost:8080"
+- name: debug
+  description: ~
+  options:
+    - name: fail_fast
+      description: |
+        Used only with DebugExecutor. If set to True DAG will fail with first
+        failed task. Helpful for debugging purposes.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
 - name: api
   description: ~
   options:
