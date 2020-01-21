@@ -1401,6 +1401,15 @@
       type: string
       example: ~
       default: ""
+    - name: statsd_custom_client_path
+      description: |
+        If you want to utilise your own custom Statsd client set the relevant
+        module path below. Note: The module path must exist on your PYTHONPATH
+        for Airflow to pick it up
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     - name: max_threads
       description: |
         The scheduler can run multiple threads in parallel to schedule dags.
