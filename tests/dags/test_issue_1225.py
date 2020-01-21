@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 DEFAULT_DATE = datetime(2016, 1, 1)

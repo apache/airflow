@@ -25,7 +25,7 @@ import airflow
 from airflow.lineage import AUTO
 from airflow.models import DAG
 from airflow.operators.papermill_operator import PapermillOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 
 
 def check_notebook(inlets, execution_date):

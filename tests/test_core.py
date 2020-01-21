@@ -36,7 +36,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.settings import Session
 from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
 from airflow.utils.state import State

@@ -1076,6 +1076,22 @@ OPERATOR = [
         'airflow.providers.presto.operators.presto_check.PrestoValueCheckOperator',
         'airflow.operators.presto_check_operator.PrestoValueCheckOperator',
     ),
+    (
+        'airflow.operators.python.BranchPythonOperator',
+        'airflow.operators.python_operator.BranchPythonOperator',
+    ),
+    (
+        'airflow.operators.python.PythonOperator',
+        'airflow.operators.python_operator.PythonOperator',
+    ),
+    (
+        'airflow.operators.python.ShortCircuitOperator',
+        'airflow.operators.python_operator.ShortCircuitOperator',
+    ),
+    (
+        'airflow.operators.python.PythonVirtualenvOperator',
+        'airflow.operators.python_operator.PythonVirtualenvOperator',
+    ),
 ]
 
 SENSOR = [

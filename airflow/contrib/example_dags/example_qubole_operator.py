@@ -34,7 +34,7 @@ import random
 from airflow import DAG
 from airflow.contrib.operators.qubole_operator import QuboleOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
+from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.utils.dates import days_ago
 
 default_args = {

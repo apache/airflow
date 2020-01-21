@@ -18,7 +18,7 @@
 # under the License.
 from typing import Callable, Dict, List, Optional
 
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

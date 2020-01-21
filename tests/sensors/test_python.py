@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.python import PythonSensor
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from tests.operators.test_python_operator import Call, TestPythonBase, build_recording_function
+from tests.operators.test_python import Call, TestPythonBase, build_recording_function
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 

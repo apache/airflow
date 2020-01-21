@@ -264,7 +264,7 @@ described in the section :ref:`XComs <concepts:xcom>`
 Airflow provides operators for many common tasks, including:
 
 - :class:`~airflow.operators.bash.BashOperator` - executes a bash command
-- :class:`~airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
+- :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email_operator.EmailOperator` - sends an email
 - :class:`~airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`,
@@ -955,7 +955,7 @@ For example, consider the following DAG:
 
   from airflow.models import DAG
   from airflow.operators.dummy_operator import DummyOperator
-  from airflow.operators.python_operator import BranchPythonOperator
+  from airflow.operators.python import BranchPythonOperator
 
   dag = DAG(
       dag_id='branch_without_trigger',

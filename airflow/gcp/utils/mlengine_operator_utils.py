@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.gcs import GCSHook
 from airflow.gcp.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.gcp.operators.mlengine import MLEngineStartBatchPredictionJobOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 
 
 def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments

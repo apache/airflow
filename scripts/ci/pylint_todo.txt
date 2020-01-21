@@ -157,7 +157,7 @@
 ./airflow/providers/postgres/operators/postgres.py
 ./airflow/providers/presto/operators/presto_check.py
 ./airflow/operators/presto_to_mysql.py
-./airflow/operators/python_operator.py
+./airflow/operators/python.py
 ./airflow/providers/amazon/aws/operators/s3_file_transform.py
 ./airflow/operators/s3_to_redshift_operator.py
 ./airflow/operators/slack_operator.py

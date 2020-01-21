@@ -24,7 +24,7 @@ from airflow import models, settings
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import ShortCircuitOperator
+from airflow.operators.python import ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
