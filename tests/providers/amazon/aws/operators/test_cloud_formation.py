@@ -53,8 +53,8 @@ class TestCloudFormationCreateStackOperator(unittest.TestCase):
 
         operator = CloudFormationCreateStackOperator(
             task_id='test_task',
+            stack_name=stack_name,
             params={
-                'StackName': stack_name,
                 'TimeoutInMinutes': timeout,
                 'TemplateBody': template_body
             },
@@ -92,7 +92,7 @@ class TestCloudFormationDeleteStackOperator(unittest.TestCase):
 
         operator = CloudFormationDeleteStackOperator(
             task_id='test_task',
-            params={'StackName': stack_name},
+            stack_name=stack_name,
             dag=DAG('test_dag_id', default_args=self.args),
         )
 

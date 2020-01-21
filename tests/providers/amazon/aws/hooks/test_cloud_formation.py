@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import json
 import unittest
 
 from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
@@ -29,10 +30,64 @@ except ImportError:
 
 @unittest.skipIf(mock_cloudformation is None, 'moto package not present')
 class TestAWSCloudFormationHook(unittest.TestCase):
+
+    def setUp(self):
+        self.hook = AWSCloudFormationHook(aws_conn_id='aws_default')
+
+    def create_stack(self, stack_name):
+        timeout = 15
+        template_body = json.dumps({
+            'Resources': {
+                "myResource": {
+                    "Type": "emr",
+                    "Properties": {
+                        "myProperty": "myPropertyValue"
+                    }
+                }
+            }
+        })
+
+        self.hook.create_stack(
+            stack_name=stack_name,
+            params={
+                'TimeoutInMinutes': timeout,
+                'TemplateBody': template_body,
+                'Parameters': [{'ParameterKey': 'myParam', 'ParameterValue': 'myParamValue'}]
+            }
+        )
+
     @mock_cloudformation
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = AWSCloudFormationHook(aws_conn_id='aws_default')
-        self.assertIsNotNone(hook.get_conn().describe_stacks())
+        self.assertIsNotNone(self.hook.get_conn().describe_stacks())
+
+    @mock_cloudformation
+    def test_create_stack(self):
+        stack_name = 'my_test_create_stack_stack'
+        self.create_stack(stack_name)
+
+        stacks = self.hook.get_conn().describe_stacks()['Stacks']
+        self.assertGreater(len(stacks), 0, 'CloudFormation should have stacks')
+
+        matching_stacks = [x for x in stacks if x['StackName'] == stack_name]
+        self.assertEqual(len(matching_stacks), 1, f'stack with name {stack_name} should exist')
+
+        stack = matching_stacks[0]
+        self.assertEqual(
+            stack['StackStatus'],
+            'CREATE_COMPLETE',
+            'Stack should be in status CREATE_COMPLETE'
+        )
+
+    @mock_cloudformation
+    def test_delete_stack(self):
+        stack_name = 'my_test_delete_stack_stack'
+        self.create_stack(stack_name)
+
+        self.hook.delete_stack(stack_name=stack_name)
+
+        stacks = self.hook.get_conn().describe_stacks()['Stacks']
+        matching_stacks = [x for x in stacks if x['StackName'] == stack_name]
+        self.assertEqual(len(matching_stacks), 0, f'stack with name {stack_name} should not exist')
 
 
 if __name__ == '__main__':

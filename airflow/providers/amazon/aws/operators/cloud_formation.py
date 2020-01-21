@@ -53,7 +53,7 @@ class BaseCloudFormationOperator(BaseOperator):
     def execute(self, context):
         self.log.info('Parameters: %s', self.params)
 
-        self.cloudformation_op(AWSCloudFormationHook(aws_conn_id=self.aws_conn_id).get_conn())
+        self.cloudformation_op(AWSCloudFormationHook(aws_conn_id=self.aws_conn_id))
 
     def cloudformation_op(self, cloudformation):
         """
@@ -66,6 +66,8 @@ class CloudFormationCreateStackOperator(BaseCloudFormationOperator):
     """
     An operator that creates a CloudFormation stack.
 
+    :param stack_name: stack name.
+    :type params: str
     :param params: parameters to be passed to CloudFormation. For possible arguments see:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.create_stack
     :type params: dict
@@ -79,19 +81,23 @@ class CloudFormationCreateStackOperator(BaseCloudFormationOperator):
     @apply_defaults
     def __init__(
             self,
+            stack_name,
             params,
             aws_conn_id='aws_default',
             *args, **kwargs):
         super().__init__(params=params, aws_conn_id=aws_conn_id, *args, **kwargs)
+        self.stack_name = stack_name
 
     def cloudformation_op(self, cloudformation):
-        cloudformation.create_stack(**self.params)
+        cloudformation.create_stack(self.stack_name, self.params)
 
 
 class CloudFormationDeleteStackOperator(BaseCloudFormationOperator):
     """
     An operator that deletes a CloudFormation stack.
 
+    :param stack_name: stack name.
+    :type params: str
     :param params: parameters to be passed to CloudFormation. For possible arguments see:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
     :type params: dict
@@ -106,10 +112,14 @@ class CloudFormationDeleteStackOperator(BaseCloudFormationOperator):
     @apply_defaults
     def __init__(
             self,
-            params,
+            stack_name,
+            params=None,
             aws_conn_id='aws_default',
             *args, **kwargs):
+        if params is None:
+            params = {}
+        self.stack_name = stack_name
         super().__init__(params=params, aws_conn_id=aws_conn_id, *args, **kwargs)
 
     def cloudformation_op(self, cloudformation):
-        cloudformation.delete_stack(**self.params)
+        cloudformation.delete_stack(self.stack_name, self.params)
