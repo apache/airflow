@@ -823,11 +823,47 @@
       default: "25"
     - name: enable_proxy_fix
       description: |
-        Enable werkzeug ``ProxyFix`` middleware
+        Enable werkzeug ``ProxyFix`` middleware for reverse proxy
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "False"
+    - name: proxy_fix_x_for
+      description: |
+        Number of values to trust for ``X-Forwarded-For``.
+        More info: https://werkzeug.palletsprojects.com/en/0.16.x/middleware/proxy_fix/
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
+    - name: proxy_fix_x_proto
+      description: |
+        Number of values to trust for ``X-Forwarded-Proto``
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
+    - name: proxy_fix_x_host
+      description: |
+        Number of values to trust for ``X-Forwarded-Host``
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
+    - name: proxy_fix_x_port
+      description: |
+        Number of values to trust for ``X-Forwarded-Port``
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
+    - name: proxy_fix_x_prefix
+      description: |
+        Number of values to trust for ``X-Forwarded-Prefix``
+      version_added: 1.10.7
+      type: integer
+      example: ~
+      default: "1"
     - name: cookie_secure
       description: |
         Set secure flag on session cookie
