@@ -65,6 +65,12 @@ Docker Community Edition
   `cleaning up the images <#cleaning-up-the-images>`_. Also see
   `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
 
+Here is an example configuration with more than 200GB disk space for Docker:
+
+.. image:: images/disk_space_osx.png
+    :align: left
+    :alt: Disk space OSX
+
 Docker Compose
 --------------
 
