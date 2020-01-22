@@ -46,6 +46,8 @@ ENABLE_KIND_CLUSTER=${ENABLE_KIND_CLUSTER:="false"}
 RUNTIME=${RUNTIME:=""}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
+export PYTHONPATH=${AIRFLOW_SOURCES}
+export PYTHONPATH="${PYTHONPATH}:${AIRFLOW_SOURCES}/tests/"
 
 if [[ -z ${AIRFLOW_SOURCES:=} ]]; then
     echo >&2
@@ -255,8 +257,6 @@ if [[ -n ${RUNTIME} ]]; then
         "${MY_DIR}/deploy_airflow_to_kubernetes.sh"
     fi
 fi
-
-export PYTHONPATH=${AIRFLOW_SOURCES}
 
 ARGS=("${CI_ARGS[@]}" "${TEST_DIR}")
 "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
