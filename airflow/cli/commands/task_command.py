@@ -234,7 +234,7 @@ def task_list(args, dag=None):
         dag.tree_view()
     else:
         tasks = sorted([t.task_id for t in dag.tasks])
-        print("\n".join(sorted(tasks)))
+        print("\n".join(tasks))
 
 
 SUPPORTED_DEBUGGER_MODULES: List[str] = [
