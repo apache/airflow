@@ -61,7 +61,7 @@ jobs:
         KUBERNETES_MODE=git_mode
         KUBERNETES_VERSION=v1.15.3
       stage: test
-    - name: "ests [Postgres][2.7][Kubernetes][persistent]"
+    - name: "Tests [Postgres][2.7][Kubernetes][persistent]"
       env: >-
         BACKEND=postgres
         PYTHON_VERSION=2.7
