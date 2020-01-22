@@ -1228,17 +1228,17 @@ class CliTests(unittest.TestCase):
         lines = [l for l in stdout.split('\n') if len(l) > 0]
         self.assertListEqual(lines, [
             ("\tSuccessfully added `conn_id`=new1 : " +
-             "postgresql://airflow:******w@host:5432/airflow"),
+             "postgresql://airflow:airflow@host:5432/airflow"),
             ("\tSuccessfully added `conn_id`=new2 : " +
-             "postgresql://airflow:******@host:5432/airflow"),
+             "postgresql://airflow:airflow@host:5432/airflow"),
             ("\tSuccessfully added `conn_id`=new3 : " +
-             "postgresql://airflow:******@host:5432/airflow"),
+             "postgresql://airflow:airflow@host:5432/airflow"),
             ("\tSuccessfully added `conn_id`=new4 : " +
-             "postgresql://airflow:******@host:5432/airflow"),
+             "postgresql://airflow:airflow@host:5432/airflow"),
             ("\tSuccessfully added `conn_id`=new5 : " +
              "hive_metastore://airflow:******@host:9083/airflow"),
             ("\tSuccessfully added `conn_id`=new6 : " +
-             "google_cloud_platform://:@:")
+             "google_cloud_platform://:******@:")
         ])
 
         # Attempt to add duplicate
