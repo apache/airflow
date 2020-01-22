@@ -16,29 +16,42 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Custom logging formatter for Airflow
+"""
 
 import logging
-
 from logging import StreamHandler
-from airflow import configuration as conf
+
+from airflow.configuration import conf
 from airflow.utils.helpers import parse_template_string
 
 
 class TaskHandlerWithCustomFormatter(StreamHandler):
+    """
+    Custom implementation of StreamHandler, a class which writes logging records for Airflow
+    """
     def __init__(self, stream):
         super().__init__()
+        self.prefix_jinja_template = None
 
     def set_context(self, ti):
+        """
+        Accept the run-time context (i.e. the current task) and configure the formatter accordingly.
+
+        :param ti:
+        :return:
+        """
         if ti.raw:
             return
-        prefix = conf.get('core', 'task_log_prefix_template')
+        prefix = conf.get('logging', 'task_log_prefix_template')
 
         rendered_prefix = ""
         if prefix:
             _, self.prefix_jinja_template = parse_template_string(prefix)
             rendered_prefix = self._render_prefix(ti)
-
-        self.setFormatter(logging.Formatter(rendered_prefix + ":" + self.formatter._fmt))
+        formatter = logging.Formatter(rendered_prefix + ":" + self.formatter._fmt)  # pylint: disable=W0212
+        self.setFormatter(formatter)
         self.setLevel(self.level)
 
     def _render_prefix(self, ti):

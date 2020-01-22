@@ -19,10 +19,10 @@
 
 import logging
 import os
+from datetime import datetime
 
 from airflow import settings
 from airflow.utils.helpers import parse_template_string
-from datetime import datetime
 
 
 class FileProcessorHandler(logging.Handler):
@@ -30,13 +30,12 @@ class FileProcessorHandler(logging.Handler):
     FileProcessorHandler is a python log handler that handles
     dag processor logs. It creates and delegates log handling
     to `logging.FileHandler` after receiving dag processor context.
+
+    :param base_log_folder: Base log folder to place logs.
+    :param filename_template: template filename string
     """
 
     def __init__(self, base_log_folder, filename_template):
-        """
-        :param base_log_folder: Base log folder to place logs.
-        :param filename_template: template filename string
-        """
         super().__init__()
         self.handler = None
         self.base_log_folder = base_log_folder
@@ -60,6 +59,7 @@ class FileProcessorHandler(logging.Handler):
     def set_context(self, filename):
         """
         Provide filename context to airflow task handler.
+
         :param filename: filename in which the dag is located
         """
         local_loc = self._init_file(filename)
@@ -107,7 +107,7 @@ class FileProcessorHandler(logging.Handler):
         """
         log_directory = self._get_log_directory()
         latest_log_directory_path = os.path.join(self.base_log_folder, "latest")
-        if os.path.isdir(log_directory):
+        if os.path.isdir(log_directory):  # pylint: disable=too-many-nested-blocks
             try:
                 # if symlink exists but is stale, update it
                 if os.path.islink(latest_log_directory_path):
@@ -129,6 +129,7 @@ class FileProcessorHandler(logging.Handler):
     def _init_file(self, filename):
         """
         Create log file and directory if required.
+
         :param filename: task instance object
         :return: relative log path of the given task instance
         """

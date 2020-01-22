@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,15 +17,14 @@
 # under the License.
 
 import unittest
+from datetime import datetime
 from unittest import mock
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import State
 
-from datetime import datetime
 
-
-class BaseExecutorTest(unittest.TestCase):
+class TestBaseExecutor(unittest.TestCase):
     def test_get_event_buffer(self):
         executor = BaseExecutor()
 

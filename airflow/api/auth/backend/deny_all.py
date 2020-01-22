@@ -18,9 +18,13 @@
 # under the License.
 """Authentication backend that denies all requests"""
 from functools import wraps
+from typing import Optional
+
 from flask import Response
 
-CLIENT_AUTH = None
+from airflow.api.auth.backend.default import ClientAuthProtocol
+
+CLIENT_AUTH = None  # type: Optional[ClientAuthProtocol]
 
 
 def init_app(_):

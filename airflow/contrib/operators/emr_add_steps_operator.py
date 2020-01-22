@@ -16,48 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
-from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.emr_hook import EmrHook
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr_add_steps`."""
 
+import warnings
 
-class EmrAddStepsOperator(BaseOperator):
-    """
-    An operator that adds steps to an existing EMR job_flow.
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator  # noqa
 
-    :param job_flow_id: id of the JobFlow to add steps to. (templated)
-    :type job_flow_id: str
-    :param aws_conn_id: aws connection to uses
-    :type aws_conn_id: str
-    :param steps: boto3 style steps to be added to the jobflow. (templated)
-    :type steps: list
-    """
-    template_fields = ['job_flow_id', 'steps']
-    template_ext = ()
-    ui_color = '#f9c915'
-
-    @apply_defaults
-    def __init__(
-            self,
-            job_flow_id,
-            aws_conn_id='s3_default',
-            steps=None,
-            *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        steps = steps or []
-        self.job_flow_id = job_flow_id
-        self.aws_conn_id = aws_conn_id
-        self.steps = steps
-
-    def execute(self, context):
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
-
-        self.log.info('Adding steps to %s', self.job_flow_id)
-        response = emr.add_job_flow_steps(JobFlowId=self.job_flow_id, Steps=self.steps)
-
-        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise AirflowException('Adding steps failed: %s' % response)
-        else:
-            self.log.info('Steps %s added to JobFlow', response['StepIds'])
-            return response['StepIds']
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr_add_steps`.",
+    DeprecationWarning, stacklevel=2
+)

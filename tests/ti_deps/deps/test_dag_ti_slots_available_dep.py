@@ -24,14 +24,14 @@ from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 
 
-class DagTISlotsAvailableDepTest(unittest.TestCase):
+class TestDagTISlotsAvailableDep(unittest.TestCase):
 
     def test_concurrency_reached(self):
         """
         Test concurrency reached should fail dep
         """
         dag = Mock(concurrency=1, concurrency_reached=True)
-        task = Mock(dag=dag)
+        task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
         self.assertFalse(DagTISlotsAvailableDep().is_met(ti=ti))
@@ -41,7 +41,7 @@ class DagTISlotsAvailableDepTest(unittest.TestCase):
         Test all conditions met should pass dep
         """
         dag = Mock(concurrency=1, concurrency_reached=False)
-        task = Mock(dag=dag)
+        task = Mock(dag=dag, pool_slots=1)
         ti = TaskInstance(task, execution_date=None)
 
         self.assertTrue(DagTISlotsAvailableDep().is_met(ti=ti))

@@ -18,16 +18,17 @@
 # under the License.
 
 import unittest
-from unittest.mock import Mock
 from datetime import datetime
+from unittest.mock import Mock
 
-from airflow.models import DAG, BaseOperator
+from airflow.models import DAG
+from airflow.models.baseoperator import BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import State
 
 
-class PrevDagrunDepTest(unittest.TestCase):
+class TestPrevDagrunDep(unittest.TestCase):
 
     def _get_task(self, **kwargs):
         return BaseOperator(task_id='test_task', dag=DAG('test_dag'), **kwargs)

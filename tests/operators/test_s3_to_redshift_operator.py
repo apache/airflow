@@ -18,22 +18,23 @@
 # under the License.
 #
 
-from unittest import mock
 import unittest
+from unittest import mock
 
 from boto3.session import Session
+
 from airflow.operators.s3_to_redshift_operator import S3ToRedshiftTransfer
-from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
+from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
 class TestS3ToRedshiftTransfer(unittest.TestCase):
 
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.hooks.postgres_hook.PostgresHook.run")
-    def test_execute(self, mock_run, mock_Session):
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
+    def test_execute(self, mock_run, mock_session):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"
-        mock_Session.return_value = Session(access_key, secret_key)
+        mock_session.return_value = Session(access_key, secret_key)
 
         schema = "schema"
         table = "table"
@@ -41,7 +42,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         s3_key = "key"
         copy_options = ""
 
-        t = S3ToRedshiftTransfer(
+        op = S3ToRedshiftTransfer(
             schema=schema,
             table=table,
             s3_bucket=s3_bucket,
@@ -51,7 +52,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             dag=None)
-        t.execute(None)
+        op.execute(None)
 
         copy_query = """
             COPY {schema}.{table}
@@ -68,4 +69,4 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                    copy_options=copy_options)
 
         assert mock_run.call_count == 1
-        assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], copy_query)
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)

@@ -22,18 +22,14 @@ import itertools
 import json
 import unittest
 
+import mock
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__
-from airflow.contrib.hooks.databricks_hook import (
-    DatabricksHook,
-    RunState,
-    SUBMIT_RUN_ENDPOINT
-)
+from airflow.contrib.hooks.databricks_hook import SUBMIT_RUN_ENDPOINT, DatabricksHook, RunState
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.utils import db
-from tests.compat import mock
+from airflow.utils.session import provide_session
 
 TASK_ID = 'databricks-operator'
 DEFAULT_CONN_ID = 'databricks_default'
@@ -69,7 +65,7 @@ NOTEBOOK_PARAMS = {
     "oldest-time-to-consider": "1457570074236"
 }
 JAR_PARAMS = ["param1", "param2"]
-RESULT_STATE = None
+RESULT_STATE = None  # type: None
 
 
 def run_now_endpoint(host):
@@ -153,12 +149,12 @@ def setup_mock_requests(mock_requests,
             [side_effect] * error_count + [create_valid_response_mock(response_content)]
 
 
-class DatabricksHookTest(unittest.TestCase):
+class TestDatabricksHook(unittest.TestCase):
     """
     Tests for DatabricksHook.
     """
 
-    @db.provide_session
+    @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection) \
             .filter(Connection.conn_id == DEFAULT_CONN_ID) \
@@ -249,16 +245,20 @@ class DatabricksHookTest(unittest.TestCase):
                         self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
                     self.assertEqual(len(mock_sleep.mock_calls), self.hook.retry_limit - 1)
-                    mock_sleep.assert_called_with(retry_delay)
+                    calls = [
+                        mock.call(retry_delay),
+                        mock.call(retry_delay)
+                    ]
+                    mock_sleep.assert_has_calls(calls)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_submit_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
-        json = {
+        data = {
             'notebook_task': NOTEBOOK_TASK,
             'new_cluster': NEW_CLUSTER
         }
-        run_id = self.hook.submit_run(json)
+        run_id = self.hook.submit_run(data)
 
         self.assertEqual(run_id, '1')
         mock_requests.post.assert_called_once_with(
@@ -277,12 +277,12 @@ class DatabricksHookTest(unittest.TestCase):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
-        json = {
+        data = {
             'notebook_params': NOTEBOOK_PARAMS,
             'jar_params': JAR_PARAMS,
             'job_id': JOB_ID
         }
-        run_id = self.hook.run_now(json)
+        run_id = self.hook.run_now(data)
 
         self.assertEqual(run_id, '1')
 
@@ -390,17 +390,18 @@ class DatabricksHookTest(unittest.TestCase):
             timeout=self.hook.timeout_seconds)
 
 
-class DatabricksHookTokenTest(unittest.TestCase):
+class TestDatabricksHookToken(unittest.TestCase):
     """
     Tests for DatabricksHook when auth is done with token.
     """
 
-    @db.provide_session
+    @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection) \
             .filter(Connection.conn_id == DEFAULT_CONN_ID) \
             .first()
-        conn.extra = json.dumps({'token': TOKEN})
+        conn.extra = json.dumps({'token': TOKEN, 'host': HOST})
+
         session.commit()
 
         self.hook = DatabricksHook()
@@ -411,11 +412,11 @@ class DatabricksHookTokenTest(unittest.TestCase):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
-        json = {
+        data = {
             'notebook_task': NOTEBOOK_TASK,
             'new_cluster': NEW_CLUSTER
         }
-        run_id = self.hook.submit_run(json)
+        run_id = self.hook.submit_run(data)
 
         self.assertEqual(run_id, '1')
         args = mock_requests.post.call_args
@@ -423,7 +424,7 @@ class DatabricksHookTokenTest(unittest.TestCase):
         self.assertEqual(kwargs['auth'].token, TOKEN)
 
 
-class RunStateTest(unittest.TestCase):
+class TestRunState(unittest.TestCase):
     def test_is_terminal_true(self):
         terminal_states = ['TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
         for state in terminal_states:

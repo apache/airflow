@@ -18,11 +18,12 @@
 # under the License.
 import json
 
-from airflow.contrib.hooks.mongo_hook import MongoHook
-from airflow.hooks.S3_hook import S3Hook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from bson import json_util
+
+from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.mongo.hooks.mongo import MongoHook
+from airflow.utils.decorators import apply_defaults
 
 
 class MongoToS3Operator(BaseOperator):

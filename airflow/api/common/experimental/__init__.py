@@ -20,7 +20,7 @@
 from datetime import datetime
 from typing import Optional
 
-from airflow.exceptions import DagNotFound, TaskNotFound, DagRunNotFound
+from airflow.exceptions import DagNotFound, DagRunNotFound, TaskNotFound
 from airflow.models import DagBag, DagModel, DagRun
 
 

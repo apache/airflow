@@ -18,21 +18,20 @@
 # under the License.
 from typing import Optional, cast
 
-import six
 from sqlalchemy import (
-    Column, Integer, String, Boolean, PickleType, Index, UniqueConstraint, func, DateTime, or_,
-    and_
+    Boolean, Column, DateTime, Index, Integer, PickleType, String, UniqueConstraint, and_, func, or_,
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 from sqlalchemy.orm.session import Session
+
 from airflow.exceptions import AirflowException
-from airflow.models.base import Base, ID_LEN
+from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, DepContext
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
@@ -65,6 +64,17 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint('dag_id', 'run_id'),
     )
 
+    def __init__(self, dag_id=None, run_id=None, execution_date=None, start_date=None, external_trigger=None,
+                 conf=None, state=None):
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.execution_date = execution_date
+        self.start_date = start_date
+        self.external_trigger = external_trigger
+        self.conf = conf
+        self.state = state
+        super().__init__()
+
     def __repr__(self):
         return (
             '<DagRun {dag_id} @ {execution_date}: {run_id}, '
@@ -96,6 +106,7 @@ class DagRun(Base, LoggingMixin):
     def refresh_from_db(self, session=None):
         """
         Reloads the current dagrun from the database
+
         :param session: database session
         """
         DR = DagRun
@@ -121,7 +132,7 @@ class DagRun(Base, LoggingMixin):
 
         :param dag_id: the dag_id to find dag runs for
         :type dag_id: int, list
-        :param run_id: defines the the run id for this dag run
+        :param run_id: defines the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
         :type execution_date: datetime.datetime
@@ -170,22 +181,26 @@ class DagRun(Base, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date == self.execution_date,
         )
+
         if state:
             if isinstance(state, str):
                 tis = tis.filter(TaskInstance.state == state)
             else:
                 # this is required to deal with NULL values
                 if None in state:
-                    tis = tis.filter(
-                        or_(TaskInstance.state.in_(state),
-                            TaskInstance.state.is_(None))
-                    )
+                    if all(x is None for x in state):
+                        tis = tis.filter(TaskInstance.state.is_(None))
+                    else:
+                        not_none_state = [s for s in state if s]
+                        tis = tis.filter(
+                            or_(TaskInstance.state.in_(not_none_state),
+                                TaskInstance.state.is_(None))
+                        )
                 else:
                     tis = tis.filter(TaskInstance.state.in_(state))
 
         if self.dag and self.dag.partial:
             tis = tis.filter(TaskInstance.task_id.in_(self.dag.task_ids))
-
         return tis.all()
 
     @provide_session
@@ -219,7 +234,7 @@ class DagRun(Base, LoggingMixin):
         return self.dag
 
     @provide_session
-    def get_previous_dagrun(self, state: str = None, session: Session = None) -> Optional['DagRun']:
+    def get_previous_dagrun(self, state: Optional[str] = None, session: Session = None) -> Optional['DagRun']:
         """The previous DagRun, if there is one"""
 
         session = cast(Session, session)  # mypy
@@ -252,73 +267,58 @@ class DagRun(Base, LoggingMixin):
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
 
-        :return: State
+        :return: ready_tis: the tis that can be scheduled in the current loop
+        :rtype ready_tis: list[airflow.models.TaskInstance]
         """
 
         dag = self.get_dag()
-
-        tis = self.get_task_instances(session=session)
-        self.log.debug("Updating state for %s considering %s task(s)", self, len(tis))
-
+        ready_tis = []
+        tis = [ti for ti in self.get_task_instances(session=session,
+                                                    state=State.task_states + (State.SHUTDOWN,))]
+        self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
         for ti in list(tis):
-            # skip in db?
-            if ti.state == State.REMOVED:
-                tis.remove(ti)
-            else:
-                ti.task = dag.get_task(ti.task_id)
+            ti.task = dag.get_task(ti.task_id)
 
-        # pre-calculate
-        # db is faster
         start_dttm = timezone.utcnow()
-        unfinished_tasks = self.get_task_instances(
-            state=State.unfinished(),
-            session=session
-        )
+        unfinished_tasks = [t for t in tis if t.state in State.unfinished()]
+        finished_tasks = [t for t in tis if t.state in State.finished() + [State.UPSTREAM_FAILED]]
         none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
         none_task_concurrency = all(t.task.task_concurrency is None
                                     for t in unfinished_tasks)
         # small speed up
         if unfinished_tasks and none_depends_on_past and none_task_concurrency:
-            # todo: this can actually get pretty slow: one task costs between 0.01-015s
-            no_dependencies_met = True
-            for ut in unfinished_tasks:
-                # We need to flag upstream and check for changes because upstream
-                # failures/re-schedules can result in deadlock false positives
-                old_state = ut.state
-                deps_met = ut.are_dependencies_met(
-                    dep_context=DepContext(
-                        flag_upstream_failed=True,
-                        ignore_in_retry_period=True,
-                        ignore_in_reschedule_period=True),
-                    session=session)
-                if deps_met or old_state != ut.current_state(session=session):
-                    no_dependencies_met = False
-                    break
+            scheduleable_tasks = [ut for ut in unfinished_tasks if ut.state in SCHEDULEABLE_STATES]
 
-        duration = (timezone.utcnow() - start_dttm).total_seconds() * 1000
+            self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(scheduleable_tasks))
+            ready_tis, changed_tis = self._get_ready_tis(scheduleable_tasks, finished_tasks, session)
+            self.log.debug("ready tis length for %s: %s task(s)", self, len(ready_tis))
+            are_runnable_tasks = ready_tis or self._are_premature_tis(
+                unfinished_tasks, finished_tasks, session) or changed_tis
+        duration = (timezone.utcnow() - start_dttm)
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
-        root_ids = [t.task_id for t in dag.roots]
-        roots = [t for t in tis if t.task_id in root_ids]
+        leaf_tis = [ti for ti in tis if ti.task_id in {t.task_id for t in dag.leaves}]
 
         # if all roots finished and at least one failed, the run failed
-        if (not unfinished_tasks and
-                any(r.state in (State.FAILED, State.UPSTREAM_FAILED) for r in roots)):
+        if not unfinished_tasks and any(
+            leaf_ti.state in {State.FAILED, State.UPSTREAM_FAILED} for leaf_ti in leaf_tis
+        ):
             self.log.info('Marking run %s failed', self)
             self.set_state(State.FAILED)
             dag.handle_callback(self, success=False, reason='task_failure',
                                 session=session)
 
-        # if all roots succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished_tasks and all(r.state in (State.SUCCESS, State.SKIPPED)
-                                          for r in roots):
+        # if all leafs succeeded and no unfinished tasks, the run succeeded
+        elif not unfinished_tasks and all(
+            leaf_ti.state in {State.SUCCESS, State.SKIPPED} for leaf_ti in leaf_tis
+        ):
             self.log.info('Marking run %s successful', self)
             self.set_state(State.SUCCESS)
             dag.handle_callback(self, success=True, reason='success', session=session)
 
         # if *all tasks* are deadlocked, the run failed
         elif (unfinished_tasks and none_depends_on_past and
-              none_task_concurrency and no_dependencies_met):
+              none_task_concurrency and not are_runnable_tasks):
             self.log.info('Deadlock; marking run %s failed', self)
             self.set_state(State.FAILED)
             dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
@@ -334,7 +334,35 @@ class DagRun(Base, LoggingMixin):
         session.merge(self)
         session.commit()
 
-        return self.state
+        return ready_tis
+
+    def _get_ready_tis(self, scheduleable_tasks, finished_tasks, session):
+        ready_tis = []
+        changed_tis = False
+        for st in scheduleable_tasks:
+            st_old_state = st.state
+            if st.are_dependencies_met(
+                dep_context=DepContext(
+                    flag_upstream_failed=True,
+                    finished_tasks=finished_tasks),
+                    session=session):
+                ready_tis.append(st)
+            elif st_old_state != st.current_state(session=session):
+                changed_tis = True
+        return ready_tis, changed_tis
+
+    def _are_premature_tis(self, unfinished_tasks, finished_tasks, session):
+        # there might be runnable tasks that are up for retry and from some reason(retry delay, etc) are
+        # not ready yet so we set the flags to count them in
+        for ut in unfinished_tasks:
+            if ut.are_dependencies_met(
+                dep_context=DepContext(
+                    flag_upstream_failed=True,
+                    ignore_in_retry_period=True,
+                    ignore_in_reschedule_period=True,
+                    finished_tasks=finished_tasks),
+                    session=session):
+                return True
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:
@@ -374,8 +402,7 @@ class DagRun(Base, LoggingMixin):
                         "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                     ti.state = State.REMOVED
 
-            is_task_in_dag = task is not None
-            should_restore_task = is_task_in_dag and ti.state == State.REMOVED
+            should_restore_task = (task is not None) and ti.state == State.REMOVED
             if should_restore_task:
                 self.log.info("Restoring task '{}' which was previously "
                               "removed from DAG '{}'".format(ti, dag))
@@ -383,7 +410,7 @@ class DagRun(Base, LoggingMixin):
                 ti.state = State.NONE
 
         # check for missing tasks
-        for task in six.itervalues(dag.task_dict):
+        for task in dag.task_dict.values():
             if task.start_date > self.execution_date and not self.is_backfill:
                 continue
 

@@ -20,7 +20,7 @@
 from base64 import b64encode
 from select import select
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -48,6 +48,11 @@ class SSHOperator(BaseOperator):
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config.
     :type environment: dict
+    :param get_pty: request a pseudo-terminal from the server. Set to ``True``
+        to have the remote process killed upon task timeout.
+        The default is ``False`` but note that `get_pty` is forced to ``True``
+        when the `command` starts with ``sudo``.
+    :type get_pty: bool
     """
 
     template_fields = ('command', 'remote_host')
@@ -61,6 +66,7 @@ class SSHOperator(BaseOperator):
                  command=None,
                  timeout=10,
                  environment=None,
+                 get_pty=False,
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -70,6 +76,7 @@ class SSHOperator(BaseOperator):
         self.command = command
         self.timeout = timeout
         self.environment = environment
+        self.get_pty = self.command.startswith('sudo') or get_pty
 
     def execute(self, context):
         try:
@@ -95,16 +102,11 @@ class SSHOperator(BaseOperator):
                 raise AirflowException("SSH command not specified. Aborting.")
 
             with self.ssh_hook.get_conn() as ssh_client:
-                # Auto apply tty when its required in case of sudo
-                get_pty = False
-                if self.command.startswith('sudo'):
-                    get_pty = True
-
                 self.log.info("Running command: %s", self.command)
 
                 # set timeout taken as params
                 stdin, stdout, stderr = ssh_client.exec_command(command=self.command,
-                                                                get_pty=get_pty,
+                                                                get_pty=self.get_pty,
                                                                 timeout=self.timeout,
                                                                 environment=self.environment
                                                                 )
@@ -152,7 +154,7 @@ class SSHOperator(BaseOperator):
 
                 exit_status = stdout.channel.recv_exit_status()
                 if exit_status == 0:
-                    enable_pickling = configuration.conf.getboolean(
+                    enable_pickling = conf.getboolean(
                         'core', 'enable_xcom_pickling'
                     )
                     if enable_pickling:

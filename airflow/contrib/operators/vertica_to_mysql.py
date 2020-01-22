@@ -17,17 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from contextlib import closing
+from tempfile import NamedTemporaryFile
+
 import MySQLdb
+import unicodecsv as csv
 
 from airflow.contrib.hooks.vertica_hook import VerticaHook
-from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.decorators import apply_defaults
-
-from contextlib import closing
-
-import unicodecsv as csv
-from tempfile import NamedTemporaryFile
 
 
 class VerticaToMySqlTransfer(BaseOperator):

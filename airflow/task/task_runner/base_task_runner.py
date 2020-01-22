@@ -16,17 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+"""Base task runner"""
 import getpass
 import os
 import subprocess
 import threading
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-from airflow import configuration as conf
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.configuration import tmp_configuration_copy
-
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.net import get_hostname
 
 PYTHONPATH_VAR = 'PYTHONPATH'
 
@@ -35,14 +35,13 @@ class BaseTaskRunner(LoggingMixin):
     """
     Runs Airflow task instances by invoking the `airflow run` command with raw
     mode enabled in a subprocess.
+
+    :param local_task_job: The local task job associated with running the
+        associated task instance.
+    :type local_task_job: airflow.jobs.LocalTaskJob
     """
 
     def __init__(self, local_task_job):
-        """
-        :param local_task_job: The local task job associated with running the
-        associated task instance.
-        :type local_task_job: airflow.jobs.LocalTaskJob
-        """
         # Pass task instance context into log handlers to setup the logger.
         super().__init__(local_task_job.task_instance)
         self._task_instance = local_task_job.task_instance
@@ -53,7 +52,7 @@ class BaseTaskRunner(LoggingMixin):
         else:
             try:
                 self.run_as_user = conf.get('core', 'default_impersonation')
-            except conf.AirflowConfigException:
+            except AirflowConfigException:
                 self.run_as_user = None
 
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
@@ -64,9 +63,7 @@ class BaseTaskRunner(LoggingMixin):
             # want to have to specify them in the sudo call - they would show
             # up in `ps` that way! And run commands now, as the other user
             # might not be able to run the cmds to get credentials
-            cfg_path = tmp_configuration_copy(chmod=0o600,
-                                              include_env=True,
-                                              include_cmds=True)
+            cfg_path = tmp_configuration_copy(chmod=0o600)
 
             # Give ownership of file to user; only they can read and write
             subprocess.call(
@@ -86,9 +83,7 @@ class BaseTaskRunner(LoggingMixin):
             # we are running as the same user, and can pass through environment
             # variables then we don't need to include those in the config copy
             # - the runner can read/execute those values as it needs
-            cfg_path = tmp_configuration_copy(chmod=0o600,
-                                              include_env=False,
-                                              include_cmds=False)
+            cfg_path = tmp_configuration_copy(chmod=0o600)
 
         self._cfg_path = cfg_path
         self._command = popen_prepend + self._task_instance.command_as_list(
@@ -106,7 +101,7 @@ class BaseTaskRunner(LoggingMixin):
             line = stream.readline()
             if isinstance(line, bytes):
                 line = line.decode('utf-8')
-            if len(line) == 0:
+            if not line:
                 break
             self.log.info('Job %s: Subtask %s %s',
                           self._task_instance.job_id, self._task_instance.task_id,
@@ -124,7 +119,9 @@ class BaseTaskRunner(LoggingMixin):
         run_with = run_with or []
         full_cmd = run_with + self._command
 
+        self.log.info("Running on host: %s", get_hostname())
         self.log.info('Running: %s', full_cmd)
+        # pylint: disable=subprocess-popen-preexec-fn
         proc = subprocess.Popen(
             full_cmd,
             stdout=subprocess.PIPE,

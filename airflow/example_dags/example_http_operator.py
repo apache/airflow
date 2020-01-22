@@ -22,15 +22,15 @@
 import json
 from datetime import timedelta
 
-import airflow
 from airflow import DAG
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor
+from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
@@ -38,23 +38,23 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-dag = DAG('example_http_operator', default_args=default_args)
+dag = DAG('example_http_operator', default_args=default_args, tags=['example'])
 
 dag.doc_md = __doc__
 
 # t1, t2 and t3 are examples of tasks created by instantiating operators
 t1 = SimpleHttpOperator(
     task_id='post_op',
-    endpoint='api/v1.0/nodes',
+    endpoint='post',
     data=json.dumps({"priority": 5}),
     headers={"Content-Type": "application/json"},
-    response_check=lambda response: len(response.json()) == 0,
+    response_check=lambda response: response.json()['json']['priority'] == 5,
     dag=dag,
 )
 
 t5 = SimpleHttpOperator(
     task_id='post_op_formenc',
-    endpoint='nodes/url',
+    endpoint='post',
     data="name=Joe",
     headers={"Content-Type": "application/x-www-form-urlencoded"},
     dag=dag,
@@ -63,7 +63,7 @@ t5 = SimpleHttpOperator(
 t2 = SimpleHttpOperator(
     task_id='get_op',
     method='GET',
-    endpoint='api/v1.0/nodes',
+    endpoint='get',
     data={"param1": "value1", "param2": "value2"},
     headers={},
     dag=dag,
@@ -72,7 +72,7 @@ t2 = SimpleHttpOperator(
 t3 = SimpleHttpOperator(
     task_id='put_op',
     method='PUT',
-    endpoint='api/v1.0/nodes',
+    endpoint='put',
     data=json.dumps({"priority": 5}),
     headers={"Content-Type": "application/json"},
     dag=dag,
@@ -81,7 +81,7 @@ t3 = SimpleHttpOperator(
 t4 = SimpleHttpOperator(
     task_id='del_op',
     method='DELETE',
-    endpoint='api/v1.0/nodes',
+    endpoint='delete',
     data="some=data",
     headers={"Content-Type": "application/x-www-form-urlencoded"},
     dag=dag,
@@ -92,7 +92,7 @@ sensor = HttpSensor(
     http_conn_id='http_default',
     endpoint='',
     request_params={},
-    response_check=lambda response: "Google" in response.text,
+    response_check=lambda response: "httpbin" in response.text,
     poke_interval=5,
     dag=dag,
 )

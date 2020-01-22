@@ -18,15 +18,16 @@
 # under the License.
 
 import unittest
-from freezegun import freeze_time
 from unittest.mock import Mock
+
+from freezegun import freeze_time
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
 
 
-class RunnableExecDateDepTest(unittest.TestCase):
+class TestRunnableExecDateDep(unittest.TestCase):
 
     def _get_task_instance(self, execution_date, dag_end_date=None, task_end_date=None):
         dag = Mock(end_date=dag_end_date)

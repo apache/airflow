@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import case, func
+from collections import Counter
 
 import airflow
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -34,11 +34,32 @@ class TriggerRuleDep(BaseTIDep):
     IGNOREABLE = True
     IS_TASK_DEP = True
 
+    @staticmethod
+    @provide_session
+    def _get_states_count_upstream_ti(ti, finished_tasks, session):
+        """
+        This function returns the states of the upstream tis for a specific ti in order to determine
+        whether this ti can run in this iteration
+
+        :param ti: the ti that we want to calculate deps for
+        :type ti: airflow.models.TaskInstance
+        :param finished_tasks: all the finished tasks of the dag_run
+        :type finished_tasks: list[airflow.models.TaskInstance]
+        """
+        if finished_tasks is None:
+            # this is for the strange feature of running tasks without dag_run
+            finished_tasks = ti.task.dag.get_task_instances(
+                start_date=ti.execution_date,
+                end_date=ti.execution_date,
+                state=State.finished() + [State.UPSTREAM_FAILED],
+                session=session)
+        counter = Counter(task.state for task in finished_tasks if task.task_id in ti.task.upstream_task_ids)
+        return counter.get(State.SUCCESS, 0), counter.get(State.SKIPPED, 0), counter.get(State.FAILED, 0), \
+            counter.get(State.UPSTREAM_FAILED, 0), sum(counter.values())
+
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        TI = airflow.models.TaskInstance
         TR = airflow.utils.trigger_rule.TriggerRule
-
         # Checking that all upstream dependencies have succeeded
         if not ti.task.upstream_list:
             yield self._passing_status(
@@ -48,34 +69,11 @@ class TriggerRuleDep(BaseTIDep):
         if ti.task.trigger_rule == TR.DUMMY:
             yield self._passing_status(reason="The task had a dummy trigger rule set.")
             return
+        # see if the task name is in the task upstream for our task
+        successes, skipped, failed, upstream_failed, done = self._get_states_count_upstream_ti(
+            ti=ti,
+            finished_tasks=dep_context.finished_tasks)
 
-        # TODO(unknown): this query becomes quite expensive with dags that have many
-        # tasks. It should be refactored to let the task report to the dag run and get the
-        # aggregates from there.
-        qry = (
-            session
-            .query(
-                func.coalesce(func.sum(
-                    case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.FAILED, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
-                func.count(TI.task_id),
-            )
-            .filter(
-                TI.dag_id == ti.dag_id,
-                TI.task_id.in_(ti.task.upstream_task_ids),
-                TI.execution_date == ti.execution_date,
-                TI.state.in_([
-                    State.SUCCESS, State.FAILED,
-                    State.UPSTREAM_FAILED, State.SKIPPED]),
-            )
-        )
-
-        successes, skipped, failed, upstream_failed, done = qry.first()
         yield from self._evaluate_trigger_rule(
             ti=ti,
             successes=successes,
@@ -104,15 +102,15 @@ class TriggerRuleDep(BaseTIDep):
         :param ti: the task instance to evaluate the trigger rule of
         :type ti: airflow.models.TaskInstance
         :param successes: Number of successful upstream tasks
-        :type successes: bool
+        :type successes: int
         :param skipped: Number of skipped upstream tasks
-        :type skipped: bool
+        :type skipped: int
         :param failed: Number of failed upstream tasks
-        :type failed: bool
+        :type failed: int
         :param upstream_failed: Number of upstream_failed upstream tasks
-        :type upstream_failed: bool
+        :type upstream_failed: int
         :param done: Number of completed upstream tasks
-        :type done: bool
+        :type done: int
         :param flag_upstream_failed: This is a hack to generate
             the upstream_failed state creation while checking to see
             whether the task instance is runnable. It was the shortest
@@ -211,7 +209,7 @@ class TriggerRuleDep(BaseTIDep):
                     .format(tr, num_failures, upstream_tasks_state,
                             task.upstream_task_ids))
         elif tr == TR.NONE_SKIPPED:
-            if skipped > 0:
+            if not upstream_done or (skipped > 0):
                 yield self._failing_status(
                     reason="Task's trigger rule '{0}' requires all upstream "
                     "tasks to not have been skipped, but found {1} task(s) skipped. "

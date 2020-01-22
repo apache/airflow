@@ -17,13 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains operator to move data from Vertica to Hive.
+"""
+
 from collections import OrderedDict
-import unicodecsv as csv
 from tempfile import NamedTemporaryFile
 
-from airflow.hooks.hive_hooks import HiveCliHook
+import unicodecsv as csv
+
 from airflow.contrib.hooks.vertica_hook import VerticaHook
 from airflow.models import BaseOperator
+from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -92,11 +97,12 @@ class VerticaToHiveTransfer(BaseOperator):
 
     @classmethod
     def type_map(cls, vertica_type):
-        # vertica-python datatype.py donot provied the full type mapping access.
-        # Manual hack.
-        # Reference:
-        # https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
-        d = {
+        """
+        Vertica-python datatype.py does not provide the full type mapping access.
+        Manual hack. Reference:
+        https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
+        """
+        type_map = {
             5: 'BOOLEAN',
             6: 'INT',
             7: 'FLOAT',
@@ -104,7 +110,7 @@ class VerticaToHiveTransfer(BaseOperator):
             9: 'STRING',
             16: 'FLOAT',
         }
-        return d[vertica_type] if vertica_type in d else 'STRING'
+        return type_map.get(vertica_type, 'STRING')
 
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)

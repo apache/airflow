@@ -18,7 +18,6 @@
 # under the License.
 
 import unittest
-
 from unittest.mock import patch
 
 from airflow.contrib.operators.imap_attachment_to_s3_operator import ImapAttachmentToS3Operator
@@ -30,8 +29,9 @@ class TestImapAttachmentToS3Operator(unittest.TestCase):
         self.kwargs = dict(
             imap_attachment_name='test_file',
             s3_key='test_file',
-            imap_mail_folder='INBOX',
             imap_check_regex=False,
+            imap_mail_folder='INBOX',
+            imap_mail_filter='All',
             s3_overwrite=False,
             task_id='test_task',
             dag=None
@@ -47,9 +47,10 @@ class TestImapAttachmentToS3Operator(unittest.TestCase):
 
         mock_imap_hook.return_value.retrieve_mail_attachments.assert_called_once_with(
             name=self.kwargs['imap_attachment_name'],
-            mail_folder=self.kwargs['imap_mail_folder'],
             check_regex=self.kwargs['imap_check_regex'],
-            latest_only=True
+            latest_only=True,
+            mail_folder=self.kwargs['imap_mail_folder'],
+            mail_filter=self.kwargs['imap_mail_filter']
         )
         mock_s3_hook.return_value.load_bytes.assert_called_once_with(
             bytes_data=mock_imap_hook.return_value.retrieve_mail_attachments.return_value[0][1],

@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-
-from cached_property import cached_property
 from urllib.parse import urlparse
 
-from airflow import configuration
+from cached_property import cached_property
+
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -44,13 +44,16 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
+        """
+        Returns GCS hook.
+        """
+        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-            return GoogleCloudStorageHook(
+            from airflow.gcp.hooks.gcs import GCSHook
+            return GCSHook(
                 google_cloud_storage_conn_id=remote_conn_id
             )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             self.log.error(
                 'Could not create a GoogleCloudStorageHook with connection id '
                 '"%s". %s\n\nPlease make sure that airflow[gcp] is installed '
@@ -67,7 +70,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def close(self):
         """
-        Close and upload local log file to remote storage S3.
+        Close and upload local log file to remote storage GCS.
         """
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
@@ -96,6 +99,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
+
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
         :param metadata: log metadata,
@@ -112,7 +116,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             log = '*** Reading remote log from {}.\n{}\n'.format(
                 remote_loc, remote_log)
             return log, {'end_of_log': True}
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(
                 remote_loc, str(e))
             self.log.error(log)
@@ -123,6 +127,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     def gcs_read(self, remote_log_location):
         """
         Returns the log found at the remote_log_location.
+
         :param remote_log_location: the log's location in remote storage
         :type remote_log_location: str (path)
         """
@@ -133,6 +138,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
+
         :param log: the log to write to the remote_log_location
         :type log: str
         :param remote_log_location: the log's location in remote storage
@@ -145,8 +151,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             try:
                 old_log = self.gcs_read(remote_log_location)
                 log = '\n'.join([old_log, log]) if old_log else log
-            except Exception as e:
-                if not hasattr(e, 'resp') or e.resp.get('status') != '404':
+            except Exception as e:  # pylint: disable=broad-except
+                if not hasattr(e, 'resp') or e.resp.get('status') != '404':  # pylint: disable=no-member
                     log = '*** Previous log discarded: {}\n\n'.format(str(e)) + log
 
         try:
@@ -159,7 +165,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
                 # closed).
                 tmpfile.flush()
                 self.hook.upload(bkt, blob, tmpfile.name)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             self.log.error('Could not write logs to %s: %s', remote_log_location, e)
 
     @staticmethod

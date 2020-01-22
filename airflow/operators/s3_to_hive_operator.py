@@ -17,22 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
-from airflow.utils.file import TemporaryDirectory
-import gzip
+"""
+This module contains operator to move data from Hive to S3 bucket.
+"""
+
 import bz2
-import tempfile
+import gzip
 import os
+import tempfile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from typing import Dict, Optional, Union
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.S3_hook import S3Hook
-from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils.compression import uncompress_file
+from airflow.utils.decorators import apply_defaults
 
 
-class S3ToHiveTransfer(BaseOperator):
+class S3ToHiveTransfer(BaseOperator):  # pylint: disable=too-many-instance-attributes
     """
     Moves data from S3 to Hive. The operator downloads a file from S3,
     stores the file locally before loading it into a Hive table.
@@ -55,6 +59,8 @@ class S3ToHiveTransfer(BaseOperator):
     :param hive_table: target Hive table, use dot notation to target a
         specific database. (templated)
     :type hive_table: str
+    :param delimiter: field delimiter in the file
+    :type delimiter: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool
     :param recreate: whether to drop and recreate the table at every
@@ -72,8 +78,6 @@ class S3ToHiveTransfer(BaseOperator):
     :param wildcard_match: whether the s3_key should be interpreted as a Unix
         wildcard pattern
     :type wildcard_match: bool
-    :param delimiter: field delimiter in the file
-    :type delimiter: str
     :param aws_conn_id: source s3 connection
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
@@ -103,25 +107,25 @@ class S3ToHiveTransfer(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
-            s3_key,
-            field_dict,
-            hive_table,
-            delimiter=',',
-            create=True,
-            recreate=False,
-            partition=None,
-            headers=False,
-            check_headers=False,
-            wildcard_match=False,
-            aws_conn_id='aws_default',
-            verify=None,
-            hive_cli_conn_id='hive_cli_default',
-            input_compressed=False,
-            tblproperties=None,
-            select_expression=None,
-            *args, **kwargs):
+            s3_key: str,
+            field_dict: Dict,
+            hive_table: str,
+            delimiter: str = ',',
+            create: bool = True,
+            recreate: bool = False,
+            partition: Optional[Dict] = None,
+            headers: bool = False,
+            check_headers: bool = False,
+            wildcard_match: bool = False,
+            aws_conn_id: str = 'aws_default',
+            verify: Optional[Union[bool, str]] = None,
+            hive_cli_conn_id: str = 'hive_cli_default',
+            input_compressed: bool = False,
+            tblproperties: Optional[Dict] = None,
+            select_expression: Optional[str] = None,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.s3_key = s3_key
         self.field_dict = field_dict
@@ -147,22 +151,20 @@ class S3ToHiveTransfer(BaseOperator):
 
     def execute(self, context):
         # Downloading file from S3
-        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-        self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        hive_hook = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Downloading S3 file")
 
         if self.wildcard_match:
-            if not self.s3.check_for_wildcard_key(self.s3_key):
-                raise AirflowException("No key matches {0}"
-                                       .format(self.s3_key))
-            s3_key_object = self.s3.get_wildcard_key(self.s3_key)
+            if not s3_hook.check_for_wildcard_key(self.s3_key):
+                raise AirflowException(f"No key matches {self.s3_key}")
+            s3_key_object = s3_hook.get_wildcard_key(self.s3_key)
         else:
-            if not self.s3.check_for_key(self.s3_key):
-                raise AirflowException(
-                    "The key {0} does not exists".format(self.s3_key))
-            s3_key_object = self.s3.get_key(self.s3_key)
+            if not s3_hook.check_for_key(self.s3_key):
+                raise AirflowException(f"The key {self.s3_key} does not exists")
+            s3_key_object = s3_hook.get_key(self.s3_key)
 
-        root, file_ext = os.path.splitext(s3_key_object.key)
+        _, file_ext = os.path.splitext(s3_key_object.key)
         if (self.select_expression and self.input_compressed and
                 file_ext.lower() != '.gz'):
             raise AirflowException("GZIP is the only compression " +
@@ -186,7 +188,7 @@ class S3ToHiveTransfer(BaseOperator):
                 if self.input_compressed:
                     input_serialization['CompressionType'] = 'GZIP'
 
-                content = self.s3.select_key(
+                content = s3_hook.select_key(
                     bucket_name=s3_key_object.bucket_name,
                     key=s3_key_object.key,
                     expression=self.select_expression,
@@ -199,7 +201,7 @@ class S3ToHiveTransfer(BaseOperator):
 
             if self.select_expression or not self.headers:
                 self.log.info("Loading file %s into Hive", f.name)
-                self.hive.load_file(
+                hive_hook.load_file(
                     f.name,
                     self.hive_table,
                     field_dict=self.field_dict,
@@ -237,7 +239,7 @@ class S3ToHiveTransfer(BaseOperator):
                                                       tmp_dir))
                 self.log.info("Headless file %s", headless_file)
                 self.log.info("Loading file %s into Hive", headless_file)
-                self.hive.load_file(headless_file,
+                hive_hook.load_file(headless_file,
                                     self.hive_table,
                                     field_dict=self.field_dict,
                                     create=self.create,
@@ -284,10 +286,8 @@ class S3ToHiveTransfer(BaseOperator):
         elif output_file_ext.lower() == '.bz2':
             open_fn = bz2.BZ2File
 
-        os_fh_output, fn_output = \
-            tempfile.mkstemp(suffix=output_file_ext, dir=dest_dir)
-        with open(input_file_name, 'rb') as f_in, \
-                open_fn(fn_output, 'wb') as f_out:
+        _, fn_output = tempfile.mkstemp(suffix=output_file_ext, dir=dest_dir)
+        with open(input_file_name, 'rb') as f_in, open_fn(fn_output, 'wb') as f_out:
             f_in.seek(0)
             next(f_in)
             for line in f_in:

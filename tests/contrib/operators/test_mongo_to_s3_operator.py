@@ -18,11 +18,12 @@
 # under the License.
 import unittest
 
+import mock
+
 from airflow import DAG
 from airflow.contrib.operators.mongo_to_s3 import MongoToS3Operator
 from airflow.models import TaskInstance
 from airflow.utils import timezone
-from tests.compat import mock
 
 TASK_ID = 'test_mongo_to_s3_operator'
 MONGO_CONN_ID = 'default_mongo'
@@ -39,7 +40,7 @@ MOCK_MONGO_RETURN = [
 ]
 
 
-class MongoToS3OperatorTest(unittest.TestCase):
+class TestMongoToS3Operator(unittest.TestCase):
 
     def setUp(self):
         args = {

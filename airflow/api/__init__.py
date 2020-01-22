@@ -20,9 +20,8 @@
 
 from importlib import import_module
 
-from airflow.exceptions import AirflowException
-from airflow import configuration as conf
-
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -42,7 +41,7 @@ def load_auth():
     auth_backend = 'airflow.api.auth.backend.default'
     try:
         auth_backend = conf.get("api", "auth_backend")
-    except conf.AirflowConfigException:
+    except AirflowConfigException:
         pass
 
     try:

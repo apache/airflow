@@ -1,4 +1,4 @@
-..  Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -6,14 +6,16 @@
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
 
-..    http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-..  Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+
 
 
 Add a new role in RBAC UI
@@ -30,10 +32,12 @@ and click ``List Roles`` in the new UI.
 
 The image shows the creation of a role which can only write to
 ``example_python_operator``. You can also create roles via the CLI
-using the ``airflow roles`` command, e.g.:
+using the ``airflow roles create`` command, e.g.:
 
-    airflow roles --create Role1 Role2
+.. code-block:: bash
+
+  airflow roles create Role1 Role2
 
 And we could assign the given role to a new user using the ``airflow
-users --add-role`` CLI command.  Default roles(Admin, User, Viewer,
+users add-role`` CLI command.  Default roles(Admin, User, Viewer,
 Op) shipped with RBAC could view the details for every dag.

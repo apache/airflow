@@ -21,6 +21,7 @@
 import datetime
 import ftplib
 import os.path
+
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -173,7 +174,7 @@ class FTPHook(BaseHook):
             [default: output_handle.write()]
         :type callback: callable
 
-        :Example::
+        .. code-block:: python
 
             hook = FTPHook(ftp_conn_id='my_conn')
 
@@ -196,6 +197,7 @@ class FTPHook(BaseHook):
 
             # without a custom callback data is written to the local_path
             hook.retrieve_file(remote_path, local_path)
+
         """
         conn = self.get_conn()
 
@@ -275,7 +277,7 @@ class FTPHook(BaseHook):
         Returns a datetime object representing the last time the file was modified
 
         :param path: remote file path
-        :type path: string
+        :type path: str
         """
         conn = self.get_conn()
         ftp_mdtm = conn.sendcmd('MDTM ' + path)
@@ -291,7 +293,7 @@ class FTPHook(BaseHook):
         Returns the size of a file (in bytes)
 
         :param path: remote file path
-        :type path: string
+        :type path: str
         """
         conn = self.get_conn()
         return conn.size(path)

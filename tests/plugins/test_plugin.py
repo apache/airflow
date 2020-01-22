@@ -17,17 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This is the class you derive to create a plugin
-from airflow.plugins_manager import AirflowPlugin
-
 from flask import Blueprint
-from flask_appbuilder import expose, BaseView as AppBuilderBaseView
+from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 
+from airflow.executors.base_executor import BaseExecutor
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
-from airflow.models.baseoperator import BaseOperatorLink, BaseOperator
+from airflow.models.baseoperator import BaseOperator
+# This is the class you derive to create a plugin
+from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.executors.base_executor import BaseExecutor
+from tests.test_utils.mock_operators import (
+    AirflowLink, AirflowLink2, CustomBaseIndexOpLink, CustomOpLink, GithubLink, GoogleLink,
+)
 
 
 # Will show up under airflow.hooks.test_plugin.PluginHook
@@ -61,7 +63,7 @@ class PluginTestAppBuilderBaseView(AppBuilderBaseView):
 
     @expose("/")
     def test(self):
-        return self.render("test_plugin/test.html", content="Hello galaxy!")
+        return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
 
 v_appbuilder_view = PluginTestAppBuilderBaseView()
@@ -83,23 +85,11 @@ bp = Blueprint(
     static_url_path='/static/test_plugin')
 
 
-# Create a handler to validate statsd stat name
-def stat_name_dummy_handler(stat_name):
-    return stat_name
-
-
-class AirflowLink(BaseOperatorLink):
-    name = 'airflow'
-
-    def get_link(self, operator, dttm):
-        return 'should_be_overridden'
-
-
-class GithubLink(BaseOperatorLink):
-    name = 'github'
-
-    def get_link(self, operator, dttm):
-        return 'https://github.com/apache/airflow'
+class StatsClass:
+    @staticmethod
+    # Create a handler to validate statsd stat name
+    def stat_name_dummy_handler(stat_name: str) -> str:
+        return stat_name
 
 
 # Defining the plugin class
@@ -113,10 +103,13 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
-    stat_name_handler = staticmethod(stat_name_dummy_handler)
+    stat_name_handler = StatsClass.stat_name_dummy_handler
     global_operator_extra_links = [
         AirflowLink(),
         GithubLink(),
+    ]
+    operator_extra_links = [
+        GoogleLink(), AirflowLink2(), CustomOpLink(), CustomBaseIndexOpLink(1)
     ]
 
 

@@ -17,11 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains operator to move data from Hive to MySQL.
+"""
 from tempfile import NamedTemporaryFile
+from typing import Dict, Optional
 
-from airflow.hooks.hive_hooks import HiveServer2Hook
-from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
+from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
@@ -55,6 +59,8 @@ class HiveToMySqlTransfer(BaseOperator):
         This option requires an extra connection parameter for the
         destination MySQL connection: {'local_infile': true}.
     :type bulk_load: bool
+    :param hive_conf:
+    :type hive_conf: dict
     """
 
     template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
@@ -63,15 +69,15 @@ class HiveToMySqlTransfer(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sql,
-                 mysql_table,
-                 hiveserver2_conn_id='hiveserver2_default',
-                 mysql_conn_id='mysql_default',
-                 mysql_preoperator=None,
-                 mysql_postoperator=None,
-                 bulk_load=False,
-                 hive_conf=None,
-                 *args, **kwargs):
+                 sql: str,
+                 mysql_table: str,
+                 hiveserver2_conn_id: str = 'hiveserver2_default',
+                 mysql_conn_id: str = 'mysql_default',
+                 mysql_preoperator: Optional[str] = None,
+                 mysql_postoperator: Optional[str] = None,
+                 bulk_load: bool = False,
+                 hive_conf: Optional[Dict] = None,
+                 *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql
         self.mysql_table = mysql_table

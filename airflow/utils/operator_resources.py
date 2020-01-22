@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import configuration
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 # Constants for resources (megabytes are the base unit)
@@ -59,33 +59,55 @@ class Resource:
 
     @property
     def name(self):
+        """
+        Name of the resource.
+        """
         return self._name
 
     @property
     def units_str(self):
+        """
+        The string representing the units of a resource.
+        """
         return self._units_str
 
     @property
     def qty(self):
+        """
+        The number of units of the specified resource that are required for
+        execution of the operator.
+        """
         return self._qty
 
 
 class CpuResource(Resource):
+    """
+    Represents a CPU requirement in an execution environment for an operator.
+    """
     def __init__(self, qty):
         super().__init__('CPU', 'core(s)', qty)
 
 
 class RamResource(Resource):
+    """
+    Represents a RAM requirement in an execution environment for an operator.
+    """
     def __init__(self, qty):
         super().__init__('RAM', 'MB', qty)
 
 
 class DiskResource(Resource):
+    """
+    Represents a disk requirement in an execution environment for an operator.
+    """
     def __init__(self, qty):
         super().__init__('Disk', 'MB', qty)
 
 
 class GpuResource(Resource):
+    """
+    Represents a GPU requirement in an execution environment for an operator.
+    """
     def __init__(self, qty):
         super().__init__('GPU', 'gpu(s)', qty)
 
@@ -105,10 +127,10 @@ class Resources:
     :type gpus: long
     """
     def __init__(self,
-                 cpus=configuration.conf.getint('operators', 'default_cpus'),
-                 ram=configuration.conf.getint('operators', 'default_ram'),
-                 disk=configuration.conf.getint('operators', 'default_disk'),
-                 gpus=configuration.conf.getint('operators', 'default_gpus')
+                 cpus=conf.getint('operators', 'default_cpus'),
+                 ram=conf.getint('operators', 'default_ram'),
+                 disk=conf.getint('operators', 'default_disk'),
+                 gpus=conf.getint('operators', 'default_gpus')
                  ):
         self.cpus = CpuResource(cpus)
         self.ram = RamResource(ram)

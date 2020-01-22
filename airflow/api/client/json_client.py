@@ -93,3 +93,9 @@ class Client(api_client.Client):
         url = urljoin(self._api_base_url, endpoint)
         pool = self._request(url, method='DELETE')
         return pool['pool'], pool['slots'], pool['description']
+
+    def get_lineage(self, dag_id: str, execution_date: str):
+        endpoint = f"/api/experimental/lineage/{dag_id}/{execution_date}"
+        url = urljoin(self._api_base_url, endpoint)
+        data = self._request(url, method='GET')
+        return data['message']

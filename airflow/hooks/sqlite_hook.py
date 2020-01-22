@@ -16,26 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.sqlite.hooks.sqlite`."""
 
-import sqlite3
+import warnings
 
-from airflow.hooks.dbapi_hook import DbApiHook
+# pylint: disable=unused-import
+from airflow.providers.sqlite.hooks.sqlite import SqliteHook  # noqa
 
-
-class SqliteHook(DbApiHook):
-
-    """
-    Interact with SQLite.
-    """
-
-    conn_name_attr = 'sqlite_conn_id'
-    default_conn_name = 'sqlite_default'
-    supports_autocommit = False
-
-    def get_conn(self):
-        """
-        Returns a sqlite connection object
-        """
-        conn = self.get_connection(self.sqlite_conn_id)
-        conn = sqlite3.connect(conn.host)
-        return conn
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.sqlite.hooks.sqlite`.",
+    DeprecationWarning, stacklevel=2
+)

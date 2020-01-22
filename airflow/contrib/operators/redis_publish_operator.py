@@ -16,51 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.redis.operators.redis_publish`."""
 
-from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.redis_hook import RedisHook
-from airflow.models import BaseOperator
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.redis.operators.redis_publish import RedisPublishOperator  # noqa
 
-class RedisPublishOperator(BaseOperator):
-    """
-    Publish a message to Redis.
-
-    :param channel: redis channel to which the message is published (templated)
-    :type channel: str
-    :param message: the message to publish (templated)
-    :type message: str
-    :param redis_conn_id: redis connection to use
-    :type redis_conn_id: str
-    """
-
-    template_fields = ('channel', 'message')
-
-    @apply_defaults
-    def __init__(
-            self,
-            channel,
-            message,
-            redis_conn_id='redis_default',
-            *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
-        self.redis_conn_id = redis_conn_id
-        self.channel = channel
-        self.message = message
-
-    def execute(self, context):
-        """
-        Publish the message to Redis channel
-
-        :param context: the context object
-        :type context: dict
-        """
-
-        redis_hook = RedisHook(redis_conn_id=self.redis_conn_id)
-
-        self.log.info('Sending messsage %s to Redis on channel %s', self.message, self.channel)
-
-        result = redis_hook.get_conn().publish(channel=self.channel, message=self.message)
-
-        self.log.info('Result of publishing %s', result)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.redis.operators.redis_publish`.",
+    DeprecationWarning, stacklevel=2
+)

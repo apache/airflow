@@ -1,23 +1,58 @@
 <!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
-  http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
 -->
-
 # Development Tools
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of contents**
+
+- [Airflow Jira utility](#airflow-jira-utility)
+- [Airflow Pull Request Tool](#airflow-pull-request-tool)
+- [Airflow release signing tool](#airflow-release-signing-tool)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Airflow Jira utility
+
+The `airflow-jira` script interact with the Airflow project in <https://issues.apache.org/jira/>. There are two modes of operation
+
+
+- `compare` will examine issues in Jira based on the "Fix Version" field.
+
+  This is useful for preparing releases, and also has an `--unmerged` flag to
+  only show issues that aren't detected in the current branch.
+
+  To run this check out the release branch (for instance `v1-10-test`) and run:
+
+  ```
+  ./dev/airflow-jira compare --unmerged --previous-version 1.10.6 1.10.7
+  ```
+
+  The `--previous-version` is optional, but might speed up operation. That
+  should be a tag reachable from the current HEAD, and will limit the script to
+  look for cherry-picks in the commit range `$PREV_VERSION..HEAD`
+
+- `changelog` will create a _rough_ output for creating the changelog file for a release
+
+  This output will not be perfect and will need manual processing to make sure
+  the descriptions make sense, and that the items are in the right section (for
+  instance you might want to create 'Doc-only' and 'Misc/Internal' section.)
 
 ## Airflow Pull Request Tool
 
@@ -86,10 +121,10 @@ Users can configure this automatically by running `airflow-pr setup_git_remotes`
 
 ```bash
 $ git remote -v
-github	https://github.com/apache/airflow.git (fetch)
-github	https://github.com/apache/airflow.git (push)
-origin	https://github.com/<USER>/airflow (fetch)
-origin	https://github.com/<USER>/airflow (push)
+github https://github.com/apache/airflow.git (fetch)
+github https://github.com/apache/airflow.git (push)
+origin https://github.com/<USER>/airflow (fetch)
+origin https://github.com/<USER>/airflow (push)
 ```
 
 #### JIRA
@@ -113,8 +148,8 @@ python setup.py compile_assets sdist --formats=gztar
 ```
 
 *Note: `compile_assets` command build the frontend assets (JS and CSS) files for the
-Web UI using webpack and npm. Please make sure you have `npm` installed on your local machine globally.
-Details on how to install `npm` can be found in CONTRIBUTING.md file.*
+Web UI using webpack and yarn. Please make sure you have `yarn` installed on your local machine globally.
+Details on how to install `yarn` can be found in CONTRIBUTING.rst file.*
 
 After that navigate to relative directory i.e., `cd dist` and sign the release files.
 

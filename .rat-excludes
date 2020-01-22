@@ -1,8 +1,10 @@
 # Note: these patterns are applied to single files or directories, not full paths
 # coverage/* will ignore any coverage dir, but airflow/www/static/coverage/* will match nothing
 
+.github/*
 .gitignore
 .gitattributes
+.airflow_db_initialised
 .airflowignore
 .coverage
 .coveragerc
@@ -30,11 +32,13 @@ CHANGELOG.txt
 .*lock
 unittests.cfg
 logs
+.bash_aliases
 
 # Generated doc files
 .*html
 _build/*
 _static/*
+_images/*
 .buildinfo
 searchindex.js
 _api/*
@@ -64,9 +68,19 @@ _sources/*
 rat-results.txt
 apache-airflow-.*\+source.tar.gz.*
 apache-airflow-.*\+bin.tar.gz.*
+PULL_REQUEST_TEMPLATE.md
 
 # vendored modules
 _vendor/*
 
 # Temporary list of files to make compatible with Pylint
 pylint_todo.txt
+
+# Locally mounted files
+.*egg-info/*
+.bash_history
+.bash_aliases
+.inputrc
+
+# the example notebook is ASF 2 licensed but RAT cannot read this
+input_notebook.ipynb

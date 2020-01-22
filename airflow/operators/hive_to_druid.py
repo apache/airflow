@@ -17,9 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
-from airflow.hooks.druid_hook import DruidHook
+"""
+This module contains operator to move data from Hive to Druid.
+"""
+
+from typing import Dict, List, Optional
+
 from airflow.models import BaseOperator
+from airflow.providers.apache.druid.hooks.druid import DruidHook
+from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
 from airflow.utils.decorators import apply_defaults
 
 LOAD_CHECK_INTERVAL = 5
@@ -52,6 +58,21 @@ class HiveToDruidTransfer(BaseOperator):
     :param intervals: list of time intervals that defines segments,
         this is passed as is to the json object. (templated)
     :type intervals: list
+    :param num_shards: Directly specify the number of shards to create.
+    :type num_shards: float
+    :param target_partition_size: Target number of rows to include in a partition,
+    :type target_partition_size: int
+    :param query_granularity: The minimum granularity to be able to query results at and the granularity of
+        the data inside the segment. E.g. a value of "minute" will mean that data is aggregated at minutely
+        granularity. That is, if there are collisions in the tuple (minute(timestamp), dimensions), then it
+        will aggregate values together using the aggregators instead of storing individual rows.
+        A granularity of 'NONE' means millisecond granularity.
+    :type query_granularity: str
+    :param segment_granularity: The granularity to create time chunks at. Multiple segments can be created per
+        time chunk. For example, with 'DAY' segmentGranularity, the events of the same day fall into the
+        same time chunk which can be optionally further partitioned into multiple segments based on other
+        configurations and input size.
+    :type segment_granularity: str
     :param hive_tblproperties: additional properties for tblproperties in
         hive for the staging table
     :type hive_tblproperties: dict
@@ -63,24 +84,24 @@ class HiveToDruidTransfer(BaseOperator):
     template_ext = ('.sql',)
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
-            sql,
-            druid_datasource,
-            ts_dim,
-            metric_spec=None,
-            hive_cli_conn_id='hive_cli_default',
-            druid_ingest_conn_id='druid_ingest_default',
-            metastore_conn_id='metastore_default',
-            hadoop_dependency_coordinates=None,
-            intervals=None,
-            num_shards=-1,
-            target_partition_size=-1,
-            query_granularity="NONE",
-            segment_granularity="DAY",
-            hive_tblproperties=None,
-            job_properties=None,
-            *args, **kwargs):
+            sql: str,
+            druid_datasource: str,
+            ts_dim: str,
+            metric_spec: Optional[List] = None,
+            hive_cli_conn_id: str = 'hive_cli_default',
+            druid_ingest_conn_id: str = 'druid_ingest_default',
+            metastore_conn_id: str = 'metastore_default',
+            hadoop_dependency_coordinates: Optional[List[str]] = None,
+            intervals: Optional[List] = None,
+            num_shards: float = -1,
+            target_partition_size: int = -1,
+            query_granularity: str = "NONE",
+            segment_granularity: str = "DAY",
+            hive_tblproperties: Optional[Dict] = None,
+            job_properties: Optional[Dict] = None,
+            *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sql = sql
         self.druid_datasource = druid_datasource
@@ -108,7 +129,7 @@ class HiveToDruidTransfer(BaseOperator):
         tblproperties = ''.join([", '{}' = '{}'"
                                 .format(k, v)
                                  for k, v in self.hive_tblproperties.items()])
-        hql = """\
+        hql = f"""\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;
         DROP TABLE IF EXISTS {hive_table};
@@ -118,20 +139,18 @@ class HiveToDruidTransfer(BaseOperator):
         TBLPROPERTIES ('serialization.null.format' = ''{tblproperties})
         AS
         {sql}
-        """.format(hive_table=hive_table, tblproperties=tblproperties, sql=sql)
+        """
         self.log.info("Running command:\n %s", hql)
         hive.run_cli(hql)
 
-        m = HiveMetastoreHook(self.metastore_conn_id)
+        meta_hook = HiveMetastoreHook(self.metastore_conn_id)
 
         # Get the Hive table and extract the columns
-        t = m.get_table(hive_table)
-        columns = [col.name for col in t.sd.cols]
+        table = meta_hook.get_table(hive_table)
+        columns = [col.name for col in table.sd.cols]
 
         # Get the path on hdfs
-        static_path = m.get_table(hive_table).sd.location
-
-        schema, table = hive_table.split('.')
+        static_path = meta_hook.get_table(hive_table).sd.location
 
         druid = DruidHook(druid_ingest_conn_id=self.druid_ingest_conn_id)
 

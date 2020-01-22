@@ -19,10 +19,10 @@
 """Triggering DAG runs APIs."""
 import json
 from datetime import datetime
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
-from airflow.exceptions import DagRunAlreadyExists, DagNotFound
-from airflow.models import DagRun, DagBag, DagModel
+from airflow.exceptions import DagNotFound, DagRunAlreadyExists
+from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -54,10 +54,19 @@ def _trigger_dag(
 
     execution_date = execution_date if execution_date else timezone.utcnow()
 
-    assert timezone.is_localized(execution_date)
+    if not timezone.is_localized(execution_date):
+        raise ValueError("The execution_date should be localized")
 
     if replace_microseconds:
         execution_date = execution_date.replace(microsecond=0)
+
+    if dag.default_args and 'start_date' in dag.default_args:
+        min_dag_start_date = dag.default_args["start_date"]
+        if min_dag_start_date and execution_date < min_dag_start_date:
+            raise ValueError(
+                "The execution_date [{0}] should be >= start_date [{1}] from DAG's default_args".format(
+                    execution_date.isoformat(),
+                    min_dag_start_date.isoformat()))
 
     if not run_id:
         run_id = "manual__{0}".format(execution_date.isoformat())
@@ -76,8 +85,8 @@ def _trigger_dag(
         else:
             run_conf = json.loads(conf)
 
-    triggers = list()
-    dags_to_trigger = list()
+    triggers = []
+    dags_to_trigger = []
     dags_to_trigger.append(dag)
     while dags_to_trigger:
         dag = dags_to_trigger.pop()
@@ -96,9 +105,9 @@ def _trigger_dag(
 
 def trigger_dag(
         dag_id: str,
-        run_id: str = None,
+        run_id: Optional[str] = None,
         conf: Optional[Union[dict, str]] = None,
-        execution_date: datetime = None,
+        execution_date: Optional[datetime] = None,
         replace_microseconds: bool = True,
 ) -> Optional[DagRun]:
     """Triggers execution of DAG specified by dag_id

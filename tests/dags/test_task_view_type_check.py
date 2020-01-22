@@ -23,11 +23,10 @@ DAG designed to test a PythonOperator that calls a functool.partial
 """
 import functools
 import logging
-
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 default_args = dict(
@@ -40,7 +39,7 @@ class CallableClass:
         """ A __call__ method """
 
 
-def a_function(arg_x, arg_y):
+def a_function(_, __):
     """ A function with two args """
 
 

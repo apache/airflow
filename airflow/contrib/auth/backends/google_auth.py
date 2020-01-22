@@ -17,24 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 import flask_login
-
+from flask import redirect, request, url_for
 # Need to expose these downstream
 # flake8: noqa: F401
-from flask_login import current_user, logout_user, login_required, login_user
-
-from flask import url_for, redirect, request
-
+from flask_login import current_user, login_required, login_user, logout_user
 from flask_oauthlib.client import OAuth
 
-from airflow import models, configuration
-from airflow.utils.db import provide_session
+from airflow import models
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 log = LoggingMixin().log
 
 
 def get_config_param(param):
-    return str(configuration.conf.get('google', param))
+    return str(conf.get('google', param))
 
 
 class GoogleUser(models.User):

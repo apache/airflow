@@ -24,8 +24,8 @@ from freezegun import freeze_time
 
 from airflow import DAG, settings
 from airflow.models import TaskInstance
-from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -44,7 +44,7 @@ def get_task_instances(task_id):
         .all()
 
 
-class LatestOnlyOperatorTest(unittest.TestCase):
+class TestLatestOnlyOperator(unittest.TestCase):
 
     def setUp(self):
         super().setUp()

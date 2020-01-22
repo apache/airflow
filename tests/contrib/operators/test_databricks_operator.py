@@ -21,13 +21,15 @@
 import unittest
 from datetime import datetime
 
-from airflow.contrib.hooks.databricks_hook import RunState
+import mock
+
 import airflow.contrib.operators.databricks_operator as databricks_operator
-from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
-from airflow.contrib.operators.databricks_operator import DatabricksRunNowOperator
+from airflow.contrib.hooks.databricks_hook import RunState
+from airflow.contrib.operators.databricks_operator import (
+    DatabricksRunNowOperator, DatabricksSubmitRunOperator,
+)
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from tests.compat import mock
 
 DATE = '2017-04-20'
 TASK_ID = 'databricks-operator'
@@ -68,7 +70,7 @@ PYTHON_PARAMS = ["john doe", "35"]
 SPARK_SUBMIT_PARAMS = ["--class", "org.apache.spark.examples.SparkPi"]
 
 
-class DatabricksOperatorSharedFunctions(unittest.TestCase):
+class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
     def test_deep_string_coerce(self):
         test_json = {
             'test_int': 1,
@@ -88,7 +90,7 @@ class DatabricksOperatorSharedFunctions(unittest.TestCase):
         self.assertDictEqual(databricks_operator._deep_string_coerce(test_json), expected)
 
 
-class DatabricksSubmitRunOperatorTest(unittest.TestCase):
+class TestDatabricksSubmitRunOperator(unittest.TestCase):
     def test_init_with_named_parameters(self):
         """
         Test the initializer with the named parameters.
@@ -165,7 +167,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         }
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
-        op.json = op.render_template('json', op.json, {'ds': DATE})
+        op.render_template_fields(context={'ds': DATE})
         expected = databricks_operator._deep_string_coerce({
             'new_cluster': NEW_CLUSTER,
             'notebook_task': RENDERED_TEMPLATED_NOTEBOOK_TASK,
@@ -260,7 +262,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         db_mock.cancel_run.assert_called_once_with(RUN_ID)
 
 
-class DatabricksRunNowOperatorTest(unittest.TestCase):
+class TestDatabricksRunNowOperator(unittest.TestCase):
 
     def test_init_with_named_parameters(self):
         """
@@ -281,9 +283,10 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
             'notebook_params': NOTEBOOK_PARAMS,
             'jar_params': JAR_PARAMS,
             'python_params': PYTHON_PARAMS,
-            'spark_submit_params': SPARK_SUBMIT_PARAMS
+            'spark_submit_params': SPARK_SUBMIT_PARAMS,
+            'job_id': JOB_ID
         }
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, json=json)
 
         expected = databricks_operator._deep_string_coerce({
             'notebook_params': NOTEBOOK_PARAMS,
@@ -332,7 +335,7 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
 
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
-        op.json = op.render_template('json', op.json, {'ds': DATE})
+        op.render_template_fields(context={'ds': DATE})
         expected = databricks_operator._deep_string_coerce({
             'notebook_params': NOTEBOOK_PARAMS,
             'jar_params': RENDERED_TEMPLATED_JAR_PARAMS,

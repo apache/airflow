@@ -21,10 +21,11 @@ import json
 import unittest
 from typing import List
 
+from mock import patch
+
 from airflow.contrib.sensors.datadog_sensor import DatadogSensor
 from airflow.models import Connection
 from airflow.utils import db
-from tests.compat import patch
 
 at_least_one_event = [{'alert_type': 'info',
                        'comments': [],
