@@ -16,17 +16,44 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import json
 import unittest
 from collections import namedtuple
+from unittest import mock
 
+import sqlalchemy
 from cryptography.fernet import Fernet
 from parameterized import parameterized
 
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection, crypto
+from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 from tests.test_utils.config import conf_vars
 
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
+
+
+class UriTestCaseConfig:
+    def __init__(
+        self,
+        test_conn_uri: str,
+        test_conn_attributes: dict,
+        description: str,
+    ):
+        """
+
+        :param test_conn_uri: URI that we use to create connection
+        :param test_conn_attributes: we expect a connection object created with `test_uri` to have these
+        attributes
+        :param description: human-friendly name appended to parameterized test
+        """
+        self.test_uri = test_conn_uri
+        self.test_conn_attributes = test_conn_attributes
+        self.description = description
+
+    @staticmethod
+    def uri_test_name(func, num, param):
+        return "{}_{}_{}".format(func.__name__, num, param.args[0].description.replace(' ', '_'))
 
 
 class TestConnection(unittest.TestCase):
@@ -80,132 +107,253 @@ class TestConnection(unittest.TestCase):
             self.assertEqual(test_connection.extra, 'testextra')
             self.assertEqual(Fernet(key2).decrypt(test_connection._extra.encode()), b'testextra')
 
-    def test_connection_from_uri_without_extras(self):
-        uri = 'scheme://user:password@host%2flocation:1234/schema'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
-        self.assertIsNone(connection.extra)
+    test_from_uri_params = [
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra=None,
+            ),
+            description='without extras',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?'
+                          'extra1=a%20value&extra2=%2Fpath%2F',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra_dejson={'extra1': 'a value', 'extra2': '/path/'}
+            ),
+            description='with extras'
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?extra1=a%20value&extra2=',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra_dejson={'extra1': 'a value', 'extra2': ''}
+            ),
+            description='with empty extras'
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password@host%2Flocation%3Ax%3Ay:1234/schema?'
+                          'extra1=a%20value&extra2=%2Fpath%2F',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location:x:y',
+                schema='schema',
+                login='user',
+                password='password',
+                port=1234,
+                extra_dejson={'extra1': 'a value', 'extra2': '/path/'},
+            ),
+            description='with colon in hostname'
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password%20with%20space@host%2Flocation%3Ax%3Ay:1234/schema',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location:x:y',
+                schema='schema',
+                login='user',
+                password='password with space',
+                port=1234,
+            ),
+            description='with encoded password'
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://domain%2Fuser:password@host%2Flocation%3Ax%3Ay:1234/schema',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host/location:x:y',
+                schema='schema',
+                login='domain/user',
+                password='password',
+                port=1234,
+            ),
+            description='with encoded user',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password%20with%20space@host:1234/schema%2Ftest',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host',
+                schema='schema/test',
+                login='user',
+                password='password with space',
+                port=1234,
+            ),
+            description='with encoded schema'
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://user:password%20with%20space@host:1234',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host',
+                schema='',
+                login='user',
+                password='password with space',
+                port=1234,
+            ),
+            description='no schema'
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='google-cloud-platform://?extra__google_cloud_platform__key_'
+            'path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope='
+            'https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra'
+            '__google_cloud_platform__project=airflow',
+            test_conn_attributes=dict(
+                conn_type='google_cloud_platform',
+                host='',
+                schema='',
+                login=None,
+                password=None,
+                port=None,
+                extra_dejson=dict(
+                    extra__google_cloud_platform__key_path='/keys/key.json',
+                    extra__google_cloud_platform__scope='https://www.googleapis.com/auth/cloud-platform',
+                    extra__google_cloud_platform__project='airflow',
+                )
+            ),
+            description='with underscore',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://host:1234',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='host',
+                schema='',
+                login=None,
+                password=None,
+                port=1234,
+            ),
+            description='without auth info'
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://%2FTmP%2F:1234',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                host='/TmP/',
+                schema='',
+                login=None,
+                password=None,
+                port=1234,
+            ),
+            description='with path',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme:///airflow',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                schema='airflow',
+            ),
+            description='schema only',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://@:1234',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                port=1234,
+            ),
+            description='port only',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://:password%2F%21%40%23%24%25%5E%26%2A%28%29%7B%7D@',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                password='password/!@#$%^&*(){}',
+            ),
+            description='password only',
+        ),
+        UriTestCaseConfig(
+            test_conn_uri='scheme://login%2F%21%40%23%24%25%5E%26%2A%28%29%7B%7D@',
+            test_conn_attributes=dict(
+                conn_type='scheme',
+                login='login/!@#$%^&*(){}',
+            ),
+            description='login only',
+        ),
+    ]
 
-    def test_connection_from_uri_with_extras(self):
-        uri = 'scheme://user:password@host%2flocation:1234/schema?' \
-              'extra1=a%20value&extra2=%2fpath%2f'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
-        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
-                                                       'extra2': '/path/'})
+    # pylint: disable=undefined-variable
+    @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
+    def test_connection_from_uri(self, test_config: UriTestCaseConfig):
 
-    def test_connection_from_uri_with_empty_extras(self):
-        uri = 'scheme://user:password@host%2flocation:1234/schema?' \
-              'extra1=a%20value&extra2='
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
-        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
-                                                       'extra2': ''})
+        connection = Connection(uri=test_config.test_uri)
+        for conn_attr, expected_val in test_config.test_conn_attributes.items():
+            actual_val = getattr(connection, conn_attr)
+            if expected_val is None:
+                self.assertIsNone(expected_val)
+            if isinstance(expected_val, dict):
+                self.assertDictEqual(expected_val, actual_val)
+            else:
+                self.assertEqual(expected_val, actual_val)
 
-    def test_connection_from_uri_with_colon_in_hostname(self):
-        uri = 'scheme://user:password@host%2flocation%3ax%3ay:1234/schema?' \
-              'extra1=a%20value&extra2=%2fpath%2f'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location:x:y')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
-        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
-                                                       'extra2': '/path/'})
+    # pylint: disable=undefined-variable
+    @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
+    def test_connection_get_uri_from_uri(self, test_config: UriTestCaseConfig):
+        """
+        This test verifies that when we create a conn_1 from URI, and we generate a URI from that conn, that
+        when we create a conn_2 from the generated URI, we get an equivalent conn.
+        1. Parse URI to create `Connection` object, `connection`.
+        2. Using this connection, generate URI `generated_uri`..
+        3. Using this`generated_uri`, parse and create new Connection `new_conn`.
+        4. Verify that `new_conn` has same attributes as `connection`.
+        """
+        connection = Connection(uri=test_config.test_uri)
+        generated_uri = connection.get_uri()
+        new_conn = Connection(uri=generated_uri)
+        self.assertEqual(connection.conn_type, new_conn.conn_type)
+        self.assertEqual(connection.login, new_conn.login)
+        self.assertEqual(connection.password, new_conn.password)
+        self.assertEqual(connection.host, new_conn.host)
+        self.assertEqual(connection.port, new_conn.port)
+        self.assertEqual(connection.schema, new_conn.schema)
+        self.assertDictEqual(connection.extra_dejson, new_conn.extra_dejson)
 
-    def test_connection_from_uri_with_encoded_password(self):
-        uri = 'scheme://user:password%20with%20space@host%2flocation%3ax%3ay:1234/schema'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location:x:y')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password with space')
-        self.assertEqual(connection.port, 1234)
+    # pylint: disable=undefined-variable
+    @parameterized.expand([(x,) for x in test_from_uri_params], UriTestCaseConfig.uri_test_name)
+    def test_connection_get_uri_from_conn(self, test_config: UriTestCaseConfig):
+        """
+        This test verifies that if we create conn_1 from attributes (rather than from URI), and we generate a
+        URI, that when we create conn_2 from this URI, we get an equivalent conn.
+        1. Build conn init params using `test_conn_attributes` and store in `conn_kwargs`
+        2. Instantiate conn `connection` from `conn_kwargs`.
+        3. Generate uri `get_uri` from this conn.
+        4. Create conn `new_conn` from this uri.
+        5. Verify `new_conn` has same attributes as `connection`.
+        """
+        conn_kwargs = {}
+        for k, v in test_config.test_conn_attributes.items():
+            if k == 'extra_dejson':
+                conn_kwargs.update({'extra': json.dumps(v)})
+            else:
+                conn_kwargs.update({k: v})
 
-    def test_connection_from_uri_with_encoded_user(self):
-        uri = 'scheme://domain%2fuser:password@host%2flocation%3ax%3ay:1234/schema'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location:x:y')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'domain/user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
-
-    def test_connection_from_uri_with_encoded_schema(self):
-        uri = 'scheme://user:password%20with%20space@host:1234/schema%2ftest'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host')
-        self.assertEqual(connection.schema, 'schema/test')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password with space')
-        self.assertEqual(connection.port, 1234)
-
-    def test_connection_from_uri_no_schema(self):
-        uri = 'scheme://user:password%20with%20space@host:1234'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host')
-        self.assertEqual(connection.schema, '')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password with space')
-        self.assertEqual(connection.port, 1234)
-
-    def test_connection_from_uri_with_underscore(self):
-        uri = 'google-cloud-platform://?extra__google_cloud_platform__key_' \
-              'path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=' \
-              'https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra' \
-              '__google_cloud_platform__project=airflow'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'google_cloud_platform')
-        self.assertEqual(connection.host, '')
-        self.assertEqual(connection.schema, '')
-        self.assertEqual(connection.login, None)
-        self.assertEqual(connection.password, None)
-        self.assertEqual(connection.extra_dejson, dict(
-            extra__google_cloud_platform__key_path='/keys/key.json',
-            extra__google_cloud_platform__project='airflow',
-            extra__google_cloud_platform__scope='https://www.googleapis.com/'
-                                                'auth/cloud-platform'))
-
-    def test_connection_from_uri_without_authinfo(self):
-        uri = 'scheme://host:1234'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host')
-        self.assertEqual(connection.schema, '')
-        self.assertEqual(connection.login, None)
-        self.assertEqual(connection.password, None)
-        self.assertEqual(connection.port, 1234)
-
-    def test_connection_from_uri_with_path(self):
-        uri = 'scheme://%2FTmP%2F:1234'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, '/TmP/')
-        self.assertEqual(connection.schema, '')
-        self.assertEqual(connection.login, None)
-        self.assertEqual(connection.password, None)
-        self.assertEqual(connection.port, 1234)
+        connection = Connection(conn_id='test_conn', **conn_kwargs)
+        gen_uri = connection.get_uri()
+        new_conn = Connection(conn_id='test_conn', uri=gen_uri)
+        for conn_attr, expected_val in test_config.test_conn_attributes.items():
+            actual_val = getattr(new_conn, conn_attr)
+            if expected_val is None:
+                self.assertIsNone(expected_val)
+            if isinstance(expected_val, dict):
+                self.assertDictEqual(expected_val, actual_val)
+            else:
+                self.assertEqual(expected_val, actual_val)
 
     @parameterized.expand(
         [
@@ -283,3 +431,85 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(connection.host, uri_parts.host)
         self.assertEqual(connection.port, uri_parts.port)
         self.assertEqual(connection.schema, uri_parts.schema)
+
+    @mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+    })
+    def test_using_env_var(self):
+        conn = SqliteHook.get_connection(conn_id='test_uri')
+        self.assertEqual('ec2.compute.com', conn.host)
+        self.assertEqual('the_database', conn.schema)
+        self.assertEqual('username', conn.login)
+        self.assertEqual('password', conn.password)
+        self.assertEqual(5432, conn.port)
+
+    @mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
+    def test_using_unix_socket_env_var(self):
+        conn = SqliteHook.get_connection(conn_id='test_uri_no_creds')
+        self.assertEqual('ec2.compute.com', conn.host)
+        self.assertEqual('the_database', conn.schema)
+        self.assertIsNone(conn.login)
+        self.assertIsNone(conn.password)
+        self.assertIsNone(conn.port)
+
+    def test_param_setup(self):
+        conn = Connection(conn_id='local_mysql', conn_type='mysql',
+                          host='localhost', login='airflow',
+                          password='airflow', schema='airflow')
+        self.assertEqual('localhost', conn.host)
+        self.assertEqual('airflow', conn.schema)
+        self.assertEqual('airflow', conn.login)
+        self.assertEqual('airflow', conn.password)
+        self.assertIsNone(conn.port)
+
+    def test_env_var_priority(self):
+        conn = SqliteHook.get_connection(conn_id='airflow_db')
+        self.assertNotEqual('ec2.compute.com', conn.host)
+
+        with mock.patch.dict('os.environ', {
+            'AIRFLOW_CONN_AIRFLOW_DB': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        }):
+            conn = SqliteHook.get_connection(conn_id='airflow_db')
+            self.assertEqual('ec2.compute.com', conn.host)
+            self.assertEqual('the_database', conn.schema)
+            self.assertEqual('username', conn.login)
+            self.assertEqual('password', conn.password)
+            self.assertEqual(5432, conn.port)
+
+    @mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
+    def test_dbapi_get_uri(self):
+        conn = BaseHook.get_connection(conn_id='test_uri')
+        hook = conn.get_hook()
+        self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', hook.get_uri())
+        conn2 = BaseHook.get_connection(conn_id='test_uri_no_creds')
+        hook2 = conn2.get_hook()
+        self.assertEqual('postgres://ec2.compute.com/the_database', hook2.get_uri())
+
+    @mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
+    def test_dbapi_get_sqlalchemy_engine(self):
+        conn = BaseHook.get_connection(conn_id='test_uri')
+        hook = conn.get_hook()
+        engine = hook.get_sqlalchemy_engine()
+        self.assertIsInstance(engine, sqlalchemy.engine.Engine)
+        self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', str(engine.url))
+
+    @mock.patch.dict('os.environ', {
+        'AIRFLOW_CONN_TEST_URI': 'postgres://username:password@ec2.compute.com:5432/the_database',
+        'AIRFLOW_CONN_TEST_URI_NO_CREDS': 'postgres://ec2.compute.com/the_database',
+    })
+    def test_get_connections_env_var(self):
+        conns = SqliteHook.get_connections(conn_id='test_uri')
+        assert len(conns) == 1
+        assert conns[0].host == 'ec2.compute.com'
+        assert conns[0].schema == 'the_database'
+        assert conns[0].login == 'username'
+        assert conns[0].password == 'password'
+        assert conns[0].port == 5432

@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import namedtuple
+from typing import NamedTuple
 
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 class BaseTIDep:
@@ -147,6 +147,11 @@ class BaseTIDep:
         return TIDepStatus(self.name, True, reason)
 
 
-# Dependency status for a specific task instance indicating whether or not the task
-# instance passed the dependency.
-TIDepStatus = namedtuple('TIDepStatus', ['dep_name', 'passed', 'reason'])
+class TIDepStatus(NamedTuple):
+    """
+    Dependency status for a specific task instance indicating whether or not the task
+    instance passed the dependency.
+    """
+    dep_name: str
+    passed: bool
+    reason: str

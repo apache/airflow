@@ -29,8 +29,9 @@ from google.cloud.bigquery_datatransfer_v1.types import (
     StartManualTransferRunsResponse, TransferConfig, TransferRun,
 )
 from google.protobuf.json_format import MessageToDict, ParseDict
+from googleapiclient.discovery import Resource
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 
 
 def get_object_id(obj: dict) -> str:
@@ -40,7 +41,7 @@ def get_object_id(obj: dict) -> str:
     return obj["name"].rpartition("/")[-1]
 
 
-class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
+class BiqQueryDataTransferServiceHook(CloudBaseHook):
     """
      Hook for Google Bigquery Transfer API.
 
@@ -49,7 +50,7 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
 
      """
 
-    _conn = None
+    _conn = None  # type: Optional[Resource]
 
     def __init__(
         self, gcp_conn_id: str = "google_cloud_default", delegate_to: Optional[str] = None
@@ -93,8 +94,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
             )
         return self._conn
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_transfer_config(
         self,
         transfer_config: Union[dict, TransferConfig],
@@ -126,7 +127,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: A ``google.cloud.bigquery_datatransfer_v1.types.TransferConfig`` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = client.project_path(project_id)
         return client.create_transfer_config(
@@ -138,8 +140,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_transfer_config(
         self,
         transfer_config_id: str,
@@ -167,7 +169,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: None
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = client.project_transfer_config_path(
             project=project_id, transfer_config=transfer_config_id
@@ -176,8 +179,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
             name=name, retry=retry, timeout=timeout, metadata=metadata
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def start_manual_transfer_runs(
         self,
         transfer_config_id: str,
@@ -219,7 +222,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.StartManualTransferRunsResponse`` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         parent = client.project_transfer_config_path(
             project=project_id, transfer_config=transfer_config_id
@@ -233,8 +237,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
             metadata=metadata,
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def get_transfer_run(
         self,
         run_id: str,
@@ -265,7 +269,8 @@ class BiqQueryDataTransferServiceHook(GoogleCloudBaseHook):
         :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         client = self.get_conn()
         name = client.project_run_path(
             project=project_id, transfer_config=transfer_config_id, run=run_id

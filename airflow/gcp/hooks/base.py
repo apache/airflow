@@ -40,6 +40,7 @@ from google.api_core.exceptions import (
 from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
+from googleapiclient.http import set_user_agent
 
 from airflow import LoggingMixin, version
 from airflow.exceptions import AirflowException
@@ -100,7 +101,7 @@ class retry_if_temporary_quota(tenacity.retry_if_exception):  # pylint: disable=
 RT = TypeVar('RT')  # pylint: disable=invalid-name
 
 
-class GoogleCloudBaseHook(BaseHook):
+class CloudBaseHook(BaseHook):
     """
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
     API client that is built in the same way no matter which service you use.
@@ -143,6 +144,11 @@ class GoogleCloudBaseHook(BaseHook):
         """
         key_path = self._get_field('key_path', None)  # type: Optional[str]
         keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[str]
+        if key_path and keyfile_dict:
+            raise AirflowException(
+                "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
+                "Please provide only one value."
+            )
         if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `google.auth.default()` '
                           'since no key file is defined for hook.')
@@ -164,8 +170,9 @@ class GoogleCloudBaseHook(BaseHook):
         else:
             # Get credentials from JSON data provided in the UI.
             try:
-                assert keyfile_dict is not None
-                keyfile_dict_json = json.loads(keyfile_dict)  # type: Dict[str, str]
+                if not keyfile_dict:
+                    raise ValueError("The keyfile_dict should be set")
+                keyfile_dict_json: Dict[str, str] = json.loads(keyfile_dict)
 
                 # Depending on how the JSON was formatted, it may contain
                 # escaped newlines. Convert those to actual newlines.
@@ -209,8 +216,8 @@ class GoogleCloudBaseHook(BaseHook):
         """
         credentials = self._get_credentials()
         http = httplib2.Http()
-        authed_http = google_auth_httplib2.AuthorizedHttp(
-            credentials, http=http)
+        http = set_user_agent(http, "airflow/" + version.version)
+        authed_http = google_auth_httplib2.AuthorizedHttp(credentials, http=http)
         return authed_http
 
     def _get_field(self, f: str, default: Any = None) -> Any:
@@ -301,7 +308,7 @@ class GoogleCloudBaseHook(BaseHook):
         """
 
         @functools.wraps(func)
-        def wrapper_decorator(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
+        def wrapper_decorator(self: CloudBaseHook, *args, **kwargs) -> RT:
             try:
                 return func(self, *args, **kwargs)
             except GoogleAPICallError as e:
@@ -334,7 +341,7 @@ class GoogleCloudBaseHook(BaseHook):
         :return: result of the function call
         """
         @functools.wraps(func)
-        def inner_wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
+        def inner_wrapper(self: CloudBaseHook, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than"
@@ -361,7 +368,7 @@ class GoogleCloudBaseHook(BaseHook):
         makes it easier to use multiple connection in one function.
         """
         @functools.wraps(func)
-        def wrapper(self: GoogleCloudBaseHook, *args, **kwargs) -> RT:
+        def wrapper(self: CloudBaseHook, *args, **kwargs) -> RT:
             with self.provide_gcp_credential_file_as_context():
                 return func(self, *args, **kwargs)
         return wrapper

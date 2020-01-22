@@ -37,9 +37,6 @@ if [[ -f /.dockerenv ]]; then
     sudo mkdir -pv _build
     sudo mkdir -pv _api
     echo "Created the _build and _api folders in case they do not exist"
-    echo "Changing ownership of _build and _api folders to ${AIRFLOW_USER}:${AIRFLOW_USER}"
-    sudo chown -R "${AIRFLOW_USER}":"${AIRFLOW_USER}" .
-    echo "Changed ownership of the whole doc folder to ${AIRFLOW_USER}:${AIRFLOW_USER}"
 else
     # We are outside the container so we simply make sure that the directories exist
     echo "Creating the _build and _api folders in case they do not exist"
@@ -92,7 +89,7 @@ mapfile -t DEPRECATED_MODULES < <(grep -R -i -l 'This module is deprecated.' ../
 
 IGNORED_MISSING_MODULES=('airflow.gcp.hooks.base')
 
-mapfile -t ALL_MODULES < <(find ../airflow/{,gcp/,contrib/,provider/*/*/}{operators,sensors,hooks} -name "*.py" | \
+mapfile -t ALL_MODULES < <(find ../airflow/{,gcp/,contrib/,providers/*/*/}{operators,sensors,hooks} -name "*.py" | \
     grep -v "__init__" | \
     grep -v "__pycache__" | \
     cut -d "/" -f 2- | \

@@ -16,40 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.mongo_hook import MongoHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+"""This module is deprecated. Please use `airflow.providers.mongo.sensors.mongo`."""
 
+import warnings
 
-class MongoSensor(BaseSensorOperator):
-    """
-    Checks for the existence of a document which
-    matches the given query in MongoDB. Example:
+# pylint: disable=unused-import
+from airflow.providers.mongo.sensors.mongo import MongoSensor  # noqa
 
-    >>> mongo_sensor = MongoSensor(collection="coll",
-    ...                            query={"key": "value"},
-    ...                            mongo_conn_id="mongo_default",
-    ...                            task_id="mongo_sensor")
-
-    :param collection: Target MongoDB collection.
-    :type collection: str
-    :param query: The query to find the target document.
-    :type query: dict
-    :param mongo_conn_id: The connection ID to use
-        when connecting to MongoDB.
-    :type mongo_conn_id: str
-    """
-    template_fields = ('collection', 'query')
-
-    @apply_defaults
-    def __init__(self, collection, query, mongo_conn_id="mongo_default", *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mongo_conn_id = mongo_conn_id
-        self.collection = collection
-        self.query = query
-
-    def poke(self, context):
-        self.log.info("Sensor check existence of the document "
-                      "that matches the following query: %s", self.query)
-        hook = MongoHook(self.mongo_conn_id)
-        return hook.find(self.collection, self.query, find_one=True) is not None
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.mongo.sensors.mongo`.",
+    DeprecationWarning, stacklevel=2
+)

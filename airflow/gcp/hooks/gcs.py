@@ -32,11 +32,11 @@ from urllib.parse import urlparse
 from google.cloud import storage
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.version import version
 
 
-class GoogleCloudStorageHook(GoogleCloudBaseHook):
+class GCSHook(CloudBaseHook):
     """
     Interact with Google Cloud Storage. This hook uses the Google Cloud Platform
     connection.
@@ -261,7 +261,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         Checks for the existence of a file in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the object is.
+        :param bucket_name: The Google Cloud Storage bucket where the object is.
         :type bucket_name: str
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
@@ -276,7 +276,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         Checks if an blob_name is updated in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the object is.
+        :param bucket_name: The Google Cloud Storage bucket where the object is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket.
@@ -374,7 +374,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         Gets the size of a file in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the blob_name is.
+        :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google
             cloud storage bucket_name.
@@ -395,7 +395,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         Gets the CRC32c checksum of an object in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the blob_name is.
+        :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket_name.
@@ -414,7 +414,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         Gets the MD5 hash of an object in Google Cloud Storage.
 
-        :param bucket_name: The Google cloud storage bucket where the blob_name is.
+        :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
         :type bucket_name: str
         :param object_name: The name of the object to check in the Google cloud
             storage bucket_name.
@@ -429,8 +429,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         self.log.info('The md5Hash of %s is %s', object_name, blob_md5hash)
         return blob_md5hash
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.catch_http_exception
+    @CloudBaseHook.fallback_to_default_project_id
     def create_bucket(self,
                       bucket_name,
                       resource=None,

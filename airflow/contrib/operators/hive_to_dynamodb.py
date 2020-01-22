@@ -17,11 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+This module contains operator to move data from Hive to DynamoDB.
+"""
+
 import json
 
 from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
-from airflow.hooks.hive_hooks import HiveServer2Hook
 from airflow.models import BaseOperator
+from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -58,7 +62,7 @@ class HiveToDynamoDBTransferOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self,
             sql,
             table_name,

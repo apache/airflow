@@ -19,9 +19,11 @@
 
 import unittest
 
+import mock
+from mock import PropertyMock
+
 from airflow import AirflowException
 from airflow.gcp.hooks.spanner import SpannerHook
-from tests.compat import PropertyMock, mock
 from tests.gcp.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
@@ -35,7 +37,7 @@ SPANNER_DATABASE = 'database-name'
 class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.CloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
             self.spanner_hook_default_project_id = SpannerHook(gcp_conn_id='test')
 
@@ -75,7 +77,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         self.assertIsNotNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -117,7 +119,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -161,7 +163,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -197,7 +199,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -237,7 +239,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         self.assertIsNotNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -277,7 +279,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -317,7 +319,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -361,7 +363,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
         self.assertTrue(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -404,7 +406,7 @@ class TestGcpSpannerHookDefaultProjectId(unittest.TestCase):
 class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
 
     def setUp(self):
-        with mock.patch('airflow.gcp.hooks.base.GoogleCloudBaseHook.__init__',
+        with mock.patch('airflow.gcp.hooks.base.CloudBaseHook.__init__',
                         new=mock_base_gcp_hook_no_default_project_id):
             self.spanner_hook_no_default_project_id = SpannerHook(gcp_conn_id='test')
 
@@ -428,7 +430,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         self.assertEqual(self.spanner_hook_no_default_project_id._client, result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -468,7 +470,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -510,7 +512,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -554,7 +556,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -591,7 +593,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -632,7 +634,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         self.assertIsNotNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -674,7 +676,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -735,7 +737,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         self.assertIsNone(res)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )
@@ -800,7 +802,7 @@ class TestGcpSpannerHookNoDefaultProjectID(unittest.TestCase):
         database_drop_method.assert_not_called()
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.project_id',
+        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )

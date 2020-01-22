@@ -1,0 +1,195 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+
+# Details: https://github.com/kaxil/boring-cyborg
+
+labelPRBasedOnFilePath:
+  provider:GCP:
+    - airflow/**/gcp/*
+    - airflow/gcp/*
+    - airflow/gcp/**/*
+    - airflow/providers/google/cloud/**/*
+    - airflow/**/gcp_*.py
+    - airflow/**/gcs_*.py
+    - airflow/**/bigquery_*.py
+    - tests/gcp/**/*
+    - tests/gcp/*
+    - tests/providers/google/cloud/**/*
+    - tests/providers/google/cloud/*
+    - docs/howto/connection/gcp.rst
+    - docs/howto/connection/gcp_sql.rst
+    - docs/howto/operator/gcp/*
+
+  provider:AWS:
+    - airflow/**/aws/*
+    - airflow/providers/amazon/aws/**/*
+    - airflow/**/aws_*.py
+    - airflow/**/ecs_*.py
+    - airflow/**/emr_*.py
+    - airflow/**/s3_*.py
+    - airflow/**/sagemaker_*.py
+    - tests/providers/amazon/aws/**/*
+    - tests/providers/amazon/aws/*
+    - tests/**/aws_*.py
+    - tests/**/s3_*.py
+    - tests/**/ecs_*.py
+    - tests/**/emr_*.py
+    - docs/howto/connection/aws.rst
+    - docs/howto/operator/amazon/aws/*
+
+  provider:Azure:
+    - airflow/**/azure/*
+    - airflow/**/azure_*.py
+    - airflow/**/adls_*.py
+    - airflow/**/wasb_*.py
+    - tests/**/wasb_*.py
+    - tests/**/adls_*.py
+    - tests/**/azure_*.py
+
+  provider:Apache:
+    - airflow/providers/apache/**/*
+    - tests/providers/apache/**/*
+    - tests/providers/apache/*
+
+  k8s:
+    - airflow/**/kubernetes_*.py
+    - airflow/kubernetes/**/*
+    - tests/integration/kubernetes/*
+    - docs/kubernetes.rst
+
+  area:dev:
+    - scripts/**/*
+    - scripts/*
+    - dev/**/*
+    - dev/*
+    - .github/**/*
+    - .github/*
+    - breeze
+    - Dockerfile
+    - BREEZE.rst
+    - breeze-complete
+    - confirm
+    - CONTRIBUTING.*
+    - LOCAL_VIRTUALENV.rst
+    - STATIC_CODE_CHECKS.rst
+    - TESTING.rst
+    - yamllint-config.yml
+    - .asf.yaml
+    - .bash_completion
+    - .dockerignore
+    - .flake8
+    - .hadolint.yaml
+    - .pre-commit-config.yaml
+    - .rat-excludes
+    - .readthedocs.yml
+    - .travis.yml
+
+  area:docs:
+    - docs/**/*
+    - docs/*
+
+  area:Webserver:
+    - airflow/www/**/*
+    - airflow/www_rbac/**/*
+    - tests/www/**/*
+    - tests/www/*
+    - tests/www_rbac/**/*
+    - tests/www_rbac/*
+
+  area:CLI:
+    - airflow/bin/cli.py
+    - airflow/cli/**/*.py
+    - tests/cli/**/*.py
+
+  area:Lineage:
+    - airflow/lineage/**/*
+    - airflow/lineage/*
+    - tests/lineage/*
+
+  area:Logging:
+    - airflow/utils/log/*
+    - tests/utils/log/**/*
+    - tests/utils/log/*
+    - docs/lineage.rst
+
+  area:Plugins:
+    - airflow/plugins_manager.py
+    - tests/plugins/*
+    - docs/plugins.rst
+
+  area:Scheduler/Executor:
+    - airflow/jobs/*
+    - airflow/executors/*
+    - airflow/task/task_runner/*
+    - tests/executors/*
+    - tests/jobs/*
+    - docs/scheduler.rst
+    - docs/executor/*
+
+  area:Serialization:
+    - airflow/serialization/*
+    - tests/serialization/*
+    - docs/dag-serialization.rst
+
+# Comment to be posted to welcome users when they open their first PR
+firstPRWelcomeComment: |
+  Congratulations on your first Pull Request and welcome to the Apache Airflow community!
+  If you have any issues or are unsure about any anything please check our
+  Contribution Guide (https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst)
+
+  Here are some useful points:
+  - Pay attention to the quality of your code (flake8, pylint and type annotations). Our [pre-commits](
+  https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#prerequisites-for-pre-commit-hooks)
+  will help you with that.
+  - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
+  Adding a new operator? Check this short [guide](https://github
+  .com/apache/airflow/blob/master/docs/howto/custom-operator.rst) Consider adding an example DAG that shows
+  how users should use it.
+  - Consider using [Breeze environment](https://github.com/apache/airflow/blob/master/BREEZE.rst) for testing
+  locally, it’s a heavy docker but it ships with a working Airflow and a lot of integrations.
+  - Be patient and persistent. It might take some time to get a review or get the final approval from
+  Committers.
+
+  Apache Airflow is a community-driven project and together we are making it better 🚀.
+
+  In case of doubts contact the developers at:
+  Mailing List: dev@airflow.apache.org
+  Slack: https://apache-airflow-slack.herokuapp.com/
+
+# Comment to be posted to congratulate user on their first merged PR
+firstPRMergeComment: >
+  Awesome work, congrats on your first merged pull request!
+
+insertIssueLinkInPrDescription:
+  descriptionIssuePlaceholderRegexp: "^Issue link: (.*)$"
+  matchers:
+    jiraIssueMatch:
+      titleIssueIdRegexp: \[(AIRFLOW-[0-9]{4})\]
+      descriptionIssueLink: "[${1}](https://issues.apache.org/jira/browse/${1})"
+    docOnlyIssueMatch:
+      titleIssueIdRegexp: \[(AIRFLOW-X{4})\]
+      descriptionIssueLink: "`Document only change, no JIRA issue`"
+
+verifyTitles:
+  titleRegexp: ^\[AIRFLOW-[0-9]{4}\].*$|^\[AIRFLOW-XXXX\].*$
+  validateEitherPrOrSingleCommitTitle: true
+
+checkUpToDate:
+  - airflow/migrations/*
+  - airflow/migrations/**/*
+  - airflow/alembic.ini

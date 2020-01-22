@@ -21,9 +21,10 @@
 import datetime
 import unittest
 
+import mock
+
 from airflow import DAG
 from airflow.contrib.operators.file_to_wasb import FileToWasbOperator
-from tests.compat import mock
 
 
 class TestFileToWasbOperator(unittest.TestCase):

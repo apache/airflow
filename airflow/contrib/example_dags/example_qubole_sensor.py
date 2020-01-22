@@ -33,7 +33,7 @@ from airflow.contrib.sensors.qubole_sensor import QuboleFileSensor, QubolePartit
 from airflow.utils import dates
 
 default_args = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'depends_on_past': False,
     'start_date': dates.days_ago(2),
     'email': ['airflow@example.com'],
@@ -45,7 +45,8 @@ with DAG(
     dag_id='example_qubole_sensor',
     default_args=default_args,
     schedule_interval=None,
-    doc_md=__doc__
+    doc_md=__doc__,
+    tags=['example'],
 ) as dag:
 
     t1 = QuboleFileSensor(

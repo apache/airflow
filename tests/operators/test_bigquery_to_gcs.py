@@ -19,8 +19,9 @@
 
 import unittest
 
-from airflow.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
-from tests.compat import mock
+import mock
+
+from airflow.operators.bigquery_to_gcs import BigQueryToGCSOperator
 
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
@@ -39,7 +40,7 @@ class TestBigQueryToCloudStorageOperator(unittest.TestCase):
         print_header = True
         labels = {'k1': 'v1'}
 
-        operator = BigQueryToCloudStorageOperator(
+        operator = BigQueryToGCSOperator(
             task_id=TASK_ID,
             source_project_dataset_table=source_project_dataset_table,
             destination_cloud_storage_uris=destination_cloud_storage_uris,

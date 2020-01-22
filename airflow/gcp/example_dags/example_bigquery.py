@@ -23,22 +23,22 @@ Example Airflow DAG for Google BigQuery service.
 import os
 from urllib.parse import urlparse
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
-    BigQueryDeleteDatasetOperator, BigQueryGetDataOperator, BigQueryGetDatasetOperator,
-    BigQueryGetDatasetTablesOperator, BigQueryOperator, BigQueryPatchDatasetOperator,
-    BigQueryTableDeleteOperator, BigQueryUpdateDatasetOperator,
+    BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator,
+    BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator,
+    BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
 )
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
-from airflow.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
+from airflow.operators.bigquery_to_gcs import BigQueryToGCSOperator
+from airflow.utils.dates import days_ago
 
 # 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d = CryptoKitties contract address
 WALLET_ADDRESS = os.environ.get("GCP_ETH_WALLET_ADDRESS", "0x06012c8cf97BEaD5deAe237070F9587f8E7A266d")
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 
 MOST_VALUABLE_INCOMING_TRANSACTIONS = """
 SELECT
@@ -85,10 +85,13 @@ DATA_EXPORT_BUCKET_NAME = os.environ.get("GCP_BIGQUERY_EXPORT_BUCKET_NAME", "tes
 
 
 with models.DAG(
-    "example_bigquery", default_args=default_args, schedule_interval=None  # Override to match your needs
+    "example_bigquery",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
-    execute_query = BigQueryOperator(
+    execute_query = BigQueryExecuteQueryOperator(
         task_id="execute_query",
         sql=MOST_VALUABLE_INCOMING_TRANSACTIONS,
         use_legacy_sql=False,
@@ -101,7 +104,7 @@ with models.DAG(
         ],
     )
 
-    bigquery_execute_multi_query = BigQueryOperator(
+    bigquery_execute_multi_query = BigQueryExecuteQueryOperator(
         task_id="execute_multi_query",
         sql=[MOST_VALUABLE_INCOMING_TRANSACTIONS, MOST_ACTIVE_PLAYERS],
         use_legacy_sql=False,
@@ -114,7 +117,7 @@ with models.DAG(
         ],
     )
 
-    execute_query_save = BigQueryOperator(
+    execute_query_save = BigQueryExecuteQueryOperator(
         task_id="execute_query_save",
         sql=MOST_VALUABLE_INCOMING_TRANSACTIONS,
         use_legacy_sql=False,
@@ -149,7 +152,7 @@ with models.DAG(
         schema_fields=[{"name": "name", "type": "STRING"}, {"name": "post_abbr", "type": "STRING"}],
     )
 
-    execute_query_external_table = BigQueryOperator(
+    execute_query_external_table = BigQueryExecuteQueryOperator(
         task_id="execute_query_external_table",
         destination_dataset_table="{}.selected_data_from_external_table".format(DATASET_NAME),
         sql='SELECT * FROM `{}.external_table` WHERE name LIKE "W%"'.format(DATASET_NAME),
@@ -162,7 +165,7 @@ with models.DAG(
         destination_project_dataset_table="{}.copy_of_selected_data_from_external_table".format(DATASET_NAME),
     )
 
-    bigquery_to_gcs = BigQueryToCloudStorageOperator(
+    bigquery_to_gcs = BigQueryToGCSOperator(
         task_id="bigquery_to_gcs",
         source_project_dataset_table="{}.selected_data_from_external_table".format(DATASET_NAME),
         destination_cloud_storage_uris=["gs://{}/export-bigquery.csv".format(DATA_EXPORT_BUCKET_NAME)],
@@ -196,6 +199,16 @@ with models.DAG(
         ],
     )
 
+    create_view = BigQueryCreateEmptyTableOperator(
+        task_id="create_view",
+        dataset_id=LOCATION_DATASET_NAME,
+        table_id="test_view",
+        view={
+            "query": "SELECT * FROM `{}.test_table`".format(DATASET_NAME),
+            "useLegacySql": False
+        }
+    )
+
     get_empty_dataset_tables = BigQueryGetDatasetTablesOperator(
         task_id="get_empty_dataset_tables",
         dataset_id=DATASET_NAME
@@ -206,7 +219,11 @@ with models.DAG(
         dataset_id=DATASET_NAME
     )
 
-    delete_table = BigQueryTableDeleteOperator(
+    delete_view = BigQueryDeleteTableOperator(
+        task_id="delete_view", deletion_dataset_table="{}.test_view".format(DATASET_NAME)
+    )
+
+    delete_table = BigQueryDeleteTableOperator(
         task_id="delete_table", deletion_dataset_table="{}.test_table".format(DATASET_NAME)
     )
 
@@ -246,5 +263,5 @@ with models.DAG(
     create_dataset >> create_external_table >> execute_query_external_table >> \
         copy_from_selected_data >> delete_dataset
     execute_query_external_table >> bigquery_to_gcs >> delete_dataset
-    create_table >> delete_table >> delete_dataset
+    create_table >> create_view >> delete_view >> delete_table >> delete_dataset
     create_dataset_with_location >> create_table_with_location >> delete_dataset_with_location

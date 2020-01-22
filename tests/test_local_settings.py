@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,14 +23,14 @@ import unittest
 from unittest.mock import MagicMock, call
 
 SETTINGS_FILE_POLICY = """
-def policy(task_instance):
+def test_policy(task_instance):
     task_instance.run_as_user = "myself"
 """
 
 SETTINGS_FILE_POLICY_WITH_DUNDER_ALL = """
-__all__ = ["policy"]
+__all__ = ["test_policy"]
 
-def policy(task_instance):
+def test_policy(task_instance):
     task_instance.run_as_user = "myself"
 
 def not_policy():
@@ -94,10 +93,10 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"):
             from airflow import settings
-            settings.import_local_settings()  # pylint: ignore
+            settings.import_local_settings()
 
             with self.assertRaises(AttributeError):
-                settings.not_policy()
+                settings.not_policy()  # pylint: disable=no-member
 
     def test_import_with_dunder_all(self):
         """
@@ -106,10 +105,10 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POLICY_WITH_DUNDER_ALL, "airflow_local_settings"):
             from airflow import settings
-            settings.import_local_settings()  # pylint: ignore
+            settings.import_local_settings()
 
             task_instance = MagicMock()
-            settings.policy(task_instance)
+            settings.test_policy(task_instance)  # pylint: disable=no-member
 
             assert task_instance.run_as_user == "myself"
 
@@ -130,10 +129,10 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POLICY, "airflow_local_settings"):
             from airflow import settings
-            settings.import_local_settings()  # pylint: ignore
+            settings.import_local_settings()
 
             task_instance = MagicMock()
-            settings.policy(task_instance)
+            settings.test_policy(task_instance)  # pylint: disable=no-member
 
             assert task_instance.run_as_user == "myself"
 
@@ -144,7 +143,7 @@ class TestLocalSettings(unittest.TestCase):
         """
         with SettingsContext(SETTINGS_FILE_POD_MUTATION_HOOK, "airflow_local_settings"):
             from airflow import settings
-            settings.import_local_settings()  # pylint: ignore
+            settings.import_local_settings()
 
             pod = MagicMock()
             settings.pod_mutation_hook(pod)

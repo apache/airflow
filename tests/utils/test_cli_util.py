@@ -24,6 +24,7 @@ from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime
 
+from airflow import AirflowException, settings
 from airflow.utils import cli, cli_action_loggers
 
 
@@ -32,9 +33,9 @@ class TestCliUtil(unittest.TestCase):
     def test_metrics_build(self):
         func_name = 'test'
         exec_date = datetime.utcnow()
-        ns = Namespace(dag_id='foo', task_id='bar',
-                       subcommand='test', execution_date=exec_date)
-        metrics = cli._build_metrics(func_name, ns)
+        namespace = Namespace(dag_id='foo', task_id='bar',
+                              subcommand='test', execution_date=exec_date)
+        metrics = cli._build_metrics(func_name, namespace)
 
         expected = {'user': os.environ.get('USER'),
                     'sub_command': 'test',
@@ -70,6 +71,19 @@ class TestCliUtil(unittest.TestCase):
         """
         with fail_action_logger_callback():
             success_func(Namespace())
+
+    def test_process_subdir_path_with_placeholder(self):
+        self.assertEqual(os.path.join(settings.DAGS_FOLDER, 'abc'), cli.process_subdir('DAGS_FOLDER/abc'))
+
+    def test_get_dags(self):
+        dags = cli.get_dags(None, "example_subdag_operator")
+        self.assertEqual(len(dags), 1)
+
+        dags = cli.get_dags(None, "subdag", True)
+        self.assertGreater(len(dags), 1)
+
+        with self.assertRaises(AirflowException):
+            cli.get_dags(None, "foobar", True)
 
 
 @contextmanager

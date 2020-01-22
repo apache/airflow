@@ -18,15 +18,15 @@
 # under the License.
 
 # pylint: disable=invalid-name
-"""This module is deprecated. Please use `airflow.providers.aws.hooks.s3`."""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.s3`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.aws.hooks.s3 import S3Hook, provide_bucket_name  # noqa
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.aws.hooks.s3`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.s3`.",
     DeprecationWarning,
     stacklevel=2,
 )

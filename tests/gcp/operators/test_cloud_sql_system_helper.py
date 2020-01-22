@@ -28,9 +28,6 @@ from urllib.parse import urlsplit
 
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY, GcpAuthenticator
-from tests.test_utils.gcp_system_helpers import RetrieveVariables
-
-retrieve_variables = RetrieveVariables()
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')

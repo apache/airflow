@@ -22,13 +22,13 @@ Example Airflow DAG that uses Google AutoML services.
 """
 import os
 
-import airflow
 from airflow import models
 from airflow.gcp.hooks.automl import CloudAutoMLHook
 from airflow.gcp.operators.automl import (
     AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator, AutoMLDeleteModelOperator,
     AutoMLImportDataOperator, AutoMLTrainModelOperator,
 )
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
@@ -51,7 +51,7 @@ DATASET = {"display_name": "test_text_dataset", "text_extraction_dataset_metadat
 
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_TEXT_BUCKET]}}
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Natural Language Entities Extraction
@@ -60,6 +60,7 @@ with models.DAG(
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
     user_defined_macros={"extract_object_id": extract_object_id},
+    tags=['example'],
 ) as example_dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION

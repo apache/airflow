@@ -22,8 +22,8 @@ This module contains Google BigQuery to MySQL operator.
 from typing import Optional
 
 from airflow.gcp.hooks.bigquery import BigQueryHook
-from airflow.hooks.mysql_hook import MySqlHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -79,7 +79,7 @@ class BigQueryToMySqlOperator(BaseOperator):
     template_fields = ('dataset_id', 'table_id', 'mysql_table')
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
+    def __init__(self,  # pylint: disable=too-many-arguments
                  dataset_table: str,
                  mysql_table: str,
                  selected_fields: Optional[str] = None,

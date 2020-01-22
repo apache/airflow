@@ -16,54 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.redis.sensors.redis_pub_sub`."""
 
-from airflow.contrib.hooks.redis_hook import RedisHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.redis.sensors.redis_pub_sub import RedisPubSubSensor  # noqa
 
-class RedisPubSubSensor(BaseSensorOperator):
-
-    """
-    Redis sensor for reading a message from pub sub channels
-
-    :param channels: The channels to be subscribed to (templated)
-    :type channels: str or list of str
-    :param redis_conn_id: the redis connection id
-    :type redis_conn_id: str
-    """
-    template_fields = ('channels',)
-    ui_color = '#f0eee4'
-
-    @apply_defaults
-    def __init__(self, channels, redis_conn_id, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.channels = channels
-        self.redis_conn_id = redis_conn_id
-        self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
-        self.pubsub.subscribe(self.channels)
-
-    def poke(self, context):
-        """
-        Check for message on subscribed channels and write to xcom the message with key ``message``
-
-        An example of message ``{'type': 'message', 'pattern': None, 'channel': b'test', 'data': b'hello'}``
-
-        :param context: the context object
-        :type context: dict
-        :return: ``True`` if message (with type 'message') is available or ``False`` if not
-        """
-        self.log.info('RedisPubSubSensor checking for message on channels: %s', self.channels)
-
-        message = self.pubsub.get_message()
-        self.log.info('Message %s from channel %s', message, self.channels)
-
-        # Process only message types
-        if message and message['type'] == 'message':
-
-            context['ti'].xcom_push(key='message', value=message)
-            self.pubsub.unsubscribe(self.channels)
-
-            return True
-
-        return False
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.redis.sensors.redis_pub_sub`.",
+    DeprecationWarning, stacklevel=2
+)

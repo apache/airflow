@@ -20,10 +20,25 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.bigquery import BigQueryTableDeleteOperator  # noqa
+from airflow.gcp.operators.bigquery import BigQueryDeleteTableOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.bigquery`.",
-    DeprecationWarning, stacklevel=2
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class BigQueryTableDeleteOperator(BigQueryDeleteTableOperator):
+    """
+    This class is deprecated. Please use `airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

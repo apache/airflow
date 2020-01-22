@@ -66,7 +66,7 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     return cleansed_job_id
 
 
-class MLEngineBatchPredictionOperator(BaseOperator):
+class MLEngineStartBatchPredictionJobOperator(BaseOperator):
     """
     Start a Google Cloud ML Engine prediction job.
 
@@ -129,7 +129,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         for parallel processing. Defaults to 10 if not specified. Should be a
         string representing the worker count ("10" instead of 10, "50" instead
         of 50, etc.)
-    :type max_worker_count: string
+    :type max_worker_count: str
     :param runtime_version: The Google Cloud ML Engine runtime version to use
         for batch prediction.
     :type runtime_version: str
@@ -162,7 +162,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
+    def __init__(self,  # pylint: disable=too-many-arguments
                  job_id: str,
                  region: str,
                  data_format: str,
@@ -275,7 +275,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         return finished_prediction_job['predictionOutput']
 
 
-class MLEngineModelOperator(BaseOperator):
+class MLEngineManageModelOperator(BaseOperator):
     """
     Operator for managing a Google Cloud ML Engine model.
 
@@ -485,7 +485,7 @@ class MLEngineDeleteModelOperator(BaseOperator):
         )
 
 
-class MLEngineVersionOperator(BaseOperator):
+class MLEngineManageVersionOperator(BaseOperator):
     """
     Operator for managing a Google Cloud ML Engine version.
 
@@ -852,7 +852,7 @@ class MLEngineDeleteVersionOperator(BaseOperator):
         )
 
 
-class MLEngineTrainingOperator(BaseOperator):
+class MLEngineStartTrainingJobOperator(BaseOperator):
     """
     Operator for launching a MLEngine training job.
 
@@ -916,7 +916,7 @@ class MLEngineTrainingOperator(BaseOperator):
     ]
 
     @apply_defaults
-    def __init__(self,  # pylint:disable=too-many-arguments
+    def __init__(self,  # pylint: disable=too-many-arguments
                  job_id: str,
                  package_uris: List[str],
                  training_python_module: str,

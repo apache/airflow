@@ -28,6 +28,8 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
+export PYTHONPATH=${AIRFLOW_SOURCES}
+
 if [[ ${#@} == "0" ]]; then
     echo
     echo "Running pylint for 'tests' folder"

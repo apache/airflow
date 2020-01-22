@@ -19,8 +19,9 @@
 
 import unittest
 
-from airflow.operators.adls_to_gcs import AdlsToGoogleCloudStorageOperator
-from tests.compat import mock
+import mock
+
+from airflow.operators.adls_to_gcs import ADLSToGCSOperator
 
 TASK_ID = 'test-adls-gcs-operator'
 ADLS_PATH_1 = '*'
@@ -35,7 +36,7 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
     def test_init(self):
         """Test AdlsToGoogleCloudStorageOperator instance is properly initialized."""
 
-        operator = AdlsToGoogleCloudStorageOperator(
+        operator = ADLSToGCSOperator(
             task_id=TASK_ID,
             src_adls=ADLS_PATH_1,
             dest_gcs=GCS_PATH,
@@ -52,13 +53,13 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(operator.azure_data_lake_conn_id, AZURE_CONN_ID)
 
     @mock.patch('airflow.operators.adls_to_gcs.AzureDataLakeHook')
-    @mock.patch('airflow.contrib.operators.adls_list_operator.AzureDataLakeHook')
+    @mock.patch('airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeHook')
     @mock.patch(
-        'airflow.operators.adls_to_gcs.GoogleCloudStorageHook')
+        'airflow.operators.adls_to_gcs.GCSHook')
     def test_execute(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
         """Test the execute function when the run is successful."""
 
-        operator = AdlsToGoogleCloudStorageOperator(
+        operator = ADLSToGCSOperator(
             task_id=TASK_ID,
             src_adls=ADLS_PATH_1,
             dest_gcs=GCS_PATH,
@@ -101,13 +102,13 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
 
     @mock.patch('airflow.operators.adls_to_gcs.AzureDataLakeHook')
-    @mock.patch('airflow.contrib.operators.adls_list_operator.AzureDataLakeHook')
+    @mock.patch('airflow.providers.microsoft.azure.operators.adls_list.AzureDataLakeHook')
     @mock.patch(
-        'airflow.operators.adls_to_gcs.GoogleCloudStorageHook')
+        'airflow.operators.adls_to_gcs.GCSHook')
     def test_execute_with_gzip(self, gcs_mock_hook, adls_one_mock_hook, adls_two_mock_hook):
         """Test the execute function when the run is successful."""
 
-        operator = AdlsToGoogleCloudStorageOperator(
+        operator = ADLSToGCSOperator(
             task_id=TASK_ID,
             src_adls=ADLS_PATH_1,
             dest_gcs=GCS_PATH,

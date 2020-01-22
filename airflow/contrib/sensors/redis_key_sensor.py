@@ -16,24 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.redis_hook import RedisHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+"""This module is deprecated. Please use `airflow.providers.redis.sensors.redis_key`."""
 
+import warnings
 
-class RedisKeySensor(BaseSensorOperator):
-    """
-    Checks for the existence of a key in a Redis
-    """
-    template_fields = ('key',)
-    ui_color = '#f0eee4'
+# pylint: disable=unused-import
+from airflow.providers.redis.sensors.redis_key import RedisKeySensor  # noqa
 
-    @apply_defaults
-    def __init__(self, key, redis_conn_id, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.redis_conn_id = redis_conn_id
-        self.key = key
-
-    def poke(self, context):
-        self.log.info('Sensor checks for existence of key: %s', self.key)
-        return RedisHook(self.redis_conn_id).get_conn().exists(self.key)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.redis.sensors.redis_key`.",
+    DeprecationWarning, stacklevel=2
+)

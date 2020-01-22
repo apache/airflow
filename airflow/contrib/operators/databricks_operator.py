@@ -433,7 +433,7 @@ class DatabricksRunNowOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            job_id,
+            job_id=None,
             json=None,
             notebook_params=None,
             python_params=None,

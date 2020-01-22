@@ -19,7 +19,6 @@
 import logging
 import re
 import sys
-from contextlib import contextmanager
 from logging import Handler, Logger, StreamHandler
 
 # 7-bit C1 ANSI escape sequences
@@ -43,6 +42,9 @@ class LoggingMixin:
 
     @property
     def log(self) -> Logger:
+        """
+        Returns a logger.
+        """
         try:
             # FIXME: LoggingMixin should have a default _log field.
             return self._log  # type: ignore
@@ -134,34 +136,17 @@ class RedirectStdHandler(StreamHandler):
             self._use_stderr = False
 
         # StreamHandler tries to set self.stream
-        Handler.__init__(self)
+        Handler.__init__(self)  # pylint: disable=non-parent-init-called
 
     @property
     def stream(self):
+        """
+        Returns current stream.
+        """
         if self._use_stderr:
             return sys.stderr
 
         return sys.stdout
-
-
-@contextmanager
-def redirect_stdout(logger, level):
-    writer = StreamLogWriter(logger, level)
-    try:
-        sys.stdout = writer
-        yield
-    finally:
-        sys.stdout = sys.__stdout__
-
-
-@contextmanager
-def redirect_stderr(logger, level):
-    writer = StreamLogWriter(logger, level)
-    try:
-        sys.stderr = writer
-        yield
-    finally:
-        sys.stderr = sys.__stderr__
 
 
 def set_context(logger, value):

@@ -30,13 +30,13 @@ from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
 
-import airflow
 from airflow.gcp.operators.tasks import (
     CloudTasksQueueCreateOperator, CloudTasksTaskCreateOperator, CloudTasksTaskRunOperator,
 )
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 timestamp = timestamp_pb2.Timestamp()
 timestamp.FromDatetime(datetime.now() + timedelta(hours=12))  # pylint: disable=no-member
 
@@ -54,7 +54,7 @@ TASK = {
     "schedule_time": timestamp,
 }
 
-with DAG("example_gcp_tasks", default_args=default_args, schedule_interval=None) as dag:
+with DAG("example_gcp_tasks", default_args=default_args, schedule_interval=None, tags=['example'],) as dag:
 
     create_queue = CloudTasksQueueCreateOperator(
         location=LOCATION,

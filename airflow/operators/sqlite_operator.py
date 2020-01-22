@@ -16,43 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union
+"""This module is deprecated. Please use `airflow.providers.sqlite.operators.sqlite`."""
 
-from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.sqlite.operators.sqlite import SqliteOperator  # noqa
 
-class SqliteOperator(BaseOperator):
-    """
-    Executes sql code in a specific Sqlite database
-
-    :param sql: the sql code to be executed. (templated)
-    :type sql: str or string pointing to a template file. File must have
-        a '.sql' extensions.
-    :param sqlite_conn_id: reference to a specific sqlite database
-    :type sqlite_conn_id: str
-    :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
-    """
-
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
-    ui_color = '#cdaaed'
-
-    @apply_defaults
-    def __init__(
-            self,
-            sql: str,
-            sqlite_conn_id: str = 'sqlite_default',
-            parameters: Optional[Union[Mapping, Iterable]] = None,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.sqlite_conn_id = sqlite_conn_id
-        self.sql = sql
-        self.parameters = parameters or []
-
-    def execute(self, context):
-        self.log.info('Executing: %s', self.sql)
-        hook = SqliteHook(sqlite_conn_id=self.sqlite_conn_id)
-        hook.run(self.sql, parameters=self.parameters)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.sqlite.operators.sqlite`.",
+    DeprecationWarning, stacklevel=2
+)

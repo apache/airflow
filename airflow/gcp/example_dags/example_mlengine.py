@@ -23,15 +23,15 @@ Example Airflow DAG for Google ML Engine service.
 import os
 from typing import Dict
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.mlengine import (
-    MLEngineBatchPredictionOperator, MLEngineCreateVersionOperator, MLEngineDeleteModelOperator,
-    MLEngineDeleteVersionOperator, MLEngineListVersionsOperator, MLEngineModelOperator,
-    MLEngineSetDefaultVersionOperator, MLEngineTrainingOperator,
+    MLEngineCreateVersionOperator, MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator,
+    MLEngineListVersionsOperator, MLEngineManageModelOperator, MLEngineSetDefaultVersionOperator,
+    MLEngineStartBatchPredictionJobOperator, MLEngineStartTrainingJobOperator,
 )
 from airflow.gcp.utils import mlengine_operator_utils
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
+from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
@@ -50,16 +50,19 @@ SUMMARY_TMP = os.environ.get("GCP_MLENGINE_DATAFLOW_TMP", "gs://test-airflow-mle
 SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://test-airflow-mlengine/staging/")
 
 default_args = {
-    "start_date": airflow.utils.dates.days_ago(1),
+    "start_date": days_ago(1),
     "params": {
         "model_name": MODEL_NAME
     }
 }
 
 with models.DAG(
-    "example_gcp_mlengine", default_args=default_args, schedule_interval=None  # Override to match your needs
+    "example_gcp_mlengine",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
-    training = MLEngineTrainingOperator(
+    training = MLEngineStartTrainingJobOperator(
         task_id="training",
         project_id=PROJECT_ID,
         region="us-central1",
@@ -72,7 +75,7 @@ with models.DAG(
         training_args=[],
     )
 
-    create_model = MLEngineModelOperator(
+    create_model = MLEngineManageModelOperator(
         task_id="create-model",
         project_id=PROJECT_ID,
         operation='create',
@@ -81,7 +84,7 @@ with models.DAG(
         },
     )
 
-    get_model = MLEngineModelOperator(
+    get_model = MLEngineManageModelOperator(
         task_id="get-model",
         project_id=PROJECT_ID,
         operation="get",
@@ -143,9 +146,9 @@ with models.DAG(
         task_id="list-version-result",
     )
 
-    prediction = MLEngineBatchPredictionOperator(
+    prediction = MLEngineStartBatchPredictionJobOperator(
         task_id="prediction",
-        project_id="polidea-airflow",
+        project_id=PROJECT_ID,
         job_id="prediciton-{{ ts_nodash }}-{{ params.model_name }}",
         region="us-central1",
         model_name=MODEL_NAME,
@@ -201,7 +204,7 @@ with models.DAG(
         return summary
 
     evaluate_prediction, evaluate_summary, evaluate_validation = mlengine_operator_utils.create_evaluate_ops(
-        task_prefix="evalueate-ops",  # pylint:disable=too-many-arguments
+        task_prefix="evalueate-ops",  # pylint: disable=too-many-arguments
         data_format="TEXT",
         input_paths=[PREDICTION_INPUT],
         prediction_path=PREDICTION_OUTPUT,

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# pylint:disable=too-many-lines
+# pylint: disable=too-many-lines
 """
 This module contains Google AutoML operators.
 """
@@ -232,7 +232,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
     )
 
     @apply_defaults
-    def __init__(  # pylint:disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         model_id: str,
         input_config: dict,
@@ -479,7 +479,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
     )
 
     @apply_defaults
-    def __init__(  # pylint:disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         dataset_id: str,
         table_spec_id: str,

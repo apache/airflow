@@ -20,12 +20,72 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.mlengine import (  # noqa
-    MLEngineBatchPredictionOperator, MLEngineModelOperator, MLEngineTrainingOperator, MLEngineVersionOperator,
+from airflow.gcp.operators.mlengine import (
+    MLEngineManageModelOperator, MLEngineManageVersionOperator, MLEngineStartBatchPredictionJobOperator,
+    MLEngineStartTrainingJobOperator,
 )
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.mlengine`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class MLEngineBatchPredictionOperator(MLEngineStartBatchPredictionJobOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.mlengine.MLEngineStartBatchPredictionJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.mlengine.MLEngineStartBatchPredictionJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class MLEngineModelOperator(MLEngineManageModelOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.mlengine.MLEngineManageModelOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.mlengine.MLEngineManageModelOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class MLEngineTrainingOperator(MLEngineStartTrainingJobOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.mlengine.MLEngineStartTrainingJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.mlengine.MLEngineStartTrainingJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class MLEngineVersionOperator(MLEngineManageVersionOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.mlengine.MLEngineManageVersionOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.mlengine.MLEngineManageVersionOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

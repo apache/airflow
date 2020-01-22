@@ -23,11 +23,11 @@ import warnings
 from typing import Dict, List, Optional
 
 from airflow.gcp.hooks.bigquery import BigQueryHook
-from airflow.models.baseoperator import BaseOperator
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class BigQueryToCloudStorageOperator(BaseOperator):
+class BigQueryToGCSOperator(BaseOperator):
     """
     Transfers a BigQuery table to a Google Cloud Storage bucket.
 

@@ -21,8 +21,8 @@ from typing import Iterable, Set, Union
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 

@@ -21,6 +21,8 @@
 import unittest
 from datetime import datetime
 
+import mock
+
 import airflow.contrib.operators.databricks_operator as databricks_operator
 from airflow.contrib.hooks.databricks_hook import RunState
 from airflow.contrib.operators.databricks_operator import (
@@ -28,7 +30,6 @@ from airflow.contrib.operators.databricks_operator import (
 )
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from tests.compat import mock
 
 DATE = '2017-04-20'
 TASK_ID = 'databricks-operator'
@@ -282,9 +283,10 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
             'notebook_params': NOTEBOOK_PARAMS,
             'jar_params': JAR_PARAMS,
             'python_params': PYTHON_PARAMS,
-            'spark_submit_params': SPARK_SUBMIT_PARAMS
+            'spark_submit_params': SPARK_SUBMIT_PARAMS,
+            'job_id': JOB_ID
         }
-        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, json=json)
 
         expected = databricks_operator._deep_string_coerce({
             'notebook_params': NOTEBOOK_PARAMS,

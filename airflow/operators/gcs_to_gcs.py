@@ -23,22 +23,22 @@ import warnings
 from typing import Optional
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 WILDCARD = '*'
 
 
-class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
+class GCSToGCSOperator(BaseOperator):
     """
     Copies objects from a bucket to another, with renaming if requested.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageToGoogleCloudStorageOperator`
+        :ref:`howto/operator:GCSToGCSOperator`
 
-    :param source_bucket: The source Google cloud storage bucket where the
+    :param source_bucket: The source Google Cloud Storage bucket where the
          object is. (templated)
     :type source_bucket: str
     :param source_object: The source name of the object to copy in the Google cloud
@@ -48,12 +48,12 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         end of the object name. Appending a wildcard to the bucket name is
         unsupported.
     :type source_object: str
-    :param destination_bucket: The destination Google cloud storage bucket
+    :param destination_bucket: The destination Google Cloud Storage bucket
         where the object should be. If the destination_bucket is None, it defaults
         to source_bucket. (templated)
     :type destination_bucket: str
     :param destination_object: The destination name of the object in the
-        destination Google cloud storage bucket. (templated)
+        destination Google Cloud Storage bucket. (templated)
         If a wildcard is supplied in the source_object argument, this is the
         prefix that will be prepended to the final destination objects' paths.
         Note that the source path's part before the wildcard will be removed;
@@ -87,7 +87,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     ``sales/sales-2017/january.avro`` in the ``data`` bucket to the file named
     ``copied_sales/2017/january-backup.avro`` in the ``data_backup`` bucket ::
 
-        copy_single_file = GoogleCloudStorageToGoogleCloudStorageOperator(
+        copy_single_file = GCSToGCSOperator(
             task_id='copy_single_file',
             source_bucket='data',
             source_object='sales/sales-2017/january.avro',
@@ -100,7 +100,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     folder (i.e. with names starting with that prefix) in ``data`` bucket to the
     ``copied_sales/2017`` folder in the ``data_backup`` bucket. ::
 
-        copy_files = GoogleCloudStorageToGoogleCloudStorageOperator(
+        copy_files = GCSToGCSOperator(
             task_id='copy_files',
             source_bucket='data',
             source_object='sales/sales-2017/*.avro',
@@ -114,7 +114,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     same folder in the ``data_backup`` bucket, deleting the original files in the
     process. ::
 
-        move_files = GoogleCloudStorageToGoogleCloudStorageOperator(
+        move_files = GCSToGCSOperator(
             task_id='move_files',
             source_bucket='data',
             source_object='sales/sales-2017/*.avro',
@@ -160,7 +160,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
 
     def execute(self, context):
 
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )
@@ -216,7 +216,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             hook.delete(self.source_bucket, source_object)
 
 
-class GoogleCloudStorageSynchronizeBuckets(BaseOperator):
+class GCSSynchronizeBuckets(BaseOperator):
     """
     Synchronizes the contents of the buckets or bucket's directories in the Google Cloud Services.
 
@@ -229,7 +229,7 @@ class GoogleCloudStorageSynchronizeBuckets(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleCloudStorageSynchronizeBuckets`
+        :ref:`howto/operator:GCSSynchronizeBuckets`
 
     :param source_bucket: The name of the bucket containing the source objects.
     :type source_bucket: str
@@ -292,7 +292,7 @@ class GoogleCloudStorageSynchronizeBuckets(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to
         )

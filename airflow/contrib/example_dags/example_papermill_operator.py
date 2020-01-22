@@ -24,20 +24,21 @@ templated.
 
 from datetime import timedelta
 
-import airflow
 from airflow.models import DAG
-from airflow.operators.papermill_operator import PapermillOperator
+from airflow.providers.papermill.operators.papermill import PapermillOperator
+from airflow.utils.dates import days_ago
 
 default_args = {
-    'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
+    'owner': 'airflow',
+    'start_date': days_ago(2)
 }
 
 with DAG(
     dag_id='example_papermill_operator',
     default_args=default_args,
     schedule_interval='0 0 * * *',
-    dagrun_timeout=timedelta(minutes=60)
+    dagrun_timeout=timedelta(minutes=60),
+    tags=['example'],
 ) as dag:
     # [START howto_operator_papermill]
     run_this = PapermillOperator(

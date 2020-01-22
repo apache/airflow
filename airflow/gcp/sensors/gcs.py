@@ -25,22 +25,22 @@ from datetime import datetime
 from typing import Callable, List, Optional
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GoogleCloudStorageObjectSensor(BaseSensorOperator):
+class GCSObjectExistenceSensor(BaseSensorOperator):
     """
     Checks for the existence of a file in Google Cloud Storage.
 
-    :param bucket: The Google cloud storage bucket where the object is.
+    :param bucket: The Google Cloud Storage bucket where the object is.
     :type bucket: str
     :param object: The name of the object to check in the Google cloud
         storage bucket.
     :type object: str
     :param google_cloud_conn_id: The connection ID to use when
-        connecting to Google cloud storage.
+        connecting to Google Cloud Storage.
     :type google_cloud_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -53,7 +53,7 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  bucket: str,
-                 object: str,  # pylint:disable=redefined-builtin
+                 object: str,  # pylint: disable=redefined-builtin
                  google_cloud_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
                  *args, **kwargs) -> None:
@@ -66,7 +66,7 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
 
     def poke(self, context):
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
         return hook.exists(self.bucket, self.object)
@@ -81,11 +81,11 @@ def ts_function(context):
     return context['dag'].following_schedule(context['execution_date'])
 
 
-class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
+class GCSObjectUpdateSensor(BaseSensorOperator):
     """
     Checks if an object is updated in Google Cloud Storage.
 
-    :param bucket: The Google cloud storage bucket where the object is.
+    :param bucket: The Google Cloud Storage bucket where the object is.
     :type bucket: str
     :param object: The name of the object to download in the Google cloud
         storage bucket.
@@ -95,7 +95,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
         as parameter.
     :type ts_func: function
     :param google_cloud_conn_id: The connection ID to use when
-        connecting to Google cloud storage.
+        connecting to Google Cloud Storage.
     :type google_cloud_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
@@ -108,7 +108,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  bucket: str,
-                 object: str,  # pylint:disable=redefined-builtin
+                 object: str,  # pylint: disable=redefined-builtin
                  ts_func: Callable = ts_function,
                  google_cloud_conn_id: str = 'google_cloud_default',
                  delegate_to: Optional[str] = None,
@@ -123,13 +123,13 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
 
     def poke(self, context):
         self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
         return hook.is_updated_after(self.bucket, self.object, self.ts_func(context))
 
 
-class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
+class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
     """
     Checks for the existence of GCS objects at a given prefix, passing matches via XCom.
 
@@ -137,13 +137,13 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
     fulfilled and the matching objects will be returned from the operator and passed
     through XCom for downstream tasks.
 
-    :param bucket: The Google cloud storage bucket where the object is.
+    :param bucket: The Google Cloud Storage bucket where the object is.
     :type bucket: str
     :param prefix: The name of the prefix to check in the Google cloud
         storage bucket.
     :type prefix: str
     :param google_cloud_conn_id: The connection ID to use when
-        connecting to Google cloud storage.
+        connecting to Google Cloud Storage.
     :type google_cloud_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -170,7 +170,7 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
     def poke(self, context):
         self.log.info('Sensor checks existence of objects: %s, %s',
                       self.bucket, self.prefix)
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
         self._matches = hook.list(self.bucket, prefix=self.prefix)
@@ -178,7 +178,7 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
 
     def execute(self, context):
         """Overridden to allow matches to be passed"""
-        super(GoogleCloudStoragePrefixSensor, self).execute(context)
+        super(GCSObjectsWtihPrefixExistenceSensor, self).execute(context)
         return self._matches
 
 
@@ -190,14 +190,14 @@ def get_time():
     return datetime.now()
 
 
-class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
+class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     """
     Checks for changes in the number of objects at prefix in Google Cloud Storage
     bucket and returns True if the inactivity period has passed with no
     increase in the number of objects. Note, it is recommended to use reschedule
     mode if you expect this sensor to run for hours.
 
-    :param bucket: The Google cloud storage bucket where the objects are.
+    :param bucket: The Google Cloud Storage bucket where the objects are.
         expected.
     :type bucket: str
     :param prefix: The name of the prefix to check in the Google cloud
@@ -217,7 +217,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         when this happens. If false an error will be raised.
     :type allow_delete: bool
     :param google_cloud_conn_id: The connection ID to use when connecting
-        to Google cloud storage.
+        to Google Cloud Storage.
     :type google_cloud_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to work,
         the service account making the request must have domain-wide
@@ -315,5 +315,5 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         return False
 
     def poke(self, context):
-        hook = GoogleCloudStorageHook()
+        hook = GCSHook()
         return self.is_bucket_updated(len(hook.list(self.bucket, prefix=self.prefix)))

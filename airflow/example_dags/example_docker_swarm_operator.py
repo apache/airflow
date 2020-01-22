@@ -19,14 +19,14 @@
 
 """
 from datetime import timedelta
-import airflow
+from airflow.utils.dates import days_ago
 from airflow import DAG
-from airflow.contrib.operators.docker_swarm_operator import DockerSwarmOperator
+from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(1),
+    'start_date': days_ago(1),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False

@@ -26,7 +26,7 @@ from typing import Callable, Dict, List, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version as airflow_version
 
@@ -58,7 +58,7 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
     raise ValueError('Connection could not be established after {} retries.'.format(max_n))
 
 
-class MLEngineHook(GoogleCloudBaseHook):
+class MLEngineHook(CloudBaseHook):
     """
     Hook for Google ML Engine APIs.
 
@@ -74,7 +74,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         authed_http = self._authorize()
         return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_job(
         self,
         job: Dict,
@@ -112,7 +112,8 @@ class MLEngineHook(GoogleCloudBaseHook):
             terminal state (which might be FAILED or CANCELLED state).
         :rtype: dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         hook = self.get_conn()
 
@@ -198,7 +199,7 @@ class MLEngineHook(GoogleCloudBaseHook):
                 return job
             time.sleep(interval)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_version(
         self,
         model_name: str,
@@ -238,7 +239,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             is_done_func=lambda resp: resp.get('done', False),
             is_error_func=lambda resp: resp.get('error', None) is not None)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def set_default_version(
         self,
         model_name: str,
@@ -275,7 +276,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             self.log.error('Something went wrong: %s', e)
             raise
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def list_versions(
         self,
         model_name: str,
@@ -311,7 +312,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             time.sleep(5)
         return result
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_version(
         self,
         model_name: str,
@@ -331,7 +332,8 @@ class MLEngineHook(GoogleCloudBaseHook):
             Otherwise raises an error.
         :rtype: Dict
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         hook = self.get_conn()
         full_name = 'projects/{}/models/{}/versions/{}'.format(
@@ -348,7 +350,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             is_done_func=lambda resp: resp.get('done', False),
             is_error_func=lambda resp: resp.get('error', None) is not None)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_model(
         self,
         model: Dict,
@@ -379,7 +381,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             parent=project, body=model)
         return request.execute()
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def get_model(
         self,
         model_name: str,
@@ -413,7 +415,7 @@ class MLEngineHook(GoogleCloudBaseHook):
                 return None
             raise
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_model(
         self,
         model_name: str,
@@ -434,7 +436,8 @@ class MLEngineHook(GoogleCloudBaseHook):
         :type project_id: str
         :raises: googleapiclient.errors.HttpError
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("The project_id should be set")
 
         hook = self.get_conn()
 

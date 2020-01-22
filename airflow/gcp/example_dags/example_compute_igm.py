@@ -41,11 +41,11 @@ Variables for update template in Group Manager:
 
 import os
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.compute import (
-    GceInstanceGroupManagerUpdateTemplateOperator, GceInstanceTemplateCopyOperator,
+    ComputeEngineCopyInstanceTemplateOperator, ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
 )
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_compute_igm_common_args]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -53,7 +53,7 @@ GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
 # [END howto_operator_compute_igm_common_args]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1)
+    'start_date': days_ago(1)
 }
 
 # [START howto_operator_compute_template_copy_args]
@@ -99,10 +99,11 @@ UPDATE_POLICY = {
 with models.DAG(
     'example_gcp_compute_igm',
     default_args=default_args,
-    schedule_interval=None  # Override to match your needs
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
     # [START howto_operator_gce_igm_copy_template]
-    gce_instance_template_copy = GceInstanceTemplateCopyOperator(
+    gce_instance_template_copy = ComputeEngineCopyInstanceTemplateOperator(
         project_id=GCP_PROJECT_ID,
         resource_id=GCE_TEMPLATE_NAME,
         body_patch=GCE_INSTANCE_TEMPLATE_BODY_UPDATE,
@@ -111,7 +112,7 @@ with models.DAG(
     # [END howto_operator_gce_igm_copy_template]
     # Added to check for idempotence
     # [START howto_operator_gce_igm_copy_template_no_project_id]
-    gce_instance_template_copy2 = GceInstanceTemplateCopyOperator(
+    gce_instance_template_copy2 = ComputeEngineCopyInstanceTemplateOperator(
         resource_id=GCE_TEMPLATE_NAME,
         body_patch=GCE_INSTANCE_TEMPLATE_BODY_UPDATE,
         task_id='gcp_compute_igm_copy_template_task_2'
@@ -119,7 +120,7 @@ with models.DAG(
     # [END howto_operator_gce_igm_copy_template_no_project_id]
     # [START howto_operator_gce_igm_update_template]
     gce_instance_group_manager_update_template = \
-        GceInstanceGroupManagerUpdateTemplateOperator(
+        ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
             zone=GCE_ZONE,
@@ -132,7 +133,7 @@ with models.DAG(
     # Added to check for idempotence (and without UPDATE_POLICY)
     # [START howto_operator_gce_igm_update_template_no_project_id]
     gce_instance_group_manager_update_template2 = \
-        GceInstanceGroupManagerUpdateTemplateOperator(
+        ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
             zone=GCE_ZONE,
             source_template=SOURCE_TEMPLATE_URL,

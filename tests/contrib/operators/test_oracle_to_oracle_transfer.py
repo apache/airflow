@@ -20,8 +20,9 @@
 import unittest
 from unittest import mock
 
+from mock import MagicMock
+
 from airflow.contrib.operators.oracle_to_oracle_transfer import OracleToOracleTransfer
-from tests.compat import MagicMock
 
 
 class TestOracleToOracleTransfer(unittest.TestCase):

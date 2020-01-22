@@ -22,11 +22,12 @@ Example Airflow DAG for Google Kubernetes Engine.
 
 import os
 
-import airflow
 from airflow import models
 from airflow.gcp.operators.kubernetes_engine import (
-    GKEClusterCreateOperator, GKEClusterDeleteOperator, GKEPodOperator,
+    GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator,
 )
+from airflow.operators.bash import BashOperator
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCP_LOCATION = os.environ.get("GCP_GKE_LOCATION", "europe-north1-a")
@@ -34,21 +35,22 @@ CLUSTER_NAME = os.environ.get("GCP_GKE_CLUSTER_NAME", "cluster-name")
 
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
-default_args = {"start_date": airflow.utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 
 with models.DAG(
     "example_gcp_gke",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
-    create_cluster = GKEClusterCreateOperator(
+    create_cluster = GKECreateClusterOperator(
         task_id="create_cluster",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         body=CLUSTER,
     )
 
-    pod_task = GKEPodOperator(
+    pod_task = GKEStartPodOperator(
         task_id="pod_task",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
@@ -58,7 +60,24 @@ with models.DAG(
         name="test-pod",
     )
 
-    delete_cluster = GKEClusterDeleteOperator(
+    pod_task_xcom = GKEStartPodOperator(
+        task_id="pod_task_xcom",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        do_xcom_push=True,
+        namespace="default",
+        image="alpine",
+        cmds=["sh", "-c", 'mkdir -p /airflow/xcom/;echo \'[1,2,3,4]\' > /airflow/xcom/return.json'],
+        name="test-pod-xcom",
+    )
+
+    pod_task_xcom_result = BashOperator(
+        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom')[0] }}\"",
+        task_id="pod_task_xcom_result",
+    )
+
+    delete_cluster = GKEDeleteClusterOperator(
         task_id="delete_cluster",
         name=CLUSTER_NAME,
         project_id=GCP_PROJECT_ID,
@@ -66,3 +85,5 @@ with models.DAG(
     )
 
     create_cluster >> pod_task >> delete_cluster
+    create_cluster >> pod_task_xcom >> delete_cluster
+    pod_task_xcom >> pod_task_xcom_result

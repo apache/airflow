@@ -21,15 +21,15 @@ This is an example dag for a AWS EMR Pipeline with auto steps.
 """
 from datetime import timedelta
 
-import airflow
 from airflow import DAG
-from airflow.contrib.operators.emr_create_job_flow_operator import EmrCreateJobFlowOperator
-from airflow.contrib.sensors.emr_job_flow_sensor import EmrJobFlowSensor
+from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
+from airflow.providers.amazon.aws.sensors.emr_job_flow import EmrJobFlowSensor
+from airflow.utils.dates import days_ago
 
 DEFAULT_ARGS = {
-    'owner': 'Airflow',
+    'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False
@@ -59,7 +59,8 @@ with DAG(
     dag_id='emr_job_flow_automatic_steps_dag',
     default_args=DEFAULT_ARGS,
     dagrun_timeout=timedelta(hours=2),
-    schedule_interval='0 3 * * *'
+    schedule_interval='0 3 * * *',
+    tags=['example'],
 ) as dag:
 
     job_flow_creator = EmrCreateJobFlowOperator(

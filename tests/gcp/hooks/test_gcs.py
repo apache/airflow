@@ -18,7 +18,6 @@
 # under the License.
 # pylint: disable=too-many-lines
 import copy
-import gzip as gz
 import io
 import os
 import tempfile
@@ -26,12 +25,12 @@ import unittest
 from datetime import datetime
 
 import dateutil
+import mock
 from google.cloud import exceptions, storage
 
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks import gcs
 from airflow.version import version
-from tests.compat import mock
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 BASE_STRING = 'airflow.gcp.hooks.base.{}'
@@ -65,32 +64,32 @@ class TestGCSHookHelperFunctions(unittest.TestCase):
             gcs._parse_gcs_url('gs://bucket/'), ('bucket', ''))
 
 
-class TestGoogleCloudStorageHook(unittest.TestCase):
+class TestGCSHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            GCS_STRING.format('GoogleCloudBaseHook.__init__'),
+            GCS_STRING.format('CloudBaseHook.__init__'),
             new=mock_base_gcp_hook_default_project_id,
         ):
-            self.gcs_hook = gcs.GoogleCloudStorageHook(
+            self.gcs_hook = gcs.GCSHook(
                 google_cloud_storage_conn_id='test')
 
     @mock.patch(
-        'airflow.gcp.hooks.base.GoogleCloudBaseHook.client_info',
+        'airflow.gcp.hooks.base.CloudBaseHook.client_info',
         new_callable=mock.PropertyMock,
         return_value="CLIENT_INFO"
     )
     @mock.patch(
-        BASE_STRING.format("GoogleCloudBaseHook._get_credentials_and_project_id"),
+        BASE_STRING.format("CloudBaseHook._get_credentials_and_project_id"),
         return_value=("CREDENTIALS", "PROJECT_ID")
     )
-    @mock.patch(GCS_STRING.format('GoogleCloudBaseHook.get_connection'))
+    @mock.patch(GCS_STRING.format('CloudBaseHook.get_connection'))
     @mock.patch('google.cloud.storage.Client')
     def test_storage_client_creation(self,
                                      mock_client,
                                      mock_get_connetion,
                                      mock_get_creds_and_project_id,
                                      mock_client_info):
-        hook = gcs.GoogleCloudStorageHook()
+        hook = gcs.GCSHook()
         result = hook.get_conn()
         # test that Storage Client is called with required arguments
         mock_client.assert_called_once_with(
@@ -99,7 +98,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             project="PROJECT_ID")
         self.assertEqual(mock_client.return_value, result)
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_exists(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -119,7 +118,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         blob_object.assert_called_once_with(blob_name=test_object)
         exists_method.assert_called_once_with()
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_exists_nonexisting_object(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -136,7 +135,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         # Then
         self.assertFalse(response)
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_is_updated_after(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -155,7 +154,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         self.assertTrue(response)
 
     @mock.patch('google.cloud.storage.Bucket')
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_copy(self, mock_service, mock_bucket):
         source_bucket = 'test-source-bucket'
         source_object = 'test-source-object'
@@ -175,7 +174,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         copy_method.return_value = destination_blob
 
         # When
-        response = self.gcs_hook.copy(  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.copy(  # pylint: disable=assignment-from-no-return
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -244,7 +243,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
 
     @mock.patch('google.cloud.storage.Bucket')
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_rewrite(self, mock_service, mock_bucket):
         source_bucket = 'test-source-bucket'
         source_object = 'test-source-object'
@@ -261,7 +260,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         rewrite_method.side_effect = [(None, mock.ANY, mock.ANY), (mock.ANY, mock.ANY, mock.ANY)]
 
         # When
-        response = self.gcs_hook.rewrite(  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.rewrite(  # pylint: disable=assignment-from-no-return
             source_bucket=source_bucket,
             source_object=source_object,
             destination_bucket=destination_bucket,
@@ -307,7 +306,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
 
     @mock.patch('google.cloud.storage.Bucket')
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_delete(self, mock_service, mock_bucket):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -318,12 +317,12 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         delete_method = get_blob_method.return_value.delete
         delete_method.return_value = blob_to_be_deleted
 
-        response = self.gcs_hook.delete(  # pylint:disable=assignment-from-no-return
+        response = self.gcs_hook.delete(  # pylint: disable=assignment-from-no-return
             bucket_name=test_bucket,
             object_name=test_object)
         self.assertIsNone(response)
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_delete_nonexisting_object(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -336,7 +335,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         with self.assertRaises(exceptions.NotFound):
             self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_object_get_size(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -351,7 +350,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         self.assertEqual(response, returned_file_size)
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_object_get_crc32c(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -366,7 +365,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         self.assertEqual(response, returned_file_crc32c)
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_object_get_md5hash(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -382,7 +381,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         self.assertEqual(response, returned_file_md5hash)
 
     @mock.patch('google.cloud.storage.Bucket')
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_create_bucket(self, mock_service, mock_bucket):
         test_bucket = 'test_bucket'
         test_project = 'test-project'
@@ -417,7 +416,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
 
     @mock.patch('google.cloud.storage.Bucket')
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_create_bucket_with_resource(self, mock_service, mock_bucket):
         test_bucket = 'test_bucket'
         test_project = 'test-project'
@@ -454,7 +453,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
 
     @mock.patch('google.cloud.storage.Bucket.blob')
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_compose(self, mock_service, mock_blob):
         test_bucket = 'test_bucket'
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
@@ -476,8 +475,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                 mock_blob(blob_name=source_object) for source_object in test_source_objects
             ])
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_with_empty_source_objects(self, mock_service):  # pylint:disable=unused-argument
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_compose_with_empty_source_objects(self, mock_service):  # pylint: disable=unused-argument
         test_bucket = 'test_bucket'
         test_source_objects = []
         test_destination_object = 'test_object_composed'
@@ -494,8 +493,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             'source_objects cannot be empty.'
         )
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_without_bucket(self, mock_service):  # pylint:disable=unused-argument
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_compose_without_bucket(self, mock_service):  # pylint: disable=unused-argument
         test_bucket = None
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = 'test_object_composed'
@@ -512,8 +511,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             'bucket_name and destination_object cannot be empty.'
         )
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_compose_without_destination_object(self, mock_service):  # pylint:disable=unused-argument
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_compose_without_destination_object(self, mock_service):  # pylint: disable=unused-argument
         test_bucket = 'test_bucket'
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
         test_destination_object = None
@@ -530,7 +529,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             'bucket_name and destination_object cannot be empty.'
         )
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_download_as_string(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -547,7 +546,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         self.assertEqual(response, test_object_bytes)
         download_method.assert_called_once_with()
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_download_to_file(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -569,10 +568,10 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         download_filename_method.assert_called_once_with(test_file)
 
 
-class TestGoogleCloudStorageHookUpload(unittest.TestCase):
+class TestGCSHookUpload(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__')):
-            self.gcs_hook = gcs.GoogleCloudStorageHook(
+        with mock.patch(BASE_STRING.format('CloudBaseHook.__init__')):
+            self.gcs_hook = gcs.GCSHook(
                 google_cloud_storage_conn_id='test'
             )
 
@@ -586,7 +585,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
     def tearDown(self):
         os.unlink(self.testfile.name)
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_file(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -603,7 +602,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
             content_type='application/octet-stream'
         )
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_file_gzip(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -614,7 +613,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
                              gzip=True)
         self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_data_str(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -631,7 +630,7 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
             content_type='text/plain'
         )
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_data_bytes(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -648,12 +647,16 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
             content_type='text/plain'
         )
 
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_upload_data_str_gzip(self, mock_service):
+    @mock.patch(GCS_STRING.format('BytesIO'))
+    @mock.patch(GCS_STRING.format('gz.GzipFile'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_upload_data_str_gzip(self, mock_service, mock_gzip, mock_bytes_io):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
         encoding = 'utf-8'
 
+        gzip_ctx = mock_gzip.return_value.__enter__.return_value
+        data = mock_bytes_io.return_value.getvalue.return_value
         upload_method = mock_service.return_value.bucket.return_value\
             .blob.return_value.upload_from_string
 
@@ -662,23 +665,21 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
                              data=self.testdata_str,
                              gzip=True)
 
-        data = bytes(self.testdata_str, encoding)
-        out = io.BytesIO()
-        with gz.GzipFile(fileobj=out, mode="w") as f:
-            f.write(data)
-        data = out.getvalue()
+        byte_str = bytes(self.testdata_str, encoding)
+        mock_gzip.assert_called_once_with(fileobj=mock_bytes_io.return_value, mode="w")
+        gzip_ctx.write.assert_called_once_with(byte_str)
+        upload_method.assert_called_once_with(data, content_type='text/plain')
 
-        upload_method.assert_called_once_with(
-            data,
-            content_type='text/plain'
-        )
-
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
-    def test_upload_data_bytes_gzip(self, mock_service):
+    @mock.patch(GCS_STRING.format('BytesIO'))
+    @mock.patch(GCS_STRING.format('gz.GzipFile'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
+    def test_upload_data_bytes_gzip(self, mock_service, mock_gzip, mock_bytes_io):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
-        upload_method = mock_service.return_value.bucket.return_value\
+        gzip_ctx = mock_gzip.return_value.__enter__.return_value
+        data = mock_bytes_io.return_value.getvalue.return_value
+        upload_method = mock_service.return_value.bucket.return_value \
             .blob.return_value.upload_from_string
 
         self.gcs_hook.upload(test_bucket,
@@ -686,18 +687,11 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
                              data=self.testdata_bytes,
                              gzip=True)
 
-        data = self.testdata_bytes
-        out = io.BytesIO()
-        with gz.GzipFile(fileobj=out, mode="w") as f:
-            f.write(data)
-        data = out.getvalue()
+        mock_gzip.assert_called_once_with(fileobj=mock_bytes_io.return_value, mode="w")
+        gzip_ctx.write.assert_called_once_with(self.testdata_bytes)
+        upload_method.assert_called_once_with(data, content_type='text/plain')
 
-        upload_method.assert_called_once_with(
-            data,
-            content_type='text/plain'
-        )
-
-    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    @mock.patch(GCS_STRING.format('GCSHook.get_conn'))
     def test_upload_exceptions(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
@@ -720,14 +714,14 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
 class TestSyncGcsHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            GCS_STRING.format("GoogleCloudBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            GCS_STRING.format("CloudBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gcs_hook = gcs.GoogleCloudStorageHook(google_cloud_storage_conn_id="test")
+            self.gcs_hook = gcs.GCSHook(google_cloud_storage_conn_id="test")
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_do_nothing_when_buckets_is_empty(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
@@ -747,10 +741,10 @@ class TestSyncGcsHook(unittest.TestCase):
         mock_rewrite.assert_not_called()
         mock_copy.assert_not_called()
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_append_slash_to_object_if_missing(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
@@ -769,10 +763,10 @@ class TestSyncGcsHook(unittest.TestCase):
         source_bucket.list_blobs.assert_called_once_with(delimiter=None, prefix="SOURCE_OBJECT/")
         destination_bucket.list_blobs.assert_called_once_with(delimiter=None, prefix="DESTINATION_OBJECT/")
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_copy_files(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
         # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
@@ -804,10 +798,10 @@ class TestSyncGcsHook(unittest.TestCase):
             any_order=True,
         )
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_copy_files_non_recursive(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
         # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
@@ -822,10 +816,10 @@ class TestSyncGcsHook(unittest.TestCase):
         source_bucket.list_blobs.assert_called_once_with(delimiter='/', prefix=None)
         destination_bucket.list_blobs.assert_called_once_with(delimiter='/', prefix=None)
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_copy_files_to_subdirectory(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
         # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
@@ -859,10 +853,10 @@ class TestSyncGcsHook(unittest.TestCase):
             any_order=True,
         )
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_copy_files_from_subdirectory(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
         # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
@@ -896,10 +890,10 @@ class TestSyncGcsHook(unittest.TestCase):
             any_order=True,
         )
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_overwrite_files(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
         # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
@@ -936,10 +930,10 @@ class TestSyncGcsHook(unittest.TestCase):
         )
         mock_copy.assert_not_called()
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_overwrite_files_to_subdirectory(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
@@ -981,10 +975,10 @@ class TestSyncGcsHook(unittest.TestCase):
         )
         mock_copy.assert_not_called()
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_overwrite_files_from_subdirectory(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
@@ -1026,10 +1020,10 @@ class TestSyncGcsHook(unittest.TestCase):
         )
         mock_copy.assert_not_called()
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_delete_extra_files(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
         # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
@@ -1050,10 +1044,10 @@ class TestSyncGcsHook(unittest.TestCase):
         mock_rewrite.assert_not_called()
         mock_copy.assert_not_called()
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_not_delete_extra_files_when_delete_extra_files_is_disabled(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
@@ -1073,10 +1067,10 @@ class TestSyncGcsHook(unittest.TestCase):
         mock_rewrite.assert_not_called()
         mock_copy.assert_not_called()
 
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.copy"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.rewrite"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.delete"))
-    @mock.patch(GCS_STRING.format("GoogleCloudStorageHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_not_overwrite_when_overwrite_is_disabled(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):

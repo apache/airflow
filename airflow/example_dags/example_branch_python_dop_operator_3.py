@@ -22,14 +22,14 @@ Example DAG demonstrating the usage of BranchPythonOperator with depends_on_past
 or skipped on alternating runs.
 """
 
-import airflow
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import BranchPythonOperator
+from airflow.operators.python import BranchPythonOperator
+from airflow.utils.dates import days_ago
 
 args = {
-    'owner': 'Airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'owner': 'airflow',
+    'start_date': days_ago(2),
     'depends_on_past': True,
 }
 
@@ -37,6 +37,7 @@ dag = DAG(
     dag_id='example_branch_dop_operator_v3',
     schedule_interval='*/1 * * * *',
     default_args=args,
+    tags=['example']
 )
 
 

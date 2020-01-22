@@ -17,37 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import subprocess
 import unittest
 from typing import Optional, Sequence
 
 from airflow.gcp.utils.credentials_provider import provide_gcp_conn_and_credentials
-from tests.contrib.utils.run_once_decorator import run_once
-from tests.gcp.utils.gcp_authenticator import GcpAuthenticator
-
-GCP_DAG_FOLDER = "airflow/gcp/example_dags"
 
 AIRFLOW_MAIN_FOLDER = os.path.realpath(
-    os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir
-    )
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
-
-AIRFLOW_PARENT_FOLDER = os.path.realpath(
-    os.path.join(AIRFLOW_MAIN_FOLDER, os.pardir, os.pardir, os.pardir)
+GCP_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "gcp", "example_dags")
+CLOUD_DAG_FOLDER = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "cloud", "example_dags"
 )
-ENV_FILE_RETRIEVER = os.path.join(
-    AIRFLOW_PARENT_FOLDER, "get_system_test_environment_variables.py"
-)
-
-AIRFLOW_HOME = os.environ.get(
-    "AIRFLOW_HOME", os.path.join(os.path.expanduser("~"), "airflow")
-)
-
-POSTGRES_LOCAL_EXECUTOR = os.path.realpath(
-    os.path.join(
-        AIRFLOW_HOME, "tests", "contrib", "operators", "postgres_local_executor.cfg"
-    )
+POSTGRES_LOCAL_EXECUTOR = os.path.join(
+    AIRFLOW_MAIN_FOLDER, "tests", "test_utils", "postgres_local_executor.cfg"
 )
 
 
@@ -56,8 +39,7 @@ The test is only run when the test is run in environment with GCP-system-tests e
 environment. You can enable it in one of two ways:
 
 * Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
-  directory which keeps variables.env file with environment variables to set
-  and keys directory which keeps service account keys in .json format
+  directory which keeps the {} key.
 * Run this test within automated environment variable workspace where
   config directory is checked out next to the airflow one.
 
@@ -89,31 +71,17 @@ You can create the database via these commands:
 """
 
 
-class RetrieveVariables:
+def resolve_full_gcp_key_path(key: str) -> str:
     """
-    Retrieve environment variables from parent directory retriever - it should be
-    in the path ${AIRFLOW_SOURCES}/../../get_system_test_environment_variables.py
-    and it should print all the variables in form of key=value to the stdout
+    Returns path full path to provided GCP key.
+
+    :param key: Name of the GCP key, for example ``my_service.json``
+    :type key: str
+    :returns: Full path to the key
     """
-
-    @staticmethod
-    @run_once
-    def retrieve_variables():
-        if os.path.isfile(ENV_FILE_RETRIEVER):
-            if os.environ.get("AIRFLOW__CORE__UNIT_TEST_MODE"):
-                raise Exception("Please unset the AIRFLOW__CORE__UNIT_TEST_MODE")
-            variables = subprocess.check_output([ENV_FILE_RETRIEVER]).decode("utf-8")
-            print("Applying variables retrieved")
-            for line in variables.split("\n"):
-                try:
-                    variable, key = line.split("=")
-                except ValueError:
-                    continue
-                print("{}={}".format(variable, key))
-                os.environ[variable] = key
-
-
-RetrieveVariables.retrieve_variables()
+    path = os.environ.get("GCP_CONFIG_DIR", "/config")
+    key = os.path.join(path, "keys", key)
+    return key
 
 
 def skip_gcp_system(
@@ -129,8 +97,12 @@ def skip_gcp_system(
     :param require_local_executor: set True if test config must use local executor
     :type require_local_executor: bool
     """
-    if GcpAuthenticator(service_key).full_key_path is None:
-        return unittest.skip(SKIP_TEST_WARNING)
+    try:
+        full_key_path = resolve_full_gcp_key_path(service_key)
+        with open(full_key_path):
+            pass
+    except FileNotFoundError:
+        return unittest.skip(SKIP_TEST_WARNING.format(service_key))
 
     if long_lasting and os.environ.get("GCP_ENABLE_LONG_TESTS") == "True":
         return unittest.skip(SKIP_LONG_TEST_WARNING)
@@ -141,20 +113,6 @@ def skip_gcp_system(
         return unittest.skip(LOCAL_EXECUTOR_WARNING.format(POSTGRES_LOCAL_EXECUTOR))
 
     return lambda cls: cls
-
-
-def resolve_full_gcp_key_path(key: str) -> str:
-    """
-    Returns path full path to provided GCP key.
-
-    :param key: Name of the GCP key, for example ``my_service.json``
-    :type key: str
-    :returns: Full path to the key
-    """
-    if "/" not in key:
-        path = os.environ.get("GCP_CONFIG_DIR", "/config")
-        key = os.path.join(path, "keys", key)
-    return key
 
 
 def provide_gcp_context(

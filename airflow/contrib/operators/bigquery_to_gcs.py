@@ -20,10 +20,24 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator  # noqa
+from airflow.operators.bigquery_to_gcs import BigQueryToGCSOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.bigquery_to_gcs`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class BigQueryToCloudStorageOperator(BigQueryToGCSOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.bigquery_to_gcs.BigQueryToGCSOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.bigquery_to_gcs.BigQueryToGCSOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

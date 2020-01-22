@@ -24,7 +24,7 @@ import json
 import unittest
 from logging import makeLogRecord
 
-from airflow.utils.log.json_formatter import JSONFormatter, merge_dicts
+from airflow.utils.log.json_formatter import JSONFormatter
 
 
 class TestJSONFormatter(unittest.TestCase):
@@ -37,15 +37,6 @@ class TestJSONFormatter(unittest.TestCase):
         """
         json_fmt = JSONFormatter()
         self.assertIsNotNone(json_fmt)
-
-    def test_merge_dicts(self):
-        """
-        Test _merge method from JSONFormatter
-        """
-        dict1 = {'a': 1, 'b': 2, 'c': 3}
-        dict2 = {'a': 1, 'b': 3, 'd': 42}
-        merged = merge_dicts(dict1, dict2)
-        self.assertDictEqual(merged, {'a': 1, 'b': 3, 'c': 3, 'd': 42})
 
     def test_format(self):
         """

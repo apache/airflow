@@ -96,7 +96,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
                 use_existing_job_fn=ANY)
             self.assertEqual(success_message['predictionOutput'], result)
 
-        with patch('airflow.gcp.operators.dataflow.DataFlowHook') as mock_dataflow_hook:
+        with patch('airflow.gcp.operators.dataflow.DataflowHook') as mock_dataflow_hook:
             hook_instance = mock_dataflow_hook.return_value
             hook_instance.start_python_dataflow.return_value = None
             summary.execute(None)
@@ -111,10 +111,14 @@ class TestCreateEvaluateOps(unittest.TestCase):
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
                 dataflow='airflow.gcp.utils.mlengine_prediction_summary',
-                py_options=['-m'], py_interpreter='python3')
+                py_options=['-m'],
+                py_interpreter='python3',
+                py_requirements=[],
+                py_system_site_packages=False,
+            )
 
         with patch('airflow.gcp.utils.mlengine_operator_utils.'
-                   'GoogleCloudStorageHook') as mock_gcs_hook:
+                   'GCSHook') as mock_gcs_hook:
             hook_instance = mock_gcs_hook.return_value
             hook_instance.download.return_value = '{"err": 0.9, "count": 9}'
             result = validate.execute({})

@@ -16,19 +16,200 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.dataproc`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.dataproc`."""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.operators.dataproc import (  # noqa
-    DataprocClusterCreateOperator, DataprocClusterDeleteOperator, DataprocClusterScaleOperator,
-    DataProcHadoopOperator, DataProcHiveOperator, DataProcJobBaseOperator, DataprocOperationBaseOperator,
-    DataProcPigOperator, DataProcPySparkOperator, DataProcSparkOperator, DataProcSparkSqlOperator,
-    DataprocWorkflowTemplateInstantiateInlineOperator, DataprocWorkflowTemplateInstantiateOperator,
+from airflow.providers.google.cloud.operators.dataproc import (
+    DataprocCreateClusterOperator, DataprocDeleteClusterOperator,
+    DataprocInstantiateInlineWorkflowTemplateOperator, DataprocInstantiateWorkflowTemplateOperator,
+    DataprocJobBaseOperator, DataprocScaleClusterOperator, DataprocSubmitHadoopJobOperator,
+    DataprocSubmitHiveJobOperator, DataprocSubmitPigJobOperator, DataprocSubmitPySparkJobOperator,
+    DataprocSubmitSparkJobOperator, DataprocSubmitSparkSqlJobOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.dataproc`.",
-    DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.dataproc`.",
+    DeprecationWarning,
+    stacklevel=2,
 )
+
+
+class DataprocClusterCreateOperator(DataprocCreateClusterOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocCreateClusterOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocCreateClusterOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataprocClusterDeleteOperator(DataprocDeleteClusterOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocDeleteClusterOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocDeleteClusterOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataprocClusterScaleOperator(DataprocScaleClusterOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocScaleClusterOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocScaleClusterOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataProcHadoopOperator(DataprocSubmitHadoopJobOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocSubmitHadoopJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocSubmitHadoopJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataProcHiveOperator(DataprocSubmitHiveJobOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocSubmitHiveJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocSubmitHiveJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataProcJobBaseOperator(DataprocJobBaseOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocJobBaseOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocJobBaseOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataProcPigOperator(DataprocSubmitPigJobOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocSubmitPigJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocSubmitPigJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataProcPySparkOperator(DataprocSubmitPySparkJobOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocSubmitPySparkJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocSubmitPySparkJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataProcSparkOperator(DataprocSubmitSparkJobOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocSubmitSparkJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocSubmitSparkJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataProcSparkSqlOperator(DataprocSubmitSparkSqlJobOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocSubmitSparkSqlJobOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocSubmitSparkSqlJobOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataprocWorkflowTemplateInstantiateInlineOperator(DataprocInstantiateInlineWorkflowTemplateOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
+
+
+class DataprocWorkflowTemplateInstantiateOperator(DataprocInstantiateWorkflowTemplateOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.gcp.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.gcp.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

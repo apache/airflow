@@ -25,6 +25,7 @@ from airflow.ti_deps.deps.exec_date_after_start_date_dep import ExecDateAfterSta
 from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
+from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.utils.state import State
 
@@ -66,6 +67,8 @@ class DepContext:
     :type ignore_task_deps: bool
     :param ignore_ti_state: Ignore the task instance's previous failure/success
     :type ignore_ti_state: bool
+    :param finished_tasks: A list of all the finished tasks of this run
+    :type finished_tasks: list[airflow.models.TaskInstance]
     """
     def __init__(
             self,
@@ -76,7 +79,8 @@ class DepContext:
             ignore_in_retry_period=False,
             ignore_in_reschedule_period=False,
             ignore_task_deps=False,
-            ignore_ti_state=False):
+            ignore_ti_state=False,
+            finished_tasks=None):
         self.deps = deps or set()
         self.flag_upstream_failed = flag_upstream_failed
         self.ignore_all_deps = ignore_all_deps
@@ -85,6 +89,7 @@ class DepContext:
         self.ignore_in_reschedule_period = ignore_in_reschedule_period
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
+        self.finished_tasks = finished_tasks
 
 
 # In order to be able to get queued a task must have one of these states
@@ -121,6 +126,7 @@ BACKFILL_QUEUEABLE_STATES = {
 SCHEDULED_DEPS = {
     RunnableExecDateDep(),
     ValidStateDep(SCHEDULEABLE_STATES),
+    TaskNotRunningDep(),
 }
 
 # Dependencies that if met, task instance should be re-queued.
@@ -137,12 +143,14 @@ RUNNING_DEPS = {
     DagTISlotsAvailableDep(),
     TaskConcurrencyDep(),
     PoolSlotsAvailableDep(),
+    TaskNotRunningDep(),
 }
 
 BACKFILL_QUEUED_DEPS = {
     RunnableExecDateDep(),
     ValidStateDep(BACKFILL_QUEUEABLE_STATES),
     DagrunRunningDep(),
+    TaskNotRunningDep(),
 }
 
 # TODO(aoen): SCHEDULER_QUEUED_DEPS is not coupled to actual scheduling/execution
@@ -169,4 +177,5 @@ SCHEDULER_QUEUED_DEPS = {
     DagrunIdDep(),
     DagUnpausedDep(),
     ExecDateAfterStartDateDep(),
+    TaskNotRunningDep(),
 }
