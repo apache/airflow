@@ -28,7 +28,7 @@ log = LoggingMixin().log
 try:
     # Kubernetes is optional, so not available in vanilla Airflow
     # pip install 'apache-airflow[kubernetes]'
-    from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
     default_args = {
         'owner': 'airflow',
@@ -38,7 +38,8 @@ try:
     with DAG(
         dag_id='example_kubernetes_operator',
         default_args=default_args,
-        schedule_interval=None
+        schedule_interval=None,
+        tags=['example'],
     ) as dag:
 
         tolerations = [

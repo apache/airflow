@@ -16,7 +16,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
 import unittest
 from datetime import timedelta
@@ -283,6 +282,49 @@ class TestApiExperimental(TestBase):
         )
         self.assertEqual(200, response.status_code)
         self.assertIn('state', response.data.decode('utf-8'))
+        self.assertNotIn('error', response.data.decode('utf-8'))
+
+        # Test error for nonexistent dag
+        response = self.client.get(
+            url_template.format('does_not_exist_dag', datetime_string),
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+        # Test error for nonexistent dag run (wrong execution_date)
+        response = self.client.get(
+            url_template.format(dag_id, wrong_datetime_string)
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+        # Test error for bad datetime format
+        response = self.client.get(
+            url_template.format(dag_id, 'not_a_datetime')
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+    def test_lineage_info(self):
+        url_template = '/api/experimental/lineage/{}/{}'
+        dag_id = 'example_papermill_operator'
+        execution_date = utcnow().replace(microsecond=0)
+        datetime_string = quote_plus(execution_date.isoformat())
+        wrong_datetime_string = quote_plus(
+            datetime(1990, 1, 1, 1, 1, 1).isoformat()
+        )
+
+        # create DagRun
+        trigger_dag(dag_id=dag_id,
+                    run_id='test_lineage_info_run',
+                    execution_date=execution_date)
+
+        # test correct execution
+        response = self.client.get(
+            url_template.format(dag_id, datetime_string)
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertIn('task_ids', response.data.decode('utf-8'))
         self.assertNotIn('error', response.data.decode('utf-8'))
 
         # Test error for nonexistent dag

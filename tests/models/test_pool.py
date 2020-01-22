@@ -97,7 +97,7 @@ class TestPool(unittest.TestCase):
             dag_id='test_default_pool_open_slots',
             start_date=DEFAULT_DATE, )
         op1 = DummyOperator(task_id='dummy1', dag=dag)
-        op2 = DummyOperator(task_id='dummy2', dag=dag)
+        op2 = DummyOperator(task_id='dummy2', dag=dag, pool_slots=2)
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
@@ -109,4 +109,4 @@ class TestPool(unittest.TestCase):
         session.commit()
         session.close()
 
-        self.assertEqual(3, Pool.get_default_pool().open_slots())
+        self.assertEqual(2, Pool.get_default_pool().open_slots())

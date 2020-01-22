@@ -20,10 +20,24 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.operators.mysql_to_gcs import MySqlToGoogleCloudStorageOperator  # noqa
+from airflow.operators.mysql_to_gcs import MySQLToGCSOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.mysql_to_gcs`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class MySqlToGoogleCloudStorageOperator(MySQLToGCSOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.mysql_to_gcs.MySQLToGCSOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.operators.mysql_to_gcs.MySQLToGCSOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

@@ -39,7 +39,7 @@ from airflow.exceptions import AirflowDagCycleException, AirflowException, Dupli
 from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagModel, DagRun, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone

@@ -27,7 +27,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class BigQueryToCloudStorageOperator(BaseOperator):
+class BigQueryToGCSOperator(BaseOperator):
     """
     Transfers a BigQuery table to a Google Cloud Storage bucket.
 

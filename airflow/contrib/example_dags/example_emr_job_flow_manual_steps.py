@@ -25,10 +25,10 @@ terminating the cluster.
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.contrib.operators.emr_add_steps_operator import EmrAddStepsOperator
-from airflow.contrib.operators.emr_create_job_flow_operator import EmrCreateJobFlowOperator
-from airflow.contrib.operators.emr_terminate_job_flow_operator import EmrTerminateJobFlowOperator
-from airflow.contrib.sensors.emr_step_sensor import EmrStepSensor
+from airflow.providers.amazon.aws.operators.emr_add_steps import EmrAddStepsOperator
+from airflow.providers.amazon.aws.operators.emr_create_job_flow import EmrCreateJobFlowOperator
+from airflow.providers.amazon.aws.operators.emr_terminate_job_flow import EmrTerminateJobFlowOperator
+from airflow.providers.amazon.aws.sensors.emr_step import EmrStepSensor
 from airflow.utils.dates import days_ago
 
 DEFAULT_ARGS = {
@@ -63,7 +63,8 @@ with DAG(
     dag_id='emr_job_flow_manual_steps_dag',
     default_args=DEFAULT_ARGS,
     dagrun_timeout=timedelta(hours=2),
-    schedule_interval='0 3 * * *'
+    schedule_interval='0 3 * * *',
+    tags=['example'],
 ) as dag:
 
     cluster_creator = EmrCreateJobFlowOperator(

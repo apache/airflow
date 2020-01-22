@@ -64,7 +64,7 @@ def apply_defaults(func):
             dag_args = copy(dag.default_args) or {}
             dag_params = copy(dag.params) or {}
 
-        params = kwargs.get('params', {})
+        params = kwargs.get('params', {}) or {}
         dag_params.update(params)
 
         default_args = {}

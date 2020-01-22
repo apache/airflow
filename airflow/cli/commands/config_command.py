@@ -15,15 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Config sub-commands"""
+import io
+
 from airflow.configuration import conf
 
 
 def show_config(args):
     """Show current application configuration"""
-    config = conf.as_dict(display_sensitive=True, raw=True)
-
-    for section_key, parameters in sorted(config.items()):
-        print(f"[{section_key}]")
-        for parameter_key, value in sorted(parameters.items()):
-            print(f"{parameter_key}={value}")
-        print()
+    with io.StringIO() as output:
+        conf.write(output)
+        print(output.getvalue())

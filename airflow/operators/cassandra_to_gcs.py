@@ -33,13 +33,13 @@ from uuid import UUID
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
+from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
 from airflow.utils.decorators import apply_defaults
 
 
-class CassandraToGoogleCloudStorageOperator(BaseOperator):
+class CassandraToGCSOperator(BaseOperator):
     """
     Copy data from Cassandra to Google Cloud Storage in JSON format
 
@@ -209,7 +209,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         return {self.schema_filename: tmp_schema_file_handle}
 
     def _upload_to_gcs(self, files_to_upload: Dict[str, Any]):
-        hook = GoogleCloudStorageHook(
+        hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
         for obj, tmp_file_handle in files_to_upload.items():
@@ -347,7 +347,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         """
         Check if type is a simple type.
         """
-        return type_.cassname in CassandraToGoogleCloudStorageOperator.CQL_TYPE_MAP
+        return type_.cassname in CassandraToGCSOperator.CQL_TYPE_MAP
 
     @staticmethod
     def is_array_type(type_: Any) -> bool:
@@ -369,7 +369,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         Converts type to equivalent BQ type.
         """
         if cls.is_simple_type(type_):
-            return CassandraToGoogleCloudStorageOperator.CQL_TYPE_MAP[type_.cassname]
+            return CassandraToGCSOperator.CQL_TYPE_MAP[type_.cassname]
         elif cls.is_record_type(type_):
             return 'RECORD'
         elif cls.is_array_type(type_):

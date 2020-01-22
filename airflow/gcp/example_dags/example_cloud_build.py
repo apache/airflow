@@ -35,7 +35,7 @@ from future.backports.urllib.parse import urlparse
 
 from airflow import models
 from airflow.gcp.operators.cloud_build import CloudBuildCreateOperator
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils import dates
 
 # [START howto_operator_gcp_common_variables]
@@ -77,7 +77,10 @@ create_build_from_repo_body = {
 # [END howto_operator_create_build_from_repo_body]
 
 with models.DAG(
-    "example_gcp_cloud_build", default_args=dict(start_date=dates.days_ago(1)), schedule_interval=None
+    "example_gcp_cloud_build",
+    default_args=dict(start_date=dates.days_ago(1)),
+    schedule_interval=None,
+    tags=['example'],
 ) as dag:
     # [START howto_operator_create_build_from_storage]
     create_build_from_storage = CloudBuildCreateOperator(

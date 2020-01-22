@@ -83,4 +83,4 @@ class PrevDagrunDep(BaseTIDep):
                 not previous_ti.are_dependents_done(session=session)):
             yield self._failing_status(
                 reason="The tasks downstream of the previous task instance {0} haven't "
-                       "completed.".format(previous_ti))
+                       "completed (and wait_for_downstream is True).".format(previous_ti))

@@ -35,7 +35,7 @@ from airflow.gcp.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 
 # [END howto_operator_vision_retry_import]
@@ -59,6 +59,7 @@ with models.DAG(
     "example_gcp_video_intelligence",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_video_intelligence_detect_labels]

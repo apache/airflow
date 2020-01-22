@@ -22,7 +22,7 @@ This is an example dag for using the Kubernetes Executor.
 import os
 
 from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
 args = {
@@ -33,7 +33,8 @@ args = {
 with DAG(
     dag_id='example_kubernetes_executor',
     default_args=args,
-    schedule_interval=None
+    schedule_interval=None,
+    tags=['example'],
 ) as dag:
 
     affinity = {

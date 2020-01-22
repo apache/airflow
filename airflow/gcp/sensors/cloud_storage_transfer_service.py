@@ -21,19 +21,19 @@ This module contains a Google Cloud Transfer sensor.
 """
 from typing import Optional, Set, Union
 
-from airflow.gcp.hooks.cloud_storage_transfer_service import GCPTransferServiceHook
+from airflow.gcp.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class GCPTransferServiceWaitForJobStatusSensor(BaseSensorOperator):
+class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
     """
     Waits for at least one operation belonging to the job to have the
     expected status.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GCPTransferServiceWaitForJobStatusSensor`
+        :ref:`howto/operator:CloudDataTransferServiceJobStatusSensor`
 
     :param job_name: The name of the transfer job
     :type job_name: str
@@ -73,12 +73,12 @@ class GCPTransferServiceWaitForJobStatusSensor(BaseSensorOperator):
         self.gcp_cloud_conn_id = gcp_conn_id
 
     def poke(self, context):
-        hook = GCPTransferServiceHook(gcp_conn_id=self.gcp_cloud_conn_id)
+        hook = CloudDataTransferServiceHook(gcp_conn_id=self.gcp_cloud_conn_id)
         operations = hook.list_transfer_operations(
             request_filter={'project_id': self.project_id, 'job_names': [self.job_name]}
         )
 
-        check = GCPTransferServiceHook.operations_contain_expected_statuses(
+        check = CloudDataTransferServiceHook.operations_contain_expected_statuses(
             operations=operations, expected_statuses=self.expected_statuses
         )
         if check:

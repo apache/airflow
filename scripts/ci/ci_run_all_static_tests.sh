@@ -44,6 +44,6 @@ rebuild_ci_image_if_needed
 IMAGES_TO_CHECK=("CI")
 export IMAGES_TO_CHECK
 
-pre-commit run --all-files --show-diff-on-failure
+pre-commit run --all-files --show-diff-on-failure --verbose
 
 script_end

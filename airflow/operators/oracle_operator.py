@@ -16,53 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, Mapping, Optional, Union
+"""This module is deprecated. Please use `airflow.providers.oracle.operators.oracle`."""
 
-from airflow.hooks.oracle_hook import OracleHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.oracle.operators.oracle import OracleOperator  # noqa
 
-class OracleOperator(BaseOperator):
-    """
-    Executes sql code in a specific Oracle database
-
-    :param sql: the sql code to be executed. Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
-        (templated)
-    :type sql: str or list[str]
-    :param oracle_conn_id: reference to a specific Oracle database
-    :type oracle_conn_id: str
-    :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: mapping or iterable
-    :param autocommit: if True, each command is automatically committed.
-        (default value: False)
-    :type autocommit: bool
-    """
-
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
-    ui_color = '#ededed'
-
-    @apply_defaults
-    def __init__(
-            self,
-            sql: str,
-            oracle_conn_id: str = 'oracle_default',
-            parameters: Optional[Union[Mapping, Iterable]] = None,
-            autocommit: bool = False,
-            *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.oracle_conn_id = oracle_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.parameters = parameters
-
-    def execute(self, context):
-        self.log.info('Executing: %s', self.sql)
-        hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
-        hook.run(
-            self.sql,
-            autocommit=self.autocommit,
-            parameters=self.parameters)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.oracle.operators.oracle`.",
+    DeprecationWarning, stacklevel=2
+)

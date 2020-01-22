@@ -20,10 +20,23 @@
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator  # noqa
+from airflow.operators.postgres_to_gcs import PostgresToGCSOperator
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.operators.postgres_to_gcs`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class PostgresToGoogleCloudStorageOperator(PostgresToGCSOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.operators.postgres_to_gcs.PostgresToGCSOperator`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.operators.postgres_to_gcs.PostgresToGCSOperator`.""",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)

@@ -30,7 +30,7 @@ works.
 
 .. code:: python
 
-    from airflow.operators.bash_operator import BashOperator
+    from airflow.operators.bash import BashOperator
     from airflow.operators.dummy_operator import DummyOperator
     from airflow.lineage import AUTO
     from airflow.lineage.entities import File
@@ -116,3 +116,6 @@ properly, e.g. in your ``airflow.cfg``:
 
 
 Please make sure to have the ``atlasclient`` package installed.
+
+.. note::
+    For more information on setting the configuration, see :doc:`howto/set-config`

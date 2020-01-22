@@ -25,12 +25,12 @@ from typing import Dict
 
 from airflow import models
 from airflow.gcp.operators.mlengine import (
-    MLEngineBatchPredictionOperator, MLEngineCreateVersionOperator, MLEngineDeleteModelOperator,
-    MLEngineDeleteVersionOperator, MLEngineListVersionsOperator, MLEngineModelOperator,
-    MLEngineSetDefaultVersionOperator, MLEngineTrainingOperator,
+    MLEngineCreateVersionOperator, MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator,
+    MLEngineListVersionsOperator, MLEngineManageModelOperator, MLEngineSetDefaultVersionOperator,
+    MLEngineStartBatchPredictionJobOperator, MLEngineStartTrainingJobOperator,
 )
 from airflow.gcp.utils import mlengine_operator_utils
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -57,9 +57,12 @@ default_args = {
 }
 
 with models.DAG(
-    "example_gcp_mlengine", default_args=default_args, schedule_interval=None  # Override to match your needs
+    "example_gcp_mlengine",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
-    training = MLEngineTrainingOperator(
+    training = MLEngineStartTrainingJobOperator(
         task_id="training",
         project_id=PROJECT_ID,
         region="us-central1",
@@ -72,7 +75,7 @@ with models.DAG(
         training_args=[],
     )
 
-    create_model = MLEngineModelOperator(
+    create_model = MLEngineManageModelOperator(
         task_id="create-model",
         project_id=PROJECT_ID,
         operation='create',
@@ -81,7 +84,7 @@ with models.DAG(
         },
     )
 
-    get_model = MLEngineModelOperator(
+    get_model = MLEngineManageModelOperator(
         task_id="get-model",
         project_id=PROJECT_ID,
         operation="get",
@@ -143,7 +146,7 @@ with models.DAG(
         task_id="list-version-result",
     )
 
-    prediction = MLEngineBatchPredictionOperator(
+    prediction = MLEngineStartBatchPredictionJobOperator(
         task_id="prediction",
         project_id=PROJECT_ID,
         job_id="prediciton-{{ ts_nodash }}-{{ params.model_name }}",

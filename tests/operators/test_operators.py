@@ -22,8 +22,9 @@ import unittest
 from collections import OrderedDict
 from unittest import mock
 
-from airflow import DAG, operators
-from airflow.configuration import conf
+import pytest
+
+from airflow import DAG
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -32,6 +33,7 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_test_dag'
 
 
+@pytest.mark.backend("mysql")
 class TestMySql(unittest.TestCase):
     def setUp(self):
         args = {
@@ -42,36 +44,32 @@ class TestMySql(unittest.TestCase):
         self.dag = dag
 
     def tearDown(self):
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
         with MySqlHook().get_conn() as conn:
             for table in drop_tables:
                 conn.execute("DROP TABLE IF EXISTS {}".format(table))
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_operator_test(self):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
             dummy VARCHAR(50)
         );
         """
-        from airflow.operators.mysql_operator import MySqlOperator
+        from airflow.providers.mysql.operators.mysql import MySqlOperator
         op = MySqlOperator(
             task_id='basic_mysql',
             sql=sql,
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_operator_test_multi(self):
         sql = [
             "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        from airflow.operators.mysql_operator import MySqlOperator
+        from airflow.providers.mysql.operators.mysql import MySqlOperator
         op = MySqlOperator(
             task_id='mysql_operator_test_multi',
             sql=sql,
@@ -79,8 +77,6 @@ class TestMySql(unittest.TestCase):
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_hook_test_bulk_load(self):
         records = ("foo", "bar", "baz")
 
@@ -89,7 +85,7 @@ class TestMySql(unittest.TestCase):
             f.write("\n".join(records).encode('utf8'))
             f.flush()
 
-            from airflow.hooks.mysql_hook import MySqlHook
+            from airflow.providers.mysql.hooks.mysql import MySqlHook
             hook = MySqlHook('airflow_db')
             with hook.get_conn() as conn:
                 conn.execute("""
@@ -103,10 +99,8 @@ class TestMySql(unittest.TestCase):
                 results = tuple(result[0] for result in conn.fetchall())
                 self.assertEqual(sorted(results), sorted(records))
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_hook_test_bulk_dump(self):
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook('airflow_db')
         priv = hook.get_first("SELECT @@global.secure_file_priv")
         if priv and priv[0]:
@@ -116,14 +110,12 @@ class TestMySql(unittest.TestCase):
             self.skipTest("Skip test_mysql_hook_test_bulk_load "
                           "since file output is not permitted")
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
-    @mock.patch('airflow.hooks.mysql_hook.MySqlHook.get_conn')
+    @mock.patch('airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn')
     def test_mysql_hook_test_bulk_dump_mock(self, mock_get_conn):
         mock_execute = mock.MagicMock()
         mock_get_conn.return_value.cursor.return_value.execute = mock_execute
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook('airflow_db')
         table = "INFORMATION_SCHEMA.TABLES"
         tmp_file = "/path/to/output/file"
@@ -137,8 +129,6 @@ class TestMySql(unittest.TestCase):
         """.format(tmp_file=tmp_file, table=table)
         assert_equal_ignore_multiple_spaces(self, mock_execute.call_args[0][0], query)
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_to_mysql(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
         from airflow.operators.generic_transfer import GenericTransfer
@@ -156,13 +146,11 @@ class TestMySql(unittest.TestCase):
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_overwrite_schema(self):
         """
         Verifies option to overwrite connection schema
         """
-        from airflow.operators.mysql_operator import MySqlOperator
+        from airflow.providers.mysql.operators.mysql import MySqlOperator
 
         sql = "SELECT 1;"
         op = MySqlOperator(
@@ -180,6 +168,7 @@ class TestMySql(unittest.TestCase):
             assert "Unknown database 'foobar'" in str(e)
 
 
+@pytest.mark.backend("postgres")
 class TestPostgres(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -188,25 +177,23 @@ class TestPostgres(unittest.TestCase):
 
     def tearDown(self):
         tables_to_drop = ['test_postgres_to_postgres', 'test_airflow']
-        from airflow.hooks.postgres_hook import PostgresHook
+        from airflow.providers.postgres.hooks.postgres import PostgresHook
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:
                 for table in tables_to_drop:
                     cur.execute(f"DROP TABLE IF EXISTS {table}")
 
-    @unittest.skipUnless('postgres' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a Postgres test")
     def test_postgres_operator_test(self):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
             dummy VARCHAR(50)
         );
         """
-        from airflow.operators.postgres_operator import PostgresOperator
+        from airflow.providers.postgres.operators.postgres import PostgresOperator
         op = PostgresOperator(task_id='basic_postgres', sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        autocommit_task = operators.postgres_operator.PostgresOperator(
+        autocommit_task = PostgresOperator(
             task_id='basic_postgres_with_autocommit',
             sql=sql,
             dag=self.dag,
@@ -216,21 +203,17 @@ class TestPostgres(unittest.TestCase):
             end_date=DEFAULT_DATE,
             ignore_ti_state=True)
 
-    @unittest.skipUnless('postgres' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a Postgres test")
     def test_postgres_operator_test_multi(self):
         sql = [
             "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        from airflow.operators.postgres_operator import PostgresOperator
+        from airflow.providers.postgres.operators.postgres import PostgresOperator
         op = PostgresOperator(
             task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('postgres' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a Postgres test")
     def test_postgres_to_postgres(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
         from airflow.operators.generic_transfer import GenericTransfer
@@ -248,13 +231,11 @@ class TestPostgres(unittest.TestCase):
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('postgres' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a Postgres test")
     def test_vacuum(self):
         """
         Verifies the VACUUM operation runs well with the PostgresOperator
         """
-        from airflow.operators.postgres_operator import PostgresOperator
+        from airflow.providers.postgres.operators.postgres import PostgresOperator
 
         sql = "VACUUM ANALYZE;"
         op = PostgresOperator(
@@ -264,13 +245,11 @@ class TestPostgres(unittest.TestCase):
             autocommit=True)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('postgres' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a Postgres test")
     def test_overwrite_schema(self):
         """
         Verifies option to overwrite connection schema
         """
-        from airflow.operators.postgres_operator import PostgresOperator
+        from airflow.providers.postgres.operators.postgres import PostgresOperator
 
         sql = "SELECT 1;"
         op = PostgresOperator(
@@ -289,6 +268,7 @@ class TestPostgres(unittest.TestCase):
             assert 'database "foobar" does not exist' in str(e)
 
 
+@pytest.mark.backend("mysql")
 class TestTransfer(unittest.TestCase):
     def setUp(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -351,7 +331,7 @@ class TestTransfer(unittest.TestCase):
             (1880, "Eugene", 0.00277, "boy"),
         ]
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         with MySqlHook().get_conn() as cur:
             cur.execute('''
             CREATE TABLE IF NOT EXISTS baby_names (
@@ -366,19 +346,15 @@ class TestTransfer(unittest.TestCase):
             cur.execute("INSERT INTO baby_names VALUES(%s, %s, %s, %s);", row)
 
     def tearDown(self):
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         with MySqlHook().get_conn() as cur:
             cur.execute("DROP TABLE IF EXISTS baby_names CASCADE;")
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_clear(self):
         self.dag.clear(
             start_date=DEFAULT_DATE,
             end_date=timezone.utcnow())
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_to_hive(self):
         from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
         sql = "SELECT * FROM baby_names LIMIT 1000;"
@@ -392,8 +368,6 @@ class TestTransfer(unittest.TestCase):
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_to_hive_partition(self):
         from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
         sql = "SELECT * FROM baby_names LIMIT 1000;"
@@ -409,8 +383,6 @@ class TestTransfer(unittest.TestCase):
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_to_hive_tblproperties(self):
         from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
         sql = "SELECT * FROM baby_names LIMIT 1000;"
@@ -425,13 +397,11 @@ class TestTransfer(unittest.TestCase):
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
+    @mock.patch('airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file')
     def test_mysql_to_hive_type_conversion(self, mock_load_file):
         mysql_table = 'test_mysql_to_hive'
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook()
 
         try:
@@ -470,13 +440,11 @@ class TestTransfer(unittest.TestCase):
             with hook.get_conn() as conn:
                 conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_to_hive_verify_csv_special_char(self):
         mysql_table = 'test_mysql_to_hive'
         hive_table = 'test_mysql_to_hive'
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook()
 
         try:
@@ -513,7 +481,7 @@ class TestTransfer(unittest.TestCase):
                 dag=self.dag)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-            from airflow.hooks.hive_hooks import HiveServer2Hook
+            from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
             hive_hook = HiveServer2Hook()
             result = hive_hook.get_records("SELECT * FROM {}".format(hive_table))
             self.assertEqual(result[0], db_record)
@@ -521,13 +489,11 @@ class TestTransfer(unittest.TestCase):
             with hook.get_conn() as conn:
                 conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
 
-    @unittest.skipUnless('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                         "This is a MySQL test")
     def test_mysql_to_hive_verify_loaded_values(self):
         mysql_table = 'test_mysql_to_hive'
         hive_table = 'test_mysql_to_hive'
 
-        from airflow.hooks.mysql_hook import MySqlHook
+        from airflow.providers.mysql.hooks.mysql import MySqlHook
         hook = MySqlHook()
 
         try:
@@ -577,7 +543,7 @@ class TestTransfer(unittest.TestCase):
                 dag=self.dag)
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-            from airflow.hooks.hive_hooks import HiveServer2Hook
+            from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
             hive_hook = HiveServer2Hook()
             result = hive_hook.get_records("SELECT * FROM {}".format(hive_table))
             self.assertEqual(result[0], minmax)

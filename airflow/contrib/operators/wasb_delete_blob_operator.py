@@ -16,55 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from airflow.contrib.hooks.wasb_hook import WasbHook
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+"""This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.wasb_delete_blob`."""
 
+import warnings
 
-class WasbDeleteBlobOperator(BaseOperator):
-    """
-    Deletes blob(s) on Azure Blob Storage.
+# pylint: disable=unused-import
+from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator  # noqa
 
-    :param container_name: Name of the container. (templated)
-    :type container_name: str
-    :param blob_name: Name of the blob. (templated)
-    :type blob_name: str
-    :param wasb_conn_id: Reference to the wasb connection.
-    :type wasb_conn_id: str
-    :param check_options: Optional keyword arguments that
-        `WasbHook.check_for_blob()` takes.
-    :param is_prefix: If blob_name is a prefix, delete all files matching prefix.
-    :type is_prefix: bool
-    :param ignore_if_missing: if True, then return success even if the
-        blob does not exist.
-    :type ignore_if_missing: bool
-    """
-
-    template_fields = ('container_name', 'blob_name')
-
-    @apply_defaults
-    def __init__(self, container_name, blob_name,
-                 wasb_conn_id='wasb_default', check_options=None,
-                 is_prefix=False, ignore_if_missing=False,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        if check_options is None:
-            check_options = {}
-        self.wasb_conn_id = wasb_conn_id
-        self.container_name = container_name
-        self.blob_name = blob_name
-        self.check_options = check_options
-        self.is_prefix = is_prefix
-        self.ignore_if_missing = ignore_if_missing
-
-    def execute(self, context):
-        self.log.info(
-            'Deleting blob: %s\nin wasb://%s', self.blob_name, self.container_name
-        )
-        hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
-
-        hook.delete_file(self.container_name, self.blob_name,
-                         self.is_prefix, self.ignore_if_missing,
-                         **self.check_options)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.wasb_delete_blob`.",
+    DeprecationWarning, stacklevel=2
+)

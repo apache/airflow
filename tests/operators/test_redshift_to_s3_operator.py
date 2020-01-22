@@ -35,7 +35,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         [False, "key"],
     ])
     @mock.patch("boto3.session.Session")
-    @mock.patch("airflow.hooks.postgres_hook.PostgresHook.run")
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.run")
     def test_execute(self, table_as_file_name, expected_s3_key, mock_run, mock_session,):
         access_key = "aws_access_key_id"
         secret_key = "aws_secret_access_key"

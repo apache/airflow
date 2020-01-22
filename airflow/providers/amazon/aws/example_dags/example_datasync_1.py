@@ -50,6 +50,7 @@ with models.DAG(
     "example_datasync_1_1",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_datasync_1_1]

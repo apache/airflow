@@ -16,137 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import prestodb
-from prestodb.exceptions import DatabaseError
-from prestodb.transaction import IsolationLevel
+"""This module is deprecated. Please use `airflow.providers.presto.hooks.presto`."""
 
-from airflow.hooks.dbapi_hook import DbApiHook
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.presto.hooks.presto import PrestoHook  # noqa
 
-class PrestoException(Exception):
-    pass
-
-
-class PrestoHook(DbApiHook):
-    """
-    Interact with Presto through PyHive!
-
-    >>> ph = PrestoHook()
-    >>> sql = "SELECT count(1) AS num FROM airflow.static_babynames"
-    >>> ph.get_records(sql)
-    [[340698]]
-    """
-
-    conn_name_attr = 'presto_conn_id'
-    default_conn_name = 'presto_default'
-
-    def get_conn(self):
-        """Returns a connection object"""
-        db = self.get_connection(self.presto_conn_id)
-        auth = prestodb.auth.BasicAuthentication(db.login, db.password) if db.password else None
-
-        return prestodb.dbapi.connect(
-            host=db.host,
-            port=db.port,
-            user=db.login,
-            source=db.extra_dejson.get('source', 'airflow'),
-            http_scheme=db.extra_dejson.get('protocol', 'http'),
-            catalog=db.extra_dejson.get('catalog', 'hive'),
-            schema=db.schema,
-            auth=auth,
-            isolation_level=self.get_isolation_level()
-        )
-
-    def get_isolation_level(self):
-        """Returns an isolation level"""
-        db = self.get_connection(self.presto_conn_id)
-        isolation_level = db.extra_dejson.get('isolation_level', 'AUTOCOMMIT').upper()
-        return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
-
-    @staticmethod
-    def _strip_sql(sql):
-        return sql.strip().rstrip(';')
-
-    @staticmethod
-    def _get_pretty_exception_message(e):
-        """
-        Parses some DatabaseError to provide a better error message
-        """
-        if (hasattr(e, 'message') and
-            'errorName' in e.message and
-                'message' in e.message):
-            return ('{name}: {message}'.format(
-                    name=e.message['errorName'],
-                    message=e.message['message']))
-        else:
-            return str(e)
-
-    def get_records(self, hql, parameters=None):
-        """
-        Get a set of records from Presto
-        """
-        try:
-            return super().get_records(
-                self._strip_sql(hql), parameters)
-        except DatabaseError as e:
-            raise PrestoException(self._get_pretty_exception_message(e))
-
-    def get_first(self, hql, parameters=None):
-        """
-        Returns only the first row, regardless of how many rows the query
-        returns.
-        """
-        try:
-            return super().get_first(
-                self._strip_sql(hql), parameters)
-        except DatabaseError as e:
-            raise PrestoException(self._get_pretty_exception_message(e))
-
-    def get_pandas_df(self, hql, parameters=None):
-        """
-        Get a pandas dataframe from a sql query.
-        """
-        import pandas
-        cursor = self.get_cursor()
-        try:
-            cursor.execute(self._strip_sql(hql), parameters)
-            data = cursor.fetchall()
-        except DatabaseError as e:
-            raise PrestoException(self._get_pretty_exception_message(e))
-        column_descriptions = cursor.description
-        if data:
-            df = pandas.DataFrame(data)
-            df.columns = [c[0] for c in column_descriptions]
-        else:
-            df = pandas.DataFrame()
-        return df
-
-    def run(self, hql, parameters=None):
-        """
-        Execute the statement against Presto. Can be used to create views.
-        """
-        return super().run(self._strip_sql(hql), parameters)
-
-    def insert_rows(self, table, rows, target_fields=None, commit_every=0):
-        """
-        A generic way to insert a set of tuples into a table.
-
-        :param table: Name of the target table
-        :type table: str
-        :param rows: The rows to insert into the table
-        :type rows: iterable of tuples
-        :param target_fields: The names of the columns to fill in the table
-        :type target_fields: iterable of strings
-        :param commit_every: The maximum number of rows to insert in one
-            transaction. Set to 0 to insert all rows in one transaction.
-        :type commit_every: int
-        """
-        if self.get_isolation_level() == IsolationLevel.AUTOCOMMIT:
-            self.log.info(
-                'Transactions are not enable in presto connection. '
-                'Please use the isolation_level property to enable it. '
-                'Falling back to insert all rows in one transaction.'
-            )
-            commit_every = 0
-
-        super().insert_rows(table, rows, target_fields, commit_every)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.presto.hooks.presto`.",
+    DeprecationWarning, stacklevel=2
+)

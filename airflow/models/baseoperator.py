@@ -135,7 +135,9 @@ class BaseOperator(Operator, LoggingMixin):
         of task X to finish successfully before it runs. This is useful if the
         different instances of a task X alter the same asset, and this asset
         is used by tasks downstream of task X. Note that depends_on_past
-        is forced to True wherever wait_for_downstream is used.
+        is forced to True wherever wait_for_downstream is used. Also note that
+        only tasks *immediately* downstream of the previous task instance are waited
+        for; the statuses of any tasks further downstream are ignored.
     :type wait_for_downstream: bool
     :param queue: which queue to target when running this job. Not
         all executors implement queue management, the CeleryExecutor
@@ -176,6 +178,9 @@ class BaseOperator(Operator, LoggingMixin):
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
     :type pool: str
+    :param pool_slots: the number of pool slots this task should use (>= 1)
+        Values less than 1 are not allowed.
+    :type pool_slots: int
     :param sla: time by which the job is expected to succeed. Note that
         this represents the ``timedelta`` after the period is closed. For
         example if you set an SLA of 1 hour, the scheduler would send an email
@@ -311,6 +316,7 @@ class BaseOperator(Operator, LoggingMixin):
         weight_rule: str = WeightRule.DOWNSTREAM,
         queue: str = conf.get('celery', 'default_queue'),
         pool: str = Pool.DEFAULT_POOL_NAME,
+        pool_slots: int = 1,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
         on_execute_callback: Optional[Callable] = None,
@@ -379,6 +385,10 @@ class BaseOperator(Operator, LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
+        self.pool_slots = pool_slots
+        if self.pool_slots < 1:
+            raise AirflowException("pool slots for %s in dag %s cannot be less than 1"
+                                   % (self.task_id, dag.dag_id))
         self.sla = sla
         self.execution_timeout = execution_timeout
         self.on_execute_callback = on_execute_callback

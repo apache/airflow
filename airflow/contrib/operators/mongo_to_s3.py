@@ -20,9 +20,9 @@ import json
 
 from bson import json_util
 
-from airflow.contrib.hooks.mongo_hook import MongoHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.utils.decorators import apply_defaults
 
 

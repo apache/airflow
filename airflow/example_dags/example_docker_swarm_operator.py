@@ -21,7 +21,7 @@
 from datetime import timedelta
 from airflow.utils.dates import days_ago
 from airflow import DAG
-from airflow.contrib.operators.docker_swarm_operator import DockerSwarmOperator
+from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 
 default_args = {
     'owner': 'airflow',

@@ -23,6 +23,9 @@ import logging
 import os
 import textwrap
 from contextlib import redirect_stderr, redirect_stdout
+from typing import List
+
+from tabulate import tabulate
 
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.executors.executor_loader import ExecutorLoader
@@ -231,7 +234,73 @@ def task_list(args, dag=None):
         dag.tree_view()
     else:
         tasks = sorted([t.task_id for t in dag.tasks])
-        print("\n".join(sorted(tasks)))
+        print("\n".join(tasks))
+
+
+SUPPORTED_DEBUGGER_MODULES: List[str] = [
+    "pudb",
+    "web_pdb",
+    "ipdb",
+    "pdb",
+]
+
+
+def _guess_debugger():
+    """
+    Trying to guess the debugger used by the user. When it doesn't find any user-installed debugger,
+    returns ``pdb``.
+
+    List of supported debuggers:
+
+    * `pudb <https://github.com/inducer/pudb>`__
+    * `web_pdb <https://github.com/romanvm/python-web-pdb>`__
+    * `ipdb <https://github.com/gotcha/ipdb>`__
+    * `pdb <https://docs.python.org/3/library/pdb.html>`__
+    """
+
+    for mod in SUPPORTED_DEBUGGER_MODULES:
+        try:
+            return importlib.import_module(mod)
+        except ImportError:
+            continue
+    return importlib.import_module("pdb")
+
+
+@cli_utils.action_logging
+def task_states_for_dag_run(args):
+    """Get the status of all task instances in a DagRun"""
+    session = settings.Session()
+
+    tis = session.query(
+        TaskInstance.dag_id,
+        TaskInstance.execution_date,
+        TaskInstance.task_id,
+        TaskInstance.state,
+        TaskInstance.start_date,
+        TaskInstance.end_date).filter(
+        TaskInstance.dag_id == args.dag_id,
+        TaskInstance.execution_date == args.execution_date).all()
+
+    if len(tis) == 0:
+        raise AirflowException("DagRun does not exist.")
+
+    formatted_rows = []
+
+    for ti in tis:
+        formatted_rows.append((ti.dag_id,
+                               ti.execution_date,
+                               ti.task_id,
+                               ti.state,
+                               ti.start_date,
+                               ti.end_date))
+
+    print(
+        "\n%s" %
+        tabulate(
+            formatted_rows, [
+                'dag', 'exec_date', 'task', 'state', 'start_date', 'end_date'], tablefmt=args.output))
+
+    session.close()
 
 
 @cli_utils.action_logging
@@ -265,10 +334,7 @@ def task_test(args, dag=None):
             ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
     except Exception:  # pylint: disable=broad-except
         if args.post_mortem:
-            try:
-                debugger = importlib.import_module("ipdb")
-            except ImportError:
-                debugger = importlib.import_module("pdb")
+            debugger = _guess_debugger()
             debugger.post_mortem()
         else:
             raise

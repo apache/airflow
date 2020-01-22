@@ -22,7 +22,9 @@ This is an example dag for using the AzureContainerInstancesOperator.
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
+from airflow.providers.microsoft.azure.operators.azure_container_instances import (
+    AzureContainerInstancesOperator,
+)
 
 default_args = {
     'owner': 'airflow',
@@ -38,7 +40,8 @@ default_args = {
 with DAG(
     dag_id='aci_example',
     default_args=default_args,
-    schedule_interval=timedelta(1)
+    schedule_interval=timedelta(1),
+    tags=['example'],
 ) as dag:
 
     t1 = AzureContainerInstancesOperator(

@@ -153,7 +153,7 @@ if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE:=}" == "true" ]]; then
 fi
 
 
-# You can set AIRFLOW_CONTAINER_USE_DOCKER_CACHE to false if you do not want to use pulled images
+# You can set AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE to false if you do not want to use pulled images
 # as cache during build
 # This way you can test building from the scratch
 AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE=${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE:="true"}

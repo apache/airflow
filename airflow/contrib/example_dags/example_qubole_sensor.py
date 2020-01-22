@@ -45,7 +45,8 @@ with DAG(
     dag_id='example_qubole_sensor',
     default_args=default_args,
     schedule_interval=None,
-    doc_md=__doc__
+    doc_md=__doc__,
+    tags=['example'],
 ) as dag:
 
     t1 = QuboleFileSensor(

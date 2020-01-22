@@ -19,14 +19,14 @@
 import warnings
 from tempfile import NamedTemporaryFile
 
-from airflow.contrib.operators.s3_list_operator import S3ListOperator
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook, _parse_gcs_url
+from airflow.gcp.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 from airflow.utils.decorators import apply_defaults
 
 
-class S3ToGoogleCloudStorageOperator(S3ListOperator):
+class S3ToGCSOperator(S3ListOperator):
     """
     Synchronizes an S3 key, possibly a prefix, with a Google Cloud Storage
     destination path.
@@ -74,7 +74,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
 
     .. code-block:: python
 
-       s3_to_gcs_op = S3ToGoogleCloudStorageOperator(
+       s3_to_gcs_op = S3ToGCSOperator(
             task_id='s3_to_gcs_example',
             bucket='my-s3-bucket',
             prefix='data/customers-201804',
@@ -140,7 +140,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         # use the super method to list all the files in an S3 bucket/key
         files = super().execute(context)
 
-        gcs_hook = GoogleCloudStorageHook(
+        gcs_hook = GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
 

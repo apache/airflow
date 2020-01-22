@@ -26,10 +26,10 @@ from googleapiclient.errors import HttpError
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.gcp.operators.mlengine import (
-    MLEngineBatchPredictionOperator, MLEngineCreateModelOperator, MLEngineCreateVersionOperator,
-    MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator, MLEngineGetModelOperator,
-    MLEngineListVersionsOperator, MLEngineModelOperator, MLEngineSetDefaultVersionOperator,
-    MLEngineTrainingOperator, MLEngineVersionOperator,
+    MLEngineCreateModelOperator, MLEngineCreateVersionOperator, MLEngineDeleteModelOperator,
+    MLEngineDeleteVersionOperator, MLEngineGetModelOperator, MLEngineListVersionsOperator,
+    MLEngineManageModelOperator, MLEngineManageVersionOperator, MLEngineSetDefaultVersionOperator,
+    MLEngineStartBatchPredictionJobOperator, MLEngineStartTrainingJobOperator,
 )
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
@@ -103,7 +103,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             }), content=b'some bytes')
         hook_instance.create_job.return_value = success_message
 
-        prediction_task = MLEngineBatchPredictionOperator(
+        prediction_task = MLEngineStartBatchPredictionJobOperator(
             job_id='test_prediction',
             project_id='test-project',
             region=input_with_model['region'],
@@ -141,7 +141,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             }), content=b'some bytes')
         hook_instance.create_job.return_value = success_message
 
-        prediction_task = MLEngineBatchPredictionOperator(
+        prediction_task = MLEngineStartBatchPredictionJobOperator(
             job_id='test_prediction',
             project_id='test-project',
             region=input_with_version['region'],
@@ -179,7 +179,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             }), content=b'some bytes')
         hook_instance.create_job.return_value = success_message
 
-        prediction_task = MLEngineBatchPredictionOperator(
+        prediction_task = MLEngineStartBatchPredictionJobOperator(
             job_id='test_prediction',
             project_id='test-project',
             region=input_with_uri['region'],
@@ -208,7 +208,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         task_args['uri'] = 'gs://fake-uri/saved_model'
         task_args['model_name'] = 'fake_model'
         with self.assertRaises(AirflowException) as context:
-            MLEngineBatchPredictionOperator(**task_args).execute(None)
+            MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         self.assertEqual('Ambiguous model origin: Both uri and '
                          'model/version name are provided.',
                          str(context.exception))
@@ -219,7 +219,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         task_args['model_name'] = 'fake_model'
         task_args['version_name'] = 'fake_version'
         with self.assertRaises(AirflowException) as context:
-            MLEngineBatchPredictionOperator(**task_args).execute(None)
+            MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         self.assertEqual('Ambiguous model origin: Both uri and '
                          'model/version name are provided.',
                          str(context.exception))
@@ -228,7 +228,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args['version_name'] = 'bare_version'
         with self.assertRaises(AirflowException) as context:
-            MLEngineBatchPredictionOperator(**task_args).execute(None)
+            MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         self.assertEqual('Missing model: Batch prediction expects a model '
                          'name when a version name is provided.',
                          str(context.exception))
@@ -236,7 +236,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         # Test that none of uri, model, model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         with self.assertRaises(AirflowException) as context:
-            MLEngineBatchPredictionOperator(**task_args).execute(None)
+            MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         self.assertEqual(
             'Missing model origin: Batch prediction expects a '
             'model, a model & version combination, or a URI to a savedModel.',
@@ -257,7 +257,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             content=b'Forbidden')
 
         with self.assertRaises(HttpError) as context:
-            prediction_task = MLEngineBatchPredictionOperator(
+            prediction_task = MLEngineStartBatchPredictionJobOperator(
                 job_id='test_prediction',
                 project_id='test-project',
                 region=input_with_model['region'],
@@ -289,7 +289,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         task_args['uri'] = 'a uri'
 
         with self.assertRaises(RuntimeError) as context:
-            MLEngineBatchPredictionOperator(**task_args).execute(None)
+            MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
 
         self.assertEqual('A failure message', str(context.exception))
 
@@ -323,7 +323,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         hook_instance = mock_hook.return_value
         hook_instance.create_job.return_value = success_response
 
-        training_op = MLEngineTrainingOperator(
+        training_op = MLEngineStartTrainingJobOperator(
             **self.TRAINING_DEFAULT_ARGS)
         training_op.execute(None)
 
@@ -346,7 +346,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         hook_instance = mock_hook.return_value
         hook_instance.create_job.return_value = success_response
 
-        training_op = MLEngineTrainingOperator(
+        training_op = MLEngineStartTrainingJobOperator(
             runtime_version='1.6',
             python_version='3.5',
             job_dir='gs://some-bucket/jobs/test_training',
@@ -370,7 +370,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             content=b'Forbidden')
 
         with self.assertRaises(HttpError) as context:
-            training_op = MLEngineTrainingOperator(
+            training_op = MLEngineStartTrainingJobOperator(
                 **self.TRAINING_DEFAULT_ARGS)
             training_op.execute(None)
 
@@ -391,7 +391,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         hook_instance.create_job.return_value = failure_response
 
         with self.assertRaises(RuntimeError) as context:
-            training_op = MLEngineTrainingOperator(
+            training_op = MLEngineStartTrainingJobOperator(
                 **self.TRAINING_DEFAULT_ARGS)
             training_op.execute(None)
 
@@ -408,7 +408,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
 
     @patch('airflow.gcp.operators.mlengine.MLEngineHook')
     def test_success_create_model(self, mock_hook):
-        task = MLEngineModelOperator(
+        task = MLEngineManageModelOperator(
             task_id="task-id",
             project_id=TEST_PROJECT_ID,
             model=TEST_MODEL,
@@ -426,7 +426,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
 
     @patch('airflow.gcp.operators.mlengine.MLEngineHook')
     def test_success_get_model(self, mock_hook):
-        task = MLEngineModelOperator(
+        task = MLEngineManageModelOperator(
             task_id="task-id",
             project_id=TEST_PROJECT_ID,
             model=TEST_MODEL,
@@ -445,7 +445,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
 
     @patch('airflow.gcp.operators.mlengine.MLEngineHook')
     def test_fail(self, mock_hook):
-        task = MLEngineModelOperator(
+        task = MLEngineManageModelOperator(
             task_id="task-id",
             project_id=TEST_PROJECT_ID,
             model=TEST_MODEL,
@@ -532,7 +532,7 @@ class TestMLEngineVersionOperator(unittest.TestCase):
         hook_instance = mock_hook.return_value
         hook_instance.create_version.return_value = success_response
 
-        training_op = MLEngineVersionOperator(
+        training_op = MLEngineManageVersionOperator(
             version=TEST_VERSION,
             **self.VERSION_DEFAULT_ARGS)
         training_op.execute(None)

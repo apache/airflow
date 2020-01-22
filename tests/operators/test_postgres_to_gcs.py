@@ -19,10 +19,11 @@
 
 import unittest
 
+import pytest
 from mock import patch
 
-from airflow.hooks.postgres_hook import PostgresHook
-from airflow.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator
+from airflow.operators.postgres_to_gcs import PostgresToGCSOperator
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 TABLES = {'postgres_to_gcs_operator', 'postgres_to_gcs_operator_empty'}
 
@@ -42,6 +43,7 @@ SCHEMA_JSON = b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, ' \
               b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]'
 
 
+@pytest.mark.backend("postgres")
 class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -76,17 +78,17 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
     def test_init(self):
         """Test PostgresToGoogleCloudStorageOperator instance is properly initialized."""
-        op = PostgresToGoogleCloudStorageOperator(
+        op = PostgresToGCSOperator(
             task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
         self.assertEqual(op.task_id, TASK_ID)
         self.assertEqual(op.sql, SQL)
         self.assertEqual(op.bucket, BUCKET)
         self.assertEqual(op.filename, FILENAME)
 
-    @patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
+    @patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_exec_success(self, gcs_hook_mock_class):
         """Test the execute function in case where the run is successful."""
-        op = PostgresToGoogleCloudStorageOperator(
+        op = PostgresToGCSOperator(
             task_id=TASK_ID,
             postgres_conn_id=POSTGRES_CONN_ID,
             sql=SQL,
@@ -107,7 +109,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
         op.execute(None)
 
-    @patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
+    @patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_file_splitting(self, gcs_hook_mock_class):
         """Test that ndjson is split by approx_max_file_size_bytes param."""
 
@@ -126,7 +128,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
-        op = PostgresToGoogleCloudStorageOperator(
+        op = PostgresToGCSOperator(
             task_id=TASK_ID,
             sql=SQL,
             bucket=BUCKET,
@@ -134,7 +136,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
             approx_max_file_size_bytes=len(expected_upload[FILENAME.format(0)]))
         op.execute(None)
 
-    @patch('airflow.operators.sql_to_gcs.GoogleCloudStorageHook')
+    @patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_schema_file(self, gcs_hook_mock_class):
         """Test writing schema files."""
 
@@ -147,7 +149,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
-        op = PostgresToGoogleCloudStorageOperator(
+        op = PostgresToGCSOperator(
             task_id=TASK_ID,
             sql=SQL,
             bucket=BUCKET,

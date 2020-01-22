@@ -32,9 +32,9 @@ This is an example dag for managing twitter data.
 from datetime import date, timedelta
 
 from airflow import DAG
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.hive_operator import HiveOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
+from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils.dates import days_ago
 
 # --------------------------------------------------------------------------------
@@ -89,7 +89,8 @@ default_args = {
 with DAG(
     dag_id='example_twitter_dag',
     default_args=default_args,
-    schedule_interval="@daily"
+    schedule_interval="@daily",
+    tags=['example'],
 ) as dag:
 
     # --------------------------------------------------------------------------------

@@ -23,7 +23,7 @@ import os
 
 from airflow.contrib.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 
 default_args = {
@@ -34,7 +34,8 @@ default_args = {
 with DAG(
     dag_id='example_kubernetes_executor_config',
     default_args=default_args,
-    schedule_interval=None
+    schedule_interval=None,
+    tags=['example'],
 ) as dag:
 
     def test_volume_mount():

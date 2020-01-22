@@ -33,8 +33,8 @@ from airflow.gcp.operators.cloud_memorystore import (
     CloudMemorystoreListInstancesOperator, CloudMemorystoreScaleInstanceOperator,
     CloudMemorystoreUpdateInstanceOperator,
 )
-from airflow.gcp.operators.gcs import GoogleCloudStorageBucketCreateAclEntryOperator
-from airflow.operators.bash_operator import BashOperator
+from airflow.gcp.operators.gcs import GCSBucketCreateAclEntryOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -57,7 +57,10 @@ SECOND_INSTANCE = {"tier": Instance.Tier.STANDARD_HA, "memory_size_gb": 3}
 default_args = {"start_date": dates.days_ago(1)}
 
 with models.DAG(
-    "gcp_cloud_memorystore", default_args=default_args, schedule_interval=None  # Override to match your needs
+    "gcp_cloud_memorystore",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
     # [START howto_operator_create_instance]
     create_instance = CloudMemorystoreCreateInstanceOperator(
@@ -130,7 +133,7 @@ with models.DAG(
     # [END howto_operator_update_instance]
 
     # [START howto_operator_set_acl_permission]
-    set_acl_permission = GoogleCloudStorageBucketCreateAclEntryOperator(
+    set_acl_permission = GCSBucketCreateAclEntryOperator(
         task_id="gcs-set-acl-permission",
         bucket=BUCKET_NAME,
         entity="user-{{ task_instance.xcom_pull('get-instance')['persistenceIamIdentity']"

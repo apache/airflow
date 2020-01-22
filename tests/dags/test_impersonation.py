@@ -21,7 +21,7 @@ from datetime import datetime
 from textwrap import dedent
 
 from airflow.models import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

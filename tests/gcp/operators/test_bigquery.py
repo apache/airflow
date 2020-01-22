@@ -22,15 +22,17 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 import mock
+from parameterized import parameterized
 
 from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.gcp.operators.bigquery import (
-    BigQueryConsoleIndexableLink, BigQueryConsoleLink, BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator, BigQueryDeleteDatasetOperator,
-    BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator, BigQueryGetDataOperator,
-    BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator, BigQueryPatchDatasetOperator,
-    BigQueryUpdateDatasetOperator,
+    BigQueryCheckOperator, BigQueryConsoleIndexableLink, BigQueryConsoleLink,
+    BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator,
+    BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator,
+    BigQueryIntervalCheckOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
+    BigQueryValueCheckOperator,
 )
 from airflow.models import DAG, TaskFail, TaskInstance, XCom
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -65,8 +67,6 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -89,8 +89,6 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -121,8 +119,6 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .create_external_table \
             .assert_called_once_with(
                 external_project_dataset_table='{}.{}'.format(
@@ -157,8 +153,6 @@ class TestBigQueryDeleteDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .delete_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -179,8 +173,6 @@ class TestBigQueryCreateEmptyDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .create_empty_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -201,8 +193,6 @@ class TestBigQueryGetDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .get_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -223,8 +213,6 @@ class TestBigQueryPatchDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .patch_dataset \
             .assert_called_once_with(
                 dataset_resource=dataset_resource,
@@ -246,8 +234,6 @@ class TestBigQueryUpdateDatasetOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .update_dataset \
             .assert_called_once_with(
                 dataset_resource=dataset_resource,
@@ -301,8 +287,6 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',
@@ -354,8 +338,6 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_query \
             .assert_has_calls([
                 mock.call(
@@ -437,8 +419,6 @@ class TestBigQueryOperator(unittest.TestCase):
 
         operator.execute(MagicMock())
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',
@@ -645,8 +625,6 @@ class TestBigQueryGetDataOperator(unittest.TestCase):
                                            )
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .get_tabledata \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -670,8 +648,6 @@ class TestBigQueryTableDeleteOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .run_table_delete \
             .assert_called_once_with(
                 deletion_dataset_table=deletion_dataset_table,
@@ -691,8 +667,6 @@ class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn.return_value \
-            .cursor.return_value \
             .get_dataset_tables \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -700,3 +674,28 @@ class TestBigQueryGetDatasetTablesOperator(unittest.TestCase):
                 max_results=2,
                 page_token=None
             )
+
+
+class TestBigQueryConnIdDeprecationWarning(unittest.TestCase):
+    @parameterized.expand([
+        (BigQueryCheckOperator, dict(sql='Select * from test_table', task_id=TASK_ID)),
+        (BigQueryValueCheckOperator, dict(sql='Select * from test_table', pass_value=95, task_id=TASK_ID)),
+        (BigQueryIntervalCheckOperator,
+         dict(table=TEST_TABLE_ID, metrics_thresholds={'COUNT(*)': 1.5}, task_id=TASK_ID)),
+        (BigQueryGetDataOperator, dict(dataset_id=TEST_DATASET, table_id=TEST_TABLE_ID, task_id=TASK_ID)),
+        (BigQueryExecuteQueryOperator, dict(sql='Select * from test_table', task_id=TASK_ID)),
+        (BigQueryDeleteDatasetOperator, dict(dataset_id=TEST_DATASET, task_id=TASK_ID)),
+        (BigQueryCreateEmptyDatasetOperator, dict(dataset_id=TEST_DATASET, task_id=TASK_ID)),
+        (BigQueryDeleteTableOperator, dict(deletion_dataset_table=TEST_DATASET, task_id=TASK_ID))
+    ])
+    def test_bigquery_conn_id_deprecation_warning(self, operator_class, kwargs):
+        bigquery_conn_id = 'google_cloud_default'
+        with self.assertWarnsRegex(
+            DeprecationWarning,
+            "The bigquery_conn_id parameter has been deprecated. You should pass the gcp_conn_id parameter."
+        ):
+            operator = operator_class(
+                bigquery_conn_id=bigquery_conn_id,
+                **kwargs
+            )
+            self.assertEqual(bigquery_conn_id, operator.gcp_conn_id)

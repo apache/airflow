@@ -67,6 +67,8 @@ class DepContext:
     :type ignore_task_deps: bool
     :param ignore_ti_state: Ignore the task instance's previous failure/success
     :type ignore_ti_state: bool
+    :param finished_tasks: A list of all the finished tasks of this run
+    :type finished_tasks: list[airflow.models.TaskInstance]
     """
     def __init__(
             self,
@@ -77,7 +79,8 @@ class DepContext:
             ignore_in_retry_period=False,
             ignore_in_reschedule_period=False,
             ignore_task_deps=False,
-            ignore_ti_state=False):
+            ignore_ti_state=False,
+            finished_tasks=None):
         self.deps = deps or set()
         self.flag_upstream_failed = flag_upstream_failed
         self.ignore_all_deps = ignore_all_deps
@@ -86,6 +89,7 @@ class DepContext:
         self.ignore_in_reschedule_period = ignore_in_reschedule_period
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
+        self.finished_tasks = finished_tasks
 
 
 # In order to be able to get queued a task must have one of these states

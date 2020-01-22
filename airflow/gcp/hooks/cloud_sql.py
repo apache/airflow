@@ -48,9 +48,9 @@ from airflow.gcp.hooks.base import CloudBaseHook
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
 from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.mysql_hook import MySqlHook
-from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import Connection
+from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.session import provide_session
 
 UNIX_PATH_MAX = 108

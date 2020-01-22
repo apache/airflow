@@ -107,6 +107,24 @@ class TestS3TaskHandler(unittest.TestCase):
             mock_hook.side_effect = Exception('Failed to connect')
             self.assertFalse(self.s3_task_handler.s3_log_exists(self.remote_log_location))
 
+    def test_set_context_raw(self):
+        self.ti.raw = True
+        mock_open = mock.mock_open()
+        with mock.patch('airflow.utils.log.s3_task_handler.open', mock_open):
+            self.s3_task_handler.set_context(self.ti)
+
+        self.assertFalse(self.s3_task_handler.upload_on_close)
+        mock_open.assert_not_called()
+
+    def test_set_context_not_raw(self):
+        mock_open = mock.mock_open()
+        with mock.patch('airflow.utils.log.s3_task_handler.open', mock_open):
+            self.s3_task_handler.set_context(self.ti)
+
+        self.assertTrue(self.s3_task_handler.upload_on_close)
+        mock_open.assert_called_once_with(os.path.abspath('local/log/location/1.log'), 'w')
+        mock_open().write.assert_not_called()
+
     def test_read(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'Log line\n')
         self.assertEqual(

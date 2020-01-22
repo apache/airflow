@@ -27,7 +27,7 @@ import funcsigs
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.operators.python_operator import PythonVirtualenvOperator
+from airflow.operators.python import PythonVirtualenvOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

@@ -98,3 +98,28 @@ class TestLineage(unittest.TestCase):
         op5.pre_execute(ctx5)
         self.assertEqual(len(op5.inlets), 2)
         op5.post_execute(ctx5)
+
+    def test_lineage_render(self):
+        # tests inlets / outlets are rendered if they are added
+        # after initalization
+        dag = DAG(
+            dag_id='test_lineage_render',
+            start_date=DEFAULT_DATE
+        )
+
+        with dag:
+            op1 = DummyOperator(task_id='task1')
+
+        f1s = "/tmp/does_not_exist_1-{}"
+        file1 = File(f1s.format("{{ execution_date }}"))
+
+        op1.inlets.append(file1)
+        op1.outlets.append(file1)
+
+        # execution_date is set in the context in order to avoid creating task instances
+        ctx1 = {"ti": TI(task=op1, execution_date=DEFAULT_DATE),
+                "execution_date": DEFAULT_DATE}
+
+        op1.pre_execute(ctx1)
+        self.assertEqual(op1.inlets[0].url, f1s.format(DEFAULT_DATE))
+        self.assertEqual(op1.outlets[0].url, f1s.format(DEFAULT_DATE))

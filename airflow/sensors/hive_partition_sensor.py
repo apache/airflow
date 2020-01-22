@@ -16,60 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.apache.hive.sensors.hive_partition`."""
 
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor  # noqa
 
-class HivePartitionSensor(BaseSensorOperator):
-    """
-    Waits for a partition to show up in Hive.
-
-    Note: Because ``partition`` supports general logical operators, it
-    can be inefficient. Consider using NamedHivePartitionSensor instead if
-    you don't need the full flexibility of HivePartitionSensor.
-
-    :param table: The name of the table to wait for, supports the dot
-        notation (my_database.my_table)
-    :type table: str
-    :param partition: The partition clause to wait for. This is passed as
-        is to the metastore Thrift client ``get_partitions_by_filter`` method,
-        and apparently supports SQL like notation as in ``ds='2015-01-01'
-        AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``
-    :type partition: str
-    :param metastore_conn_id: reference to the metastore thrift service
-        connection id
-    :type metastore_conn_id: str
-    """
-    template_fields = ('schema', 'table', 'partition',)
-    ui_color = '#C5CAE9'
-
-    @apply_defaults
-    def __init__(self,
-                 table, partition="ds='{{ ds }}'",
-                 metastore_conn_id='metastore_default',
-                 schema='default',
-                 poke_interval=60 * 3,
-                 *args,
-                 **kwargs):
-        super().__init__(
-            poke_interval=poke_interval, *args, **kwargs)
-        if not partition:
-            partition = "ds='{{ ds }}'"
-        self.metastore_conn_id = metastore_conn_id
-        self.table = table
-        self.partition = partition
-        self.schema = schema
-
-    def poke(self, context):
-        if '.' in self.table:
-            self.schema, self.table = self.table.split('.')
-        self.log.info(
-            'Poking for table %s.%s, partition %s', self.schema, self.table, self.partition
-        )
-        if not hasattr(self, 'hook'):
-            from airflow.hooks.hive_hooks import HiveMetastoreHook
-            self.hook = HiveMetastoreHook(
-                metastore_conn_id=self.metastore_conn_id)
-        return self.hook.check_for_partition(
-            self.schema, self.table, self.partition)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.apache.hive.sensors.hive_partition`.",
+    DeprecationWarning, stacklevel=2
+)

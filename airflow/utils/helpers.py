@@ -299,3 +299,18 @@ def convert_camel_to_snake(camel_str):
     Converts CamelCase to snake_case.
     """
     return re.sub('(?!^)([A-Z]+)', r'_\1', camel_str).lower()
+
+
+def merge_dicts(dict1, dict2):
+    """
+    Merge two dicts recursively, returning new dict (input dict is not mutated).
+
+    Lists are not concatenated. Items in dict2 overwrite those also found in dict1.
+    """
+    merged = dict1.copy()
+    for k, v in dict2.items():
+        if k in merged and isinstance(v, dict):
+            merged[k] = merge_dicts(merged.get(k, {}), v)
+        else:
+            merged[k] = v
+    return merged

@@ -48,6 +48,7 @@ with models.DAG(
     "example_gcp_dataflow",
     default_args=default_args,
     schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_start_java_job]
@@ -73,6 +74,11 @@ with models.DAG(
         options={
             'output': GCS_OUTPUT,
         },
+        py_requirements=[
+            'apache-beam[gcp]>=2.14.0'
+        ],
+        py_interpreter='python3',
+        py_system_site_packages=False
     )
     # [END howto_operator_start_python_job]
 

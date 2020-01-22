@@ -27,9 +27,9 @@ from airflow import AirflowException
 from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
 from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.mysql_hook import MySqlHook
-from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import BaseOperator
+from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.decorators import apply_defaults
 
 SETTINGS = 'settings'

@@ -16,47 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker_tuning`."""
 
-from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.sensors.sagemaker_base_sensor import SageMakerBaseSensor
-from airflow.utils.decorators import apply_defaults
+import warnings
 
+# pylint: disable=unused-import
+from airflow.providers.amazon.aws.sensors.sagemaker_tuning import SageMakerTuningSensor  # noqa
 
-class SageMakerTuningSensor(SageMakerBaseSensor):
-    """
-    Asks for the state of the tuning state until it reaches a terminal state.
-    The sensor will error if the job errors, throwing a AirflowException
-    containing the failure reason.
-
-    :param job_name: job_name of the tuning instance to check the state of
-    :type job_name: str
-    """
-
-    template_fields = ['job_name']
-    template_ext = ()
-
-    @apply_defaults
-    def __init__(self,
-                 job_name,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.job_name = job_name
-
-    def non_terminal_states(self):
-        return SageMakerHook.non_terminal_states
-
-    def failed_states(self):
-        return SageMakerHook.failed_states
-
-    def get_sagemaker_response(self):
-        sagemaker = SageMakerHook(aws_conn_id=self.aws_conn_id)
-
-        self.log.info('Poking Sagemaker Tuning Job %s', self.job_name)
-        return sagemaker.describe_tuning_job(self.job_name)
-
-    def get_failed_reason_from_response(self, response):
-        return response['FailureReason']
-
-    def state_from_response(self, response):
-        return response['HyperParameterTuningJobStatus']
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker_tuning`.",
+    DeprecationWarning, stacklevel=2
+)

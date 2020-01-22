@@ -34,3 +34,6 @@ Edit ``airflow.cfg`` and set the ``webserver`` block to have an ``analytics_tool
 .. note:: You can see view injected tracker html within Airflow's source code at
   ``airflow/www/templates/appbuilder/baselayout.html``. The related global
   variables are set in ``airflow/www/templates/app.py``.
+
+.. note::
+    For more information on setting the configuration, see :doc:`../howto/set-config`

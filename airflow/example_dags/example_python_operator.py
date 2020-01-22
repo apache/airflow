@@ -23,7 +23,7 @@ import time
 from pprint import pprint
 
 from airflow.models import DAG
-from airflow.operators.python_operator import PythonOperator, PythonVirtualenvOperator
+from airflow.operators.python import PythonOperator, PythonVirtualenvOperator
 from airflow.utils.dates import days_ago
 
 args = {
@@ -35,6 +35,7 @@ dag = DAG(
     dag_id='example_python_operator',
     default_args=args,
     schedule_interval=None,
+    tags=['example']
 )
 
 

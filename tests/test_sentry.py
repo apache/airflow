@@ -70,7 +70,7 @@ class TestSentryHook(unittest.TestCase):
         self.dag.task_ids = [TASK_ID]
 
         # Mock the task
-        self.task = Mock(dag=self.dag, dag_id=DAG_ID, task_id=TASK_ID, params=[])
+        self.task = Mock(dag=self.dag, dag_id=DAG_ID, task_id=TASK_ID, params=[], pool_slots=1)
         self.task.__class__.__name__ = OPERATOR
 
         self.ti = TaskInstance(self.task, execution_date=EXECUTION_DATE)

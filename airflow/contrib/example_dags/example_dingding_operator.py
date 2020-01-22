@@ -63,7 +63,8 @@ with DAG(
     dag_id='example_dingding_operator',
     default_args=args,
     schedule_interval='@once',
-    dagrun_timeout=timedelta(minutes=60)
+    dagrun_timeout=timedelta(minutes=60),
+    tags=['example'],
 ) as dag:
 
     # [START howto_operator_dingding]

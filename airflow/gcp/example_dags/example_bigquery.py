@@ -30,9 +30,9 @@ from airflow.gcp.operators.bigquery import (
     BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator,
     BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
 )
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
-from airflow.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
+from airflow.operators.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.utils.dates import days_ago
 
 # 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d = CryptoKitties contract address
@@ -85,7 +85,10 @@ DATA_EXPORT_BUCKET_NAME = os.environ.get("GCP_BIGQUERY_EXPORT_BUCKET_NAME", "tes
 
 
 with models.DAG(
-    "example_bigquery", default_args=default_args, schedule_interval=None  # Override to match your needs
+    "example_bigquery",
+    default_args=default_args,
+    schedule_interval=None,  # Override to match your needs
+    tags=['example'],
 ) as dag:
 
     execute_query = BigQueryExecuteQueryOperator(
@@ -162,7 +165,7 @@ with models.DAG(
         destination_project_dataset_table="{}.copy_of_selected_data_from_external_table".format(DATASET_NAME),
     )
 
-    bigquery_to_gcs = BigQueryToCloudStorageOperator(
+    bigquery_to_gcs = BigQueryToGCSOperator(
         task_id="bigquery_to_gcs",
         source_project_dataset_table="{}.selected_data_from_external_table".format(DATASET_NAME),
         destination_cloud_storage_uris=["gs://{}/export-bigquery.csv".format(DATA_EXPORT_BUCKET_NAME)],

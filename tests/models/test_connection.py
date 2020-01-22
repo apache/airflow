@@ -26,8 +26,8 @@ from cryptography.fernet import Fernet
 from parameterized import parameterized
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import Connection, crypto
+from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 from tests.test_utils.config import conf_vars
 
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
