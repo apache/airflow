@@ -30,6 +30,7 @@ from time import sleep
 import psutil
 import pytz
 import subprocess
+import pytest
 from argparse import Namespace
 from airflow import settings
 import airflow.bin.cli as cli
@@ -522,6 +523,8 @@ class TestCLI(unittest.TestCase):
         )
 
 
+@pytest.mark.integration("redis")
+@pytest.mark.integration("rabbitmq")
 class TestWorkerServeLogs(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
