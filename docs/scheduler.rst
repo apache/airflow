@@ -185,3 +185,8 @@ Here are some of the ways you can **unblock tasks**:
   or for instance when the fix has been applied outside of Airflow.
 * The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting
   subsections of the DAG as well as specifying date ranges.
+
+If you want to use 'external trigger' to run future-dated execution dates, set ``allow_trigger_in_future = True`` in ``scheduler`` section in ``airflow.cfg``.
+This only has effect if your DAG has no ``schedule_interval``.
+If you keep default ``allow_trigger_in_future = False`` and try 'external trigger' to run future-dated execution dates,
+the scheduler won't execute it now but the scheduler will execute it in the future once the current date rolls over to the execution date.

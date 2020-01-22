@@ -30,7 +30,9 @@ class RunnableExecDateDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context):
         cur_date = timezone.utcnow()
 
-        if ti.execution_date > cur_date:
+        # don't consider runs that are executed in the future unless
+        # specified by config and schedule_interval is None
+        if ti.execution_date > cur_date and not ti.task.dag.allow_future_exec_dates:
             yield self._failing_status(
                 reason="Execution date {0} is in the future (the current "
                        "date is {1}).".format(ti.execution_date.isoformat(),
