@@ -169,10 +169,27 @@
                                         "scale(" + d3.event.scale + ")");
           });
       svg.call(zoom);
-    }
 
-    // Centering the DAG on load (Not implemented yet)
-    // https://github.com/dagrejs/dagre-d3/issues/245
+      // Centering the DAG on load
+      // Get Dagre Graph dimensions
+      var graphWidth = g.graph().width;
+      var graphHeight = g.graph().height;
+      // Get SVG dimensions
+      var padding = 20;
+      var svgBb = svg.node().getBoundingClientRect();
+      var width = svgBb.width - padding*2;
+      var height = svgBb.height - padding;  // we are not centering the dag vertically
+
+      // Calculate applicable scale for zoom
+      zoomScale = Math.min(
+        Math.min(width / graphWidth, height / graphHeight),
+        1.5,  // cap zoom level to 1.5 so nodes are not too large
+      );
+
+      zoom.translate([(width/2) - ((graphWidth*zoomScale)/2) + padding, padding]);
+      zoom.scale(zoomScale);
+      zoom.event(innerSvg);
+    }
 
     setUpZoomSupport();
     inject_node_ids(tasks);
