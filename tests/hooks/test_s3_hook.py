@@ -86,7 +86,9 @@ class TestS3Hook(unittest.TestCase):
         b = hook.get_bucket('new_bucket')
         self.assertIsNotNone(b)
         region = b.meta.client.get_bucket_location(Bucket=b.name).get('LocationConstraint', None)
-        self.assertEqual(region, 'us-east-1')
+        # https://github.com/spulec/moto/pull/1961
+        # If location is "us-east-1", LocationConstraint should be None
+        self.assertIsNone(region)
 
     @mock_s3
     def test_create_bucket_other_region(self):
