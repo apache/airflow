@@ -15,12 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 import asyncio
 import unittest
-from datetime import timedelta
 from unittest import mock
-
-from distributed import Future
 
 from airflow.configuration import conf
 from airflow.jobs import BackfillJob
@@ -30,6 +28,10 @@ from airflow.utils import timezone
 try:
     from airflow.executors.dask_async_executor import DaskAsyncExecutor
     from distributed import LocalCluster
+
+    # import all the dask distributed pytest fixtures
+    from distributed import Future
+    from distributed.utils_test import *  # pylint: disable=wildcard-import
 
     # utility functions imported from the dask testing suite to instantiate a test
     # cluster for tls tests
@@ -50,6 +52,70 @@ except ImportError:
 SKIP_DASK = True
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
+
+
+#
+# dask-distributed-testing 101, from
+# https://distributed.dask.org/en/latest/develop.html#writing-tests
+#
+
+
+def test_sync_submit(client):
+    future = client.submit(inc, 10)
+    assert isinstance(future, Future)
+    assert future.result() == 11  # use the synchronous/blocking API here
+
+
+def test_sync_submit_full(client, s, a, b):
+    """
+    In this style of test you do not have access to the scheduler or workers.
+    The variables s, a, b are now dictionaries holding a multiprocessing.Process
+    object and a port integer. However, you can now use the normal synchronous
+    API (never use yield in this style of test) and you can close processes
+    easily by terminating them.
+    """
+    assert isinstance(client, Client)
+    assert isinstance(s, dict)
+    assert client.scheduler.address == s['address']
+    assert isinstance(a, dict)  # worker-a
+    assert isinstance(b, dict)  # worker-b
+
+    future = client.submit(inc, 10)
+    assert isinstance(future, Future)
+    assert future.result() == 11  # use the synchronous/blocking API here
+
+    fixed_test = False
+    if fixed_test:
+        # killing a worker fails the test cleanup checks:
+        # Failed: some RPCs left active by test
+
+        worker_process = a['proc']()  # call weakref to get worker process
+        worker_process.terminate()  # kill one of the workers
+        # client.retire_workers()  # also not a clean test teardown
+
+        result = future.result()  # test that future remains valid
+        assert isinstance(future, Future)
+        assert result == 11
+
+
+@gen_cluster(client=True)
+def test_async_submit(c, s, a, b):
+
+    assert isinstance(c, Client)
+    assert isinstance(s, Scheduler)
+    assert isinstance(a, Worker)
+    assert isinstance(b, Worker)
+
+    future = c.submit(inc, 1)
+    assert isinstance(future, Future)
+    assert future.key in c.futures
+
+    # result = future.result()  # This synchronous API call would block
+    result = yield future
+    assert result == 2
+
+    assert future.key in s.tasks
+    assert future.key in a.data or future.key in b.data
 
 
 class TestBaseDask(unittest.TestCase):
