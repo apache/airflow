@@ -188,3 +188,8 @@ insertIssueLinkInPrDescription:
 verifyTitles:
   titleRegexp: ^\[AIRFLOW-[0-9]{4}\].*$|^\[AIRFLOW-XXXX\].*$
   validateEitherPrOrSingleCommitTitle: true
+
+checkUpToDate:
+  - airflow/migrations/*
+  - airflow/migrations/**/*
+  - airflow/alembic.ini
