@@ -127,7 +127,7 @@ class DebugExecutor(BaseExecutor):
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (_, _, _, ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
-            self.running.add(key)
+            self.running[key] = ti
             self.tasks_to_run.append(ti)  # type: ignore
 
     def end(self):
