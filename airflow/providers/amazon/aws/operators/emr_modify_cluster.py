@@ -47,8 +47,6 @@ class EmrModifyClusterOperator(BaseOperator):
             *args, **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        if cluster_id is None or step_concurrency_level is None:
-            raise AirflowException("'cluster_id' or 'step_concurrency_level' not passed")
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.cluster_id = cluster_id
