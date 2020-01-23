@@ -126,7 +126,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  volumes=None,
                  env_vars=None,
                  secrets=None,
-                 in_cluster=True,
+                 in_cluster=None,
                  cluster_context=None,
                  labels=None,
                  startup_timeout_seconds=120,
@@ -191,9 +191,13 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
 
     def execute(self, context):
         try:
-            client = kube_client.get_kube_client(in_cluster=self.in_cluster,
-                                                 cluster_context=self.cluster_context,
-                                                 config_file=self.config_file)
+            if self.in_cluster is not None:
+                client = kube_client.get_kube_client(in_cluster=self.in_cluster,
+                                                     cluster_context=self.cluster_context,
+                                                     config_file=self.config_file)
+            else:
+                client = kube_client.get_kube_client(cluster_context=self.cluster_context,
+                                                     config_file=self.config_file)
 
             # Add Airflow Version to the label
             # And a label to identify that pod is launched by KubernetesPodOperator
