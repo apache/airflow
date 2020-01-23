@@ -109,6 +109,8 @@ Here's the list of the subpackages and what they enable:
 | postgres            | ``pip install 'apache-airflow[postgres]'``          | PostgreSQL operators and hook, support as an                         |
 |                     |                                                     | Airflow backend                                                      |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| presto              | ``pip install 'apache-airflow[presto]'``            | All Presto related operators & hooks                                 |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | qds                 | ``pip install 'apache-airflow[qds]'``               | Enable QDS (Qubole Data Service) support                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | rabbitmq            | ``pip install 'apache-airflow[rabbitmq]'``          | RabbitMQ support as a Celery backend                                 |
