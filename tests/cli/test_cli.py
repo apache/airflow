@@ -530,7 +530,8 @@ class TestWorkerServeLogs(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = cli.CLIFactory.get_parser()
 
-    def test_serve_logs_on_worker_start(self):
+    @mock.patch('celery.bin.worker.worker')
+    def test_serve_logs_on_worker_start(self, celery_mock):
         with patch('airflow.bin.cli.subprocess.Popen') as mock_popen:
             mock_popen.return_value.communicate.return_value = (b'output', b'error')
             mock_popen.return_value.returncode = 0
@@ -541,7 +542,8 @@ class TestWorkerServeLogs(unittest.TestCase):
                 cli.worker(args)
                 mock_popen.assert_called()
 
-    def test_skip_serve_logs_on_worker_start(self):
+    @mock.patch('celery.bin.worker.worker')
+    def test_skip_serve_logs_on_worker_start(self, celery_mock):
         with patch('airflow.bin.cli.subprocess.Popen') as mock_popen:
             mock_popen.return_value.communicate.return_value = (b'output', b'error')
             mock_popen.return_value.returncode = 0
@@ -551,3 +553,43 @@ class TestWorkerServeLogs(unittest.TestCase):
                 mock_privil.return_value = 0
                 cli.worker(args)
                 mock_popen.assert_not_called()
+
+
+class TestWorkerStart(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.parser = cli.CLIFactory.get_parser()
+
+    @mock.patch('airflow.bin.cli.setup_logging')
+    @mock.patch('celery.bin.worker.worker')
+    def test_worker_started_with_required_arguments(self, mock_worker, setup_logging_mock):
+        concurrency = '1'
+        celery_hostname = "celery_hostname"
+        queues = "queue"
+        autoscale = "2,5"
+        args = self.parser.parse_args([
+            'worker',
+            '--autoscale',
+            autoscale,
+            '--concurrency',
+            concurrency,
+            '--celery_hostname',
+            celery_hostname,
+            '--queues',
+            queues
+        ])
+
+        with mock.patch('celery.platforms.check_privileges') as mock_privil:
+            mock_privil.return_value = 0
+            cli.worker(args)
+
+        mock_worker.return_value.run.assert_called_once_with(
+            pool='prefork',
+            optimization='fair',
+            O='fair',  # noqa
+            queues=queues,
+            concurrency=int(concurrency),
+            autoscale=autoscale,
+            hostname=celery_hostname,
+            loglevel=mock.ANY,
+        )
