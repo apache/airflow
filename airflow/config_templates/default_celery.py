@@ -40,7 +40,7 @@ if 'visibility_timeout' not in broker_transport_options:
         broker_transport_options['visibility_timeout'] = 21600
 
 DEFAULT_CELERY_CONFIG = {
-    'accept_content': ['json'],
+    'accept_content': ['json', 'pickle'],
     'event_serializer': 'json',
     'worker_prefetch_multiplier': 1,
     'task_acks_late': True,
