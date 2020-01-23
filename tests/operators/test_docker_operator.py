@@ -270,8 +270,8 @@ class DockerOperatorTestCase(unittest.TestCase):
             'tty': True,
         }
 
-        xcom_push_operator = DockerOperator(**kwargs, do_xcom_push=True)
-        no_xcom_push_operator = DockerOperator(**kwargs, do_xcom_push=False)
+        xcom_push_operator = DockerOperator(do_xcom_push=True, **kwargs)
+        no_xcom_push_operator = DockerOperator(do_xcom_push=False, **kwargs)
 
         xcom_push_result = xcom_push_operator.execute(None)
         no_xcom_push_result = no_xcom_push_operator.execute(None)
