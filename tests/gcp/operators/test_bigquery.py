@@ -74,6 +74,7 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 table_id=TEST_TABLE_ID,
                 schema_fields=None,
                 time_partitioning={},
+                cluster_fields=None,
                 labels=None,
                 view=None,
                 encryption_configuration=None
@@ -96,8 +97,58 @@ class TestBigQueryCreateEmptyTableOperator(unittest.TestCase):
                 table_id=TEST_TABLE_ID,
                 schema_fields=None,
                 time_partitioning={},
+                cluster_fields=None,
                 labels=None,
                 view=VIEW_DEFINITION,
+                encryption_configuration=None
+            )
+
+    @mock.patch('airflow.gcp.operators.bigquery.BigQueryHook')
+    def test_create_clustered_empty_table(self, mock_hook):
+
+        schema_fields = [
+            {
+                "name": "emp_name",
+                "type": "STRING",
+                "mode": "REQUIRED"
+            },
+            {
+                "name": "date_hired",
+                "type": "DATE",
+                "mode": "REQUIRED"
+            },
+            {
+                "name": "date_birth",
+                "type": "DATE",
+                "mode": "NULLABLE"
+            }
+        ]
+        time_partitioning = {
+            "type": "DAY",
+            "field": "date_hired"
+        }
+        cluster_fields = ["date_birth"]
+        operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
+                                                    dataset_id=TEST_DATASET,
+                                                    project_id=TEST_GCP_PROJECT_ID,
+                                                    table_id=TEST_TABLE_ID,
+                                                    schema_fields=schema_fields,
+                                                    time_partitioning=time_partitioning,
+                                                    cluster_fields=cluster_fields
+                                                    )
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .create_empty_table \
+            .assert_called_once_with(
+                dataset_id=TEST_DATASET,
+                project_id=TEST_GCP_PROJECT_ID,
+                table_id=TEST_TABLE_ID,
+                schema_fields=schema_fields,
+                time_partitioning=time_partitioning,
+                cluster_fields=cluster_fields,
+                labels=None,
+                view=None,
                 encryption_configuration=None
             )
 

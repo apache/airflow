@@ -637,10 +637,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
     :type time_partitioning: dict
-    :param bigquery_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform and
+    :param bigquery_conn_id: [Optional] The connection ID used to connect to Google Cloud Platform and
         interact with the Bigquery service.
     :type bigquery_conn_id: str
-    :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud
+    :param google_cloud_storage_conn_id: [Optional] The connection ID used to connect to Google Cloud
         Platform and interact with the Google Cloud Storage service.
     :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to
@@ -691,7 +691,9 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type labels: dict
     :param view: [Optional] A dictionary containing definition for the view.
         If set, it will create a view instead of a table:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
+
+        .. seealso::
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
     :type view: dict
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
         **Example**: ::
@@ -702,6 +704,13 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :type encryption_configuration: dict
     :param location: The location used for the operation.
     :type location: str
+    :param cluster_fields: [Optional] The fields used for clustering.
+            Must be specified with time_partitioning, data in the table will be first
+            partitioned and subsequently clustered.
+
+            .. seealso::
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
+    :type cluster_fields: list
     """
     template_fields = ('dataset_id', 'table_id', 'project_id',
                        'gcs_schema_object', 'labels', 'view')
@@ -723,6 +732,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  view: Optional[Dict] = None,
                  encryption_configuration: Optional[Dict] = None,
                  location: Optional[str] = None,
+                 cluster_fields: Optional[List[str]] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -739,6 +749,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.view = view
         self.encryption_configuration = encryption_configuration
         self.location = location
+        self.cluster_fields = cluster_fields
 
     def execute(self, context):
         bq_hook = BigQueryHook(gcp_conn_id=self.bigquery_conn_id,
@@ -767,6 +778,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 table_id=self.table_id,
                 schema_fields=schema_fields,
                 time_partitioning=self.time_partitioning,
+                cluster_fields=self.cluster_fields,
                 labels=self.labels,
                 view=self.view,
                 encryption_configuration=self.encryption_configuration

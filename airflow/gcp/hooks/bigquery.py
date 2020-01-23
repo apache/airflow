@@ -167,7 +167,7 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                            table_id: str,
                            schema_fields: Optional[List] = None,
                            time_partitioning: Optional[Dict] = None,
-                           cluster_fields: Optional[List] = None,
+                           cluster_fields: Optional[List[str]] = None,
                            labels: Optional[Dict] = None,
                            view: Optional[Dict] = None,
                            encryption_configuration: Optional[Dict] = None,
