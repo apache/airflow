@@ -443,55 +443,6 @@ class TestTransfer(unittest.TestCase):
             with m.get_conn() as c:
                 c.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
 
-    def test_mysql_to_hive_verify_csv_special_char(self):
-        mysql_table = 'test_mysql_to_hive'
-        hive_table = 'test_mysql_to_hive'
-
-        from airflow.hooks.mysql_hook import MySqlHook
-        hook = MySqlHook()
-
-        try:
-            db_record = (
-                'c0',
-                '["true"]'
-            )
-            with hook.get_conn() as conn:
-                conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
-                conn.execute("""
-                    CREATE TABLE {} (
-                        c0 VARCHAR(25),
-                        c1 VARCHAR(25)
-                    )
-                """.format(mysql_table))
-                conn.execute("""
-                    INSERT INTO {} VALUES (
-                        '{}', '{}'
-                    )
-                """.format(mysql_table, *db_record))
-
-            from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
-            import unicodecsv as csv
-            op = MySqlToHiveTransfer(
-                task_id='test_m2h',
-                hive_cli_conn_id='hive_cli_default',
-                sql="SELECT * FROM {}".format(mysql_table),
-                hive_table=hive_table,
-                recreate=True,
-                delimiter=",",
-                quoting=csv.QUOTE_NONE,
-                quotechar='',
-                escapechar='@',
-                dag=self.dag)
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-            from airflow.hooks.hive_hooks import HiveServer2Hook
-            hive_hook = HiveServer2Hook()
-            result = hive_hook.get_records("SELECT * FROM {}".format(hive_table))
-            self.assertEqual(result[0], db_record)
-        finally:
-            with hook.get_conn() as conn:
-                conn.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
-
     def test_mysql_to_hive_verify_loaded_values(self):
         mysql_table = 'test_mysql_to_hive'
         hive_table = 'test_mysql_to_hive'
