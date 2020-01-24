@@ -582,26 +582,26 @@ class TestDagRun(unittest.TestCase):
         # 2nd run of task fails by itself
         self.assertRaises(AirflowException, run_2nd_dagrun)
         ti2.refresh_from_db()
-        self.assertEquals(ti2.state, State.SCHEDULED)
+        self.assertEqual(ti2.state, State.SCHEDULED)
 
         # 2nd run af task fails if 1st run of task failed
         ti1.set_state(State.FAILED)
         self.assertRaises(AirflowException, run_2nd_dagrun)
         ti2.refresh_from_db()
-        self.assertEquals(ti2.state, State.SCHEDULED)
+        self.assertEqual(ti2.state, State.SCHEDULED)
 
         # but it works after 1st instance of task is marked as skipped
         ti1.set_state(State.SKIPPED)
         run_2nd_dagrun()
         ti2.refresh_from_db()
-        self.assertEquals(ti2.state, State.SUCCESS)
+        self.assertEqual(ti2.state, State.SUCCESS)
 
         # and it also works if 1st instance is success
         ti2.set_state(State.NONE)
         ti1.set_state(State.SUCCESS)
         run_2nd_dagrun()
         ti2.refresh_from_db()
-        self.assertEquals(ti2.state, State.SUCCESS)
+        self.assertEqual(ti2.state, State.SUCCESS)
 
     def test_wait_for_downstream(self):
         dag_id = 'test_wait_for_downstream'
@@ -625,14 +625,14 @@ class TestDagRun(unittest.TestCase):
         self.assertEqual(uti_2.previous_ti.state, State.SUCCESS)
         self.assertRaises(AirflowException, run_2nd_dagrun)
         uti_2.refresh_from_db()
-        self.assertEquals(uti_2.state, State.SCHEDULED)
+        self.assertEqual(uti_2.state, State.SCHEDULED)
 
         # doesn't run if downstream task for previous day has a failed state
         dti_1 = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
         dti_1.set_state(State.FAILED)
         self.assertRaises(AirflowException, run_2nd_dagrun)
         uti_2.refresh_from_db()
-        self.assertEquals(uti_2.state, State.SCHEDULED)
+        self.assertEqual(uti_2.state, State.SCHEDULED)
 
         # runs if downstream task for previous day has a skipped state
         dti_1 = TI(task=downstream, execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0))
