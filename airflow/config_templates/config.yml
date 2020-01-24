@@ -903,14 +903,31 @@
       default: "30"
 
 - name: email
-  description: ~
+  description: |
+    Configuration email backend and whether to
+    send email alerts on retry or failure
   options:
     - name: email_backend
-      description: ~
+      description: Email backend to use
       version_added: ~
       type: string
       example: ~
       default: "airflow.utils.email.send_email_smtp"
+    - name: default_email_on_retry
+      description: |
+        Whether email alerts should be sent when a task is retried
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+    - name: default_email_on_failure
+      description: |
+        Whether email alerts should be sent when a task failed
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "True"
+
 - name: smtp
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
