@@ -162,7 +162,7 @@ class LocalTaskJobTest(unittest.TestCase):
                 # Assert that difference small enough to avoid:
                 # AssertionError: 1.996401 not greater than or equal to 2
                 delta = (time2 - time1).total_seconds()
-                self.assertAlmostEqual(delta, job.heartrate, delta=0.006)
+                self.assertAlmostEqual(delta, job.heartrate, delta=0.007)
 
     @pytest.mark.xfail(condition=True, reason="This test might be flaky in postgres/mysql")
     def test_mark_success_no_kill(self):
