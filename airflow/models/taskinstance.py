@@ -1203,87 +1203,52 @@ class TaskInstance(Base, LoggingMixin):
         if context is not None:
             context['exception'] = error
 
-        # Let's go deeper
-        try:
-            # Since this function is called only when the TaskInstance state is running,
-            # try_number contains the current try_number (not the next). We
-            # only mark task instance as FAILED if the next task instance
-            # try_number exceeds the max_tries.
-            if self.is_eligible_to_retry():
-                if not force_fail:
-                    self.state = State.UP_FOR_RETRY
-                    self.log.info('Marking task as UP_FOR_RETRY')
-                    if task.email_on_retry and task.email:
-                        self.email_alert(error)
-                else:
-                    self.state = State.FAILED
-                    if task.retries:
-                        self.log.info(
-                            'Immediate failure requested; skipping retries and marking task as FAILED.'
-                            'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-                            self.dag_id,
-                            self.task_id,
-                            self.execution_date.strftime('%Y%m%dT%H%M%S'),
-                            self.start_date.strftime('%Y%m%dT%H%M%S'),
-                            self.end_date.strftime('%Y%m%dT%H%M%S'))
-                    else:
-                        self.log.info(
-                            'Marking task as FAILED.'
-                            'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-                            self.dag_id,
-                            self.task_id,
-                            self.execution_date.strftime('%Y%m%dT%H%M%S'),
-                            self.start_date.strftime('%Y%m%dT%H%M%S'),
-                            self.end_date.strftime('%Y%m%dT%H%M%S'))
-                    if task.email_on_failure and task.email:
-                        self.email_alert(error)
+        # Set state correctly and figure out how to log it,
+        # what callback to call if any, and how to decide whether to email
+
+        # Since this function is called only when the TaskInstance state is running,
+        # try_number contains the current try_number (not the next). We
+        # only mark task instance as FAILED if the next task instance
+        # try_number exceeds the max_tries ... or if force_fail is truthy
+
+        if force_fail or not self.is_eligible_to_retry():
+            self.state = State.FAILED
+            if force_fail:
+                log_message = "Immediate failure requested. Marking task as FAILED."
             else:
-                self.state = State.FAILED
-                if task.retries:
-                    self.log.info(
-                        'All retries failed; marking task as FAILED.'
-                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-                        self.dag_id,
-                        self.task_id,
-                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'execution_date') and self.execution_date else '',
-                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'start_date') and self.start_date else '',
-                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'end_date') and self.end_date else '')
-                else:
-                    self.log.info(
-                        'Marking task as FAILED.'
-                        'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
-                        self.dag_id,
-                        self.task_id,
-                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'execution_date') and self.execution_date else '',
-                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'start_date') and self.start_date else '',
-                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
-                            self,
-                            'end_date') and self.end_date else '')
-                if task.email_on_failure and task.email:
-                    self.email_alert(error)
-        except Exception as e2:
-            self.log.error('Failed to send email to: %s', task.email)
-            self.log.exception(e2)
+                log_message = "Marking task as FAILED."
+            email_for_state = task.email_on_failure
+            callback = task.on_failure_callback
+        else:
+            self.state = State.UP_FOR_RETRY
+            log_message = "Marking task as UP_FOR_RETRY."
+            email_for_state = task.email_on_retry
+            callback = task.on_retry_callback
+
+        self.log.info(
+            '%s dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+            log_message,
+            self.dag_id,
+            self.task_id,
+            self.execution_date.strftime('%Y%m%dT%H%M%S'),
+            self.start_date.strftime('%Y%m%dT%H%M%S'),
+            self.end_date.strftime('%Y%m%dT%H%M%S')
+        )
+
+        if email_for_state and task.email:
+            try:
+                self.email_alert(error)
+            except Exception as e2:
+                self.log.error('Failed to send email to: %s', task.email)
+                self.log.exception(e2)
 
         # Handling callbacks pessimistically
-        try:
-            if self.state == State.UP_FOR_RETRY and task.on_retry_callback:
-                task.on_retry_callback(context)
-            if self.state == State.FAILED and task.on_failure_callback:
-                task.on_failure_callback(context)
-        except Exception as e3:
-            self.log.error("Failed at executing callback")
-            self.log.exception(e3)
+        if callback:
+            try:
+                callback(context)
+            except Exception as e3:
+                self.log.error("Failed at executing callback")
+                self.log.exception(e3)
 
         if not test_mode:
             session.merge(self)
