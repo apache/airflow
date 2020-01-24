@@ -20,7 +20,6 @@
 import datetime
 import unittest
 
-from airflow import settings, models
 from airflow import models, settings
 from airflow.exceptions import AirflowException
 from airflow.jobs import BackfillJob
