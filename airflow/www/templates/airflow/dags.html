@@ -297,26 +297,26 @@
         });
       });
 
-      var $input = $(".typeahead");
-      unique_options_search = new Set([
-        {% for token in auto_complete_data %}"{{token}}", {% endfor %}
-      ]);
-
-      $input.typeahead({
-        source: [...unique_options_search],
+      $(".typeahead").typeahead({
+        source: function (query, callback) {
+          return $.ajax("{{ url_for('DagModelView.autocomplete') }}",
+            {
+              data: {
+                "query": encodeURIComponent(query),
+                "showPaused": "{{ not hide_paused }}"
+              },
+              success: callback
+            });
+        },
         autoSelect: false,
         afterSelect: function(value) {
-          search_query = value.trim()
+          var search_query = value.trim();
           if (search_query) {
             var query = new URLSearchParams(window.location.search);
-            query.set("search", search_query)
+            query.set("search", search_query);
             window.location = DAGS_INDEX + "?" + query;
           }
         }
-      });
-
-      $input.change(function() {
-        var current = $input.typeahead("getActive");
       });
 
       $('#dags').dataTable({
