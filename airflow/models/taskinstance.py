@@ -1391,9 +1391,8 @@ class TaskInstance(Base, LoggingMixin):
         html_content_err = render('html_content_template', default_html_content_err)
         try:
             send_email(self.task.email, subject, html_content)
-        except Exception as err:
+        except Exception:
             send_email(self.task.email, subject, html_content_err)
-            self.log.info('err')
 
     def set_duration(self) -> None:
         if self.end_date and self.start_date:
