@@ -104,7 +104,7 @@ class GoogleApiToS3Transfer(BaseOperator):
         aws_conn_id='aws_default',
         **kwargs
     ):
-        super(GoogleApiToS3Transfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.google_api_service_name = google_api_service_name
         self.google_api_service_version = google_api_service_version
         self.google_api_endpoint_path = google_api_endpoint_path

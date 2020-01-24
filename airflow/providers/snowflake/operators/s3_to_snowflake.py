@@ -57,7 +57,7 @@ class S3ToSnowflakeTransfer(BaseOperator):
                  autocommit=True,
                  snowflake_conn_id='snowflake_default',
                  *args, **kwargs):
-        super(S3ToSnowflakeTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.s3_keys = s3_keys
         self.table = table
         self.stage = stage

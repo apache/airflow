@@ -119,7 +119,7 @@ class MySqlHook(DbApiHook):
 
     def get_uri(self):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
-        uri = super(MySqlHook, self).get_uri()
+        uri = super().get_uri()
         if conn.extra_dejson.get('charset', False):
             charset = conn.extra_dejson["charset"]
             return "{uri}?charset={charset}".format(uri=uri, charset=charset)

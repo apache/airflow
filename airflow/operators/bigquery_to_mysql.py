@@ -92,7 +92,7 @@ class BigQueryToMySqlOperator(BaseOperator):
                  location: Optional[str] = None,
                  *args,
                  **kwargs) -> None:
-        super(BigQueryToMySqlOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.mysql_conn_id = mysql_conn_id

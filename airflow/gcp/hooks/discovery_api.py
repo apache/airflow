@@ -52,7 +52,7 @@ class GoogleDiscoveryApiHook(CloudBaseHook):
         gcp_conn_id='google_cloud_default',
         delegate_to: Optional[str] = None
     ) -> None:
-        super(GoogleDiscoveryApiHook, self).__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        super().__init__(gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self.api_service_name = api_service_name
         self.api_version = api_version
 

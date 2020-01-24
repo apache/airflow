@@ -101,7 +101,7 @@ class DynamoDBToS3Operator(BaseOperator):
                  s3_key_prefix: str = '',
                  process_func: Callable[[Dict[str, Any]], bytes] = _convert_item_to_json_bytes,
                  *args, **kwargs):
-        super(DynamoDBToS3Operator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.file_size = file_size
         self.process_func = process_func
         self.dynamodb_table_name = dynamodb_table_name

@@ -178,7 +178,7 @@ class GCSObjectsWtihPrefixExistenceSensor(BaseSensorOperator):
 
     def execute(self, context):
         """Overridden to allow matches to be passed"""
-        super(GCSObjectsWtihPrefixExistenceSensor, self).execute(context)
+        super().execute(context)
         return self._matches
 
 

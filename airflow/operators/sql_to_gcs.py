@@ -96,7 +96,7 @@ class BaseSQLToGCSOperator(BaseOperator, metaclass=abc.ABCMeta):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(BaseSQLToGCSOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if google_cloud_storage_conn_id:
             warnings.warn(
