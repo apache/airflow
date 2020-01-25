@@ -33,7 +33,7 @@
 ./airflow/providers/microsoft/azure/operators/azure_container_instances.py
 ./airflow/providers/microsoft/azure/operators/azure_cosmos.py
 ./airflow/providers/dindding/operators/dingding.py
-./airflow/contrib/operators/discord_webhook_operator.py
+./airflow/providers/discord/operators/discord_webhook.py
 ./airflow/providers/apache/druid/operators/druid.py
 ./airflow/providers/amazon/aws/operators/ecs.py
 ./airflow/providers/amazon/aws/operators/emr_add_steps.py

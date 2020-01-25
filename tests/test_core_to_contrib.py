@@ -1184,6 +1184,10 @@ OPERATOR = [
         'airflow.providers.dindding.operators.dingding.DingdingOperator',
         'airflow.contrib.operators.dingding_operator.DingdingOperator',
     ),
+    (
+        'airflow.providers.discord.operators.discord_webhook.DiscordWebhookOperator',
+        'airflow.contrib.operators.discord_webhook_operator.DiscordWebhookOperator',
+    ),
 ]
 
 SENSOR = [

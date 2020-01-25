@@ -888,7 +888,7 @@ These integrations allow you to perform various operations within various servic
    * - `Discord <https://discordapp.com>`__
      -
      - :mod:`airflow.providers.ddiscord.hooks.discord_webhook`
-     - :mod:`airflow.contrib.operators.discord_webhook_operator`
+     - :mod:`airflow.providers.discord.operators.discord_webhook`
      -
 
    * - `Google Campaign Manager <https://developers.google.com/doubleclick-advertisers>`__

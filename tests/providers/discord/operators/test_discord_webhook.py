@@ -20,7 +20,7 @@
 import unittest
 
 from airflow import DAG
-from airflow.contrib.operators.discord_webhook_operator import DiscordWebhookOperator
+from airflow.providers.discord.operators.discord_webhook import DiscordWebhookOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2018, 1, 1)
