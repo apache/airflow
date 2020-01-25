@@ -21,8 +21,8 @@ import json
 from typing import Dict, List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.slack_hook import SlackHook
 from airflow.models import BaseOperator
+from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.utils.decorators import apply_defaults
 
 

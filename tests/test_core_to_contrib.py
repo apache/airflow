@@ -370,6 +370,10 @@ HOOK = [
         'airflow.providers.google.suite.hooks.sheets.GSheetsHook',
         'airflow.gcp.hooks.gsheets.GSheetsHook',
     ),
+    (
+        'airflow.providers.slack.hooks.slack.SlackHook',
+        'airflow.hooks.slack_hook.SlackHook',
+    ),
 ]
 
 OPERATOR = [
