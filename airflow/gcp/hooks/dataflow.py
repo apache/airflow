@@ -259,7 +259,7 @@ class _DataflowJobsController(LoggingMixin):
         if not self._jobs:
             self._refresh_jobs()
         if not self._jobs:
-            raise ValueError("Could nit read _jobs")
+            raise ValueError("Could not read _jobs")
 
         return self._jobs
 
