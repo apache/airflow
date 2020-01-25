@@ -338,6 +338,10 @@ HOOK = [
         'airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook',
         'airflow.contrib.hooks.opsgenie_alert_hook.OpsgenieAlertHook',
     ),
+    (
+        'airflow.providers.pagerduty.hooks.pagerduty.PagerdutyHook',
+        'airflow.contrib.hooks.pagerduty_hook.PagerdutyHook',
+    ),
 ]
 
 OPERATOR = [

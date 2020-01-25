@@ -21,8 +21,8 @@
 import unittest
 from unittest import mock
 
-from airflow.contrib.hooks.pagerduty_hook import PagerdutyHook
 from airflow.models import Connection
+from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook
 from airflow.utils.session import provide_session
 
 DEFAULT_CONN_ID = "pagerduty_default"
@@ -57,7 +57,7 @@ class TestPagerdutyHook(unittest.TestCase):
         hook = PagerdutyHook(token="pagerduty_param_token", pagerduty_conn_id=DEFAULT_CONN_ID)
         self.assertEqual(hook.token, 'pagerduty_param_token', 'token initialised.')
 
-    @mock.patch('airflow.contrib.hooks.pagerduty_hook.pypd.EventV2.create')
+    @mock.patch('airflow.providers.pagerduty.hooks.pagerduty.pypd.EventV2.create')
     def test_create_event(self, mock_event_create):
         hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
         mock_event_create.return_value = {
@@ -84,7 +84,7 @@ class TestPagerdutyHook(unittest.TestCase):
                 },
             })
 
-    @mock.patch('airflow.contrib.hooks.pagerduty_hook.pypd.EventV2.create')
+    @mock.patch('airflow.providers.pagerduty.hooks.pagerduty.pypd.EventV2.create')
     def test_create_event_with_default_routing_key(self, mock_event_create):
         hook = PagerdutyHook(pagerduty_conn_id=DEFAULT_CONN_ID)
         mock_event_create.return_value = {

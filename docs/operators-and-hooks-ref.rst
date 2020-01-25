@@ -875,7 +875,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Pagerduty <https://www.pagerduty.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.pagerduty_hook`
+     - :mod:`airflow.providers.pagerduty.hooks.pagerduty`
      -
      -
 
