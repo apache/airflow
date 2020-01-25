@@ -882,7 +882,7 @@ These integrations allow you to perform various operations within various servic
    * - `Dingding <https://oapi.dingtalk.com>`__
      - :doc:`How to use <howto/operator/dingding>`
      - :mod:`airflow.providers.dingding.hooks.dingding`
-     - :mod:`airflow.contrib.operators.dingding_operator`
+     - :mod:`airflow.providers.dindding.operators.dingding`
      -
 
    * - `Discord <https://discordapp.com>`__

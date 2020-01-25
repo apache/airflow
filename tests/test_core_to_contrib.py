@@ -1180,6 +1180,10 @@ OPERATOR = [
         'airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator',
         'airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator',
     ),
+    (
+        'airflow.providers.dindding.operators.dingding.DingdingOperator',
+        'airflow.contrib.operators.dingding_operator.DingdingOperator',
+    ),
 ]
 
 SENSOR = [

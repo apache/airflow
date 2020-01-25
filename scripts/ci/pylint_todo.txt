@@ -32,7 +32,7 @@
 ./airflow/providers/microsoft/azure/operators/adls_list.py
 ./airflow/providers/microsoft/azure/operators/azure_container_instances.py
 ./airflow/providers/microsoft/azure/operators/azure_cosmos.py
-./airflow/contrib/operators/dingding_operator.py
+./airflow/providers/dindding/operators/dingding.py
 ./airflow/contrib/operators/discord_webhook_operator.py
 ./airflow/providers/apache/druid/operators/druid.py
 ./airflow/providers/amazon/aws/operators/ecs.py

@@ -22,7 +22,7 @@ This is an example dag for using the DingdingOperator.
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.contrib.operators.dingding_operator import DingdingOperator
+from airflow.providers.dindding.operators.dingding import DingdingOperator
 from airflow.utils.dates import days_ago
 
 args = {
