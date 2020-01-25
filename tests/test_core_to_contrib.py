@@ -330,6 +330,10 @@ HOOK = [
         'airflow.providers.google.suite.hooks.drive.GoogleDriveHook',
         'airflow.contrib.hooks.gdrive_hook.GoogleDriveHook',
     ),
+    (
+        'airflow.providers.jenking.hooks.jenkins.JenkinsHook',
+        'airflow.contrib.hooks.jenkins_hook.JenkinsHook',
+    ),
 ]
 
 OPERATOR = [

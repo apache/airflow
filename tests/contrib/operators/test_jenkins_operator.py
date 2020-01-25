@@ -22,9 +22,9 @@ import unittest
 import jenkins
 import mock
 
-from airflow.contrib.hooks.jenkins_hook import JenkinsHook
 from airflow.contrib.operators.jenkins_job_trigger_operator import JenkinsJobTriggerOperator
 from airflow.exceptions import AirflowException
+from airflow.providers.jenking.hooks.jenkins import JenkinsHook
 
 
 class TestJenkinsOperator(unittest.TestCase):

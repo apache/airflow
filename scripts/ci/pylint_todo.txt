@@ -14,7 +14,7 @@
 ./airflow/providers/amazon/aws/hooks/emr.py
 ./airflow/hooks/filesystem.py
 ./airflow/contrib/hooks/ftp_hook.py
-./airflow/contrib/hooks/jenkins_hook.py
+./airflow/providers/jenking/hooks/jenkins.py
 ./airflow/providers/openfass/hooks/openfaas.py
 ./airflow/contrib/hooks/opsgenie_alert_hook.py
 ./airflow/providers/apache/pinot/hooks/pinot.py

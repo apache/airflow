@@ -929,7 +929,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Jenkins <https://jenkins.io/>`__
      -
-     - :mod:`airflow.contrib.hooks.jenkins_hook`
+     - :mod:`airflow.providers.jenking.hooks.jenkins`
      - :mod:`airflow.contrib.operators.jenkins_job_trigger_operator`
      -
 
