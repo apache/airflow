@@ -350,6 +350,10 @@ HOOK = [
         'airflow.providers.qubole.hooks.qubole.QuboleHook',
         'airflow.contrib.hooks.qubole_hook.QuboleHook',
     ),
+    (
+        'airflow.providers.salesforce.hooks.salesforce.SalesforceHook',
+        'airflow.contrib.hooks.salesforce_hook.SalesforceHook',
+    ),
 ]
 
 OPERATOR = [

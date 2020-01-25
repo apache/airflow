@@ -949,7 +949,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Salesforce <https://www.salesforce.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.salesforce_hook`
+     - :mod:`airflow.providers.salesforce.hooks.salesforce`
      -
      -
 
