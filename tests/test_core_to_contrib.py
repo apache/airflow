@@ -1188,6 +1188,10 @@ OPERATOR = [
         'airflow.providers.discord.operators.discord_webhook.DiscordWebhookOperator',
         'airflow.contrib.operators.discord_webhook_operator.DiscordWebhookOperator',
     ),
+    (
+        'airflow.providers.jenking.operators.jenkins_job_trigger.JenkinsJobTriggerOperator',
+        'airflow.contrib.operators.jenkins_job_trigger_operator.JenkinsJobTriggerOperator',
+    ),
 ]
 
 SENSOR = [

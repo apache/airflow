@@ -41,7 +41,7 @@
 ./airflow/providers/amazon/aws/operators/emr_terminate_job_flow.py
 ./airflow/contrib/operators/file_to_wasb.py
 ./airflow/contrib/operators/grpc_operator.py
-./airflow/contrib/operators/jenkins_job_trigger_operator.py
+./airflow/providers/jenking/operators/jenkins_job_trigger.py
 ./airflow/providers/jira/operators/jira.py
 ./airflow/contrib/operators/mongo_to_s3.py
 ./airflow/contrib/operators/opsgenie_alert_operator.py
