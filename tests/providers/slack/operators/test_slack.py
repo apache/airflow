@@ -23,7 +23,7 @@ import unittest
 import mock
 
 from airflow.exceptions import AirflowException
-from airflow.operators.slack_operator import SlackAPIPostOperator
+from airflow.providers.slack.operators.slack import SlackAPIPostOperator
 
 
 class TestSlackAPIPostOperator(unittest.TestCase):
@@ -105,7 +105,7 @@ class TestSlackAPIPostOperator(unittest.TestCase):
             api_params=test_api_params,
         )
 
-    @mock.patch('airflow.operators.slack_operator.SlackHook')
+    @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
     def test_execute_with_token_only(self, slack_hook_class_mock):
         slack_hook_mock = mock.Mock()
         slack_hook_class_mock.return_value = slack_hook_mock
@@ -130,7 +130,7 @@ class TestSlackAPIPostOperator(unittest.TestCase):
 
         slack_hook_mock.call.assert_called_once_with(self.expected_method, self.test_api_params)
 
-    @mock.patch('airflow.operators.slack_operator.SlackHook')
+    @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
     def test_execute_with_slack_conn_id_only(self, slack_hook_class_mock):
         slack_hook_mock = mock.Mock()
         slack_hook_class_mock.return_value = slack_hook_mock
@@ -171,7 +171,7 @@ class TestSlackAPIPostOperator(unittest.TestCase):
         self.assertEqual(slack_api_post_operator.token, None)
         self.assertEqual(slack_api_post_operator.slack_conn_id, test_slack_conn_id)
 
-    @mock.patch('airflow.operators.slack_operator.SlackHook')
+    @mock.patch('airflow.providers.slack.operators.slack.SlackHook')
     def test_api_call_params_with_default_args(self, mock_hook):
         test_slack_conn_id = 'test_slack_conn_id'
 

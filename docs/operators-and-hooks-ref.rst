@@ -963,7 +963,7 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.providers.slack.hooks.slack`,
        :mod:`airflow.providers.slack.hooks.slack_webhook`
-     - :mod:`airflow.operators.slack_operator`,
+     - :mod:`airflow.providers.slack.operators.slack`,
        :mod:`airflow.providers.slack.operators.slack_webhook`
      -
 

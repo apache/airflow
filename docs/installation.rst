@@ -125,7 +125,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | segment             | ``pip install 'apache-airflow[segment]'``           | Segment hooks and sensors                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| slack               | ``pip install 'apache-airflow[slack]'``             | :class:`airflow.operators.slack_operator.SlackAPIOperator`           |
+| slack               | ``pip install 'apache-airflow[slack]'``             | :class:`airflow.providers.slack.operators.slack.SlackAPIOperator`           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | snowflake           | ``pip install 'apache-airflow[snowflake]'``         | Snowflake hooks and operators                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+

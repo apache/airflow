@@ -1220,6 +1220,19 @@ OPERATOR = [
         'airflow.providers.vertica.operators.vertica.VerticaOperator',
         'airflow.contrib.operators.vertica_operator.VerticaOperator',
     ),
+    (
+        'airflow.providers.datadog.sensors.datadog.DatadogSensor',
+        'airflow.contrib.sensors.datadog_sensor.DatadogSensor',
+    ),
+
+    (
+        'airflow.providers.slack.operators.slack.SlackAPIPostOperator',
+        'airflow.operators.slack_operator.SlackAPIPostOperator',
+    ),
+    (
+        'airflow.providers.slack.operators.slack.SlackAPIOperator',
+        'airflow.operators.slack_operator.SlackAPIOperator',
+    ),
 ]
 
 SENSOR = [

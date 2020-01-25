@@ -279,7 +279,7 @@ In addition to these basic building blocks, there are many more specific
 operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
 :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`, :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`,
 :class:`~airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
-:class:`~airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
+:class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`... you get the idea!
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
 
