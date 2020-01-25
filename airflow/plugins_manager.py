@@ -129,7 +129,7 @@ def register_inbuilt_operator_links() -> None:
         pass
 
     try:
-        from airflow.contrib.operators.qubole_operator import QDSLink   # pylint: disable=R0401
+        from airflow.providers.qubole.operators.qubole import QDSLink   # pylint: disable=R0401
         inbuilt_operator_links.update([QDSLink])
     except ImportError:
         pass

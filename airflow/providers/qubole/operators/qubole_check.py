@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.contrib.operators.qubole_operator import QuboleOperator
 from airflow.exceptions import AirflowException
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.providers.qubole.hooks.qubole_check import QuboleCheckHook
+from airflow.providers.qubole.operators.qubole import QuboleOperator
 from airflow.utils.decorators import apply_defaults
 
 

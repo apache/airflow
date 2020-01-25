@@ -1204,6 +1204,10 @@ OPERATOR = [
         'airflow.providers.qubole.operators.qubole_check.QuboleValueCheckOperator',
         'airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator',
     ),
+    (
+        'airflow.providers.qubole.operators.qubole.QuboleOperator',
+        'airflow.contrib.operators.qubole_operator.QuboleOperator',
+    ),
 ]
 
 SENSOR = [
