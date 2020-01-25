@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.segment_hook import SegmentHook
 from airflow.models import BaseOperator
+from airflow.providers.segment.hooks.segment import SegmentHook
 from airflow.utils.decorators import apply_defaults
 
 

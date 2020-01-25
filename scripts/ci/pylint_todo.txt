@@ -20,7 +20,7 @@
 ./airflow/providers/apache/pinot/hooks/pinot.py
 ./airflow/providers/qubole/hooks/qubole_check.py
 ./airflow/providers/amazon/aws/hooks/sagemaker.py
-./airflow/contrib/hooks/segment_hook.py
+./airflow/providers/segment/hooks/segment.py
 ./airflow/contrib/hooks/slack_webhook_hook.py
 ./airflow/providers/apache/spark/hooks/spark_jdbc.py
 ./airflow/providers/apache/spark/hooks/spark_jdbc_script.py

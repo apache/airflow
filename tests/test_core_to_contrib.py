@@ -354,6 +354,10 @@ HOOK = [
         'airflow.providers.salesforce.hooks.salesforce.SalesforceHook',
         'airflow.contrib.hooks.salesforce_hook.SalesforceHook',
     ),
+    (
+        'airflow.providers.segment.hooks.segment.SegmentHook',
+        'airflow.contrib.hooks.segment_hook.SegmentHook',
+    ),
 ]
 
 OPERATOR = [

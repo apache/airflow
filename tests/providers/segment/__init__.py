@@ -16,14 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.segment.hooks.segment`."""
-
-import warnings
-
-# pylint: disable=unused-import
-from airflow.providers.segment.hooks.segment import SegmentHook, analytics  # noqa
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.segment.hooks.segment`.",
-    DeprecationWarning, stacklevel=2
-)

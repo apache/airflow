@@ -21,8 +21,8 @@ import unittest
 from unittest import mock
 
 from airflow import AirflowException
-from airflow.contrib.hooks.segment_hook import SegmentHook
 from airflow.contrib.operators.segment_track_event_operator import SegmentTrackEventOperator
+from airflow.providers.segment.hooks.segment import SegmentHook
 
 TEST_CONN_ID = 'test_segment'
 WRITE_KEY = 'foo'
