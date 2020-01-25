@@ -40,10 +40,14 @@ class AwsHook(BaseHook):
     Interact with AWS.
     This class is a thin wrapper around the boto3 python library.
 
-    :param str aws_conn_id: The Airflow connection used for AWS credentials.
-       If this is None then the default boto3 behaviour is used. If running Airflow
-       in a distributed manner and aws_conn_id is None, then default boto3 configuration
-       would be used (and must be maintained on each worker node).
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None then the default boto3 behaviour is used. If running Airflow
+        in a distributed manner and aws_conn_id is None, then default boto3 configuration
+        would be used (and must be maintained on each worker node).
+    :type aws_conn_id: str
+    :param verify: Whether or not to verify SSL certificates.
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :type verify: str or bool
     """
 
     def __init__(self, aws_conn_id="aws_default", verify=None):
