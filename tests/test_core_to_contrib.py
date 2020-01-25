@@ -346,6 +346,10 @@ HOOK = [
         'airflow.providers.qubole.hooks.qubole_check.QuboleCheckHook',
         'airflow.contrib.hooks.qubole_check_hook.QuboleCheckHook',
     ),
+    (
+        'airflow.providers.qubole.hooks.qubole.QuboleHook',
+        'airflow.contrib.hooks.qubole_hook.QuboleHook',
+    ),
 ]
 
 OPERATOR = [

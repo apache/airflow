@@ -21,10 +21,10 @@
 import unittest
 
 from airflow import settings
-from airflow.contrib.hooks.qubole_hook import QuboleHook
 from airflow.contrib.operators.qubole_operator import QDSLink, QuboleOperator
 from airflow.models import DAG, Connection
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.qubole.hooks.qubole import QuboleHook
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import db
 from airflow.utils.timezone import datetime
