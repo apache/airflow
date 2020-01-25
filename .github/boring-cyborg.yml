@@ -147,28 +147,34 @@ labelPRBasedOnFilePath:
     - docs/dag-serialization.rst
 
 # Comment to be posted to welcome users when they open their first PR
-firstPRWelcomeComment: |
+firstPRWelcomeComment: >
   Congratulations on your first Pull Request and welcome to the Apache Airflow community!
   If you have any issues or are unsure about any anything please check our
   Contribution Guide (https://github.com/apache/airflow/blob/master/CONTRIBUTING.rst)
 
   Here are some useful points:
+
   - Pay attention to the quality of your code (flake8, pylint and type annotations). Our [pre-commits](
   https://github.com/apache/airflow/blob/master/STATIC_CODE_CHECKS.rst#prerequisites-for-pre-commit-hooks)
   will help you with that.
+
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
-  Adding a new operator? Check this short [guide](https://github
-  .com/apache/airflow/blob/master/docs/howto/custom-operator.rst) Consider adding an example DAG that shows
-  how users should use it.
+  Adding a new operator? Check this short
+  [guide](https://github.com/apache/airflow/blob/master/docs/howto/custom-operator.rst)
+  Consider adding an example DAG that shows how users should use it.
+
   - Consider using [Breeze environment](https://github.com/apache/airflow/blob/master/BREEZE.rst) for testing
   locally, it’s a heavy docker but it ships with a working Airflow and a lot of integrations.
+
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.
 
   Apache Airflow is a community-driven project and together we are making it better 🚀.
 
   In case of doubts contact the developers at:
+
   Mailing List: dev@airflow.apache.org
+
   Slack: https://apache-airflow-slack.herokuapp.com/
 
 # Comment to be posted to congratulate user on their first merged PR
