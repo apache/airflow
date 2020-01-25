@@ -33,7 +33,7 @@ https://docs.databricks.com/api/latest/jobs.html#runstate
 """
 
 from airflow import DAG
-from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
+from airflow.providers.databricks.operators.databricks import DatabricksSubmitRunOperator
 from airflow.utils.dates import days_ago
 
 default_args = {

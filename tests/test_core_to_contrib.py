@@ -1172,6 +1172,14 @@ OPERATOR = [
         'airflow.providers.sqlite.operators.sqlite.SqliteOperator',
         'airflow.operators.sqlite_operator.SqliteOperator',
     ),
+    (
+        'airflow.providers.databricks.operators.databricks.DatabricksRunNowOperator',
+        'airflow.contrib.operators.databricks_operator.DatabricksRunNowOperator',
+    ),
+    (
+        'airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator',
+        'airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator',
+    ),
 ]
 
 SENSOR = [

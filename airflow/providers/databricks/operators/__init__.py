@@ -16,16 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.databricks.operators.databricks`."""
-
-import warnings
-
-# pylint: disable=unused-import
-from airflow.providers.databricks.operators.databricks import (  # noqa
-    DatabricksRunNowOperator, DatabricksSubmitRunOperator,
-)
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.databricks.operators.databricks`.",
-    DeprecationWarning, stacklevel=2
-)

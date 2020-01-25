@@ -23,13 +23,13 @@ from datetime import datetime
 
 import mock
 
-import airflow.contrib.operators.databricks_operator as databricks_operator
-from airflow.contrib.operators.databricks_operator import (
-    DatabricksRunNowOperator, DatabricksSubmitRunOperator,
-)
+import airflow.providers.databricks.operators.databricks as databricks_operator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.databricks.hooks.databricks import RunState
+from airflow.providers.databricks.operators.databricks import (
+    DatabricksRunNowOperator, DatabricksSubmitRunOperator,
+)
 
 DATE = '2017-04-20'
 TASK_ID = 'databricks-operator'
@@ -185,7 +185,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         with self.assertRaisesRegex(AirflowException, exception_message):
             DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
 
-    @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
     def test_exec_success(self, db_mock_class):
         """
         Test the execute function in case where the run is successful.
@@ -216,7 +216,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
         self.assertEqual(RUN_ID, op.run_id)
 
-    @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
     def test_exec_failure(self, db_mock_class):
         """
         Test the execute function in case where the run failed.
@@ -247,7 +247,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
         self.assertEqual(RUN_ID, op.run_id)
 
-    @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
     def test_on_kill(self, db_mock_class):
         run = {
             'new_cluster': NEW_CLUSTER,
@@ -353,7 +353,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         with self.assertRaisesRegex(AirflowException, exception_message):
             DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
 
-    @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
     def test_exec_success(self, db_mock_class):
         """
         Test the execute function in case where the run is successful.
@@ -386,7 +386,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
         self.assertEqual(RUN_ID, op.run_id)
 
-    @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
     def test_exec_failure(self, db_mock_class):
         """
         Test the execute function in case where the run failed.
@@ -419,7 +419,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
         self.assertEqual(RUN_ID, op.run_id)
 
-    @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
     def test_on_kill(self, db_mock_class):
         run = {
             'notebook_params': NOTEBOOK_PARAMS,
