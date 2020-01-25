@@ -342,6 +342,10 @@ HOOK = [
         'airflow.providers.pagerduty.hooks.pagerduty.PagerdutyHook',
         'airflow.contrib.hooks.pagerduty_hook.PagerdutyHook',
     ),
+    (
+        'airflow.providers.qubole.hooks.qubole_check.QuboleCheckHook',
+        'airflow.contrib.hooks.qubole_check_hook.QuboleCheckHook',
+    ),
 ]
 
 OPERATOR = [

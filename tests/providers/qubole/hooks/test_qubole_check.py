@@ -19,7 +19,7 @@
 #
 import unittest
 
-from airflow.contrib.hooks.qubole_check_hook import parse_first_row
+from airflow.providers.qubole.hooks.qubole_check import parse_first_row
 
 
 class TestQuboleCheckHook(unittest.TestCase):

@@ -942,7 +942,7 @@ These integrations allow you to perform various operations within various servic
    * - `Qubole <https://www.qubole.com/>`__
      -
      - :mod:`airflow.contrib.hooks.qubole_hook`,
-       :mod:`airflow.contrib.hooks.qubole_check_hook`
+       :mod:`airflow.providers.qubole.hooks.qubole_check`
      - :mod:`airflow.contrib.operators.qubole_operator`,
        :mod:`airflow.contrib.operators.qubole_check_operator`
      - :mod:`airflow.contrib.sensors.qubole_sensor`
