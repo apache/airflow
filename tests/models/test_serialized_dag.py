@@ -84,7 +84,7 @@ class SerializedDagModelTest(unittest.TestCase):
             self.assertTrue(serialized_dag.dag_id == dag.dag_id)
             self.assertTrue(set(serialized_dag.task_dict) == set(dag.task_dict))
 
-    def test_remove_dags(self):
+    def test_remove_dags_by_id(self):
         """DAGs can be removed from database."""
         example_dags_list = list(self._write_example_dags().values())
         # Remove SubDags from the list as they are not stored in DB in a separate row
@@ -95,9 +95,16 @@ class SerializedDagModelTest(unittest.TestCase):
         SDM.remove_dag(dag_removed_by_id.dag_id)
         self.assertFalse(SDM.has_dag(dag_removed_by_id.dag_id))
 
+    def test_remove_dags_by_filepath(self):
+        """DAGs can be removed from database."""
+        example_dags_list = list(self._write_example_dags().values())
+        # Remove SubDags from the list as they are not stored in DB in a separate row
+        # and are directly added in Json blob of the main DAG
+        filtered_example_dags_list = [dag for dag in example_dags_list if not dag.is_subdag]
         # Tests removing by file path.
-        dag_removed_by_file = filtered_example_dags_list[1]
-        example_dag_files = [dag.full_filepath for dag in filtered_example_dags_list]
+        dag_removed_by_file = filtered_example_dags_list[0]
+        # remove repeated files for those DAGs that define multiple dags in the same file (set comprehension)
+        example_dag_files = list({dag.full_filepath for dag in filtered_example_dags_list})
         example_dag_files.remove(dag_removed_by_file.full_filepath)
         SDM.remove_deleted_dags(example_dag_files)
         self.assertFalse(SDM.has_dag(dag_removed_by_file.dag_id))
