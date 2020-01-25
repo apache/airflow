@@ -22,10 +22,10 @@ This module contains a Google Cloud Storage operator.
 import tempfile
 from typing import Optional
 
-from airflow.contrib.hooks.gdrive_hook import GoogleDriveHook
 from airflow.exceptions import AirflowException
 from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
+from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.utils.decorators import apply_defaults
 
 WILDCARD = "*"

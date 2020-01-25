@@ -905,7 +905,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Google Drive <https://www.google.com/drive/>`__
      -
-     - :mod:`airflow.contrib.hooks.gdrive_hook`
+     - :mod:`airflow.providers.google.suite.hooks.drive`
      -
      -
 

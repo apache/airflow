@@ -326,6 +326,10 @@ HOOK = [
         'airflow.providers.ddiscord.hooks.discord_webhook.DiscordWebhookHook',
         'airflow.contrib.hooks.discord_webhook_hook.DiscordWebhookHook',
     ),
+    (
+        'airflow.providers.google.suite.hooks.drive.GoogleDriveHook',
+        'airflow.contrib.hooks.gdrive_hook.GoogleDriveHook',
+    ),
 ]
 
 OPERATOR = [
