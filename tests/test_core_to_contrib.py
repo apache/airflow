@@ -1192,6 +1192,10 @@ OPERATOR = [
         'airflow.providers.jenking.operators.jenkins_job_trigger.JenkinsJobTriggerOperator',
         'airflow.contrib.operators.jenkins_job_trigger_operator.JenkinsJobTriggerOperator',
     ),
+    (
+        'airflow.providers.opsgenie.operators.opsgenie_alert.OpsgenieAlertOperator',
+        'airflow.contrib.operators.opsgenie_alert_operator.OpsgenieAlertOperator',
+    ),
 ]
 
 SENSOR = [

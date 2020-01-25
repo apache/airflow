@@ -21,7 +21,7 @@
 import unittest
 
 from airflow import DAG
-from airflow.contrib.operators.opsgenie_alert_operator import OpsgenieAlertOperator
+from airflow.providers.opsgenie.operators.opsgenie_alert import OpsgenieAlertOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)

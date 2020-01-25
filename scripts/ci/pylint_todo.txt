@@ -44,7 +44,7 @@
 ./airflow/providers/jenking/operators/jenkins_job_trigger.py
 ./airflow/providers/jira/operators/jira.py
 ./airflow/contrib/operators/mongo_to_s3.py
-./airflow/contrib/operators/opsgenie_alert_operator.py
+./airflow/providers/opsgenie/operators/opsgenie_alert.py
 ./airflow/contrib/operators/oracle_to_azure_data_lake_transfer.py
 ./airflow/contrib/operators/oracle_to_oracle_transfer.py
 ./airflow/contrib/operators/qubole_check_operator.py
