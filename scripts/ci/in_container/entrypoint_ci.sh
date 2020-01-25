@@ -209,6 +209,8 @@ if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     fi
 fi
 
+export PYTHONPATH=${AIRFLOW_SOURCES}
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" == "false" ]]; then
@@ -255,8 +257,6 @@ if [[ -n ${RUNTIME} ]]; then
         "${MY_DIR}/deploy_airflow_to_kubernetes.sh"
     fi
 fi
-
-export PYTHONPATH=${AIRFLOW_SOURCES}
 
 ARGS=("${CI_ARGS[@]}" "${TEST_DIR}")
 "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
