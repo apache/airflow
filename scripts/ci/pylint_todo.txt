@@ -21,7 +21,7 @@
 ./airflow/providers/qubole/hooks/qubole_check.py
 ./airflow/providers/amazon/aws/hooks/sagemaker.py
 ./airflow/providers/segment/hooks/segment.py
-./airflow/contrib/hooks/slack_webhook_hook.py
+./airflow/providers/slack/hooks/slack_webhook.py
 ./airflow/providers/apache/spark/hooks/spark_jdbc.py
 ./airflow/providers/apache/spark/hooks/spark_jdbc_script.py
 ./airflow/providers/apache/spark/hooks/spark_sql.py

@@ -358,6 +358,10 @@ HOOK = [
         'airflow.providers.segment.hooks.segment.SegmentHook',
         'airflow.contrib.hooks.segment_hook.SegmentHook',
     ),
+    (
+        'airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook',
+        'airflow.contrib.hooks.slack_webhook_hook.SlackWebhookHook',
+    ),
 ]
 
 OPERATOR = [

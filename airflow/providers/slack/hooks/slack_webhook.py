@@ -17,14 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.operators.http_operator import SimpleHttpOperator
-from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
-from airflow.utils.decorators import apply_defaults
+import json
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.http_hook import HttpHook
 
 
-class SlackWebhookOperator(SimpleHttpOperator):
+class SlackWebhookHook(HttpHook):
     """
-    This operator allows you to post messages to Slack using incoming webhooks.
+    This hook allows you to post messages to Slack using incoming webhooks.
     Takes both Slack webhook token directly and connection that has Slack webhook token.
     If both supplied, http_conn_id will be used as base_url,
     and webhook_token will be taken as endpoint, the relative path of the url.
@@ -59,10 +60,6 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type proxy: str
     """
 
-    template_fields = ['webhook_token', 'message', 'attachments', 'blocks', 'channel',
-                       'username', 'proxy', ]
-
-    @apply_defaults
     def __init__(self,
                  http_conn_id=None,
                  webhook_token=None,
@@ -76,12 +73,10 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  link_names=False,
                  proxy=None,
                  *args,
-                 **kwargs):
-        super().__init__(endpoint=webhook_token,
-                         *args,
-                         **kwargs)
-        self.http_conn_id = http_conn_id
-        self.webhook_token = webhook_token
+                 **kwargs
+                 ):
+        super().__init__(http_conn_id=http_conn_id, *args, **kwargs)
+        self.webhook_token = self._get_token(webhook_token, http_conn_id)
         self.message = message
         self.attachments = attachments
         self.blocks = blocks
@@ -91,23 +86,67 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.icon_url = icon_url
         self.link_names = link_names
         self.proxy = proxy
-        self.hook = None
 
-    def execute(self, context):
+    def _get_token(self, token, http_conn_id):
         """
-        Call the SlackWebhookHook to post the provided Slack message
+        Given either a manually set token or a conn_id, return the webhook_token to use.
+
+        :param token: The manually provided token
+        :type token: str
+        :param http_conn_id: The conn_id provided
+        :type http_conn_id: str
+        :return: webhook_token to use
+        :rtype: str
         """
-        self.hook = SlackWebhookHook(
-            self.http_conn_id,
-            self.webhook_token,
-            self.message,
-            self.attachments,
-            self.blocks,
-            self.channel,
-            self.username,
-            self.icon_emoji,
-            self.icon_url,
-            self.link_names,
-            self.proxy
-        )
-        self.hook.execute()
+        if token:
+            return token
+        elif http_conn_id:
+            conn = self.get_connection(http_conn_id)
+            extra = conn.extra_dejson
+            return extra.get('webhook_token', '')
+        else:
+            raise AirflowException('Cannot get token: No valid Slack '
+                                   'webhook token nor conn_id supplied')
+
+    def _build_slack_message(self):
+        """
+        Construct the Slack message. All relevant parameters are combined here to a valid
+        Slack json message.
+
+        :return: Slack message to send
+        :rtype: str
+        """
+        cmd = {}
+
+        if self.channel:
+            cmd['channel'] = self.channel
+        if self.username:
+            cmd['username'] = self.username
+        if self.icon_emoji:
+            cmd['icon_emoji'] = self.icon_emoji
+        if self.icon_url:
+            cmd['icon_url'] = self.icon_url
+        if self.link_names:
+            cmd['link_names'] = 1
+        if self.attachments:
+            cmd['attachments'] = self.attachments
+        if self.blocks:
+            cmd['blocks'] = self.blocks
+
+        cmd['text'] = self.message
+        return json.dumps(cmd)
+
+    def execute(self):
+        """
+        Remote Popen (actually execute the slack webhook call)
+        """
+        proxies = {}
+        if self.proxy:
+            # we only need https proxy for Slack, as the endpoint is https
+            proxies = {'https': self.proxy}
+
+        slack_message = self._build_slack_message()
+        self.run(endpoint=self.webhook_token,
+                 data=slack_message,
+                 headers={'Content-type': 'application/json'},
+                 extra_options={'proxies': proxies})

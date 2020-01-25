@@ -23,8 +23,8 @@ from unittest import mock
 
 from requests.exceptions import MissingSchema
 
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.models import Connection
+from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.utils import db
 
 

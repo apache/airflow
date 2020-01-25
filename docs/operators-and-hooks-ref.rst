@@ -962,7 +962,7 @@ These integrations allow you to perform various operations within various servic
    * - `Slack <https://slack.com/>`__
      -
      - :mod:`airflow.hooks.slack_hook`,
-       :mod:`airflow.contrib.hooks.slack_webhook_hook`
+       :mod:`airflow.providers.slack.hooks.slack_webhook`
      - :mod:`airflow.operators.slack_operator`,
        :mod:`airflow.contrib.operators.slack_webhook_operator`
      -
