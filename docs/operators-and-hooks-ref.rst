@@ -956,7 +956,7 @@ These integrations allow you to perform various operations within various servic
    * - `Segment <https://oapi.dingtalk.com>`__
      -
      - :mod:`airflow.providers.segment.hooks.segment`
-     - :mod:`airflow.contrib.operators.segment_track_event_operator`
+     - :mod:`airflow.providers.segment.operators.segment_track_event`
      -
 
    * - `Slack <https://slack.com/>`__

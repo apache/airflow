@@ -21,8 +21,8 @@ import unittest
 from unittest import mock
 
 from airflow import AirflowException
-from airflow.contrib.operators.segment_track_event_operator import SegmentTrackEventOperator
 from airflow.providers.segment.hooks.segment import SegmentHook
+from airflow.providers.segment.operators.segment_track_event import SegmentTrackEventOperator
 
 TEST_CONN_ID = 'test_segment'
 WRITE_KEY = 'foo'
@@ -61,7 +61,7 @@ class TestSegmentHook(unittest.TestCase):
 
 class TestSegmentTrackEventOperator(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.operators.segment_track_event_operator.SegmentHook')
+    @mock.patch('airflow.providers.segment.operators.segment_track_event.SegmentHook')
     def test_execute(self, mock_hook):
         # Given
         user_id = 'user_id'

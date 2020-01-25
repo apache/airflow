@@ -61,7 +61,7 @@
 ./airflow/providers/amazon/aws/operators/sagemaker_training.py
 ./airflow/providers/amazon/aws/operators/sagemaker_transform.py
 ./airflow/providers/amazon/aws/operators/sagemaker_tuning.py
-./airflow/contrib/operators/segment_track_event_operator.py
+./airflow/providers/segment/operators/segment_track_event.py
 ./airflow/contrib/operators/sftp_to_s3_operator.py
 ./airflow/contrib/operators/slack_webhook_operator.py
 ./airflow/providers/apache/spark/operators/spark_jdbc.py

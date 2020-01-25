@@ -1208,6 +1208,10 @@ OPERATOR = [
         'airflow.providers.qubole.operators.qubole.QuboleOperator',
         'airflow.contrib.operators.qubole_operator.QuboleOperator',
     ),
+    (
+        'airflow.providers.segment.operators.segment_track_event.SegmentTrackEventOperator',
+        'airflow.contrib.operators.segment_track_event_operator.SegmentTrackEventOperator',
+    ),
 ]
 
 SENSOR = [
