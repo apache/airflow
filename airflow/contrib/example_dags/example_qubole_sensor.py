@@ -29,7 +29,7 @@ this example.*
 """
 
 from airflow import DAG
-from airflow.contrib.sensors.qubole_sensor import QuboleFileSensor, QubolePartitionSensor
+from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
 from airflow.utils import dates
 
 default_args = {

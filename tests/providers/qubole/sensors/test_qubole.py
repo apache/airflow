@@ -22,9 +22,9 @@ import unittest
 from datetime import datetime
 from unittest.mock import patch
 
-from airflow.contrib.sensors.qubole_sensor import QuboleFileSensor, QubolePartitionSensor
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection
+from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
 from airflow.utils import db
 
 DAG_ID = "qubole_test_dag"
@@ -39,7 +39,7 @@ class TestQuboleSensor(unittest.TestCase):
         db.merge_conn(
             Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
 
-    @patch('airflow.contrib.sensors.qubole_sensor.QuboleFileSensor.poke')
+    @patch('airflow.providers.qubole.sensors.qubole.QuboleFileSensor.poke')
     def test_file_sensore(self, patched_poke):
         patched_poke.return_value = True
         sensor = QuboleFileSensor(
@@ -48,7 +48,7 @@ class TestQuboleSensor(unittest.TestCase):
         )
         self.assertTrue(sensor.poke({}))
 
-    @patch('airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor.poke')
+    @patch('airflow.providers.qubole.sensors.qubole.QubolePartitionSensor.poke')
     def test_partition_sensor(self, patched_poke):
         patched_poke.return_value = True
 
@@ -63,7 +63,7 @@ class TestQuboleSensor(unittest.TestCase):
 
         self.assertTrue(sensor.poke({}))
 
-    @patch('airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor.poke')
+    @patch('airflow.providers.qubole.sensors.qubole.QubolePartitionSensor.poke')
     def test_partition_sensor_error(self, patched_poke):
         patched_poke.return_value = True
 

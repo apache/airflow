@@ -945,7 +945,7 @@ These integrations allow you to perform various operations within various servic
        :mod:`airflow.providers.qubole.hooks.qubole_check`
      - :mod:`airflow.providers.qubole.operators.qubole`,
        :mod:`airflow.providers.qubole.operators.qubole_check`
-     - :mod:`airflow.contrib.sensors.qubole_sensor`
+     - :mod:`airflow.providers.qubole.sensors.qubole`
 
    * - `Salesforce <https://www.salesforce.com/>`__
      -

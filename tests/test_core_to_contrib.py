@@ -1382,6 +1382,18 @@ SENSOR = [
         'airflow.providers.datadog.sensors.datadog.DatadogSensor',
         'airflow.contrib.sensors.datadog_sensor.DatadogSensor',
     ),
+    (
+        'airflow.providers.qubole.sensors.qubole.QuboleSensor',
+        'airflow.contrib.sensors.qubole_sensor.QuboleSensor',
+    ),
+    (
+        'airflow.providers.qubole.sensors.qubole.QubolePartitionSensor',
+        'airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor',
+    ),
+    (
+        'airflow.providers.qubole.sensors.qubole.QuboleFileSensor',
+        'airflow.contrib.sensors.qubole_sensor.QuboleFileSensor',
+    ),
 ]
 
 PROTOCOLS = [
