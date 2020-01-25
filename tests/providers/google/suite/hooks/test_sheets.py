@@ -26,7 +26,7 @@ import unittest
 import mock
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gsheets import GSheetsHook
+from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 GCP_CONN_ID = 'test'
@@ -51,8 +51,8 @@ class TestGSheetsHook(unittest.TestCase):
                         new=mock_base_gcp_hook_default_project_id):
             self.hook = GSheetsHook(gcp_conn_id=GCP_CONN_ID, spreadsheet_id=SPREADHSEET_ID)
 
-    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook._authorize")
-    @mock.patch("airflow.gcp.hooks.gsheets.build")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook._authorize")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.build")
     def test_gsheets_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
@@ -60,7 +60,7 @@ class TestGSheetsHook(unittest.TestCase):
         )
         self.assertEqual(mock_build.return_value, result)
 
-    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_get_values(self, get_conn):
         get_method = get_conn.return_value.spreadsheets.return_value.values.return_value.get
         execute_method = get_method.return_value.execute
@@ -80,7 +80,7 @@ class TestGSheetsHook(unittest.TestCase):
             dateTimeRenderOption=DATE_TIME_RENDER_OPTION
         )
 
-    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_get_values(self, get_conn):
         batch_get_method = get_conn.return_value.spreadsheets.return_value.values.return_value.batchGet
         execute_method = batch_get_method.return_value.execute
@@ -100,7 +100,7 @@ class TestGSheetsHook(unittest.TestCase):
             dateTimeRenderOption=DATE_TIME_RENDER_OPTION
         )
 
-    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_update_values(self, get_conn):
         update_method = get_conn.return_value.spreadsheets.return_value.values.return_value.update
         execute_method = update_method.return_value.execute
@@ -130,7 +130,7 @@ class TestGSheetsHook(unittest.TestCase):
             body=body
         )
 
-    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_update_values(self, get_conn):
         batch_update_method = get_conn.return_value.spreadsheets.return_value.values.return_value.batchUpdate
         execute_method = batch_update_method.return_value.execute
@@ -165,7 +165,7 @@ class TestGSheetsHook(unittest.TestCase):
             body=body
         )
 
-    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_update_values_with_bad_data(self, get_conn):
         batch_update_method = get_conn.return_value.spreadsheets.return_value.values.return_value.batchUpdate
         execute_method = batch_update_method.return_value.execute
@@ -184,7 +184,7 @@ class TestGSheetsHook(unittest.TestCase):
         err = cm.exception
         self.assertIn("must be of equal length.", str(err))
 
-    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_append_values(self, get_conn):
         append_method = get_conn.return_value.spreadsheets.return_value.values.return_value.append
         execute_method = append_method.return_value.execute
@@ -216,7 +216,7 @@ class TestGSheetsHook(unittest.TestCase):
             body=body
         )
 
-    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_clear_values(self, get_conn):
         clear_method = get_conn.return_value.spreadsheets.return_value.values.return_value.clear
         execute_method = clear_method.return_value.execute
@@ -230,7 +230,7 @@ class TestGSheetsHook(unittest.TestCase):
             range=RANGE_
         )
 
-    @mock.patch("airflow.gcp.hooks.gsheets.GSheetsHook.get_conn")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_batch_clear_values(self, get_conn):
         batch_clear_method = get_conn.return_value.spreadsheets.return_value.values.return_value.batchClear
         execute_method = batch_clear_method.return_value.execute

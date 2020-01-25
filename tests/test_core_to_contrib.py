@@ -366,6 +366,10 @@ HOOK = [
         'airflow.providers.vertica.hooks.vertica.VerticaHook',
         'airflow.contrib.hooks.vertica_hook.VerticaHook',
     ),
+    (
+        'airflow.providers.google.suite.hooks.sheets.GSheetsHook',
+        'airflow.gcp.hooks.gsheets.GSheetsHook',
+    ),
 ]
 
 OPERATOR = [

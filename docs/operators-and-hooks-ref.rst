@@ -917,7 +917,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Google Spreadsheet <https://www.google.com/intl/en/sheets/about/>`__
      -
-     - :mod:`airflow.gcp.hooks.gsheets`
+     - :mod:`airflow.providers.google.suite.hooks.sheets`
      -
      -
 
