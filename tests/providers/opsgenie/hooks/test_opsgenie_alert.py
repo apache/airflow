@@ -23,8 +23,8 @@ import unittest
 import requests_mock
 
 from airflow import AirflowException
-from airflow.contrib.hooks.opsgenie_alert_hook import OpsgenieAlertHook
 from airflow.models import Connection
+from airflow.providers.opsgenie.hooks.opsgenie_alert import OpsgenieAlertHook
 from airflow.utils import db
 
 

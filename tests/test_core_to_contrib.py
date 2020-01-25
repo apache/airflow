@@ -334,6 +334,10 @@ HOOK = [
         'airflow.providers.jenking.hooks.jenkins.JenkinsHook',
         'airflow.contrib.hooks.jenkins_hook.JenkinsHook',
     ),
+    (
+        'airflow.providers.opsgenie.hooks.opsgenie_alert.OpsgenieAlertHook',
+        'airflow.contrib.hooks.opsgenie_alert_hook.OpsgenieAlertHook',
+    ),
 ]
 
 OPERATOR = [

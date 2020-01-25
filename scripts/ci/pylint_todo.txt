@@ -16,7 +16,7 @@
 ./airflow/contrib/hooks/ftp_hook.py
 ./airflow/providers/jenking/hooks/jenkins.py
 ./airflow/providers/openfass/hooks/openfaas.py
-./airflow/contrib/hooks/opsgenie_alert_hook.py
+./airflow/providers/opsgenie/hooks/opsgenie_alert.py
 ./airflow/providers/apache/pinot/hooks/pinot.py
 ./airflow/contrib/hooks/qubole_check_hook.py
 ./airflow/providers/amazon/aws/hooks/sagemaker.py

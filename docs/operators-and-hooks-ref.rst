@@ -935,7 +935,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Opsgenie <https://www.opsgenie.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.opsgenie_alert_hook`
+     - :mod:`airflow.providers.opsgenie.hooks.opsgenie_alert`
      - :mod:`airflow.contrib.operators.opsgenie_alert_operator`
      -
 
