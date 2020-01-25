@@ -23,12 +23,12 @@ from unittest import mock
 
 from zdesk import RateLimitError
 
-from airflow.hooks.zendesk_hook import ZendeskHook
+from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
 
 
 class TestZendeskHook(unittest.TestCase):
 
-    @mock.patch("airflow.hooks.zendesk_hook.time")
+    @mock.patch("airflow.providers.zendesk.hooks.zendesk.time")
     def test_sleeps_for_correct_interval(self, mocked_time):
         sleep_time = 10
         # To break out of the otherwise infinite tries
@@ -48,7 +48,7 @@ class TestZendeskHook(unittest.TestCase):
             zendesk_hook.call("some_path", get_all_pages=False)
             mocked_time.sleep.assert_called_once_with(sleep_time)
 
-    @mock.patch("airflow.hooks.zendesk_hook.Zendesk")
+    @mock.patch("airflow.providers.zendesk.hooks.zendesk.Zendesk")
     def test_returns_single_page_if_get_all_pages_false(self, _):
         zendesk_hook = ZendeskHook("conn_id")
         mock_connection = mock.Mock()
@@ -65,7 +65,7 @@ class TestZendeskHook(unittest.TestCase):
         zendesk_hook.call("path", get_all_pages=False)
         mock_call.assert_called_once_with("path", None)
 
-    @mock.patch("airflow.hooks.zendesk_hook.Zendesk")
+    @mock.patch("airflow.providers.zendesk.hooks.zendesk.Zendesk")
     def test_returns_multiple_pages_if_get_all_pages_true(self, _):
         zendesk_hook = ZendeskHook("conn_id")
         mock_connection = mock.Mock()
@@ -82,7 +82,7 @@ class TestZendeskHook(unittest.TestCase):
         zendesk_hook.call("path", get_all_pages=True)
         assert mock_call.call_count == 2
 
-    @mock.patch("airflow.hooks.zendesk_hook.Zendesk")
+    @mock.patch("airflow.providers.zendesk.hooks.zendesk.Zendesk")
     def test_zdesk_is_inited_correctly(self, mock_zendesk):
         conn_mock = mock.Mock()
         conn_mock.host = "conn_host"
@@ -95,7 +95,7 @@ class TestZendeskHook(unittest.TestCase):
         mock_zendesk.assert_called_once_with(zdesk_url='https://conn_host', zdesk_email='conn_login',
                                              zdesk_password='conn_pass', zdesk_token=True)
 
-    @mock.patch("airflow.hooks.zendesk_hook.Zendesk")
+    @mock.patch("airflow.providers.zendesk.hooks.zendesk.Zendesk")
     def test_zdesk_sideloading_works_correctly(self, mock_zendesk):
         zendesk_hook = ZendeskHook("conn_id")
         mock_connection = mock.Mock()

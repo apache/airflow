@@ -374,6 +374,10 @@ HOOK = [
         'airflow.providers.slack.hooks.slack.SlackHook',
         'airflow.hooks.slack_hook.SlackHook',
     ),
+    (
+        'airflow.providers.zendesk.hooks.zendesk.ZendeskHook',
+        'airflow.hooks.zendesk_hook.ZendeskHook',
+    ),
 ]
 
 OPERATOR = [

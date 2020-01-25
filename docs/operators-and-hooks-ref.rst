@@ -981,7 +981,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Zendesk <https://www.zendesk.com/>`__
      -
-     - :mod:`airflow.hooks.zendesk_hook`
+     - :mod:`airflow.providers.zendesk.hooks.zendesk`
      -
      -
 
