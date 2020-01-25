@@ -1021,9 +1021,15 @@ class TaskInstance(Base, LoggingMixin):
             'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
             self.dag_id,
             self.task_id,
-            self.execution_date.strftime('%Y%m%dT%H%M%S') if self.execution_date else '',
-            self.start_date.strftime('%Y%m%dT%H%M%S') if self.start_date else '',
-            self.end_date.strftime('%Y%m%dT%H%M%S') if self.end_date else '')
+            self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                self,
+                'execution_date') and self.execution_date else '',
+            self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                self,
+                'start_date') and self.start_date else '',
+            self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                self,
+                'end_date') and self.end_date else '')
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
@@ -1137,18 +1143,30 @@ class TaskInstance(Base, LoggingMixin):
                         'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
                         self.dag_id,
                         self.task_id,
-                        self.execution_date.strftime('%Y%m%dT%H%M%S'),
-                        self.start_date.strftime('%Y%m%dT%H%M%S'),
-                        self.end_date.strftime('%Y%m%dT%H%M%S'))
+                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'execution_date') and self.execution_date else '',
+                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'start_date') and self.start_date else '',
+                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'end_date') and self.end_date else '')
                 else:
                     self.log.info(
                         'Marking task as FAILED.'
                         'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
                         self.dag_id,
                         self.task_id,
-                        self.execution_date.strftime('%Y%m%dT%H%M%S'),
-                        self.start_date.strftime('%Y%m%dT%H%M%S'),
-                        self.end_date.strftime('%Y%m%dT%H%M%S'))
+                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'execution_date') and self.execution_date else '',
+                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'start_date') and self.start_date else '',
+                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'end_date') and self.end_date else '')
                 if task.email_on_failure and task.email:
                     self.email_alert(error)
         except Exception as e2:
