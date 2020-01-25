@@ -27,7 +27,7 @@
 ./airflow/providers/apache/spark/hooks/spark_sql.py
 ./airflow/providers/apache/spark/hooks/spark_submit.py
 ./airflow/providers/apache/sqoop/hooks/sqoop.py
-./airflow/contrib/hooks/vertica_hook.py
+./airflow/providers/vertica/hooks/vertica.py
 ./airflow/providers/microsoft/azure/hooks/wasb.py
 ./airflow/providers/microsoft/azure/operators/adls_list.py
 ./airflow/providers/microsoft/azure/operators/azure_container_instances.py

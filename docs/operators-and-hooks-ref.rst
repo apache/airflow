@@ -975,7 +975,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Vertica <https://www.vertica.com/>`__
      -
-     - :mod:`airflow.contrib.hooks.vertica_hook`
+     - :mod:`airflow.providers.vertica.hooks.vertica`
      - :mod:`airflow.contrib.operators.vertica_operator`
      -
 

@@ -362,6 +362,10 @@ HOOK = [
         'airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook',
         'airflow.contrib.hooks.slack_webhook_hook.SlackWebhookHook',
     ),
+    (
+        'airflow.providers.vertica.hooks.vertica.VerticaHook',
+        'airflow.contrib.hooks.vertica_hook.VerticaHook',
+    ),
 ]
 
 OPERATOR = [

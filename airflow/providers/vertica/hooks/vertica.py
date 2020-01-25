@@ -16,14 +16,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.vertica.hooks.vertica`."""
+#
 
-import warnings
+from vertica_python import connect
 
-# pylint: disable=unused-import
-from airflow.providers.vertica.hooks.vertica import VerticaHook  # noqa
+from airflow.hooks.dbapi_hook import DbApiHook
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.vertica.hooks.vertica`.",
-    DeprecationWarning, stacklevel=2
-)
+
+class VerticaHook(DbApiHook):
+    """
+    Interact with Vertica.
+    """
+
+    conn_name_attr = 'vertica_conn_id'
+    default_conn_name = 'vertica_default'
+    supports_autocommit = True
+
+    def get_conn(self):
+        """
+        Returns verticaql connection object
+        """
+        conn = self.get_connection(self.vertica_conn_id)
+        conn_config = {
+            "user": conn.login,
+            "password": conn.password or '',
+            "database": conn.schema,
+            "host": conn.host or 'localhost'
+        }
+
+        if not conn.port:
+            conn_config["port"] = 5433
+        else:
+            conn_config["port"] = int(conn.port)
+
+        conn = connect(**conn_config)
+        return conn

@@ -16,8 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.vertica_hook import VerticaHook
 from airflow.models import BaseOperator
+from airflow.providers.vertica.hooks.vertica import VerticaHook
 from airflow.utils.decorators import apply_defaults
 
 

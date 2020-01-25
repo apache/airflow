@@ -273,7 +273,7 @@ class Connection(Base, LoggingMixin):
             from airflow.providers.oracle.hooks.oracle import OracleHook
             return OracleHook(oracle_conn_id=self.conn_id)
         elif self.conn_type == 'vertica':
-            from airflow.contrib.hooks.vertica_hook import VerticaHook
+            from airflow.providers.vertica.hooks.vertica import VerticaHook
             return VerticaHook(vertica_conn_id=self.conn_id)
         elif self.conn_type == 'cloudant':
             from airflow.providers.cloudant.hooks.cloudant import CloudantHook
