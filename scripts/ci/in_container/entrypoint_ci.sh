@@ -110,6 +110,36 @@ sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
 mkdir -p "${AIRFLOW_SOURCES}"/logs/
 mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 
+mkdir -pv "${AIRFLOW_HOME}/logs/"
+cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
+
+export PYTHONPATH=${AIRFLOW_SOURCES}
+
+"${MY_DIR}/check_environment.sh"
+
+if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
+    set +e
+    setup_kerberos
+    RES=$?
+    set -e
+
+    if [[ ${RES} != 0 ]]; then
+        echo
+        echo "ERROR !!!!Kerberos initialisation requested, but failed"
+        echo
+        echo "I will exit now, and you need to run 'breeze --stop-environment' to kill kerberos."
+        echo
+        echo "Then you can again run 'breeze --integration kerberos' to start it again"
+        echo
+        exit 1
+    fi
+else
+    echo
+    echo "No kerberos. If you want to start it, enable kerberos with --integration kerberos switch"
+    echo
+fi
+
+
 if [[ "${RUNTIME}" == "" ]]; then
     # Start MiniCluster
     java -cp "/opt/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
@@ -125,70 +155,11 @@ if [[ "${RUNTIME}" == "" ]]; then
 
     # SSH Service
     sudo service ssh restart >/dev/null 2>&1
-
-    if [[ ${DEPS:="true"} == "true" ]]; then
-        # Setting up kerberos
-
-        FQDN=$(hostname)
-        ADMIN="admin"
-        PASS="airflow"
-        KRB5_KTNAME=/etc/airflow.keytab
-
-        if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
-            echo
-            echo "Hosts:"
-            echo
-            cat /etc/hosts
-            echo
-            echo "Hostname: ${FQDN}"
-            echo
-        fi
-
-        sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
-
-        set +e
-        echo -e "${PASS}\n${PASS}" | \
-            sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
-              | sudo tee "${AIRFLOW_HOME}/logs/kadmin_1.log" >/dev/null
-        RES_1=$?
-
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" 2>&1 \
-              | sudo tee "${AIRFLOW_HOME}/logs/kadmin_2.log" >/dev/null
-        RES_2=$?
-
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" 2>&1 \
-              | sudo tee "${AIRFLOW_HOME}/logs``/kadmin_3.log" >/dev/null
-        RES_3=$?
-        set -e
-
-        if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
-            if [[ -n ${KRB5_CONFIG:=} ]]; then
-                echo
-                echo "ERROR !!!!Kerberos initialisation requested, but failed"
-                echo
-                echo "I will exit now, and you need to run 'breeze --stop-environment' to kill kerberos."
-                echo
-                echo "Then you can again run 'breeze --integration kerberos' to start it again"
-                echo
-            fi
-            echo
-            echo "No kerberos. If you want to start it, exit and run 'breeze --integration kerberos'"
-            echo
-        else
-            echo
-            echo "Kerberos enabled and working."
-            echo
-            sudo chmod 0644 "${KRB5_KTNAME}"
-        fi
-
-    fi
 fi
 
-mkdir -pv "${AIRFLOW_HOME}/logs/"
-
-cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
 export KIND_CLUSTER_OPERATION="${KIND_CLUSTER_OPERATION:="start"}"
+export KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
 if [[ ${RUNTIME:=""} == "kubernetes" ]]; then
     unset KRB5_CONFIG
@@ -209,8 +180,6 @@ if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     fi
 fi
 
-export PYTHONPATH=${AIRFLOW_SOURCES}
-
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" == "false" ]]; then
@@ -222,10 +191,6 @@ if [[ "${RUN_TESTS}" == "false" ]]; then
 fi
 
 set -u
-
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-
-"${MY_DIR}/check_environment.sh"
 
 if [[ "${TRAVIS}" == "true" ]]; then
     CI_ARGS=(

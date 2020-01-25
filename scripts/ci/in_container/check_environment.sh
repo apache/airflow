@@ -217,7 +217,7 @@ else
 fi
 
 
-check_integration kerberos "kinit -Vkt '${KRB5_KTNAME:=}' airflow" 30
+check_integration kerberos "nc -zvv kerberos 88" 30
 check_integration mongo "nc -zvv mongo 27017" 20
 check_integration redis "nc -zvv redis 6379" 20
 check_integration rabbitmq "nc -zvv rabbitmq 5672" 20
