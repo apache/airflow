@@ -125,7 +125,6 @@ class CLIFactory:
             ("--output",), (
                 "Output table format. The specified value is passed to "
                 "the tabulate module (https://pypi.org/project/tabulate/). "
-                "Valid values are: ({})".format("|".join(tabulate_formats))
             ),
             choices=tabulate_formats,
             default="fancy_grid"),
