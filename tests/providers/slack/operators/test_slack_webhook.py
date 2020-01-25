@@ -21,7 +21,7 @@
 import unittest
 
 from airflow import DAG
-from airflow.contrib.operators.slack_webhook_operator import SlackWebhookOperator
+from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)

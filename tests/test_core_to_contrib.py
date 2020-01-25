@@ -1212,6 +1212,10 @@ OPERATOR = [
         'airflow.providers.segment.operators.segment_track_event.SegmentTrackEventOperator',
         'airflow.contrib.operators.segment_track_event_operator.SegmentTrackEventOperator',
     ),
+    (
+        'airflow.providers.slack.operators.slack_webhook.SlackWebhookOperator',
+        'airflow.contrib.operators.slack_webhook_operator.SlackWebhookOperator',
+    ),
 ]
 
 SENSOR = [
