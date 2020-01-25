@@ -23,11 +23,11 @@ from datetime import datetime
 import mock
 from qds_sdk.commands import HiveCommand
 
-from airflow.contrib.operators.qubole_check_operator import QuboleValueCheckOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.qubole.hooks.qubole import QuboleHook
 from airflow.providers.qubole.hooks.qubole_check import QuboleCheckHook
+from airflow.providers.qubole.operators.qubole_check import QuboleValueCheckOperator
 
 
 class TestQuboleValueCheckOperator(unittest.TestCase):

@@ -1196,6 +1196,14 @@ OPERATOR = [
         'airflow.providers.opsgenie.operators.opsgenie_alert.OpsgenieAlertOperator',
         'airflow.contrib.operators.opsgenie_alert_operator.OpsgenieAlertOperator',
     ),
+    (
+        'airflow.providers.qubole.operators.qubole_check.QuboleCheckOperator',
+        'airflow.contrib.operators.qubole_check_operator.QuboleCheckOperator',
+    ),
+    (
+        'airflow.providers.qubole.operators.qubole_check.QuboleValueCheckOperator',
+        'airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator',
+    ),
 ]
 
 SENSOR = [
