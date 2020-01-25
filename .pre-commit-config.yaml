@@ -285,7 +285,7 @@ repos:
         entry: "./scripts/ci/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
-        require_serial: false  # For tests, it's perfectly OK to run pylint in parallel
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
