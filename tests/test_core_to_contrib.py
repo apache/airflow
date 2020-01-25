@@ -1378,6 +1378,10 @@ SENSOR = [
         'airflow.providers.redis.sensors.redis_pub_sub.RedisPubSubSensor',
         'airflow.contrib.sensors.redis_pub_sub_sensor.RedisPubSubSensor',
     ),
+    (
+        'airflow.providers.datadog.sensors.datadog.DatadogSensor',
+        'airflow.contrib.sensors.datadog_sensor.DatadogSensor',
+    ),
 ]
 
 PROTOCOLS = [

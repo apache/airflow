@@ -23,8 +23,8 @@ from typing import List
 
 from mock import patch
 
-from airflow.contrib.sensors.datadog_sensor import DatadogSensor
 from airflow.models import Connection
+from airflow.providers.datadog.sensors.datadog import DatadogSensor
 from airflow.utils import db
 
 at_least_one_event = [{'alert_type': 'info',
@@ -71,7 +71,7 @@ class TestDatadogSensor(unittest.TestCase):
         )
 
     @patch('airflow.providers.datadog.hooks.datadog.api.Event.query')
-    @patch('airflow.contrib.sensors.datadog_sensor.api.Event.query')
+    @patch('airflow.providers.datadog.sensors.datadog.api.Event.query')
     def test_sensor_ok(self, api1, api2):
         api1.return_value = at_least_one_event
         api2.return_value = at_least_one_event
@@ -89,7 +89,7 @@ class TestDatadogSensor(unittest.TestCase):
         self.assertTrue(sensor.poke({}))
 
     @patch('airflow.providers.datadog.hooks.datadog.api.Event.query')
-    @patch('airflow.contrib.sensors.datadog_sensor.api.Event.query')
+    @patch('airflow.providers.datadog.sensors.datadog.api.Event.query')
     def test_sensor_fail(self, api1, api2):
         api1.return_value = zero_events
         api2.return_value = zero_events

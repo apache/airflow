@@ -77,7 +77,7 @@
 ./airflow/providers/microsoft/azure/sensors/azure_cosmos.py
 ./airflow/sensors/bash.py
 ./airflow/providers/celery/sensors/celery_queue.py
-./airflow/contrib/sensors/datadog_sensor.py
+./airflow/providers/datadog/sensors/datadog.py
 ./airflow/providers/amazon/aws/sensors/emr_base.py
 ./airflow/providers/amazon/aws/sensors/emr_job_flow.py
 ./airflow/providers/amazon/aws/sensors/emr_step.py

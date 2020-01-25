@@ -871,7 +871,7 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.providers.datadog.hooks.datadog`
      -
-     - :mod:`airflow.contrib.sensors.datadog_sensor`
+     - :mod:`airflow.providers.datadog.sensors.datadog`
 
    * - `Pagerduty <https://www.pagerduty.com/>`__
      -
