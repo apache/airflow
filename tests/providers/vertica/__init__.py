@@ -16,25 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
-from unittest import mock
-
-from airflow.contrib.operators.vertica_operator import VerticaOperator
-
-
-class TestVerticaOperator(unittest.TestCase):
-
-    @mock.patch('airflow.contrib.operators.vertica_operator.VerticaHook')
-    def test_execute(self, mock_hook):
-        sql = "select a, b, c"
-        op = VerticaOperator(task_id='test_task_id',
-                             sql=sql)
-        op.execute(None)
-        mock_hook.return_value.run.assert_called_once_with(
-            sql=sql
-        )
-
-
-if __name__ == '__main__':
-    unittest.main()

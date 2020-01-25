@@ -69,7 +69,7 @@
 ./airflow/providers/apache/spark/operators/spark_submit.py
 ./airflow/providers/apache/sqoop/operators/sqoop.py
 ./airflow/contrib/operators/ssh_operator.py
-./airflow/contrib/operators/vertica_operator.py
+./airflow/providers/vertica/operators/vertica.py
 ./airflow/contrib/operators/vertica_to_mysql.py
 ./airflow/providers/microsoft/azure/operators/wasb_delete_blob.py
 ./airflow/contrib/operators/winrm_operator.py

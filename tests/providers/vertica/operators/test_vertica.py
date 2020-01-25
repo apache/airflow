@@ -16,14 +16,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.vertica.operators.vertica`."""
 
-import warnings
+import unittest
+from unittest import mock
 
-# pylint: disable=unused-import
-from airflow.providers.vertica.operators.vertica import VerticaOperator  # noqa
+from airflow.providers.vertica.operators.vertica import VerticaOperator
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.vertica.operators.vertica`.",
-    DeprecationWarning, stacklevel=2
-)
+
+class TestVerticaOperator(unittest.TestCase):
+
+    @mock.patch('airflow.providers.vertica.operators.vertica.VerticaHook')
+    def test_execute(self, mock_hook):
+        sql = "select a, b, c"
+        op = VerticaOperator(task_id='test_task_id',
+                             sql=sql)
+        op.execute(None)
+        mock_hook.return_value.run.assert_called_once_with(
+            sql=sql
+        )
+
+
+if __name__ == '__main__':
+    unittest.main()

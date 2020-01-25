@@ -1216,6 +1216,10 @@ OPERATOR = [
         'airflow.providers.slack.operators.slack_webhook.SlackWebhookOperator',
         'airflow.contrib.operators.slack_webhook_operator.SlackWebhookOperator',
     ),
+    (
+        'airflow.providers.vertica.operators.vertica.VerticaOperator',
+        'airflow.contrib.operators.vertica_operator.VerticaOperator',
+    ),
 ]
 
 SENSOR = [
