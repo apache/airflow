@@ -1447,6 +1447,10 @@ SENSOR = [
         'airflow.providers.ftp.sensors.ftp.FTPSSensor',
         'airflow.contrib.sensors.ftp_sensor.FTPSSensor',
     ),
+    (
+        'airflow.providers.imap.sensors.imap_attachment.ImapAttachmentSensor',
+        'airflow.contrib.sensors.imap_attachment_sensor.ImapAttachmentSensor',
+    ),
 ]
 
 PROTOCOLS = [
