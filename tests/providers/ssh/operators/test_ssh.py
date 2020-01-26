@@ -23,8 +23,8 @@ from base64 import b64encode
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
+from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
