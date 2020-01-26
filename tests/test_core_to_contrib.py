@@ -378,6 +378,14 @@ HOOK = [
         'airflow.providers.zendesk.hooks.zendesk.ZendeskHook',
         'airflow.hooks.zendesk_hook.ZendeskHook',
     ),
+    (
+        'airflow.providers.ftp.hooks.ftp.FTPSHook',
+        'airflow.contrib.hooks.ftp_hook.FTPSHook',
+    ),
+    (
+        'airflow.providers.ftp.hooks.ftp.FTPHook',
+        'airflow.contrib.hooks.ftp_hook.FTPHook',
+    ),
 ]
 
 OPERATOR = [

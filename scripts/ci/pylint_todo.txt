@@ -13,7 +13,7 @@
 ./airflow/providers/ddiscord/hooks/discord_webhook.py
 ./airflow/providers/amazon/aws/hooks/emr.py
 ./airflow/hooks/filesystem.py
-./airflow/contrib/hooks/ftp_hook.py
+./airflow/providers/ftp/hooks/ftp.py
 ./airflow/providers/jenking/hooks/jenkins.py
 ./airflow/providers/openfass/hooks/openfaas.py
 ./airflow/providers/opsgenie/hooks/opsgenie_alert.py

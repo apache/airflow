@@ -21,8 +21,8 @@ import unittest
 from ftplib import error_perm
 from unittest import mock
 
-from airflow.contrib.hooks.ftp_hook import FTPHook
 from airflow.contrib.sensors.ftp_sensor import FTPSensor
+from airflow.providers.ftp.hooks.ftp import FTPHook
 
 
 class TestFTPSensor(unittest.TestCase):

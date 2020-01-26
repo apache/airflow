@@ -19,7 +19,7 @@
 import ftplib
 import re
 
-from airflow.contrib.hooks.ftp_hook import FTPHook, FTPSHook
+from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
