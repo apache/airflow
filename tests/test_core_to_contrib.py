@@ -398,6 +398,10 @@ HOOK = [
         'airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook',
         'airflow.contrib.hooks.winrm_hook.WinRMHook',
     ),
+    (
+        'airflow.providers.http.hooks.http.HttpHook',
+        'airflow.hooks.http_hook.HttpHook',
+    ),
 ]
 
 OPERATOR = [

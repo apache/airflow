@@ -26,8 +26,8 @@ import tenacity
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.http_hook import HttpHook
 from airflow.models import Connection
+from airflow.providers.http.hooks.http import HttpHook
 
 
 def get_airflow_connection(unused_conn_id=None):
@@ -217,7 +217,7 @@ class TestHttpHook(unittest.TestCase):
             resp = self.post_hook.run('v1/test', extra_options={'check_response': False})
             self.assertEqual(resp.status_code, 418)
 
-    @mock.patch('airflow.hooks.http_hook.requests.Session')
+    @mock.patch('airflow.providers.http.hooks.http.requests.Session')
     def test_retry_on_conn_error(self, mocked_session):
 
         retry_args = dict(
@@ -275,7 +275,7 @@ class TestHttpHook(unittest.TestCase):
 
         # The job failed for some reason
         with mock.patch(
-            'airflow.hooks.http_hook.HttpHook.run_and_check',
+            'airflow.providers.http.hooks.http.HttpHook.run_and_check',
             side_effect=run_and_return
         ):
             with mock.patch(
@@ -287,7 +287,7 @@ class TestHttpHook(unittest.TestCase):
                 self.assertEqual(actual.get('bareer'), 'test')
                 self.assertEqual(actual.get('some_other_header'), 'test')
 
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    @mock.patch('airflow.providers.http.hooks.http.HttpHook.get_connection')
     def test_http_connection(self, mock_get_connection):
         conn = Connection(conn_id='http_default', conn_type='http',
                           host='localhost', schema='http')
@@ -296,7 +296,7 @@ class TestHttpHook(unittest.TestCase):
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'http://localhost')
 
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    @mock.patch('airflow.providers.http.hooks.http.HttpHook.get_connection')
     def test_https_connection(self, mock_get_connection):
         conn = Connection(conn_id='http_default', conn_type='http',
                           host='localhost', schema='https')
@@ -305,7 +305,7 @@ class TestHttpHook(unittest.TestCase):
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'https://localhost')
 
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    @mock.patch('airflow.providers.http.hooks.http.HttpHook.get_connection')
     def test_host_encoded_http_connection(self, mock_get_connection):
         conn = Connection(conn_id='http_default', conn_type='http',
                           host='http://localhost')
@@ -314,7 +314,7 @@ class TestHttpHook(unittest.TestCase):
         hook.get_conn({})
         self.assertEqual(hook.base_url, 'http://localhost')
 
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    @mock.patch('airflow.providers.http.hooks.http.HttpHook.get_connection')
     def test_host_encoded_https_connection(self, mock_get_connection):
         conn = Connection(conn_id='http_default', conn_type='http',
                           host='https://localhost')
@@ -326,7 +326,7 @@ class TestHttpHook(unittest.TestCase):
     def test_method_converted_to_uppercase_when_created_in_lowercase(self):
         self.assertEqual(self.get_lowercase_hook.method, 'GET')
 
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    @mock.patch('airflow.providers.http.hooks.http.HttpHook.get_connection')
     def test_connection_without_host(self, mock_get_connection):
         conn = Connection(conn_id='http_default', conn_type='http')
         mock_get_connection.return_value = conn
