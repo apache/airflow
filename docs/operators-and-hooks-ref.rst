@@ -1265,7 +1265,7 @@ communication protocols or interface.
      -
      - :mod:`airflow.providers.imap.hooks.imap`
      -
-     - :mod:`airflow.contrib.sensors.imap_attachment_sensor`
+     - :mod:`airflow.providers.imap.sensors.imap_attachment`
 
    * - `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
      -

@@ -22,7 +22,7 @@ from unittest.mock import Mock, patch
 
 from parameterized import parameterized
 
-from airflow.contrib.sensors.imap_attachment_sensor import ImapAttachmentSensor
+from airflow.providers.imap.sensors.imap_attachment import ImapAttachmentSensor
 
 
 class TestImapAttachmentSensor(unittest.TestCase):
@@ -38,7 +38,7 @@ class TestImapAttachmentSensor(unittest.TestCase):
         )
 
     @parameterized.expand([(True,), (False,)])
-    @patch('airflow.contrib.sensors.imap_attachment_sensor.ImapHook')
+    @patch('airflow.providers.imap.sensors.imap_attachment.ImapHook')
     def test_poke(self, has_attachment_return_value, mock_imap_hook):
         mock_imap_hook.return_value.__enter__ = Mock(return_value=mock_imap_hook)
         mock_imap_hook.has_mail_attachment.return_value = has_attachment_return_value
