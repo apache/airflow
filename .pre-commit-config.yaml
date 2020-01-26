@@ -224,6 +224,12 @@ repos:
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
           ^airflow/contrib/.*$
+      - id: base-operaotr
+        language: pygrep
+        name: Make sure BaseOperaotr
+        entry: "email_on_retry: bool = conf.getboolean"
+        files: ^airflow/models/baseoperator.py
+        pass_filenames: true
       - id: provide-create-sessions
         language: pygrep
         name: Make sure provide_session and create_session are imported from airflow.utils.session
