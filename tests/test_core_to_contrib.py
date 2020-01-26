@@ -1257,6 +1257,10 @@ OPERATOR = [
         'airflow.providers.grpc.operators.grpc.GrpcOperator',
         'airflow.contrib.operators.grpc_operator.GrpcOperator',
     ),
+    (
+        'airflow.providers.ssh.operators.ssh.SSHOperator',
+        'airflow.contrib.operators.ssh_operator.SSHOperator',
+    ),
 ]
 
 SENSOR = [

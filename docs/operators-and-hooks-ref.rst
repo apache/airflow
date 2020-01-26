@@ -1282,7 +1282,7 @@ communication protocols or interface.
    * - `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
      -
      - :mod:`airflow.providers.ssh.hooks.ssh`
-     - :mod:`airflow.contrib.operators.ssh_operator`
+     - :mod:`airflow.providers.ssh.operators.ssh`
      -
 
    * - `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc821>`__

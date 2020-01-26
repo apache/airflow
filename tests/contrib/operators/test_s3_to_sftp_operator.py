@@ -24,8 +24,8 @@ from moto import mock_s3
 
 from airflow.configuration import conf
 from airflow.contrib.operators.s3_to_sftp_operator import S3ToSFTPOperator
-from airflow.contrib.operators.ssh_operator import SSHOperator
 from airflow.models import DAG, TaskInstance
+from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
