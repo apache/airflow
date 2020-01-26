@@ -1294,7 +1294,7 @@ communication protocols or interface.
    * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal>`__
      -
      - :mod:`airflow.providers.microsoft.winrm.hooks.winrm`
-     - :mod:`airflow.contrib.operators.winrm_operator`
+     - :mod:`airflow.providers.microsoft.winrm.operators.winrm`
      -
 
    * - `gRPC <https://grpc.io/>`__
