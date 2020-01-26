@@ -20,8 +20,8 @@
 import unittest
 from unittest import mock
 
-from airflow.contrib.operators.winrm_operator import WinRMOperator
 from airflow.exceptions import AirflowException
+from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 
 
 class TestWinRMOperator(unittest.TestCase):
@@ -33,7 +33,7 @@ class TestWinRMOperator(unittest.TestCase):
         with self.assertRaisesRegex(AirflowException, exception_msg):
             op.execute(None)
 
-    @mock.patch('airflow.contrib.operators.winrm_operator.WinRMHook')
+    @mock.patch('airflow.providers.microsoft.winrm.operators.winrm.WinRMHook')
     def test_no_command(self, mock_hook):
         op = WinRMOperator(
             task_id='test_task_id',

@@ -1261,6 +1261,10 @@ OPERATOR = [
         'airflow.providers.ssh.operators.ssh.SSHOperator',
         'airflow.contrib.operators.ssh_operator.SSHOperator',
     ),
+    (
+        'airflow.providers.microsoft.winrm.operators.winrm.WinRMOperator',
+        'airflow.contrib.operators.winrm_operator.WinRMOperator',
+    ),
 ]
 
 SENSOR = [
