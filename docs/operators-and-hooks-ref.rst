@@ -1257,7 +1257,7 @@ communication protocols or interface.
 
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      -
-     - :mod:`airflow.hooks.http_hook`
+     - :mod:`airflow.providers.http.hooks.http`
      - :mod:`airflow.operators.http_operator`
      - :mod:`airflow.sensors.http_sensor`
 

@@ -42,7 +42,7 @@ class TestHttpSensor(unittest.TestCase):
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
-    @patch("airflow.hooks.http_hook.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_poke_exception(self, mock_session_send):
         """
         Exception occurs in poke function should not be ignored.
@@ -65,7 +65,7 @@ class TestHttpSensor(unittest.TestCase):
         with self.assertRaisesRegex(AirflowException, 'AirflowException raised here!'):
             task.execute(context={})
 
-    @patch("airflow.hooks.http_hook.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_head_method(self, mock_session_send):
         def resp_check(_):
             return True
@@ -94,7 +94,7 @@ class TestHttpSensor(unittest.TestCase):
         self.assertEqual(prep_request.url, received_request.url)
         self.assertTrue(prep_request.method, received_request.method)
 
-    @patch("airflow.hooks.http_hook.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_poke_context(self, mock_session_send):
         response = requests.Response()
         response.status_code = 200
@@ -118,7 +118,7 @@ class TestHttpSensor(unittest.TestCase):
         task_instance = TaskInstance(task=task, execution_date=DEFAULT_DATE)
         task.execute(task_instance.get_template_context())
 
-    @patch("airflow.hooks.http_hook.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_logging_head_error_request(
         self,
         mock_session_send
