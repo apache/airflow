@@ -212,6 +212,17 @@ repos:
         files: \.py$
       - id: base-operator
         language: pygrep
+        name: Make sure BaseOperaotr[Argument] use conf.getboolean for email on retry or failure
+        entry: "email_on_(retry|failure): bool = conf\\.[^getboolean]"
+        files: ^airflow/models/baseoperator.py
+      - id: base-operator
+        language: pygrep
+        name: Make sure BaseOperaotr[Argument] use conf.getint for retries
+        entry: "retries: Optional\\[int\\] = conf\\.[^getint]"
+        files: ^airflow/models/baseoperator.py
+        pass_filenames: true
+      - id: base-operator
+        language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models.baseoperator in core
         entry: "from airflow\\.models import.* BaseOperator"
         files: \.py$
@@ -224,18 +235,6 @@ repos:
           ^airflow/sensors/.*$|
           ^airflow/providers/.*$|
           ^airflow/contrib/.*$
-      - id: base-operaotr
-        language: pygrep
-        name: Make sure BaseOperaotr
-        entry: "email_on_retry: bool = conf.getboolean"
-        files: ^airflow/models/baseoperator.py
-        pass_filenames: true
-      - id: provide-create-sessions
-        language: pygrep
-        name: Make sure provide_session and create_session are imported from airflow.utils.session
-        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
-        files: \.py$
-        pass_filenames: true
       - id: base-operator
         language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
@@ -249,6 +248,12 @@ repos:
           ^airflow/sensors/.*$|
           ^airflow/providers/.*\.py$|
           ^airflow/contrib/.*\.py$
+      - id: provide-create-sessions
+        language: pygrep
+        name: Make sure provide_session and create_session are imported from airflow.utils.session
+        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
+        files: \.py$
+        pass_filenames: true
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh
