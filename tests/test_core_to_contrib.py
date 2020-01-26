@@ -1253,6 +1253,10 @@ OPERATOR = [
         'airflow.providers.slack.operators.slack.SlackAPIOperator',
         'airflow.operators.slack_operator.SlackAPIOperator',
     ),
+    (
+        'airflow.providers.grpc.operators.grpc.GrpcOperator',
+        'airflow.contrib.operators.grpc_operator.GrpcOperator',
+    ),
 ]
 
 SENSOR = [

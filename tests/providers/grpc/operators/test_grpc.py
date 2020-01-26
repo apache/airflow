@@ -20,7 +20,7 @@ import unittest
 
 import mock
 
-from airflow.contrib.operators.grpc_operator import GrpcOperator
+from airflow.providers.grpc.operators.grpc import GrpcOperator
 
 
 class StubClass:
@@ -35,7 +35,7 @@ class TestGrpcOperator(unittest.TestCase):
     def custom_conn_func(self, connection):
         pass
 
-    @mock.patch('airflow.contrib.operators.grpc_operator.GrpcHook')
+    @mock.patch('airflow.providers.grpc.operators.grpc.GrpcHook')
     def test_with_interceptors(self, mock_hook):
         operator = GrpcOperator(
             stub_class=StubClass,
@@ -47,7 +47,7 @@ class TestGrpcOperator(unittest.TestCase):
         operator.execute({})
         mock_hook.assert_called_once_with("grpc_default", interceptors=[], custom_connection_func=None)
 
-    @mock.patch('airflow.contrib.operators.grpc_operator.GrpcHook')
+    @mock.patch('airflow.providers.grpc.operators.grpc.GrpcHook')
     def test_with_custom_connection_func(self, mock_hook):
         operator = GrpcOperator(
             stub_class=StubClass,
@@ -60,7 +60,7 @@ class TestGrpcOperator(unittest.TestCase):
         mock_hook.assert_called_once_with(
             "grpc_default", interceptors=None, custom_connection_func=self.custom_conn_func)
 
-    @mock.patch('airflow.contrib.operators.grpc_operator.GrpcHook')
+    @mock.patch('airflow.providers.grpc.operators.grpc.GrpcHook')
     def test_execute_with_log(self, mock_hook):
         mocked_hook = mock.Mock()
         mock_hook.return_value = mocked_hook
@@ -81,7 +81,7 @@ class TestGrpcOperator(unittest.TestCase):
             mock_info.assert_any_call("'value1'")
             mock_info.assert_any_call("'value2'")
 
-    @mock.patch('airflow.contrib.operators.grpc_operator.GrpcHook')
+    @mock.patch('airflow.providers.grpc.operators.grpc.GrpcHook')
     def test_execute_with_callback(self, mock_hook):
         mocked_hook = mock.Mock()
         callback = mock.Mock()

@@ -1300,7 +1300,7 @@ communication protocols or interface.
    * - `gRPC <https://grpc.io/>`__
      -
      - :mod:`airflow.providers.grpc.hooks.grpc`
-     - :mod:`airflow.contrib.operators.grpc_operator`
+     - :mod:`airflow.providers.grpc.operators.grpc`
      -
 
 Transfer operators and hooks
