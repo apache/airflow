@@ -1136,9 +1136,11 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Kubernetes <https://kubernetes.io/>`__
      - :doc:`How to use <howto/operator/kubernetes>`
-     -
+     - :mod:`airflow.providers.cncf.kubernetes.hooks.kubernetes`
      - :mod:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod`
-     -
+       :mod:`airflow.providers.cncf.kubernetes.operators.spark_kubernetes`
+     - :mod:`airflow.providers.cncf.kubernetes.sensors.spark_kubernetes`
+
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      -

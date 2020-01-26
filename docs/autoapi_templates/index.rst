@@ -94,6 +94,8 @@ All operators are in the following packages:
 
   airflow/providers/cncf/kubernetes/operators/index
 
+  airflow/providers/cncf/kubernetes/sensors/index
+
   airflow/providers/databricks/operators/index
 
   airflow/providers/datadog/sensors/index
@@ -228,6 +230,8 @@ All hooks are in the following packages:
   airflow/providers/apache/sqoop/hooks/index
 
   airflow/providers/cloudant/hooks/index
+
+  airflow/providers/cncf/kubernetes/hooks/index
 
   airflow/providers/databricks/hooks/index
 

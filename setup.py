@@ -451,7 +451,8 @@ def do_setup():
         version=version,
         packages=find_packages(exclude=['tests*']),
         package_data={
-            '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb"],
+            '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
+                 "airflow/providers/cncf/kubernetes/example_dags/*.yaml"],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,

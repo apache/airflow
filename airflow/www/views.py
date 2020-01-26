@@ -2235,7 +2235,9 @@ class ConnectionModelView(AirflowModelView):
                     'extra__yandexcloud__oauth',
                     'extra__yandexcloud__public_ssh_key',
                     'extra__yandexcloud__folder_id',
-                    ]
+                    'extra__kubernetes__in_cluster',
+                    'extra__kubernetes__kube_config',
+                    'extra__kubernetes__namespace']
     list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted',
                     'is_extra_encrypted']
     add_columns = edit_columns = ['conn_id', 'conn_type', 'host', 'schema',
@@ -2256,7 +2258,7 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc', 'yandexcloud']:
+        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc', 'yandexcloud', 'kubernetes']:
             extra = {
                 key: formdata[key]
                 for key in self.extra_fields if key in formdata}
