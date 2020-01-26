@@ -390,6 +390,10 @@ HOOK = [
         'airflow.providers.imap.hooks.imap.ImapHook',
         'airflow.contrib.hooks.imap_hook.ImapHook',
     ),
+    (
+        'airflow.providers.ssh.hooks.ssh.SSHHook',
+        'airflow.contrib.hooks.ssh_hook.SSHHook',
+    ),
 ]
 
 OPERATOR = [

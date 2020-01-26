@@ -47,7 +47,7 @@ DEFAULT_DATE = datetime(2018, 1, 1)
 class TestS3ToSFTPOperator(unittest.TestCase):
     @mock_s3
     def setUp(self):
-        from airflow.contrib.hooks.ssh_hook import SSHHook
+        from airflow.providers.ssh.hooks.ssh import SSHHook
         from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
         hook = SSHHook(ssh_conn_id='ssh_default')

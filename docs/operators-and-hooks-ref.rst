@@ -1281,7 +1281,7 @@ communication protocols or interface.
 
    * - `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
      -
-     - :mod:`airflow.contrib.hooks.ssh_hook`
+     - :mod:`airflow.providers.ssh.hooks.ssh`
      - :mod:`airflow.contrib.operators.ssh_operator`
      -
 

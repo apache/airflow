@@ -21,9 +21,9 @@ This module contains SFTP operator.
 """
 import os
 
-from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.decorators import apply_defaults
 
 
@@ -41,7 +41,7 @@ class SFTPOperator(BaseOperator):
 
     :param ssh_hook: predefined ssh_hook to use for remote execution.
         Either `ssh_hook` or `ssh_conn_id` needs to be provided.
-    :type ssh_hook: airflow.contrib.hooks.ssh_hook.SSHHook
+    :type ssh_hook: airflow.providers.ssh.hooks.ssh.SSHHook
     :param ssh_conn_id: connection id from airflow Connections.
         `ssh_conn_id` will be ignored if `ssh_hook` is provided.
     :type ssh_conn_id: str
