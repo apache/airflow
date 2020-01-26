@@ -1293,7 +1293,7 @@ communication protocols or interface.
 
    * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal>`__
      -
-     - :mod:`airflow.contrib.hooks.winrm_hook`
+     - :mod:`airflow.providers.microsoft.winrm.hooks.winrm`
      - :mod:`airflow.contrib.operators.winrm_operator`
      -
 

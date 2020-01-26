@@ -23,9 +23,9 @@ from base64 import b64encode
 from winrm.exceptions import WinRMOperationTimeoutError
 
 from airflow.configuration import conf
-from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.utils.decorators import apply_defaults
 
 # Hide the following error message in urllib3 when making WinRM connections:
@@ -39,7 +39,7 @@ class WinRMOperator(BaseOperator):
     WinRMOperator to execute commands on given remote host using the winrm_hook.
 
     :param winrm_hook: predefined ssh_hook to use for remote execution
-    :type winrm_hook: airflow.contrib.hooks.winrm_hook.WinRMHook
+    :type winrm_hook: airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook
     :param ssh_conn_id: connection id from airflow Connections
     :type ssh_conn_id: str
     :param remote_host: remote host to connect

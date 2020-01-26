@@ -31,10 +31,10 @@ This is an example dag for using the WinRMOperator.
 """
 from datetime import timedelta
 
-from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.contrib.operators.winrm_operator import WinRMOperator
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.utils.dates import days_ago
 
 default_args = {

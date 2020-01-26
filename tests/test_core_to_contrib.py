@@ -394,6 +394,10 @@ HOOK = [
         'airflow.providers.ssh.hooks.ssh.SSHHook',
         'airflow.contrib.hooks.ssh_hook.SSHHook',
     ),
+    (
+        'airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook',
+        'airflow.contrib.hooks.winrm_hook.WinRMHook',
+    ),
 ]
 
 OPERATOR = [
