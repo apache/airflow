@@ -306,7 +306,7 @@ class Connection(Base, LoggingMixin):
             from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook
             return CloudSQLDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
         elif self.conn_type == 'grpc':
-            from airflow.contrib.hooks.grpc_hook import GrpcHook
+            from airflow.providers.grpc.hooks.grpc import GrpcHook
             return GrpcHook(grpc_conn_id=self.conn_id)
         raise AirflowException("Unknown hook type {}".format(self.conn_type))
 
