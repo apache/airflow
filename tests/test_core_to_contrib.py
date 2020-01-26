@@ -386,6 +386,10 @@ HOOK = [
         'airflow.providers.ftp.hooks.ftp.FTPHook',
         'airflow.contrib.hooks.ftp_hook.FTPHook',
     ),
+    (
+        'airflow.providers.imap.hooks.imap.ImapHook',
+        'airflow.contrib.hooks.imap_hook.ImapHook',
+    ),
 ]
 
 OPERATOR = [

@@ -22,12 +22,12 @@ import unittest
 from unittest.mock import Mock, mock_open, patch
 
 from airflow import AirflowException
-from airflow.contrib.hooks.imap_hook import ImapHook
 from airflow.models import Connection
+from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.utils import db
 
-imaplib_string = 'airflow.contrib.hooks.imap_hook.imaplib'
-open_string = 'airflow.contrib.hooks.imap_hook.open'
+imaplib_string = 'airflow.providers.imap.hooks.imap.imaplib'
+open_string = 'airflow.providers.imap.hooks.imap.open'
 
 
 def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name='test1.csv'):
@@ -273,7 +273,7 @@ class TestImapHook(unittest.TestCase):
         mock_open_method.assert_not_called()
         mock_open_method.return_value.write.assert_not_called()
 
-    @patch('airflow.contrib.hooks.imap_hook.os.path.islink', return_value=True)
+    @patch('airflow.providers.imap.hooks.imap.os.path.islink', return_value=True)
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
     def test_download_mail_attachments_with_symlink(self, mock_imaplib, mock_open_method, mock_is_symlink):

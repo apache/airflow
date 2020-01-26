@@ -19,7 +19,7 @@
 """
 This module allows you to poke for attachments on a mail server.
 """
-from airflow.contrib.hooks.imap_hook import ImapHook
+from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

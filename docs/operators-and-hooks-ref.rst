@@ -1263,7 +1263,7 @@ communication protocols or interface.
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      -
-     - :mod:`airflow.contrib.hooks.imap_hook`
+     - :mod:`airflow.providers.imap.hooks.imap`
      -
      - :mod:`airflow.contrib.sensors.imap_attachment_sensor`
 
