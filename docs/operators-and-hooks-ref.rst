@@ -1245,7 +1245,7 @@ communication protocols or interface.
 
    * - `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
      -
-     - :mod:`airflow.contrib.hooks.ftp_hook`
+     - :mod:`airflow.providers.ftp.hooks.ftp`
      -
      - :mod:`airflow.contrib.sensors.ftp_sensor`
 
