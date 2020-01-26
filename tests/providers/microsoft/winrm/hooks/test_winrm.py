@@ -22,13 +22,13 @@ import unittest
 from unittest.mock import patch
 
 from airflow import AirflowException
-from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.models import Connection
+from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 
 
 class TestWinRMHook(unittest.TestCase):
 
-    @patch('airflow.contrib.hooks.winrm_hook.Protocol')
+    @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol')
     def test_get_conn_exists(self, mock_protocol):
         winrm_hook = WinRMHook()
         winrm_hook.client = mock_protocol.return_value.open_shell.return_value
@@ -41,15 +41,15 @@ class TestWinRMHook(unittest.TestCase):
         with self.assertRaises(AirflowException):
             WinRMHook().get_conn()
 
-    @patch('airflow.contrib.hooks.winrm_hook.Protocol')
+    @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol')
     def test_get_conn_error(self, mock_protocol):
         mock_protocol.side_effect = Exception('Error')
 
         with self.assertRaises(AirflowException):
             WinRMHook(remote_host='host').get_conn()
 
-    @patch('airflow.contrib.hooks.winrm_hook.Protocol', autospec=True)
-    @patch('airflow.contrib.hooks.winrm_hook.WinRMHook.get_connection',
+    @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol', autospec=True)
+    @patch('airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook.get_connection',
            return_value=Connection(
                login='username',
                password='password',
@@ -100,8 +100,8 @@ class TestWinRMHook(unittest.TestCase):
             send_cbt=str(connection.extra_dejson['send_cbt']).lower() == 'true'
         )
 
-    @patch('airflow.contrib.hooks.winrm_hook.getpass.getuser', return_value='user')
-    @patch('airflow.contrib.hooks.winrm_hook.Protocol')
+    @patch('airflow.providers.microsoft.winrm.hooks.winrm.getpass.getuser', return_value='user')
+    @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol')
     def test_get_conn_no_username(self, mock_protocol, mock_getuser):
         winrm_hook = WinRMHook(remote_host='host', password='password')
 
@@ -109,7 +109,7 @@ class TestWinRMHook(unittest.TestCase):
 
         self.assertEqual(mock_getuser.return_value, winrm_hook.username)
 
-    @patch('airflow.contrib.hooks.winrm_hook.Protocol')
+    @patch('airflow.providers.microsoft.winrm.hooks.winrm.Protocol')
     def test_get_conn_no_endpoint(self, mock_protocol):
         winrm_hook = WinRMHook(remote_host='host', password='password')
 
