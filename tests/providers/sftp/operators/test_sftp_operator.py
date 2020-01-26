@@ -37,7 +37,7 @@ TEST_CONN_ID = "conn_id_for_testing"
 
 class TestSFTPOperator(unittest.TestCase):
     def setUp(self):
-        from airflow.contrib.hooks.ssh_hook import SSHHook
+        from airflow.providers.ssh.hooks.ssh import SSHHook
 
         hook = SSHHook(ssh_conn_id='ssh_default')
         hook.no_host_key_check = True

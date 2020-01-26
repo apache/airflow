@@ -24,8 +24,8 @@ from io import StringIO
 import mock
 import paramiko
 
-from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.models import Connection
+from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
 from airflow.utils.session import create_session
 
@@ -90,7 +90,7 @@ class TestSSHHook(unittest.TestCase):
             )
         )
 
-    @mock.patch('airflow.contrib.hooks.ssh_hook.paramiko.SSHClient')
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_password(self, ssh_mock):
         hook = SSHHook(remote_host='remote_host',
                        port='port',
@@ -111,7 +111,7 @@ class TestSSHHook(unittest.TestCase):
                 sock=None
             )
 
-    @mock.patch('airflow.contrib.hooks.ssh_hook.paramiko.SSHClient')
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_without_password(self, ssh_mock):
         hook = SSHHook(remote_host='remote_host',
                        port='port',
@@ -130,7 +130,7 @@ class TestSSHHook(unittest.TestCase):
                 sock=None
             )
 
-    @mock.patch('airflow.contrib.hooks.ssh_hook.SSHTunnelForwarder')
+    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
     def test_tunnel_with_password(self, ssh_mock):
         hook = SSHHook(remote_host='remote_host',
                        port='port',
@@ -150,7 +150,7 @@ class TestSSHHook(unittest.TestCase):
                                              remote_bind_address=('localhost', 1234),
                                              logger=hook.log)
 
-    @mock.patch('airflow.contrib.hooks.ssh_hook.SSHTunnelForwarder')
+    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
     def test_tunnel_without_password(self, ssh_mock):
         hook = SSHHook(remote_host='remote_host',
                        port='port',
@@ -175,7 +175,7 @@ class TestSSHHook(unittest.TestCase):
         self.assertEqual(ssh_hook.no_host_key_check, True)
         self.assertEqual(ssh_hook.allow_host_key_change, False)
 
-    @mock.patch('airflow.contrib.hooks.ssh_hook.SSHTunnelForwarder')
+    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHTunnelForwarder')
     def test_tunnel_with_private_key(self, ssh_mock):
         hook = SSHHook(
             ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,
@@ -230,7 +230,7 @@ class TestSSHHook(unittest.TestCase):
             server_handle.communicate()
             self.assertEqual(server_handle.returncode, 0)
 
-    @mock.patch('airflow.contrib.hooks.ssh_hook.paramiko.SSHClient')
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_private_key_extra(self, ssh_mock):
         hook = SSHHook(
             ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA,

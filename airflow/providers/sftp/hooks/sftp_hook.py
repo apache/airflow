@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pysftp
 
-from airflow.contrib.hooks.ssh_hook import SSHHook
+from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
 class SFTPHook(SSHHook):
