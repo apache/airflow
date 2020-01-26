@@ -21,9 +21,9 @@ from io import StringIO
 
 import mock
 
-from airflow.contrib.hooks.grpc_hook import GrpcHook
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
+from airflow.providers.grpc.hooks.grpc import GrpcHook
 
 
 def get_airflow_connection(auth_type="NO_AUTH", credential_pem_file=None, scopes=None):
@@ -104,7 +104,7 @@ class TestGrpcHook(unittest.TestCase):
         mock_insecure_channel.assert_called_once_with(expected_url)
         self.assertEqual(channel, mocked_channel)
 
-    @mock.patch('airflow.contrib.hooks.grpc_hook.open')
+    @mock.patch('airflow.providers.grpc.hooks.grpc.open')
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('grpc.ssl_channel_credentials')
     @mock.patch('grpc.secure_channel')
@@ -136,7 +136,7 @@ class TestGrpcHook(unittest.TestCase):
         )
         self.assertEqual(channel, mocked_channel)
 
-    @mock.patch('airflow.contrib.hooks.grpc_hook.open')
+    @mock.patch('airflow.providers.grpc.hooks.grpc.open')
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
     @mock.patch('grpc.ssl_channel_credentials')
     @mock.patch('grpc.secure_channel')
@@ -280,7 +280,7 @@ class TestGrpcHook(unittest.TestCase):
         mock_intercept_channel.assert_called_once_with(mocked_channel, "test1")
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @mock.patch('airflow.contrib.hooks.grpc_hook.GrpcHook.get_conn')
+    @mock.patch('airflow.providers.grpc.hooks.grpc.GrpcHook.get_conn')
     def test_simple_run(self, mock_get_conn, mock_get_connection):
         conn = get_airflow_connection()
         mock_get_connection.return_value = conn
@@ -295,7 +295,7 @@ class TestGrpcHook(unittest.TestCase):
         self.assertEqual(next(response), "hello")
 
     @mock.patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @mock.patch('airflow.contrib.hooks.grpc_hook.GrpcHook.get_conn')
+    @mock.patch('airflow.providers.grpc.hooks.grpc.GrpcHook.get_conn')
     def test_stream_run(self, mock_get_conn, mock_get_connection):
         conn = get_airflow_connection()
         mock_get_connection.return_value = conn

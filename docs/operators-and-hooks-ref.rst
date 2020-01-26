@@ -1299,7 +1299,7 @@ communication protocols or interface.
 
    * - `gRPC <https://grpc.io/>`__
      -
-     - :mod:`airflow.contrib.hooks.grpc_hook`
+     - :mod:`airflow.providers.grpc.hooks.grpc`
      - :mod:`airflow.contrib.operators.grpc_operator`
      -
 

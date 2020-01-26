@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.grpc_hook import GrpcHook
 from airflow.models import BaseOperator
+from airflow.providers.grpc.hooks.grpc import GrpcHook
 from airflow.utils.decorators import apply_defaults
 
 
