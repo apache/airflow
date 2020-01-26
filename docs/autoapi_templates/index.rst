@@ -90,10 +90,6 @@ All operators are in the following packages:
 
   airflow/providers/apache/pig/operators/index
 
-  airflow/providers/apache/pinot/hooks/index
-
-  airflow/providers/apache/spark/hooks/index
-
   airflow/providers/apache/spark/operators/index
 
   airflow/providers/apache/sqoop/operators/index
@@ -101,6 +97,14 @@ All operators are in the following packages:
   airflow/providers/celery/sensors/index
 
   airflow/providers/cncf/kubernetes/operators/index
+
+  airflow/providers/databricks/operators/index
+
+  airflow/providers/datadog/sensors/index
+
+  airflow/providers/dindding/operators/index
+
+  airflow/providers/discord/operators/index
 
   airflow/providers/docker/operators/index
 
@@ -112,6 +116,12 @@ All operators are in the following packages:
 
   airflow/providers/google/marketing_platform/sensors/index
 
+  airflow/providers/jenking/operators/index
+
+  airflow/providers/jira/operators/index
+
+  airflow/providers/jira/sensors/index
+
   airflow/providers/microsoft/azure/operators/index
 
   airflow/providers/microsoft/azure/sensors/index
@@ -122,6 +132,8 @@ All operators are in the following packages:
 
   airflow/providers/mysql/operators/index
 
+  airflow/providers/opsgenie/operators/index
+
   airflow/providers/oracle/operators/index
 
   airflow/providers/papermill/operators/index
@@ -130,15 +142,27 @@ All operators are in the following packages:
 
   airflow/providers/presto/operators/index
 
+  airflow/providers/qubole/operators/index
+
+  airflow/providers/qubole/sensors/index
+
   airflow/providers/redis/operators/index
 
   airflow/providers/redis/sensors/index
+
+  airflow/providers/segment/operators/index
 
   airflow/providers/sftp/operators/index
 
   airflow/providers/sftp/sensors/index
 
+  airflow/providers/slack/operators/index
+
+  airflow/providers/snowflake/operators/index
+
   airflow/providers/sqlite/operators/index
+
+  airflow/providers/vertica/operators/index
 
 .. _pythonapi:hooks:
 
@@ -181,11 +205,27 @@ All hooks are in the following packages:
 
   airflow/providers/apache/sqoop/hooks/index
 
+  airflow/providers/cloudant/hooks/index
+
+  airflow/providers/databricks/hooks/index
+
+  airflow/providers/datadog/hooks/index
+
+  airflow/providers/ddiscord/hooks/index
+
+  airflow/providers/dingding/hooks/index
+
   airflow/providers/docker/hooks/index
 
   airflow/providers/google/cloud/hooks/index
 
   airflow/providers/google/marketing_platform/hooks/index
+
+  airflow/providers/google/suite/hooks/index
+
+  airflow/providers/jenking/hooks/index
+
+  airflow/providers/jira/hooks/index
 
   airflow/providers/microsoft/azure/hooks/index
 
@@ -199,19 +239,37 @@ All hooks are in the following packages:
 
   airflow/providers/openfass/hooks/index
 
+  airflow/providers/opsgenie/hooks/index
+
   airflow/providers/oracle/hooks/index
+
+  airflow/providers/pagerduty/hooks/index
 
   airflow/providers/postgres/hooks/index
 
   airflow/providers/presto/hooks/index
 
+  airflow/providers/qubole/hooks/index
+
   airflow/providers/redis/hooks/index
+
+  airflow/providers/salesforce/hooks/index
 
   airflow/providers/samba/hooks/index
 
+  airflow/providers/segment/hooks/index
+
   airflow/providers/sftp/hooks/index
 
+  airflow/providers/slack/hooks/index
+
+  airflow/providers/snowflake/hooks/index
+
   airflow/providers/sqlite/hooks/index
+
+  airflow/providers/vertica/hooks/index
+
+  airflow/providers/zendesk/hooks/index
 
 Executors
 ---------
