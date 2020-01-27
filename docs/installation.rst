@@ -37,7 +37,7 @@ You can also install Airflow with support for extra features like ``gcp`` or ``p
 
 Airflow require that your operating system has ``libffi-dev`` installed.
 
-If the ``airflow`` command is not getting recognized (can happen on Windows when using WSL), then 
+If the ``airflow`` command is not getting recognized (can happen on Windows when using WSL), then
 ensure that ``~/.local/bin`` is in your ``PATH`` environment variable, and add it in if necessary:
 
 .. code-block:: bash
