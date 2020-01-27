@@ -170,7 +170,7 @@
 ./airflow/sensors/external_task_sensor.py
 ./airflow/sensors/hdfs_sensor.py
 ./airflow/providers/apache/hive/sensors/hive_partition.py
-./airflow/sensors/http_sensor.py
+./airflow/providers/http/sensors/http.py
 ./airflow/providers/apache/hive/sensors/metastore_partition.py
 ./airflow/providers/apache/hive/sensors/named_hive_partition.py
 ./airflow/providers/amazon/aws/sensors/s3_key.py

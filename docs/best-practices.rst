@@ -203,7 +203,7 @@ As an example, if you have a task that pushes data to S3, you can implement a ch
 make sure that the partition is created in S3 and perform some simple checks to see if the data is correct or not.
 
 
-Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.sensors.http_sensor.HttpSensor`.
+Similarly, if you have a task that starts a microservice in Kubernetes or Mesos, you should check if the service has started or not using :class:`airflow.providers.http.sensors.http.HttpSensor`.
 
 .. code::
 

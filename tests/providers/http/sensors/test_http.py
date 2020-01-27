@@ -26,7 +26,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import TaskInstance
 from airflow.providers.http.operators.http import SimpleHttpOperator
-from airflow.sensors.http_sensor import HttpSensor
+from airflow.providers.http.sensors.http import HttpSensor
 from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2015, 1, 1)
