@@ -55,7 +55,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status == 'CREATE_COMPLETE':
             return True
-        elif stack_status in ('CREATE_IN_PROGRESS', None):
+        if stack_status in ('CREATE_IN_PROGRESS', None):
             return False
         raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
 
@@ -91,6 +91,6 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         stack_status = self.hook.get_stack_status(self.stack_name)
         if stack_status in ('DELETE_COMPLETE', None):
             return True
-        elif stack_status == 'DELETE_IN_PROGRESS':
+        if stack_status == 'DELETE_IN_PROGRESS':
             return False
         raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
