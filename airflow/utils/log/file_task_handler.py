@@ -22,7 +22,6 @@ from typing import Optional
 
 import requests
 
-from airflow.configuration import AirflowConfigException, conf
 from airflow.models import TaskInstance
 from airflow.utils.file import mkdirs
 from airflow.utils.helpers import parse_template_string
@@ -38,12 +37,20 @@ class FileTaskHandler(logging.Handler):
     :param base_log_folder: Base log folder to place logs.
     :param filename_template: template filename string
     """
-    def __init__(self, base_log_folder: str, filename_template: str):
+    def __init__(
+        self,
+        base_log_folder: str,
+        filename_template: str,
+        worker_server_log_port: int,
+        log_fetch_timeout_sec: Optional[int]
+    ):
         super().__init__()
         self.handler = None  # type: Optional[logging.FileHandler]
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = \
             parse_template_string(filename_template)
+        self.worker_server_log_port = worker_server_log_port
+        self.log_fetch_timeout_sec = log_fetch_timeout_sec
 
     def set_context(self, ti: TaskInstance):
         """
@@ -112,18 +119,13 @@ class FileTaskHandler(logging.Handler):
                 "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
             ).format(
                 ti=ti,
-                worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+                worker_log_server_port=self.worker_server_log_port
             )
             log += "*** Log file does not exist: {}\n".format(location)
             log += "*** Fetching from: {}\n".format(url)
             try:
-                timeout = None  # No timeout
-                try:
-                    timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
-                except (AirflowConfigException, ValueError):
-                    pass
 
-                response = requests.get(url, timeout=timeout)
+                response = requests.get(url, timeout=self.log_fetch_timeout_sec)
                 response.encoding = "utf-8"
 
                 # Check if the resource was properly fetched

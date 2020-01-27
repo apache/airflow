@@ -24,7 +24,6 @@ import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
 
-from airflow.configuration import conf
 from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -52,19 +51,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     PAGE = 0
     MAX_LINE_PER_PAGE = 1000
 
-    def __init__(self, base_log_folder, filename_template,
+    def __init__(self, base_log_folder, filename_template,  # pylint: disable=too-many-arguments
                  log_id_template, end_of_log_mark,
                  write_stdout, json_format, json_fields,
-                 host='localhost:9200',
-                 es_kwargs=conf.getsection("elasticsearch_configs")):
+                 host, es_kwargs, worker_server_log_port, log_fetch_timeout_sec):
         """
         :param base_log_folder: base folder to store logs locally
         :param log_id_template: log id template
         :param host: Elasticsearch host name
         """
         es_kwargs = es_kwargs or {}
-        super().__init__(
-            base_log_folder, filename_template)
+        super().__init__(base_log_folder, filename_template, worker_server_log_port, log_fetch_timeout_sec)
         self.closed = False
 
         self.log_id_template, self.log_id_jinja_template = \

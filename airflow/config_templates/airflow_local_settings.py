@@ -53,6 +53,10 @@ FILENAME_TEMPLATE: str = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
 
 PROCESSOR_FILENAME_TEMPLATE: str = conf.get('logging', 'LOG_PROCESSOR_FILENAME_TEMPLATE')
 
+WORKER_SERVER_LOG_PORT = conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+
+LOG_FETCH_TIMEOUT_SEC = conf.getint('webserver', 'log_fetch_timeout_sec', fallback=None)
+
 DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -76,6 +80,8 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'formatter': 'airflow',
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
             'filename_template': FILENAME_TEMPLATE,
+            'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+            'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
         },
         'processor': {
             'class': 'airflow.utils.log.file_processor_handler.FileProcessorHandler',
@@ -160,6 +166,8 @@ if REMOTE_LOGGING:
     # just to help Airflow select correct handler
     REMOTE_BASE_LOG_FOLDER: str = conf.get('logging', 'REMOTE_BASE_LOG_FOLDER')
 
+    REMOTE_LOG_CONN_ID: str = conf.get('logging', 'REMOTE_LOG_CONN_ID')
+
     if REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
         S3_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
             'task': {
@@ -168,6 +176,9 @@ if REMOTE_LOGGING:
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 's3_log_folder': REMOTE_BASE_LOG_FOLDER,
                 'filename_template': FILENAME_TEMPLATE,
+                'remote_log_conn_id': REMOTE_LOG_CONN_ID,
+                'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+                'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
             },
         }
 
@@ -180,6 +191,9 @@ if REMOTE_LOGGING:
                 'base_log_folder': str(os.path.expanduser(BASE_LOG_FOLDER)),
                 'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
                 'filename_template': FILENAME_TEMPLATE,
+                'remote_log_conn_id': REMOTE_LOG_CONN_ID,
+                'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+                'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
             },
         }
 
@@ -194,6 +208,9 @@ if REMOTE_LOGGING:
                 'wasb_container': 'airflow-logs',
                 'filename_template': FILENAME_TEMPLATE,
                 'delete_local_copy': False,
+                'remote_log_conn_id': REMOTE_LOG_CONN_ID,
+                'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+                'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
             },
         }
 
@@ -218,8 +235,9 @@ if REMOTE_LOGGING:
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean('elasticsearch', 'WRITE_STDOUT')
         ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean('elasticsearch', 'JSON_FORMAT')
         ELASTICSEARCH_JSON_FIELDS: str = conf.get('elasticsearch', 'JSON_FIELDS')
+        ELASTICSEARCH_CONFIG_KWARGS: Dict[str, Any] = conf.getsection("elasticsearch_configs")
 
-        ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
+        ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool, Dict[str, Any]]]] = {
             'task': {
                 'class': 'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
                 'formatter': 'airflow',
@@ -230,7 +248,10 @@ if REMOTE_LOGGING:
                 'host': ELASTICSEARCH_HOST,
                 'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
                 'json_format': ELASTICSEARCH_JSON_FORMAT,
-                'json_fields': ELASTICSEARCH_JSON_FIELDS
+                'json_fields': ELASTICSEARCH_JSON_FIELDS,
+                'es_kwargs': ELASTICSEARCH_CONFIG_KWARGS,
+                'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+                'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
             },
         }
 

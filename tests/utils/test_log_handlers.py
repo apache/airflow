@@ -168,7 +168,7 @@ class TestFilenameRendering(unittest.TestCase):
             'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' \
             % DEFAULT_DATE.isoformat()
 
-        fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log')
+        fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log', 4222, None)
         rendered_filename = fth._render_filename(self.ti, 42)
         self.assertEqual(expected_filename, rendered_filename)
 
@@ -177,6 +177,8 @@ class TestFilenameRendering(unittest.TestCase):
             'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' \
             % DEFAULT_DATE.isoformat()
 
-        fth = FileTaskHandler('', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log')
+        fth = FileTaskHandler(
+            '', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log', 4222, None
+        )
         rendered_filename = fth._render_filename(self.ti, 42)
         self.assertEqual(expected_filename, rendered_filename)

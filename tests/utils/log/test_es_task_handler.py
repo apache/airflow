@@ -36,7 +36,7 @@ from airflow.utils.timezone import datetime
 from .elasticmock import elasticmock
 
 
-class TestElasticsearchTaskHandler(unittest.TestCase):
+class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-many-instance-attributes
     DAG_ID = 'dag_for_testing_file_task_handler'
     TASK_ID = 'task_for_testing_file_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
@@ -52,14 +52,22 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.write_stdout = False
         self.json_format = False
         self.json_fields = 'asctime,filename,lineno,levelname,message'
+        self.host = 'localhost:9200'
+        self.es_kwargs = {}
+        self.worker_server_log_port = 4222
+        self.log_fetch_timeout_sec = 2
         self.es_task_handler = ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            self.log_id_template,
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields
+            base_log_folder=self.local_log_location,
+            filename_template=self.filename_template,
+            log_id_template=self.log_id_template,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host=self.host,
+            es_kwargs=self.es_kwargs,
+            worker_server_log_port=self.worker_server_log_port,
+            log_fetch_timeout_sec=self.log_fetch_timeout_sec,
         )
 
         self.es = elasticsearch.Elasticsearch(  # pylint: disable=invalid-name
@@ -96,14 +104,17 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertDictEqual(es_conf, expected_dict)
         # ensure creating with configs does not fail
         ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            self.log_id_template,
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields,
-            es_conf
+            base_log_folder=self.local_log_location,
+            filename_template=self.filename_template,
+            log_id_template=self.log_id_template,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host=self.host,
+            es_kwargs=self.es_kwargs,
+            worker_server_log_port=self.worker_server_log_port,
+            log_fetch_timeout_sec=self.log_fetch_timeout_sec,
         )
 
     def test_read(self):
@@ -333,13 +344,17 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
 
         # Switch to use jinja template.
         self.es_task_handler = ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            '{{ ti.dag_id }}-{{ ti.task_id }}-{{ ts }}-{{ try_number }}',
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields
+            base_log_folder=self.local_log_location,
+            filename_template=self.filename_template,
+            log_id_template='{{ ti.dag_id }}-{{ ti.task_id }}-{{ ts }}-{{ try_number }}',
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host=self.host,
+            es_kwargs=self.es_kwargs,
+            worker_server_log_port=self.worker_server_log_port,
+            log_fetch_timeout_sec=self.log_fetch_timeout_sec,
         )
         log_id = self.es_task_handler._render_log_id(self.ti, 1)
         self.assertEqual(expected_log_id, log_id)

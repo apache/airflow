@@ -21,7 +21,6 @@ import shutil
 from azure.common import AzureHttpError
 from cached_property import cached_property
 
-from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -34,8 +33,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     """
 
     def __init__(self, base_log_folder, wasb_log_folder, wasb_container,
-                 filename_template, delete_local_copy):
-        super().__init__(base_log_folder, filename_template)
+                 filename_template, delete_local_copy, remote_log_conn_id, worker_server_log_port,
+                 log_fetch_timeout_sec):
+        super().__init__(base_log_folder, filename_template, worker_server_log_port, log_fetch_timeout_sec)
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ''
@@ -43,21 +43,21 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.closed = False
         self.upload_on_close = True
         self.delete_local_copy = delete_local_copy
+        self.remote_log_conn_id = remote_log_conn_id
 
     @cached_property
     def hook(self):
         """
         Returns WasbHook.
         """
-        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-            return WasbHook(remote_conn_id)
+            return WasbHook(self.remote_log_conn_id)
         except AzureHttpError:
             self.log.error(
                 'Could not create an WasbHook with connection id "%s". '
                 'Please make sure that airflow[azure] is installed and '
-                'the Wasb connection exists.', remote_conn_id
+                'the Wasb connection exists.', self.remote_log_conn_id
             )
 
     def set_context(self, ti):

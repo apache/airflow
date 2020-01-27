@@ -30,28 +30,31 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     task instance logs. It extends airflow FileTaskHandler and
     uploads to and reads from S3 remote storage.
     """
-    def __init__(self, base_log_folder, s3_log_folder, filename_template):
-        super().__init__(base_log_folder, filename_template)
+    def __init__(
+        self, base_log_folder, s3_log_folder, filename_template, worker_server_log_port,
+        log_fetch_timeout_sec, remote_log_conn_id
+    ):
+        super().__init__(base_log_folder, filename_template, worker_server_log_port, log_fetch_timeout_sec)
         self.remote_base = s3_log_folder
         self.log_relative_path = ''
         self._hook = None
         self.closed = False
         self.upload_on_close = True
+        self.remote_log_conn_id = remote_log_conn_id
 
     @cached_property
     def hook(self):
         """
         Returns S3Hook.
         """
-        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-            return S3Hook(remote_conn_id)
+            return S3Hook(self.remote_log_conn_id)
         except Exception:  # pylint: disable=broad-except
             self.log.error(
                 'Could not create an S3Hook with connection id "%s". '
                 'Please make sure that airflow[aws] is installed and '
-                'the S3 connection exists.', remote_conn_id
+                'the S3 connection exists.', self.remote_log_conn_id
             )
 
     def set_context(self, ti):

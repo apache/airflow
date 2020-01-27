@@ -24,6 +24,7 @@ import tempfile
 import unittest
 
 from mock import patch
+from parameterized import parameterized
 
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
@@ -241,23 +242,50 @@ class TestLoggingSettings(unittest.TestCase):
                 configure_logging()
             self.assertEqual(conf.get('logging', 'task_log_reader'), 'task')
 
-    def test_loading_remote_logging_with_wasb_handler(self):
+    @parameterized.expand(
+        [
+            ("s3:///bucket", 'airflow.utils.log.s3_task_handler.S3TaskHandler'),
+            ("gs://bucket", 'airflow.utils.log.gcs_task_handler.GCSTaskHandler'),
+            ("wasb://some-folder", 'airflow.utils.log.wasb_task_handler.WasbTaskHandler'),
+        ]
+    )
+    def test_loading_remote_logging_with_remote_handler(self, remote_folder, handler_class):
         """Test if logging can be configured successfully for Azure Blob Storage"""
         import logging
         from airflow.config_templates import airflow_local_settings
         from airflow.logging_config import configure_logging
-        from airflow.utils.log.wasb_task_handler import WasbTaskHandler
+
+        path, _, class_name = handler_class.rpartition(".")
+        module = importlib.import_module(path)
+        class_ = getattr(module, class_name)
 
         with conf_vars({
             ('logging', 'remote_logging'): 'True',
-            ('logging', 'remote_log_conn_id'): 'some_wasb',
-            ('logging', 'remote_base_log_folder'): 'wasb://some-folder',
+            ('logging', 'remote_log_conn_id'): 'remote_log_conn_ids',
+            ('logging', 'remote_base_log_folder'): remote_folder,
         }):
             importlib.reload(airflow_local_settings)
             configure_logging()
 
         logger = logging.getLogger('airflow.task')
-        self.assertIsInstance(logger.handlers[0], WasbTaskHandler)
+        self.assertIsInstance(logger.handlers[0], class_)
+
+    def test_loading_remote_logging_with_es_handler(self):
+        """Test if logging can be configured successfully for Elasticsearch"""
+        import logging
+        from airflow.config_templates import airflow_local_settings
+        from airflow.logging_config import configure_logging
+        from airflow.utils.log.es_task_handler import ElasticsearchTaskHandler
+
+        with conf_vars({
+            ('logging', 'remote_logging'): 'True',
+            ('elasticsearch', 'host'): 'localhost:4444',
+        }):
+            importlib.reload(airflow_local_settings)
+            configure_logging()
+
+        logger = logging.getLogger('airflow.task')
+        self.assertIsInstance(logger.handlers[0], ElasticsearchTaskHandler)
 
 
 if __name__ == '__main__':

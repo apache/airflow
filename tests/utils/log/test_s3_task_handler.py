@@ -47,10 +47,16 @@ class TestS3TaskHandler(unittest.TestCase):
         self.remote_log_key = 'remote/log/location/1.log'
         self.local_log_location = 'local/log/location'
         self.filename_template = '{try_number}.log'
+        self.worker_server_log_port = 4222
+        self.log_fetch_timeout_sec = 2
+        self.remote_log_conn_id = 'aws_default'
         self.s3_task_handler = S3TaskHandler(
-            self.local_log_location,
-            self.remote_log_base,
-            self.filename_template
+            base_log_folder=self.local_log_location,
+            s3_log_folder=self.remote_log_base,
+            filename_template=self.filename_template,
+            worker_server_log_port=self.worker_server_log_port,
+            log_fetch_timeout_sec=self.log_fetch_timeout_sec,
+            remote_log_conn_id=self.remote_log_conn_id
         )
 
         date = datetime(2016, 1, 1)
@@ -88,7 +94,7 @@ class TestS3TaskHandler(unittest.TestCase):
             mock_error.assert_called_once_with(
                 'Could not create an S3Hook with connection id "%s". Please make '
                 'sure that airflow[aws] is installed and the S3 connection exists.',
-                ''
+                self.remote_log_conn_id
             )
 
     def test_log_exists(self):

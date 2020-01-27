@@ -20,7 +20,6 @@ from urllib.parse import urlparse
 
 from cached_property import cached_property
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -33,30 +32,38 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from GCS remote storage. Upon log reading
     failure, it reads from host machine's local disk.
     """
-    def __init__(self, base_log_folder, gcs_log_folder, filename_template):
-        super().__init__(base_log_folder, filename_template)
+    def __init__(
+        self,
+        base_log_folder,
+        gcs_log_folder,
+        filename_template,
+        remote_log_conn_id,
+        worker_server_log_port,
+        log_fetch_timeout_sec
+    ):
+        super().__init__(base_log_folder, filename_template, worker_server_log_port, log_fetch_timeout_sec)
         self.remote_base = gcs_log_folder
         self.log_relative_path = ''
         self._hook = None
         self.closed = False
         self.upload_on_close = True
+        self.remote_log_conn_id = remote_log_conn_id
 
     @cached_property
     def hook(self):
         """
         Returns GCS hook.
         """
-        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.providers.google.cloud.hooks.gcs import GCSHook
             return GCSHook(
-                google_cloud_storage_conn_id=remote_conn_id
+                gcp_conn_id=self.remote_log_conn_id
             )
         except Exception as e:  # pylint: disable=broad-except
             self.log.error(
                 'Could not create a GoogleCloudStorageHook with connection id '
                 '"%s". %s\n\nPlease make sure that airflow[gcp] is installed '
-                'and the GCS connection exists.', remote_conn_id, str(e)
+                'and the GCS connection exists.', self.remote_log_conn_id, str(e)
             )
 
     def set_context(self, ti):
