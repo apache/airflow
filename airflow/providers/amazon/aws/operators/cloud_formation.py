@@ -31,7 +31,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
     An operator that creates a CloudFormation stack.
 
     :param stack_name: stack name (templated)
-    :type params: str
+    :type stack_name: str
     :param params: parameters to be passed to CloudFormation.
 
         .. seealso::
