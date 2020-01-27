@@ -251,7 +251,7 @@ All hooks are in the following packages:
 
   airflow/providers/jdbc/hooks/index
 
-  airflow/providers/jenking/hooks/index
+  airflow/providers/jenkins/hooks/index
 
   airflow/providers/jira/hooks/index
 

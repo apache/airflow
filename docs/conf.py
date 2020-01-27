@@ -259,7 +259,7 @@ exclude_patterns = [
     '_api/airflow/providers/imap/index.rst',
     '_api/airflow/providers/index.rst',
     '_api/airflow/providers/jdbc/index.rst',
-    '_api/airflow/providers/jenking/index.rst',
+    '_api/airflow/providers/jenkins/index.rst',
     '_api/airflow/providers/jira/index.rst',
     '_api/airflow/providers/microsoft/azure/index.rst',
     '_api/airflow/providers/microsoft/index.rst',

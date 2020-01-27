@@ -331,7 +331,7 @@ HOOK = [
         'airflow.contrib.hooks.gdrive_hook.GoogleDriveHook',
     ),
     (
-        'airflow.providers.jenking.hooks.jenkins.JenkinsHook',
+        'airflow.providers.jenkins.hooks.jenkins.JenkinsHook',
         'airflow.contrib.hooks.jenkins_hook.JenkinsHook',
     ),
     (
@@ -1221,7 +1221,7 @@ OPERATOR = [
         'airflow.contrib.operators.discord_webhook_operator.DiscordWebhookOperator',
     ),
     (
-        'airflow.providers.jenking.operators.jenkins_job_trigger.JenkinsJobTriggerOperator',
+        'airflow.providers.jenkins.operators.jenkins_job_trigger.JenkinsJobTriggerOperator',
         'airflow.contrib.operators.jenkins_job_trigger_operator.JenkinsJobTriggerOperator',
     ),
     (
