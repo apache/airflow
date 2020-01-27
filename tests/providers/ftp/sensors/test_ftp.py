@@ -21,13 +21,13 @@ import unittest
 from ftplib import error_perm
 from unittest import mock
 
-from airflow.contrib.sensors.ftp_sensor import FTPSensor
 from airflow.providers.ftp.hooks.ftp import FTPHook
+from airflow.providers.ftp.sensors.ftp import FTPSensor
 
 
 class TestFTPSensor(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.sensors.ftp_sensor.FTPHook', spec=FTPHook)
+    @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
                        task_id="test_task")
@@ -43,7 +43,7 @@ class TestFTPSensor(unittest.TestCase):
         self.assertFalse(op.poke(None))
         self.assertTrue(op.poke(None))
 
-    @mock.patch('airflow.contrib.sensors.ftp_sensor.FTPHook', spec=FTPHook)
+    @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke_fails_due_error(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
                        task_id="test_task")
@@ -56,7 +56,7 @@ class TestFTPSensor(unittest.TestCase):
 
         self.assertTrue("530" in str(context.exception))
 
-    @mock.patch('airflow.contrib.sensors.ftp_sensor.FTPHook', spec=FTPHook)
+    @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke_fail_on_transient_error(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
                        task_id="test_task")
@@ -69,7 +69,7 @@ class TestFTPSensor(unittest.TestCase):
 
         self.assertTrue("434" in str(context.exception))
 
-    @mock.patch('airflow.contrib.sensors.ftp_sensor.FTPHook', spec=FTPHook)
+    @mock.patch('airflow.providers.ftp.sensors.ftp.FTPHook', spec=FTPHook)
     def test_poke_ignore_transient_error(self, mock_hook):
         op = FTPSensor(path="foobar.json", ftp_conn_id="bob_ftp",
                        task_id="test_task", fail_on_transient_errors=False)
