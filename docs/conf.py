@@ -243,7 +243,6 @@ exclude_patterns = [
     '_api/airflow/providers/databricks/index.rst',
     '_api/airflow/providers/datadog/index.rst',
     '_api/airflow/providers/discord/index.rst',
-    '_api/airflow/providers/dindding/index.rst',
     '_api/airflow/providers/dingding/index.rst',
     '_api/airflow/providers/discord/index.rst',
     '_api/airflow/providers/docker/index.rst',

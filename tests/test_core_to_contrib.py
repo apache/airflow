@@ -1213,7 +1213,7 @@ OPERATOR = [
         'airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator',
     ),
     (
-        'airflow.providers.dindding.operators.dingding.DingdingOperator',
+        'airflow.providers.dingding.operators.dingding.DingdingOperator',
         'airflow.contrib.operators.dingding_operator.DingdingOperator',
     ),
     (
