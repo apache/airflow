@@ -21,9 +21,11 @@ import getpass
 from time import sleep
 from typing import Optional
 
-from sqlalchemy import Column, Index, Integer, String, and_
+from sqlalchemy import Column, Index, Integer, String, and_, or_
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm.session import make_transient
+from sqlalchemy.orm.session import make_transient, Session
+from typing import Optional
+from redis import Redis
 
 from airflow import models
 from airflow.configuration import conf
@@ -32,6 +34,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
+from airflow.utils.dag_processing import SimpleTaskInstance
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -39,6 +42,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
 
 
 class BaseJob(Base, LoggingMixin):
@@ -57,7 +61,90 @@ class BaseJob(Base, LoggingMixin):
     job_type = Column(String(30))
     start_date = Column(UtcDateTime())
     end_date = Column(UtcDateTime())
-    latest_heartbeat = Column(UtcDateTime())
+
+    @classmethod
+    def get_zombie_running_tis(cls, limit_dttm, session=None):
+        def mget(acc, items):
+            return acc + cls.redis.mget(items)
+
+        TI = airflow.models.TaskInstance
+
+        if conf.getboolean('heartbeat', 'redis_enabled'):
+            batch_size = conf.getint('heartbeat', 'redis_mget_batch_size')
+            ti_job = (
+                session.query(TI, cls)
+                    .join(cls, TI.job_id == cls.id)
+                    .filter(TI.state == State.RUNNING)
+                    .all()
+            )
+            job_id_to_ti_job = dict([(job.id, (ti, job)) for ti, job in ti_job])
+            job_ids = job_id_to_ti_job.keys()
+            heartbeats = helpers.reduce_in_chunks(mget, job_ids, [], batch_size)
+            zombie_tis = []
+            for heartbeat, job_id in zip(heartbeats, job_ids):
+                ti, job = job_id_to_ti_job[job_id]
+                if (heartbeat and heartbeat < limit_dttm) or job.state != State.RUNNING:
+                    zombie_tis.append(SimpleTaskInstance(ti))
+            return zombie_tis
+        else:
+            tis = (
+                session.query(TI)
+                    .join(cls, TI.job_id == cls.id)
+                    .filter(TI.state == State.RUNNING)
+                    .filter(
+                    or_(
+                        cls.state != State.RUNNING,
+                        cls.latest_heartbeat < limit_dttm,
+                        )
+                ).all()
+            )
+            return [SimpleTaskInstance(ti) for ti in tis]
+
+    def update_heartbeat(self, session=None):
+        if conf.getboolean('heartbeat', 'redis_enabled'):
+            self.latest_heartbeat = timezone.utcnow()
+        else:
+            # Update last heartbeat time
+            session.merge(self)
+            self.latest_heartbeat = timezone.utcnow()
+            session.commit()
+
+    if conf.getboolean('heartbeat', 'redis_enabled'):
+        @property
+        def latest_heartbeat(self):
+            try:
+                redis_result = self.redis.get(str(self.id))
+                return redis_result and timezone.parse(redis_result)
+            except Exception:
+                self.log.warn('error heartbeating')
+                Stats.incr('heartbeat.worker.get.fail')
+                raise
+            finally:
+                Stats.incr('heartbeat.worker.get')
+
+        @latest_heartbeat.setter
+        def latest_heartbeat(self, val):
+            try:
+                self.redis.set(str(self.id), str(val), ex=2 * conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
+            except Exception:
+                self.log.warn('failed to heartbeat')
+                Stats.incr('heartbeat.worker.set.fail')
+                raise
+            finally:
+                Stats.incr('heartbeat.worker.set')
+
+        redis = Redis.from_url(conf.get('heartbeat', 'redis_url'))
+        legacy_heartbeat = Column('latest_heartbeat', UtcDateTime())
+        __table_args__ = (
+            Index('job_type_heart', job_type, legacy_heartbeat),
+            Index('idx_job_state_heartbeat', state, legacy_heartbeat),
+        )
+    else:
+        latest_heartbeat = Column(UtcDateTime())
+        __table_args__ = (
+            Index('job_type_heart', job_type, latest_heartbeat),
+            Index('idx_job_state_heartbeat', state, latest_heartbeat),
+        )
     executor_class = Column(String(500))
     hostname = Column(String(500))
     unixname = Column(String(1000))
@@ -66,11 +153,6 @@ class BaseJob(Base, LoggingMixin):
         'polymorphic_on': job_type,
         'polymorphic_identity': 'BaseJob'
     }
-
-    __table_args__ = (
-        Index('job_type_heart', job_type, latest_heartbeat),
-        Index('idx_job_state_heartbeat', state, latest_heartbeat),
-    )
 
     heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
 
@@ -186,17 +268,10 @@ class BaseJob(Base, LoggingMixin):
                 sleep_for = max(0, seconds_remaining)
             sleep(sleep_for)
 
-            # Update last heartbeat time
             with create_session() as session:
-                # Make the sesion aware of this object
-                session.merge(self)
-                self.latest_heartbeat = timezone.utcnow()
-                session.commit()
-                # At this point, the DB has updated.
-                previous_heartbeat = self.latest_heartbeat
-
+                self.update_heartbeat(session=session)
                 self.heartbeat_callback(session=session)
-                self.log.debug('[heartbeat]')
+            self.log.debug('[heartbeat]')
         except OperationalError:
             Stats.incr(
                 convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1,
