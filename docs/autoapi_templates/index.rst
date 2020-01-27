@@ -130,7 +130,7 @@ All operators are in the following packages:
 
   airflow/providers/jdbc/operators/index
 
-  airflow/providers/jenking/operators/index
+  airflow/providers/jenkins/operators/index
 
   airflow/providers/jira/operators/index
 
@@ -251,7 +251,7 @@ All hooks are in the following packages:
 
   airflow/providers/jdbc/hooks/index
 
-  airflow/providers/jenking/hooks/index
+  airflow/providers/jenkins/hooks/index
 
   airflow/providers/jira/hooks/index
 

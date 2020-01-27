@@ -14,7 +14,7 @@
 ./airflow/providers/amazon/aws/hooks/emr.py
 ./airflow/hooks/filesystem.py
 ./airflow/providers/ftp/hooks/ftp.py
-./airflow/providers/jenking/hooks/jenkins.py
+./airflow/providers/jenkins/hooks/jenkins.py
 ./airflow/providers/openfass/hooks/openfaas.py
 ./airflow/providers/opsgenie/hooks/opsgenie_alert.py
 ./airflow/providers/apache/pinot/hooks/pinot.py
@@ -41,7 +41,7 @@
 ./airflow/providers/amazon/aws/operators/emr_terminate_job_flow.py
 ./airflow/contrib/operators/file_to_wasb.py
 ./airflow/providers/grpc/operators/grpc.py
-./airflow/providers/jenking/operators/jenkins_job_trigger.py
+./airflow/providers/jenkins/operators/jenkins_job_trigger.py
 ./airflow/providers/jira/operators/jira.py
 ./airflow/contrib/operators/mongo_to_s3.py
 ./airflow/providers/opsgenie/operators/opsgenie_alert.py

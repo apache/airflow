@@ -28,7 +28,7 @@ from requests import Request
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.jenking.hooks.jenkins import JenkinsHook
+from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.utils.decorators import apply_defaults
 
 

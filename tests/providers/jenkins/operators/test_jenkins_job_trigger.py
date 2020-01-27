@@ -23,8 +23,8 @@ import jenkins
 import mock
 
 from airflow.exceptions import AirflowException
-from airflow.providers.jenking.hooks.jenkins import JenkinsHook
-from airflow.providers.jenking.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
+from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
+from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
 
 class TestJenkinsOperator(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestJenkinsOperator(unittest.TestCase):
 
         with mock.patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
             mock.patch(
-                'airflow.providers.jenking.operators.jenkins_job_trigger.jenkins_request_with_headers') \
+                'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers') \
                 as mock_make_request:
             mock_make_request.side_effect = \
                 [{'body': '', 'headers': {'Location': 'http://what-a-strange.url/18'}},
@@ -83,7 +83,7 @@ class TestJenkinsOperator(unittest.TestCase):
 
         with mock.patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
             mock.patch(
-                'airflow.providers.jenking.operators.jenkins_job_trigger.jenkins_request_with_headers') \
+                'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers') \
                 as mock_make_request:
             mock_make_request.side_effect = \
                 [{'body': '', 'headers': {'Location': 'http://what-a-strange.url/18'}},
@@ -118,7 +118,7 @@ class TestJenkinsOperator(unittest.TestCase):
 
         with mock.patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked,\
             mock.patch(
-                'airflow.providers.jenking.operators.jenkins_job_trigger.jenkins_request_with_headers') \
+                'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers') \
                 as mock_make_request:
             mock_make_request.side_effect = \
                 [{'body': '', 'headers': {'Location': 'http://what-a-strange.url/18'}},
@@ -141,7 +141,7 @@ class TestJenkinsOperator(unittest.TestCase):
         jenkins_mock.build_job_url.return_value = 'http://apache.org'
 
         with mock.patch(
-            'airflow.providers.jenking.operators.jenkins_job_trigger.jenkins_request_with_headers'
+            'airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers'
         ) as mock_make_request:
             operator = JenkinsJobTriggerOperator(
                 dag=None,
