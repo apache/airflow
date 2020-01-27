@@ -1491,6 +1491,10 @@ SENSOR = [
         'airflow.providers.http.sensors.http.HttpSensor',
         'airflow.sensors.http_sensor.HttpSensor',
     ),
+    (
+        'airflow.contrib.sensors.sftp_sensor.SFTPSensor',
+        'airflow.providers.sftp.sensors.sftp_sensor.SFTPSensor',
+    )
 ]
 
 PROTOCOLS = [

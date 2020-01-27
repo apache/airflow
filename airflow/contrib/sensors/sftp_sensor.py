@@ -17,16 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.providers.sftp.sensors.sftp_sensor`.
+This module is deprecated. Please use `airflow.providers.sftp.sensors.sftp`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.sftp.sensors.sftp_sensor import SFTPSensor  # noqa
+from airflow.providers.sftp.sensors.sftp import SFTPSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.sftp.sensors.sftp_sensor`.",
+    "This module is deprecated. Please use `airflow.providers.sftp.sensors.sftp`.",
     DeprecationWarning,
     stacklevel=2,
 )
