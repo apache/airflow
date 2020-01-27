@@ -323,7 +323,7 @@ HOOK = [
         'airflow.contrib.hooks.dingding_hook.DingdingHook',
     ),
     (
-        'airflow.providers.ddiscord.hooks.discord_webhook.DiscordWebhookHook',
+        'airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook',
         'airflow.contrib.hooks.discord_webhook_hook.DiscordWebhookHook',
     ),
     (

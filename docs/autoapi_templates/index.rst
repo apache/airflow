@@ -229,7 +229,7 @@ All hooks are in the following packages:
 
   airflow/providers/datadog/hooks/index
 
-  airflow/providers/ddiscord/hooks/index
+  airflow/providers/discord/hooks/index
 
   airflow/providers/dingding/hooks/index
 

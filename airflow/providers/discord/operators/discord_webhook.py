@@ -18,7 +18,7 @@
 # under the License.
 #
 from airflow.exceptions import AirflowException
-from airflow.providers.ddiscord.hooks.discord_webhook import DiscordWebhookHook
+from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.ddiscord.hooks.discord_webhook`."""
+"""This module is deprecated. Please use `airflow.providers.discord.hooks.discord_webhook`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.ddiscord.hooks.discord_webhook import DiscordWebhookHook  # noqa
+from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.ddiscord.hooks.discord_webhook`.",
+    "This module is deprecated. Please use `airflow.providers.discord.hooks.discord_webhook`.",
     DeprecationWarning, stacklevel=2
 )
