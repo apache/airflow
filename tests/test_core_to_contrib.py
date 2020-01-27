@@ -1439,6 +1439,14 @@ SENSOR = [
         'airflow.providers.qubole.sensors.qubole.QuboleFileSensor',
         'airflow.contrib.sensors.qubole_sensor.QuboleFileSensor',
     ),
+    (
+        'airflow.providers.ftp.sensors.ftp.FTPSensor',
+        'airflow.contrib.sensors.ftp_sensor.FTPSensor',
+    ),
+    (
+        'airflow.providers.ftp.sensors.ftp.FTPSSensor',
+        'airflow.contrib.sensors.ftp_sensor.FTPSSensor',
+    ),
 ]
 
 PROTOCOLS = [

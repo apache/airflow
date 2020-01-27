@@ -1247,7 +1247,7 @@ communication protocols or interface.
      -
      - :mod:`airflow.providers.ftp.hooks.ftp`
      -
-     - :mod:`airflow.contrib.sensors.ftp_sensor`
+     - :mod:`airflow.providers.ftp.sensors.ftp`
 
    * - Filesystem
      -
