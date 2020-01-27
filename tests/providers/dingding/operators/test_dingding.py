@@ -21,7 +21,7 @@ import unittest
 from unittest import mock
 
 from airflow import DAG
-from airflow.providers.dindding.operators.dingding import DingdingOperator
+from airflow.providers.dingding.operators.dingding import DingdingOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -43,7 +43,7 @@ class TestDingdingOperator(unittest.TestCase):
         }
         self.dag = DAG('test_dag_id', default_args=args)
 
-    @mock.patch('airflow.providers.dindding.operators.dingding.DingdingHook')
+    @mock.patch('airflow.providers.dingding.operators.dingding.DingdingHook')
     def test_execute(self, mock_hook):
         operator = DingdingOperator(
             task_id='dingding_task',

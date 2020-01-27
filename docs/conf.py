@@ -546,6 +546,7 @@ autoapi_ignore = [
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
     '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
     '*/airflow/kubernetes/kubernetes_request_factory/*',
+    '*/airflow/contrib/sensors/*',
 
     '*/node_modules/*',
     '*/migrations/*',

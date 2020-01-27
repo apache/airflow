@@ -102,7 +102,7 @@ All operators are in the following packages:
 
   airflow/providers/datadog/sensors/index
 
-  airflow/providers/dindding/operators/index
+  airflow/providers/dingding/operators/index
 
   airflow/providers/discord/operators/index
 
