@@ -406,6 +406,10 @@ HOOK = [
         'airflow.providers.jdbc.hooks.jdbc.JdbcHook',
         'airflow.hooks.jdbc_hook.JdbcHook',
     ),
+    (
+        'airflow.providers.amazon.aws.hooks.aws_hook.AwsHook',
+        'airflow.contrib.hooks.aws_hook.AwsHook',
+    ),
 ]
 
 OPERATOR = [

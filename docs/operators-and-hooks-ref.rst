@@ -284,7 +284,7 @@ AWS: Amazon Web Services
 
 Airflow has support for `Amazon Web Services <https://aws.amazon.com/>`__.
 
-All hooks are based on :mod:`airflow.contrib.hooks.aws_hook`.
+All hooks are based on :mod:`airflow.providers.amazon.aws.hooks.aws_hook`.
 
 Service operators and hooks
 '''''''''''''''''''''''''''

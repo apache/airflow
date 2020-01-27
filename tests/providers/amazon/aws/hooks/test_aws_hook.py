@@ -22,8 +22,8 @@ import unittest
 import boto3
 import mock
 
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.models import Connection
+from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
 
 try:
     from moto import mock_emr, mock_dynamodb2, mock_sts, mock_iam
@@ -163,7 +163,7 @@ class TestAwsHook(unittest.TestCase):
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
         self.assertIsNone(credentials_from_hook.token)
 
-    @mock.patch('airflow.contrib.hooks.aws_hook._parse_s3_config',
+    @mock.patch('airflow.providers.amazon.aws.hooks.aws_hook._parse_s3_config',
                 return_value=('aws_access_key_id', 'aws_secret_access_key'))
     @mock.patch.object(AwsHook, 'get_connection')
     def test_get_credentials_from_extra_with_s3_config_and_profile(

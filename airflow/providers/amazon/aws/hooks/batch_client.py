@@ -37,7 +37,7 @@ import botocore.waiter
 from typing_extensions import Protocol, runtime_checkable
 
 from airflow import AirflowException, LoggingMixin
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
 
 # Add exceptions to pylint for the boto3 protocol only; ideally the boto3 library could provide
 # protocols for all their dynamically generated classes (try to migrate this to a PR on botocore).

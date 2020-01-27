@@ -36,7 +36,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 try:
-    from airflow.contrib.hooks.aws_hook import AwsHook
+    from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
 except ImportError:  # pragma: no cover
     AwsHook = None  # type: ignore
 

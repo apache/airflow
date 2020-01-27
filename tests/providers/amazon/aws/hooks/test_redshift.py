@@ -22,7 +22,7 @@ import unittest
 
 import boto3
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
 from airflow.providers.amazon.aws.hooks.redshift import RedshiftHook
 
 try:
