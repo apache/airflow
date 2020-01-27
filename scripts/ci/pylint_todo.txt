@@ -102,7 +102,7 @@
 ./airflow/providers/apache/druid/hooks/druid.py
 ./airflow/providers/apache/hive/hooks/hive.py
 ./airflow/providers/http/hooks/http.py
-./airflow/hooks/jdbc_hook.py
+./airflow/providers/jdbc/hooks/jdbc.py
 ./airflow/providers/microsoft/mssql/hooks/mssql.py
 ./airflow/providers/mysql/hooks/mysql.py
 ./airflow/providers/oracle/hooks/oracle.py

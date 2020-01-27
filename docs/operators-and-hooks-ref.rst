@@ -1269,7 +1269,7 @@ communication protocols or interface.
 
    * - `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
      -
-     - :mod:`airflow.hooks.jdbc_hook`
+     - :mod:`airflow.providers.jdbc.hooks.jdbc`
      - :mod:`airflow.operators.jdbc_operator`
      -
 

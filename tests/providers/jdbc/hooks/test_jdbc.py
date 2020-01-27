@@ -22,8 +22,8 @@ import json
 import unittest
 from unittest.mock import Mock, patch
 
-from airflow.hooks.jdbc_hook import JdbcHook
 from airflow.models import Connection
+from airflow.providers.jdbc.hooks.jdbc import JdbcHook
 from airflow.utils import db
 
 jdbc_conn_mock = Mock(
@@ -40,7 +40,7 @@ class TestJdbcHook(unittest.TestCase):
                 extra=json.dumps({"extra__jdbc__drv_path": "/path1/test.jar,/path2/t.jar2",
                                   "extra__jdbc__drv_clsname": "com.driver.main"})))
 
-    @patch("airflow.hooks.jdbc_hook.jaydebeapi.connect", autospec=True,
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True,
            return_value=jdbc_conn_mock)
     def test_jdbc_conn_connection(self, jdbc_mock):
         jdbc_hook = JdbcHook()
@@ -49,14 +49,14 @@ class TestJdbcHook(unittest.TestCase):
         self.assertIsInstance(jdbc_conn, Mock)
         self.assertEqual(jdbc_conn.name, jdbc_mock.return_value.name)  # pylint: disable=no-member
 
-    @patch("airflow.hooks.jdbc_hook.jaydebeapi.connect")
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
     def test_jdbc_conn_set_autocommit(self, _):
         jdbc_hook = JdbcHook()
         jdbc_conn = jdbc_hook.get_conn()
         jdbc_hook.set_autocommit(jdbc_conn, False)
         jdbc_conn.jconn.setAutoCommit.assert_called_once_with(False)
 
-    @patch("airflow.hooks.jdbc_hook.jaydebeapi.connect")
+    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
     def test_jdbc_conn_get_autocommit(self, _):
         jdbc_hook = JdbcHook()
         jdbc_conn = jdbc_hook.get_conn()

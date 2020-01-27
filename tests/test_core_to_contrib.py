@@ -402,6 +402,10 @@ HOOK = [
         'airflow.providers.http.hooks.http.HttpHook',
         'airflow.hooks.http_hook.HttpHook',
     ),
+    (
+        'airflow.providers.jdbc.hooks.jdbc.JdbcHook',
+        'airflow.hooks.jdbc_hook.JdbcHook',
+    ),
 ]
 
 OPERATOR = [
