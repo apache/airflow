@@ -22,11 +22,11 @@ from unittest.mock import patch
 
 from paramiko import SFTP_FAILURE, SFTP_NO_SUCH_FILE
 
-from airflow.providers.sftp.sensors.sftp_sensor import SFTPSensor
+from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
 
 class TestSFTPSensor(unittest.TestCase):
-    @patch('airflow.providers.sftp.sensors.sftp_sensor.SFTPHook')
+    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
     def test_file_present(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
         sftp_sensor = SFTPSensor(
@@ -40,7 +40,7 @@ class TestSFTPSensor(unittest.TestCase):
             '/path/to/file/1970-01-01.txt')
         self.assertTrue(output)
 
-    @patch('airflow.providers.sftp.sensors.sftp_sensor.SFTPHook')
+    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
     def test_file_absent(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(
             SFTP_NO_SUCH_FILE, 'File missing')
@@ -55,7 +55,7 @@ class TestSFTPSensor(unittest.TestCase):
             '/path/to/file/1970-01-01.txt')
         self.assertFalse(output)
 
-    @patch('airflow.providers.sftp.sensors.sftp_sensor.SFTPHook')
+    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
     def test_sftp_failure(self, sftp_hook_mock):
         sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(
             SFTP_FAILURE, 'SFTP failure')

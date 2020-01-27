@@ -414,6 +414,10 @@ HOOK = [
         'airflow.providers.amazon.aws.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
         'airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
     ),
+    (
+        'airflow.providers.sftp.hooks.sftp.SFTPHook',
+        'airflow.contrib.hooks.sftp_hook.SFTPHook',
+    ),
 ]
 
 OPERATOR = [
@@ -1293,6 +1297,10 @@ OPERATOR = [
         'airflow.providers.jdbc.operators.jdbc.JdbcOperator',
         'airflow.operators.jdbc_operator.JdbcOperator',
     ),
+    (
+        'airflow.providers.sftp.operators.sftp.SFTPOperator',
+        'airflow.contrib.operators.sftp_operator.SFTPOperator',
+    ),
 ]
 
 SENSOR = [
@@ -1483,6 +1491,10 @@ SENSOR = [
         'airflow.providers.http.sensors.http.HttpSensor',
         'airflow.sensors.http_sensor.HttpSensor',
     ),
+    (
+        'airflow.providers.sftp.sensors.sftp.SFTPSensor',
+        'airflow.contrib.sensors.sftp_sensor.SFTPSensor',
+    )
 ]
 
 PROTOCOLS = [

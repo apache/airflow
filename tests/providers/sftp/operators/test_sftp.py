@@ -24,7 +24,7 @@ from unittest import mock
 
 from airflow import AirflowException
 from airflow.models import DAG, TaskInstance
-from airflow.providers.sftp.operators.sftp_operator import SFTPOperation, SFTPOperator
+from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime

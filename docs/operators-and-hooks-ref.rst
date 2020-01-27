@@ -1275,8 +1275,8 @@ communication protocols or interface.
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.providers.sftp.hooks.sftp_hook`
-     - :mod:`airflow.providers.sftp.operators.sftp_operator`
+     - :mod:`airflow.providers.sftp.hooks.sftp`
+     - :mod:`airflow.providers.sftp.operators.sftp`
      - :mod:`airflow.providers.sftp.sensors.sftp_sensor`
 
    * - `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
