@@ -18,8 +18,8 @@
 # under the License.
 #
 
-from airflow.contrib.hooks.yandexcloud_dataproc_hook import DataprocHook
-from airflow.contrib.operators.yandexcloud_base_operator import YandexCloudBaseOperator
+from airflow.providers.yandex.hooks.yandexcloud_dataproc_hook import DataprocHook
+from airflow.providers.yandex.operators.yandexcloud_base_operator import YandexCloudBaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -56,7 +56,7 @@ class DataprocCreateClusterOperator(YandexCloudBaseOperator):
                  computenode_count=0,
                  *args,
                  **kwargs):
-        super(DataprocCreateClusterOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.folder_id = folder_id
         self.connection_id = connection_id
         self.cluster_name = cluster_name
@@ -119,7 +119,7 @@ class DataprocDeleteClusterOperator(YandexCloudBaseOperator):
                  cluster_id=None,
                  *args,
                  **kwargs):
-        super(DataprocDeleteClusterOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.connection_id = connection_id
         self.cluster_id = cluster_id
 
@@ -151,7 +151,7 @@ class DataprocRunHiveJobOperator(YandexCloudBaseOperator):
                  connection_id=None,
                  *args,
                  **kwargs):
-        super(DataprocRunHiveJobOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.query = query
         self.query_file_uri = query_file_uri
         self.script_variables = script_variables
@@ -199,7 +199,7 @@ class DataprocRunMapReduceJobOperator(YandexCloudBaseOperator):
                  connection_id=None,
                  *args,
                  **kwargs):
-        super(DataprocRunMapReduceJobOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
@@ -251,7 +251,7 @@ class DataprocRunSparkJobOperator(YandexCloudBaseOperator):
                  connection_id=None,
                  *args,
                  **kwargs):
-        super(DataprocRunSparkJobOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
@@ -303,7 +303,7 @@ class DataprocRunPysparkJobOperator(YandexCloudBaseOperator):
                  connection_id=None,
                  *args,
                  **kwargs):
-        super(DataprocRunPysparkJobOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.main_python_file_uri = main_python_file_uri
         self.python_file_uris = python_file_uris
         self.jar_file_uris = jar_file_uris

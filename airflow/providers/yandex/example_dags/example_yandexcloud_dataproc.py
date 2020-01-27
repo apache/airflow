@@ -18,7 +18,7 @@
 # under the License.
 
 from airflow import DAG
-from airflow.contrib.operators.yandexcloud_dataproc_operator import (
+from airflow.providers.yandex.operators.yandexcloud_dataproc_operator import (
     DataprocCreateClusterOperator, DataprocDeleteClusterOperator, DataprocRunHiveJobOperator,
     DataprocRunMapReduceJobOperator, DataprocRunPysparkJobOperator, DataprocRunSparkJobOperator,
 )

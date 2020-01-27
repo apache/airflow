@@ -34,8 +34,8 @@ import yandex.cloud.dataproc.v1.subcluster_service_pb2_grpc as subcluster_servic
 from google.protobuf.field_mask_pb2 import FieldMask
 from six import string_types
 
-from airflow.contrib.hooks.yandexcloud_base_hook import YandexCloudBaseHook
 from airflow.exceptions import AirflowException
+from airflow.providers.yandex.hooks.yandexcloud_base_hook import YandexCloudBaseHook
 
 
 class DataprocHook(YandexCloudBaseHook):
@@ -47,37 +47,33 @@ class DataprocHook(YandexCloudBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        super(DataprocHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.cluster_id = None
 
     def _get_operation_result(self, operation, response_type=None, meta_type=None):
-        message = 'Running Yandex.Cloud operation. ID: {}. Description: {}. Created at: {}. Created by: {}.'
-        message = message.format(
-            operation.id,
-            operation.description,
-            datetime.fromtimestamp(operation.created_at.seconds),
-            operation.created_by,
-        )
+        created_at = datetime.fromtimestamp(operation.created_at.seconds)
+        message = f'Running Yandex.Cloud operation. ID: {operation.id}. ' + \
+                  f'Description: {operation.description}. Created at: {created_at}. ' + \
+                  f'Created by: {operation.created_by}.'
         if meta_type:
             unpacked_meta = meta_type()
             operation.metadata.Unpack(unpacked_meta)
-            message += ' Meta: {}.'.format(unpacked_meta)
+            message += f' Meta: {unpacked_meta}.'
         self.log.info(message)
         result = self.wait_for_operation(operation)
         if result.error and result.error.code:
-            error_message = 'Error Yandex.Cloud operation. ID: {}. Error code: {}. Details: {}. Message: {}.'
-            error_message = error_message.format(
-                result.id, result.error.code, result.error.details, result.error.message
-            )
+            error_message = f'Error Yandex.Cloud operation. ID: {result.id}. ' + \
+                            f'Error code: {result.error.code}. Details: {result.error.details}. ' + \
+                            f'Message: {result.error.message}.'
             self.log.error(error_message)
             raise AirflowException(error_message)
         else:
-            log_message = 'Done Yandex.Cloud operation. ID: {}.'.format(operation.id)
+            log_message = f'Done Yandex.Cloud operation. ID: {operation.id}.'
             unpacked_response = None
             if response_type:
                 unpacked_response = response_type()
                 result.response.Unpack(unpacked_response)
-                log_message += ' Response: {}.'.format(unpacked_response)
+                log_message += f' Response: {unpacked_response}.'
             self.log.info(log_message)
             if unpacked_response:
                 return unpacked_response
@@ -124,7 +120,7 @@ class DataprocHook(YandexCloudBaseHook):
             disk_type_id=disk_type,
         ),
 
-        self.log.info('Adding subcluster to cluster {}'.format(cluster_id))
+        self.log.info(f'Adding subcluster to cluster {cluster_id}')
 
         req = subcluster_service_pb.CreateSubclusterRequest(
             cluster_id=cluster_id,
@@ -147,7 +143,7 @@ class DataprocHook(YandexCloudBaseHook):
         :param description: Description of the cluster.
         :type description: str
         """
-        self.log.info('Updating cluster {}'.format(cluster_id))
+        self.log.info(f'Updating cluster {cluster_id}')
         mask = FieldMask(paths=['description'])
         update_req = cluster_service_pb.UpdateClusterRequest(
             cluster_id=cluster_id,
@@ -164,7 +160,7 @@ class DataprocHook(YandexCloudBaseHook):
         :param cluster_id: ID of the cluster to remove.
         :type cluster_id: str
         """
-        self.log.info('Deleting cluster {}'.format(cluster_id))
+        self.log.info(f'Deleting cluster {cluster_id}')
         operation = self.client(cluster_service_grpc_pb.ClusterServiceStub).Delete(
             cluster_service_pb.DeleteClusterRequest(cluster_id=cluster_id))
         return self._get_operation_result(operation)
@@ -202,7 +198,7 @@ class DataprocHook(YandexCloudBaseHook):
             raise AirflowException('Cluster id must be specified.')
         if (query and query_file_uri) or not (query or query_file_uri):
             raise AirflowException('Either query or query_file_uri must be specified.')
-        self.log.info('Starting Hive job at cluster {}'.format(cluster_id))
+        self.log.info(f'Starting Hive job at cluster {cluster_id}')
 
         hive_job = job_pb.HiveJob(
             query_file_uri=query_file_uri,
@@ -270,7 +266,7 @@ class DataprocHook(YandexCloudBaseHook):
         cluster_id = cluster_id or self.cluster_id
         if not cluster_id:
             raise AirflowException('Cluster id must be specified.')
-        self.log.info('Running Mapreduce job {}'.format(cluster_id))
+        self.log.info(f'Running Mapreduce job {cluster_id}')
         operation = self.client(job_service_grpc_pb.JobServiceStub).Create(
             job_service_pb.CreateJobRequest(
                 cluster_id=cluster_id,
@@ -325,7 +321,7 @@ class DataprocHook(YandexCloudBaseHook):
         cluster_id = cluster_id or self.cluster_id
         if not cluster_id:
             raise AirflowException('Cluster id must be specified.')
-        self.log.info('Running Spark job {}'.format(cluster_id))
+        self.log.info(f'Running Spark job {cluster_id}')
         operation = self.client(job_service_grpc_pb.JobServiceStub).Create(
             job_service_pb.CreateJobRequest(
                 cluster_id=cluster_id,
@@ -381,7 +377,7 @@ class DataprocHook(YandexCloudBaseHook):
         if not cluster_id:
             raise AirflowException('Cluster id must be specified.')
 
-        self.log.info('Running Pyspark job {}'.format(cluster_id))
+        self.log.info(f'Running Pyspark job. Cluster ID: {cluster_id}')
         operation = self.client(job_service_grpc_pb.JobServiceStub).Create(
             job_service_pb.CreateJobRequest(
                 cluster_id=cluster_id,
@@ -484,7 +480,8 @@ class DataprocHook(YandexCloudBaseHook):
             raise AirflowException('Folder ID must be specified to create cluster.')
 
         if not cluster_name:
-            cluster_name = 'dataproc-{}'.format(random.randint(0, 999))
+            random_int = random.randint(0, 999)
+            cluster_name = f'dataproc-{random_int}'
 
         if not subnet_id:
             network_id = self.find_network(folder_id)

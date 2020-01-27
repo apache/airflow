@@ -176,6 +176,8 @@ All operators are in the following packages:
 
   airflow/providers/vertica/operators/index
 
+  airflow/providers/yandex/operators/index
+
 .. _pythonapi:hooks:
 
 Hooks
@@ -292,6 +294,8 @@ All hooks are in the following packages:
   airflow/providers/vertica/hooks/index
 
   airflow/providers/zendesk/hooks/index
+
+  airflow/providers/yandex/hooks/index
 
 Executors
 ---------

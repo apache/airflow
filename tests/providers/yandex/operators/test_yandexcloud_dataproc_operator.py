@@ -23,7 +23,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
 
 from airflow import DAG
-from airflow.contrib.operators.yandexcloud_dataproc_operator import (
+from airflow.providers.yandex.operators.yandexcloud_dataproc_operator import (
     DataprocCreateClusterOperator, DataprocDeleteClusterOperator, DataprocRunHiveJobOperator,
     DataprocRunMapReduceJobOperator, DataprocRunPysparkJobOperator, DataprocRunSparkJobOperator,
 )
@@ -72,9 +72,9 @@ class DataprocClusterCreateOperatorTest(TestCase):
             schedule_interval='@daily'
         )
 
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @patch('airflow.contrib.hooks.yandexcloud_dataproc_hook.DataprocHook.create_cluster')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_dataproc_hook.DataprocHook.create_cluster')
     def test_create_cluster(self, create_cluster_mock, *_):
         create_cluster = DataprocCreateClusterOperator(
             task_id='create_cluster',
@@ -119,9 +119,9 @@ class DataprocClusterCreateOperatorTest(TestCase):
             call(key='yandexcloud_connection_id', value=CONNECTION_ID),
         ])
 
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @patch('airflow.contrib.hooks.yandexcloud_dataproc_hook.DataprocHook.delete_cluster')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_dataproc_hook.DataprocHook.delete_cluster')
     def test_delete_cluster_operator(self, delete_cluster_mock, *_):
         delete_cluster = DataprocDeleteClusterOperator(
             task_id='delete_cluster',
@@ -133,9 +133,9 @@ class DataprocClusterCreateOperatorTest(TestCase):
         context['task_instance'].xcom_pull.assert_called_once_with(key='cluster_id')
         delete_cluster_mock.assert_called_once_with('my_cluster_id')
 
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @patch('airflow.contrib.hooks.yandexcloud_dataproc_hook.DataprocHook.run_hive_job')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_dataproc_hook.DataprocHook.run_hive_job')
     def test_run_hive_job_operator(self, run_hive_job_mock, *_):
         delete_cluster = DataprocRunHiveJobOperator(
             task_id='run_hive_query',
@@ -160,9 +160,9 @@ class DataprocClusterCreateOperatorTest(TestCase):
             script_variables=None,
         )
 
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @patch('airflow.contrib.hooks.yandexcloud_dataproc_hook.DataprocHook.run_mapreduce_job')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_dataproc_hook.DataprocHook.run_mapreduce_job')
     def test_run_mapreduce_job_operator(self, run_mapreduce_job_mock, *_):
         delete_cluster = DataprocRunMapReduceJobOperator(
             task_id='run_mapreduce_job',
@@ -216,9 +216,9 @@ class DataprocClusterCreateOperatorTest(TestCase):
             }
         )
 
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @patch('airflow.contrib.hooks.yandexcloud_dataproc_hook.DataprocHook.run_spark_job')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_dataproc_hook.DataprocHook.run_spark_job')
     def test_run_spark_job_operator(self, run_spark_job_mock, *_):
         delete_cluster = DataprocRunSparkJobOperator(
             task_id='run_spark_job',
@@ -273,9 +273,9 @@ class DataprocClusterCreateOperatorTest(TestCase):
             properties={'spark.submit.deployMode': 'cluster'}
         )
 
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook._get_credentials')
     @patch('airflow.hooks.base_hook.BaseHook.get_connection')
-    @patch('airflow.contrib.hooks.yandexcloud_dataproc_hook.DataprocHook.run_pyspark_job')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_dataproc_hook.DataprocHook.run_pyspark_job')
     def test_run_pyspark_job_operator(self, run_pyspark_job_mock, *_):
         delete_cluster = DataprocRunPysparkJobOperator(
             task_id='run_pyspark_job',

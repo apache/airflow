@@ -44,7 +44,7 @@ class YandexCloudBaseHook(BaseHook):
                  default_folder_id=None,
                  default_public_ssh_key=None
                  ):
-        super(YandexCloudBaseHook, self).__init__()
+        super().__init__()
         self.connection_id = connection_id or 'yandexcloud_default'
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
@@ -59,11 +59,11 @@ class YandexCloudBaseHook(BaseHook):
             raise AirflowException('No credentials are found in connection.')
         return oauth_token
 
-    def _get_field(self, f, default=None):
+    def _get_field(self, field_name, default=None):
         """
         Fetches a field from extras, and returns it.
         """
-        long_f = 'extra__yandexcloud__{}'.format(f)
+        long_f = f'extra__yandexcloud__{field_name}'
         if hasattr(self, 'extras') and long_f in self.extras:
             return self.extras[long_f]
         else:
@@ -95,10 +95,10 @@ class YandexCloudBaseHook(BaseHook):
         if len(service_accounts) == 1:
             return service_accounts[0].id
         if len(service_accounts) == 0:
-            message = 'There are no service accounts in folder {}, please create it.'
-            raise RuntimeError(message.format(folder_id))
-        message = 'There are more than one service account in folder {}, please specify it'
-        raise RuntimeError(message.format(folder_id))
+            raise RuntimeError(f'There are no service accounts in folder {folder_id}, please create it.')
+        raise RuntimeError(
+            f'There are more than one service account in folder {folder_id}, please specify it'
+        )
 
     def find_network(self, folder_id):
         """
@@ -112,10 +112,10 @@ class YandexCloudBaseHook(BaseHook):
         networks = [n for n in networks if n.folder_id == folder_id]
 
         if not networks:
-            raise RuntimeError('No networks in folder: {}'.format(folder_id))
+            raise RuntimeError(f'No networks in folder: {folder_id}')
         if len(networks) > 1:
             raise RuntimeError(
-                'There are more than one service account in folder {}, please specify it'.format(folder_id)
+                f'There are more than one service account in folder {folder_id}, please specify it'
             )
         return networks[0].id
 
@@ -138,7 +138,7 @@ class YandexCloudBaseHook(BaseHook):
         if len(applicable) == 1:
             return applicable[0].id
         if len(applicable) == 0:
-            message = 'There are no subnets in {} zone, please create it.'
-            raise RuntimeError(message.format(availability_zone_id))
-        message = 'There are more than one subnet in {} zone, please specify it'
-        raise RuntimeError(message.format(availability_zone_id))
+            raise RuntimeError(f'There are no subnets in {availability_zone_id} zone, please create it.')
+        raise RuntimeError(
+            f'There are more than one subnet in {availability_zone_id} zone, please specify it'
+        )

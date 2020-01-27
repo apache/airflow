@@ -24,7 +24,7 @@ from unittest.mock import patch
 from airflow.models import Connection
 
 try:
-    from airflow.contrib.hooks.yandexcloud_dataproc_hook import DataprocHook
+    from airflow.providers.yandex.hooks.yandexcloud_dataproc_hook import DataprocHook
 
     import yandexcloud
     from yandex.cloud.dataproc.v1.cluster_pb2 import Cluster
@@ -115,7 +115,7 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
             self.assertEqual(result.error.code, 0)
 
     @patch('yandexcloud.SDK.client')
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
     def test_create_dataproc_cluster_mocked(self, wait_for_operation_mock, client_mock):
         self._init_hook()
         wait_for_operation_mock.return_value.error.code = 0
@@ -135,7 +135,7 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
         self.assertTrue(client_mock.return_value.Create.called)
 
     @patch('yandexcloud.SDK.client')
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
     def test_delete_dataproc_cluster_mocked(self, wait_for_operation_mock, client_mock):
         self._init_hook()
         wait_for_operation_mock.return_value.error.code = 0
@@ -146,7 +146,7 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
         self.assertTrue(client_mock.return_value.Delete.called)
 
     @patch('yandexcloud.SDK.client')
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
     def test_run_hive_job_hook(self, wait_for_operation_mock, client_mock):
         self._init_hook()
         wait_for_operation_mock.return_value.error.code = 0
@@ -164,7 +164,7 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
         self.assertTrue(client_mock.return_value.Create.called)
 
     @patch('yandexcloud.SDK.client')
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
     def test_run_mapreduce_job_hook(self, wait_for_operation_mock, client_mock):
         self._init_hook()
         wait_for_operation_mock.return_value.error.code = 0
@@ -196,7 +196,7 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
         self.assertTrue(client_mock.return_value.Create.called)
 
     @patch('yandexcloud.SDK.client')
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
     def test_run_spark_job_hook(self, wait_for_operation_mock, client_mock):
         self._init_hook()
         wait_for_operation_mock.return_value.error.code = 0
@@ -225,7 +225,7 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
         self.assertTrue(client_mock.return_value.Create.called)
 
     @patch('yandexcloud.SDK.client')
-    @patch('airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
+    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
     def test_run_pyspark_job_hook(self, wait_for_operation_mock, client_mock):
         self._init_hook()
         wait_for_operation_mock.return_value.error.code = 0

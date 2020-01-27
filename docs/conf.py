@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # flake8: noqa
 # Disable Flake8 because of all the sphinx imports
 #
@@ -197,6 +198,7 @@ exclude_patterns: List[str] = [
     "_api/airflow/providers/microsoft/index.rst",
     "_api/airflow/providers/google/index.rst",
     "_api/airflow/providers/apache/index.rst",
+    "_api/airflow/providers/yandex/index.rst",
     "_api/airflow/providers/cncf/index.rst",
     # Utils for internal use
     '_api/airflow/providers/google/cloud/utils',

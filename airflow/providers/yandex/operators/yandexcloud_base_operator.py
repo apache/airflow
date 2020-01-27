@@ -18,7 +18,6 @@
 # under the License.
 #
 
-from airflow.contrib.hooks.yandexcloud_base_hook import YandexCloudBaseHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -27,16 +26,12 @@ class YandexCloudBaseOperator(BaseOperator):
     """The base class for operators that poll on a Dataproc Operation."""
     @apply_defaults
     def __init__(self,
-                 folder_id=None,
                  connection_id='yandexcloud_default',
                  *args,
                  **kwargs):
-        super(YandexCloudBaseOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.connection_id = connection_id
-        self.hook = YandexCloudBaseHook(
-            connection_id=self.connection_id,
-        )
-        self.folder_id = folder_id or self.hook.default_folder_id
+        self.hook = None
 
     def execute(self, context):
         raise NotImplementedError()
