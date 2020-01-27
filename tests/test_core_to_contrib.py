@@ -406,6 +406,10 @@ HOOK = [
         'airflow.providers.jdbc.hooks.jdbc.JdbcHook',
         'airflow.hooks.jdbc_hook.JdbcHook',
     ),
+    (
+        'airflow.providers.sftp.hooks.sftp.SFTPHook',
+        'airflow.contrib.hooks.sftp_hook.SFTPHook',
+    ),
 ]
 
 OPERATOR = [

@@ -17,16 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.providers.sftp.hooks.sftp_hook`.
+This module is deprecated. Please use `airflow.providers.sftp.hooks.sftp`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.sftp.hooks.sftp_hook import SFTPHook  # noqa
+from airflow.providers.sftp.hooks.sftp import SFTPHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.sftp.hooks.sftp_hook`.",
+    "This module is deprecated. Please use `airflow.providers.sftp.hooks.sftp`.",
     DeprecationWarning,
     stacklevel=2,
 )
