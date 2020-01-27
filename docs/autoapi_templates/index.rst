@@ -68,8 +68,6 @@ All operators are in the following packages:
 
   airflow/contrib/operators/index
 
-  airflow/contrib/sensors/index
-
   airflow/gcp/operators/index
 
   airflow/gcp/sensors/index
