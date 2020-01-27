@@ -1479,6 +1479,10 @@ SENSOR = [
         'airflow.providers.imap.sensors.imap_attachment.ImapAttachmentSensor',
         'airflow.contrib.sensors.imap_attachment_sensor.ImapAttachmentSensor',
     ),
+    (
+        'airflow.providers.http.sensors.http.HttpSensor',
+        'airflow.sensors.http_sensor.HttpSensor',
+    ),
 ]
 
 PROTOCOLS = [

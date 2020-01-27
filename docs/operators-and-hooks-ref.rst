@@ -1259,7 +1259,7 @@ communication protocols or interface.
      -
      - :mod:`airflow.providers.http.hooks.http`
      - :mod:`airflow.providers.http.operators.http`
-     - :mod:`airflow.sensors.http_sensor`
+     - :mod:`airflow.providers.http.sensors.http`
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
      -
