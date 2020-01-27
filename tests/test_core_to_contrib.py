@@ -1277,6 +1277,10 @@ OPERATOR = [
         'airflow.providers.email.operators.email.EmailOperator',
         'airflow.operators.email_operator.EmailOperator',
     ),
+    (
+        'airflow.providers.http.operators.http.SimpleHttpOperator',
+        'airflow.operators.http_operator.SimpleHttpOperator',
+    ),
 ]
 
 SENSOR = [

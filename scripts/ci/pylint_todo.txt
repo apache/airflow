@@ -146,7 +146,7 @@
 ./airflow/operators/generic_transfer.py
 ./airflow/providers/apache/hive/operators/hive.py
 ./airflow/providers/apache/hive/operators/hive_stats.py
-./airflow/operators/http_operator.py
+./airflow/providers/http/operators/http.py
 ./airflow/operators/jdbc_operator.py
 ./airflow/operators/latest_only_operator.py
 ./airflow/providers/microsoft/mssql/operators/mssql.py

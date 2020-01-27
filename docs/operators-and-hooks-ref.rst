@@ -1258,7 +1258,7 @@ communication protocols or interface.
    * - `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
      -
      - :mod:`airflow.providers.http.hooks.http`
-     - :mod:`airflow.operators.http_operator`
+     - :mod:`airflow.providers.http.operators.http`
      - :mod:`airflow.sensors.http_sensor`
 
    * - `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__

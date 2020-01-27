@@ -23,7 +23,7 @@ import mock
 import requests_mock
 
 from airflow.exceptions import AirflowException
-from airflow.operators.http_operator import SimpleHttpOperator
+from airflow.providers.http.operators.http import SimpleHttpOperator
 
 
 @mock.patch.dict('os.environ', AIRFLOW_CONN_HTTP_EXAMPLE='http://www.example.com')
