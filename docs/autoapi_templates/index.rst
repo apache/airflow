@@ -201,8 +201,6 @@ All hooks are in the following packages:
 
   airflow/hooks/index
 
-  airflow/contrib/hooks/index
-
   airflow/gcp/hooks/index
 
   airflow/providers/amazon/aws/hooks/index
