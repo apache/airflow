@@ -1288,7 +1288,7 @@ communication protocols or interface.
    * - `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc821>`__
      -
      -
-     - :mod:`airflow.operators.email_operator`
+     - :mod:`airflow.providers.email.operators.email`
      -
 
    * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal>`__
