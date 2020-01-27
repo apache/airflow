@@ -1289,6 +1289,10 @@ OPERATOR = [
         'airflow.providers.jdbc.operators.jdbc.JdbcOperator',
         'airflow.operators.jdbc_operator.JdbcOperator',
     ),
+    (
+        'airflow.providers.sftp.operators.sftp.SFTPOperator',
+        'airflow.contrib.operators.sftp_operator.SFTPOperator',
+    ),
 ]
 
 SENSOR = [
