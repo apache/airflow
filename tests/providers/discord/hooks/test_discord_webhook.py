@@ -22,7 +22,7 @@ import unittest
 
 from airflow import AirflowException
 from airflow.models import Connection
-from airflow.providers.ddiscord.hooks.discord_webhook import DiscordWebhookHook
+from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.utils import db
 
 
