@@ -16,27 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
-from unittest.mock import patch
-
-from airflow.operators.jdbc_operator import JdbcOperator
-
-
-class TestJdbcOperator(unittest.TestCase):
-
-    def setUp(self):
-        self.kwargs = dict(
-            sql='sql',
-            task_id='test_jdbc_operator',
-            dag=None
-        )
-
-    @patch('airflow.operators.jdbc_operator.JdbcHook')
-    def test_execute(self, mock_jdbc_hook):
-        jdbc_operator = JdbcOperator(**self.kwargs)
-        jdbc_operator.execute(context={})
-
-        mock_jdbc_hook.assert_called_once_with(jdbc_conn_id=jdbc_operator.jdbc_conn_id)
-        mock_jdbc_hook.return_value.run.assert_called_once_with(
-            jdbc_operator.sql, jdbc_operator.autocommit, parameters=jdbc_operator.parameters)

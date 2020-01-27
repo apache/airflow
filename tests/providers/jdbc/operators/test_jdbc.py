@@ -16,14 +16,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.jdbc.operators.jdbc`."""
 
-import warnings
+import unittest
+from unittest.mock import patch
 
-# pylint: disable=unused-import
-from airflow.providers.jdbc.operators.jdbc import JdbcOperator  # noqa
+from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.jdbc.operators.jdbc`.",
-    DeprecationWarning, stacklevel=2
-)
+
+class TestJdbcOperator(unittest.TestCase):
+
+    def setUp(self):
+        self.kwargs = dict(
+            sql='sql',
+            task_id='test_jdbc_operator',
+            dag=None
+        )
+
+    @patch('airflow.providers.jdbc.operators.jdbc.JdbcHook')
+    def test_execute(self, mock_jdbc_hook):
+        jdbc_operator = JdbcOperator(**self.kwargs)
+        jdbc_operator.execute(context={})
+
+        mock_jdbc_hook.assert_called_once_with(jdbc_conn_id=jdbc_operator.jdbc_conn_id)
+        mock_jdbc_hook.return_value.run.assert_called_once_with(
+            jdbc_operator.sql, jdbc_operator.autocommit, parameters=jdbc_operator.parameters)

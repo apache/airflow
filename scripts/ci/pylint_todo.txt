@@ -147,7 +147,7 @@
 ./airflow/providers/apache/hive/operators/hive.py
 ./airflow/providers/apache/hive/operators/hive_stats.py
 ./airflow/providers/http/operators/http.py
-./airflow/operators/jdbc_operator.py
+./airflow/providers/jdbc/operators/jdbc.py
 ./airflow/operators/latest_only_operator.py
 ./airflow/providers/microsoft/mssql/operators/mssql.py
 ./airflow/providers/mssql/operators/mysql.py
