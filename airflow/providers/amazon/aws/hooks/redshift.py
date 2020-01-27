@@ -20,7 +20,7 @@
 Interact with AWS Redshift, using the boto3 library.
 """
 
-from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
 
 
 class RedshiftHook(AwsHook):

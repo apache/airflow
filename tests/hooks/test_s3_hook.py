@@ -209,7 +209,7 @@ class TestS3Hook(unittest.TestCase):
         self.assertEqual(hook.read_key('my_key', 'mybucket'), 'Contént')
 
     # As of 1.3.2, Moto doesn't support select_object_content yet.
-    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
+    @mock.patch('airflow.providers.amazon.aws.hooks.aws_hook.AwsHook.get_client_type')
     def test_select_key(self, mock_get_client_type):
         mock_get_client_type.return_value.select_object_content.return_value = \
             {'Payload': [{'Records': {'Payload': b'Cont\xC3\xA9nt'}}]}

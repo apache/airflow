@@ -410,6 +410,10 @@ HOOK = [
         'airflow.providers.sftp.hooks.sftp.SFTPHook',
         'airflow.contrib.hooks.sftp_hook.SFTPHook',
     ),
+    (
+        'airflow.providers.amazon.aws.hooks.aws_hook.AwsHook',
+        'airflow.contrib.hooks.aws_hook.AwsHook',
+    ),
 ]
 
 OPERATOR = [

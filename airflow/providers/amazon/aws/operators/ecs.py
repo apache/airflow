@@ -23,9 +23,9 @@ from typing import Optional
 
 from typing_extensions import runtime_checkable
 
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.typing_compat import Protocol
 from airflow.utils.decorators import apply_defaults

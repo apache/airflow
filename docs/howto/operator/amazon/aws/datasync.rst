@@ -36,7 +36,7 @@ in action.
  - example_datasync_2.py
 
 Both examples use the :class:`~airflow.providers.amazon.aws.hooks.datasync.AWSDataSyncHook`
-to create a boto3 DataSync client. This hook in turn uses the :class:`~airflow.contrib.hooks.aws_hook.AwsHook`
+to create a boto3 DataSync client. This hook in turn uses the :class:`~airflow.providers.amazon.aws.hooks.aws_hook.AwsHook`
 
 Note this guide differentiates between an *Airflow task* (identified by a task_id on Airflow),
 and an *AWS DataSync Task* (identified by a TaskArn on AWS).
