@@ -57,8 +57,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
             return True
         elif stack_status in ('CREATE_IN_PROGRESS', None):
             return False
-        else:
-            raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
+        raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
 
 
 class CloudFormationDeleteStackSensor(BaseSensorOperator):
@@ -94,5 +93,4 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
             return True
         elif stack_status == 'DELETE_IN_PROGRESS':
             return False
-        else:
-            raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')
+        raise ValueError(f'Stack {self.stack_name} in bad state: {stack_status}')

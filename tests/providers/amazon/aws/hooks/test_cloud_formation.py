@@ -61,6 +61,17 @@ class TestAWSCloudFormationHook(unittest.TestCase):
         self.assertIsNotNone(self.hook.get_conn().describe_stacks())
 
     @mock_cloudformation
+    def test_get_stack_status(self):
+        stack_name = 'my_test_get_stack_status_stack'
+
+        stack_status = self.hook.get_stack_status(stack_name=stack_name)
+        self.assertIsNone(stack_status)
+
+        self.create_stack(stack_name)
+        stack_status = self.hook.get_stack_status(stack_name=stack_name)
+        self.assertEqual(stack_status, 'CREATE_COMPLETE', 'Incorrect stack status returned.')
+
+    @mock_cloudformation
     def test_create_stack(self):
         stack_name = 'my_test_create_stack_stack'
         self.create_stack(stack_name)

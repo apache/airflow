@@ -81,8 +81,7 @@ class AWSCloudFormationHook(AwsHook):
         :type: dict
         """
 
-        if params is None:
-            params = {}
+        params = params or {}
         if 'StackName' not in params:
             params['StackName'] = stack_name
         self.get_conn().delete_stack(**params)
