@@ -261,7 +261,7 @@ class Connection(Base, LoggingMixin):
             from airflow.providers.sqlite.hooks.sqlite import SqliteHook
             return SqliteHook(sqlite_conn_id=self.conn_id)
         elif self.conn_type == 'jdbc':
-            from airflow.hooks.jdbc_hook import JdbcHook
+            from airflow.providers.jdbc.hooks.jdbc import JdbcHook
             return JdbcHook(jdbc_conn_id=self.conn_id)
         elif self.conn_type == 'mssql':
             from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
