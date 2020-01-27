@@ -64,7 +64,7 @@ class AWSCloudFormationHook(AwsHook):
         :param stack_name: stack_name.
         :type stack_name: str
         :param params: parameters to be passed to CloudFormation.
-        :type: dict
+        :type params: dict
         """
 
         if 'StackName' not in params:
