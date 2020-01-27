@@ -1281,6 +1281,10 @@ OPERATOR = [
         'airflow.providers.http.operators.http.SimpleHttpOperator',
         'airflow.operators.http_operator.SimpleHttpOperator',
     ),
+    (
+        'airflow.providers.jdbc.operators.jdbc.JdbcOperator',
+        'airflow.operators.jdbc_operator.JdbcOperator',
+    ),
 ]
 
 SENSOR = [

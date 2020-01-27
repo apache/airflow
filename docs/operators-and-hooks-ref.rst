@@ -1270,7 +1270,7 @@ communication protocols or interface.
    * - `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
      -
      - :mod:`airflow.providers.jdbc.hooks.jdbc`
-     - :mod:`airflow.operators.jdbc_operator`
+     - :mod:`airflow.providers.jdbc.operators.jdbc`
      -
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__

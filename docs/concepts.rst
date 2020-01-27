@@ -272,7 +272,7 @@ Airflow provides operators for many common tasks, including:
   :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`,
   :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`,
   :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`,
-  :class:`~airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
+  :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`, etc. - executes a SQL command
 - ``Sensor`` - an Operator that waits (polls) for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
