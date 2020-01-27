@@ -36,9 +36,9 @@ You can also install Airflow with support for extra features like ``gcp`` or ``p
     pip install 'apache-airflow[postgres,gcp]'
 
 Airflow require that your operating system has ``libffi-dev`` installed.
-    
-If the ``airflow`` command is not getting recognized, then ensure that ``~/.local/bin`` is in your
-``PATH`` environment variable, and add it in if necessary:
+
+If the ``airflow`` command is not getting recognized (can happen on Windows when using WSL), then 
+ensure that ``~/.local/bin`` is in your ``PATH`` environment variable, and add it in if necessary:
 
 .. code-block:: bash
 
