@@ -31,7 +31,6 @@ from typing import Any, Callable, Dict, KeysView, List, NamedTuple, Optional, Tu
 
 import psutil
 from setproctitle import setproctitle  # pylint: disable=no-name-in-module
-from sqlalchemy import or_
 from tabulate import tabulate
 
 import airflow.models
@@ -48,7 +47,6 @@ from airflow.utils.file import list_py_file_paths
 from airflow.utils.helpers import reap_process_group
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
 
 
 class SimpleDag(BaseDag):

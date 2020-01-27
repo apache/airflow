@@ -2114,3 +2114,25 @@
     to identify the task.
     Should be supplied in the format: ``key = value``
   options: []
+- name: heartbeat
+  description: |
+    options for job heartbeat
+  options:
+    - name: redis_enabled
+      description: ~
+      version_added: 2.0
+      type: boolean
+      example: ~
+      default: "false"
+    - name: redis_mget_batch_size
+      description: ~
+      version_added: 2.0
+      type: int
+      example: ~
+      default: "1000"
+    - name: redis_url
+      description: ~
+      version_added: 2.0
+      type: string
+      example: "redis://localhost:6379/0"
+      default: ""

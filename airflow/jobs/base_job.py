@@ -21,12 +21,12 @@ import getpass
 from time import sleep
 from typing import Optional
 
+from redis import Redis
 from sqlalchemy import Column, Index, Integer, String, and_, or_
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm.session import make_transient, Session
-from typing import Optional
-from redis import Redis
+from sqlalchemy.orm.session import make_transient
 
+import airflow
 from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -44,7 +44,6 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
-
 class BaseJob(Base, LoggingMixin):
     """
     Abstract class to be derived for jobs. Jobs are processing items with state
@@ -56,7 +55,7 @@ class BaseJob(Base, LoggingMixin):
     __tablename__ = "job"
 
     id = Column(Integer, primary_key=True)
-    dag_id = Column(String(ID_LEN),)
+    dag_id = Column(String(ID_LEN), )
     state = Column(String(20))
     job_type = Column(String(30))
     start_date = Column(UtcDateTime())
@@ -72,10 +71,11 @@ class BaseJob(Base, LoggingMixin):
         if conf.getboolean('heartbeat', 'redis_enabled'):
             batch_size = conf.getint('heartbeat', 'redis_mget_batch_size')
             ti_job = (
-                session.query(TI, cls)
-                    .join(cls, TI.job_id == cls.id)
-                    .filter(TI.state == State.RUNNING)
-                    .all()
+                session
+                .query(TI, cls)
+                .join(cls, TI.job_id == cls.id)
+                .filter(TI.state == State.RUNNING)
+                .all()
             )
             job_id_to_ti_job = dict([(job.id, (ti, job)) for ti, job in ti_job])
             job_ids = job_id_to_ti_job.keys()
@@ -88,14 +88,15 @@ class BaseJob(Base, LoggingMixin):
             return zombie_tis
         else:
             tis = (
-                session.query(TI)
-                    .join(cls, TI.job_id == cls.id)
-                    .filter(TI.state == State.RUNNING)
-                    .filter(
+                session
+                .query(TI)
+                .join(cls, TI.job_id == cls.id)
+                .filter(TI.state == State.RUNNING)
+                .filter(
                     or_(
                         cls.state != State.RUNNING,
                         cls.latest_heartbeat < limit_dttm,
-                        )
+                    )
                 ).all()
             )
             return [SimpleTaskInstance(ti) for ti in tis]
@@ -116,7 +117,7 @@ class BaseJob(Base, LoggingMixin):
                 redis_result = self.redis.get(str(self.id))
                 return redis_result and timezone.parse(redis_result)
             except Exception:
-                self.log.warn('error heartbeating')
+                self.log.error('error heartbeating')
                 Stats.incr('heartbeat.worker.get.fail')
                 raise
             finally:
@@ -125,9 +126,12 @@ class BaseJob(Base, LoggingMixin):
         @latest_heartbeat.setter
         def latest_heartbeat(self, val):
             try:
-                self.redis.set(str(self.id), str(val), ex=2 * conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
+                self.redis.set(
+                    str(self.id),
+                    str(val),
+                    ex=2 * conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
             except Exception:
-                self.log.warn('failed to heartbeat')
+                self.log.error('failed to heartbeat')
                 Stats.incr('heartbeat.worker.set.fail')
                 raise
             finally:
@@ -160,7 +164,8 @@ class BaseJob(Base, LoggingMixin):
             self,
             executor=None,
             heartrate=None,
-            *args, **kwargs):
+            *args,
+            **kwargs):
         self.hostname = get_hostname()
         self.executor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = executor.__class__.__name__
@@ -263,7 +268,7 @@ class BaseJob(Base, LoggingMixin):
             sleep_for = 0
             if self.latest_heartbeat:
                 seconds_remaining = self.heartrate - \
-                    (timezone.utcnow() - self.latest_heartbeat)\
+                    (timezone.utcnow() - self.latest_heartbeat) \
                     .total_seconds()
                 sleep_for = max(0, seconds_remaining)
             sleep(sleep_for)
