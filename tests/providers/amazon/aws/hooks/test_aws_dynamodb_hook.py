@@ -21,7 +21,7 @@
 import unittest
 import uuid
 
-from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.aws_dynamodb_hook import AwsDynamoDBHook
 
 try:
     from moto import mock_dynamodb2
