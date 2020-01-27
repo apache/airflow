@@ -108,6 +108,10 @@ All operators are in the following packages:
 
   airflow/providers/docker/operators/index
 
+  airflow/providers/email/operators/index
+
+  airflow/providers/ftp/sensors/index
+
   airflow/providers/google/cloud/operators/index
 
   airflow/providers/google/cloud/sensors/index
@@ -115,6 +119,16 @@ All operators are in the following packages:
   airflow/providers/google/marketing_platform/operators/index
 
   airflow/providers/google/marketing_platform/sensors/index
+
+  airflow/providers/grpc/operators/index
+
+  airflow/providers/http/operators/index
+
+  airflow/providers/http/sensors/index
+
+  airflow/providers/imap/sensors/index
+
+  airflow/providers/jdbc/operators/index
 
   airflow/providers/jenking/operators/index
 
@@ -127,6 +141,8 @@ All operators are in the following packages:
   airflow/providers/microsoft/azure/sensors/index
 
   airflow/providers/microsoft/mssql/operators/index
+
+  airflow/providers/microsoft/winrm/operators/index
 
   airflow/providers/mongo/sensors/index
 
@@ -161,6 +177,8 @@ All operators are in the following packages:
   airflow/providers/snowflake/operators/index
 
   airflow/providers/sqlite/operators/index
+
+  airflow/providers/ssh/operators/index
 
   airflow/providers/vertica/operators/index
 
@@ -217,11 +235,21 @@ All hooks are in the following packages:
 
   airflow/providers/docker/hooks/index
 
+  airflow/providers/ftp/hooks/index
+
   airflow/providers/google/cloud/hooks/index
 
   airflow/providers/google/marketing_platform/hooks/index
 
   airflow/providers/google/suite/hooks/index
+
+  airflow/providers/grpc/hooks/index
+
+  airflow/providers/http/hooks/index
+
+  airflow/providers/imap/hooks/index
+
+  airflow/providers/jdbc/hooks/index
 
   airflow/providers/jenking/hooks/index
 
@@ -230,6 +258,8 @@ All hooks are in the following packages:
   airflow/providers/microsoft/azure/hooks/index
 
   airflow/providers/microsoft/mssql/hooks/index
+
+  airflow/providers/microsoft/winrm/hooks/index
 
   airflow/providers/mongo/hooks/index
 
@@ -266,6 +296,8 @@ All hooks are in the following packages:
   airflow/providers/snowflake/hooks/index
 
   airflow/providers/sqlite/hooks/index
+
+  airflow/providers/ssh/hooks/index
 
   airflow/providers/vertica/hooks/index
 
