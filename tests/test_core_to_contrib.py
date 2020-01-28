@@ -1374,6 +1374,10 @@ OPERATOR = [
         '.OracleToAzureDataLakeTransfer',
         'airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeTransfer',
     ),
+    (
+        'airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
+        'airflow.contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
+    ),
 ]
 
 SENSOR = [

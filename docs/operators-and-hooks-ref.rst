@@ -1197,7 +1197,7 @@ These integrations allow you to copy data.
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Oracle <https://www.oracle.com/pl/database/>`__
      -
-     - :mod:`airflow.contrib.operators.oracle_to_oracle_transfer`
+     - :mod:`airflow.providers.oracle.operators.oracle_to_oracle_transfer`
 
    * - `PostgresSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
