@@ -31,7 +31,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 import mock
 
 from airflow.exceptions import AirflowException
-from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
+from airflow.providers.apache.hive.operators.s3_to_hive import S3ToHiveTransfer
 
 try:
     import boto3
@@ -208,7 +208,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
 
     @unittest.skipIf(mock is None, 'mock package not present')
     @unittest.skipIf(mock_s3 is None, 'moto package not present')
-    @mock.patch('airflow.operators.s3_to_hive_operator.HiveCliHook')
+    @mock.patch('airflow.providers.apache.hive.operators.s3_to_hive.HiveCliHook')
     @mock_s3
     def test_execute(self, mock_hiveclihook):
         conn = boto3.client('s3')
@@ -239,7 +239,7 @@ class TestS3ToHiveTransfer(unittest.TestCase):
 
     @unittest.skipIf(mock is None, 'mock package not present')
     @unittest.skipIf(mock_s3 is None, 'moto package not present')
-    @mock.patch('airflow.operators.s3_to_hive_operator.HiveCliHook')
+    @mock.patch('airflow.providers.apache.hive.operators.s3_to_hive.HiveCliHook')
     @mock_s3
     def test_execute_with_select_expression(self, mock_hiveclihook):
         conn = boto3.client('s3')

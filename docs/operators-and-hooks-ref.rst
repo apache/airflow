@@ -157,7 +157,7 @@ Foundation.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.s3_to_hive_operator`
+     - :mod:`airflow.providers.apache.hive.operators.s3_to_hive`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -459,7 +459,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.s3_to_hive_operator`
+     - :mod:`airflow.providers.apache.hive.operators.s3_to_hive`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
