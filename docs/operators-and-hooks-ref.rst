@@ -439,7 +439,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
-     - :mod:`airflow.contrib.operators.dynamodb_to_s3`
+     - :mod:`airflow.providers.amazon.aws.operators.dynamodb_to_s3`
 
    * - `Amazon Redshift <https://aws.amazon.com/redshift/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_

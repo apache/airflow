@@ -1301,6 +1301,10 @@ OPERATOR = [
         'airflow.providers.sftp.operators.sftp.SFTPOperator',
         'airflow.contrib.operators.sftp_operator.SFTPOperator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.dynamodb_to_s3.DynamoDBToS3Operator',
+        'airflow.contrib.operators.dynamodb_to_s3.DynamoDBToS3Operator',
+    ),
 ]
 
 SENSOR = [
