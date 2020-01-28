@@ -858,9 +858,9 @@ These integrations allow you to perform various operations within various servic
 
    * - `Atlassian Jira <https://www.atlassian.com/pl/software/jira>`__
      -
-     - :mod:`airflow.contrib.hooks.jira_hook`
-     - :mod:`airflow.contrib.operators.jira_operator`
-     - :mod:`airflow.contrib.sensors.jira_sensor`
+     - :mod:`airflow.providers.jira.hooks.jira`
+     - :mod:`airflow.providers.jira.operators.jira`
+     - :mod:`airflow.providers.jira.sensors.jira`
 
    * - `Databricks <https://databricks.com/>`__
      -
@@ -1080,7 +1080,7 @@ These integrations allow you to perform various operations using various softwar
 
 
    * - `MySQL <https://www.mysql.com/products/>`__
-     -
+     - :mod:`airflow.providers.mysql.operators.mysql`
      - :mod:`airflow.providers.mysql.hooks.mysql`
      - :mod:`airflow.providers.mssql.operators.mysql`
      -
@@ -1278,7 +1278,7 @@ communication protocols or interface.
      -
      - :mod:`airflow.providers.sftp.hooks.sftp`
      - :mod:`airflow.providers.sftp.operators.sftp`
-     - :mod:`airflow.providers.sftp.sensors.sftp_sensor`
+     - :mod:`airflow.providers.sftp.sensors.sftp`
 
    * - `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
      -

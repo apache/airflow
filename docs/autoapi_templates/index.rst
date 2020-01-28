@@ -66,8 +66,6 @@ All operators are in the following packages:
 
   airflow/sensors/index
 
-  airflow/contrib/operators/index
-
   airflow/gcp/operators/index
 
   airflow/gcp/sensors/index
@@ -117,6 +115,8 @@ All operators are in the following packages:
   airflow/providers/google/marketing_platform/operators/index
 
   airflow/providers/google/marketing_platform/sensors/index
+
+  airflow/providers/google/suite/operators/index
 
   airflow/providers/grpc/operators/index
 

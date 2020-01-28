@@ -541,13 +541,10 @@ autoapi_template_dir = 'autoapi_templates'
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
-    # These modules are backcompat shims, don't build docs for them
-    '*/airflow/contrib/operators/s3_to_gcs_transfer_operator.py',
-    '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
-    '*/airflow/contrib/operators/gcs_to_gcs_transfer_operator.py',
     '*/airflow/kubernetes/kubernetes_request_factory/*',
     '*/airflow/contrib/sensors/*',
     '*/airflow/contrib/hooks/*',
+    '*/airflow/contrib/operators/*',
 
     '*/node_modules/*',
     '*/migrations/*',
