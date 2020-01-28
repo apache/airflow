@@ -43,6 +43,7 @@
     "eslint-plugin-promise": "^3.8.0",
     "eslint-plugin-standard": "^3.1.0",
     "file-loader": "^1.1.11",
+    "handlebars": "^4.5.3",
     "imports-loader": "^0.8.0",
     "jquery": ">=3.4.0",
     "js-yaml": ">=3.13.1",
