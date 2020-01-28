@@ -167,7 +167,7 @@ Foundation.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
+     - :mod:`airflow.providers.amazon.aws.operators.hive_to_dynamodb`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Apache Druid <https://druid.apache.org/>`__
@@ -475,7 +475,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.contrib.operators.hive_to_dynamodb`
+     - :mod:`airflow.providers.amazon.aws.operators.hive_to_dynamodb`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__

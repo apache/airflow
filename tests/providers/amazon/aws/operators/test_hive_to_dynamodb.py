@@ -25,7 +25,7 @@ from unittest import mock
 
 import pandas as pd
 
-import airflow.contrib.operators.hive_to_dynamodb
+import airflow.providers.amazon.aws.operators.hive_to_dynamodb
 from airflow import DAG
 from airflow.providers.amazon.aws.hooks.aws_dynamodb_hook import AwsDynamoDBHook
 
@@ -85,7 +85,7 @@ class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
             }
         )
 
-        operator = airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator(
+        operator = airflow.providers.amazon.aws.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator(
             sql=self.sql,
             table_name="test_airflow",
             task_id='hive_to_dynamodb_check',
@@ -125,7 +125,7 @@ class TestHiveToDynamoDBTransferOperator(unittest.TestCase):
             }
         )
 
-        operator = airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator(
+        operator = airflow.providers.amazon.aws.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator(
             sql=self.sql,
             table_name='test_airflow',
             task_id='hive_to_dynamodb_check',

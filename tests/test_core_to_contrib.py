@@ -1305,6 +1305,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.dynamodb_to_s3.DynamoDBToS3Operator',
         'airflow.contrib.operators.dynamodb_to_s3.DynamoDBToS3Operator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator',
+        'airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator',
+    ),
 ]
 
 SENSOR = [
