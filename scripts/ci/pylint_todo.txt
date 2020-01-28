@@ -45,7 +45,7 @@
 ./airflow/providers/jira/operators/jira.py
 ./airflow/providers/amazon/aws/operators/mongo_to_s3.py
 ./airflow/providers/opsgenie/operators/opsgenie_alert.py
-./airflow/contrib/operators/oracle_to_azure_data_lake_transfer.py
+./airflow/providers/microsoft/azure/operators/oracle_to_azure_data_lake_transfer.py
 ./airflow/contrib/operators/oracle_to_oracle_transfer.py
 ./airflow/providers/qubole/operators/qubole_check.py
 ./airflow/providers/redis/operators/redis_publish.py

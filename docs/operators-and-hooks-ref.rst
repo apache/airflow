@@ -274,7 +274,7 @@ These integrations allow you to copy data from/to Microsoft Azure.
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      -
-     - :mod:`airflow.contrib.operators.oracle_to_azure_data_lake_transfer`
+     - :mod:`airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer`
 
 
 .. _AWS:
@@ -1192,7 +1192,7 @@ These integrations allow you to copy data.
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
      -
-     - :mod:`airflow.contrib.operators.oracle_to_azure_data_lake_transfer`
+     - :mod:`airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer`
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Oracle <https://www.oracle.com/pl/database/>`__

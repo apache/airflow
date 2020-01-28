@@ -25,12 +25,14 @@ import mock
 import unicodecsv as csv
 from mock import MagicMock
 
-from airflow.contrib.operators.oracle_to_azure_data_lake_transfer import OracleToAzureDataLakeTransfer
+from airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer import (
+    OracleToAzureDataLakeTransfer,
+)
 
 
 class TestOracleToAzureDataLakeTransfer(unittest.TestCase):
 
-    mock_module_path = 'airflow.contrib.operators.oracle_to_azure_data_lake_transfer'
+    mock_module_path = 'airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer'
 
     def test_write_temp_file(self):
         task_id = "some_test_id"

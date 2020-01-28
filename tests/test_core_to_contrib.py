@@ -1369,6 +1369,11 @@ OPERATOR = [
         'airflow.providers.google.suite.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator',
         'airflow.contrib.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator',
     ),
+    (
+        'airflow.providers.microsoft.azure.operators.oracle_to_azure_data_lake_transfer'
+        '.OracleToAzureDataLakeTransfer',
+        'airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeTransfer',
+    ),
 ]
 
 SENSOR = [
