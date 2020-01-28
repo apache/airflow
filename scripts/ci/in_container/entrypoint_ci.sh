@@ -201,6 +201,7 @@ if [[ "${TRAVIS}" == "true" ]]; then
         "--cov=airflow/"
         "--cov-config=.coveragerc"
         "--cov-report=html:airflow/www/static/coverage/"
+        "--maxfail=50"
         "--pythonwarnings=ignore::DeprecationWarning"
         "--pythonwarnings=ignore::PendingDeprecationWarning"
         )
