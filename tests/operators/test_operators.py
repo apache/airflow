@@ -356,7 +356,7 @@ class TestTransfer(unittest.TestCase):
             end_date=timezone.utcnow())
 
     def test_mysql_to_hive(self):
-        from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
+        from airflow.providers.apache.hive.operators.mysql_to_hive import MySqlToHiveTransfer
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         op = MySqlToHiveTransfer(
             task_id='test_m2h',
@@ -369,7 +369,7 @@ class TestTransfer(unittest.TestCase):
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_mysql_to_hive_partition(self):
-        from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
+        from airflow.providers.apache.hive.operators.mysql_to_hive import MySqlToHiveTransfer
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         op = MySqlToHiveTransfer(
             task_id='test_m2h',
@@ -384,7 +384,7 @@ class TestTransfer(unittest.TestCase):
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_mysql_to_hive_tblproperties(self):
-        from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
+        from airflow.providers.apache.hive.operators.mysql_to_hive import MySqlToHiveTransfer
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         op = MySqlToHiveTransfer(
             task_id='test_m2h',
@@ -418,7 +418,7 @@ class TestTransfer(unittest.TestCase):
                     )
                 """.format(mysql_table))
 
-            from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
+            from airflow.providers.apache.hive.operators.mysql_to_hive import MySqlToHiveTransfer
             op = MySqlToHiveTransfer(
                 task_id='test_m2h',
                 hive_cli_conn_id='hive_cli_default',
@@ -466,7 +466,7 @@ class TestTransfer(unittest.TestCase):
                     )
                 """.format(mysql_table, *db_record))
 
-            from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
+            from airflow.providers.apache.hive.operators.mysql_to_hive import MySqlToHiveTransfer
             import unicodecsv as csv
             op = MySqlToHiveTransfer(
                 task_id='test_m2h',
@@ -532,7 +532,7 @@ class TestTransfer(unittest.TestCase):
                     )
                 """.format(mysql_table, *minmax))
 
-            from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
+            from airflow.providers.apache.hive.operators.mysql_to_hive import MySqlToHiveTransfer
             op = MySqlToHiveTransfer(
                 task_id='test_m2h',
                 hive_cli_conn_id='hive_cli_default',

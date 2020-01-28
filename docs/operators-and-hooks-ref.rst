@@ -192,7 +192,7 @@ Foundation.
    * - `MySQL <https://www.mysql.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.mysql_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.mysql_to_hive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
@@ -1182,7 +1182,7 @@ These integrations allow you to copy data.
    * - `MySQL <https://www.mysql.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.mysql_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.mysql_to_hive`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
