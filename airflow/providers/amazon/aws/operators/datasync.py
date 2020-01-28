@@ -288,23 +288,28 @@ class AWSDataSyncOperator(BaseOperator):
         self.source_location_arn = self.choose_location(
             self.candidate_source_location_arns
         )
-        if not self.source_location_arn:
+        if not self.source_location_arn and self.create_source_location_kwargs:
+            self.log.info('Attempting to create source Location')
             self.source_location_arn = hook.create_location(
                 self.source_location_uri, **self.create_source_location_kwargs
             )
         if not self.source_location_arn:
-            raise AirflowException("Unable to determine source_location_arn")
+            raise AirflowException(
+                "Unable to determine source LocationArn."
+                " Does a suitable DataSync Location exist?")
 
         self.destination_location_arn = self.choose_location(
             self.candidate_destination_location_arns
         )
-        if not self.destination_location_arn:
+        if not self.destination_location_arn and self.create_destination_location_kwargs:
+            self.log.info('Attempting to create destination Location')
             self.destination_location_arn = hook.create_location(
                 self.destination_location_uri, **self.create_destination_location_kwargs
             )
         if not self.destination_location_arn:
             raise AirflowException(
-                "Unable to determine destination_location_arn")
+                "Unable to determine destination LocationArn."
+                " Does a suitable DataSync Location exist?")
 
         self.log.info("Creating a Task.")
         self.task_arn = hook.create_task(
