@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.contrib.operators.s3_to_gcs_operator import S3ToGCSOperator
+from airflow.providers.google.cloud.operators.s3_to_gcs import S3ToGCSOperator
 
 TASK_ID = 'test-s3-gcs-operator'
 S3_BUCKET = 'test-bucket'
@@ -52,10 +52,10 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(operator.gcp_conn_id, GCS_CONN_ID)
         self.assertEqual(operator.dest_gcs, GCS_PATH_PREFIX)
 
-    @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
+    @mock.patch('airflow.providers.google.cloud.operators.s3_to_gcs.S3Hook')
     @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
     @mock.patch(
-        'airflow.contrib.operators.s3_to_gcs_operator.GCSHook')
+        'airflow.providers.google.cloud.operators.s3_to_gcs.GCSHook')
     def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 
@@ -87,10 +87,10 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
         # we expect MOCK_FILES to be uploaded
         self.assertEqual(sorted(MOCK_FILES), sorted(uploaded_files))
 
-    @mock.patch('airflow.contrib.operators.s3_to_gcs_operator.S3Hook')
+    @mock.patch('airflow.providers.google.cloud.operators.s3_to_gcs.S3Hook')
     @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
     @mock.patch(
-        'airflow.contrib.operators.s3_to_gcs_operator.GCSHook')
+        'airflow.providers.google.cloud.operators.s3_to_gcs.GCSHook')
     def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
         """Test the execute function when the run is successful."""
 

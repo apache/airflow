@@ -1378,6 +1378,10 @@ OPERATOR = [
         'airflow.providers.oracle.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
         'airflow.contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer',
     ),
+    (
+        'airflow.providers.google.cloud.operators.s3_to_gcs.S3ToGCSOperator',
+        'airflow.contrib.operators.s3_to_gcs_operator.S3ToGCSOperator',
+    ),
 ]
 
 SENSOR = [
