@@ -20,7 +20,7 @@
 import unittest
 from unittest.mock import patch
 
-from airflow.contrib.operators.imap_attachment_to_s3_operator import ImapAttachmentToS3Operator
+from airflow.providers.amazon.aws.operators.imap_attachment_to_s3 import ImapAttachmentToS3Operator
 
 
 class TestImapAttachmentToS3Operator(unittest.TestCase):
@@ -37,8 +37,8 @@ class TestImapAttachmentToS3Operator(unittest.TestCase):
             dag=None
         )
 
-    @patch('airflow.contrib.operators.imap_attachment_to_s3_operator.S3Hook')
-    @patch('airflow.contrib.operators.imap_attachment_to_s3_operator.ImapHook')
+    @patch('airflow.providers.amazon.aws.operators.imap_attachment_to_s3.S3Hook')
+    @patch('airflow.providers.amazon.aws.operators.imap_attachment_to_s3.ImapHook')
     def test_execute(self, mock_imap_hook, mock_s3_hook):
         mock_imap_hook.return_value.__enter__ = mock_imap_hook
         mock_imap_hook.return_value.retrieve_mail_attachments.return_value = [('test_file', b'Hello World')]
