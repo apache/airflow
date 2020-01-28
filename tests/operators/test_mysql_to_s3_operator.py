@@ -29,13 +29,13 @@ class TestMySqlToS3Operator(unittest.TestCase):
 
     @mock.patch("airflow.operators.mysql_to_s3_operator.MySqlHook")
     @mock.patch("airflow.operators.mysql_to_s3_operator.S3Hook")
-    def test_execute(mock_s3_hook, mock_mysql_hook):
+    def test_execute(self, mock_s3_hook, mock_mysql_hook):
         query = "query"
         s3_bucket = "bucket"
-        s3_key = "key"       
+        s3_key = "key"
         test_df = pd.DataFrame({'a': '1', 'b': '2'}, index=[0, 1])
         get_pandas_df_mock = mock_mysql_hook.return_value.get_pandas_df
-        get_pandas_df_mock.return_value = test_df  
+        get_pandas_df_mock.return_value = test_df
         op = MySQLToS3Operator(query=query,
                                s3_bucket=s3_bucket,
                                s3_key=s3_key,
@@ -46,7 +46,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
                                index=False,
                                dag=None
                                )
-        op.execute(None)    
+        op.execute(None)
         mock_mysql_hook.assert_called_once_with(mysql_conn_id="mysql_default")
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_default", verify=None)
         
