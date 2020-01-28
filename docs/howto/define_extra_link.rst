@@ -66,7 +66,7 @@ You can also add (or override) an extra link to an existing operators
 through an Airflow plugin.
 
 For example, the following Airflow plugin will add an Operator Link on all
-tasks using :class:`~airflow.operators.gcs_to_s3.GCSToS3Operator` operator.
+tasks using :class:`~airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator` operator.
 
 **Adding Operator Links to Existing Operators**
 ``plugins/extra_link.py``:
@@ -75,7 +75,7 @@ tasks using :class:`~airflow.operators.gcs_to_s3.GCSToS3Operator` operator.
 
   from airflow.plugins_manager import AirflowPlugin
   from airflow.models.baseoperator import BaseOperatorLink
-  from airflow.operators.gcs_to_s3 import GCSToS3Operator
+  from airflow.providers.amazon.aws.operators.gcs_to_s3 import GCSToS3Operator
 
   class S3LogLink(BaseOperatorLink):
       name = 'S3'

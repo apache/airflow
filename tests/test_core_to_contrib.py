@@ -841,7 +841,7 @@ OPERATOR = [
         "airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.operators.gcs_to_s3.GCSToS3Operator",
+        "airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator",
         "airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator",
     ),
     (
@@ -1324,6 +1324,10 @@ OPERATOR = [
     (
         'airflow.providers.amazon.aws.operators.sftp_to_s3.SFTPToS3Operator',
         'airflow.contrib.operators.sftp_to_s3_operator.SFTPToS3Operator',
+    ),
+    (
+        'airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator',
+        'airflow.operators.gcs_to_s3.GCSToS3Operator',
     ),
 ]
 
