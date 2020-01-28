@@ -33,7 +33,7 @@
     "babel-plugin-css-modules-transform": "^1.6.1",
     "babel-polyfill": "^6.26.0",
     "clean-webpack-plugin": "^0.1.19",
-    "copy-webpack-plugin": "^4.5.2",
+    "copy-webpack-plugin": "^5.1.1",
     "css-loader": "^0.28.11",
     "eslint": "^4.19.1",
     "eslint-config-airbnb-base": "^13.0.0",
