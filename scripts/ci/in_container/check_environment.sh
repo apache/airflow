@@ -177,7 +177,7 @@ if [[ -n ${BACKEND:=} ]]; then
     MAX_CHECK=3
     while true
     do
-        AIRFLOW__CORE__LOGGING_LEVEL=error airflow db check
+        AIRFLOW__LOGGING__LOGGING_LEVEL=error airflow db check
         RES=$?
         if [[ ${RES} == 0 ]]; then
             break
