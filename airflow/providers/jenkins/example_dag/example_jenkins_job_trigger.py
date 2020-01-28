@@ -16,8 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
+from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.contrib.operators.jenkins_job_trigger_operator import JenkinsJobTriggerOperator
@@ -25,9 +24,6 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.contrib.hooks.jenkins_hook import JenkinsHook
 
 from six.moves.urllib.request import Request
-
-import jenkins
-import datetime
 
 
 datetime_start_date = datetime(2017, 6, 1)
@@ -43,22 +39,20 @@ default_args = {
 }
 
 
-with DAG("test_jenkins",
-         dag_id=default_args=default_args,
-         schedule_interval=None
-        ) as dag:
-    #This DAG shouldn't be executed and is only here to provide example of how to use the JenkinsJobTriggerOperator
-    #(it requires a jenkins server to be executed)
-
+with DAG(
+    "test_jenkins",
+    default_args=default_args,
+    schedule_interval=None
+) as dag:
     job_trigger = JenkinsJobTriggerOperator(
         task_id="trigger_job",
         job_name="generate-merlin-config",
-        parameters={"first_parameter":"a_value", "second_parameter":"18"},
-        #parameters="resources/paremeter.json", You can also pass a path to a json file containing your param
-        jenkins_connection_id="your_jenkins_connection" #The connection must be configured first
-        )
+        parameters={"first_parameter": "a_value", "second_parameter": "18"},
+        # parameters="resources/paremeter.json", You can also pass a path to a json file containing your param
+        jenkins_connection_id="your_jenkins_connection"  # T he connection must be configured first
+    )
 
-    def grabArtifactFromJenkins(**context):
+    def grab_artifact_from_jenkins(**context):
         """
         Grab an artifact from the previous job
         The python-jenkins library doesn't expose a method for that
@@ -67,17 +61,17 @@ with DAG("test_jenkins",
         hook = JenkinsHook("your_jenkins_connection")
         jenkins_server = hook.get_jenkins_server()
         url = context['task_instance'].xcom_pull(task_ids='trigger_job')
-        #The JenkinsJobTriggerOperator store the job url in the xcom variable corresponding to the task
-        #You can then use it to access things or to get the job number
-        #This url looks like : http://jenkins_url/job/job_name/job_number/
-        url = url + "artifact/myartifact.xml" #Or any other artifact name
+        # The JenkinsJobTriggerOperator store the job url in the xcom variable corresponding to the task
+        # You can then use it to access things or to get the job number
+        # This url looks like : http://jenkins_url/job/job_name/job_number/
+        url = url + "artifact/myartifact.xml"  # Or any other artifact name
         request = Request(url)
         response = jenkins_server.jenkins_open(request)
-        return response #We store the artifact content in a xcom variable for later use
+        return response  # We store the artifact content in a xcom variable for later use
 
     artifact_grabber = PythonOperator(
         task_id='artifact_grabber',
-        python_callable=grabArtifactFromJenkins
+        python_callable=grab_artifact_from_jenkins
     )
 
     job_trigger >> artifact_grabber

@@ -20,7 +20,7 @@
 Example DAG using GoogleCloudStorageToBigQueryOperator.
 """
 from airflow import models
-from airflow.operators import bash_operator
+from airflow.operators.bash import BashOperator
 from airflow.operators.gcs_to_bq import GCSToBigQueryOperator
 from airflow.utils.dates import days_ago
 
@@ -33,7 +33,7 @@ dag = models.DAG(
     dag_id='example_gcs_to_bq_operator', default_args=args,
     schedule_interval=None, tags=['example'])
 
-create_test_dataset = bash_operator.BashOperator(
+create_test_dataset = BashOperator(
     task_id='create_airflow_test_dataset',
     bash_command='bq mk airflow_test',
     dag=dag)
@@ -52,7 +52,7 @@ load_csv = GCSToBigQueryOperator(
     dag=dag)
 # [END howto_operator_gcs_to_bq]
 
-delete_test_dataset = bash_operator.BashOperator(
+delete_test_dataset = BashOperator(
     task_id='delete_airflow_test_dataset',
     bash_command='bq rm -rf airflow_test',
     dag=dag)

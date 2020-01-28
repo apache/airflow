@@ -53,7 +53,7 @@ Example DAG
 Use the :class:`~airflow.contrib.operators.papermill_operator.PapermillOperator`
 to execute a jupyter notebook:
 
-.. exampleinclude:: ../../../airflow/contrib/example_dags/example_papermill_operator.py
+.. exampleinclude:: ../../../airflow/providers/papermill/example_dags/example_papermill.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_papermill]

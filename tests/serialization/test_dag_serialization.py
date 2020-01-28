@@ -156,7 +156,6 @@ def collect_dags():
     dags.update(make_simple_dag())
     dags.update(make_user_defined_macro_filter_dag())
     dags.update(make_example_dags(example_dags))
-    dags.update(make_example_dags(contrib_example_dags))
     dags.update(make_example_dags(gcp_example_dags))
 
     # Filter subdags as they are stored in same row in Serialized Dag table
