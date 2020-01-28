@@ -197,7 +197,7 @@ Foundation.
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.vertica_to_hive`
 
 .. _Azure:
 
@@ -1007,7 +1007,7 @@ These integrations allow you to perform various operations within various servic
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.vertica_to_hive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `MySQL <https://www.mysql.com/>`__
@@ -1217,7 +1217,7 @@ These integrations allow you to copy data.
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.vertica_to_hive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `MySQL <https://www.mysql.com/>`__

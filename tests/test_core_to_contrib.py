@@ -1341,6 +1341,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransfer',
         'airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer',
     ),
+    (
+        'airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransfer',
+        'airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer',
+    ),
 ]
 
 SENSOR = [
