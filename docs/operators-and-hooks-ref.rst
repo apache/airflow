@@ -177,7 +177,7 @@ Foundation.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.operators.hive_to_mysql`
+     - :mod:`airflow.providers.apache.hive.operators.hive_to_mysql`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Samba <https://www.samba.org/>`__

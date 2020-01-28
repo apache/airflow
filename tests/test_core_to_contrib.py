@@ -1349,6 +1349,10 @@ OPERATOR = [
         'airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransfer',
         'airflow.operators.hive_to_druid.HiveToDruidTransfer',
     ),
+    (
+        'airflow.providers.apache.hive.operators.hive_to_mysql.HiveToMySqlTransfer',
+        'airflow.operators.hive_to_mysql.HiveToMySqlTransfer',
+    ),
 ]
 
 SENSOR = [

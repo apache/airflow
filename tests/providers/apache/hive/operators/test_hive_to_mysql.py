@@ -20,7 +20,7 @@
 import unittest
 from unittest.mock import PropertyMock, patch
 
-from airflow.operators.hive_to_mysql import HiveToMySqlTransfer
+from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -36,8 +36,8 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
             dag=None
         )
 
-    @patch('airflow.operators.hive_to_mysql.MySqlHook')
-    @patch('airflow.operators.hive_to_mysql.HiveServer2Hook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.HiveServer2Hook')
     def test_execute(self, mock_hive_hook, mock_mysql_hook):
         HiveToMySqlTransfer(**self.kwargs).execute(context={})
 
@@ -49,8 +49,8 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
             rows=mock_hive_hook.return_value.get_records.return_value
         )
 
-    @patch('airflow.operators.hive_to_mysql.MySqlHook')
-    @patch('airflow.operators.hive_to_mysql.HiveServer2Hook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.HiveServer2Hook')
     def test_execute_mysql_preoperator(self, mock_hive_hook, mock_mysql_hook):
         self.kwargs.update(dict(mysql_preoperator='preoperator'))
 
@@ -58,8 +58,8 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
 
         mock_mysql_hook.return_value.run.assert_called_once_with(self.kwargs['mysql_preoperator'])
 
-    @patch('airflow.operators.hive_to_mysql.MySqlHook')
-    @patch('airflow.operators.hive_to_mysql.HiveServer2Hook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.HiveServer2Hook')
     def test_execute_with_mysql_postoperator(self, mock_hive_hook, mock_mysql_hook):
         self.kwargs.update(dict(mysql_postoperator='postoperator'))
 
@@ -67,9 +67,9 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
 
         mock_mysql_hook.return_value.run.assert_called_once_with(self.kwargs['mysql_postoperator'])
 
-    @patch('airflow.operators.hive_to_mysql.MySqlHook')
-    @patch('airflow.operators.hive_to_mysql.NamedTemporaryFile')
-    @patch('airflow.operators.hive_to_mysql.HiveServer2Hook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.NamedTemporaryFile')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.HiveServer2Hook')
     def test_execute_bulk_load(self, mock_hive_hook, mock_tmp_file, mock_mysql_hook):
         type(mock_tmp_file).name = PropertyMock(return_value='tmp_file')
         context = {}
@@ -92,8 +92,8 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
         )
         mock_tmp_file.return_value.close.assert_called_once_with()
 
-    @patch('airflow.operators.hive_to_mysql.MySqlHook')
-    @patch('airflow.operators.hive_to_mysql.HiveServer2Hook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.MySqlHook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_mysql.HiveServer2Hook')
     def test_execute_with_hive_conf(self, mock_hive_hook, mock_mysql_hook):
         context = {}
         self.kwargs.update(dict(hive_conf={'mapreduce.job.queuename': 'fake_queue'}))
