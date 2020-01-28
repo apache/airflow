@@ -1365,6 +1365,10 @@ OPERATOR = [
         'airflow.providers.microsoft.azure.operators.file_to_wasb.FileToWasbOperator',
         'airflow.contrib.operators.file_to_wasb.FileToWasbOperator',
     ),
+    (
+        'airflow.providers.google.suite.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator',
+        'airflow.contrib.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator',
+    ),
 ]
 
 SENSOR = [
