@@ -24,7 +24,7 @@ import requests
 import requests_mock
 
 from airflow import DAG
-from airflow.operators.hive_to_druid import HiveToDruidTransfer
+from airflow.providers.apache.druid.operators.hive_to_druid import HiveToDruidTransfer
 
 
 class TestDruidHook(unittest.TestCase):

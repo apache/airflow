@@ -1345,6 +1345,10 @@ OPERATOR = [
         'airflow.providers.apache.hive.operators.vertica_to_hive.VerticaToHiveTransfer',
         'airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer',
     ),
+    (
+        'airflow.providers.apache.druid.operators.hive_to_druid.HiveToDruidTransfer',
+        'airflow.operators.hive_to_druid.HiveToDruidTransfer',
+    ),
 ]
 
 SENSOR = [

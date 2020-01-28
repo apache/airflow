@@ -172,7 +172,7 @@ Foundation.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Apache Druid <https://druid.apache.org/>`__
      -
-     - :mod:`airflow.operators.hive_to_druid`
+     - :mod:`airflow.providers.apache.druid.operators.hive_to_druid`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `MySQL <https://www.mysql.com/>`__
