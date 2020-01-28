@@ -1382,6 +1382,10 @@ OPERATOR = [
         'airflow.providers.google.cloud.operators.s3_to_gcs.S3ToGCSOperator',
         'airflow.contrib.operators.s3_to_gcs_operator.S3ToGCSOperator',
     ),
+    (
+        'airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransfer',
+        'airflow.contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer',
+    ),
 ]
 
 SENSOR = [

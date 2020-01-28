@@ -1012,7 +1012,7 @@ These integrations allow you to perform various operations within various servic
    * - `Vertica <https://www.vertica.com/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_mysql`
+     - :mod:`airflow.providers.mysql.operators.vertica_to_mysql`
 
 .. _software:
 
@@ -1222,7 +1222,7 @@ These integrations allow you to copy data.
    * - `Vertica <https://www.vertica.com/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.contrib.operators.vertica_to_mysql`
+     - :mod:`airflow.providers.mysql.operators.vertica_to_mysql`
 
 .. _protocol:
 

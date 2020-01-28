@@ -22,7 +22,7 @@ import unittest
 from unittest import mock
 
 from airflow import DAG
-from airflow.contrib.operators.vertica_to_mysql import VerticaToMySqlTransfer
+from airflow.providers.mysql.operators.vertica_to_mysql import VerticaToMySqlTransfer
 
 
 def mock_get_conn():
@@ -49,9 +49,12 @@ class TestVerticaToMySqlTransfer(unittest.TestCase):
         }
         self.dag = DAG('test_dag_id', default_args=args)
 
-    @mock.patch('airflow.contrib.operators.vertica_to_mysql.VerticaHook.get_conn', side_effect=mock_get_conn)
-    @mock.patch('airflow.contrib.operators.vertica_to_mysql.MySqlHook.get_conn', side_effect=mock_get_conn)
-    @mock.patch('airflow.contrib.operators.vertica_to_mysql.MySqlHook.insert_rows', return_value=True)
+    @mock.patch(
+        'airflow.providers.mysql.operators.vertica_to_mysql.VerticaHook.get_conn', side_effect=mock_get_conn)
+    @mock.patch(
+        'airflow.providers.mysql.operators.vertica_to_mysql.MySqlHook.get_conn', side_effect=mock_get_conn)
+    @mock.patch(
+        'airflow.providers.mysql.operators.vertica_to_mysql.MySqlHook.insert_rows', return_value=True)
     def test_select_insert_transfer(self, *args):
         """
         Test check selection from vertica into memory and
@@ -67,8 +70,10 @@ class TestVerticaToMySqlTransfer(unittest.TestCase):
                                       dag=self.dag)
         task.execute(None)
 
-    @mock.patch('airflow.contrib.operators.vertica_to_mysql.VerticaHook.get_conn', side_effect=mock_get_conn)
-    @mock.patch('airflow.contrib.operators.vertica_to_mysql.MySqlHook.get_conn', side_effect=mock_get_conn)
+    @mock.patch(
+        'airflow.providers.mysql.operators.vertica_to_mysql.VerticaHook.get_conn', side_effect=mock_get_conn)
+    @mock.patch(
+        'airflow.providers.mysql.operators.vertica_to_mysql.MySqlHook.get_conn', side_effect=mock_get_conn)
     def test_select_bulk_insert_transfer(self, *args):
         """
         Test check selection from vertica into temporary file and
