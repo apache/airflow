@@ -25,6 +25,7 @@ services:
     depends_on:
       - postgres
   postgres:
+    init: true
     image: postgres:9.6
     environment:
       - POSTGRES_USER=postgres

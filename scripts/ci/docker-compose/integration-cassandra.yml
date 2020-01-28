@@ -18,6 +18,7 @@
 version: "2.2"
 services:
   cassandra:
+    init: true
     image: cassandra:3.0
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source

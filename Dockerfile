@@ -405,6 +405,6 @@ ENV PATH="${HOME}:${PATH}"
 
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 CMD ["--help"]
