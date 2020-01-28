@@ -2130,7 +2130,7 @@ class TestDagRunModelView(TestBase):
             "state": "running",
             "dag_id": "example_bash_operator",
             "execution_date": "2018-07-06 05:04:03",
-            "run_id": "manual_abc",
+            "run_id": "test_create_dagrun",
         }
         resp = self.client.post('/dagrun/add',
                                 data=data,
@@ -2140,6 +2140,39 @@ class TestDagRunModelView(TestBase):
         dr = self.session.query(models.DagRun).one()
 
         self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 4, 3)))
+
+    def test_create_dagrun_valid_conf(self):
+        conf_value = dict(Valid=True)
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:05:03",
+            "run_id": "test_create_dagrun_valid_conf",
+            "conf": json.dumps(conf_value)
+        }
+
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+        dr = self.session.query(models.DagRun).one()
+        self.assertEqual(dr.conf, conf_value)
+
+    def test_create_dagrun_invalid_conf(self):
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:06:03",
+            "run_id": "test_create_dagrun_invalid_conf",
+            "conf": "INVALID: [JSON"
+        }
+
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('JSON Validation Error:', resp)
+        dr = self.session.query(models.DagRun).all()
+        self.assertFalse(dr)
 
 
 class TestDecorators(TestBase):
