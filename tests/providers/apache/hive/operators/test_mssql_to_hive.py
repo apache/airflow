@@ -21,7 +21,7 @@ import unittest
 from collections import OrderedDict
 from unittest.mock import Mock, PropertyMock, patch
 
-from airflow.operators.mssql_to_hive import MsSqlToHiveTransfer
+from airflow.providers.apache.hive.operators.mssql_to_hive import MsSqlToHiveTransfer
 
 try:
     import pymssql
@@ -64,10 +64,10 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
 
         self.assertEqual(mapped_type, 'STRING')
 
-    @patch('airflow.operators.mssql_to_hive.csv')
-    @patch('airflow.operators.mssql_to_hive.NamedTemporaryFile')
-    @patch('airflow.operators.mssql_to_hive.MsSqlHook')
-    @patch('airflow.operators.mssql_to_hive.HiveCliHook')
+    @patch('airflow.providers.apache.hive.operators.mssql_to_hive.csv')
+    @patch('airflow.providers.apache.hive.operators.mssql_to_hive.NamedTemporaryFile')
+    @patch('airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlHook')
+    @patch('airflow.providers.apache.hive.operators.mssql_to_hive.HiveCliHook')
     def test_execute(self, mock_hive_hook, mock_mssql_hook, mock_tmp_file, mock_csv):
         type(mock_tmp_file).name = PropertyMock(return_value='tmp_file')
         mock_tmp_file.return_value.__enter__ = Mock(return_value=mock_tmp_file)
@@ -95,10 +95,10 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
             recreate=mssql_to_hive_transfer.recreate,
             tblproperties=mssql_to_hive_transfer.tblproperties)
 
-    @patch('airflow.operators.mssql_to_hive.csv')
-    @patch('airflow.operators.mssql_to_hive.NamedTemporaryFile')
-    @patch('airflow.operators.mssql_to_hive.MsSqlHook')
-    @patch('airflow.operators.mssql_to_hive.HiveCliHook')
+    @patch('airflow.providers.apache.hive.operators.mssql_to_hive.csv')
+    @patch('airflow.providers.apache.hive.operators.mssql_to_hive.NamedTemporaryFile')
+    @patch('airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlHook')
+    @patch('airflow.providers.apache.hive.operators.mssql_to_hive.HiveCliHook')
     def test_execute_empty_description_field(self, mock_hive_hook, mock_mssql_hook, mock_tmp_file, mock_csv):
         type(mock_tmp_file).name = PropertyMock(return_value='tmp_file')
         mock_tmp_file.return_value.__enter__ = Mock(return_value=mock_tmp_file)

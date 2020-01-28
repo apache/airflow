@@ -187,7 +187,7 @@ Foundation.
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.mssql_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.mssql_to_hive`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
@@ -1167,7 +1167,7 @@ These integrations allow you to copy data.
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Apache Hive <https://hive.apache.org/>`__
      -
-     - :mod:`airflow.operators.mssql_to_hive`
+     - :mod:`airflow.providers.apache.hive.operators.mssql_to_hive`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__

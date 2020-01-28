@@ -1357,6 +1357,10 @@ OPERATOR = [
         'airflow.providers.apache.hive.operators.hive_to_samba.Hive2SambaOperator',
         'airflow.operators.hive_to_samba_operator.Hive2SambaOperator',
     ),
+    (
+        'airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransfer',
+        'airflow.operators.mssql_to_hive.MsSqlToHiveTransfer',
+    ),
 ]
 
 SENSOR = [
