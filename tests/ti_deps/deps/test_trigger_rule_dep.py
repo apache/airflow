@@ -18,6 +18,7 @@
 
 import unittest
 from datetime import datetime
+from unittest.mock import Mock
 
 from airflow import settings
 from airflow.models import DAG, TaskInstance
@@ -167,6 +168,46 @@ class TestTriggerRuleDep(unittest.TestCase):
             session="Fake Session"))
         self.assertEqual(len(dep_statuses), 1)
         self.assertFalse(dep_statuses[0].passed)
+
+    def test_all_success_tr_skip(self):
+        """
+        All-success trigger rule fails when some upstream tasks are skipped.
+        """
+        ti = self._get_task_instance(TriggerRule.ALL_SUCCESS,
+                                     upstream_task_ids=["FakeTaskID",
+                                                        "OtherFakeTaskID"])
+        dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            successes=1,
+            skipped=1,
+            failed=0,
+            upstream_failed=0,
+            done=2,
+            flag_upstream_failed=False,
+            session="Fake Session"))
+        self.assertEqual(len(dep_statuses), 1)
+        self.assertFalse(dep_statuses[0].passed)
+
+    def test_all_success_tr_skip_flag_upstream(self):
+        """
+        All-success trigger rule fails when some upstream tasks are skipped. The state of the ti
+        should be set to SKIPPED when flag_upstream_failed is True.
+        """
+        ti = self._get_task_instance(TriggerRule.ALL_SUCCESS,
+                                     upstream_task_ids=["FakeTaskID",
+                                                        "OtherFakeTaskID"])
+        dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            successes=1,
+            skipped=1,
+            failed=0,
+            upstream_failed=0,
+            done=2,
+            flag_upstream_failed=True,
+            session=Mock()))
+        self.assertEqual(len(dep_statuses), 1)
+        self.assertFalse(dep_statuses[0].passed)
+        self.assertEqual(ti.state, State.SKIPPED)
 
     def test_none_failed_tr_success(self):
         """
@@ -383,6 +424,8 @@ class TestTriggerRuleDep(unittest.TestCase):
         """
         this test tests the helper function '_get_states_count_upstream_ti' as a unit and inside update_state
         """
+        from airflow.ti_deps.dep_context import DepContext
+
         get_states_count_upstream_ti = TriggerRuleDep._get_states_count_upstream_ti
         session = settings.Session()
         now = timezone.utcnow()
@@ -421,7 +464,9 @@ class TestTriggerRuleDep(unittest.TestCase):
         ti_op5.set_state(state=State.SUCCESS, session=session)
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
-        self.assertEqual(get_states_count_upstream_ti(finished_tasks=None, ti=ti_op2, session=session),
+        finished_tasks = DepContext().ensure_finished_tasks(ti_op2.task.dag, ti_op2.execution_date, session)
+        self.assertEqual(get_states_count_upstream_ti(finished_tasks=finished_tasks,
+                                                      ti=ti_op2, session=session),
                          (1, 0, 0, 0, 1))
         finished_tasks = dr.get_task_instances(state=State.finished() + [State.UPSTREAM_FAILED],
                                                session=session)

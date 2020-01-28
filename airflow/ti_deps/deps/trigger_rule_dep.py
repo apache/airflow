@@ -45,13 +45,6 @@ class TriggerRuleDep(BaseTIDep):
         :param finished_tasks: all the finished tasks of the dag_run
         :type finished_tasks: list[airflow.models.TaskInstance]
         """
-        if finished_tasks is None:
-            # this is for the strange feature of running tasks without dag_run
-            finished_tasks = ti.task.dag.get_task_instances(
-                start_date=ti.execution_date,
-                end_date=ti.execution_date,
-                state=State.finished() + [State.UPSTREAM_FAILED],
-                session=session)
         counter = Counter(task.state for task in finished_tasks if task.task_id in ti.task.upstream_task_ids)
         return counter.get(State.SUCCESS, 0), counter.get(State.SKIPPED, 0), counter.get(State.FAILED, 0), \
             counter.get(State.UPSTREAM_FAILED, 0), sum(counter.values())
@@ -71,7 +64,7 @@ class TriggerRuleDep(BaseTIDep):
         # see if the task name is in the task upstream for our task
         successes, skipped, failed, upstream_failed, done = self._get_states_count_upstream_ti(
             ti=ti,
-            finished_tasks=dep_context.finished_tasks)
+            finished_tasks=dep_context.ensure_finished_tasks(ti.task.dag, ti.execution_date, session))
 
         yield from self._evaluate_trigger_rule(
             ti=ti,

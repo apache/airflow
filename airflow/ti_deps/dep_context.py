@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import pendulum
+from sqlalchemy.orm.session import Session
+
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
@@ -89,6 +92,27 @@ class DepContext:
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
         self.finished_tasks = finished_tasks
+
+    def ensure_finished_tasks(self, dag, execution_date: pendulum.datetime, session: Session):
+        """
+        This method makes sure finished_tasks is populated if it's currently None.
+        This is for the strange feature of running tasks without dag_run.
+
+        :param dag: The DAG for which to find finished tasks
+        :type dag: airflow.models.DAG
+        :param execution_date: The execution_date to look for
+        :param session: Database session to use
+        :return: A list of all the finished tasks of this DAG and execution_date
+        :rtype: list[airflow.models.TaskInstance]
+        """
+        if self.finished_tasks is None:
+            self.finished_tasks = dag.get_task_instances(
+                start_date=execution_date,
+                end_date=execution_date,
+                state=State.finished() + [State.UPSTREAM_FAILED],
+                session=session,
+            )
+        return self.finished_tasks
 
 
 # In order to be able to get queued a task must have one of these states

@@ -3021,3 +3021,42 @@ class TestSchedulerJob(unittest.TestCase):
             self.assertEqual(state, ti.state)
 
         session.close()
+
+
+def test_task_with_upstream_skip_process_task_instances():
+    """
+    Test if _process_task_instances puts a task instance into SKIPPED state if any of its
+    upstream tasks are skipped according to TriggerRuleDep.
+    """
+    with DAG(
+        dag_id='test_task_with_upstream_skip_dag',
+        start_date=DEFAULT_DATE,
+        schedule_interval=None
+    ) as dag:
+        dummy1 = DummyOperator(task_id='dummy1')
+        dummy2 = DummyOperator(task_id="dummy2")
+        dummy3 = DummyOperator(task_id="dummy3")
+        [dummy1, dummy2] >> dummy3
+
+    dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
+    dag.clear()
+    dr = dag.create_dagrun(run_id=f"manual__{DEFAULT_DATE.isoformat()}",
+                           state=State.RUNNING,
+                           execution_date=DEFAULT_DATE)
+    assert dr is not None
+
+    with create_session() as session:
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        # Set dummy1 to skipped and dummy2 to success. dummy3 remains as none.
+        tis[dummy1.task_id].state = State.SKIPPED
+        tis[dummy2.task_id].state = State.SUCCESS
+        assert tis[dummy3.task_id].state == State.NONE
+
+    dag_file_processor._process_task_instances(dag, task_instances_list=Mock())
+
+    with create_session() as session:
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        assert tis[dummy1.task_id].state == State.SKIPPED
+        assert tis[dummy2.task_id].state == State.SUCCESS
+        # dummy3 should be skipped because dummy1 is skipped.
+        assert tis[dummy3.task_id].state == State.SKIPPED
