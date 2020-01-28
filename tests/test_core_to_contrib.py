@@ -1317,6 +1317,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.mongo_to_s3.MongoToS3Operator',
         'airflow.contrib.operators.mongo_to_s3.MongoToS3Operator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.s3_to_sftp.S3ToSFTPOperator',
+        'airflow.contrib.operators.s3_to_sftp_operator.S3ToSFTPOperator',
+    ),
 ]
 
 SENSOR = [

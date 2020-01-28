@@ -470,7 +470,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.contrib.operators.s3_to_sftp_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.s3_to_sftp`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
@@ -1320,7 +1320,7 @@ These integrations allow you to copy data.
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      -
-     - :mod:`airflow.contrib.operators.s3_to_sftp_operator`
+     - :mod:`airflow.providers.amazon.aws.operators.s3_to_sftp`
 
    * - Filesystem
      - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
