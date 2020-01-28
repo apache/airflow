@@ -1337,6 +1337,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.redshift_to_s3.RedshiftToS3Transfer',
         'airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.s3_to_redshift.S3ToRedshiftTransfer',
+        'airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer',
+    ),
 ]
 
 SENSOR = [

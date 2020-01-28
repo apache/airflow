@@ -159,7 +159,7 @@
 ./airflow/operators/presto_to_mysql.py
 ./airflow/operators/python.py
 ./airflow/providers/amazon/aws/operators/s3_file_transform.py
-./airflow/operators/s3_to_redshift_operator.py
+./airflow/providers/amazon/aws/operators/s3_to_redshift.py
 ./airflow/providers/slack/operators/slack.py
 ./airflow/providers/sqlite/operators/sqlite.py
 ./airflow/providers/amazon/aws/hooks/redshift.py
