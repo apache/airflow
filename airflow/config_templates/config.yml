@@ -1253,7 +1253,7 @@
       default: "300"
     - name: print_stats_interval
       description: |
-        How often should stats be printed to the logs
+        How often should stats be printed to the logs. Setting to 0 will disable printing stats
       version_added: ~
       type: string
       example: ~
