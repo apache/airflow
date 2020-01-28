@@ -1353,6 +1353,10 @@ OPERATOR = [
         'airflow.providers.apache.hive.operators.hive_to_mysql.HiveToMySqlTransfer',
         'airflow.operators.hive_to_mysql.HiveToMySqlTransfer',
     ),
+    (
+        'airflow.providers.apache.hive.operators.hive_to_samba.Hive2SambaOperator',
+        'airflow.operators.hive_to_samba_operator.Hive2SambaOperator',
+    ),
 ]
 
 SENSOR = [

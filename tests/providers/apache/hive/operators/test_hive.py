@@ -26,13 +26,13 @@ from airflow import DAG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import TaskInstance
-from airflow.operators.hive_to_samba_operator import Hive2SambaOperator
 from airflow.operators.presto_to_mysql import PrestoToMySqlTransfer
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer
+from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor

@@ -182,7 +182,7 @@ Foundation.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Samba <https://www.samba.org/>`__
      -
-     - :mod:`airflow.operators.hive_to_samba_operator`
+     - :mod:`airflow.providers.apache.hive.operators.hive_to_samba`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Apache Hive <https://hive.apache.org/>`__
@@ -1157,7 +1157,7 @@ These integrations allow you to copy data.
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Samba <https://www.samba.org/>`__
      -
-     - :mod:`airflow.operators.hive_to_samba_operator`
+     - :mod:`airflow.providers.apache.hive.operators.hive_to_samba`
 
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__

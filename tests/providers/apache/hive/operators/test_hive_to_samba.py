@@ -20,7 +20,7 @@
 import unittest
 from unittest.mock import Mock, PropertyMock, patch
 
-from airflow.operators.hive_to_samba_operator import Hive2SambaOperator
+from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
@@ -36,9 +36,9 @@ class TestHive2SambaOperator(unittest.TestCase):
             dag=None
         )
 
-    @patch('airflow.operators.hive_to_samba_operator.SambaHook')
-    @patch('airflow.operators.hive_to_samba_operator.HiveServer2Hook')
-    @patch('airflow.operators.hive_to_samba_operator.NamedTemporaryFile')
+    @patch('airflow.providers.apache.hive.operators.hive_to_samba.SambaHook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_samba.HiveServer2Hook')
+    @patch('airflow.providers.apache.hive.operators.hive_to_samba.NamedTemporaryFile')
     def test_execute(self, mock_tmp_file, mock_hive_hook, mock_samba_hook):
         type(mock_tmp_file).name = PropertyMock(return_value='tmp_file')
         mock_tmp_file.return_value.__enter__ = Mock(return_value=mock_tmp_file)

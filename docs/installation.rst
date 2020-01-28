@@ -185,7 +185,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | redis               | ``pip install 'apache-airflow[redis]'``             | Redis hooks and sensors                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
-| samba               | ``pip install 'apache-airflow[samba]'``             | :class:`airflow.operators.hive_to_samba_operator.Hive2SambaOperator` |
+| samba               | ``pip install 'apache-airflow[samba]'``             | :class:`airflow.providers.apache.hive.operators.hive_to_samba.Hive2SambaOperator` |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
