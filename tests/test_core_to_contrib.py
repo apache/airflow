@@ -1361,6 +1361,10 @@ OPERATOR = [
         'airflow.providers.apache.hive.operators.mssql_to_hive.MsSqlToHiveTransfer',
         'airflow.operators.mssql_to_hive.MsSqlToHiveTransfer',
     ),
+    (
+        'airflow.providers.microsoft.azure.operators.file_to_wasb.FileToWasbOperator',
+        'airflow.contrib.operators.file_to_wasb.FileToWasbOperator',
+    ),
 ]
 
 SENSOR = [

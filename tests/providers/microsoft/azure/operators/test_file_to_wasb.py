@@ -24,7 +24,7 @@ import unittest
 import mock
 
 from airflow import DAG
-from airflow.contrib.operators.file_to_wasb import FileToWasbOperator
+from airflow.providers.microsoft.azure.operators.file_to_wasb import FileToWasbOperator
 
 
 class TestFileToWasbOperator(unittest.TestCase):
@@ -66,7 +66,7 @@ class TestFileToWasbOperator(unittest.TestCase):
         )
         self.assertEqual(operator.load_options, {'timeout': 2})
 
-    @mock.patch('airflow.contrib.operators.file_to_wasb.WasbHook',
+    @mock.patch('airflow.providers.microsoft.azure.operators.file_to_wasb.WasbHook',
                 autospec=True)
     def test_execute(self, mock_hook):
         mock_instance = mock_hook.return_value

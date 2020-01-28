@@ -269,7 +269,7 @@ These integrations allow you to copy data from/to Microsoft Azure.
    * - Local
      - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      -
-     - :mod:`airflow.contrib.operators.file_to_wasb`
+     - :mod:`airflow.providers.microsoft.azure.operators.file_to_wasb`
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
@@ -1325,7 +1325,7 @@ These integrations allow you to copy data.
    * - Filesystem
      - `Azure Blob Storage <https://azure.microsoft.com/en-us/services/storage/blobs/>`__
      -
-     - :mod:`airflow.contrib.operators.file_to_wasb`
+     - :mod:`airflow.providers.microsoft.azure.operators.file_to_wasb`
 
    * - Filesystem
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
