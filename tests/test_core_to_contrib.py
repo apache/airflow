@@ -1329,6 +1329,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.gcs_to_s3.GCSToS3Operator',
         'airflow.operators.gcs_to_s3.GCSToS3Operator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
+        'airflow.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
+    ),
 ]
 
 SENSOR = [
