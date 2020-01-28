@@ -490,7 +490,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.mongo_to_s3`
+     - :mod:`airflow.providers.amazon.aws.operators.mongo_to_s3`
 
    * - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
@@ -1177,7 +1177,7 @@ These integrations allow you to copy data.
    * - `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`__
      -
-     - :mod:`airflow.contrib.operators.mongo_to_s3`
+     - :mod:`airflow.providers.amazon.aws.operators.mongo_to_s3`
 
    * - `MySQL <https://www.mysql.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__

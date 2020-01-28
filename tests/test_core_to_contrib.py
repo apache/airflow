@@ -1313,6 +1313,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.imap_attachment_to_s3.ImapAttachmentToS3Operator',
         'airflow.contrib.operators.imap_attachment_to_s3_operator.ImapAttachmentToS3Operator',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.mongo_to_s3.MongoToS3Operator',
+        'airflow.contrib.operators.mongo_to_s3.MongoToS3Operator',
+    ),
 ]
 
 SENSOR = [
