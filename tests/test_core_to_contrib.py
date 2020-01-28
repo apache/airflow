@@ -1333,6 +1333,10 @@ OPERATOR = [
         'airflow.providers.amazon.aws.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
         'airflow.operators.google_api_to_s3_transfer.GoogleApiToS3Transfer',
     ),
+    (
+        'airflow.providers.amazon.aws.operators.redshift_to_s3.RedshiftToS3Transfer',
+        'airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer',
+    ),
 ]
 
 SENSOR = [
