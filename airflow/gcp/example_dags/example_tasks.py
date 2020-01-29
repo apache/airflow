@@ -30,10 +30,10 @@ from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
 
-from airflow.gcp.operators.tasks import (
+from airflow.models import DAG
+from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksQueueCreateOperator, CloudTasksTaskCreateOperator, CloudTasksTaskRunOperator,
 )
-from airflow.models import DAG
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}
