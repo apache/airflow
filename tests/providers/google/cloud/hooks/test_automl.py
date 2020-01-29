@@ -22,7 +22,7 @@ import unittest
 import mock
 from google.cloud.automl_v1beta1 import AutoMlClient, PredictionServiceClient
 
-from airflow.gcp.hooks.automl import CloudAutoMLHook
+from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"
@@ -53,7 +53,7 @@ MASK = {"field": "mask"}
 class TestAuoMLHook(unittest.TestCase):
     def setUp(self) -> None:
         with mock.patch(
-            "airflow.gcp.hooks.automl.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.automl.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudAutoMLHook()
@@ -62,10 +62,10 @@ class TestAuoMLHook(unittest.TestCase):
             )
 
     @mock.patch(
-        "airflow.gcp.hooks.automl.CloudBaseHook.client_info",
+        "airflow.providers.google.cloud.hooks.automl.CloudBaseHook.client_info",
         new_callable=lambda: CLIENT_INFO,
     )
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient")
     def test_get_conn(self, mock_automl_client, mock_client_info):
         self.hook.get_conn()
         mock_automl_client.assert_called_once_with(
@@ -73,17 +73,17 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.gcp.hooks.automl.CloudBaseHook.client_info",
+        "airflow.providers.google.cloud.hooks.automl.CloudBaseHook.client_info",
         new_callable=lambda: CLIENT_INFO,
     )
-    @mock.patch("airflow.gcp.hooks.automl.PredictionServiceClient")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient")
     def test_prediction_client(self, mock_prediction_client, mock_client_info):
         client = self.hook.prediction_client  # pylint: disable=unused-variable  # noqa
         mock_prediction_client.assert_called_once_with(
             credentials=CREDENTIALS, client_info=CLIENT_INFO
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.create_model")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.create_model")
     def test_create_model(self, mock_create_model):
         self.hook.create_model(
             model=MODEL, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
@@ -94,7 +94,7 @@ class TestAuoMLHook(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.gcp.hooks.automl.PredictionServiceClient.batch_predict"
+        "airflow.providers.google.cloud.hooks.automl.PredictionServiceClient.batch_predict"
     )
     def test_batch_predict(self, mock_batch_predict):
         self.hook.batch_predict(
@@ -115,7 +115,7 @@ class TestAuoMLHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.PredictionServiceClient.predict")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.PredictionServiceClient.predict")
     def test_predict(self, mock_predict):
         self.hook.predict(
             model_id=MODEL_ID,
@@ -133,7 +133,7 @@ class TestAuoMLHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.create_dataset")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.create_dataset")
     def test_create_dataset(self, mock_create_dataset):
         self.hook.create_dataset(
             dataset=DATASET, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
@@ -147,7 +147,7 @@ class TestAuoMLHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.import_data")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.import_data")
     def test_import_dataset(self, mock_import_data):
         self.hook.import_data(
             dataset_id=DATASET_ID,
@@ -164,7 +164,7 @@ class TestAuoMLHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.list_column_specs")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.list_column_specs")
     def test_list_column_specs(self, mock_list_column_specs):
         table_spec = "table_spec_id"
         filter_ = "filter"
@@ -193,7 +193,7 @@ class TestAuoMLHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.get_model")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.get_model")
     def test_get_model(self, mock_get_model):
         self.hook.get_model(
             model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
@@ -203,7 +203,7 @@ class TestAuoMLHook(unittest.TestCase):
             name=MODEL_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.delete_model")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.delete_model")
     def test_delete_model(self, mock_delete_model):
         self.hook.delete_model(
             model_id=MODEL_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID
@@ -213,7 +213,7 @@ class TestAuoMLHook(unittest.TestCase):
             name=MODEL_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.update_dataset")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.update_dataset")
     def test_update_dataset(self, mock_update_dataset):
         self.hook.update_dataset(
             dataset=DATASET, update_mask=MASK, project_id=GCP_PROJECT_ID
@@ -223,7 +223,7 @@ class TestAuoMLHook(unittest.TestCase):
             dataset=DATASET, update_mask=MASK, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.deploy_model")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.deploy_model")
     def test_deploy_model(self, mock_deploy_model):
         image_detection_metadata = {}
 
@@ -242,7 +242,7 @@ class TestAuoMLHook(unittest.TestCase):
             image_object_detection_model_deployment_metadata=image_detection_metadata,
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.list_table_specs")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.list_table_specs")
     def test_list_table_specs(self, mock_list_table_specs):
         filter_ = "filter"
         page_size = 42
@@ -264,7 +264,7 @@ class TestAuoMLHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.list_datasets")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.list_datasets")
     def test_list_datasets(self, mock_list_datasets):
         self.hook.list_datasets(location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
 
@@ -272,7 +272,7 @@ class TestAuoMLHook(unittest.TestCase):
             parent=LOCATION_PATH, retry=None, timeout=None, metadata=None
         )
 
-    @mock.patch("airflow.gcp.hooks.automl.AutoMlClient.delete_dataset")
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.delete_dataset")
     def test_delete_dataset(self, mock_delete_dataset):
         self.hook.delete_dataset(
             dataset_id=DATASET_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID

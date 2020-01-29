@@ -539,7 +539,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `AutoML <https://cloud.google.com/automl/>`__
      - :doc:`How to use <howto/operator/gcp/automl>`
-     - :mod:`airflow.gcp.hooks.automl`
+     - :mod:`airflow.providers.google.cloud.hooks.automl`
      - :mod:`airflow.gcp.operators.automl`
      -
 

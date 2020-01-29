@@ -27,8 +27,8 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 from google.api_core.retry import Retry
 from google.protobuf.json_format import MessageToDict
 
-from airflow.gcp.hooks.automl import CloudAutoMLHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.utils.decorators import apply_defaults
 
 MetaData = Sequence[Tuple[str, str]]
