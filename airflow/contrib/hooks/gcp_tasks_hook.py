@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.hooks.tasks`.
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.tasks`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.tasks import CloudTasksHook  # noqa
+from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.tasks`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.tasks`",
     DeprecationWarning, stacklevel=2
 )

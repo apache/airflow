@@ -66,7 +66,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook",
     ),
     (
-        "airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook",
+        "airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook",
         "airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook",
     ),
     (
@@ -106,7 +106,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook",
     ),
     (
-        "airflow.gcp.hooks.tasks.CloudTasksHook",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook",
         "airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook",
     ),
     (

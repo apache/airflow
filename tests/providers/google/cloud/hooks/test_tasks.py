@@ -23,7 +23,7 @@ from typing import Any, Dict
 import mock
 from google.cloud.tasks_v2.types import Queue, Task
 
-from airflow.gcp.hooks.tasks import CloudTasksHook
+from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
@@ -46,9 +46,12 @@ class TestCloudTasksHook(unittest.TestCase):
         ):
             self.hook = CloudTasksHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.gcp.hooks.tasks.CloudTasksHook.client_info", new_callable=mock.PropertyMock)
-    @mock.patch("airflow.gcp.hooks.tasks.CloudTasksHook._get_credentials")
-    @mock.patch("airflow.gcp.hooks.tasks.CloudTasksClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.client_info",
+        new_callable=mock.PropertyMock
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.tasks.CloudTasksClient")
     def test_cloud_tasks_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.hook.get_conn()
         mock_client.assert_called_once_with(
@@ -59,7 +62,7 @@ class TestCloudTasksHook(unittest.TestCase):
         self.assertEqual(self.hook._client, result)
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.create_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_create_queue(self, get_conn):
@@ -81,7 +84,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.update_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_update_queue(self, get_conn):
@@ -103,7 +106,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.get_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_get_queue(self, get_conn):
@@ -118,7 +121,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.list_queues.return_value": API_RESPONSE},  # type: ignore
     )
     def test_list_queues(self, get_conn):
@@ -136,7 +139,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.delete_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_delete_queue(self, get_conn):
@@ -151,7 +154,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.purge_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_purge_queue(self, get_conn):
@@ -166,7 +169,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.pause_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_pause_queue(self, get_conn):
@@ -181,7 +184,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.resume_queue.return_value": API_RESPONSE},  # type: ignore
     )
     def test_resume_queue(self, get_conn):
@@ -196,7 +199,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.create_task.return_value": API_RESPONSE},  # type: ignore
     )
     def test_create_task(self, get_conn):
@@ -220,7 +223,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.get_task.return_value": API_RESPONSE},  # type: ignore
     )
     def test_get_task(self, get_conn):
@@ -242,7 +245,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.list_tasks.return_value": API_RESPONSE},  # type: ignore
     )
     def test_list_tasks(self, get_conn):
@@ -262,7 +265,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.delete_task.return_value": API_RESPONSE},  # type: ignore
     )
     def test_delete_task(self, get_conn):
@@ -280,7 +283,7 @@ class TestCloudTasksHook(unittest.TestCase):
         )
 
     @mock.patch(  # type: ignore
-        "airflow.gcp.hooks.tasks.CloudTasksHook.get_conn",
+        "airflow.providers.google.cloud.hooks.tasks.CloudTasksHook.get_conn",
         **{"return_value.run_task.return_value": API_RESPONSE},  # type: ignore
     )
     def test_run_task(self, get_conn):

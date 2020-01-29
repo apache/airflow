@@ -671,13 +671,13 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Tasks <https://cloud.google.com/tasks/>`__
      -
-     - :mod:`airflow.gcp.hooks.tasks`
+     - :mod:`airflow.providers.google.cloud.hooks.tasks`
      - :mod:`airflow.gcp.operators.tasks`
      -
 
    * - `Cloud Text-to-Speech <https://cloud.google.com/text-to-speech/>`__
      - :doc:`How to use <howto/operator/gcp/speech>`
-     - :mod:`airflow.gcp.hooks.text_to_speech`
+     - :mod:`airflow.providers.google.cloud.hooks.text_to_speech`
      - :mod:`airflow.gcp.operators.text_to_speech`
      -
 

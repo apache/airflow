@@ -28,8 +28,8 @@ from google.api_core.retry import Retry
 from google.cloud.tasks_v2 import enums
 from google.cloud.tasks_v2.types import FieldMask, Queue, Task
 
-from airflow.gcp.hooks.tasks import CloudTasksHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.utils.decorators import apply_defaults
 
 MetaData = Sequence[Tuple[str, str]]
