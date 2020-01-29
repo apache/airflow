@@ -422,7 +422,7 @@ HOOK = [
 
 OPERATOR = [
     (
-        "airflow.operators.adls_to_gcs.ADLSToGCSOperator",
+        "airflow.providers.google.cloud.operators.adls_to_gcs.ADLSToGCSOperator",
         "airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator",
     ),
     (
