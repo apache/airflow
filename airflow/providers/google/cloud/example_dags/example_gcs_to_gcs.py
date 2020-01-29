@@ -23,7 +23,7 @@ Example Airflow DAG for Google Cloud Storage to Google Cloud Storage transfer op
 import os
 
 from airflow import models
-from airflow.operators.gcs_to_gcs import GCSSynchronizeBuckets
+from airflow.providers.google.cloud.operators.gcs_to_gcs import GCSSynchronizeBuckets
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}

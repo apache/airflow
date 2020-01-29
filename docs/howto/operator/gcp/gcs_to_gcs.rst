@@ -65,7 +65,7 @@ GCSToGCSOperator
 ~~~~~~~~~~~~~~~~
 
 
-:class:`~airflow.operators.gcs_to_gcs.GCSToGCSOperator` allows you to copy
+:class:`~airflow.providers.google.cloud.operators.gcs_to_gcs.GCSToGCSOperator` allows you to copy
 one or more files. The copying always takes place without taking into account the initial state of
 the destination bucket.
 
@@ -84,7 +84,7 @@ The way this operator works can be compared to the ``cp`` command.
 GCSSynchronizeBuckets
 ~~~~~~~~~~~~~~~~~~~~~
 
-The :class:`~airflow.operators.gcs_to_gcs.GCSSynchronizeBuckets`
+The :class:`~airflow.providers.google.cloud.operators.gcs_to_gcs.GCSSynchronizeBuckets`
 operator checks the initial state of the destination bucket, and then compares it with the source bucket.
 Based on this, it creates an operation plan that describes which objects should be deleted from
 the destination bucket, which should be overwritten, and which should be copied.
