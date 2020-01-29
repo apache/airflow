@@ -689,7 +689,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Video Intelligence <https://cloud.google.com/video_intelligence/>`__
      - :doc:`How to use <howto/operator/gcp/video_intelligence>`
-     - :mod:`airflow.gcp.hooks.video_intelligence`
+     - :mod:`airflow.providers.google.cloud.hooks.video_intelligence`
      - :mod:`airflow.gcp.operators.video_intelligence`
      -
 

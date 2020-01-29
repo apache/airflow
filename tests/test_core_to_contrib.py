@@ -118,7 +118,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook",
     ),
     (
-        "airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook",
+        "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook",
         "airflow.contrib.hooks.gcp_video_intelligence_hook.CloudVideoIntelligenceHook",
     ),
     (

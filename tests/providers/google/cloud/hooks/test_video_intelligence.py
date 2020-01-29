@@ -22,7 +22,7 @@ import unittest
 import mock
 from google.cloud.videointelligence_v1 import enums
 
-from airflow.gcp.hooks.video_intelligence import CloudVideoIntelligenceHook
+from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 INPUT_URI = "gs://bucket-name/input-file"
@@ -36,17 +36,19 @@ ANNOTATE_VIDEO_RESPONSE = {'test': 'test'}
 class TestCloudVideoIntelligenceHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook.__init__",
+            "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CloudVideoIntelligenceHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook.client_info",
+        "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.client_info",
         new_callable=mock.PropertyMock
     )
-    @mock.patch("airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook._get_credentials")
-    @mock.patch("airflow.gcp.hooks.video_intelligence.VideoIntelligenceServiceClient")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook._get_credentials"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.video_intelligence.VideoIntelligenceServiceClient")
     def test_video_intelligence_service_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.hook.get_conn()
         mock_client.assert_called_once_with(
@@ -56,7 +58,7 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.hook._conn, result)
 
-    @mock.patch("airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.get_conn")
     def test_annotate_video(self, get_conn):
         # Given
         annotate_video_method = get_conn.return_value.annotate_video
@@ -79,7 +81,7 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
             metadata=None,
         )
 
-    @mock.patch("airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.get_conn")
     def test_annotate_video_with_output_uri(self, get_conn):
         # Given
         annotate_video_method = get_conn.return_value.annotate_video

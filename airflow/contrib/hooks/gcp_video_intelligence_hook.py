@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.hooks.video_intelligence`.
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.video_intelligence`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.video_intelligence import CloudVideoIntelligenceHook  # noqa
+from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.video_intelligence`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.video_intelligence`",
     DeprecationWarning, stacklevel=2
 )
