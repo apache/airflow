@@ -91,7 +91,7 @@ CloudSpeechToTextRecognizeSpeechOperator
 Recognizes speech in audio input and returns text.
 
 For parameter definition, take a look at
-:class:`airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`
+:class:`airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator`
 
 Arguments
 """""""""
