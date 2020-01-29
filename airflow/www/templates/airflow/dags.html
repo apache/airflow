@@ -19,7 +19,13 @@
 
 {% extends "airflow/master.html" %}
 
-{% block title %}Airflow - DAGs{% endblock %}
+{% block page_title %}
+  {% if search_query %}
+    "{{ search_query }}" - DAGs - Airflow
+  {% else %}
+    DAGs - Airflow
+  {% endif %}
+{% endblock %}
 
 {% block head_css %}
 {{ super() }}
