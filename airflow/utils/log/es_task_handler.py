@@ -257,6 +257,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
+        # end-of-log mark has to be in its separate line in the console, so
+        # add an obnoxious print() for reliably separate the mark into a
+        # separate line so that elasticsearch can search for this log mark
+        # record
         if self.write_stdout:
             print()
         self.handler.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
