@@ -32,11 +32,13 @@ import os
 from urllib.parse import urlsplit
 
 from airflow import models
-from airflow.gcp.operators.gcs import GCSBucketCreateAclEntryOperator, GCSObjectCreateAclEntryOperator
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,
     CloudSQLDeleteInstanceDatabaseOperator, CloudSQLDeleteInstanceOperator, CloudSQLExportInstanceOperator,
     CloudSQLImportInstanceOperator, CloudSQLInstancePatchOperator, CloudSQLPatchInstanceDatabaseOperator,
+)
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSBucketCreateAclEntryOperator, GCSObjectCreateAclEntryOperator,
 )
 from airflow.utils.dates import days_ago
 

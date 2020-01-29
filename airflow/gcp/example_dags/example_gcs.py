@@ -23,13 +23,13 @@ Example Airflow DAG for Google Cloud Storage operators.
 import os
 
 from airflow import models
-from airflow.gcp.operators.gcs import (
-    GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteObjectsOperator,
-    GcsFileTransformOperator, GCSListObjectsOperator, GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
-)
 from airflow.operators.bash import BashOperator
 from airflow.operators.gcs_to_gcs import GCSToGCSOperator
 from airflow.operators.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteObjectsOperator,
+    GcsFileTransformOperator, GCSListObjectsOperator, GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
+)
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}

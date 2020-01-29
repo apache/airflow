@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.gcp.operators.gcs import (
+from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteObjectsOperator,
     GcsFileTransformOperator, GCSListObjectsOperator, GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
 )
@@ -37,7 +37,7 @@ LOCAL_FILE_PATH = "/home/airflow/gcp/test-object"
 
 
 class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook):
         operator = GCSCreateBucketOperator(
             task_id=TASK_ID,
@@ -69,7 +69,7 @@ class TestGoogleCloudStorageCreateBucket(unittest.TestCase):
 
 
 class TestGoogleCloudStorageAcl(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_bucket_create_acl(self, mock_hook):
         operator = GCSBucketCreateAclEntryOperator(
             bucket="test-bucket",
@@ -86,7 +86,7 @@ class TestGoogleCloudStorageAcl(unittest.TestCase):
             user_project="test-user-project",
         )
 
-    @mock.patch("airflow.gcp.operators.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_object_create_acl(self, mock_hook):
         operator = GCSObjectCreateAclEntryOperator(
             bucket="test-bucket",
@@ -109,7 +109,7 @@ class TestGoogleCloudStorageAcl(unittest.TestCase):
 
 
 class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_objects(self, mock_hook):
         operator = GCSDeleteObjectsOperator(
             task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2]
@@ -125,7 +125,7 @@ class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
             any_order=True,
         )
 
-    @mock.patch("airflow.gcp.operators.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_prefix(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES[1:3]
         operator = GCSDeleteObjectsOperator(
@@ -146,7 +146,7 @@ class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
 
 
 class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook):
         operator = GCSToLocalOperator(
             task_id=TASK_ID,
@@ -162,7 +162,7 @@ class TestGoogleCloudStorageDownloadOperator(unittest.TestCase):
 
 
 class TestGoogleCloudStorageListOperator(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
 
@@ -178,9 +178,9 @@ class TestGoogleCloudStorageListOperator(unittest.TestCase):
 
 
 class TestGcsFileTransformOperator(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.gcs.NamedTemporaryFile")
-    @mock.patch("airflow.gcp.operators.gcs.subprocess")
-    @mock.patch("airflow.gcp.operators.gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.NamedTemporaryFile")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook, mock_subprocess, mock_tempfile):
         source_bucket = TEST_BUCKET
         source_object = "test.txt"

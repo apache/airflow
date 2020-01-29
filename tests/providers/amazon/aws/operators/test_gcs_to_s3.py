@@ -41,7 +41,7 @@ class TestGCSToS3Operator(unittest.TestCase):
 
     # Test1: incremental behaviour (just some files missing)
     @mock_s3
-    @mock.patch('airflow.gcp.operators.gcs.GCSHook')
+    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
     @mock.patch('airflow.providers.amazon.aws.operators.gcs_to_s3.GCSHook')
     def test_execute_incremental(self, mock_hook, mock_hook2):
         mock_hook.return_value.list.return_value = MOCK_FILES
@@ -71,7 +71,7 @@ class TestGCSToS3Operator(unittest.TestCase):
 
     # Test2: All the files are already in origin and destination without replace
     @mock_s3
-    @mock.patch('airflow.gcp.operators.gcs.GCSHook')
+    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
     @mock.patch('airflow.providers.amazon.aws.operators.gcs_to_s3.GCSHook')
     def test_execute_without_replace(self, mock_hook, mock_hook2):
         mock_hook.return_value.list.return_value = MOCK_FILES
@@ -102,7 +102,7 @@ class TestGCSToS3Operator(unittest.TestCase):
 
     # Test3: There are no files in destination bucket
     @mock_s3
-    @mock.patch('airflow.gcp.operators.gcs.GCSHook')
+    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
     @mock.patch('airflow.providers.amazon.aws.operators.gcs_to_s3.GCSHook')
     def test_execute(self, mock_hook, mock_hook2):
         mock_hook.return_value.list.return_value = MOCK_FILES
@@ -131,7 +131,7 @@ class TestGCSToS3Operator(unittest.TestCase):
 
     # Test4: Destination and Origin are in sync but replace all files in destination
     @mock_s3
-    @mock.patch('airflow.gcp.operators.gcs.GCSHook')
+    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
     @mock.patch('airflow.providers.amazon.aws.operators.gcs_to_s3.GCSHook')
     def test_execute_with_replace(self, mock_hook, mock_hook2):
         mock_hook.return_value.list.return_value = MOCK_FILES
@@ -162,7 +162,7 @@ class TestGCSToS3Operator(unittest.TestCase):
 
     # Test5: Incremental sync with replace
     @mock_s3
-    @mock.patch('airflow.gcp.operators.gcs.GCSHook')
+    @mock.patch('airflow.providers.google.cloud.operators.gcs.GCSHook')
     @mock.patch('airflow.providers.amazon.aws.operators.gcs_to_s3.GCSHook')
     def test_execute_incremental_with_replace(self, mock_hook, mock_hook2):
         mock_hook.return_value.list.return_value = MOCK_FILES
