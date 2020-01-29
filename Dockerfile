@@ -404,7 +404,3 @@ WORKDIR ${AIRFLOW_SOURCES}
 ENV PATH="${HOME}:${PATH}"
 
 EXPOSE 8080
-
-ENTRYPOINT ["/entrypoint.sh"]
-
-CMD ["--help"]

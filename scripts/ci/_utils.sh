@@ -646,10 +646,9 @@ function run_flake8() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
+            "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -660,9 +659,8 @@ function run_flake8() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
             "${AIRFLOW_CI_IMAGE}" \
+            "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
             "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
@@ -688,10 +686,9 @@ function run_docs() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
-            --entrypoint \
-            "/opt/airflow/docs/build.sh" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
+            "/opt/airflow/docs/build.sh" \
             | tee -a "${OUTPUT_LOG}"
 }
 
@@ -703,10 +700,9 @@ function run_check_license() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_check_licence.sh" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
+            "/opt/airflow/scripts/ci/in_container/run_check_licence.sh" \
             | tee -a "${OUTPUT_LOG}"
 }
 
@@ -721,10 +717,8 @@ function run_mypy() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_mypy.sh" \
             "${AIRFLOW_CI_IMAGE}" \
-            "airflow" "tests" "docs" \
+            "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "airflow" "tests" "docs" \
             | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -734,10 +728,9 @@ function run_mypy() {
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_mypy.sh" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
+            "/opt/airflow/scripts/ci/in_container/run_mypy.sh" \
             "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
@@ -754,9 +747,8 @@ function run_pylint_main() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             "${AIRFLOW_CI_IMAGE}" \
+            "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -767,9 +759,8 @@ function run_pylint_main() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             "${AIRFLOW_CI_IMAGE}" \
+            "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
@@ -787,9 +778,8 @@ function run_pylint_tests() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
             "${AIRFLOW_CI_IMAGE}" \
+            "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
@@ -800,9 +790,8 @@ function run_pylint_tests() {
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
             "${AIRFLOW_CI_IMAGE}" \
+            "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
             "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
@@ -856,13 +845,15 @@ function filter_out_files_from_pylint_todo_list() {
 
 function refresh_pylint_todo() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint /opt/airflow/scripts/ci/in_container/refresh_pylint_todo.sh \
         --env PYTHONDONTWRITEBYTECODE \
         --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
         --env AIRFLOW_CI_SILENT \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
-        "${AIRFLOW_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
+        --rm \
+        "${AIRFLOW_CI_IMAGE}" \
+        /opt/airflow/scripts/ci/in_container/refresh_pylint_todo.sh \
+        | tee -a "${OUTPUT_LOG}"
 }
 
 function rebuild_all_images_if_needed_and_confirmed() {
