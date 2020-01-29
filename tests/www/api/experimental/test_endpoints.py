@@ -17,8 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import os
 import unittest
 from datetime import timedelta
+from unittest import mock
 from urllib.parse import quote_plus
 
 from airflow import settings
@@ -29,6 +31,10 @@ from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.version import version
 from airflow.www import app as application
 from tests.test_utils.db import clear_db_pools
+
+ROOT_FOLDER = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir, os.pardir)
+)
 
 
 class TestBase(unittest.TestCase):
@@ -305,6 +311,24 @@ class TestApiExperimental(TestBase):
         self.assertEqual(400, response.status_code)
         self.assertIn('error', response.data.decode('utf-8'))
 
+
+class TestLineageApiExperimental(TestBase):
+    PAPERMILL_EXAMPLE_DAGS = os.path.join(ROOT_FOLDER, "airflow", "providers", "papermill", "example_dags")
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        session = Session()
+        session.query(DagRun).delete()
+        session.query(TaskInstance).delete()
+        session.commit()
+        session.close()
+
+        dagbag = DagBag(include_examples=False, dag_folder=cls.PAPERMILL_EXAMPLE_DAGS)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
+    @mock.patch("airflow.settings.DAGS_FOLDER", PAPERMILL_EXAMPLE_DAGS)
     def test_lineage_info(self):
         url_template = '/api/experimental/lineage/{}/{}'
         dag_id = 'example_papermill_operator'
