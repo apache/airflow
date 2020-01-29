@@ -30,7 +30,7 @@ from airflow import models
 from airflow.gcp.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator, BigQueryDataTransferServiceStartTransferRunsOperator,
 )
-from airflow.gcp.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
+from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

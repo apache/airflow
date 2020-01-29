@@ -116,7 +116,7 @@ You can use :ref:`Jinja templating <jinja-templating>` with
 parameters which allows you to dynamically determine values.
 
 To check if operation succeeded you can use
-:class:`airflow.gcp.sensors.bigquery_dts.BigQueryDataTransferServiceTransferRunSensor`.
+:class:`airflow.providers.google.cloud.sensors.bigquery_dts.BigQueryDataTransferServiceTransferRunSensor`.
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_bigquery_dts.py
     :language: python
@@ -125,7 +125,7 @@ To check if operation succeeded you can use
     :end-before: [END howto_bigquery_dts_sensor]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.sensors.bigquery_dts.BigQueryDataTransferServiceTransferRunSensor`
+:template-fields:`airflow.providers.google.cloud.sensors.bigquery_dts.BigQueryDataTransferServiceTransferRunSensor`
 parameters which allows you to dynamically determine values.
 
 Reference

@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.sensors.bigquery`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.sensors.bigquery`."""
 
 import warnings
 
-from airflow.gcp.sensors.bigquery import BigQueryTableExistenceSensor
+from airflow.providers.google.cloud.sensors.bigquery import BigQueryTableExistenceSensor
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.sensors.bigquery`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.sensors.bigquery`.",
     DeprecationWarning,
     stacklevel=2,
 )
@@ -31,13 +31,14 @@ warnings.warn(
 
 class BigQueryTableSensor(BigQueryTableExistenceSensor):
     """
-    This class is deprecated. Please use `airflow.gcp.sensors.bigquery.BigQueryTableExistenceSensor`.
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.sensors.bigquery.BigQueryTableExistenceSensor`.""",
+            Please use `airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`.""",
             DeprecationWarning,
             stacklevel=2,
         )

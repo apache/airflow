@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.gcp.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
+from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 
 TRANSFER_CONFIG_ID = "config_id"
 RUN_ID = "run_id"
@@ -29,9 +29,9 @@ PROJECT_ID = "project_id"
 
 
 class TestBigQueryDataTransferServiceTransferRunSensor(unittest.TestCase):
-    @mock.patch("airflow.gcp.sensors.bigquery_dts.BiqQueryDataTransferServiceHook")
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery_dts.BiqQueryDataTransferServiceHook")
     @mock.patch(
-        "airflow.gcp.sensors.bigquery_dts.MessageToDict",
+        "airflow.providers.google.cloud.sensors.bigquery_dts.MessageToDict",
         return_value={"state": "success"},
     )
     def test_poke(self, mock_msg_to_dict, mock_hook):
