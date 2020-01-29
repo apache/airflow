@@ -1395,7 +1395,7 @@ SENSOR = [
         "BigtableTableWaitForReplicationSensor",
     ),
     (
-        "airflow.gcp.sensors.cloud_storage_transfer_service."
+        "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
         "CloudDataTransferServiceJobStatusSensor",
         "airflow.contrib.sensors.gcp_transfer_sensor."
         "GCPTransferServiceWaitForJobStatusSensor",

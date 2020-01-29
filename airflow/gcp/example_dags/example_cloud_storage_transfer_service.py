@@ -50,12 +50,14 @@ from airflow.gcp.operators.cloud_storage_transfer_service import (
     CloudDataTransferServiceListOperationsOperator, CloudDataTransferServicePauseOperationOperator,
     CloudDataTransferServiceResumeOperationOperator, CloudDataTransferServiceUpdateJobOperator,
 )
-from airflow.gcp.sensors.cloud_storage_transfer_service import CloudDataTransferServiceJobStatusSensor
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ALREADY_EXISTING_IN_SINK, AWS_S3_DATA_SOURCE, BUCKET_NAME, DESCRIPTION, FILTER_JOB_NAMES,
     FILTER_PROJECT_ID, GCS_DATA_SINK, GCS_DATA_SOURCE, PROJECT_ID, SCHEDULE, SCHEDULE_END_DATE,
     SCHEDULE_START_DATE, START_TIME_OF_DAY, STATUS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_OPTIONS,
     TRANSFER_SPEC, GcpTransferJobsStatus, GcpTransferOperationStatus,
+)
+from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
+    CloudDataTransferServiceJobStatusSensor,
 )
 from airflow.utils.dates import days_ago
 

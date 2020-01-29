@@ -424,7 +424,7 @@ CloudDataTransferServiceJobStatusSensor
 Waits for at least one operation belonging to the job to have the expected status.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.sensors.cloud_storage_transfer_service.CloudDataTransferServiceJobStatusSensor`.
+:class:`~airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.CloudDataTransferServiceJobStatusSensor`.
 
 Arguments
 """""""""

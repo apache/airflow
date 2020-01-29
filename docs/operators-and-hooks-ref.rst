@@ -667,7 +667,7 @@ These integrations allow you to perform various operations within the Google Clo
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
      - :mod:`airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`
      - :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
-     - :mod:`airflow.gcp.sensors.cloud_storage_transfer_service`
+     - :mod:`airflow.providers.google.cloud.sensors.cloud_storage_transfer_service`
 
    * - `Cloud Tasks <https://cloud.google.com/tasks/>`__
      -
