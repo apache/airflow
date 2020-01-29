@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.operators.local_to_gcs`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.local_to_gcs`.
 """
 
 import warnings
 
-from airflow.operators.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.local_to_gcs import LocalFilesystemToGCSOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.local_to_gcs`,",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.local_to_gcs`,",
     DeprecationWarning, stacklevel=2
 )
 

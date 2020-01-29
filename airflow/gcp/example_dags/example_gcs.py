@@ -24,12 +24,12 @@ import os
 
 from airflow import models
 from airflow.operators.bash import BashOperator
-from airflow.operators.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator, GCSCreateBucketOperator, GCSDeleteObjectsOperator,
     GcsFileTransformOperator, GCSListObjectsOperator, GCSObjectCreateAclEntryOperator, GCSToLocalOperator,
 )
 from airflow.providers.google.cloud.operators.gcs_to_gcs import GCSToGCSOperator
+from airflow.providers.google.cloud.operators.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}

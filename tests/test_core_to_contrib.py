@@ -446,7 +446,7 @@ OPERATOR = [
         "airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator",
     ),
     (
-        "airflow.operators.local_to_gcs.LocalFilesystemToGCSOperator",
+        "airflow.providers.google.cloud.operators.local_to_gcs.LocalFilesystemToGCSOperator",
         "airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator",
     ),
     (
