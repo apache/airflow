@@ -498,7 +498,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
      - :mod:`airflow.providers.amazon.aws.operators.sftp_to_s3`
 
 :ref:`[1] <integration:AWS-Discovery-ref>` Those discovery-based operators use
-:class:`airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
+:class:`airflow.providers.google.cloud.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
 Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
@@ -813,7 +813,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
 .. _integration:GCP-Discovery:
 
 :ref:`[1] <integration:GCP-Discovery-ref>` Those discovery-based operators use
-:class:`airflow.gcp.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
+:class:`airflow.providers.google.cloud.hooks.discovery_api.GoogleDiscoveryApiHook` to communicate with Google
 Services via the `Google API Python Client <https://github.com/googleapis/google-api-python-client>`__.
 Please note that this library is in maintenance mode hence it won't fully support GCP in the future.
 Therefore it is recommended that you use the custom GCP Service Operators for working with the Google
@@ -835,7 +835,7 @@ Other operators and hooks
 
    * -
      -
-     - :mod:`airflow.gcp.hooks.discovery_api`
+     - :mod:`airflow.providers.google.cloud.hooks.discovery_api`
 
 .. _service:
 
