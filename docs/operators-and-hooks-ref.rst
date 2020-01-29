@@ -569,7 +569,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Compute Engine <https://cloud.google.com/compute/>`__
      - :doc:`How to use <howto/operator/gcp/compute>`
-     - :mod:`airflow.gcp.hooks.compute`
+     - :mod:`airflow.providers.google.cloud.hooks.compute`
      - :mod:`airflow.gcp.operators.compute`
      -
 

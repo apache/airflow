@@ -27,10 +27,10 @@ from googleapiclient.errors import HttpError
 from json_merge_patch import merge
 
 from airflow import AirflowException
-from airflow.gcp.hooks.compute import ComputeEngineHook
 from airflow.gcp.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.utils.decorators import apply_defaults
 
 

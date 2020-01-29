@@ -26,7 +26,7 @@ from parameterized import parameterized
 
 HOOK = [
     (
-        "airflow.gcp.hooks.compute.ComputeEngineHook",
+        "airflow.providers.google.cloud.hooks.compute.ComputeEngineHook",
         "airflow.contrib.hooks.gcp_compute_hook.GceHook",
     ),
     (
