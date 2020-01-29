@@ -754,19 +754,19 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_translate_speech_operator.GcpTranslateSpeechOperator",
     ),
     (
-        "airflow.gcp.operators.video_intelligence."
+        "airflow.providers.google.cloud.operators.video_intelligence."
         "CloudVideoIntelligenceDetectVideoExplicitContentOperator",
         "airflow.contrib.operators.gcp_video_intelligence_operator."
         "CloudVideoIntelligenceDetectVideoExplicitContentOperator",
     ),
     (
-        "airflow.gcp.operators.video_intelligence."
+        "airflow.providers.google.cloud.operators.video_intelligence."
         "CloudVideoIntelligenceDetectVideoLabelsOperator",
         "airflow.contrib.operators.gcp_video_intelligence_operator."
         "CloudVideoIntelligenceDetectVideoLabelsOperator",
     ),
     (
-        "airflow.gcp.operators.video_intelligence."
+        "airflow.providers.google.cloud.operators.video_intelligence."
         "CloudVideoIntelligenceDetectVideoShotsOperator",
         "airflow.contrib.operators.gcp_video_intelligence_operator."
         "CloudVideoIntelligenceDetectVideoShotsOperator",

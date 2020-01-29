@@ -31,11 +31,11 @@ import os
 from google.api_core.retry import Retry
 
 from airflow import models
-from airflow.gcp.operators.video_intelligence import (
+from airflow.operators.bash import BashOperator
+from airflow.providers.google.cloud.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoExplicitContentOperator, CloudVideoIntelligenceDetectVideoLabelsOperator,
     CloudVideoIntelligenceDetectVideoShotsOperator,
 )
-from airflow.operators.bash import BashOperator
 from airflow.utils.dates import days_ago
 
 # [END howto_operator_vision_retry_import]
