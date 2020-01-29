@@ -27,7 +27,7 @@ There are very many reasons why your task might not be getting scheduled.
 Here are some of the common causes:
 
 - Does your script "compile", can the Airflow engine parse it and find your
-  DAG object. To test this, you can run ``airflow list_dags`` and
+  DAG object? To test this, you can run ``airflow list_dags`` and
   confirm that your DAG shows up in the list. You can also run
   ``airflow list_tasks foo_dag_id --tree`` and confirm that your task
   shows up in the list as expected. If you use the CeleryExecutor, you
@@ -52,7 +52,7 @@ Here are some of the common causes:
   it in the main view in the UI, but you should be able to see it in the
   ``Menu -> Browse ->Task Instances``.
 
-- Are the dependencies for the task met. The task instances directly
+- Are the dependencies for the task met? The task instances directly
   upstream from the task need to be in a ``success`` state. Also,
   if you have set ``depends_on_past=True``, the previous task instance
   needs to have succeeded (except if it is the first run for that task).
@@ -85,14 +85,7 @@ sure you fully understand how it proceeds.
 How do I trigger tasks based on another task's failure?
 -------------------------------------------------------
 
-Check out the ``Trigger Rule`` section in the Concepts section of the
-documentation
-
-Why are connection passwords still not encrypted in the metadata db after I installed airflow[crypto]?
-------------------------------------------------------------------------------------------------------
-
-Check out the ``Connections`` section in the Configuration section of the
-documentation
+Check out the :ref:`concepts/trigger_rule`.
 
 What's the deal with ``start_date``?
 ------------------------------------
@@ -113,7 +106,7 @@ once the period closes, and in theory an ``@hourly`` DAG would never get to
 an hour after now as ``now()`` moves along.
 
 
-Previously we also recommended using rounded ``start_date`` in relation to your
+Previously, we also recommended using rounded ``start_date`` in relation to your
 ``schedule_interval``. This meant an ``@hourly`` would be at ``00:00``
 minutes:seconds, a ``@daily`` job at midnight, a ``@monthly`` job on the
 first of the month. This is no longer required. Airflow will now auto align
@@ -126,26 +119,26 @@ While ``schedule_interval`` does allow specifying a ``datetime.timedelta``
 object, we recommend using the macros or cron expressions instead, as
 it enforces this idea of rounded schedules.
 
-When using ``depends_on_past=True`` it's important to pay special attention
-to ``start_date`` as the past dependency is not enforced only on the specific
+When using ``depends_on_past=True``, it's important to pay special attention
+to ``start_date``, as the past dependency is not enforced only on the specific
 schedule of the ``start_date`` specified for the task. It's also
 important to watch DagRun activity status in time when introducing
 new ``depends_on_past=True``, unless you are planning on running a backfill
 for the new task(s).
 
-Also important to note is that the tasks ``start_date``, in the context of a
-backfill CLI command, get overridden by the backfill's command ``start_date``.
+It is also important to note that the task's ``start_date``, in the context of a
+backfill CLI command, gets overridden by the backfill's ``start_date`` commands.
 This allows for a backfill on tasks that have ``depends_on_past=True`` to
-actually start, if that wasn't the case, the backfill just wouldn't start.
+actually start. If this were not the case, the backfill just would not start.
 
 How can I create DAGs dynamically?
 ----------------------------------
 
 Airflow looks in your ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
-in their global namespace, and adds the objects it finds in the
-``DagBag``. Knowing this all we need is a way to dynamically assign
-variable in the global namespace, which is easily done in python using the
-``globals()`` function for the standard library which behaves like a
+in their global namespace and adds the objects it finds in the
+``DagBag``. Knowing this all, we need is a way to dynamically assign
+variable in the global namespace. This is easily done in python using the
+``globals()`` function for the standard library, which behaves like a
 simple dictionary.
 
 .. code:: python
@@ -167,7 +160,7 @@ simple dictionary.
         globals()[other_dag_id] = create_dag(other_dag_id)
 
 What are all the ``airflow run`` commands in my process list?
----------------------------------------------------------------
+-------------------------------------------------------------
 
 There are many layers of ``airflow run`` commands, meaning it can call itself.
 
@@ -186,7 +179,7 @@ There are many layers of ``airflow run`` commands, meaning it can call itself.
 How can my airflow dag run faster?
 ----------------------------------
 
-There are a few variables we could control to improve airflow dag performance:
+There are a few variables we can control to improve airflow dag performance:
 
 - ``parallelism``: This variable controls the number of task instances that runs simultaneously across the whole Airflow cluster. User could increase the ``parallelism`` variable in the ``airflow.cfg``.
 - ``concurrency``: The Airflow scheduler will run no more than ``concurrency`` task instances for your DAG at any given time. Concurrency is defined in your Airflow DAG. If you do not set the concurrency on your DAG, the scheduler will use the default value from the ``dag_concurrency`` entry in your ``airflow.cfg``.
@@ -212,8 +205,16 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 How to reduce airflow dag scheduling latency in production?
 -----------------------------------------------------------
 
-- ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value(e.g numbers of cpus where scheduler runs - 1) in production.
-- ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value(e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat and updates the job's entry in database.
+- ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value (e.g numbers of cpus where scheduler runs - 1) in production.
+- ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value (e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat and updates the job's entry in database.
+
+Why next_ds or prev_ds might not contain expected values?
+---------------------------------------------------------
+
+- When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
+  ``execution_date`` and ``schedule_interval``. If you set ``schedule_interval`` as ``None`` or ``@once``,
+  the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` valueS will be set to ``None``.
+- When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``
 
 How do I stop the sync perms happening multiple times per webserver?
 --------------------------------------------------------------------
