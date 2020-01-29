@@ -34,8 +34,8 @@ import os
 from future.backports.urllib.parse import urlparse
 
 from airflow import models
-from airflow.gcp.operators.cloud_build import CloudBuildCreateOperator
 from airflow.operators.bash import BashOperator
+from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateOperator
 from airflow.utils import dates
 
 # [START howto_operator_gcp_common_variables]

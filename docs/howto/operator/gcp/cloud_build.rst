@@ -89,7 +89,7 @@ Trigger a build
 ^^^^^^^^^^^^^^^
 
 Trigger a build is performed with the
-:class:`~airflow.gcp.operators.cloud_build.CloudBuildCreateOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator` operator.
 
 .. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_build.py
     :language: python
@@ -98,7 +98,7 @@ Trigger a build is performed with the
     :end-before: [END howto_operator_create_build_from_storage]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_build.CloudBuildCreateOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 

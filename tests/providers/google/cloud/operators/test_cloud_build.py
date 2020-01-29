@@ -25,7 +25,7 @@ import mock
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
+from airflow.providers.google.cloud.operators.cloud_build import BuildProcessor, CloudBuildCreateOperator
 
 TEST_CREATE_BODY = {
     "source": {"storageSource": {"bucket": "cloud-build-examples", "object": "node-docker-example.tar.gz"}},
@@ -112,7 +112,7 @@ class TestBuildProcessor(TestCase):
 
 
 class TestGcpCloudBuildCreateOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_build.CloudBuildHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_minimal_green_path(self, mock_hook):
         mock_hook.return_value.create_build.return_value = TEST_CREATE_BODY
         operator = CloudBuildCreateOperator(
@@ -126,7 +126,7 @@ class TestGcpCloudBuildCreateOperator(TestCase):
         with self.assertRaisesRegex(AirflowException, "The required parameter 'body' is missing"):
             CloudBuildCreateOperator(body=body, project_id=TEST_PROJECT_ID, task_id="task-id")
 
-    @mock.patch("airflow.gcp.operators.cloud_build.CloudBuildHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook")
     def test_storage_source_replace(self, hook_mock):
         hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY
         current_body = {
@@ -162,7 +162,7 @@ class TestGcpCloudBuildCreateOperator(TestCase):
         hook_mock.create_build(body=expected_result, project_id=TEST_PROJECT_ID)
 
     @mock.patch(
-        "airflow.gcp.operators.cloud_build.CloudBuildHook",
+        "airflow.providers.google.cloud.operators.cloud_build.CloudBuildHook",
     )
     def test_repo_source_replace(self, hook_mock):
         hook_mock.return_value.create_build.return_value = TEST_CREATE_BODY

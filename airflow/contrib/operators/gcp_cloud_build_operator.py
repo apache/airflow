@@ -16,26 +16,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.cloud_build`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_build`."""
 
 import warnings
 
-from airflow.gcp.operators.cloud_build import CloudBuildCreateOperator
+from airflow.providers.google.cloud.operators.cloud_build import CloudBuildCreateOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.cloud_build`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_build`.",
     DeprecationWarning, stacklevel=2
 )
 
 
 class CloudBuildCreateBuildOperator(CloudBuildCreateOperator):
     """
-    This class is deprecated. Please use `airflow.gcp.operators.cloud_build.CloudBuildCreateOperator`.
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator`.
     """
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.cloud_build.CloudBuildCreateOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
