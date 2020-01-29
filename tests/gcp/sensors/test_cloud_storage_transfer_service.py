@@ -21,8 +21,8 @@ import unittest
 import mock
 from parameterized import parameterized
 
-from airflow.gcp.hooks.cloud_storage_transfer_service import GcpTransferOperationStatus
 from airflow.gcp.sensors.cloud_storage_transfer_service import CloudDataTransferServiceJobStatusSensor
+from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import GcpTransferOperationStatus
 
 
 class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):

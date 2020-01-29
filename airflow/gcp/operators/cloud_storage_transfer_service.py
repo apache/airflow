@@ -26,13 +26,13 @@ from datetime import date, time
 from typing import Dict, Optional
 
 from airflow import AirflowException
-from airflow.gcp.hooks.cloud_storage_transfer_service import (
+from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, DAY, DESCRIPTION, GCS_DATA_SINK,
     GCS_DATA_SOURCE, HOURS, HTTP_DATA_SOURCE, MINUTES, MONTH, OBJECT_CONDITIONS, PROJECT_ID, SCHEDULE,
     SCHEDULE_END_DATE, SCHEDULE_START_DATE, SECONDS, SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS,
     TRANSFER_OPTIONS, TRANSFER_SPEC, YEAR, CloudDataTransferServiceHook, GcpTransferJobsStatus,
 )
-from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 try:

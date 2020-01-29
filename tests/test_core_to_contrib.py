@@ -110,7 +110,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook",
     ),
     (
-        "airflow.gcp.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook",
+        "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook",
         "airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook",
     ),
     (

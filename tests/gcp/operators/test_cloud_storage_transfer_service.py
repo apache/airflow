@@ -28,11 +28,6 @@ from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.hooks.cloud_storage_transfer_service import (
-    ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, FILTER_JOB_NAMES, GCS_DATA_SINK,
-    GCS_DATA_SOURCE, HTTP_DATA_SOURCE, LIST_URL, NAME, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
-    SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS, TRANSFER_SPEC,
-)
 from airflow.gcp.operators.cloud_storage_transfer_service import (
     CloudDataTransferServiceCancelOperationOperator, CloudDataTransferServiceCreateJobOperator,
     CloudDataTransferServiceDeleteJobOperator, CloudDataTransferServiceGCSToGCSOperator,
@@ -42,6 +37,11 @@ from airflow.gcp.operators.cloud_storage_transfer_service import (
     TransferJobPreprocessor, TransferJobValidator,
 )
 from airflow.models import DAG, TaskInstance
+from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
+    ACCESS_KEY_ID, AWS_ACCESS_KEY, AWS_S3_DATA_SOURCE, BUCKET_NAME, FILTER_JOB_NAMES, GCS_DATA_SINK,
+    GCS_DATA_SOURCE, HTTP_DATA_SOURCE, LIST_URL, NAME, SCHEDULE, SCHEDULE_END_DATE, SCHEDULE_START_DATE,
+    SECRET_ACCESS_KEY, START_TIME_OF_DAY, STATUS, TRANSFER_SPEC,
+)
 from airflow.utils import timezone
 
 try:
