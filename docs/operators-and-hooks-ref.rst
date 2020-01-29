@@ -745,7 +745,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.bigquery_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_gcs`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `Google BigQuery <https://cloud.google.com/bigquery/>`__

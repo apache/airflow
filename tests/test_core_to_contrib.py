@@ -992,7 +992,7 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
     ),
     (
-        "airflow.operators.bigquery_to_gcs.BigQueryToGCSOperator",
+        "airflow.providers.google.cloud.operators.bigquery_to_gcs.BigQueryToGCSOperator",
         "airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator",
     ),
     (

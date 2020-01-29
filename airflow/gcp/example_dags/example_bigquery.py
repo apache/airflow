@@ -25,7 +25,6 @@ from urllib.parse import urlparse
 
 from airflow import models
 from airflow.operators.bash import BashOperator
-from airflow.operators.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator, BigQueryCreateEmptyTableOperator, BigQueryCreateExternalTableOperator,
     BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator,
@@ -33,6 +32,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
+from airflow.providers.google.cloud.operators.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.utils.dates import days_ago
 
 # 0x06012c8cf97BEaD5deAe237070F9587f8E7A266d = CryptoKitties contract address

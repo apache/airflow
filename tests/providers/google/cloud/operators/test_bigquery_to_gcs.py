@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.operators.bigquery_to_gcs import BigQueryToGCSOperator
+from airflow.providers.google.cloud.operators.bigquery_to_gcs import BigQueryToGCSOperator
 
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
@@ -29,7 +29,7 @@ TEST_TABLE_ID = 'test-table-id'
 
 
 class TestBigQueryToCloudStorageOperator(unittest.TestCase):
-    @mock.patch('airflow.operators.bigquery_to_gcs.BigQueryHook')
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery_to_gcs.BigQueryHook')
     def test_execute(self, mock_hook):
         source_project_dataset_table = '{}.{}'.format(
             TEST_DATASET, TEST_TABLE_ID)
