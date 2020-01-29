@@ -86,7 +86,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_container_hook.GKEClusterHook",
     ),
     (
-        "airflow.gcp.hooks.datastore.DatastoreHook",
+        "airflow.providers.google.cloud.hooks.datastore.DatastoreHook",
         "airflow.contrib.hooks.datastore_hook.DatastoreHook",
     ),
     (

@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.datastore`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.datastore`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.datastore import DatastoreHook  # noqa
+from airflow.providers.google.cloud.hooks.datastore import DatastoreHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.datastore`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.datastore`.",
     DeprecationWarning, stacklevel=2
 )
