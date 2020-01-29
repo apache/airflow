@@ -18,9 +18,9 @@
 # under the License.
 #
 import unittest
+from io import StringIO
 from unittest import mock
 
-from io import StringIO
 import pandas as pd
 
 from airflow.operators.mysql_to_s3_operator import MySQLToS3Operator
