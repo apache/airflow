@@ -22,7 +22,7 @@ import unittest
 
 import mock
 
-from airflow.gcp.operators.dataflow import (
+from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator, GoogleCloudBucketHelper,
 )
@@ -60,7 +60,7 @@ EXPECTED_ADDITIONAL_OPTIONS = {
     'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION}
 }
 POLL_SLEEP = 30
-GCS_HOOK_STRING = 'airflow.gcp.operators.dataflow.{}'
+GCS_HOOK_STRING = 'airflow.providers.google.cloud.operators.dataflow.{}'
 
 
 class TestDataflowPythonOperator(unittest.TestCase):
@@ -88,7 +88,7 @@ class TestDataflowPythonOperator(unittest.TestCase):
         self.assertEqual(self.dataflow.options,
                          EXPECTED_ADDITIONAL_OPTIONS)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
@@ -143,7 +143,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
                          EXPECTED_ADDITIONAL_OPTIONS)
         self.assertEqual(self.dataflow.check_if_running, CheckJobRunning.WaitForRun)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
@@ -165,7 +165,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             multiple_jobs=None
         )
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_check_job_running_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
@@ -183,7 +183,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
         start_java_hook.assert_not_called()
         dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_check_job_not_running_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
@@ -208,7 +208,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
         )
         dataflow_running.assert_called_once_with(name=JOB_NAME, variables=mock.ANY)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
     def test_check_multiple_job_exec(self, gcs_hook, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
@@ -256,7 +256,7 @@ class TestDataflowTemplateOperator(unittest.TestCase):
         self.assertEqual(self.dataflow.dataflow_default_options,
                          DEFAULT_OPTIONS_TEMPLATE)
 
-    @mock.patch('airflow.gcp.operators.dataflow.DataflowHook')
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
     def test_exec(self, dataflow_mock):
         """Test DataflowHook is created and the right args are passed to
         start_template_workflow.
@@ -282,7 +282,7 @@ class TestDataflowTemplateOperator(unittest.TestCase):
 class TestGoogleCloudBucketHelper(unittest.TestCase):
 
     @mock.patch(
-        'airflow.gcp.operators.dataflow.GoogleCloudBucketHelper.__init__'
+        'airflow.providers.google.cloud.operators.dataflow.GoogleCloudBucketHelper.__init__'
     )
     def test_invalid_object_path(self, mock_parent_init):
         # This is just the path of a bucket hence invalid filename
@@ -300,7 +300,7 @@ class TestGoogleCloudBucketHelper(unittest.TestCase):
             str(context.exception))
 
     @mock.patch(
-        'airflow.gcp.operators.dataflow.GoogleCloudBucketHelper.__init__'
+        'airflow.providers.google.cloud.operators.dataflow.GoogleCloudBucketHelper.__init__'
     )
     def test_valid_object(self, mock_parent_init):
         file_name = 'gs://test-bucket/path/to/obj.jar'
@@ -322,7 +322,7 @@ class TestGoogleCloudBucketHelper(unittest.TestCase):
         self.assertIn('obj.jar', local_file)
 
     @mock.patch(
-        'airflow.gcp.operators.dataflow.GoogleCloudBucketHelper.__init__'
+        'airflow.providers.google.cloud.operators.dataflow.GoogleCloudBucketHelper.__init__'
     )
     def test_empty_object(self, mock_parent_init):
         file_name = 'gs://test-bucket/path/to/obj.jar'

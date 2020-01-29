@@ -23,7 +23,7 @@ Example Airflow DAG for Google Cloud Dataflow service
 import os
 
 from airflow import models
-from airflow.gcp.operators.dataflow import (
+from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning, DataflowCreateJavaJobOperator, DataflowCreatePythonJobOperator,
     DataflowTemplatedJobStartOperator,
 )

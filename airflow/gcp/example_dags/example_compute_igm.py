@@ -42,7 +42,7 @@ Variables for update template in Group Manager:
 import os
 
 from airflow import models
-from airflow.gcp.operators.compute import (
+from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator, ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
 )
 from airflow.utils.dates import days_ago

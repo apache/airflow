@@ -35,7 +35,7 @@ ComputeEngineStartInstanceOperator
 ----------------------------------
 
 Use the
-:class:`~airflow.gcp.operators.compute.ComputeEngineStartInstanceOperator`
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineStartInstanceOperator`
 to start an existing Google Compute Engine instance.
 
 
@@ -93,7 +93,7 @@ ComputeEngineStopInstanceOperator
 Use the operator to stop Google Compute Engine instance.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.ComputeEngineStopInstanceOperator`
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineStopInstanceOperator`
 
 Arguments
 """""""""
@@ -148,7 +148,7 @@ ComputeEngineSetMachineTypeOperator
 Use the operator to change machine type of a Google Compute Engine instance.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.ComputeEngineSetMachineTypeOperator`.
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineSetMachineTypeOperator`.
 
 Arguments
 """""""""
@@ -210,7 +210,7 @@ Use the operator to copy an existing Google Compute Engine instance template
 applying a patch to it.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineCopyInstanceTemplateOperator`.
 
 Arguments
 """""""""
@@ -270,7 +270,7 @@ ComputeEngineInstanceGroupUpdateManagerTemplateOperator
 Use the operator to update a template in Google Compute Engine Instance Group Manager.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.compute.ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.
+:class:`~airflow.providers.google.cloud.operators.compute.ComputeEngineInstanceGroupUpdateManagerTemplateOperator`.
 
 Arguments
 """""""""

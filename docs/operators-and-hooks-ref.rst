@@ -570,7 +570,7 @@ These integrations allow you to perform various operations within the Google Clo
    * - `Compute Engine <https://cloud.google.com/compute/>`__
      - :doc:`How to use <howto/operator/gcp/compute>`
      - :mod:`airflow.providers.google.cloud.hooks.compute`
-     - :mod:`airflow.gcp.operators.compute`
+     - :mod:`airflow.providers.google.cloud.operators.compute`
      -
 
    * - `Cloud Data Loss Prevention (DLP) <https://cloud.google.com/dlp/>`__
@@ -582,7 +582,7 @@ These integrations allow you to perform various operations within the Google Clo
    * - `Dataflow <https://cloud.google.com/dataflow/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.dataflow`
-     - :mod:`airflow.gcp.operators.dataflow`
+     - :mod:`airflow.providers.google.cloud.operators.dataflow`
      -
 
    * - `Dataproc <https://cloud.google.com/dataproc/>`__
