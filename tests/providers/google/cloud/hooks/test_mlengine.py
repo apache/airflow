@@ -23,7 +23,7 @@ from googleapiclient.errors import HttpError
 from mock import PropertyMock
 
 from airflow import AirflowException
-from airflow.gcp.hooks import mlengine as hook
+from airflow.providers.google.cloud.hooks import mlengine as hook
 from tests.gcp.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
@@ -35,8 +35,8 @@ class TestMLEngineHook(unittest.TestCase):
         super().setUp()
         self.hook = hook.MLEngineHook()
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook._authorize")
-    @mock.patch("airflow.gcp.hooks.mlengine.build")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook._authorize")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.build")
     def test_mle_engine_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
 
@@ -45,7 +45,7 @@ class TestMLEngineHook(unittest.TestCase):
             'ml', 'v1', http=mock_authorize.return_value, cache_discovery=False
         )
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_version(self, mock_get_conn):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -98,7 +98,7 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().operations().get(name=version_name),
         ], any_order=True)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_version_with_labels(self, mock_get_conn):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -145,7 +145,7 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().operations().get(name=version_name),
         ], any_order=True)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_set_default_version(self, mock_get_conn):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -176,8 +176,8 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().models().versions().setDefault().execute()
         ], any_order=True)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.time.sleep")
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_list_versions(self, mock_get_conn, mock_sleep):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -216,7 +216,7 @@ class TestMLEngineHook(unittest.TestCase):
             ) for i in range(3)
         ], any_order=True)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_version(self, mock_get_conn):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -256,7 +256,7 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().operations().get().execute()
         ], any_order=True)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model(self, mock_get_conn):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -287,7 +287,7 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().models().create().execute()
         ])
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model_with_labels(self, mock_get_conn):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -322,7 +322,7 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().models().create().execute()
         ])
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_get_model(self, mock_get_conn):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -347,7 +347,7 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().models().get().execute()
         ])
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model(self, mock_get_conn):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -370,8 +370,8 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().models().delete().execute()
         ])
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.log")
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.log")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model_when_not_exists(self, mock_get_conn, mock_log):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -398,8 +398,8 @@ class TestMLEngineHook(unittest.TestCase):
         ])
         mock_log.error.assert_called_once_with('Model was not found: %s', http_error)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.time.sleep")
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model_with_contents(self, mock_get_conn, mock_sleep):
         project_id = 'test-project'
         model_name = 'test-model'
@@ -451,8 +451,8 @@ class TestMLEngineHook(unittest.TestCase):
             any_order=True
         )
 
-    @mock.patch("airflow.gcp.hooks.mlengine.time.sleep")
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job(self, mock_get_conn, mock_sleep):
         project_id = 'test-project'
         job_id = 'test-job-id'
@@ -503,8 +503,8 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().jobs().get().execute()
         ], any_order=True)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.time.sleep")
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job_with_labels(self, mock_get_conn, mock_sleep):
         project_id = 'test-project'
         job_id = 'test-job-id'
@@ -559,7 +559,7 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().jobs().get().execute()
         ], any_order=True)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job_reuse_existing_job_by_default(self, mock_get_conn):
         project_id = 'test-project'
         job_id = 'test-job-id'
@@ -598,7 +598,7 @@ class TestMLEngineHook(unittest.TestCase):
             mock.call().projects().jobs().get().execute()
         ], any_order=True)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job_check_existing_job_failed(self, mock_get_conn):
         project_id = 'test-project'
         job_id = 'test-job-id'
@@ -644,7 +644,7 @@ class TestMLEngineHook(unittest.TestCase):
                 project_id=project_id, job=my_job,
                 use_existing_job_fn=check_input)
 
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job_check_existing_job_success(self, mock_get_conn):
         project_id = 'test-project'
         job_id = 'test-job-id'
@@ -687,7 +687,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
     def setUp(self) -> None:
         super().setUp()
         with mock.patch(
-            'airflow.gcp.hooks.mlengine.MLEngineHook.__init__',
+            'airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.__init__',
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = hook.MLEngineHook()
@@ -697,7 +697,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_version(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         version_name = 'test-version'
@@ -739,7 +739,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_set_default_version(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         version_name = 'test-version'
@@ -774,8 +774,8 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.time.sleep")
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_list_versions(self, mock_get_conn, mock_sleep, mock_project_id):
         model_name = 'test-model'
         model_path = 'projects/{}/models/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST, model_name)
@@ -817,7 +817,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_version(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         version_name = 'test-version'
@@ -863,7 +863,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         model = {
@@ -892,7 +892,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_get_model(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         model = {'model': model_name}
@@ -919,7 +919,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         model = {'model': model_name}
@@ -944,8 +944,8 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.time.sleep")
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job(self, mock_get_conn, mock_sleep, mock_project_id):
         job_id = 'test-job-id'
         project_path = 'projects/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST)
@@ -992,7 +992,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
     def setUp(self) -> None:
         super().setUp()
         with mock.patch(
-            'airflow.gcp.hooks.mlengine.MLEngineHook.__init__',
+            'airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.__init__',
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = hook.MLEngineHook()
@@ -1002,7 +1002,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_version(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         version_name = 'test-version'
@@ -1019,7 +1019,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_set_default_version(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         version_name = 'test-version'
@@ -1035,8 +1035,8 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.time.sleep")
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_list_versions(self, mock_get_conn, mock_sleep, mock_project_id):
         model_name = 'test-model'
 
@@ -1048,7 +1048,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_version(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         version_name = 'test-version'
@@ -1061,7 +1061,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         model = {
@@ -1076,7 +1076,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_get_model(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         with self.assertRaises(AirflowException):
@@ -1087,7 +1087,7 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
 
@@ -1099,8 +1099,8 @@ class TestMLEngineHookWithoutProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.mlengine.time.sleep")
-    @mock.patch("airflow.gcp.hooks.mlengine.MLEngineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job(self, mock_get_conn, mock_sleep, mock_project_id):
         job_id = 'test-job-id'
         new_job = {

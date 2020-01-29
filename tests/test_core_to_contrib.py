@@ -54,7 +54,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook",
     ),
     (
-        "airflow.gcp.hooks.mlengine.MLEngineHook",
+        "airflow.providers.google.cloud.hooks.mlengine.MLEngineHook",
         "airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook",
     ),
     (

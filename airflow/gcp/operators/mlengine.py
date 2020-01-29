@@ -23,8 +23,8 @@ import warnings
 from typing import List, Optional
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.mlengine import MLEngineHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 

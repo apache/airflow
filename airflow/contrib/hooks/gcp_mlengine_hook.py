@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.mlengine`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.mlengine`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.hooks.mlengine import MLEngineHook  # noqa
+from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.mlengine`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.mlengine`.",
     DeprecationWarning, stacklevel=2
 )
