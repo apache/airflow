@@ -48,7 +48,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
                                dag=None
                                )
         op.execute(None)
-        mock_mysql_hook.assert_called_once_with(mysql_conn_id="mysql_default")
+        mock_mysql_hook.assert_called_once_with(mysql_conn_id="mysql_conn_id")
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_default", verify=None)
 
         get_pandas_df_mock.assert_called_once_with(query)
