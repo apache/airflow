@@ -641,7 +641,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Spanner <https://cloud.google.com/spanner/>`__
      - :doc:`How to use <howto/operator/gcp/spanner>`
-     - :mod:`airflow.gcp.hooks.spanner`
+     - :mod:`airflow.providers.google.cloud.hooks.spanner`
      - :mod:`airflow.gcp.operators.spanner`
      -
 
