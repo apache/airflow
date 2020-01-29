@@ -740,7 +740,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.operators.bigquery_to_mysql`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_mysql`
 
    * - `Google BigQuery <https://cloud.google.com/bigquery/>`__
      - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -1162,7 +1162,7 @@ These integrations allow you to copy data.
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.operators.bigquery_to_mysql`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery_to_mysql`
 
    * - `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/pl-pl/sql-server/sql-server-downloads>`__
      - `Apache Hive <https://hive.apache.org/>`__

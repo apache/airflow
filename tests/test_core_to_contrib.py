@@ -996,7 +996,7 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator",
     ),
     (
-        "airflow.operators.bigquery_to_mysql.BigQueryToMySqlOperator",
+        "airflow.providers.google.cloud.operators.bigquery_to_mysql.BigQueryToMySqlOperator",
         "airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator",
     ),
     (
