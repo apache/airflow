@@ -20,7 +20,8 @@
 import os
 import re
 import zipfile
-from typing import Dict, List, Optional, Pattern
+from glob import glob
+from typing import Dict, Iterator, List, Optional, Pattern
 
 from airflow import LoggingMixin, conf
 
@@ -69,6 +70,21 @@ def correct_maybe_zipped(fileloc):
         return archive
     else:
         return fileloc
+
+
+EXAMPLE_DAGS_DIRECTORY_PATTERNS = [
+    f"/example_dags",
+    f"/providers/*/example_dags",
+    f"/providers/*/*/example_dags",
+]
+
+
+def find_example_dags_root_directories() -> Iterator[str]:
+    import airflow
+    airflow_root = airflow.__path__[0]  # type: ignore
+    for pattern in EXAMPLE_DAGS_DIRECTORY_PATTERNS:
+        for filename in glob(f"{airflow_root}/{pattern}"):
+            yield filename
 
 
 def list_py_file_paths(directory: str,
@@ -124,9 +140,8 @@ def list_py_file_paths(directory: str,
 
             find_dag_file_paths(file_paths, files, patterns, root, safe_mode)
     if include_examples:
-        from airflow import example_dags
-        example_dag_folder = example_dags.__path__[0]  # type: ignore
-        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
+        for example_dag_folder in find_example_dags_root_directories():
+            file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
     return file_paths
 
 
