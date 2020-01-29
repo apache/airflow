@@ -163,7 +163,7 @@ BigtableTableReplicationCompletedSensor
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-Use the :class:`~airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor`
+Use the :class:`~airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor`
 to wait for the table to replicate fully.
 
 The same arguments apply to this sensor as the BigtableCreateTableOperator.

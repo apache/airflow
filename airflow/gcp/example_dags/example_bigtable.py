@@ -55,7 +55,7 @@ from airflow.gcp.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
     BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
 )
-from airflow.gcp.sensors.bigtable import BigtableTableReplicationCompletedSensor
+from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_gcp_bigtable_args]

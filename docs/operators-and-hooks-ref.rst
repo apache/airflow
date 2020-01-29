@@ -559,7 +559,7 @@ These integrations allow you to perform various operations within the Google Clo
      - :doc:`How to use <howto/operator/gcp/bigtable>`
      - :mod:`airflow.providers.google.cloud.hooks.bigtable`
      - :mod:`airflow.gcp.operators.bigtable`
-     - :mod:`airflow.gcp.sensors.bigtable`
+     - :mod:`airflow.providers.google.cloud.sensors.bigtable`
 
    * - `Cloud Build <https://cloud.google.com/cloud-build/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_build>`

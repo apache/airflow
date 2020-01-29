@@ -1390,7 +1390,7 @@ OPERATOR = [
 
 SENSOR = [
     (
-        "airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor",
+        "airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor",
         "airflow.contrib.operators.gcp_bigtable_operator."
         "BigtableTableWaitForReplicationSensor",
     ),

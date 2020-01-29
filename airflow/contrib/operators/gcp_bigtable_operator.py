@@ -18,7 +18,7 @@
 # under the License.
 """
 This module is deprecated. Please use `airflow.gcp.operators.bigtable`
-or `airflow.gcp.sensors.bigtable`.
+or `airflow.providers.google.cloud.sensors.bigtable`.
 """
 
 import warnings
@@ -27,11 +27,11 @@ from airflow.gcp.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
     BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
 )
-from airflow.gcp.sensors.bigtable import BigtableTableReplicationCompletedSensor
+from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.gcp.operators.bigtable`"
-    " or `airflow.gcp.sensors.bigtable`.",
+    " or `airflow.providers.google.cloud.sensors.bigtable`.",
     DeprecationWarning, stacklevel=2
 )
 
@@ -115,13 +115,14 @@ class BigtableTableDeleteOperator(BigtableDeleteTableOperator):
 class BigtableTableWaitForReplicationSensor(BigtableTableReplicationCompletedSensor):
     """
     This class is deprecated.
-    Please use `airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor`.
+    Please use `airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor`.""",
+            Please use
+            `airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
