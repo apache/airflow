@@ -25,13 +25,13 @@ from copy import deepcopy
 from typing import Dict, List
 
 from airflow import models
-from airflow.gcp.operators.automl import (
+from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
+from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator, AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator,
     AutoMLDeleteModelOperator, AutoMLDeployModelOperator, AutoMLGetModelOperator, AutoMLImportDataOperator,
     AutoMLListDatasetOperator, AutoMLPredictOperator, AutoMLTablesListColumnSpecsOperator,
     AutoMLTablesListTableSpecsOperator, AutoMLTablesUpdateDatasetOperator, AutoMLTrainModelOperator,
 )
-from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")

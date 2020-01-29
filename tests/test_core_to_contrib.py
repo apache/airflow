@@ -1409,19 +1409,19 @@ SENSOR = [
         "airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GCSObjectExistenceSensor",
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GCSObjectUpdateSensor",
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor",
+        "airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor",
     ),
     (
-        "airflow.gcp.sensors.gcs.GCSUploadSessionCompleteSensor",
+        "airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor",
         "airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor",
     ),
     (

@@ -23,11 +23,11 @@ Example Airflow DAG that uses Google AutoML services.
 import os
 
 from airflow import models
-from airflow.gcp.operators.automl import (
+from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
+from airflow.providers.google.cloud.operators.automl import (
     AutoMLCreateDatasetOperator, AutoMLDeleteDatasetOperator, AutoMLDeleteModelOperator,
     AutoMLImportDataOperator, AutoMLTrainModelOperator,
 )
-from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")

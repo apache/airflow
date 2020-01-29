@@ -540,7 +540,7 @@ These integrations allow you to perform various operations within the Google Clo
    * - `AutoML <https://cloud.google.com/automl/>`__
      - :doc:`How to use <howto/operator/gcp/automl>`
      - :mod:`airflow.providers.google.cloud.hooks.automl`
-     - :mod:`airflow.gcp.operators.automl`
+     - :mod:`airflow.providers.google.cloud.operators.automl`
      -
 
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
@@ -661,7 +661,7 @@ These integrations allow you to perform various operations within the Google Clo
      - :doc:`How to use <howto/operator/gcp/gcs>`
      - :mod:`airflow.providers.google.cloud.hooks.gcs`
      - :mod:`airflow.gcp.operators.gcs`
-     - :mod:`airflow.gcp.sensors.gcs`
+     - :mod:`airflow.providers.google.cloud.sensors.gcs`
 
    * - `Storage Transfer Service <https://cloud.google.com/storage/transfer/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
