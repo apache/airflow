@@ -41,10 +41,10 @@ Operator
 ^^^^^^^^
 
 Transfer files between SFTP and Google Storage is performed with the
-:class:`~airflow.operators.gcs_to_sftp.GCSToSFTPOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.gcs_to_sftp.GCSToSFTPOperator` operator.
 
 Use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.operators.gcs_to_sftp.GCSToSFTPOperator`
+:template-fields:`airflow.providers.google.cloud.operators.gcs_to_sftp.GCSToSFTPOperator`
 to define values dynamically.
 
 
