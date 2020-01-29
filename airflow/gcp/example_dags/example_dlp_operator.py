@@ -29,11 +29,11 @@ import os
 
 from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplate
 
-from airflow.gcp.operators.dlp import (
+from airflow.models import DAG
+from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateInspectTemplateOperator, CloudDLPDeleteInspectTemplateOperator,
     CloudDLPInspectContentOperator,
 )
-from airflow.models import DAG
 from airflow.utils.dates import days_ago
 
 default_args = {"start_date": days_ago(1)}

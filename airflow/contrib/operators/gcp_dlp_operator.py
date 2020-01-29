@@ -16,12 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.dlp`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.dlp`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.operators.dlp import (  # noqa
+from airflow.providers.google.cloud.operators.dlp import (  # noqa
     CloudDLPCancelDLPJobOperator, CloudDLPCreateDeidentifyTemplateOperator, CloudDLPCreateDLPJobOperator,
     CloudDLPCreateInspectTemplateOperator, CloudDLPCreateJobTriggerOperator,
     CloudDLPCreateStoredInfoTypeOperator, CloudDLPDeidentifyContentOperator,
@@ -37,7 +37,7 @@ from airflow.gcp.operators.dlp import (  # noqa
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.dlp`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.dlp`.",
     DeprecationWarning, stacklevel=2
 )
 

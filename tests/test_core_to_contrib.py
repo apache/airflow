@@ -512,123 +512,123 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_container_operator.GKEPodOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPCancelDLPJobOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPCancelDLPJobOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPCancelDLPJobOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPCreateDeidentifyTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPCreateDeidentifyTemplateOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDeidentifyTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPCreateDLPJobOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPCreateDLPJobOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDLPJobOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPCreateInspectTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPCreateInspectTemplateOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateInspectTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPCreateJobTriggerOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPCreateJobTriggerOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateJobTriggerOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPCreateStoredInfoTypeOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPCreateStoredInfoTypeOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateStoredInfoTypeOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPDeidentifyContentOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeidentifyContentOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeidentifyContentOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDeidentifyTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPDeleteDLPJobOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDLPJobOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDlpJobOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPDeleteInspectTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteInspectTemplateOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteInspectTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPDeleteJobTriggerOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteJobTriggerOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteJobTriggerOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteStoredInfoTypeOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPGetDeidentifyTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPGetDeidentifyTemplateOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDeidentifyTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPGetDLPJobOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDlpJobOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPGetInspectTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPGetInspectTemplateOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetInspectTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPGetDLPJobTriggerOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobTriggerOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetJobTripperOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPGetStoredInfoTypeOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPGetStoredInfoTypeOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetStoredInfoTypeOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPInspectContentOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPInspectContentOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPInspectContentOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPListDeidentifyTemplatesOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPListDeidentifyTemplatesOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDeidentifyTemplatesOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPListDLPJobsOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPListDLPJobsOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDlpJobsOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPListInfoTypesOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPListInfoTypesOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInfoTypesOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPListInspectTemplatesOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPListInspectTemplatesOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInspectTemplatesOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPListJobTriggersOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPListJobTriggersOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPListJobTriggersOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPListStoredInfoTypesOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPListStoredInfoTypesOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPListStoredInfoTypesOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPRedactImageOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPRedactImageOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPReidentifyContentOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPReidentifyContentOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPUpdateDeidentifyTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateDeidentifyTemplateOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateDeidentifyTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPUpdateInspectTemplateOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateInspectTemplateOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateInspectTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPUpdateJobTriggerOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateJobTriggerOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateJobTriggerOperator",
     ),
     (
-        "airflow.gcp.operators.dlp.CloudDLPUpdateStoredInfoTypeOperator",
+        "airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateStoredInfoTypeOperator",
         "airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateStoredInfoTypeOperator",
     ),
     (
