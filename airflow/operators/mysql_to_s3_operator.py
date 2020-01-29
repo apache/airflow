@@ -28,7 +28,6 @@ import numpy as np
 import pandas as pd
 
 from airflow.models import BaseOperator
-from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.decorators import apply_defaults
