@@ -132,6 +132,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type do_xcom_push: bool
     :param init_containers: init container for the launched Pod
     :type init_containers: list[kubernetes.client.models.V1Container]
+    :param log_events_on_failure: Log the pod's events if a failure occurs
+    :type log_events_on_failure: bool
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -170,6 +172,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  schedulername: Optional[str] = None,
                  full_pod_spec: Optional[k8s.V1Pod] = None,
                  init_containers: Optional[List[k8s.V1Container]] = None,
+                 log_events_on_failure: bool = False,
                  do_xcom_push: bool = False,
                  *args,
                  **kwargs):
@@ -212,6 +215,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.schedulername = schedulername
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
+        self.log_events_on_failure = log_events_on_failure
 
     def execute(self, context):
         try:
@@ -277,11 +281,19 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                     pod,
                     startup_timeout=self.startup_timeout_seconds,
                     get_logs=self.get_logs)
+            except AirflowException:
+                if self.log_events_on_failure:
+                    for event in launcher.read_pod_events(pod).items:
+                        self.log.error("Pod Event: %s - %s", event.reason, event.message)
+                raise
             finally:
                 if self.is_delete_operator_pod:
                     launcher.delete_pod(pod)
 
             if final_state != State.SUCCESS:
+                if self.log_events_on_failure:
+                    for event in launcher.read_pod_events(pod).items:
+                        self.log.error("Pod Event: %s - %s", event.reason, event.message)
                 raise AirflowException(
                     'Pod returned a failure: {state}'.format(state=final_state)
                 )
