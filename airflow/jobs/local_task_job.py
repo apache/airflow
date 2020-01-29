@@ -108,7 +108,7 @@ class LocalTaskJob(BaseJob):
                 # If it's been too long since we've heartbeat, then it's possible that
                 # the scheduler rescheduled this task, so kill launched processes.
                 # This can only really happen if the worker can't read the DB for a long time
-                time_since_last_heartbeat = (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                time_since_last_heartbeat = (timezone.utcnow() - self.get_heartbeat()).total_seconds()
                 if time_since_last_heartbeat > heartbeat_time_limit:
                     Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
                     self.log.error("Heartbeat time limited exceeded!")

@@ -60,95 +60,15 @@ class BaseJob(Base, LoggingMixin):
     job_type = Column(String(30))
     start_date = Column(UtcDateTime())
     end_date = Column(UtcDateTime())
-
-    @classmethod
-    def get_zombie_running_tis(cls, limit_dttm, session=None):
-        def mget(acc, items):
-            return acc + cls.redis.mget(items)
-
-        TI = airflow.models.TaskInstance
-
-        if conf.getboolean('heartbeat', 'redis_enabled'):
-            batch_size = conf.getint('heartbeat', 'redis_mget_batch_size')
-            ti_job = (
-                session
-                .query(TI, cls)
-                .join(cls, TI.job_id == cls.id)
-                .filter(TI.state == State.RUNNING)
-                .all()
-            )
-            job_id_to_ti_job = dict([(job.id, (ti, job)) for ti, job in ti_job])
-            job_ids = job_id_to_ti_job.keys()
-            heartbeats = helpers.reduce_in_chunks(mget, job_ids, [], batch_size)
-            zombie_tis = []
-            for heartbeat, job_id in zip(heartbeats, job_ids):
-                ti, job = job_id_to_ti_job[job_id]
-                if (heartbeat and heartbeat < limit_dttm) or job.state != State.RUNNING:
-                    zombie_tis.append(SimpleTaskInstance(ti))
-            return zombie_tis
-        else:
-            tis = (
-                session
-                .query(TI)
-                .join(cls, TI.job_id == cls.id)
-                .filter(TI.state == State.RUNNING)
-                .filter(
-                    or_(
-                        cls.state != State.RUNNING,
-                        cls.latest_heartbeat < limit_dttm,
-                    )
-                ).all()
-            )
-            return [SimpleTaskInstance(ti) for ti in tis]
-
-    def update_heartbeat(self, session=None):
-        if conf.getboolean('heartbeat', 'redis_enabled'):
-            self.latest_heartbeat = timezone.utcnow()
-        else:
-            # Update last heartbeat time
-            session.merge(self)
-            self.latest_heartbeat = timezone.utcnow()
-            session.commit()
-
-    if conf.getboolean('heartbeat', 'redis_enabled'):
-        @property
-        def latest_heartbeat(self):
-            try:
-                redis_result = self.redis.get(str(self.id))
-                return redis_result and timezone.parse(redis_result)
-            except Exception:
-                self.log.error('error heartbeating')
-                Stats.incr('heartbeat.worker.get.fail')
-                raise
-            finally:
-                Stats.incr('heartbeat.worker.get')
-
-        @latest_heartbeat.setter
-        def latest_heartbeat(self, val):
-            try:
-                self.redis.set(
-                    str(self.id),
-                    str(val),
-                    ex=2 * conf.getint('scheduler', 'scheduler_zombie_task_threshold'))
-            except Exception:
-                self.log.error('failed to heartbeat')
-                Stats.incr('heartbeat.worker.set.fail')
-                raise
-            finally:
-                Stats.incr('heartbeat.worker.set')
-
-        redis = Redis.from_url(conf.get('heartbeat', 'redis_url'))
-        legacy_heartbeat = Column('latest_heartbeat', UtcDateTime())
-        __table_args__ = (
-            Index('job_type_heart', job_type, legacy_heartbeat),
-            Index('idx_job_state_heartbeat', state, legacy_heartbeat),
-        )
-    else:
-        latest_heartbeat = Column(UtcDateTime())
-        __table_args__ = (
-            Index('job_type_heart', job_type, latest_heartbeat),
-            Index('idx_job_state_heartbeat', state, latest_heartbeat),
-        )
+    """
+    because this can be backed by sqlalchemy or redis, name is underscored so
+    users can use get_heartbeat and update_heartbeat
+    """
+    _legacy_heartbeat = Column('latest_heartbeat', UtcDateTime())
+    __table_args__ = (
+        Index('job_type_heart', job_type, _legacy_heartbeat),
+        Index('idx_job_state_heartbeat', state, _legacy_heartbeat),
+    )
     executor_class = Column(String(500))
     hostname = Column(String(500))
     unixname = Column(String(1000))
@@ -159,6 +79,8 @@ class BaseJob(Base, LoggingMixin):
     }
 
     heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
+    if conf.getboolean('heartbeat', 'redis_enabled'):
+        redis = Redis.from_url(conf.get('heartbeat', 'redis_url'))
 
     def __init__(
             self,
@@ -170,7 +92,7 @@ class BaseJob(Base, LoggingMixin):
         self.executor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
-        self.latest_heartbeat = timezone.utcnow()
+        self.update_heartbeat(timezone.utcnow())
         if heartrate is not None:
             self.heartrate = heartrate
         self.unixname = getpass.getuser()
@@ -190,7 +112,11 @@ class BaseJob(Base, LoggingMixin):
         :param session: Database session
         :rtype: BaseJob or None
         """
-        return session.query(cls).order_by(cls.latest_heartbeat.desc()).limit(1).first()
+        if conf.getboolean('heartbeat', 'redis_enabled'):
+            latest_id = cls.redis.zrange(cls.__name__, -1, -1)
+            return latest_id and session.query(cls).get(int(latest_id))
+        else:
+            return session.query(cls).order_by(cls._legacy_heartbeat.desc()).limit(1).first()
 
     def is_alive(self, grace_multiplier=2.1):
         """
@@ -253,22 +179,20 @@ class BaseJob(Base, LoggingMixin):
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
         """
-        previous_heartbeat = self.latest_heartbeat
-
         try:
             with create_session() as session:
                 # This will cause it to load from the db
                 session.merge(self)
-                previous_heartbeat = self.latest_heartbeat
+                previous_heartbeat = self.get_heartbeat()
 
             if self.state == State.SHUTDOWN:
                 self.kill()
 
             # Figure out how long to sleep for
             sleep_for = 0
-            if self.latest_heartbeat:
+            if previous_heartbeat:
                 seconds_remaining = self.heartrate - \
-                    (timezone.utcnow() - self.latest_heartbeat) \
+                    (timezone.utcnow() - previous_heartbeat) \
                     .total_seconds()
                 sleep_for = max(0, seconds_remaining)
             sleep(sleep_for)
@@ -282,8 +206,6 @@ class BaseJob(Base, LoggingMixin):
                 convert_camel_to_snake(self.__class__.__name__) + '_heartbeat_failure', 1,
                 1)
             self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
-            # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
-            self.latest_heartbeat = previous_heartbeat
 
     def run(self):
         """
@@ -395,3 +317,68 @@ class BaseJob(Base, LoggingMixin):
             len(reset_tis), task_instance_str
         )
         return reset_tis
+
+    def update_heartbeat(self, session=None):
+        if conf.getboolean('heartbeat', 'redis_enabled'):
+            self.redis.zadd(
+                self.job_type,
+                {str(self.id): str(timezone.utcnow())})
+        else:
+            # Update last heartbeat time
+            session.merge(self)
+            self._legacy_heartbeat = timezone.utcnow()
+            session.commit()
+
+    def get_heartbeat(self):
+        if conf.getboolean('heartbeat', 'redis_enabled'):
+            redis_result = self.redis.zscore(self.job_type, str(self.id))
+            return redis_result and timezone.parse(redis_result)
+        else:
+            return self._legacy_heartbeat
+
+    @classmethod
+    def get_zombie_running_tis(cls, limit_dttm, session=None):
+        def batch_get(acc, items):
+            lua_script = '''
+                local scores = {}
+                while #ARGV > 0 do
+                    scores[#scores+1] = redis.call('ZSCORE', KEYS[1], table.remove(ARGV, 1))
+                end
+                return scores
+            '''
+            from airflow.jobs import LocalTaskJob
+            return acc.update(cls.redis.register_script(lua_script)(LocalTaskJob.__name__, items))
+
+        TI = airflow.models.TaskInstance
+
+        if conf.getboolean('heartbeat', 'redis_enabled'):
+            batch_size = conf.getint('heartbeat', 'redis_get_batch_size')
+            ti_job = (
+                session
+                .query(TI, cls)
+                .join(cls, TI.job_id == cls.id)
+                .filter(TI.state == State.RUNNING)
+                .all())
+            job_id_to_ti_job = dict([(job.id, (ti, job)) for ti, job in ti_job])
+            job_ids = job_id_to_ti_job.keys()
+            heartbeats = helpers.reduce_in_chunks(batch_get, job_ids, {}, batch_size)
+            zombie_tis = []
+            for heartbeat, job_id in zip(heartbeats, job_ids):
+                ti, job = job_id_to_ti_job[job_id]
+                if (heartbeat and heartbeat < limit_dttm) or job.state != State.RUNNING:
+                    zombie_tis.append(SimpleTaskInstance(ti))
+            return zombie_tis
+        else:
+            tis = (
+                session
+                .query(TI)
+                .join(cls, TI.job_id == cls.id)
+                .filter(TI.state == State.RUNNING)
+                .filter(
+                    or_(
+                        cls.state != State.RUNNING,
+                        cls._legacy_heartbeat < limit_dttm,
+                    )
+                ).all()
+            )
+            return [SimpleTaskInstance(ti) for ti in tis]

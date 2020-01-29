@@ -2124,7 +2124,7 @@
       type: boolean
       example: ~
       default: "false"
-    - name: redis_mget_batch_size
+    - name: redis_get_batch_size
       description: ~
       version_added: 2.0
       type: int

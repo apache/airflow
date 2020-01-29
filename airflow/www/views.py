@@ -203,7 +203,7 @@ class Airflow(AirflowBaseView):
             scheduler_job = SchedulerJob.most_recent_job()
 
             if scheduler_job:
-                latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
+                latest_scheduler_heartbeat = scheduler_job.get_heartbeat().isoformat()
                 if scheduler_job.is_alive():
                     scheduler_status = 'healthy'
         except Exception:
