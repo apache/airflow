@@ -121,9 +121,8 @@ class PodLauncher(LoggingMixin):
 
         if get_logs:
             logs = self.read_pod_logs(pod)
+            
             for line in logs:
-                if isinstance(line, bytes):
-                    line = line.decode('utf-8').strip()
                 self.log.info(line)
         result = None
         if self.extract_xcom:
