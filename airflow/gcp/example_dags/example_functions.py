@@ -44,7 +44,7 @@ https://airflow.apache.org/concepts.html#variables
 import os
 
 from airflow import models
-from airflow.gcp.operators.functions import (
+from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeleteFunctionOperator, CloudFunctionDeployFunctionOperator,
     CloudFunctionInvokeFunctionOperator,
 )

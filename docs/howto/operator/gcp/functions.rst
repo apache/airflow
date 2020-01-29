@@ -37,7 +37,7 @@ CloudFunctionDeleteFunctionOperator
 Use the operator to delete a function from Google Cloud Functions.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.functions.CloudFunctionDeleteFunctionOperator`.
+:class:`~airflow.providers.google.cloud.operators.functions.CloudFunctionDeleteFunctionOperator`.
 
 Arguments
 """""""""
@@ -83,7 +83,7 @@ Use the operator to deploy a function to Google Cloud Functions.
 If a function with this name already exists, it will be updated.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.functions.CloudFunctionDeployFunctionOperator`.
+:class:`~airflow.providers.google.cloud.operators.functions.CloudFunctionDeployFunctionOperator`.
 
 
 Arguments

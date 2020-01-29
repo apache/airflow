@@ -16,16 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.functions`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.functions`."""
 
 import warnings
 
-from airflow.gcp.operators.functions import (
+from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeleteFunctionOperator, CloudFunctionDeployFunctionOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.functions`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.functions`.",
     DeprecationWarning, stacklevel=2
 )
 
