@@ -21,7 +21,7 @@ This module contains a Google Bigquery sensor.
 """
 from typing import Optional
 
-from airflow.gcp.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

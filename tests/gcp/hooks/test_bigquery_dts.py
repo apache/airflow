@@ -25,7 +25,7 @@ from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from google.protobuf.json_format import ParseDict
 
-from airflow.gcp.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
+from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.version import version
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
@@ -57,7 +57,7 @@ TRANSFER_CONFIG_ID = "id1234"
 class BigQueryDataTransferHookTestCase(unittest.TestCase):
     def setUp(self) -> None:
         with mock.patch(
-            "airflow.gcp.hooks.bigquery_dts.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.bigquery_dts.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = BiqQueryDataTransferServiceHook()
@@ -75,7 +75,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         self.assertEqual(expected, self.hook._disable_auto_scheduling(TRANSFER_CONFIG))
 
     @mock.patch(
-        "airflow.gcp.hooks.bigquery_dts."
+        "airflow.providers.google.cloud.hooks.bigquery_dts."
         "DataTransferServiceClient.create_transfer_config"
     )
     def test_create_transfer_config(self, service_mock):
@@ -95,7 +95,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.gcp.hooks.bigquery_dts."
+        "airflow.providers.google.cloud.hooks.bigquery_dts."
         "DataTransferServiceClient.delete_transfer_config"
     )
     def test_delete_transfer_config(self, service_mock):
@@ -111,7 +111,7 @@ class BigQueryDataTransferHookTestCase(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.gcp.hooks.bigquery_dts."
+        "airflow.providers.google.cloud.hooks.bigquery_dts."
         "DataTransferServiceClient.start_manual_transfer_runs"
     )
     def test_start_manual_transfer_runs(self, service_mock):

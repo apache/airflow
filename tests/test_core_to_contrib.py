@@ -126,7 +126,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook",
     ),
     (
-        "airflow.gcp.hooks.bigquery.BigQueryHook",
+        "airflow.providers.google.cloud.hooks.bigquery.BigQueryHook",
         "airflow.contrib.hooks.bigquery_hook.BigQueryHook",
     ),
     (

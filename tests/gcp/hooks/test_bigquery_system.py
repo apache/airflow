@@ -20,7 +20,7 @@
 
 import unittest
 
-from airflow.gcp.hooks import bigquery as hook
+from airflow.providers.google.cloud.hooks import bigquery as hook
 from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests.test_utils.gcp_system_helpers import skip_gcp_system
 

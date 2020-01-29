@@ -22,8 +22,8 @@ This module contains Google BigQuery to BigQuery operator.
 import warnings
 from typing import Dict, List, Optional, Union
 
-from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.utils.decorators import apply_defaults
 
 

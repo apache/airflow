@@ -21,8 +21,8 @@ This module contains Google BigQuery to MySQL operator.
 """
 from typing import Optional
 
-from airflow.gcp.hooks.bigquery import BigQueryHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.decorators import apply_defaults
 
