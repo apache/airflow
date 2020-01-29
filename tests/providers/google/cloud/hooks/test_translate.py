@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.gcp.hooks.translate import CloudTranslateHook
+from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID_TEST = 'project-id'
@@ -30,14 +30,17 @@ PROJECT_ID_TEST = 'project-id'
 class TestCloudTranslateHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            'airflow.gcp.hooks.translate.CloudTranslateHook.__init__',
+            'airflow.providers.google.cloud.hooks.translate.CloudTranslateHook.__init__',
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CloudTranslateHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.gcp.hooks.translate.CloudTranslateHook.client_info", new_callable=mock.PropertyMock)
-    @mock.patch("airflow.gcp.hooks.translate.CloudTranslateHook._get_credentials")
-    @mock.patch("airflow.gcp.hooks.translate.Client")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.translate.CloudTranslateHook.client_info",
+        new_callable=mock.PropertyMock
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.translate.CloudTranslateHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.translate.Client")
     def test_translate_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.hook.get_conn()
         mock_client.assert_called_once_with(
@@ -47,7 +50,7 @@ class TestCloudTranslateHook(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.hook._client, result)
 
-    @mock.patch('airflow.gcp.hooks.translate.CloudTranslateHook.get_conn')
+    @mock.patch('airflow.providers.google.cloud.hooks.translate.CloudTranslateHook.get_conn')
     def test_translate_called(self, get_conn):
         # Given
         translate_method = get_conn.return_value.translate

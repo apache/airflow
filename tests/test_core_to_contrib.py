@@ -114,7 +114,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook",
     ),
     (
-        "airflow.gcp.hooks.translate.CloudTranslateHook",
+        "airflow.providers.google.cloud.hooks.translate.CloudTranslateHook",
         "airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook",
     ),
     (

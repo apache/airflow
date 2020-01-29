@@ -683,7 +683,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Translation <https://cloud.google.com/translate/>`__
      - :doc:`How to use <howto/operator/gcp/translate>`
-     - :mod:`airflow.gcp.hooks.translate`
+     - :mod:`airflow.providers.google.cloud.hooks.translate`
      - :mod:`airflow.gcp.operators.translate`
      -
 
