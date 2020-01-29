@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.operators.gcs_to_bq`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs_to_bigquery`.
 """
 
 import warnings
 
-from airflow.operators.gcs_to_bq import GCSToBigQueryOperator
+from airflow.providers.google.cloud.operators.gcs_to_bigquery import GCSToBigQueryOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.operators.gcs_to_bq`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.gcs_to_bigquery`.",
     DeprecationWarning, stacklevel=2
 )
 
