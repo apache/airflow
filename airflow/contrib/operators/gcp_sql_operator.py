@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.cloud_sql`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`.
 """
 
 import warnings
 
-from airflow.gcp.operators.cloud_sql import (
+from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLBaseOperator, CloudSQLCreateInstanceDatabaseOperator, CloudSQLCreateInstanceOperator,
     CloudSQLDeleteInstanceDatabaseOperator, CloudSQLDeleteInstanceOperator, CloudSQLExecuteQueryOperator,
     CloudSQLExportInstanceOperator, CloudSQLImportInstanceOperator, CloudSQLInstancePatchOperator,
@@ -30,7 +30,7 @@ from airflow.gcp.operators.cloud_sql import (
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.cloud_sql`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.cloud_sql`",
     DeprecationWarning, stacklevel=2
 )
 

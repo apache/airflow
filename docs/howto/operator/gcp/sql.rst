@@ -37,7 +37,7 @@ CloudSqlInstanceDatabaseCreateOperator
 Creates a new database inside a Cloud SQL instance.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_sql.CloudSqlInstanceDatabaseCreateOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDatabaseCreateOperator`.
 
 Arguments
 """""""""
@@ -91,7 +91,7 @@ CloudSqlInstanceDatabaseDeleteOperator
 Deletes a database from a Cloud SQL instance.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_sql.CloudSqlInstanceDatabaseDeleteOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDatabaseDeleteOperator`.
 
 Arguments
 """""""""
@@ -140,7 +140,7 @@ using patch semantics.
 See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_sql.CloudSqlInstanceDatabasePatchOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDatabasePatchOperator`.
 
 Arguments
 """""""""
@@ -196,7 +196,7 @@ Deletes a Cloud SQL instance in Google Cloud Platform.
 It is also used for deleting read and failover replicas.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_sql.CloudSqlInstanceDeleteOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceDeleteOperator`.
 
 Arguments
 """""""""
@@ -257,7 +257,7 @@ or CSV file.
     export file URI, the export file in GCS will simply be overridden.
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.cloud_sql.CloudSqlInstanceExportOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceExportOperator`.
 
 Arguments
 """""""""
@@ -354,7 +354,7 @@ If the import file was generated in a different way, idempotence is not guarante
 It has to be ensured on the SQL file level.
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.cloud_sql.CloudSqlInstanceImportOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceImportOperator`.
 
 Arguments
 """""""""
@@ -434,7 +434,7 @@ Creates a new Cloud SQL instance in Google Cloud Platform.
 It is also used for creating read replicas.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_sql.CloudSqlInstanceCreateOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstanceCreateOperator`.
 
 If an instance with the same name exists, no action will be taken and the operator
 will succeed.
@@ -508,7 +508,7 @@ CloudSqlInstancePatchOperator
 Updates settings of a Cloud SQL instance in Google Cloud Platform (partial update).
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_sql.CloudSqlInstancePatchOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlInstancePatchOperator`.
 
 This is a partial update, so only values for the settings specified in the body
 will be set / updated. The rest of the existing instance's configuration will remain
@@ -589,7 +589,7 @@ can be reused between different tasks (instances of ``CloudSqlQueryOperator``). 
 task will get their own proxy started if needed with their own TCP or UNIX socket.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_sql.CloudSqlQueryOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_sql.CloudSqlQueryOperator`.
 
 Since query operator can run arbitrary query, it cannot be guaranteed to be
 idempotent. SQL query designer should design the queries to be idempotent. For example,

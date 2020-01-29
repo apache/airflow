@@ -43,7 +43,7 @@ from os.path import expanduser
 from urllib.parse import quote_plus
 
 from airflow import models
-from airflow.gcp.operators.cloud_sql import CloudSQLExecuteQueryOperator
+from airflow.providers.google.cloud.operators.cloud_sql import CloudSQLExecuteQueryOperator
 from airflow.utils.dates import days_ago
 
 # [START howto_operator_cloudsql_query_arguments]
