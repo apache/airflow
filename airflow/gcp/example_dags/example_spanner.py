@@ -36,7 +36,7 @@ This DAG relies on the following environment variables
 import os
 
 from airflow import models
-from airflow.gcp.operators.spanner import (
+from airflow.providers.google.cloud.operators.spanner import (
     SpannerDeleteDatabaseInstanceOperator, SpannerDeleteInstanceOperator,
     SpannerDeployDatabaseInstanceOperator, SpannerDeployInstanceOperator,
     SpannerQueryDatabaseInstanceOperator, SpannerUpdateDatabaseInstanceOperator,

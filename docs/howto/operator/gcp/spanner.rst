@@ -38,7 +38,7 @@ Deletes a database from the specified Cloud Spanner instance. If the database do
 exist, no action is taken, and the operator succeeds.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerDeleteDatabaseInstanceOperator`.
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeleteDatabaseInstanceOperator`.
 
 Arguments
 """""""""
@@ -88,7 +88,7 @@ configuration. No structure of the database is verified - it's enough if the dat
 with the same name.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerDeployDatabaseInstanceOperator`.
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeployDatabaseInstanceOperator`.
 
 Arguments
 """""""""
@@ -142,7 +142,7 @@ a valid identifier: ``[a-z][a-z0-9_]*``. More information can be found in
 `the documentation of updateDdl API <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/updateDdl>`_
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerUpdateDatabaseInstanceOperator`.
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerUpdateDatabaseInstanceOperator`.
 
 Arguments
 """""""""
@@ -195,7 +195,7 @@ SpannerQueryDatabaseInstanceOperator
 Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerQueryDatabaseInstanceOperator`.
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerQueryDatabaseInstanceOperator`.
 
 Arguments
 """""""""
@@ -243,7 +243,7 @@ Deletes a Cloud Spanner instance. If an instance does not exist, no action is ta
 and the operator succeeds.
 
 For parameter definition take a look at
-:class:`~airflow.gcp.operators.spanner.SpannerDeleteInstanceOperator`.
+:class:`~airflow.providers.google.cloud.operators.spanner.SpannerDeleteInstanceOperator`.
 
 Arguments
 """""""""
