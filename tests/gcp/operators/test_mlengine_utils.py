@@ -80,7 +80,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
             py_interpreter="python3",
         )
 
-        with patch('airflow.gcp.operators.mlengine.MLEngineHook') as mock_mlengine_hook:
+        with patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook') as mock_mlengine_hook:
             success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
             success_message['predictionInput'] = input_with_model
             hook_instance = mock_mlengine_hook.return_value

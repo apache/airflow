@@ -16,17 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.mlengine`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.mlengine`."""
 
 import warnings
 
-from airflow.gcp.operators.mlengine import (
+from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineManageModelOperator, MLEngineManageVersionOperator, MLEngineStartBatchPredictionJobOperator,
     MLEngineStartTrainingJobOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.mlengine`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.mlengine`.",
     DeprecationWarning, stacklevel=2
 )
 
@@ -34,13 +34,14 @@ warnings.warn(
 class MLEngineBatchPredictionOperator(MLEngineStartBatchPredictionJobOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.mlengine.MLEngineStartBatchPredictionJobOperator`.
+    Please use `airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.mlengine.MLEngineStartBatchPredictionJobOperator`.""",
+            Please use
+            `airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -49,13 +50,13 @@ class MLEngineBatchPredictionOperator(MLEngineStartBatchPredictionJobOperator):
 class MLEngineModelOperator(MLEngineManageModelOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.mlengine.MLEngineManageModelOperator`.
+    Please use `airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.mlengine.MLEngineManageModelOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -64,13 +65,14 @@ class MLEngineModelOperator(MLEngineManageModelOperator):
 class MLEngineTrainingOperator(MLEngineStartTrainingJobOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.mlengine.MLEngineStartTrainingJobOperator`.
+    Please use `airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.mlengine.MLEngineStartTrainingJobOperator`.""",
+            Please use
+            `airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -79,13 +81,14 @@ class MLEngineTrainingOperator(MLEngineStartTrainingJobOperator):
 class MLEngineVersionOperator(MLEngineManageVersionOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.mlengine.MLEngineManageVersionOperator`.
+    Please use `airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.mlengine.MLEngineManageVersionOperator`.""",
+            Please use
+            `airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

@@ -849,19 +849,19 @@ OPERATOR = [
         "airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator",
     ),
     (
-        "airflow.gcp.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator",
     ),
     (
-        "airflow.gcp.operators.mlengine.MLEngineManageModelOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineModelOperator",
     ),
     (
-        "airflow.gcp.operators.mlengine.MLEngineStartTrainingJobOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator",
     ),
     (
-        "airflow.gcp.operators.mlengine.MLEngineManageVersionOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator",
         "airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator",
     ),
     (

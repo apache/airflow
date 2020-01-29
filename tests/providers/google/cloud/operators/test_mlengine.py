@@ -25,7 +25,7 @@ from googleapiclient.errors import HttpError
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.gcp.operators.mlengine import (
+from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineCreateModelOperator, MLEngineCreateVersionOperator, MLEngineDeleteModelOperator,
     MLEngineDeleteVersionOperator, MLEngineGetModelOperator, MLEngineListVersionsOperator,
     MLEngineManageModelOperator, MLEngineManageVersionOperator, MLEngineSetDefaultVersionOperator,
@@ -88,7 +88,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             },
             schedule_interval='@daily')
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_with_model(self, mock_hook):
         input_with_model = self.INPUT_MISSING_ORIGIN.copy()
         input_with_model['modelName'] = \
@@ -126,7 +126,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         )
         self.assertEqual(success_message['predictionOutput'], prediction_output)
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_with_version(self, mock_hook):
         input_with_version = self.INPUT_MISSING_ORIGIN.copy()
         input_with_version['versionName'] = \
@@ -165,7 +165,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         )
         self.assertEqual(success_message['predictionOutput'], prediction_output)
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_with_uri(self, mock_hook):
         input_with_uri = self.INPUT_MISSING_ORIGIN.copy()
         input_with_uri['uri'] = 'gs://my_bucket/my_models/savedModel'
@@ -242,7 +242,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
             'model, a model & version combination, or a URI to a savedModel.',
             str(context.exception))
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_http_error(self, mock_hook):
         http_error_code = 403
         input_with_model = self.INPUT_MISSING_ORIGIN.copy()
@@ -278,7 +278,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
 
         self.assertEqual(http_error_code, context.exception.resp.status)
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_failed_job_error(self, mock_hook):
         hook_instance = mock_hook.return_value
         hook_instance.create_job.return_value = {
@@ -316,7 +316,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         }
     }
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_training_job(self, mock_hook):
         success_response = self.TRAINING_INPUT.copy()
         success_response['state'] = 'SUCCEEDED'
@@ -334,7 +334,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY)
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_training_job_with_optional_args(self, mock_hook):
         training_input = copy.deepcopy(self.TRAINING_INPUT)
         training_input['trainingInput']['runtimeVersion'] = '1.6'
@@ -359,7 +359,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project', job=training_input, use_existing_job_fn=ANY)
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_http_error(self, mock_hook):
         http_error_code = 403
         hook_instance = mock_hook.return_value
@@ -382,7 +382,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
             project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY)
         self.assertEqual(http_error_code, context.exception.resp.status)
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_failed_job_error(self, mock_hook):
         failure_response = self.TRAINING_INPUT.copy()
         failure_response['state'] = 'FAILED'
@@ -406,7 +406,7 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
 
 class TestMLEngineModelOperator(unittest.TestCase):
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_model(self, mock_hook):
         task = MLEngineManageModelOperator(
             task_id="task-id",
@@ -424,7 +424,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
             project_id=TEST_PROJECT_ID, model=TEST_MODEL
         )
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_get_model(self, mock_hook):
         task = MLEngineManageModelOperator(
             task_id="task-id",
@@ -443,7 +443,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
         )
         self.assertEqual(mock_hook.return_value.get_model.return_value, result)
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_fail(self, mock_hook):
         task = MLEngineManageModelOperator(
             task_id="task-id",
@@ -459,7 +459,7 @@ class TestMLEngineModelOperator(unittest.TestCase):
 
 class TestMLEngineCreateModelOperator(unittest.TestCase):
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_model(self, mock_hook):
         task = MLEngineCreateModelOperator(
             task_id="task-id",
@@ -479,7 +479,7 @@ class TestMLEngineCreateModelOperator(unittest.TestCase):
 
 class TestMLEngineGetModelOperator(unittest.TestCase):
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_get_model(self, mock_hook):
         task = MLEngineGetModelOperator(
             task_id="task-id",
@@ -500,7 +500,7 @@ class TestMLEngineGetModelOperator(unittest.TestCase):
 
 class TestMLEngineDeleteModelOperator(unittest.TestCase):
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_delete_model(self, mock_hook):
         task = MLEngineDeleteModelOperator(
             task_id="task-id",
@@ -526,7 +526,7 @@ class TestMLEngineVersionOperator(unittest.TestCase):
         'task_id': 'test-version'
     }
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success_create_version(self, mock_hook):
         success_response = {'name': 'some-name', 'done': True}
         hook_instance = mock_hook.return_value
@@ -546,7 +546,7 @@ class TestMLEngineVersionOperator(unittest.TestCase):
 
 class TestMLEngineCreateVersion(unittest.TestCase):
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success(self, mock_hook):
         task = MLEngineCreateVersionOperator(
             task_id="task-id",
@@ -591,7 +591,7 @@ class TestMLEngineCreateVersion(unittest.TestCase):
 
 class TestMLEngineSetDefaultVersion(unittest.TestCase):
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success(self, mock_hook):
         task = MLEngineSetDefaultVersionOperator(
             task_id="task-id",
@@ -636,7 +636,7 @@ class TestMLEngineSetDefaultVersion(unittest.TestCase):
 
 class TestMLEngineListVersions(unittest.TestCase):
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success(self, mock_hook):
         task = MLEngineListVersionsOperator(
             task_id="task-id",
@@ -667,7 +667,7 @@ class TestMLEngineListVersions(unittest.TestCase):
 
 class TestMLEngineDeleteVersion(unittest.TestCase):
 
-    @patch('airflow.gcp.operators.mlengine.MLEngineHook')
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
     def test_success(self, mock_hook):
         task = MLEngineDeleteVersionOperator(
             task_id="task-id",

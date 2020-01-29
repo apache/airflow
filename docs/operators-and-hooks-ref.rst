@@ -618,7 +618,7 @@ These integrations allow you to perform various operations within the Google Clo
    * - `Machine Learning Engine <https://cloud.google.com/ml-engine/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.mlengine`
-     - :mod:`airflow.gcp.operators.mlengine`
+     - :mod:`airflow.providers.google.cloud.operators.mlengine`
      -
 
    * - `Cloud Memorystore <https://cloud.google.com/memorystore/>`__
