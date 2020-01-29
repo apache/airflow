@@ -20,6 +20,7 @@
 import unittest
 from unittest import mock
 
+from io import StringIO
 import pandas as pd
 
 from airflow.operators.mysql_to_s3_operator import MySQLToS3Operator
@@ -51,7 +52,9 @@ class TestMySqlToS3Operator(unittest.TestCase):
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_default", verify=None)
 
         get_pandas_df_mock.assert_called_once_with(query)
-        with mock.patch("airflow.operator.mysql_to_s3_operator.tempfile.NamedTemporaryFile") as temp_mock:
-            temp_mock.assert_called_once_with(suffix=".csv")
-            temp_mock.return_value.__enter__.return_value.name = "file"
-            mock_s3_hook.return_value.load_file("file", s3_bucket, s3_key)
+
+        df_string_obj = StringIO()
+        stringio_mock = get_pandas_df_mock.return_value.to_csv(df_string_obj)
+        stringio_mock.assert_called_once_with(df_string_obj)
+
+        mock_s3_hook.return_value.load_file("file", s3_bucket, s3_key)
