@@ -32,8 +32,8 @@ from google.cloud.dlp_v2.types import (
     StoredInfoTypeConfig,
 )
 
-from airflow.gcp.hooks.dlp import CloudDLPHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from airflow.utils.decorators import apply_defaults
 
 
