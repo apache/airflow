@@ -438,11 +438,11 @@ OPERATOR = [
         "airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator",
     ),
     (
-        "airflow.gcp.operators.datastore.CloudDatastoreExportEntitiesOperator",
+        "airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator",
         "airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator",
     ),
     (
-        "airflow.gcp.operators.datastore.CloudDatastoreImportEntitiesOperator",
+        "airflow.providers.google.cloud.operators.datastore.CloudDatastoreImportEntitiesOperator",
         "airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator",
     ),
     (

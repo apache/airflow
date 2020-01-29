@@ -26,7 +26,7 @@ This example requires that your project contains Datastore instance.
 import os
 
 from airflow import models
-from airflow.gcp.operators.datastore import (
+from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreExportEntitiesOperator, CloudDatastoreImportEntitiesOperator,
 )
 from airflow.utils import dates

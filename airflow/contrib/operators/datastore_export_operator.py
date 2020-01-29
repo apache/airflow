@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.datastore`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.datastore`."""
 
 import warnings
 
-from airflow.gcp.operators.datastore import CloudDatastoreExportEntitiesOperator
+from airflow.providers.google.cloud.operators.datastore import CloudDatastoreExportEntitiesOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.datastore`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.datastore`.",
     DeprecationWarning, stacklevel=2
 )
 
@@ -31,13 +31,14 @@ warnings.warn(
 class DatastoreExportOperator(CloudDatastoreExportEntitiesOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.datastore.CloudDatastoreExportEntitiesOperator`.
+    Please use `airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.l
-            Please use `airflow.gcp.operators.datastore.CloudDatastoreExportEntitiesOperator`.""",
+            Please use
+            `airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
