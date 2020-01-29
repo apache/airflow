@@ -450,23 +450,23 @@ OPERATOR = [
         "airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator",
+        "airflow.providers.google.cloud.operators.bigtable.BigtableUpdateClusterOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator",
+        "airflow.providers.google.cloud.operators.bigtable.BigtableCreateInstanceOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator",
+        "airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableCreateTableOperator",
+        "airflow.providers.google.cloud.operators.bigtable.BigtableCreateTableOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator",
     ),
     (
-        "airflow.gcp.operators.bigtable.BigtableDeleteTableOperator",
+        "airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator",
         "airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator",
     ),
     (

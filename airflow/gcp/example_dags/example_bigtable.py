@@ -51,7 +51,7 @@ import json
 from os import getenv
 
 from airflow import models
-from airflow.gcp.operators.bigtable import (
+from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
     BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
 )

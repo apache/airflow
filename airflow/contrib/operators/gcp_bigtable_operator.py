@@ -17,20 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.bigtable`
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigtable`
 or `airflow.providers.google.cloud.sensors.bigtable`.
 """
 
 import warnings
 
-from airflow.gcp.operators.bigtable import (
+from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator, BigtableCreateTableOperator, BigtableDeleteInstanceOperator,
     BigtableDeleteTableOperator, BigtableUpdateClusterOperator,
 )
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.bigtable`"
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigtable`"
     " or `airflow.providers.google.cloud.sensors.bigtable`.",
     DeprecationWarning, stacklevel=2
 )
@@ -39,13 +39,13 @@ warnings.warn(
 class BigtableClusterUpdateOperator(BigtableUpdateClusterOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator`.
+    Please use `airflow.providers.google.cloud.operators.bigtable.BigtableUpdateClusterOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.bigtable.BigtableUpdateClusterOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -54,13 +54,13 @@ class BigtableClusterUpdateOperator(BigtableUpdateClusterOperator):
 class BigtableInstanceCreateOperator(BigtableCreateInstanceOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator`.
+    Please use `airflow.providers.google.cloud.operators.bigtable.BigtableCreateInstanceOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.bigtable.BigtableCreateInstanceOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -69,13 +69,13 @@ class BigtableInstanceCreateOperator(BigtableCreateInstanceOperator):
 class BigtableInstanceDeleteOperator(BigtableDeleteInstanceOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator`.
+    Please use `airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -84,13 +84,13 @@ class BigtableInstanceDeleteOperator(BigtableDeleteInstanceOperator):
 class BigtableTableCreateOperator(BigtableCreateTableOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.bigtable.BigtableCreateTableOperator`.
+    Please use `airflow.providers.google.cloud.operators.bigtable.BigtableCreateTableOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.bigtable.BigtableCreateTableOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.bigtable.BigtableCreateTableOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -99,13 +99,13 @@ class BigtableTableCreateOperator(BigtableCreateTableOperator):
 class BigtableTableDeleteOperator(BigtableDeleteTableOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.bigtable.BigtableDeleteTableOperator`.
+    Please use `airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.bigtable.BigtableDeleteTableOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

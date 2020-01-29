@@ -25,8 +25,8 @@ import google.api_core.exceptions
 from google.cloud.bigtable.table import ClusterState
 from google.cloud.bigtable_admin_v2 import enums
 
-from airflow.gcp.operators.bigtable import BigtableValidationMixin
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
+from airflow.providers.google.cloud.operators.bigtable import BigtableValidationMixin
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

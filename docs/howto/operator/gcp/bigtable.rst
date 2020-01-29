@@ -45,7 +45,7 @@ All examples below rely on the following variables, which can be passed via envi
 BigtableCreateInstanceOperator
 ------------------------------
 
-Use the :class:`~airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator`
+Use the :class:`~airflow.providers.google.cloud.operators.bigtable.BigtableCreateInstanceOperator`
 to create a Google Cloud Bigtable instance.
 
 If the Cloud Bigtable instance with the given ID exists, the operator does not compare its configuration
@@ -68,7 +68,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 BigtableDeleteInstanceOperator
 ------------------------------
 
-Use the :class:`~airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator`
+Use the :class:`~airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator`
 to delete a Google Cloud Bigtable instance.
 
 Using the operator
@@ -88,7 +88,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 BigtableUpdateClusterOperator
 -----------------------------
 
-Use the :class:`~airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator`
+Use the :class:`~airflow.providers.google.cloud.operators.bigtable.BigtableUpdateClusterOperator`
 to modify number of nodes in a Cloud Bigtable cluster.
 
 Using the operator
@@ -140,7 +140,7 @@ Families <https://googleapis.github.io/google-cloud-python/latest/bigtable/colum
 BigtableDeleteTableOperator
 ---------------------------
 
-Use the :class:`~airflow.gcp.operators.bigtable.BigtableDeleteTableOperator`
+Use the :class:`~airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator`
 to delete a table in Google Cloud Bigtable.
 
 Using the operator
