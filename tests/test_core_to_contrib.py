@@ -869,7 +869,7 @@ OPERATOR = [
         "airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator",
     ),
     (
-        "airflow.operators.mysql_to_gcs.MySQLToGCSOperator",
+        "airflow.providers.google.cloud.operators.mysql_to_gcs.MySQLToGCSOperator",
         "airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator",
     ),
     (

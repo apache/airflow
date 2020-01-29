@@ -792,7 +792,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `MySQL <https://www.mysql.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.mysql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.mysql_to_gcs`
 
    * - `PostgresSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -1187,7 +1187,7 @@ These integrations allow you to copy data.
    * - `MySQL <https://www.mysql.com/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.mysql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.mysql_to_gcs`
 
    * - `Oracle <https://www.oracle.com/pl/database/>`__
      - `Azure Data Lake Storage <https://azure.microsoft.com/en-us/services/storage/data-lake-storage/>`__
