@@ -22,7 +22,7 @@ import unittest
 import pytest
 from mock import patch
 
-from airflow.operators.postgres_to_gcs import PostgresToGCSOperator
+from airflow.providers.google.cloud.operators.postgres_to_gcs import PostgresToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 TABLES = {'postgres_to_gcs_operator', 'postgres_to_gcs_operator_empty'}

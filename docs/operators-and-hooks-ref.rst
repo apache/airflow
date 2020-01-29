@@ -797,7 +797,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `PostgresSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.postgres_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.postgres_to_gcs`
 
    * - SFTP
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -1202,7 +1202,7 @@ These integrations allow you to copy data.
    * - `PostgresSQL <https://www.postgresql.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.postgres_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.postgres_to_gcs`
 
    * - `Presto <https://prestodb.github.io/>`__
      - `MySQL <https://www.mysql.com/>`__

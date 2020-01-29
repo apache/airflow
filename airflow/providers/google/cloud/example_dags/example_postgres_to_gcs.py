@@ -20,7 +20,7 @@
 Example DAG using PostgresToGoogleCloudStorageOperator.
 """
 from airflow import models
-from airflow.operators.postgres_to_gcs import PostgresToGCSOperator
+from airflow.providers.google.cloud.operators.postgres_to_gcs import PostgresToGCSOperator
 from airflow.utils.dates import days_ago
 
 GCS_BUCKET = "postgres_to_gcs_example"
