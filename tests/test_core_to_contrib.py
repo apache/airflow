@@ -865,7 +865,7 @@ OPERATOR = [
         "airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator",
     ),
     (
-        "airflow.operators.mssql_to_gcs.MSSQLToGCSOperator",
+        "airflow.providers.google.cloud.operators.mssql_to_gcs.MSSQLToGCSOperator",
         "airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator",
     ),
     (

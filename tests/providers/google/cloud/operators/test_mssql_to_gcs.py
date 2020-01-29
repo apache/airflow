@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.operators.mssql_to_gcs import MSSQLToGCSOperator
+from airflow.providers.google.cloud.operators.mssql_to_gcs import MSSQLToGCSOperator
 
 TASK_ID = 'test-mssql-to-gcs'
 MSSQL_CONN_ID = 'mssql_conn_test'
@@ -62,7 +62,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         self.assertEqual(op.bucket, BUCKET)
         self.assertEqual(op.filename, JSON_FILENAME)
 
-    @mock.patch('airflow.operators.mssql_to_gcs.MsSqlHook')
+    @mock.patch('airflow.providers.google.cloud.operators.mssql_to_gcs.MsSqlHook')
     @mock.patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_exec_success_json(self, gcs_hook_mock_class, mssql_hook_mock_class):
         """Test successful run of execute function for JSON"""
@@ -94,7 +94,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
         mssql_hook_mock_class.assert_called_once_with(mssql_conn_id=MSSQL_CONN_ID)
         mssql_hook_mock.get_conn().cursor().execute.assert_called_once_with(SQL)
 
-    @mock.patch('airflow.operators.mssql_to_gcs.MsSqlHook')
+    @mock.patch('airflow.providers.google.cloud.operators.mssql_to_gcs.MsSqlHook')
     @mock.patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_file_splitting(self, gcs_hook_mock_class, mssql_hook_mock_class):
         """Test that ndjson is split by approx_max_file_size_bytes param."""
@@ -125,7 +125,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
             approx_max_file_size_bytes=len(expected_upload[JSON_FILENAME.format(0)]))
         op.execute(None)
 
-    @mock.patch('airflow.operators.mssql_to_gcs.MsSqlHook')
+    @mock.patch('airflow.providers.google.cloud.operators.mssql_to_gcs.MsSqlHook')
     @mock.patch('airflow.operators.sql_to_gcs.GCSHook')
     def test_schema_file(self, gcs_hook_mock_class, mssql_hook_mock_class):
         """Test writing schema files."""
