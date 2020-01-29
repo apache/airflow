@@ -26,7 +26,7 @@ from unittest import mock
 from mock import PropertyMock
 
 from airflow import AirflowException
-from airflow.gcp.hooks.cloud_build import CloudBuildHook
+from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from tests.gcp.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
@@ -57,8 +57,8 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook._authorize")
-    @mock.patch("airflow.gcp.hooks.cloud_build.build")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._authorize")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.build")
     def test_cloud_build_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
@@ -67,7 +67,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
         self.assertEqual(mock_build.return_value, result)
         self.assertEqual(self.hook._conn, result)
 
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_build_immediately_complete(self, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
@@ -93,8 +93,8 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
 
         self.assertEqual(result, TEST_BUILD)
 
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.cloud_build.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.time.sleep")
     def test_waiting_operation(self, _, get_conn_mock):
         service_mock = get_conn_mock.return_value
 
@@ -120,8 +120,8 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.cloud_build.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.time.sleep")
     def test_error_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
@@ -145,8 +145,8 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook._authorize")
-    @mock.patch("airflow.gcp.hooks.cloud_build.build")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._authorize")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.build")
     def test_cloud_build_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
@@ -160,7 +160,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_build_immediately_complete(self, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
@@ -187,8 +187,8 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.cloud_build.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.time.sleep")
     def test_waiting_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
@@ -214,8 +214,8 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
-    @mock.patch("airflow.gcp.hooks.cloud_build.time.sleep")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.time.sleep")
     def test_error_operation(self, _, get_conn_mock, mock_project_id):
         service_mock = get_conn_mock.return_value
 
@@ -239,8 +239,8 @@ class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook._authorize")
-    @mock.patch("airflow.gcp.hooks.cloud_build.build")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._authorize")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.build")
     def test_cloud_build_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
         mock_build.assert_called_once_with(
@@ -254,7 +254,7 @@ class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
         new_callable=PropertyMock,
         return_value=None
     )
-    @mock.patch("airflow.gcp.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build(self, mock_get_conn, mock_project_id):
         with self.assertRaises(AirflowException) as e:
             self.hook.create_build(body={})

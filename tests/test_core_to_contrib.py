@@ -74,7 +74,7 @@ HOOK = [
         "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
     ),
     (
-        "airflow.gcp.hooks.cloud_build.CloudBuildHook",
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook",
         "airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook",
     ),
     (

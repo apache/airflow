@@ -563,7 +563,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Build <https://cloud.google.com/cloud-build/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_build>`
-     - :mod:`airflow.gcp.hooks.cloud_build`
+     - :mod:`airflow.providers.google.cloud.hooks.cloud_build`
      - :mod:`airflow.gcp.operators.cloud_build`
      -
 
