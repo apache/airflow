@@ -26,7 +26,7 @@ from mock import MagicMock
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.hooks.dataflow import (
+from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook, DataflowJobStatus, DataflowJobType, _DataflowJobsController, _DataflowRunner,
     _fallback_to_project_id_from_variables,
 )
@@ -74,7 +74,7 @@ RUNTIME_ENV = {
     }
 }
 BASE_STRING = 'airflow.gcp.hooks.base.{}'
-DATAFLOW_STRING = 'airflow.gcp.hooks.dataflow.{}'
+DATAFLOW_STRING = 'airflow.providers.google.cloud.hooks.dataflow.{}'
 MOCK_UUID = '12345678'
 TEST_PROJECT = 'test-project'
 TEST_JOB_NAME = 'test-job-name'
@@ -150,8 +150,8 @@ class TestDataflowHook(unittest.TestCase):
                         new=mock_init):
             self.dataflow_hook = DataflowHook(gcp_conn_id='test')
 
-    @mock.patch("airflow.gcp.hooks.dataflow.DataflowHook._authorize")
-    @mock.patch("airflow.gcp.hooks.dataflow.build")
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook._authorize")
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.build")
     def test_dataflow_client_creation(self, mock_build, mock_authorize):
         result = self.dataflow_hook.get_conn()
         mock_build.assert_called_once_with(
@@ -631,7 +631,7 @@ class TestDataflow(unittest.TestCase):
         cmd = ['echo', 'unit testing']
         self.assertEqual(_DataflowRunner(cmd).wait_for_done(), None)
 
-    @mock.patch('airflow.gcp.hooks.dataflow._DataflowRunner.log')
+    @mock.patch('airflow.providers.google.cloud.hooks.dataflow._DataflowRunner.log')
     @mock.patch('subprocess.Popen')
     @mock.patch('select.select')
     def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, mock_logging):
