@@ -746,11 +746,11 @@ OPERATOR = [
         "GoogleCloudStorageToGoogleCloudStorageTransferOperator",
     ),
     (
-        "airflow.gcp.operators.translate.CloudTranslateTextOperator",
+        "airflow.providers.google.cloud.operators.translate.CloudTranslateTextOperator",
         "airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator",
     ),
     (
-        "airflow.gcp.operators.translate_speech.GcpTranslateSpeechOperator",
+        "airflow.providers.google.cloud.operators.translate_speech.GcpTranslateSpeechOperator",
         "airflow.contrib.operators.gcp_translate_speech_operator.GcpTranslateSpeechOperator",
     ),
     (

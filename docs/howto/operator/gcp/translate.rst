@@ -37,7 +37,7 @@ CloudTranslateTextOperator
 Translate a string or list of strings.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.translate.CloudTranslateTextOperator`
+:class:`~airflow.providers.google.cloud.operators.translate.CloudTranslateTextOperator`
 
 Using the operator
 """"""""""""""""""

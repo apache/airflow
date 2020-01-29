@@ -684,7 +684,7 @@ These integrations allow you to perform various operations within the Google Clo
    * - `Cloud Translation <https://cloud.google.com/translate/>`__
      - :doc:`How to use <howto/operator/gcp/translate>`
      - :mod:`airflow.providers.google.cloud.hooks.translate`
-     - :mod:`airflow.gcp.operators.translate`
+     - :mod:`airflow.providers.google.cloud.operators.translate`
      -
 
    * - `Cloud Video Intelligence <https://cloud.google.com/video_intelligence/>`__
@@ -830,7 +830,7 @@ Other operators and hooks
      - Hooks
 
    * - :doc:`How to use <howto/operator/gcp/translate-speech>`
-     - :mod:`airflow.gcp.operators.translate_speech`
+     - :mod:`airflow.providers.google.cloud.operators.translate_speech`
      -
 
    * -
