@@ -20,7 +20,7 @@ import unittest
 
 import mock
 
-from airflow.gcp.operators.bigquery_dts import (
+from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryCreateDataTransferOperator, BigQueryDataTransferServiceStartTransferRunsOperator,
     BigQueryDeleteDataTransferConfigOperator,
 )
@@ -44,8 +44,8 @@ NAME = "projects/123abc/locations/321cba/transferConfig/1a2b3c"
 
 
 class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
-    @mock.patch("airflow.gcp.operators.bigquery_dts.get_object_id")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.get_object_id")
     def test_execute(self, mock_name, mock_hook):
         mock_name.return_value = TRANSFER_CONFIG_ID
         mock_xcom = mock.MagicMock()
@@ -65,7 +65,7 @@ class BigQueryCreateDataTransferOperatorTestCase(unittest.TestCase):
 
 
 class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
     def test_execute(self, mock_hook):
         op = BigQueryDeleteDataTransferConfigOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
@@ -81,7 +81,7 @@ class BigQueryDeleteDataTransferConfigOperatorTestCase(unittest.TestCase):
 
 
 class BigQueryDataTransferServiceStartTransferRunsOperatorTestCase(unittest.TestCase):
-    @mock.patch("airflow.gcp.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook")
     def test_execute(self, mock_hook):
         op = BigQueryDataTransferServiceStartTransferRunsOperator(
             transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID

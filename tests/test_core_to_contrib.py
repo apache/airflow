@@ -960,27 +960,27 @@ OPERATOR = [
         "DataprocWorkflowTemplateInstantiateOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryCheckOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator",
         "airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryIntervalCheckOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckOperator",
         "airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryValueCheckOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator",
         "airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryGetDataOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryGetDataOperator",
         "airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryExecuteQueryOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator",
         "airflow.contrib.operators.bigquery_operator.BigQueryOperator",
     ),
     (
-        "airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator",
+        "airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator",
         "airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator",
     ),
     (

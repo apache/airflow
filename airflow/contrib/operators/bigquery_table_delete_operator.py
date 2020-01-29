@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.operators.bigquery`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery`."""
 
 import warnings
 
-from airflow.gcp.operators.bigquery import BigQueryDeleteTableOperator
+from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteTableOperator
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.bigquery`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.bigquery`.",
     DeprecationWarning,
     stacklevel=2,
 )
@@ -31,13 +31,14 @@ warnings.warn(
 
 class BigQueryTableDeleteOperator(BigQueryDeleteTableOperator):
     """
-    This class is deprecated. Please use `airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator`.
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator`.""",
             DeprecationWarning,
             stacklevel=2,
         )

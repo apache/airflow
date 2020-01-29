@@ -396,13 +396,27 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             # Example of a single iteration:
             #
             #   _operator_links_source =
-            #   {'airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink': {'index': 0}},
+            #   {
+            #       'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink': {
+            #           'index': 0
+            #       }
+            #   },
             #
             #   list(_operator_links_source.items()) =
-            #   [('airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink', {'index': 0})]
+            #   [
+            #       (
+            #           'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
+            #           {'index': 0}
+            #       )
+            #   ]
             #
             #   list(_operator_links_source.items())[0] =
-            #   ('airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink', {'index': 0})
+            #   (
+            #       'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
+            #       {
+            #           'index': 0
+            #       }
+            #   )
 
             _operator_link_class, data = list(_operator_links_source.items())[0]
 
@@ -427,7 +441,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     ):
         """
         Serialize Operator Links. Store the import path of the OperatorLink and the arguments
-        passed to it. Example ``[{'airflow.gcp.operators.bigquery.BigQueryConsoleLink': {}}]``
+        passed to it. Example
+        ``[{'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink': {}}]``
 
         :param operator_extra_links: Operator Link
         :return: Serialized Operator Link

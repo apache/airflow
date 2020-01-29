@@ -546,13 +546,13 @@ These integrations allow you to perform various operations within the Google Clo
    * - `BigQuery <https://cloud.google.com/bigquery/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.bigquery`
-     - :mod:`airflow.gcp.operators.bigquery`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery`
      - :mod:`airflow.providers.google.cloud.sensors.bigquery`
 
    * - `BigQuery Data Transfer Service <https://cloud.google.com/bigquery/transfer/>`__
      - :doc:`How to use <howto/operator/gcp/bigquery_dts>`
      - :mod:`airflow.providers.google.cloud.hooks.bigquery_dts`
-     - :mod:`airflow.gcp.operators.bigquery_dts`
+     - :mod:`airflow.providers.google.cloud.operators.bigquery_dts`
      - :mod:`airflow.providers.google.cloud.sensors.bigquery_dts`
 
    * - `Bigtable <https://cloud.google.com/bigtable/>`__

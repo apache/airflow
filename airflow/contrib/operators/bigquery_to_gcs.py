@@ -31,13 +31,13 @@ warnings.warn(
 class BigQueryToCloudStorageOperator(BigQueryToGCSOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.bigquery_to_gcs.BigQueryToGCSOperator`.
+    Please use `airflow.providers.google.cloud.operators.bigquery_to_gcs.BigQueryToGCSOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.bigquery_to_gcs.BigQueryToGCSOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.bigquery_to_gcs.BigQueryToGCSOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
