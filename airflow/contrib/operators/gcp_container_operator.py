@@ -17,17 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.kubernetes_engine`.
+This module is deprecated. Please use `airflow.providers.google.cloud.operators.kubernetes_engine`.
 """
 
 import warnings
 
-from airflow.gcp.operators.kubernetes_engine import (
+from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator, GKEDeleteClusterOperator, GKEStartPodOperator,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.kubernetes_engine`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.operators.kubernetes_engine`",
     DeprecationWarning, stacklevel=2
 )
 

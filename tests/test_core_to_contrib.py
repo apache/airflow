@@ -500,15 +500,15 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKECreateClusterOperator",
+        "airflow.providers.google.cloud.operators.kubernetes_engine.GKECreateClusterOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEDeleteClusterOperator",
+        "airflow.providers.google.cloud.operators.kubernetes_engine.GKEDeleteClusterOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.kubernetes_engine.GKEStartPodOperator",
+        "airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator",
         "airflow.contrib.operators.gcp_container_operator.GKEPodOperator",
     ),
     (

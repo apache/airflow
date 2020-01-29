@@ -612,7 +612,7 @@ These integrations allow you to perform various operations within the Google Clo
    * - `Kubernetes Engine <https://cloud.google.com/kubernetes_engine/>`__
      -
      - :mod:`airflow.providers.google.cloud.hooks.kubernetes_engine`
-     - :mod:`airflow.gcp.operators.kubernetes_engine`
+     - :mod:`airflow.providers.google.cloud.operators.kubernetes_engine`
      -
 
    * - `Machine Learning Engine <https://cloud.google.com/ml-engine/>`__
