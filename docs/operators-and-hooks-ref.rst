@@ -605,7 +605,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Key Management Service (KMS) <https://cloud.google.com/kms/>`__
      -
-     - :mod:`airflow.gcp.hooks.kms`
+     - :mod:`airflow.providers.google.cloud.hooks.kms`
      -
      -
 
