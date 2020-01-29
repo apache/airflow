@@ -27,7 +27,7 @@ from decimal import Decimal
 
 from MySQLdb.constants import FIELD_TYPE
 
-from airflow.operators.sql_to_gcs import BaseSQLToGCSOperator
+from airflow.providers.google.cloud.operators.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.decorators import apply_defaults
 

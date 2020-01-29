@@ -25,7 +25,7 @@ import json
 import time
 from decimal import Decimal
 
-from airflow.operators.sql_to_gcs import BaseSQLToGCSOperator
+from airflow.providers.google.cloud.operators.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.decorators import apply_defaults
 

@@ -898,7 +898,7 @@ OPERATOR = [
         "airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator",
     ),
     (
-        "airflow.operators.sql_to_gcs.BaseSQLToGCSOperator",
+        "airflow.providers.google.cloud.operators.sql_to_gcs.BaseSQLToGCSOperator",
         "airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator",
     ),
     (

@@ -807,7 +807,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - SQL
      - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.sql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
 
 .. _integration:GCP-Discovery:
@@ -1212,7 +1212,7 @@ These integrations allow you to copy data.
    * - SQL
      - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.sql_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.sql_to_gcs`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__
