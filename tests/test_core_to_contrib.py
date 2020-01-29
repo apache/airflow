@@ -82,7 +82,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook",
     ),
     (
-        "airflow.gcp.hooks.kubernetes_engine.GKEHook",
+        "airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook",
         "airflow.contrib.hooks.gcp_container_hook.GKEClusterHook",
     ),
     (

@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.kubernetes_engine`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.kubernetes_engine`."""
 
 import warnings
 
-from airflow.gcp.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.kubernetes_engine`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.kubernetes_engine`",
     DeprecationWarning, stacklevel=2
 )
 

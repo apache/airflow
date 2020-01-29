@@ -30,9 +30,9 @@ from google.cloud.container_v1.types import Cluster
 
 from airflow import AirflowException
 from airflow.gcp.hooks.base import CloudBaseHook
-from airflow.gcp.hooks.kubernetes_engine import GKEHook
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.utils.decorators import apply_defaults
 
 
