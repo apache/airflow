@@ -22,17 +22,17 @@ from unittest import mock
 
 from mock import call
 
-from airflow.operators.cassandra_to_gcs import CassandraToGCSOperator
+from airflow.providers.google.cloud.operators.cassandra_to_gcs import CassandraToGCSOperator
 
 TMP_FILE_NAME = "temp-file"
 
 
 class TestCassandraToGCS(unittest.TestCase):
-    @mock.patch("airflow.operators.cassandra_to_gcs.NamedTemporaryFile")
+    @mock.patch("airflow.providers.google.cloud.operators.cassandra_to_gcs.NamedTemporaryFile")
     @mock.patch(
-        "airflow.operators.cassandra_to_gcs.GCSHook.upload"
+        "airflow.providers.google.cloud.operators.cassandra_to_gcs.GCSHook.upload"
     )
-    @mock.patch("airflow.operators.cassandra_to_gcs.CassandraHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cassandra_to_gcs.CassandraHook")
     def test_execute(self, mock_hook, mock_upload, mock_tempfile):
         test_bucket = "test-bucket"
         schema = "schema.json"

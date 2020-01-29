@@ -162,7 +162,7 @@ Foundation.
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.cassandra_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.cassandra_to_gcs`
 
    * - `Apache Hive <https://hive.apache.org/>`__
      - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
@@ -730,7 +730,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      -
-     - :mod:`airflow.operators.cassandra_to_gcs`
+     - :mod:`airflow.providers.google.cloud.operators.cassandra_to_gcs`
 
    * - `Azure Data Lake Storage <https://azure.microsoft.com/pl-pl/services/storage/data-lake-storage/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
