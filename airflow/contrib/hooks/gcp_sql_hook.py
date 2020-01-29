@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.hooks.cloud_sql`.
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_sql`.
 """
 
 import warnings
 
-from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
+from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.cloud_sql`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.cloud_sql`",
     DeprecationWarning,
     stacklevel=2,
 )

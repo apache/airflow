@@ -22,7 +22,7 @@ import string
 import time
 
 from airflow import AirflowException
-from airflow.gcp.hooks.cloud_sql import CloudSqlProxyRunner
+from airflow.providers.google.cloud.hooks.cloud_sql import CloudSqlProxyRunner
 from tests.gcp.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
 from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system

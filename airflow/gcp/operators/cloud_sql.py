@@ -24,10 +24,10 @@ from typing import Dict, Iterable, List, Optional, Union
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.gcp.utils.field_validator import GcpBodyFieldValidator
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.decorators import apply_defaults

@@ -579,11 +579,11 @@ determines whether Cloud SQL Proxy should be started by ``CloudSqlDatabaseHook``
 and what kind of database connection (Postgres or MySQL) should be created
 dynamically to connect to Cloud SQL via public IP address or via the proxy.
 The 'CloudSqlDatabaseHook` uses
-:class:`~airflow.gcp.hooks.cloud_sql.CloudSqlProxyRunner` to manage Cloud SQL
+:class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSqlProxyRunner` to manage Cloud SQL
 Proxy lifecycle (each task has its own Cloud SQL Proxy)
 
 When you build connection, you should use connection parameters as described in
-:class:`~airflow.gcp.hooks.cloud_sql.CloudSqlDatabaseHook`. You can see
+:class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSqlDatabaseHook`. You can see
 examples of connections below for all the possible types of connectivity. Such connection
 can be reused between different tasks (instances of ``CloudSqlQueryOperator``). Each
 task will get their own proxy started if needed with their own TCP or UNIX socket.

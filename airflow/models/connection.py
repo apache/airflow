@@ -303,7 +303,7 @@ class Connection(Base, LoggingMixin):
             from airflow.providers.mongo.hooks.mongo import MongoHook
             return MongoHook(conn_id=self.conn_id)
         elif self.conn_type == 'gcpcloudsql':
-            from airflow.gcp.hooks.cloud_sql import CloudSQLDatabaseHook
+            from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook
             return CloudSQLDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
         elif self.conn_type == 'grpc':
             from airflow.providers.grpc.hooks.grpc import GrpcHook
