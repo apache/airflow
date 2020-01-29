@@ -33,7 +33,7 @@ GcpTextToSpeechSynthesizeOperator
 Synthesizes text to audio file and stores it to Google Cloud Storage
 
 For parameter definition, take a look at
-:class:`airflow.gcp.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator`
+:class:`airflow.providers.google.cloud.operators.text_to_speech.GcpTextToSpeechSynthesizeOperator`
 
 Arguments
 """""""""

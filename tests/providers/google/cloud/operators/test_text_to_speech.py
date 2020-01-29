@@ -23,7 +23,7 @@ from mock import ANY, Mock, PropertyMock, patch
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.gcp.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
+from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
@@ -35,8 +35,8 @@ TARGET_FILENAME = "target_filename"
 
 
 class TestGcpTextToSpeech(unittest.TestCase):
-    @patch("airflow.gcp.operators.text_to_speech.GCSHook")
-    @patch("airflow.gcp.operators.text_to_speech.CloudTextToSpeechHook")
+    @patch("airflow.providers.google.cloud.operators.text_to_speech.GCSHook")
+    @patch("airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechHook")
     def test_synthesize_text_green_path(self, mock_text_to_speech_hook, mock_gcp_hook):
         mocked_response = Mock()
         type(mocked_response).audio_content = PropertyMock(return_value=b"audio")
@@ -73,8 +73,8 @@ class TestGcpTextToSpeech(unittest.TestCase):
             ("target_filename", INPUT, VOICE, AUDIO_CONFIG, TARGET_BUCKET_NAME, ""),
         ]
     )
-    @patch("airflow.gcp.operators.text_to_speech.GCSHook")
-    @patch("airflow.gcp.operators.text_to_speech.CloudTextToSpeechHook")
+    @patch("airflow.providers.google.cloud.operators.text_to_speech.GCSHook")
+    @patch("airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechHook")
     def test_missing_arguments(
         self,
         missing_arg,

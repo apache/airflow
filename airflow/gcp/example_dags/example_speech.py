@@ -28,9 +28,9 @@ This DAG relies on the following OS environment variables
 import os
 
 from airflow import models
-from airflow.gcp.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 from airflow.gcp.operators.translate_speech import GcpTranslateSpeechOperator
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
+from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 from airflow.utils import dates
 
 # [START howto_operator_text_to_speech_env_variables]

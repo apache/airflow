@@ -678,7 +678,7 @@ These integrations allow you to perform various operations within the Google Clo
    * - `Cloud Text-to-Speech <https://cloud.google.com/text-to-speech/>`__
      - :doc:`How to use <howto/operator/gcp/speech>`
      - :mod:`airflow.providers.google.cloud.hooks.text_to_speech`
-     - :mod:`airflow.gcp.operators.text_to_speech`
+     - :mod:`airflow.providers.google.cloud.operators.text_to_speech`
      -
 
    * - `Cloud Translation <https://cloud.google.com/translate/>`__
