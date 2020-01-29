@@ -78,7 +78,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook",
     ),
     (
-        "airflow.gcp.hooks.bigtable.BigtableHook",
+        "airflow.providers.google.cloud.hooks.bigtable.BigtableHook",
         "airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook",
     ),
     (
