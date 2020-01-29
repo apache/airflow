@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.operators.cloud_storage_transfer_service`.
+This module is deprecated.
+Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_service`.
 """
 
 import warnings
@@ -25,6 +26,7 @@ import warnings
 # pylint: disable=unused-import
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.operators.cloud_storage_transfer_service`.",
+    "This module is deprecated. "
+    "Please use `airflow.providers.google.cloud.operators.cloud_storage_transfer_service`.",
     DeprecationWarning, stacklevel=2
 )

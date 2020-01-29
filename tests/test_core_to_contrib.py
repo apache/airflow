@@ -694,49 +694,52 @@ OPERATOR = [
         "airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator",
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
+        ".CloudDataTransferServiceCreateJobOperator",
         "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceDeleteJobOperator",
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
+        ".CloudDataTransferServiceDeleteJobOperator",
         "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceUpdateJobOperator",
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service"
+        ".CloudDataTransferServiceUpdateJobOperator",
         "airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service."
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceCancelOperationOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationCancelOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service."
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceGetOperationOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationGetOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service."
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServicePauseOperationOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationPauseOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service."
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceResumeOperationOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationResumeOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service."
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceListOperationsOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GcpTransferServiceOperationsListOperator",
     ),
     (
-        "airflow.gcp.operators.cloud_storage_transfer_service."
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
         "CloudDataTransferServiceGCSToGCSOperator",
         "airflow.contrib.operators.gcp_transfer_operator."
         "GoogleCloudStorageToGoogleCloudStorageTransferOperator",

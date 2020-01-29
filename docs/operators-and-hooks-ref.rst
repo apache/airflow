@@ -465,7 +465,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
      - :mod:`airflow.providers.google.cloud.operators.s3_to_gcs`,
-       :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
+       :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
 
    * - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      - `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
@@ -666,7 +666,7 @@ These integrations allow you to perform various operations within the Google Clo
    * - `Storage Transfer Service <https://cloud.google.com/storage/transfer/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
      - :mod:`airflow.providers.google.cloud.hooks.cloud_storage_transfer_service`
-     - :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
+     - :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
      - :mod:`airflow.providers.google.cloud.sensors.cloud_storage_transfer_service`
 
    * - `Cloud Tasks <https://cloud.google.com/tasks/>`__
@@ -725,7 +725,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
      - :mod:`airflow.providers.google.cloud.operators.s3_to_gcs`,
-       :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
+       :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
@@ -767,7 +767,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
      - :doc:`How to use <howto/operator/gcp/gcs_to_gcs>`,
        :doc:`How to use <howto/operator/gcp/cloud_storage_transfer_service>`
      - :mod:`airflow.operators.gcs_to_gcs`,
-       :mod:`airflow.gcp.operators.cloud_storage_transfer_service`
+       :mod:`airflow.providers.google.cloud.operators.cloud_storage_transfer_service`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__

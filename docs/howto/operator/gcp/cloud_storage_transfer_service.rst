@@ -56,7 +56,7 @@ If you want to create a job transfer that copies data from AWS S3 then you must 
 The selected connection for AWS can be indicated by the parameter ``aws_conn_id``.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator`.
 
 Arguments
 """""""""
@@ -110,7 +110,7 @@ CloudDataTransferServiceDeleteJobOperator
 Deletes a transfer job.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceDeleteJobOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceDeleteJobOperator`.
 
 Arguments
 """""""""
@@ -154,7 +154,7 @@ CloudDataTransferServiceUpdateJobOperator
 Updates a transfer job.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceUpdateJobOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceUpdateJobOperator`.
 
 Arguments
 """""""""
@@ -203,7 +203,7 @@ CloudDataTransferServiceCancelOperationOperator
 Gets a transfer operation. The result is returned to XCOM.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceCancelOperationOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceCancelOperationOperator`.
 
 Arguments
 """""""""
@@ -248,7 +248,7 @@ CloudDataTransferServiceGetOperationOperator
 Gets a transfer operation. The result is returned to XCOM.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceGetOperationOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceGetOperationOperator`.
 
 Arguments
 """""""""
@@ -292,7 +292,7 @@ CloudDataTransferServiceListOperationsOperator
 List a transfer operations. The result is returned to XCOM.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceListOperationsOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceListOperationsOperator`.
 
 Arguments
 """""""""
@@ -336,7 +336,7 @@ CloudDataTransferServicePauseOperationOperator
 Pauses a transfer operations.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServicePauseOperationOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServicePauseOperationOperator`.
 
 Arguments
 """""""""
@@ -380,7 +380,7 @@ CloudDataTransferServiceResumeOperationOperator
 Resumes a transfer operations.
 
 For parameter definition, take a look at
-:class:`~airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceResumeOperationOperator`.
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceResumeOperationOperator`.
 
 Arguments
 """""""""
