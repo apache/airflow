@@ -23,7 +23,7 @@ Helpers to perform system tests for the Google Cloud Build service.
 import argparse
 import os
 
-from airflow.example_dags.example_gcs_to_gcs import (
+from airflow.providers.google.cloud.example_dags.example_gcs_to_gcs import (
     BUCKET_1_DST, BUCKET_1_SRC, BUCKET_2_DST, BUCKET_2_SRC, BUCKET_3_DST, BUCKET_3_SRC,
 )
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor

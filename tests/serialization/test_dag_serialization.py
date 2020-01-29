@@ -164,8 +164,8 @@ def collect_dags():
         "airflow/providers/*/*/example_dags",
     ]
     for pattern in patterns:
-        for dir in glob(f"{ROOT_FOLDER}/{pattern}"):
-            dags.update(make_example_dags(dir))
+        for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
+            dags.update(make_example_dags(directory))
 
     # Filter subdags as they are stored in same row in Serialized Dag table
     dags = {dag_id: dag for dag_id, dag in dags.items() if not dag.is_subdag}

@@ -53,6 +53,7 @@ with DAG(
     )
     # [END howto_operator_papermill]
 
+
 def check_notebook(inlets, execution_date):
     """
     Verify the message in the notebook

@@ -32,6 +32,6 @@ class TestExampleDags(unittest.TestCase):
             self.assert_file_not_contains(filename, "providers")
 
     def assert_file_not_contains(self, filename, pattern):
-        with open(filename, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as s:
-            if s.find(bytes(pattern, 'utf-8')) != -1:
+        with open(filename, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
+            if content.find(bytes(pattern, 'utf-8')) != -1:
                 self.fail(f"File {filename} contians illegal pattern - {pattern}")

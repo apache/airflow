@@ -18,13 +18,12 @@
 # under the License.
 from datetime import datetime, timedelta
 
-from airflow import DAG
-from airflow.contrib.operators.jenkins_job_trigger_operator import JenkinsJobTriggerOperator
-from airflow.operators.python_operator import PythonOperator
-from airflow.contrib.hooks.jenkins_hook import JenkinsHook
-
 from six.moves.urllib.request import Request
 
+from airflow import DAG
+from airflow.contrib.hooks.jenkins_hook import JenkinsHook
+from airflow.contrib.operators.jenkins_job_trigger_operator import JenkinsJobTriggerOperator
+from airflow.operators.python_operator import PythonOperator
 
 datetime_start_date = datetime(2017, 6, 1)
 default_args = {
