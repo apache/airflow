@@ -38,10 +38,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         gcs_log_folder,
         filename_template,
         remote_log_conn_id,
-        worker_server_log_port,
+        worker_log_server_port,
         log_fetch_timeout_sec
     ):
-        super().__init__(base_log_folder, filename_template, worker_server_log_port, log_fetch_timeout_sec)
+        super().__init__(base_log_folder, filename_template, worker_log_server_port, log_fetch_timeout_sec)
         self.remote_base = gcs_log_folder
         self.log_relative_path = ''
         self._hook = None

@@ -53,7 +53,7 @@ FILENAME_TEMPLATE: str = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
 
 PROCESSOR_FILENAME_TEMPLATE: str = conf.get('logging', 'LOG_PROCESSOR_FILENAME_TEMPLATE')
 
-WORKER_SERVER_LOG_PORT = conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+WORKER_LOG_SERVER_PORT = conf.get('celery', 'WORKER_LOG_SERVER_PORT')
 
 LOG_FETCH_TIMEOUT_SEC = conf.getint('webserver', 'log_fetch_timeout_sec', fallback=None)
 
@@ -80,7 +80,7 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'formatter': 'airflow',
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
             'filename_template': FILENAME_TEMPLATE,
-            'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+            'worker_log_server_port': WORKER_LOG_SERVER_PORT,
             'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
         },
         'processor': {
@@ -177,7 +177,7 @@ if REMOTE_LOGGING:
                 's3_log_folder': REMOTE_BASE_LOG_FOLDER,
                 'filename_template': FILENAME_TEMPLATE,
                 'remote_log_conn_id': REMOTE_LOG_CONN_ID,
-                'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+                'worker_log_server_port': WORKER_LOG_SERVER_PORT,
                 'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
             },
         }
@@ -192,7 +192,7 @@ if REMOTE_LOGGING:
                 'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
                 'filename_template': FILENAME_TEMPLATE,
                 'remote_log_conn_id': REMOTE_LOG_CONN_ID,
-                'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+                'worker_log_server_port': WORKER_LOG_SERVER_PORT,
                 'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
             },
         }
@@ -209,7 +209,7 @@ if REMOTE_LOGGING:
                 'filename_template': FILENAME_TEMPLATE,
                 'delete_local_copy': False,
                 'remote_log_conn_id': REMOTE_LOG_CONN_ID,
-                'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+                'worker_log_server_port': WORKER_LOG_SERVER_PORT,
                 'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
             },
         }
@@ -250,7 +250,7 @@ if REMOTE_LOGGING:
                 'json_format': ELASTICSEARCH_JSON_FORMAT,
                 'json_fields': ELASTICSEARCH_JSON_FIELDS,
                 'es_kwargs': ELASTICSEARCH_CONFIG_KWARGS,
-                'worker_server_log_port': WORKER_SERVER_LOG_PORT,
+                'worker_log_server_port': WORKER_LOG_SERVER_PORT,
                 'log_fetch_timeout_sec': LOG_FETCH_TIMEOUT_SEC
             },
         }

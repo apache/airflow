@@ -33,9 +33,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     """
 
     def __init__(self, base_log_folder, wasb_log_folder, wasb_container,
-                 filename_template, delete_local_copy, remote_log_conn_id, worker_server_log_port,
+                 filename_template, delete_local_copy, remote_log_conn_id, worker_log_server_port,
                  log_fetch_timeout_sec):
-        super().__init__(base_log_folder, filename_template, worker_server_log_port, log_fetch_timeout_sec)
+        super().__init__(base_log_folder, filename_template, worker_log_server_port, log_fetch_timeout_sec)
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ''

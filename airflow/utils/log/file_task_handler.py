@@ -41,7 +41,7 @@ class FileTaskHandler(logging.Handler):
         self,
         base_log_folder: str,
         filename_template: str,
-        worker_server_log_port: int,
+        worker_log_server_port: int,
         log_fetch_timeout_sec: Optional[int]
     ):
         super().__init__()
@@ -49,7 +49,7 @@ class FileTaskHandler(logging.Handler):
         self.local_base = base_log_folder
         self.filename_template, self.filename_jinja_template = \
             parse_template_string(filename_template)
-        self.worker_server_log_port = worker_server_log_port
+        self.worker_log_server_port = worker_log_server_port
         self.log_fetch_timeout_sec = log_fetch_timeout_sec
 
     def set_context(self, ti: TaskInstance):
@@ -119,7 +119,7 @@ class FileTaskHandler(logging.Handler):
                 "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
             ).format(
                 ti=ti,
-                worker_log_server_port=self.worker_server_log_port
+                worker_log_server_port=self.worker_log_server_port
             )
             log += "*** Log file does not exist: {}\n".format(location)
             log += "*** Fetching from: {}\n".format(url)

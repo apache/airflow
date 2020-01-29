@@ -54,14 +54,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     def __init__(self, base_log_folder, filename_template,  # pylint: disable=too-many-arguments
                  log_id_template, end_of_log_mark,
                  write_stdout, json_format, json_fields,
-                 host, es_kwargs, worker_server_log_port, log_fetch_timeout_sec):
+                 host, es_kwargs, worker_log_server_port, log_fetch_timeout_sec):
         """
         :param base_log_folder: base folder to store logs locally
         :param log_id_template: log id template
         :param host: Elasticsearch host name
         """
         es_kwargs = es_kwargs or {}
-        super().__init__(base_log_folder, filename_template, worker_server_log_port, log_fetch_timeout_sec)
+        super().__init__(base_log_folder, filename_template, worker_log_server_port, log_fetch_timeout_sec)
         self.closed = False
 
         self.log_id_template, self.log_id_jinja_template = \

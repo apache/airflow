@@ -31,10 +31,10 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from S3 remote storage.
     """
     def __init__(
-        self, base_log_folder, s3_log_folder, filename_template, worker_server_log_port,
+        self, base_log_folder, s3_log_folder, filename_template, worker_log_server_port,
         log_fetch_timeout_sec, remote_log_conn_id
     ):
-        super().__init__(base_log_folder, filename_template, worker_server_log_port, log_fetch_timeout_sec)
+        super().__init__(base_log_folder, filename_template, worker_log_server_port, log_fetch_timeout_sec)
         self.remote_base = s3_log_folder
         self.log_relative_path = ''
         self._hook = None

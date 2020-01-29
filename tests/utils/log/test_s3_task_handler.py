@@ -47,14 +47,14 @@ class TestS3TaskHandler(unittest.TestCase):
         self.remote_log_key = 'remote/log/location/1.log'
         self.local_log_location = 'local/log/location'
         self.filename_template = '{try_number}.log'
-        self.worker_server_log_port = 4222
+        self.worker_log_server_port = 4222
         self.log_fetch_timeout_sec = 2
         self.remote_log_conn_id = 'aws_default'
         self.s3_task_handler = S3TaskHandler(
             base_log_folder=self.local_log_location,
             s3_log_folder=self.remote_log_base,
             filename_template=self.filename_template,
-            worker_server_log_port=self.worker_server_log_port,
+            worker_log_server_port=self.worker_log_server_port,
             log_fetch_timeout_sec=self.log_fetch_timeout_sec,
             remote_log_conn_id=self.remote_log_conn_id
         )

@@ -54,7 +54,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
         self.json_fields = 'asctime,filename,lineno,levelname,message'
         self.host = 'localhost:9200'
         self.es_kwargs = {}
-        self.worker_server_log_port = 4222
+        self.worker_log_server_port = 4222
         self.log_fetch_timeout_sec = 2
         self.es_task_handler = ElasticsearchTaskHandler(
             base_log_folder=self.local_log_location,
@@ -66,7 +66,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
             json_fields=self.json_fields,
             host=self.host,
             es_kwargs=self.es_kwargs,
-            worker_server_log_port=self.worker_server_log_port,
+            worker_log_server_port=self.worker_log_server_port,
             log_fetch_timeout_sec=self.log_fetch_timeout_sec,
         )
 
@@ -113,7 +113,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
             json_fields=self.json_fields,
             host=self.host,
             es_kwargs=self.es_kwargs,
-            worker_server_log_port=self.worker_server_log_port,
+            worker_log_server_port=self.worker_log_server_port,
             log_fetch_timeout_sec=self.log_fetch_timeout_sec,
         )
 
@@ -353,7 +353,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):  # pylint: disable=too-ma
             json_fields=self.json_fields,
             host=self.host,
             es_kwargs=self.es_kwargs,
-            worker_server_log_port=self.worker_server_log_port,
+            worker_log_server_port=self.worker_log_server_port,
             log_fetch_timeout_sec=self.log_fetch_timeout_sec,
         )
         log_id = self.es_task_handler._render_log_id(self.ti, 1)
