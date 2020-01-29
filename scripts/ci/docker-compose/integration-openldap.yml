@@ -18,6 +18,7 @@
 version: "2.2"
 services:
   openldap:
+    init: true
     image: osixia/openldap:1.2.0
     command: --copy-service
     environment:

@@ -18,6 +18,7 @@
 version: "2.2"
 services:
   mongo:
+    init: true
     image: mongo:3
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
