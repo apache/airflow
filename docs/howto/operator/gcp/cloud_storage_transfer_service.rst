@@ -90,7 +90,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_create_template_fields]
@@ -134,7 +134,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_delete_template_fields]
@@ -183,7 +183,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_update_template_fields]
@@ -227,7 +227,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_cancel_template_fields]
@@ -272,7 +272,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_get_template_fields]
@@ -316,7 +316,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operations_list_template_fields]
@@ -360,7 +360,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_pause_template_fields]
@@ -404,7 +404,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/cloud_storage_transfer_service.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_operation_resume_template_fields]
@@ -448,7 +448,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/sensors/cloud_storage_transfer_service.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/sensors/cloud_storage_transfer_service.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_transfer_job_sensor_template_fields]

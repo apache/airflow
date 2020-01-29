@@ -91,7 +91,7 @@ You can use the annotation output via Xcom:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/video_intelligence.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/video_intelligence.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_video_intelligence_detect_labels_template_fields]
@@ -150,7 +150,7 @@ You can use the annotation output via Xcom:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/video_intelligence.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/video_intelligence.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_video_intelligence_detect_explicit_content_template_fields]
@@ -209,7 +209,7 @@ You can use the annotation output via Xcom:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/video_intelligence.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/video_intelligence.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_video_intelligence_detect_video_shots_template_fields]

@@ -50,7 +50,7 @@ In order to trigger a build, it is necessary to pass the build configuration.
 
 The source code for the build can come from `Google Cloud Build Storage <https://cloud.google.com/storage/>`__:
 
-.. literalinclude:: ../../../../tests/gcp/operators/test_cloud_build.py
+.. literalinclude:: ../../../../tests/providers/google/cloud/operators/test_cloud_build.py
     :language: python
     :dedent: 12
     :start-after: [START howto_operator_gcp_cloud_build_source_gcs_dict]
@@ -58,7 +58,7 @@ The source code for the build can come from `Google Cloud Build Storage <https:/
 
 It is also possible to specify it using the URL:
 
-.. literalinclude:: ../../../../tests/gcp/operators/test_cloud_build.py
+.. literalinclude:: ../../../../tests/providers/google/cloud/operators/test_cloud_build.py
     :language: python
     :dedent: 12
     :start-after: [START howto_operator_gcp_cloud_build_source_gcs_url]
@@ -66,7 +66,7 @@ It is also possible to specify it using the URL:
 
 In addition, a build can refer to source stored in `Google Cloud Source Repositories <https://cloud.google.com/source-repositories/docs/>`__.
 
-.. literalinclude:: ../../../../tests/gcp/operators/test_cloud_build.py
+.. literalinclude:: ../../../../tests/providers/google/cloud/operators/test_cloud_build.py
     :language: python
     :dedent: 12
     :start-after: [START howto_operator_gcp_cloud_build_source_repo_dict]
@@ -74,7 +74,7 @@ In addition, a build can refer to source stored in `Google Cloud Source Reposito
 
 It is also possible to specify it using the URL:
 
-.. literalinclude:: ../../../../tests/gcp/operators/test_cloud_build.py
+.. literalinclude:: ../../../../tests/providers/google/cloud/operators/test_cloud_build.py
     :language: python
     :dedent: 12
     :start-after: [START howto_operator_gcp_cloud_build_source_repo_url]

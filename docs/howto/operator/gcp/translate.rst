@@ -63,7 +63,7 @@ XCom mechanisms of Airflow:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/translate.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/translate.py
     :language: python
     :dedent: 4
     :start-after: [START translate_template_fields]
