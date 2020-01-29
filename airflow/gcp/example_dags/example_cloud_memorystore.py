@@ -25,7 +25,9 @@ from urllib.parse import urlparse
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest, Instance
 
 from airflow import models
-from airflow.gcp.operators.cloud_memorystore import (
+from airflow.gcp.operators.gcs import GCSBucketCreateAclEntryOperator
+from airflow.operators.bash import BashOperator
+from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreCreateInstanceAndImportOperator, CloudMemorystoreCreateInstanceOperator,
     CloudMemorystoreDeleteInstanceOperator, CloudMemorystoreExportAndDeleteInstanceOperator,
     CloudMemorystoreExportInstanceOperator, CloudMemorystoreFailoverInstanceOperator,
@@ -33,8 +35,6 @@ from airflow.gcp.operators.cloud_memorystore import (
     CloudMemorystoreListInstancesOperator, CloudMemorystoreScaleInstanceOperator,
     CloudMemorystoreUpdateInstanceOperator,
 )
-from airflow.gcp.operators.gcs import GCSBucketCreateAclEntryOperator
-from airflow.operators.bash import BashOperator
 from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

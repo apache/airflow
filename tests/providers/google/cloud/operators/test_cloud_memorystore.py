@@ -23,7 +23,7 @@ from google.api_core.retry import Retry
 from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
 from google.cloud.redis_v1.types import Instance
 
-from airflow.gcp.operators.cloud_memorystore import (
+from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreCreateInstanceAndImportOperator, CloudMemorystoreCreateInstanceOperator,
     CloudMemorystoreDeleteInstanceOperator, CloudMemorystoreExportInstanceOperator,
     CloudMemorystoreFailoverInstanceOperator, CloudMemorystoreGetInstanceOperator,
@@ -52,7 +52,7 @@ TEST_NAME = "test-name"
 
 
 class TestCloudMemorystoreCreateInstanceOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreCreateInstanceOperator(
             task_id=TEST_TASK_ID,
@@ -79,7 +79,7 @@ class TestCloudMemorystoreCreateInstanceOperator(TestCase):
 
 
 class TestCloudMemorystoreDeleteInstanceOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreDeleteInstanceOperator(
             task_id=TEST_TASK_ID,
@@ -104,7 +104,7 @@ class TestCloudMemorystoreDeleteInstanceOperator(TestCase):
 
 
 class TestCloudMemorystoreExportInstanceOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreExportInstanceOperator(
             task_id=TEST_TASK_ID,
@@ -131,7 +131,7 @@ class TestCloudMemorystoreExportInstanceOperator(TestCase):
 
 
 class TestCloudMemorystoreFailoverInstanceOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreFailoverInstanceOperator(
             task_id=TEST_TASK_ID,
@@ -158,7 +158,7 @@ class TestCloudMemorystoreFailoverInstanceOperator(TestCase):
 
 
 class TestCloudMemorystoreGetInstanceOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreGetInstanceOperator(
             task_id=TEST_TASK_ID,
@@ -183,7 +183,7 @@ class TestCloudMemorystoreGetInstanceOperator(TestCase):
 
 
 class TestCloudMemorystoreImportOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreImportOperator(
             task_id=TEST_TASK_ID,
@@ -210,7 +210,7 @@ class TestCloudMemorystoreImportOperator(TestCase):
 
 
 class TestCloudMemorystoreListInstancesOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreListInstancesOperator(
             task_id=TEST_TASK_ID,
@@ -235,7 +235,7 @@ class TestCloudMemorystoreListInstancesOperator(TestCase):
 
 
 class TestCloudMemorystoreUpdateInstanceOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreUpdateInstanceOperator(
             task_id=TEST_TASK_ID,
@@ -264,7 +264,7 @@ class TestCloudMemorystoreUpdateInstanceOperator(TestCase):
 
 
 class TestCloudMemorystoreScaleInstanceOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreScaleInstanceOperator(
             task_id=TEST_TASK_ID,
@@ -292,7 +292,7 @@ class TestCloudMemorystoreScaleInstanceOperator(TestCase):
 
 
 class TestCloudMemorystoreCreateInstanceAndImportOperatorOperator(TestCase):
-    @mock.patch("airflow.gcp.operators.cloud_memorystore.CloudMemorystoreHook")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreHook")
     def test_assert_valid_hook_call(self, mock_hook):
         task = CloudMemorystoreCreateInstanceAndImportOperator(
             task_id=TEST_TASK_ID,
