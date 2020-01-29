@@ -988,7 +988,7 @@ OPERATOR = [
         "airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator",
     ),
     (
-        "airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
+        "airflow.providers.google.cloud.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
         "airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator",
     ),
     (

@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
+from airflow.providers.google.cloud.operators.bigquery_to_bigquery import BigQueryToBigQueryOperator
 
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
@@ -29,7 +29,7 @@ TEST_TABLE_ID = 'test-table-id'
 
 
 class TestBigQueryToBigQueryOperator(unittest.TestCase):
-    @mock.patch('airflow.operators.bigquery_to_bigquery.BigQueryHook')
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery_to_bigquery.BigQueryHook')
     def test_execute(self, mock_hook):
         source_project_dataset_tables = '{}.{}'.format(
             TEST_DATASET, TEST_TABLE_ID)
