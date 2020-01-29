@@ -16,26 +16,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.functions`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.functions`."""
 
 import warnings
 
-from airflow.gcp.hooks.functions import CloudFunctionsHook
+from airflow.providers.google.cloud.hooks.functions import CloudFunctionsHook
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.functions`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.functions`.",
     DeprecationWarning, stacklevel=2
 )
 
 
 class GcfHook(CloudFunctionsHook):
     """
-    This class is deprecated. Please use `airflow.gcp.hooks.functions.CloudFunctionsHook`.
+    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "This class is deprecated. Please use `airflow.gcp.hooks.functions.CloudFunctionsHook`.",
+            "This class is deprecated. "
+            "Please use `airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook`.",
             DeprecationWarning, stacklevel=2
         )
 

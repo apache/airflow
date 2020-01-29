@@ -599,7 +599,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Functions <https://cloud.google.com/functions/>`__
      - :doc:`How to use <howto/operator/gcp/functions>`
-     - :mod:`airflow.gcp.hooks.functions`
+     - :mod:`airflow.providers.google.cloud.hooks.functions`
      - :mod:`airflow.gcp.operators.functions`
      -
 
