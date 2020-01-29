@@ -17,27 +17,29 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.hooks.speech_to_text`.
+This module is deprecated. Please use `airflow.providers.google.cloud.hooks.speech_to_text`.
 """
 
 import warnings
 
-from airflow.gcp.hooks.speech_to_text import CloudSpeechToTextHook
+from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.speech_to_text`",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.speech_to_text`",
     DeprecationWarning, stacklevel=2
 )
 
 
 class GCPSpeechToTextHook(CloudSpeechToTextHook):
     """
-    This class is deprecated. Please use `airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook`.
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "This class is deprecated. Please use `airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook`.",
+            "This class is deprecated. "
+            "Please use `airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook`.",
             DeprecationWarning, stacklevel=2
         )
 

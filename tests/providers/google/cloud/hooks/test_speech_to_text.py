@@ -22,7 +22,7 @@ import unittest
 
 from mock import PropertyMock, patch
 
-from airflow.gcp.hooks.speech_to_text import CloudSpeechToTextHook
+from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID = "project-id"
@@ -38,9 +38,12 @@ class TestTextToSpeechOperator(unittest.TestCase):
         ):
             self.gcp_speech_to_text_hook = CloudSpeechToTextHook(gcp_conn_id="test")
 
-    @patch("airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook.client_info", new_callable=PropertyMock)
-    @patch("airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook._get_credentials")
-    @patch("airflow.gcp.hooks.speech_to_text.SpeechClient")
+    @patch(
+        "airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook.client_info",
+        new_callable=PropertyMock
+    )
+    @patch("airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook._get_credentials")
+    @patch("airflow.providers.google.cloud.hooks.speech_to_text.SpeechClient")
     def test_speech_client_creation(self, mock_client, mock_get_creds, mock_client_info):
         result = self.gcp_speech_to_text_hook.get_conn()
         mock_client.assert_called_once_with(
@@ -50,7 +53,7 @@ class TestTextToSpeechOperator(unittest.TestCase):
         self.assertEqual(mock_client.return_value, result)
         self.assertEqual(self.gcp_speech_to_text_hook._client, result)
 
-    @patch("airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook.get_conn")
+    @patch("airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook.get_conn")
     def test_synthesize_speech(self, get_conn):
         recognize_method = get_conn.return_value.recognize
         recognize_method.return_value = None
