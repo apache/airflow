@@ -623,7 +623,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Memorystore <https://cloud.google.com/memorystore/>`__
      - :doc:`How to use <howto/operator/gcp/cloud_memorystore>`
-     - :mod:`airflow.gcp.hooks.cloud_memorystore`
+     - :mod:`airflow.providers.google.cloud.hooks.cloud_memorystore`
      - :mod:`airflow.gcp.operators.cloud_memorystore`
      -
 
