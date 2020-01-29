@@ -29,10 +29,10 @@ from urllib.parse import urlsplit
 import dill
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
 from airflow.gcp.operators.dataflow import DataflowCreatePythonJobOperator
 from airflow.gcp.operators.mlengine import MLEngineStartBatchPredictionJobOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 
 def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments

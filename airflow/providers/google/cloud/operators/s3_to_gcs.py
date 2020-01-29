@@ -20,9 +20,9 @@ import warnings
 from tempfile import NamedTemporaryFile
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
 
 

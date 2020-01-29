@@ -30,11 +30,11 @@ import attr
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = 'https://console.cloud.google.com/bigquery?j={job_id}'

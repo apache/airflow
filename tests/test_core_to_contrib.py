@@ -70,7 +70,7 @@ HOOK = [
         "airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook",
     ),
     (
-        "airflow.gcp.hooks.gcs.GCSHook",
+        "airflow.providers.google.cloud.hooks.gcs.GCSHook",
         "airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook",
     ),
     (

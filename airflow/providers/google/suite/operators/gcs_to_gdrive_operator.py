@@ -23,8 +23,8 @@ import tempfile
 from typing import Optional
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.utils.decorators import apply_defaults
 

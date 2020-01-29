@@ -26,9 +26,9 @@ from tempfile import NamedTemporaryFile
 from typing import Dict, Iterable, List, Optional, Union
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils.decorators import apply_defaults
 
 

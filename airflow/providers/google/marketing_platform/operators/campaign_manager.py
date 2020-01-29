@@ -26,8 +26,8 @@ from typing import Any, Dict, Optional
 from googleapiclient import http
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from airflow.utils.decorators import apply_defaults
 

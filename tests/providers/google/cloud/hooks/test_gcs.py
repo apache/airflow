@@ -29,12 +29,12 @@ import mock
 from google.cloud import exceptions, storage
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks import gcs
+from airflow.providers.google.cloud.hooks import gcs
 from airflow.version import version
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 BASE_STRING = 'airflow.gcp.hooks.base.{}'
-GCS_STRING = 'airflow.gcp.hooks.gcs.{}'
+GCS_STRING = 'airflow.providers.google.cloud.hooks.gcs.{}'
 
 EMPTY_CONTENT = b''
 PROJECT_ID_TEST = 'project-id'

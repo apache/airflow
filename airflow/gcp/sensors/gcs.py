@@ -25,7 +25,7 @@ from datetime import datetime
 from typing import Callable, List, Optional
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

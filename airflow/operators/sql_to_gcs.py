@@ -27,8 +27,8 @@ from tempfile import NamedTemporaryFile
 
 import unicodecsv as csv
 
-from airflow.gcp.hooks.gcs import GCSHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils.decorators import apply_defaults
 
 

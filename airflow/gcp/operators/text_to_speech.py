@@ -27,9 +27,9 @@ from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
 from airflow import AirflowException
-from airflow.gcp.hooks.gcs import GCSHook
 from airflow.gcp.hooks.text_to_speech import CloudTextToSpeechHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils.decorators import apply_defaults
 
 

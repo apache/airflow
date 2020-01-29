@@ -659,7 +659,7 @@ These integrations allow you to perform various operations within the Google Clo
 
    * - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - :doc:`How to use <howto/operator/gcp/gcs>`
-     - :mod:`airflow.gcp.hooks.gcs`
+     - :mod:`airflow.providers.google.cloud.hooks.gcs`
      - :mod:`airflow.gcp.operators.gcs`
      - :mod:`airflow.gcp.sensors.gcs`
 

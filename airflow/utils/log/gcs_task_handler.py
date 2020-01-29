@@ -49,7 +49,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.gcp.hooks.gcs import GCSHook
+            from airflow.providers.google.cloud.hooks.gcs import GCSHook
             return GCSHook(
                 google_cloud_storage_conn_id=remote_conn_id
             )
