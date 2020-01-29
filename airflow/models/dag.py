@@ -608,7 +608,7 @@ class DAG(BaseDag, LoggingMixin):
     def _get_is_paused(self, session=None):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
-        return qry.value('is_paused')
+        return qry.value(DagModel.is_paused)
 
     @property
     def is_paused(self):
