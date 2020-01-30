@@ -17,15 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.utils.field_sanitizer`.
+This module is deprecated. Please use `airflow.providers.google.cloud.utils.field_sanitizer`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.utils.field_sanitizer import GcpBodyFieldSanitizer, GcpFieldSanitizerException  # noqa
+from airflow.providers.google.cloud.utils.field_sanitizer import (  # noqa
+    GcpBodyFieldSanitizer, GcpFieldSanitizerException,
+)
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.utils.field_sanitizer`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.utils.field_sanitizer`.",
     DeprecationWarning, stacklevel=2
 )

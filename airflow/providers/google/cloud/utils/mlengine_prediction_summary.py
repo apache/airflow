@@ -51,7 +51,7 @@ metric_fn_encoded = base64.b64encode(dill.dumps(get_metric_fn(), recurse=True))
 airflow.contrib.operators.DataFlowPythonOperator(
     task_id="summary-prediction",
     py_options=["-m"],
-    py_file="airflow.gcp.utils.mlengine_prediction_summary",
+    py_file="airflow.providers.google.cloud.utils.mlengine_prediction_summary",
     options={
         "prediction_path": prediction_path,
         "metric_fn_encoded": metric_fn_encoded,
@@ -72,7 +72,7 @@ airflow.contrib.operators.DataFlowPythonOperator(
 # To test outside of the dag:
 subprocess.check_call(["python",
                        "-m",
-                       "airflow.gcp.utils.mlengine_prediction_summary",
+                       "airflow.providers.google.cloud.utils.mlengine_prediction_summary",
                        "--prediction_path=gs://...",
                        "--metric_fn_encoded=" + metric_fn_encoded,
                        "--metric_keys=log_loss,mse",

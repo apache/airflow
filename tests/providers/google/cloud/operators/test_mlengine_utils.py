@@ -21,7 +21,7 @@ from unittest.mock import ANY, patch
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.gcp.utils import mlengine_operator_utils
+from airflow.providers.google.cloud.utils import mlengine_operator_utils
 from airflow.version import version
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
@@ -110,14 +110,14 @@ class TestCreateEvaluateOps(unittest.TestCase):
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
-                dataflow='airflow.gcp.utils.mlengine_prediction_summary',
+                dataflow='airflow.providers.google.cloud.mlengine_prediction_summary',
                 py_options=['-m'],
                 py_interpreter='python3',
                 py_requirements=[],
                 py_system_site_packages=False,
             )
 
-        with patch('airflow.gcp.utils.mlengine_operator_utils.'
+        with patch('airflow.providers.google.cloud.mlengine_operator_utils.'
                    'GCSHook') as mock_gcs_hook:
             hook_instance = mock_gcs_hook.return_value
             hook_instance.download.return_value = '{"err": 0.9, "count": 9}'

@@ -226,7 +226,7 @@ def create_evaluate_ops(task_prefix,  # pylint: disable=too-many-arguments
     evaluate_summary = DataflowCreatePythonJobOperator(
         task_id=(task_prefix + "-summary"),
         py_options=["-m"],
-        py_file="airflow.gcp.utils.mlengine_prediction_summary",
+        py_file="airflow.providers.google.cloud.utils.mlengine_prediction_summary",
         dataflow_default_options=dataflow_options,
         options={
             "prediction_path": prediction_path,

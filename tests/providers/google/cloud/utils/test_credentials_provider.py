@@ -24,7 +24,7 @@ from uuid import uuid4
 import mock
 from google.auth.environment_vars import CREDENTIALS
 
-from airflow.gcp.utils.credentials_provider import (
+from airflow.providers.google.cloud.utils.credentials_provider import (
     AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT, build_gcp_conn, provide_gcp_conn_and_credentials,
     provide_gcp_connection, provide_gcp_credentials, temporary_environment_variable,
 )
@@ -108,7 +108,7 @@ class TestProvideGcpCredentials(unittest.TestCase):
 
 class TestProvideGcpConnection(unittest.TestCase):
     @mock.patch.dict(os.environ, {AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: ENV_VALUE})
-    @mock.patch("airflow.gcp.utils.credentials_provider.build_gcp_conn")
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.build_gcp_conn")
     def test_provide_gcp_connection(self, mock_builder):
         mock_builder.return_value = TEMP_VARIABLE
         path = "path/to/file.json"
@@ -129,7 +129,7 @@ class TestProvideGcpConnAndCredentials(unittest.TestCase):
         os.environ,
         {AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: ENV_VALUE, CREDENTIALS: ENV_VALUE},
     )
-    @mock.patch("airflow.gcp.utils.credentials_provider.build_gcp_conn")
+    @mock.patch("airflow.providers.google.cloud.utils.credentials_provider.build_gcp_conn")
     def test_provide_gcp_conn_and_credentials(self, mock_builder):
         mock_builder.return_value = TEMP_VARIABLE
         path = "path/to/file.json"

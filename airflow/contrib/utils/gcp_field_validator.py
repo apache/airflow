@@ -17,17 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use `airflow.gcp.utils.field_validator`.
+This module is deprecated. Please use `airflow.providers.google.cloud.utils.field_validator`.
 """
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.utils.field_validator import (  # noqa
+from airflow.providers.google.cloud.utils.field_validator import (  # noqa
     GcpBodyFieldValidator, GcpFieldValidationException, GcpValidationSpecificationException,
 )
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.utils.field_validator`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.utils.field_validator`.",
     DeprecationWarning, stacklevel=2
 )

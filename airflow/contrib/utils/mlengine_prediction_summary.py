@@ -16,14 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.utils.mlengine_prediction_summary`."""
+"""This module is deprecated.
+Please use `airflow.providers.google.cloud.utils.mlengine_prediction_summary`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.gcp.utils.mlengine_prediction_summary import JsonCoder, MakeSummary  # noqa
+from airflow.providers.google.cloud.utils.mlengine_prediction_summary import JsonCoder, MakeSummary  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.utils.mlengine_prediction_summary`.",
+    "This module is deprecated. "
+    "Please use `airflow.providers.google.cloud.utils.mlengine_prediction_summary`.",
     DeprecationWarning, stacklevel=2
 )

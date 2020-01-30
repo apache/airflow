@@ -24,13 +24,13 @@ import os
 from typing import Dict
 
 from airflow import models
-from airflow.gcp.utils import mlengine_operator_utils
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineCreateVersionOperator, MLEngineDeleteModelOperator, MLEngineDeleteVersionOperator,
     MLEngineListVersionsOperator, MLEngineManageModelOperator, MLEngineSetDefaultVersionOperator,
     MLEngineStartBatchPredictionJobOperator, MLEngineStartTrainingJobOperator,
 )
+from airflow.providers.google.cloud.utils import mlengine_operator_utils
 from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
