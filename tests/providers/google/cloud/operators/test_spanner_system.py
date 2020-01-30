@@ -19,7 +19,7 @@
 
 from tests.gcp.utils.gcp_authenticator import GCP_SPANNER_KEY
 from tests.providers.google.cloud.operators.test_spanner_system_helper import GCPSpannerTestHelper
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -34,4 +34,4 @@ class CloudSpannerExampleDagsTest(SystemTest):
 
     @provide_gcp_context(GCP_SPANNER_KEY)
     def test_run_example_dag_spanner(self):
-        self.run_dag('example_gcp_spanner', GCP_DAG_FOLDER)
+        self.run_dag('example_gcp_spanner', CLOUD_DAG_FOLDER)

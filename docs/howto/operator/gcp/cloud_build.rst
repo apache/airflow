@@ -42,7 +42,7 @@ Build configuration overview
 
 In order to trigger a build, it is necessary to pass the build configuration.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_build.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_gcp_create_build_from_storage_body]
@@ -91,7 +91,7 @@ Trigger a build
 Trigger a build is performed with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_build.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_from_storage]
@@ -102,7 +102,7 @@ You can use :ref:`Jinja templating <jinja-templating>` with
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_build.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_from_storage_result]

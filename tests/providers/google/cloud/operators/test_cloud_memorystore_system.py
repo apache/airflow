@@ -22,7 +22,7 @@ from tests.gcp.utils.gcp_authenticator import GCP_MEMORYSTORE  # TODO: Update it
 from tests.providers.google.cloud.operators.test_cloud_memorystore_system_helper import (
     GCPCloudMemorystoreTestHelper,
 )
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -42,7 +42,7 @@ class CloudBuildExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_MEMORYSTORE)
     def test_run_example_dag(self):
-        self.run_dag('gcp_cloud_memorystore', GCP_DAG_FOLDER)
+        self.run_dag('gcp_cloud_memorystore', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_MEMORYSTORE)
     def tearDown(self):

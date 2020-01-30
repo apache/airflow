@@ -45,7 +45,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -56,7 +56,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_delete]
@@ -95,7 +95,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -106,7 +106,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_deploy]
@@ -149,7 +149,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -160,13 +160,13 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update]
     :end-before: [END howto_operator_spanner_database_update]
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update_idempotent]
@@ -202,7 +202,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -213,7 +213,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_query]
@@ -250,7 +250,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -261,7 +261,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_spanner.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_delete]

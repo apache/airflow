@@ -20,7 +20,7 @@
 
 from tests.gcp.utils.gcp_authenticator import GCP_COMPUTE_KEY
 from tests.providers.google.cloud.operators.test_compute_system_helper import GCPComputeTestHelper
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -40,7 +40,7 @@ class GcpComputeExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def test_run_example_dag_compute(self):
-        self.run_dag('example_gcp_compute', GCP_DAG_FOLDER)
+        self.run_dag('example_gcp_compute', CLOUD_DAG_FOLDER)
 
 
 @skip_gcp_system(GCP_COMPUTE_KEY, require_local_executor=True)
@@ -60,4 +60,4 @@ class GcpComputeIgmExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_COMPUTE_KEY)
     def test_run_example_dag_compute_igm(self):
-        self.run_dag('example_gcp_compute_igm', GCP_DAG_FOLDER)
+        self.run_dag('example_gcp_compute_igm', CLOUD_DAG_FOLDER)

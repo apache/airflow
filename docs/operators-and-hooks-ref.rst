@@ -518,7 +518,7 @@ All hooks are based on :class:`airflow.providers.google.cloud.hooks.base.GoogleC
 
 .. note::
     You can learn how to use GCP integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/master/airflow/gcp/example_dags/>`_ of the particular example DAGs.
+    `source code <https://github.com/apache/airflow/tree/master/airflow/providers/google/cloud/example_dags/>`_ of the particular example DAGs.
 
 Service operators and hooks
 '''''''''''''''''''''''''''

@@ -21,7 +21,7 @@ import os
 from airflow import AirflowException
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
 from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
@@ -44,7 +44,7 @@ class CloudSqlExampleDagsIntegrationTest(SystemTest):
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def test_run_example_dag_cloudsql(self):
         try:
-            self.run_dag('example_gcp_sql', GCP_DAG_FOLDER)
+            self.run_dag('example_gcp_sql', CLOUD_DAG_FOLDER)
         except AirflowException as e:
             self.log.warning(
                 "In case you see 'The instance or operation is not in an appropriate "

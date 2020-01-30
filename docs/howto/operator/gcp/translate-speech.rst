@@ -62,14 +62,14 @@ Config and audio arguments need to be dicts or objects of corresponding classes 
 
 for more information, see: https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/api.html#google.cloud.speech_v1.SpeechClient.recognize
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :start-after: [START howto_operator_speech_to_text_api_arguments]
       :end-before: [END howto_operator_speech_to_text_api_arguments]
 
 Arguments for translation need to be specified.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :start-after: [START howto_operator_translate_speech_arguments]
       :end-before: [END howto_operator_translate_speech_arguments]
@@ -78,7 +78,7 @@ Arguments for translation need to be specified.
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_speech.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_speech.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_translate_speech]

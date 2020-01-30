@@ -20,7 +20,7 @@
 
 from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests.providers.google.cloud.operators.test_bigquery_system_helper import GCPBigQueryTestHelper
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -40,7 +40,7 @@ class BigQueryExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def test_run_example_dag(self):
-        self.run_dag('example_bigquery', GCP_DAG_FOLDER)
+        self.run_dag('example_bigquery', CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def tearDown(self):

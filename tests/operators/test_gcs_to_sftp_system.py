@@ -20,7 +20,7 @@
 
 from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.operators.test_gcs_to_sftp_system_helper import GcsToSFTPTestHelper
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -41,7 +41,7 @@ class GcsToSftpExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag(self):
-        self.run_dag("example_gcs_to_sftp", GCP_DAG_FOLDER)
+        self.run_dag("example_gcs_to_sftp", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):

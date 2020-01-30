@@ -25,7 +25,6 @@ from airflow.gcp.utils.credentials_provider import provide_gcp_conn_and_credenti
 AIRFLOW_MAIN_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
-GCP_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "gcp", "example_dags")
 CLOUD_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "cloud", "example_dags"
 )

@@ -22,7 +22,7 @@ from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY
 from tests.providers.google.cloud.operators.test_video_intelligence_system_helper import (
     GCPVideoIntelligenceHelper,
 )
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -42,4 +42,4 @@ class CloudVideoIntelligenceExampleDagsTest(SystemTest):
 
     @provide_gcp_context(GCP_AI_KEY)
     def test_run_example_dag_spanner(self):
-        self.run_dag('example_gcp_video_intelligence', GCP_DAG_FOLDER)
+        self.run_dag('example_gcp_video_intelligence', CLOUD_DAG_FOLDER)

@@ -24,7 +24,7 @@ example_gcp_dlp DAG
 """
 
 from tests.gcp.utils.gcp_authenticator import GCP_DLP_KEY
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -32,4 +32,4 @@ from tests.test_utils.system_tests_class import SystemTest
 class GcpDLPExampleDagsSystemTest(SystemTest):
     @provide_gcp_context(GCP_DLP_KEY)
     def test_run_example_dag_function(self):
-        self.run_dag('example_gcp_dlp', GCP_DAG_FOLDER)
+        self.run_dag('example_gcp_dlp', CLOUD_DAG_FOLDER)

@@ -44,7 +44,7 @@ Arguments
 
 The following examples of OS environment variables used to pass arguments to the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :start-after: [START howto_operator_gce_args_common]
     :end-before: [END howto_operator_gce_args_common]
@@ -54,7 +54,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_start]
@@ -63,7 +63,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection id used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_start_no_project_id]
@@ -100,7 +100,7 @@ Arguments
 
 The following examples of OS environment variables used to pass arguments to the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
    :language: python
    :start-after: [START howto_operator_gce_args_common]
    :end-before: [END howto_operator_gce_args_common]
@@ -110,7 +110,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_stop]
@@ -119,7 +119,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_stop_no_project_id]
@@ -155,13 +155,13 @@ Arguments
 
 The following examples of OS environment variables used to pass arguments to the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :start-after: [START howto_operator_gce_args_common]
     :end-before: [END howto_operator_gce_args_common]
 
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :start-after: [START howto_operator_gce_args_set_machine_type]
     :end-before: [END howto_operator_gce_args_set_machine_type]
@@ -171,7 +171,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_set_machine_type]
@@ -180,7 +180,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_set_machine_type_no_project_id]
@@ -217,12 +217,12 @@ Arguments
 
 The following examples of OS environment variables used to pass arguments to the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :start-after: [START howto_operator_compute_igm_common_args]
     :end-before: [END howto_operator_compute_igm_common_args]
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :start-after: [START howto_operator_compute_template_copy_args]
     :end-before: [END howto_operator_compute_template_copy_args]
@@ -232,7 +232,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_copy_template]
@@ -241,7 +241,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_copy_template_no_project_id]
@@ -277,12 +277,12 @@ Arguments
 
 The following examples of OS environment variables used to pass arguments to the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :start-after: [START howto_operator_compute_igm_common_args]
     :end-before: [END howto_operator_compute_igm_common_args]
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :start-after: [START howto_operator_compute_igm_update_template_args]
     :end-before: [END howto_operator_compute_igm_update_template_args]
@@ -292,7 +292,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_update_template]
@@ -301,7 +301,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_compute_igm.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_update_template_no_project_id]

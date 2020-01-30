@@ -222,7 +222,6 @@ exclude_patterns = [
     '_api/airflow/www',
     '_api/main',
     '_api/airflow/gcp/index.rst',
-    '_api/airflow/gcp/example_dags',
     '_api/airflow/gcp/utils',
     '_api/airflow/providers/amazon/aws/example_dags',
     '_api/airflow/providers/amazon/aws/index.rst',
