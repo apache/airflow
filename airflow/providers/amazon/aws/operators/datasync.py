@@ -19,6 +19,7 @@
 Create, get, update, execute and delete an AWS DataSync Task.
 """
 
+import logging
 import random
 
 from airflow.exceptions import AirflowException
@@ -352,13 +353,11 @@ class AWSDataSyncOperator(BaseOperator):
                       task_execution_description)
 
         # Log some meaningful statuses
-        log = self.log.info
-        if not result:
-            log = self.log.error
-        log('Status=%s', task_execution_description['Status'])
+        level = logging.ERROR if not result else logging.INFO
+        self.log.log(level, 'Status=%s', task_execution_description['Status'])
         for k, v in task_execution_description['Result'].items():
             if 'Status' in k or 'Error' in k:
-                log('%s=%s', k, v)
+                self.log.log(level, '%s=%s', k, v)
 
         if not result:
             raise AirflowException(
