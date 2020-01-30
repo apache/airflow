@@ -16,3 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""This package is deprecated. Please use `airflow.hooks` or `airflow.providers.*.hooks`."""
+
+import warnings
+
+warnings.warn(
+    "This package is deprecated. Please use `airflow.hooks` or `airflow.providers.*.hooks`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

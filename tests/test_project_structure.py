@@ -23,15 +23,29 @@ import unittest
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)
 )
-CORE_EXAMPLE_DAGS_FOLDER = os.path.join(ROOT_FOLDER, "airflow", "example_dags")
 
 
-class TestExampleDags(unittest.TestCase):
-    def test_reference_to_providers_is_illegal(self):
-        for filename in glob.glob(f"{CORE_EXAMPLE_DAGS_FOLDER}/**.py"):
+class TestProjectStructure(unittest.TestCase):
+    def test_reference_to_providers_from_core(self):
+        for filename in glob.glob(f"{ROOT_FOLDER}/example_dagss/**.py", recursive=True):
             self.assert_file_not_contains(filename, "providers")
 
-    def assert_file_not_contains(self, filename, pattern):
+    def test_deprecated_packages(self):
+        for directory in ["operator", "hooks", "sensors", "task_runner"]:
+            path_pattern = f"{ROOT_FOLDER}/airflow/contrib/{directory}/*.py"
+
+            for filename in glob.glob(path_pattern, recursive=True):
+                if filename.endswith("/__init__.py"):
+                    self.assert_file_contains(filename, "This package is deprecated.")
+                else:
+                    self.assert_file_contains(filename, "This module is deprecated.")
+
+    def assert_file_not_contains(self, filename: str, pattern: str):
         with open(filename, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
             if content.find(bytes(pattern, 'utf-8')) != -1:
-                self.fail(f"File {filename} contians illegal pattern - {pattern}")
+                self.fail(f"File {filename} not contains pattern - {pattern}")
+
+    def assert_file_contains(self, filename: str, pattern: str):
+        with open(filename, 'rb', 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
+            if content.find(bytes(pattern, 'utf-8')) == -1:
+                self.fail(f"File {filename} contains illegal pattern - {pattern}")
