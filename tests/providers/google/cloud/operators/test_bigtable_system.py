@@ -16,33 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""System tests for Google Cloud Build operators"""
 
-from tests.gcp.operators.test_bigquery_system_helper import GCPBigQueryTestHelper
-from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+
+from tests.gcp.utils.gcp_authenticator import GCP_BIGTABLE_KEY
+from tests.providers.google.cloud.operators.test_bigtable_system_helper import GCPBigtableTestHelper
 from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
-@skip_gcp_system(GCP_BIGQUERY_KEY, require_local_executor=True)
-class BigQueryExampleDagsSystemTest(SystemTest):
-    """
-    System tests for Google BigQuery operators
+@skip_gcp_system(GCP_BIGTABLE_KEY, require_local_executor=True)
+class BigTableExampleDagsSystemTest(SystemTest):
+    helper = GCPBigtableTestHelper()
 
-    It use a real service.
-    """
-    helper = GCPBigQueryTestHelper()
+    @provide_gcp_context(GCP_BIGTABLE_KEY)
+    def test_run_example_dag_gcs_bigtable(self):
+        self.run_dag('example_gcp_bigtable_operators', GCP_DAG_FOLDER)
 
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_repository_and_bucket()
-
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
-    def test_run_example_dag(self):
-        self.run_dag('example_bigquery', GCP_DAG_FOLDER)
-
-    @provide_gcp_context(GCP_BIGQUERY_KEY)
+    @provide_gcp_context(GCP_BIGTABLE_KEY)
     def tearDown(self):
-        self.helper.delete_bucket()
+        self.helper.delete_instance()
         super().tearDown()

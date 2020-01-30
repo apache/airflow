@@ -16,29 +16,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""System tests for Google Cloud Memorystore operators"""
 
-
-from tests.gcp.operators.test_gcs_system_helper import GcsSystemTestHelper
-from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_MEMORYSTORE  # TODO: Update it
+from tests.providers.google.cloud.operators.test_cloud_memorystore_system_helper import (
+    GCPCloudMemorystoreTestHelper,
+)
 from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
-@skip_gcp_system(GCP_GCS_KEY, require_local_executor=True)
-class GoogleCloudStorageExampleDagsTest(SystemTest):
-    helper = GcsSystemTestHelper()
+@skip_gcp_system(GCP_MEMORYSTORE, require_local_executor=True)
+class CloudBuildExampleDagsSystemTest(SystemTest):
+    """
+    System tests for Google Cloud Memorystore operators
 
-    @provide_gcp_context(GCP_GCS_KEY)
+    It use a real service.
+    """
+    helper = GCPCloudMemorystoreTestHelper()
+
+    @provide_gcp_context(GCP_MEMORYSTORE)
     def setUp(self):
         super().setUp()
-        self.helper.create_test_file()
+        self.helper.create_bucket()
 
-    @provide_gcp_context(GCP_GCS_KEY)
-    def tearDown(self):
-        self.helper.remove_test_files()
-        self.helper.remove_bucket()
-        super().tearDown()
-
-    @provide_gcp_context(GCP_GCS_KEY)
+    @provide_gcp_context(GCP_MEMORYSTORE)
     def test_run_example_dag(self):
-        self.run_dag('example_gcs', GCP_DAG_FOLDER)
+        self.run_dag('gcp_cloud_memorystore', GCP_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_MEMORYSTORE)
+    def tearDown(self):
+        self.helper.delete_bucket()
+        super().tearDown()

@@ -19,8 +19,8 @@
 import os
 
 from airflow import AirflowException
-from tests.gcp.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
+from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 

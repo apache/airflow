@@ -18,21 +18,26 @@
 # under the License.
 
 
-from tests.gcp.operators.test_bigtable_system_helper import GCPBigtableTestHelper
-from tests.gcp.utils.gcp_authenticator import GCP_BIGTABLE_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_DATASTORE_KEY
+from tests.providers.google.cloud.operators.test_datastore_system_helper import GcpDatastoreSystemTestHelper
 from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
-@skip_gcp_system(GCP_BIGTABLE_KEY, require_local_executor=True)
-class BigTableExampleDagsSystemTest(SystemTest):
-    helper = GCPBigtableTestHelper()
+@skip_gcp_system(GCP_DATASTORE_KEY, require_local_executor=True)
+class GcpDatastoreSystemTest(SystemTest):
+    helper = GcpDatastoreSystemTestHelper()
 
-    @provide_gcp_context(GCP_BIGTABLE_KEY)
-    def test_run_example_dag_gcs_bigtable(self):
-        self.run_dag('example_gcp_bigtable_operators', GCP_DAG_FOLDER)
+    @provide_gcp_context(GCP_DATASTORE_KEY)
+    def setUp(self):
+        super().setUp()
+        self.helper.create_bucket()
 
-    @provide_gcp_context(GCP_BIGTABLE_KEY)
+    @provide_gcp_context(GCP_DATASTORE_KEY)
     def tearDown(self):
-        self.helper.delete_instance()
+        self.helper.delete_bucket()
         super().tearDown()
+
+    @provide_gcp_context(GCP_DATASTORE_KEY)
+    def test_run_example_dag(self):
+        self.run_dag('example_gcp_datastore', GCP_DAG_FOLDER)

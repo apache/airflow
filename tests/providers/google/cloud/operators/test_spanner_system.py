@@ -16,35 +16,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""System tests for Google Cloud Build operators"""
 
-from tests.gcp.operators.test_cloud_build_system_helper import GCPCloudBuildTestHelper
-from tests.gcp.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY
+from tests.gcp.utils.gcp_authenticator import GCP_SPANNER_KEY
+from tests.providers.google.cloud.operators.test_spanner_system_helper import GCPSpannerTestHelper
 from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
-@skip_gcp_system(GCP_CLOUD_BUILD_KEY, require_local_executor=True)
-class CloudBuildExampleDagsSystemTest(SystemTest):
-    """
-    System tests for Google Cloud Build operators
+@skip_gcp_system(GCP_SPANNER_KEY, require_local_executor=True)
+class CloudSpannerExampleDagsTest(SystemTest):
+    helper = GCPSpannerTestHelper()
 
-    It use a real service.
-    """
-    helper = GCPCloudBuildTestHelper()
-
-    @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
-    def setUp(self):
-        super().setUp()
-        self.helper.create_repository_and_bucket()
-
-    @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
-    def test_run_example_dag(self):
-        self.run_dag("example_gcp_cloud_build", GCP_DAG_FOLDER)
-
-    @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
+    @provide_gcp_context(GCP_SPANNER_KEY)
     def tearDown(self):
-        self.helper.delete_bucket()
-        self.helper.delete_docker_images()
-        self.helper.delete_repo()
+        self.helper.delete_instance()
         super().tearDown()
+
+    @provide_gcp_context(GCP_SPANNER_KEY)
+    def test_run_example_dag_spanner(self):
+        self.run_dag('example_gcp_spanner', GCP_DAG_FOLDER)

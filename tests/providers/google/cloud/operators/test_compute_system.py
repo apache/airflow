@@ -18,8 +18,8 @@
 # under the License.
 
 
-from tests.gcp.operators.test_compute_system_helper import GCPComputeTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_COMPUTE_KEY
+from tests.providers.google.cloud.operators.test_compute_system_helper import GCPComputeTestHelper
 from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 

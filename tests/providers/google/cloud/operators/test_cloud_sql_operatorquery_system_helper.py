@@ -20,8 +20,8 @@
 
 import argparse
 
-from tests.gcp.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.gcp.utils.gcp_authenticator import GCP_CLOUDSQL_KEY, GcpAuthenticator
+from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 
 QUERY_SUFFIX = "_QUERY"
 

@@ -17,21 +17,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tests.gcp.operators.test_spanner_system_helper import GCPSpannerTestHelper
-from tests.gcp.utils.gcp_authenticator import GCP_SPANNER_KEY
+
+from tests.gcp.utils.gcp_authenticator import GCP_AI_KEY
+from tests.providers.google.cloud.operators.test_video_intelligence_system_helper import (
+    GCPVideoIntelligenceHelper,
+)
 from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
-@skip_gcp_system(GCP_SPANNER_KEY, require_local_executor=True)
-class CloudSpannerExampleDagsTest(SystemTest):
-    helper = GCPSpannerTestHelper()
+@skip_gcp_system(GCP_AI_KEY, require_local_executor=True)
+class CloudVideoIntelligenceExampleDagsTest(SystemTest):
+    helper = GCPVideoIntelligenceHelper()
 
-    @provide_gcp_context(GCP_SPANNER_KEY)
+    @provide_gcp_context(GCP_AI_KEY)
+    def setUp(self):
+        self.helper.create_bucket()
+        super().setUp()
+
+    @provide_gcp_context(GCP_AI_KEY)
     def tearDown(self):
-        self.helper.delete_instance()
+        self.helper.delete_bucket()
         super().tearDown()
 
-    @provide_gcp_context(GCP_SPANNER_KEY)
+    @provide_gcp_context(GCP_AI_KEY)
     def test_run_example_dag_spanner(self):
-        self.run_dag('example_gcp_spanner', GCP_DAG_FOLDER)
+        self.run_dag('example_gcp_video_intelligence', GCP_DAG_FOLDER)
