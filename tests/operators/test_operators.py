@@ -183,37 +183,6 @@ class TestPostgres(unittest.TestCase):
                 for table in tables_to_drop:
                     cur.execute(f"DROP TABLE IF EXISTS {table}")
 
-    def test_postgres_operator_test(self):
-        sql = """
-        CREATE TABLE IF NOT EXISTS test_airflow (
-            dummy VARCHAR(50)
-        );
-        """
-        from airflow.providers.postgres.operators.postgres import PostgresOperator
-        op = PostgresOperator(task_id='basic_postgres', sql=sql, dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-        autocommit_task = PostgresOperator(
-            task_id='basic_postgres_with_autocommit',
-            sql=sql,
-            dag=self.dag,
-            autocommit=True)
-        autocommit_task.run(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE,
-            ignore_ti_state=True)
-
-    def test_postgres_operator_test_multi(self):
-        sql = [
-            "CREATE TABLE IF NOT EXISTS test_airflow (dummy VARCHAR(50))",
-            "TRUNCATE TABLE test_airflow",
-            "INSERT INTO test_airflow VALUES ('X')",
-        ]
-        from airflow.providers.postgres.operators.postgres import PostgresOperator
-        op = PostgresOperator(
-            task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
     def test_postgres_to_postgres(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
         from airflow.operators.generic_transfer import GenericTransfer
@@ -230,42 +199,6 @@ class TestPostgres(unittest.TestCase):
             sql=sql,
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_vacuum(self):
-        """
-        Verifies the VACUUM operation runs well with the PostgresOperator
-        """
-        from airflow.providers.postgres.operators.postgres import PostgresOperator
-
-        sql = "VACUUM ANALYZE;"
-        op = PostgresOperator(
-            task_id='postgres_operator_test_vacuum',
-            sql=sql,
-            dag=self.dag,
-            autocommit=True)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_overwrite_schema(self):
-        """
-        Verifies option to overwrite connection schema
-        """
-        from airflow.providers.postgres.operators.postgres import PostgresOperator
-
-        sql = "SELECT 1;"
-        op = PostgresOperator(
-            task_id='postgres_operator_test_schema_overwrite',
-            sql=sql,
-            dag=self.dag,
-            autocommit=True,
-            database="foobar",
-        )
-
-        from psycopg2 import OperationalError
-        try:
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                   ignore_ti_state=True)
-        except OperationalError as e:
-            assert 'database "foobar" does not exist' in str(e)
 
 
 @pytest.mark.backend("mysql")
