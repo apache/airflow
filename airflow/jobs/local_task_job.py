@@ -101,7 +101,7 @@ class LocalTaskJob(BaseJob):
                         # code as failed: the job has been killed externally.
                         if (not self.terminating) or self.task_instance.state == State.FAILED:
                             msg = ("LocalTaskJob process exited with non zero "
-                            "status {}".format(return_code))
+                                   "status {}".format(return_code))
                             raise AirflowException(msg)
                     self.log.info("Task exited with return code %s", return_code)
                     return
