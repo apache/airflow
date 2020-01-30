@@ -21,7 +21,6 @@ import unittest
 from unittest.mock import patch
 
 from airflow.providers.apache.cassandra.sensors.record import CassandraRecordSensor
-from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor
 
 
 class TestCassandraRecordSensor(unittest.TestCase):
@@ -35,19 +34,3 @@ class TestCassandraRecordSensor(unittest.TestCase):
         )
         sensor.poke(None)
         mock_hook.return_value.record_exists.assert_called_once_with('t', {'foo': 'bar'})
-
-
-class TestCassandraTableSensor(unittest.TestCase):
-    @patch("airflow.providers.apache.cassandra.sensors.table.CassandraHook")
-    def test_poke(self, mock_hook):
-        sensor = CassandraTableSensor(
-            task_id='test_task',
-            cassandra_conn_id='cassandra_default',
-            table='t',
-        )
-        sensor.poke(None)
-        mock_hook.return_value.table_exists.assert_called_once_with('t')
-
-
-if __name__ == '__main__':
-    unittest.main()
