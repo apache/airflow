@@ -80,6 +80,12 @@ EXAMPLE_DAGS_DIRECTORY_PATTERNS = [
 
 
 def find_example_dags_root_directories() -> Iterator[str]:
+    """
+    Returns paths to directories that contain sample DAGs.
+
+    :return: iterator of directories
+    :rtype: Iterator[str]
+    """
     import airflow
     airflow_root = airflow.__path__[0]  # type: ignore
     for pattern in EXAMPLE_DAGS_DIRECTORY_PATTERNS:
