@@ -18,17 +18,25 @@
 # under the License.
 
 import copy
+import datetime
 import logging
 import os
+import sys
 import unittest
 import unittest.mock
 from collections import namedtuple
 from datetime import date, timedelta
+from subprocess import CalledProcessError
+from typing import List
+
+import funcsigs
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import BranchPythonOperator, PythonOperator, ShortCircuitOperator
+from airflow.operators.python import (
+    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
+)
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -664,3 +672,173 @@ class TestShortCircuitOperator(unittest.TestCase):
                 self.assertEqual(ti.state, State.NONE)
             else:
                 raise Exception
+
+
+virtualenv_string_args: List[str] = []
+
+
+class TestPythonVirtualenvOperator(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.dag = DAG(
+            'test_dag',
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE},
+            schedule_interval=INTERVAL)
+        self.addCleanup(self.dag.clear)
+
+    def _run_as_operator(self, fn, python_version=sys.version_info[0], **kwargs):
+        task = PythonVirtualenvOperator(
+            python_callable=fn,
+            python_version=python_version,
+            task_id='task',
+            dag=self.dag,
+            **kwargs)
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_dill_warning(self):
+        def f():
+            pass
+        with self.assertRaises(AirflowException):
+            PythonVirtualenvOperator(
+                python_callable=f,
+                task_id='task',
+                dag=self.dag,
+                use_dill=True,
+                system_site_packages=False)
+
+    def test_no_requirements(self):
+        """Tests that the python callable is invoked on task run."""
+        def f():
+            pass
+        self._run_as_operator(f)
+
+    def test_no_system_site_packages(self):
+        def f():
+            try:
+                import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+            except ImportError:
+                return True
+            raise Exception
+        self._run_as_operator(f, system_site_packages=False, requirements=['dill'])
+
+    def test_system_site_packages(self):
+        def f():
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+        self._run_as_operator(f, requirements=['funcsigs'], system_site_packages=True)
+
+    def test_with_requirements_pinned(self):
+        self.assertNotEqual(
+            '0.4', funcsigs.__version__, 'Please update this string if this fails')
+
+        def f():
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported
+            if funcsigs.__version__ != '0.4':
+                raise Exception
+
+        self._run_as_operator(f, requirements=['funcsigs==0.4'])
+
+    def test_unpinned_requirements(self):
+        def f():
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+        self._run_as_operator(
+            f, requirements=['funcsigs', 'dill'], system_site_packages=False)
+
+    def test_range_requirements(self):
+        def f():
+            import funcsigs  # noqa: F401  # pylint: disable=redefined-outer-name,reimported,unused-import
+        self._run_as_operator(
+            f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
+
+    def test_fail(self):
+        def f():
+            raise Exception
+        with self.assertRaises(CalledProcessError):
+            self._run_as_operator(f)
+
+    def test_python_2(self):
+        def f():
+            {}.iteritems()  # pylint: disable=no-member
+        self._run_as_operator(f, python_version=2, requirements=['dill'])
+
+    def test_python_2_7(self):
+        def f():
+            {}.iteritems()  # pylint: disable=no-member
+            return True
+        self._run_as_operator(f, python_version='2.7', requirements=['dill'])
+
+    def test_python_3(self):
+        def f():
+            import sys  # pylint: disable=reimported,unused-import,redefined-outer-name
+            print(sys.version)
+            try:
+                {}.iteritems()  # pylint: disable=no-member
+            except AttributeError:
+                return
+            raise Exception
+        self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
+
+    @staticmethod
+    def _invert_python_major_version():
+        if sys.version_info[0] == 2:
+            return 3
+        else:
+            return 2
+
+    def test_wrong_python_op_args(self):
+        if sys.version_info[0] == 2:
+            version = 3
+        else:
+            version = 2
+
+        def f():
+            pass
+
+        with self.assertRaises(AirflowException):
+            self._run_as_operator(f, python_version=version, op_args=[1])
+
+    def test_without_dill(self):
+        def f(a):
+            return a
+        self._run_as_operator(f, system_site_packages=False, use_dill=False, op_args=[4])
+
+    def test_string_args(self):
+        def f():
+            global virtualenv_string_args  # pylint: disable=global-statement
+            print(virtualenv_string_args)
+            if virtualenv_string_args[0] != virtualenv_string_args[2]:
+                raise Exception
+        self._run_as_operator(
+            f, python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
+
+    def test_with_args(self):
+        def f(a, b, c=False, d=False):
+            if a == 0 and b == 1 and c and not d:
+                return True
+            else:
+                raise Exception
+        self._run_as_operator(f, op_args=[0, 1], op_kwargs={'c': True})
+
+    def test_return_none(self):
+        def f():
+            return None
+        self._run_as_operator(f)
+
+    def test_lambda(self):
+        with self.assertRaises(AirflowException):
+            PythonVirtualenvOperator(
+                python_callable=lambda x: 4,
+                task_id='task',
+                dag=self.dag)
+
+    def test_nonimported_as_arg(self):
+        def f(_):
+            return None
+        self._run_as_operator(f, op_args=[datetime.datetime.utcnow()])
+
+    def test_context(self):
+        def f(templates_dict):
+            return templates_dict['ds']
+        self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
