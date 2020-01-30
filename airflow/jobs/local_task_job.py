@@ -99,8 +99,7 @@ class LocalTaskJob(BaseJob):
                         self.task_instance.refresh_from_db()
                         # there is one case we should not treat non zero return
                         # code as failed: the job has been killed externally.
-                        if (not self.terminating) or \
-                            self.task_instance.state == State.FAILED:
+                        if (not self.terminating) or self.task_instance.state == State.FAILED:
                             msg = ("LocalTaskJob process exited with non zero "
                             "status {}".format(return_code))
                             raise AirflowException(msg)
