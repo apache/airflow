@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import unittest
-from collections import OrderedDict
-from unittest import mock
 
 import pytest
 
 from airflow import DAG
+from airflow.operators.generic_transfer import GenericTransfer
+from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -44,7 +44,6 @@ class TestMySql(unittest.TestCase):
         self.dag = dag
 
     def tearDown(self):
-        from airflow.providers.mysql.hooks.mysql import MySqlHook
         drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
         with MySqlHook().get_conn() as conn:
             for table in drop_tables:
@@ -52,7 +51,6 @@ class TestMySql(unittest.TestCase):
 
     def test_mysql_to_mysql(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
-        from airflow.operators.generic_transfer import GenericTransfer
         op = GenericTransfer(
             task_id='test_m2m',
             preoperator=[
@@ -77,7 +75,6 @@ class TestPostgres(unittest.TestCase):
 
     def tearDown(self):
         tables_to_drop = ['test_postgres_to_postgres', 'test_airflow']
-        from airflow.providers.postgres.hooks.postgres import PostgresHook
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:
                 for table in tables_to_drop:
@@ -85,7 +82,6 @@ class TestPostgres(unittest.TestCase):
 
     def test_postgres_to_postgres(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
-        from airflow.operators.generic_transfer import GenericTransfer
         op = GenericTransfer(
             task_id='test_p2p',
             preoperator=[
