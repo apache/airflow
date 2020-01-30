@@ -66,10 +66,6 @@ All operators are in the following packages:
 
   airflow/sensors/index
 
-  airflow/gcp/operators/index
-
-  airflow/gcp/sensors/index
-
   airflow/providers/amazon/aws/operators/index
 
   airflow/providers/amazon/aws/sensors/index
@@ -198,8 +194,6 @@ All hooks are in the following packages:
   :maxdepth: 1
 
   airflow/hooks/index
-
-  airflow/gcp/hooks/index
 
   airflow/providers/amazon/aws/hooks/index
 
