@@ -47,7 +47,7 @@ API_RESPONSE = {'test': 'repsonse'}
 
 class TestGSheetsHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch('airflow.gcp.hooks.base.CloudBaseHook.__init__',
+        with mock.patch('airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__',
                         new=mock_base_gcp_hook_default_project_id):
             self.hook = GSheetsHook(gcp_conn_id=GCP_CONN_ID, spreadsheet_id=SPREADHSEET_ID)
 

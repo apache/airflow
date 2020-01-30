@@ -28,7 +28,7 @@ from google.cloud.language_v1.types import (
     AnnotateTextRequest, AnnotateTextResponse, ClassifyTextResponse, Document,
 )
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 # noinspection PyAbstractClass

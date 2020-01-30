@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.hooks import gcs
 from airflow.version import version
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-BASE_STRING = 'airflow.gcp.hooks.base.{}'
+BASE_STRING = 'airflow.providers.google.cloud.hooks.base.{}'
 GCS_STRING = 'airflow.providers.google.cloud.hooks.gcs.{}'
 
 EMPTY_CONTENT = b''
@@ -74,7 +74,7 @@ class TestGCSHook(unittest.TestCase):
                 google_cloud_storage_conn_id='test')
 
     @mock.patch(
-        'airflow.gcp.hooks.base.CloudBaseHook.client_info',
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.client_info',
         new_callable=mock.PropertyMock,
         return_value="CLIENT_INFO"
     )

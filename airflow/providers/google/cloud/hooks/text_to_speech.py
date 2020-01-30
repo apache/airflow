@@ -27,7 +27,7 @@ from google.cloud.texttospeech_v1.types import (
     AudioConfig, SynthesisInput, SynthesizeSpeechResponse, VoiceSelectionParams,
 )
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class CloudTextToSpeechHook(CloudBaseHook):

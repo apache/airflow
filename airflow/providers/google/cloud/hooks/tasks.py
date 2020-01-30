@@ -29,7 +29,7 @@ from google.cloud.tasks_v2 import CloudTasksClient, enums
 from google.cloud.tasks_v2.types import FieldMask, Queue, Task
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class CloudTasksHook(CloudBaseHook):

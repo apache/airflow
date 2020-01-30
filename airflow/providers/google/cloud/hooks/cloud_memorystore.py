@@ -29,7 +29,7 @@ from google.cloud.redis_v1.types import FieldMask, InputConfig, Instance, Output
 from google.protobuf.json_format import ParseDict
 
 from airflow import AirflowException, version
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class CloudMemorystoreHook(CloudBaseHook):

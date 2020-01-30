@@ -514,7 +514,7 @@ Airflow has extensive support for the `Google Cloud Platform <https://cloud.goog
 See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
 configure connections to GCP.
 
-All hooks are based on :class:`airflow.gcp.hooks.base.GoogleCloudBaseHook`.
+All hooks are based on :class:`airflow.providers.google.cloud.hooks.base.GoogleCloudBaseHook`.
 
 .. note::
     You can learn how to use GCP integrations by analyzing the

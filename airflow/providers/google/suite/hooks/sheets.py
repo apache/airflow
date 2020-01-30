@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class GSheetsHook(CloudBaseHook):

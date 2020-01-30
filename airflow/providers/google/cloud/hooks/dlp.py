@@ -36,7 +36,7 @@ from google.cloud.dlp_v2.types import (
 )
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
 # Time to sleep between active checks of the operation results

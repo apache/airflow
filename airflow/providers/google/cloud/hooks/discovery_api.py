@@ -24,7 +24,7 @@ from typing import Dict, Optional
 
 from googleapiclient.discovery import Resource, build
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class GoogleDiscoveryApiHook(CloudBaseHook):

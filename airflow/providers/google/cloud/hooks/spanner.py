@@ -29,7 +29,7 @@ from google.cloud.spanner_v1.transaction import Transaction
 from google.longrunning.operations_grpc_pb2 import Operation  # noqa: F401
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class SpannerHook(CloudBaseHook):

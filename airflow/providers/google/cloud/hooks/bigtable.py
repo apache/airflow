@@ -28,7 +28,7 @@ from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
 from google.cloud.bigtable_admin_v2 import enums
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class BigtableHook(CloudBaseHook):

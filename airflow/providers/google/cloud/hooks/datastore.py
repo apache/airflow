@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from googleapiclient.discovery import build
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class DatastoreHook(CloudBaseHook):

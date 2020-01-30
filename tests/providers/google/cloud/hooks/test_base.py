@@ -34,8 +34,8 @@ from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
 from airflow import AirflowException, LoggingMixin, version
-from airflow.gcp.hooks import base as hook
 from airflow.hooks.base_hook import BaseHook
+from airflow.providers.google.cloud.hooks import base as hook
 from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
@@ -45,7 +45,7 @@ try:
 except GoogleAuthError:
     default_creds_available = False
 
-MODULE_NAME = "airflow.gcp.hooks.base"
+MODULE_NAME = "airflow.providers.google.cloud.hooks.base"
 
 
 class NoForbiddenAfterCount:
@@ -556,7 +556,7 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
 
         self.assertEqual(self.instance.scopes, ('https://www.googleapis.com/auth/cloud-platform',))
 
-    @mock.patch("airflow.gcp.hooks.base.CloudBaseHook.get_connection")
+    @mock.patch("airflow.providers.google.cloud.hooks.base.CloudBaseHook.get_connection")
     def test_num_retries_is_not_none_by_default(self, get_con_mock):
         """
         Verify that if 'num_retries' in extras is not set, the default value
@@ -567,8 +567,8 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
         }
         self.assertEqual(self.instance.num_retries, 5)
 
-    @mock.patch("airflow.gcp.hooks.base.httplib2.Http")
-    @mock.patch("airflow.gcp.hooks.base.CloudBaseHook._get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.base.httplib2.Http")
+    @mock.patch("airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials")
     def test_authorize_assert_user_agent_is_sent(self, mock_get_credentials, mock_http):
         """
         Verify that if 'num_retires' in extras is not set, the default value

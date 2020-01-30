@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Union
 
 from google.cloud.translate_v2 import Client
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class CloudTranslateHook(CloudBaseHook):

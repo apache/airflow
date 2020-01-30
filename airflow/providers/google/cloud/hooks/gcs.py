@@ -32,7 +32,7 @@ from urllib.parse import urlparse
 from google.cloud import storage
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 from airflow.version import version
 
 

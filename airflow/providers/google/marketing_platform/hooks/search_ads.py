@@ -23,7 +23,7 @@ from typing import Any, Dict, Optional
 
 from googleapiclient.discovery import build
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class GoogleSearchAdsHook(CloudBaseHook):

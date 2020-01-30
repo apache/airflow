@@ -22,7 +22,7 @@ from typing import Any, Optional
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import MediaFileUpload
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 # noinspection PyAbstractClass

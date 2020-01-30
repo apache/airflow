@@ -52,7 +52,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(
-            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
@@ -116,7 +116,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
         self.assertEqual(result, TEST_BUILD)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -140,7 +140,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(
-            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
@@ -156,7 +156,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         self.assertEqual(self.hook._conn, result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -183,7 +183,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         self.assertEqual(result, TEST_BUILD)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -210,7 +210,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         self.assertEqual(result, TEST_BUILD)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST
     )
@@ -234,7 +234,7 @@ class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(
-            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
@@ -250,7 +250,7 @@ class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
         self.assertEqual(self.hook._conn, result)
 
     @mock.patch(
-        'airflow.gcp.hooks.base.CloudBaseHook.project_id',
+        'airflow.providers.google.cloud.hooks.base.CloudBaseHook.project_id',
         new_callable=PropertyMock,
         return_value=None
     )

@@ -26,7 +26,7 @@ from google.api_core.retry import Retry
 from google.cloud.videointelligence_v1 import VideoIntelligenceServiceClient
 from google.cloud.videointelligence_v1.types import VideoContext
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class CloudVideoIntelligenceHook(CloudBaseHook):

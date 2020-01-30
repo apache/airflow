@@ -31,7 +31,7 @@ from google.cloud.bigquery_datatransfer_v1.types import (
 from google.protobuf.json_format import MessageToDict, ParseDict
 from googleapiclient.discovery import Resource
 
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 def get_object_id(obj: dict) -> str:

@@ -53,7 +53,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):  # pylint: disable=unused-ar
 class TestCloudKMSHook(unittest.TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
             new=mock_init,
         ):
             self.kms_hook = CloudKMSHook(gcp_conn_id="test")

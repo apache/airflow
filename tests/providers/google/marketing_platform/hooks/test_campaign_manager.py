@@ -28,7 +28,7 @@ GCP_CONN_ID = "google_cloud_default"
 class TestGoogleCampaignManagerHook(TestCase):
     def setUp(self):
         with mock.patch(
-            "airflow.gcp.hooks.base.CloudBaseHook.__init__",
+            "airflow.providers.google.cloud.hooks.base.CloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = GoogleCampaignManagerHook(

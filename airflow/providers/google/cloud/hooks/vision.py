@@ -32,7 +32,7 @@ from google.cloud.vision_v1.types import (
 from google.protobuf.json_format import MessageToDict
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 ERR_DIFF_NAMES = \
     """The {label} name provided in the object ({explicit_name}) is different than the name created

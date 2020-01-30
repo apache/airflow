@@ -37,8 +37,8 @@ from pandas_gbq.gbq import (
 )
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import CloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
