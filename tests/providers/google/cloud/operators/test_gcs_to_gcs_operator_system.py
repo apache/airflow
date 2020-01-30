@@ -19,7 +19,7 @@
 """System tests for Google Cloud Build operators"""
 
 
-from tests.operators.test_gcs_to_gcs_system_helper import GcsToGcsTestHelper
+from tests.providers.google.cloud.operators.test_gcs_to_gcs_system_helper import GcsToGcsTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
