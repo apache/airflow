@@ -18,7 +18,6 @@
 version: "2.2"
 services:
   kerberos:
-    init: true
     image: godatadriven/krb5-kdc-server
     hostname: kerberos
     domainname: example.com

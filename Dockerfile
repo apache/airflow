@@ -327,6 +327,17 @@ RUN \
         && pip uninstall --yes apache-airflow; \
     fi
 
+# Install dumb-init for signal propagation inside docker
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+           dumb-init \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Ling dumb-init for backwards compatibility (so that older images also work)
+RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
+
 # Install NPM dependencies here. The NPM dependencies don't change that often and we already have pip
 # installed dependencies in case of CI optimised build, so it is ok to install NPM deps here
 # Rather than after setup.py is added.
@@ -404,3 +415,7 @@ WORKDIR ${AIRFLOW_SOURCES}
 ENV PATH="${HOME}:${PATH}"
 
 EXPOSE 8080
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint.sh"]
+
+CMD ["--help"]
