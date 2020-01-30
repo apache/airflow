@@ -959,7 +959,7 @@ function build_image_on_ci() {
     if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"Kubernetes"* ]]; then
         match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/kubernetes/.*\.py' \
             'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
-            'scripts/ci/.*'
+            'scripts/ci/.*' 'airflow/example_dags/.*'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
             rebuild_ci_image_if_needed
         else
@@ -967,7 +967,7 @@ function build_image_on_ci() {
         fi
     elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
         match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' \
-            'airflow/www/.*\.html' 'scripts/ci/.*'
+            'airflow/www/.*\.html' 'scripts/ci/.*' 'airflow/example_dags/.*'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
             rebuild_ci_image_if_needed
         else

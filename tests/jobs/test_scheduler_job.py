@@ -2670,12 +2670,12 @@ class TestSchedulerJob(unittest.TestCase):
         detected_files = set()
         expected_files = set()
         # No_dags is empty, _invalid_ is ignored by .airflowignore
-        ignored_files = [
+        ignored_files = {
             'no_dags.py',
             'test_invalid_cron.py',
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
-        ]
+        }
         for root, _, files in os.walk(TEST_DAG_FOLDER):  # pylint: disable=too-many-nested-blocks
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
@@ -2686,11 +2686,14 @@ class TestSchedulerJob(unittest.TestCase):
             detected_files.add(file_path)
         self.assertEqual(detected_files, expected_files)
 
+        ignored_files = {
+            'helper.py',
+        }
         example_dag_folder = airflow.example_dags.__path__[0]
         for root, _, files in os.walk(example_dag_folder):  # pylint: disable=too-many-nested-blocks
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
-                    if file_name not in ['__init__.py']:
+                    if file_name not in ['__init__.py'] and file_name not in ignored_files:
                         expected_files.add(os.path.join(root, file_name))
         detected_files.clear()
         for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=True):
