@@ -110,15 +110,14 @@ class TestCreateEvaluateOps(unittest.TestCase):
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
-                dataflow='airflow.providers.google.cloud.mlengine_prediction_summary',
+                dataflow='airflow.providers.google.cloud.utils.mlengine_prediction_summary',
                 py_options=['-m'],
                 py_interpreter='python3',
                 py_requirements=[],
                 py_system_site_packages=False,
             )
 
-        with patch('airflow.providers.google.cloud.mlengine_operator_utils.'
-                   'GCSHook') as mock_gcs_hook:
+        with patch('airflow.providers.google.cloud.utils.mlengine_operator_utils.GCSHook') as mock_gcs_hook:
             hook_instance = mock_gcs_hook.return_value
             hook_instance.download.return_value = '{"err": 0.9, "count": 9}'
             result = validate.execute({})
