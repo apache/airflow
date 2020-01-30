@@ -22,7 +22,7 @@ Helpers to perform system tests for the Google Cloud Build service.
 """
 import argparse
 
-from airflow.gcp.example_dags.example_bigquery import DATA_EXPORT_BUCKET_NAME
+from airflow.providers.google.cloud.example_dags.example_bigquery import DATA_EXPORT_BUCKET_NAME
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY, GcpAuthenticator
 

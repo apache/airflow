@@ -19,7 +19,7 @@
 # under the License.
 from urllib.parse import urlparse
 
-from airflow.gcp.example_dags.example_mlengine import (
+from airflow.providers.google.cloud.example_dags.example_mlengine import (
     JOB_DIR, PREDICTION_OUTPUT, SAVED_MODEL_PATH, SUMMARY_STAGING, SUMMARY_TMP,
 )
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor

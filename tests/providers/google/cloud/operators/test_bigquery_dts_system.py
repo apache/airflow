@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.gcp.example_dags.example_bigquery_dts import (
+from airflow.providers.google.cloud.example_dags.example_bigquery_dts import (
     BUCKET_URI, GCP_DTS_BQ_DATASET, GCP_DTS_BQ_TABLE, GCP_PROJECT_ID,
 )
 from tests.providers.google.cloud.operators.test_bigquery_dts_system_helper import GcpBigqueryDtsTestHelper
