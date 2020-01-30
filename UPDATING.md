@@ -70,32 +70,32 @@ To simplify BigQuery operators (no need of `Cursor`) and standardize usage of ho
 were moved to `BigQueryHook`. Using them by from `Cursor` object is still possible due to preserved backward compatibility but they will raise `DeprecationWarning`.
 The following methods were moved:
 
-| Old path                                                                    | New path                                                              |
-|-----------------------------------------------------------------------------|-----------------------------------------------------------------------|
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.cancel_query                  | airflow.gcp.hooks.bigquery.BigQueryHook.cancel_query                  |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset          | airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_dataset          |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_empty_table            | airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_table            |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_external_table         | airflow.gcp.hooks.bigquery.BigQueryHook.create_external_table         |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.delete_dataset                | airflow.gcp.hooks.bigquery.BigQueryHook.delete_dataset                |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset                   | airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset                   |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables            | airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables            |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables_list       | airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables_list       |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_datasets_list             | airflow.gcp.hooks.bigquery.BigQueryHook.get_datasets_list             |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_schema                    | airflow.gcp.hooks.bigquery.BigQueryHook.get_schema                    |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_tabledata                 | airflow.gcp.hooks.bigquery.BigQueryHook.get_tabledata                 |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.insert_all                    | airflow.gcp.hooks.bigquery.BigQueryHook.insert_all                    |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.patch_dataset                 | airflow.gcp.hooks.bigquery.BigQueryHook.patch_dataset                 |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.patch_table                   | airflow.gcp.hooks.bigquery.BigQueryHook.patch_table                   |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.poll_job_complete             | airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete             |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_copy                      | airflow.gcp.hooks.bigquery.BigQueryHook.run_copy                      |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_extract                   | airflow.gcp.hooks.bigquery.BigQueryHook.run_extract                   |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_grant_dataset_view_access | airflow.gcp.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_load                      | airflow.gcp.hooks.bigquery.BigQueryHook.run_load                      |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_query                     | airflow.gcp.hooks.bigquery.BigQueryHook.run_query                     |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_table_delete              | airflow.gcp.hooks.bigquery.BigQueryHook.run_table_delete              |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_table_upsert              | airflow.gcp.hooks.bigquery.BigQueryHook.run_table_upsert              |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.gcp.hooks.bigquery.BigQueryHook.run_with_configuration        |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.gcp.hooks.bigquery.BigQueryHook.update_dataset                |
+| Old path                                                                                       | New path                                                                                 |
+|------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.cancel_query                  | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query                  |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset          | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset          |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_table            | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table            |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_external_table         | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table         |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.delete_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset                |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset                   |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables            | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables            |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables_list       | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list       |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_datasets_list             | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list             |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_schema                    | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema                    |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_tabledata                 | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata                 |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.insert_all                    | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all                    |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.patch_dataset                 | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset                 |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.patch_table                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table                   |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.poll_job_complete             | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete             |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_copy                      | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy                      |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_extract                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract                   |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_grant_dataset_view_access | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_load                      | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load                      |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_query                     | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query                     |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete              | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete              |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_upsert              | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert              |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration        |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset                |
 
 ### Standardize handling http exception in BigQuery
 
