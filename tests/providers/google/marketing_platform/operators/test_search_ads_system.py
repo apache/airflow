@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tests.gcp.utils.gcp_authenticator import GCP_SEARCHADS_KEY
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_SEARCHADS_KEY
 from tests.providers.google.marketing_platform.operators.test_search_ads_system_helper import (
     GoogleSearchAdsSystemTestHelper,
 )

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tests.gcp.utils.gcp_authenticator import GOOGLE_CAMPAIGN_MANAGER_KEY
+from tests.providers.google.cloud.utils.gcp_authenticator import GOOGLE_CAMPAIGN_MANAGER_KEY
 from tests.providers.google.marketing_platform.operators.test_campaign_manager_system_helper import (
     GoogleCampaignManagerTestHelper,
 )

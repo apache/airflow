@@ -20,8 +20,8 @@
 from airflow.gcp.example_dags.example_bigquery_dts import (
     BUCKET_URI, GCP_DTS_BQ_DATASET, GCP_DTS_BQ_TABLE, GCP_PROJECT_ID,
 )
-from tests.gcp.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests.providers.google.cloud.operators.test_bigquery_dts_system_helper import GcpBigqueryDtsTestHelper
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 

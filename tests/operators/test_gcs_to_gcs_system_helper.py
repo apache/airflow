@@ -27,7 +27,7 @@ from airflow.providers.google.cloud.example_dags.example_gcs_to_gcs import (
     BUCKET_1_DST, BUCKET_1_SRC, BUCKET_2_DST, BUCKET_2_SRC, BUCKET_3_DST, BUCKET_3_SRC,
 )
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY, GcpAuthenticator
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GcpAuthenticator
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 

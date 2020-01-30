@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     TIME_TO_SLEEP_IN_SECONDS, TRANSFER_JOB, TRANSFER_JOB_FIELD_MASK, TRANSFER_JOBS,
     CloudDataTransferServiceHook, GcpTransferJobsStatus, GcpTransferOperationStatus,
 )
-from tests.gcp.utils.base_gcp_mock import (
+from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
 )

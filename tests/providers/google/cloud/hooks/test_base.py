@@ -36,7 +36,7 @@ from parameterized import parameterized
 from airflow import AirflowException, LoggingMixin, version
 from airflow.hooks.base_hook import BaseHook
 from airflow.providers.google.cloud.hooks import base as hook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 default_creds_available = True
 default_project = None

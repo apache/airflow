@@ -26,7 +26,7 @@ from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-from tests.gcp.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY, GcpAuthenticator
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY, GcpAuthenticator
 
 GCE_INSTANCE = os.environ.get("GCE_INSTANCE", "testinstance")
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

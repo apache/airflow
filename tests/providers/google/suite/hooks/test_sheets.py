@@ -27,7 +27,7 @@ import mock
 
 from airflow import AirflowException
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 GCP_CONN_ID = 'test'
 SPREADHSEET_ID = '1234567890'

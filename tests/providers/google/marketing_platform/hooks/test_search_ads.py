@@ -19,7 +19,7 @@
 from unittest import TestCase, mock
 
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v2"
 GCP_CONN_ID = "google_cloud_default"

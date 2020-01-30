@@ -26,7 +26,7 @@ from mock import PropertyMock
 
 from airflow import AirflowException, version
 from airflow.providers.google.cloud.hooks.cloud_memorystore import CloudMemorystoreHook
-from tests.gcp.utils.base_gcp_mock import (
+from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST, mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
 )

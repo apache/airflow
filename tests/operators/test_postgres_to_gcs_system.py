@@ -21,7 +21,7 @@ from psycopg2 import ProgrammingError
 
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils.gcp_system_helpers import provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 

@@ -32,7 +32,7 @@ from mock import PropertyMock
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
-from tests.gcp.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 API_RESPONSE = {}  # type: Dict[Any, Any]
 ORGANIZATION_ID = "test-org"

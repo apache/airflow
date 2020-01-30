@@ -28,7 +28,7 @@ from airflow.providers.google.cloud.example_dags.example_gcs_to_sftp import (
     BUCKET_SRC, OBJECT_SRC_1, OBJECT_SRC_2,
 )
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY, GcpAuthenticator
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GcpAuthenticator
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
