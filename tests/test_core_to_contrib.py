@@ -1386,6 +1386,10 @@ OPERATOR = [
         'airflow.providers.mysql.operators.vertica_to_mysql.VerticaToMySqlTransfer',
         'airflow.contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer',
     ),
+    (
+        'airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer',
+        'airflow.operators.presto_to_mysql.PrestoToMySqlTransfer',
+    ),
 ]
 
 SENSOR = [

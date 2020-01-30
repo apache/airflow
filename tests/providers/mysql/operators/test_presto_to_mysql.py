@@ -20,7 +20,7 @@
 import unittest
 from unittest.mock import patch
 
-from airflow.operators.presto_to_mysql import PrestoToMySqlTransfer
+from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer
 
 
 class TestPrestoToMySqlTransfer(unittest.TestCase):
@@ -33,8 +33,8 @@ class TestPrestoToMySqlTransfer(unittest.TestCase):
             dag=None
         )
 
-    @patch('airflow.operators.presto_to_mysql.MySqlHook')
-    @patch('airflow.operators.presto_to_mysql.PrestoHook')
+    @patch('airflow.providers.mysql.operators.presto_to_mysql.MySqlHook')
+    @patch('airflow.providers.mysql.operators.presto_to_mysql.PrestoHook')
     def test_execute(self, mock_presto_hook, mock_mysql_hook):
         PrestoToMySqlTransfer(**self.kwargs).execute(context={})
 
@@ -42,8 +42,8 @@ class TestPrestoToMySqlTransfer(unittest.TestCase):
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
             table=self.kwargs['mysql_table'], rows=mock_presto_hook.return_value.get_records.return_value)
 
-    @patch('airflow.operators.presto_to_mysql.MySqlHook')
-    @patch('airflow.operators.presto_to_mysql.PrestoHook')
+    @patch('airflow.providers.mysql.operators.presto_to_mysql.MySqlHook')
+    @patch('airflow.providers.mysql.operators.presto_to_mysql.PrestoHook')
     def test_execute_with_mysql_preoperator(self, mock_presto_hook, mock_mysql_hook):
         self.kwargs.update(dict(mysql_preoperator='mysql_preoperator'))
 

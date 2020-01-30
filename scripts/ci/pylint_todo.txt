@@ -156,7 +156,7 @@
 ./airflow/providers/apache/pig/operators/pig.py
 ./airflow/providers/postgres/operators/postgres.py
 ./airflow/providers/presto/operators/presto_check.py
-./airflow/operators/presto_to_mysql.py
+./airflow/providers/mysql/operators/presto_to_mysql.py
 ./airflow/operators/python.py
 ./airflow/providers/amazon/aws/operators/s3_file_transform.py
 ./airflow/providers/amazon/aws/operators/s3_to_redshift.py

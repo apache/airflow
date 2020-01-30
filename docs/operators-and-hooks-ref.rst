@@ -1213,7 +1213,7 @@ These integrations allow you to copy data.
    * - `Presto <https://prestodb.github.io/>`__
      - `MySQL <https://www.mysql.com/>`__
      -
-     - :mod:`airflow.operators.presto_to_mysql`
+     - :mod:`airflow.providers.mysql.operators.presto_to_mysql`
 
    * - SQL
      - `Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
