@@ -841,13 +841,15 @@ function filter_out_files_from_pylint_todo_list() {
 
 function refresh_pylint_todo() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint /opt/airflow/scripts/ci/in_container/refresh_pylint_todo.sh \
         --env PYTHONDONTWRITEBYTECODE \
         --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
         --env AIRFLOW_CI_SILENT \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
-        "${AIRFLOW_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
+        --rm \
+        "${AIRFLOW_CI_IMAGE}" \
+        /opt/airflow/scripts/ci/in_container/refresh_pylint_todo.sh \
+        | tee -a "${OUTPUT_LOG}"
 }
 
 function rebuild_all_images_if_needed_and_confirmed() {
