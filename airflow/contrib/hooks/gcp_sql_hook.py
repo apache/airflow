@@ -33,7 +33,8 @@ warnings.warn(
 
 class CloudSqlDatabaseHook(CloudSQLDatabaseHook):
     """
-    This class is deprecated. Please use `airflow.gcp.hooks.sql.CloudSQLDatabaseHook`.
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook`.
     """
 
     def __init__(self, *args, **kwargs):
@@ -43,7 +44,7 @@ class CloudSqlDatabaseHook(CloudSQLDatabaseHook):
 
 class CloudSqlHook(CloudSQLHook):
     """
-    This class is deprecated. Please use `airflow.gcp.hooks.sql.CloudSQLHook`.
+    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.sql.CloudSQLHook`.
     """
 
     def __init__(self, *args, **kwargs):

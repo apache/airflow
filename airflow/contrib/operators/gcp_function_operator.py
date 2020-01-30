@@ -33,13 +33,14 @@ warnings.warn(
 class GcfFunctionDeleteOperator(CloudFunctionDeleteFunctionOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.function.CloudFunctionDeleteFunctionOperator`.
+    Please use `airflow.providers.google.cloud.operators.function.CloudFunctionDeleteFunctionOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.function.CloudFunctionDeleteFunctionOperator`.""",
+            Please use
+            `airflow.providers.google.cloud.operators.function.CloudFunctionDeleteFunctionOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -48,13 +49,14 @@ class GcfFunctionDeleteOperator(CloudFunctionDeleteFunctionOperator):
 class GcfFunctionDeployOperator(CloudFunctionDeployFunctionOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.function.CloudFunctionDeployFunctionOperator`.
+    Please use `airflow.providers.google.cloud.operators.function.CloudFunctionDeployFunctionOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.function.CloudFunctionDeployFunctionOperator`.""",
+            Please use
+            `airflow.providers.google.cloud.operators.function.CloudFunctionDeployFunctionOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

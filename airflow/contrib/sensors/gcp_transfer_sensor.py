@@ -35,12 +35,13 @@ warnings.warn(
 class GCPTransferServiceWaitForJobStatusSensor(CloudDataTransferServiceJobStatusSensor):
     """
     This class is deprecated.
-    Please use `airflow.gcp.sensors.transfer.CloudDataTransferServiceJobStatusSensor`.
+    Please use `airflow.providers.google.cloud.sensors.transfer.CloudDataTransferServiceJobStatusSensor`.
     """
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.sensors.transfer.CloudDataTransferServiceJobStatusSensor`.""",
+            Please use
+            `airflow.providers.google.cloud.sensors.transfer.CloudDataTransferServiceJobStatusSensor`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

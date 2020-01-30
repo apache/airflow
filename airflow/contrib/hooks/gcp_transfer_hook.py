@@ -33,13 +33,16 @@ warnings.warn(
 
 class GCPTransferServiceHook(CloudDataTransferServiceHook):
     """
-    This class is deprecated. Please use `airflow.gcp.hooks.data_transfer.CloudDataTransferServiceHook`.
+    This class is deprecated. Please use
+    `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.hooks.data_transfer.CloudDataTransferServiceHook`.""",
+            Please use
+            `airflow.providers.google.cloud.hooks.cloud_storage_transfer_service
+            .CloudDataTransferServiceHook`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

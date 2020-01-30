@@ -35,13 +35,13 @@ warnings.warn(
 class GKEClusterCreateOperator(GKECreateClusterOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.container.GKECreateClusterOperator`.
+    Please use `airflow.providers.google.cloud.operators.container.GKECreateClusterOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.container.GKECreateClusterOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.container.GKECreateClusterOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -50,13 +50,13 @@ class GKEClusterCreateOperator(GKECreateClusterOperator):
 class GKEClusterDeleteOperator(GKEDeleteClusterOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.container.GKEDeleteClusterOperator`.
+    Please use `airflow.providers.google.cloud.operators.container.GKEDeleteClusterOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.container.GKEDeleteClusterOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.container.GKEDeleteClusterOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
@@ -65,13 +65,13 @@ class GKEClusterDeleteOperator(GKEDeleteClusterOperator):
 class GKEPodOperator(GKEStartPodOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.container.GKEStartPodOperator`.
+    Please use `airflow.providers.google.cloud.operators.container.GKEStartPodOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.container.GKEStartPodOperator`.""",
+            Please use `airflow.providers.google.cloud.operators.container.GKEStartPodOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)

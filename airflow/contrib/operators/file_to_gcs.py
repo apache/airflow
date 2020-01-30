@@ -33,13 +33,14 @@ warnings.warn(
 class FileToGoogleCloudStorageOperator(LocalFilesystemToGCSOperator):
     """
     This class is deprecated.
-    Please use `airflow.gcp.operators.local_to_gcs.LocalFilesystemToGCSOperator`.
+    Please use `airflow.providers.google.cloud.operators.local_to_gcs.LocalFilesystemToGCSOperator`.
     """
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.gcp.operators.local_to_gcs.LocalFilesystemToGCSOperator`.""",
+            Please use
+            `airflow.providers.google.cloud.operators.local_to_gcs.LocalFilesystemToGCSOperator`.""",
             DeprecationWarning, stacklevel=2
         )
         super().__init__(*args, **kwargs)
