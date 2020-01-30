@@ -19,13 +19,17 @@
 #
 
 import json
+import os
 import unittest
 from unittest import mock
 
 import MySQLdb.cursors
+import pytest
 
+from airflow import DAG
 from airflow.models import Connection
 from airflow.providers.mysql.hooks.mysql import MySqlHook
+from airflow.utils import timezone
 
 SSL_DICT = {
     'cert': '/tmp/client-cert.pem',
@@ -263,3 +267,75 @@ class TestMySqlHook(unittest.TestCase):
             OPTIONALLY ENCLOSED BY '"'
             IGNORE 1 LINES
             """)
+
+
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
+DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
+DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
+TEST_DAG_ID = 'unit_test_dag'
+
+
+@pytest.mark.backend("mysql")
+class TestMySql(unittest.TestCase):
+    def setUp(self):
+        args = {
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE
+        }
+        dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = dag
+
+    def tearDown(self):
+        drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
+        with MySqlHook().get_conn() as conn:
+            for table in drop_tables:
+                conn.execute("DROP TABLE IF EXISTS {}".format(table))
+
+    def test_mysql_hook_test_bulk_load(self):
+        records = ("foo", "bar", "baz")
+
+        import tempfile
+        with tempfile.NamedTemporaryFile() as f:
+            f.write("\n".join(records).encode('utf8'))
+            f.flush()
+
+            hook = MySqlHook('airflow_db')
+            with hook.get_conn() as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS test_airflow (
+                        dummy VARCHAR(50)
+                    )
+                """)
+                conn.execute("TRUNCATE TABLE test_airflow")
+                hook.bulk_load("test_airflow", f.name)
+                conn.execute("SELECT dummy FROM test_airflow")
+                results = tuple(result[0] for result in conn.fetchall())
+                self.assertEqual(sorted(results), sorted(records))
+
+    def test_mysql_hook_test_bulk_dump(self):
+        hook = MySqlHook('airflow_db')
+        priv = hook.get_first("SELECT @@global.secure_file_priv")
+        if priv and priv[0]:
+            # Confirm that no error occurs
+            hook.bulk_dump("INFORMATION_SCHEMA.TABLES", os.path.join(priv[0], "TABLES"))
+        else:
+            self.skipTest("Skip test_mysql_hook_test_bulk_load "
+                          "since file output is not permitted")
+
+    @mock.patch('airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn')
+    def test_mysql_hook_test_bulk_dump_mock(self, mock_get_conn):
+        mock_execute = mock.MagicMock()
+        mock_get_conn.return_value.cursor.return_value.execute = mock_execute
+
+        hook = MySqlHook('airflow_db')
+        table = "INFORMATION_SCHEMA.TABLES"
+        tmp_file = "/path/to/output/file"
+        hook.bulk_dump(table, tmp_file)
+
+        from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
+        assert mock_execute.call_count == 1
+        query = """
+            SELECT * INTO OUTFILE '{tmp_file}'
+            FROM {table}
+        """.format(tmp_file=tmp_file, table=table)
+        assert_equal_ignore_multiple_spaces(self, mock_execute.call_args[0][0], query)
