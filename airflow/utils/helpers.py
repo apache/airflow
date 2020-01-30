@@ -211,7 +211,7 @@ def reap_process_group(pgid, log, sig=signal.SIGTERM,
             # use sudo -n(--non-interactive) to kill the process
             if err.errno == errno.EPERM:
                 subprocess.check_call(
-                    ["sudo", "-n", "kill", "-" + str(sig)] + map(children, lambda p: str(p.pid))
+                    ["sudo", "-n", "kill", "-" + str(sig)] + [str(p.pid) for p in children]
                 )
             else:
                 raise
