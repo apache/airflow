@@ -29,7 +29,7 @@ a.navbar-brand span {
     color: white;
 }
 .modal-backdrop{
-    z-index: 0;
+    z-index: 2;
     position: fixed;
 }
 .modal-content{
