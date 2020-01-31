@@ -18,12 +18,12 @@
 # under the License.
 #
 
-import unittest
+import pytest
 
 from airflow import DAG, models
 from airflow.contrib.utils.weekday import WeekDay
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import DagBag, TaskFail
+from airflow.models import TaskFail
 from airflow.sensors.weekday_sensor import DayOfWeekSensor
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
@@ -33,130 +33,91 @@ WEEKDAY_DATE = datetime(2018, 12, 20)
 WEEKEND_DATE = datetime(2018, 12, 22)
 TEST_DAG_ID = 'weekday_sensor_dag'
 DEV_NULL = '/dev/null'
+TRUE_TESTS_CONFIG = {
+    "string": "Thursday",
+    "enum": WeekDay.THURSDAY,
+    "enum-set": {WeekDay.THURSDAY},
+    "enum-set-2-items": {WeekDay.THURSDAY, WeekDay.FRIDAY},
+    "string-set": {'Thursday'},
+    "string-set-2-items": {'Thursday', 'Friday'},
+}
 
 
-class TestDayOfWeekSensor(unittest.TestCase):
+@pytest.fixture
+def dag():
+    args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+    return DAG(TEST_DAG_ID, default_args=args)
 
-    def setUp(self):
-        self.dagbag = DagBag(
-            dag_folder=DEV_NULL,
-            include_examples=True
-        )
-        self.args = {
-            'owner': 'airflow',
-            'start_date': DEFAULT_DATE
-        }
-        dag = DAG(TEST_DAG_ID, default_args=self.args)
-        self.dag = dag
 
-    def tearDown(self):
-        session = Session()
-        session.query(models.TaskInstance).filter_by(
-            dag_id=TEST_DAG_ID).delete()
-        session.query(TaskFail).filter_by(
-            dag_id=TEST_DAG_ID).delete()
-        session.commit()
-        session.close()
+@pytest.fixture
+def tear_down():
+    yield
 
-    def test_weekday_sensor_true(self):
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day='Thursday',
-            use_task_execution_day=True,
-            dag=self.dag)
+    session = Session()
+    session.query(models.TaskInstance).filter_by(
+        dag_id=TEST_DAG_ID).delete()
+    session.query(TaskFail).filter_by(
+        dag_id=TEST_DAG_ID).delete()
+    session.commit()
+    session.close()
+
+
+@pytest.mark.parametrize("weekday", TRUE_TESTS_CONFIG.values(), ids=list(TRUE_TESTS_CONFIG.keys()))
+def test_weekday_sensor_true(dag, weekday, tear_down):
+    op = DayOfWeekSensor(
+        task_id="weekday_sensor_check_true",
+        week_day=weekday,
+        use_task_execution_day=True,
+        dag=dag)
+    op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+
+
+def test_weekday_sensor_false(dag, tear_down):
+    op = DayOfWeekSensor(
+        task_id='weekday_sensor_check_false',
+        poke_interval=0,
+        timeout=2,
+        week_day='Tuesday',
+        use_task_execution_day=True,
+        dag=dag)
+    with pytest.raises(AirflowSensorTimeout):
         op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
 
-    def test_weekday_sensor_false(self):
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_false',
-            poke_interval=1,
-            timeout=2,
-            week_day='Tuesday',
-            use_task_execution_day=True,
-            dag=self.dag)
-        with self.assertRaises(AirflowSensorTimeout):
-            op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
 
-    def test_invalid_weekday_number(self):
-        invalid_week_day = 'Thsday'
-        with self.assertRaisesRegex(AttributeError,
-                                    'Invalid Week Day passed: "{}"'.format(invalid_week_day)):
-            DayOfWeekSensor(
-                task_id='weekday_sensor_invalid_weekday_num',
-                week_day=invalid_week_day,
-                use_task_execution_day=True,
-                dag=self.dag)
-
-    def test_weekday_sensor_with_enum(self):
-        week_day = WeekDay.THURSDAY
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=WeekDay.THURSDAY,
+def test_invalid_weekday_number(dag, tear_down):
+    invalid_week_day = 'Thsday'
+    with pytest.raises(
+        AttributeError,
+        match=r'Invalid Week Day passed: "{}"'.format(invalid_week_day)
+    ):
+        DayOfWeekSensor(
+            task_id='weekday_sensor_invalid_weekday_num',
+            week_day=invalid_week_day,
             use_task_execution_day=True,
-            dag=self.dag)
+            dag=dag)
+
+
+def test_weekday_sensor_with_invalid_type(dag, tear_down):
+    invalid_week_day = ['Thsday']
+    with pytest.raises(
+        TypeError,
+        match=r"Unsupported Type for week_day parameter: {}. It should be one "
+              "of str, set or Weekday enum type".format(type(invalid_week_day))
+    ):
+        DayOfWeekSensor(
+            task_id='weekday_sensor_invalid_type',
+            week_day=invalid_week_day,
+            use_task_execution_day=True,
+            dag=dag)
+
+
+def test_weekday_sensor_timeout_with_set(dag, tear_down):
+    op = DayOfWeekSensor(
+        task_id='weekday_sensor_check_false',
+        poke_interval=1,
+        timeout=2,
+        week_day={WeekDay.MONDAY, WeekDay.TUESDAY},
+        use_task_execution_day=True,
+        dag=dag)
+    with pytest.raises(AirflowSensorTimeout):
         op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
-
-    def test_weekday_sensor_with_enum_set(self):
-        week_day = {WeekDay.THURSDAY}
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=week_day,
-            use_task_execution_day=True,
-            dag=self.dag)
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
-
-    def test_weekday_sensor_with_enum_set_2_items(self):
-        week_day = {WeekDay.THURSDAY, WeekDay.FRIDAY}
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=week_day,
-            use_task_execution_day=True,
-            dag=self.dag)
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
-
-    def test_weekday_sensor_with_string_set(self):
-        week_day = {'Thursday'}
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=week_day,
-            use_task_execution_day=True,
-            dag=self.dag)
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
-
-    def test_weekday_sensor_with_string_set_2_items(self):
-        week_day = {'Thursday', 'Friday'}
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=week_day,
-            use_task_execution_day=True,
-            dag=self.dag)
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
-
-    def test_weekday_sensor_with_invalid_type(self):
-        invalid_week_day = ['Thsday']
-        with self.assertRaisesRegex(TypeError,
-                                    'Unsupported Type for week_day parameter:'
-                                    ' {}. It should be one of str, set or '
-                                    'Weekday enum type'.format(type(invalid_week_day))
-                                    ):
-            DayOfWeekSensor(
-                task_id='weekday_sensor_check_true',
-                week_day=invalid_week_day,
-                use_task_execution_day=True,
-                dag=self.dag)
-
-    def test_weekday_sensor_timeout_with_set(self):
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_false',
-            poke_interval=1,
-            timeout=2,
-            week_day={WeekDay.MONDAY, WeekDay.TUESDAY},
-            use_task_execution_day=True,
-            dag=self.dag)
-        with self.assertRaises(AirflowSensorTimeout):
-            op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
