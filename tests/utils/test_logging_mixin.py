@@ -96,4 +96,4 @@ class TestStreamLogWriter(unittest.TestCase):
         logger.log = mock.MagicMock()
 
         log = StreamLogWriter(logger, 1)
-        self.assertFalse(log.encoding)
+        self.assertIsNone(log.encoding)

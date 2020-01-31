@@ -64,7 +64,7 @@ class StreamLogWriter:
     """
     Allows to redirect stdout and stderr to logger
     """
-    encoding = False
+    encoding = None
 
     def __init__(self, logger, level):
         """
