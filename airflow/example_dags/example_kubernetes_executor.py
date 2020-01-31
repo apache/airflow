@@ -21,6 +21,8 @@ This is an example dag for using the Kubernetes Executor.
 """
 import os
 
+from libs import print_stuff
+
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
@@ -61,9 +63,6 @@ with DAG(
         'operator': 'Equal',
         'value': 'airflow'
     }]
-
-    def print_stuff():  # pylint: disable=missing-docstring
-        print("stuff!")
 
     def use_zip_binary():
         """
