@@ -147,8 +147,7 @@
                 {% if dag %}
 
                 <!-- Trigger Dag -->
-                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}"
-                   onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
+                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}">
                     <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
                 </a>
 
