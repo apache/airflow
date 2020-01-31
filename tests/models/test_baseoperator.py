@@ -250,11 +250,11 @@ class TestBaseOperator(unittest.TestCase):
         self.assertEqual(task.resources.ram.qty, 1024)
 
     @conf_vars({('email', 'default_email_on_retry'): 'True',
-                ('email', 'default_email_on_failure'): 'True'})
+                ('email', 'default_email_on_failure'): 'False'})
     def test_default_email_on_actions(self):
         test_task = DummyOperator(task_id='test_default_email_on_actions')
         assert test_task.email_on_retry is True
-        assert test_task.email_on_failure is True
+        assert test_task.email_on_failure is False
 
 
 class TestBaseOperatorMethods(unittest.TestCase):
