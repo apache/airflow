@@ -30,6 +30,7 @@ from airflow.models import DAG
 from airflow.models.baseoperator import chain, cross_downstream
 from airflow.operators.dummy_operator import DummyOperator
 from tests.models import DEFAULT_DATE
+from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockNamedTuple, MockOperator
 
 
@@ -247,6 +248,13 @@ class TestBaseOperator(unittest.TestCase):
         task = DummyOperator(task_id="custom-resources", resources={"cpus": 1, "ram": 1024})
         self.assertEqual(task.resources.cpus.qty, 1)
         self.assertEqual(task.resources.ram.qty, 1024)
+
+    @conf_vars({('email', 'default_email_on_retry'): 'True',
+                ('email', 'default_email_on_failure'): 'True'})
+    def test_default_email_on_actions(self):
+        test_task = DummyOperator(task_id='test_default_email_on_actions')
+        assert test_task.email_on_retry is True
+        assert test_task.email_on_failure is True
 
 
 class TestBaseOperatorMethods(unittest.TestCase):

@@ -212,18 +212,6 @@ repos:
         files: \.py$
       - id: base-operator
         language: pygrep
-        name: Make sure BaseOperaotr[Argument] use conf.getboolean for email on retry or failure
-        entry: "email_on_(retry|failure): bool = conf.get(?!boolean)"
-        files: ^airflow/models/baseoperator.py$
-        pass_filenames: true
-      - id: base-operator
-        language: pygrep
-        name: Make sure BaseOperaotr[Argument] use conf.getint for retries
-        entry: "retries: Optional\\[int\\] = conf\\.get(?!int)"
-        files: ^airflow/models/baseoperator.py$
-        pass_filenames: true
-      - id: base-operator
-        language: pygrep
         name: Make sure BaseOperator[Link] is imported from airflow.models.baseoperator in core
         entry: "from airflow\\.models import.* BaseOperator"
         files: \.py$
