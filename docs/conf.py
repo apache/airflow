@@ -34,7 +34,9 @@
 """Configuration of Airflow Docs"""
 import os
 import sys
-from typing import Dict
+from glob import glob
+from itertools import chain
+from typing import Dict, List
 
 import airflow
 from airflow.configuration import default_config_yaml
@@ -183,128 +185,57 @@ release = airflow.__version__
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = [
-    '_api/airflow/_vendor',
-    '_api/airflow/api',
-    '_api/airflow/bin',
-    '_api/airflow/cli',
-    '_api/airflow/cli/command',
-    '_api/airflow/config_templates',
-    '_api/airflow/configuration',
-    '_api/airflow/contrib/auth',
-    '_api/airflow/contrib/index.rst',
-    '_api/airflow/contrib/kubernetes',
-    '_api/airflow/contrib/task_runner',
-    '_api/airflow/contrib/utils',
-    '_api/airflow/dag',
-    '_api/airflow/default_login',
-    '_api/airflow/example_dags',
-    '_api/airflow/exceptions',
+exclude_patterns: List[str] = [
+    # We only link to selected subpackages.
     '_api/airflow/index.rst',
-    '_api/airflow/jobs',
-    '_api/airflow/lineage',
-    '_api/airflow/typing_compat',
-    '_api/airflow/logging_config',
-    '_api/airflow/macros',
-    '_api/airflow/migrations',
-    '_api/airflow/plugins_manager',
-    '_api/airflow/security',
-    '_api/airflow/serialization',
-    '_api/airflow/settings',
-    '_api/airflow/sentry',
-    '_api/airflow/stats',
-    '_api/airflow/task',
-    '_api/airflow/kubernetes',
-    '_api/airflow/ti_deps',
-    '_api/airflow/utils',
-    '_api/airflow/version',
-    '_api/airflow/www',
+    # Required by airflow/contrib/plugins
     '_api/main',
-    '_api/airflow/providers/amazon/aws/example_dags',
-    '_api/airflow/providers/amazon/aws/index.rst',
-    '_api/airflow/providers/amazon/index.rst',
-    '_api/airflow/providers/apache/cassandra/index.rst',
-    '_api/airflow/providers/apache/druid/index.rst',
-    '_api/airflow/providers/apache/hdfs/index.rst',
-    '_api/airflow/providers/apache/hive/example_dags',
-    '_api/airflow/providers/apache/hive/index.rst',
-    '_api/airflow/providers/apache/index.rst',
-    '_api/airflow/providers/apache/pig/example_dags',
-    '_api/airflow/providers/apache/pig/index.rst',
-    '_api/airflow/providers/apache/pinot/index.rst',
-    '_api/airflow/providers/apache/spark/index.rst',
-    '_api/airflow/providers/apache/sqoop/index.rst',
-    '_api/airflow/providers/celery/index.rst',
-    '_api/airflow/providers/cloudant/index.rst',
-    '_api/airflow/providers/cncf/index.rst',
-    '_api/airflow/providers/cncf/kubernetes/example_dags',
-    '_api/airflow/providers/cncf/kubernetes/index.rst',
-    '_api/airflow/providers/databricks/example_dags',
-    '_api/airflow/providers/databricks/index.rst',
-    '_api/airflow/providers/datadog/index.rst',
-    '_api/airflow/providers/dingding/example_dags',
-    '_api/airflow/providers/dingding/index.rst',
-    '_api/airflow/providers/discord/index.rst',
-    '_api/airflow/providers/docker/example_dags',
-    '_api/airflow/providers/docker/index.rst',
-    '_api/airflow/providers/email/index.rst',
-    '_api/airflow/providers/ftp/index.rst',
-    '_api/airflow/providers/google/cloud/example_dags',
-    '_api/airflow/providers/google/cloud/utils',
-    '_api/airflow/providers/google/cloud/index.rst',
-    '_api/airflow/providers/google/index.rst',
-    '_api/airflow/providers/google/marketing_platform/example_dags',
-    '_api/airflow/providers/google/marketing_platform/index.rst',
-    '_api/airflow/providers/google/suite/example_dags',
-    '_api/airflow/providers/google/suite/index.rst',
-    '_api/airflow/providers/grpc/index.rst',
-    '_api/airflow/providers/http/example_dags',
-    '_api/airflow/providers/http/index.rst',
-    '_api/airflow/providers/imap/index.rst',
+    # We have custom page - operators-and-hooks-ref.rst
     '_api/airflow/providers/index.rst',
-    '_api/airflow/providers/jdbc/index.rst',
-    '_api/airflow/providers/jenkins/example_dag',
-    '_api/airflow/providers/jenkins/index.rst',
-    '_api/airflow/providers/jira/index.rst',
-    '_api/airflow/providers/microsoft/azure/example_dags',
-    '_api/airflow/providers/microsoft/azure/index.rst',
-    '_api/airflow/providers/microsoft/index.rst',
-    '_api/airflow/providers/microsoft/mssql/index.rst',
-    '_api/airflow/providers/microsoft/winrm/example_dags',
-    '_api/airflow/providers/microsoft/winrm/index.rst',
-    '_api/airflow/providers/mongo/index.rst',
-    '_api/airflow/providers/mssql/index.rst',
-    '_api/airflow/providers/mysql/index.rst',
-    '_api/airflow/providers/odbc/index.rst',
-    '_api/airflow/providers/openfass/index.rst',
-    '_api/airflow/providers/opsgenie/index.rst',
-    '_api/airflow/providers/oracle/index.rst',
-    '_api/airflow/providers/pagerduty/index.rst',
-    '_api/airflow/providers/papermill/example_dags',
-    '_api/airflow/providers/papermill/index.rst',
-    '_api/airflow/providers/postgres/index.rst',
-    '_api/airflow/providers/presto/index.rst',
-    '_api/airflow/providers/qubole/example_dags',
-    '_api/airflow/providers/qubole/index.rst',
-    '_api/airflow/providers/redis/index.rst',
-    '_api/airflow/providers/salesforce/index.rst',
-    '_api/airflow/providers/samba/index.rst',
-    '_api/airflow/providers/segment/index.rst',
-    '_api/airflow/providers/sftp/index.rst',
-    '_api/airflow/providers/slack/index.rst',
-    '_api/airflow/providers/snowflake/index.rst',
-    '_api/airflow/providers/sqlite/index.rst',
-    '_api/airflow/providers/ssh/index.rst',
-    '_api/airflow/providers/vertica/index.rst',
-    '_api/airflow/providers/zendesk/index.rst',
-    '_api/base_serialization/index.rst',
-    '_api/enums/index.rst',
-    '_api/json_schema/index.rst',
-    '_api/serialized_baseoperator/index.rst',
-    '_api/serialized_dag/index.rst',
+    # Packages with subpackages
+    "_api/airflow/providers/amazon/index.rst",
+    "_api/airflow/providers/microsoft/index.rst",
+    "_api/airflow/providers/google/index.rst",
+    "_api/airflow/providers/apache/index.rst",
+    "_api/airflow/providers/cncf/index.rst",
+    # Utils for internal use
+    '_api/airflow/providers/google/cloud/utils',
+    # Templates or partials
     'autoapi_templates',
     'howto/operator/gcp/_partials',
 ]
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+
+# Generate top-level
+for path in glob(f"{ROOT_DIR}/airflow/*"):
+    name = os.path.basename(path)
+    if os.path.isfile(path):
+        exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
+    browsable_packages = ["operators", "hooks", "sensors", "providers", "executors", "models"]
+    if os.path.isdir(path) and name not in browsable_packages:
+        exclude_patterns.append(f"_api/airflow/{name}")
+
+# Generate list of package index
+providers_packages_roots = {
+    name.rpartition("/")[0]
+    for entity in ["hooks", "operators", "sensors"]
+    for name in chain(glob(f"{ROOT_DIR}/airflow/providers/**/{entity}", recursive=True))
+}
+
+providers_package_indexes = {
+    f"_api/{os.path.relpath(name, ROOT_DIR)}/index.rst"
+    for name in providers_packages_roots
+}
+
+exclude_patterns.extend(providers_package_indexes)
+
+# Generate list of example_dags
+excluded_example_dags = (
+    f"_api/{os.path.relpath(name, ROOT_DIR)}"
+    for name in glob(f"{ROOT_DIR}/airflow/providers/**/example_dags", recursive=True)
+)
+exclude_patterns.extend(excluded_example_dags)
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
