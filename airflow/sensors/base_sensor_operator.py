@@ -145,12 +145,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
             current_time = timezone.utcnow()
 
-            hash = int(hashlib.sha1("{}#{}#{}#{}".format(self.dag_id,
-                                                         self.task_id,
-                                                         started_at,
-                                                         try_number)
-                                    .encode('utf-8')).hexdigest(), 16)
-            modded_hash = min_backoff + hash % min_backoff
+            run_hash = int(hashlib.sha1("{}#{}#{}#{}".format(
+                self.dag_id, self.task_id, started_at, try_number
+            ).encode("utf-8")).hexdigest(), 16)
+            modded_hash = min_backoff + run_hash % min_backoff
 
             delay_backoff_in_seconds = min(
                 modded_hash,
@@ -158,15 +156,17 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             )
             new_interval = min(self.timeout - int((current_time - started_at).total_seconds()),
                                delay_backoff_in_seconds)
-            self.log.info("new {} interval is {}".format(self.mode, new_interval))
+            self.log.info("new %s interval is %s", self.mode, new_interval)
             return new_interval
         else:
             return self.poke_interval
 
     @property
     def reschedule(self):
+        """Define mode rescheduled sensors."""
         return self.mode == 'reschedule'
 
+    # pylint: disable=no-member
     @property
     def deps(self):
         """

@@ -111,9 +111,10 @@ class JiraTicketSensor(JiraSensor):
         }
         return JiraSensor.poke(self, context=context)
 
-    def issue_field_checker(self, context, issue):
+    def issue_field_checker(self, issue):
+        """Check issue using different conditions to prepare to evaluate sensor."""
         result = None
-        try:
+        try:  # pylint: disable=too-many-nested-blocks
             if issue is not None \
                and self.field is not None \
                and self.expected_value is not None:
@@ -136,7 +137,7 @@ class JiraTicketSensor(JiraSensor):
         except JIRAError as jira_error:
             self.log.error("Jira error while checking with expected value: %s",
                            jira_error)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             self.log.error("Error while checking with expected value %s:",
                            self.expected_value)
             self.log.exception(e)

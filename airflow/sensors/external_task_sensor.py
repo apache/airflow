@@ -157,7 +157,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             # .count() is inefficient
             count = session.query(func.count()).filter(
                 DR.dag_id == self.external_dag_id,
-                DR.state.in_(self.allowed_states),
+                DR.state.in_(self.allowed_states),  # pylint: disable=no-member
                 DR.execution_date.in_(dttm_filter),
             ).scalar()
 

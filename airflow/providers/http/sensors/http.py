@@ -98,10 +98,10 @@ class HttpSensor(BaseSensorOperator):
                 op_kwargs = PythonOperator.determine_op_kwargs(self.response_check, context)
                 return self.response_check(response, **op_kwargs)
 
-        except AirflowException as ae:
-            if str(ae).startswith("404"):
+        except AirflowException as exc:
+            if str(exc).startswith("404"):
                 return False
 
-            raise ae
+            raise exc
 
         return True

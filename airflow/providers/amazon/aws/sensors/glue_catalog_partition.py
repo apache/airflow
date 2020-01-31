@@ -76,16 +76,18 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         self.log.info(
             'Poking for table %s. %s, expression %s', self.database_name, self.table_name, self.expression
         )
+        self.hook = self.get_hook()
 
-        return self.get_hook().check_for_partition(
+        return self.hook.check_for_partition(
             self.database_name, self.table_name, self.expression)
 
     def get_hook(self):
         """
         Gets the AwsGlueCatalogHook
         """
-        if self.hook is None:
-            from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
-            self.hook = AwsGlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
+        hook = AwsGlueCatalogHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name)
 
-        return self.hook
+        return hook
