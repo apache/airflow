@@ -20,6 +20,8 @@
 
 import unittest
 
+from parameterized import parameterized
+
 from airflow import DAG, models
 from airflow.contrib.utils.weekday import WeekDay
 from airflow.exceptions import AirflowSensorTimeout
@@ -58,13 +60,22 @@ class TestDayOfWeekSensor(unittest.TestCase):
         session.commit()
         session.close()
 
-    def test_weekday_sensor_true(self):
+    @parameterized.expand([
+        ("with-string", 'Thursday'),
+        ("with-enum", WeekDay.THURSDAY),
+        ("with-enum-set", {WeekDay.THURSDAY}),
+        ("with-enum-set-2-items", {WeekDay.THURSDAY, WeekDay.FRIDAY}),
+        ("with-string-set", {'Thursday'}),
+        ("with-string-set-2-items", {'Thursday', 'Friday'}),
+    ])
+    def test_weekday_sensor_true(self, _, week_day):
         op = DayOfWeekSensor(
             task_id='weekday_sensor_check_true',
-            week_day='Thursday',
+            week_day=week_day,
             use_task_execution_day=True,
             dag=self.dag)
         op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+        self.assertEqual(op.week_day, week_day)
 
     def test_weekday_sensor_false(self):
         op = DayOfWeekSensor(
@@ -86,56 +97,6 @@ class TestDayOfWeekSensor(unittest.TestCase):
                 week_day=invalid_week_day,
                 use_task_execution_day=True,
                 dag=self.dag)
-
-    def test_weekday_sensor_with_enum(self):
-        week_day = WeekDay.THURSDAY
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=WeekDay.THURSDAY,
-            use_task_execution_day=True,
-            dag=self.dag)
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
-
-    def test_weekday_sensor_with_enum_set(self):
-        week_day = {WeekDay.THURSDAY}
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=week_day,
-            use_task_execution_day=True,
-            dag=self.dag)
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
-
-    def test_weekday_sensor_with_enum_set_2_items(self):
-        week_day = {WeekDay.THURSDAY, WeekDay.FRIDAY}
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=week_day,
-            use_task_execution_day=True,
-            dag=self.dag)
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
-
-    def test_weekday_sensor_with_string_set(self):
-        week_day = {'Thursday'}
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=week_day,
-            use_task_execution_day=True,
-            dag=self.dag)
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
-
-    def test_weekday_sensor_with_string_set_2_items(self):
-        week_day = {'Thursday', 'Friday'}
-        op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true',
-            week_day=week_day,
-            use_task_execution_day=True,
-            dag=self.dag)
-        op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
-        self.assertEqual(op.week_day, week_day)
 
     def test_weekday_sensor_with_invalid_type(self):
         invalid_week_day = ['Thsday']
