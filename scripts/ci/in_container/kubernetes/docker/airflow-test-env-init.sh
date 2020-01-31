@@ -20,6 +20,7 @@ set -x
 
 cd /opt/airflow/airflow && \
 cp -R example_dags/* /root/airflow/dags/ && \
+find /root/airflow/dags/ && \
 airflow db init && \
 alembic upgrade heads && \
 (airflow users create --username airflow --lastname airflow --firstname jon --email airflow@apache.org --role Admin --password airflow || true) && \

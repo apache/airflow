@@ -21,7 +21,7 @@ This is an example dag for using a Kubernetes Executor Configuration.
 """
 import os
 
-from libs import print_stuff
+from libs.helper import print_stuff
 
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
