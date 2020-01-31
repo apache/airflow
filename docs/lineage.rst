@@ -50,15 +50,15 @@ works.
         schedule_interval='0 0 * * *',
         dagrun_timeout=timedelta(minutes=60))
 
-    f_final = File("/tmp/final")
+    f_final = File(url="/tmp/final")
     run_this_last = DummyOperator(task_id='run_this_last', dag=dag,
         inlets=AUTO,
         outlets=f_final)
 
-    f_in = File("/tmp/whole_directory/")
+    f_in = File(url="/tmp/whole_directory/")
     outlets = []
     for file in FILE_CATEGORIES:
-        f_out = File("/tmp/{}/{{{{ execution_date }}}}".format(file))
+        f_out = File(url="/tmp/{}/{{{{ execution_date }}}}".format(file))
         outlets.append(f_out)
 
     run_this = BashOperator(
@@ -68,23 +68,10 @@ works.
     )
     run_this.set_downstream(run_this_last)
 
-
-Tasks take the parameters ``inlets`` and ``outlets``.
-
-Inlets can be manually defined by the following options:
-
-- by a list of ``airflow.lineage.entities.Dataset`` or a subclass
-
-- can be configured to look for outlets from upstream tasks
-
-- can be configured to pick up outlets from direct upstream tasks 'AUTO'
-
-- a combination of them
-
-Outlets are defined as list of datasets ``[dataset1, dataset2]``.
-
-All fields for datasets are templated with the context when the task is being executed. They will be templated during
-execution of the originating task and willnot be re-templated if picked up downstream.
+Inlets can be a (list of) upstream task ids or statically defined as an attr annotated object
+as is, for example, the ``File`` object. Outlets can only be attr annotated object. Both are rendered
+at run time. However the outlets of a task in case they are inlets to another task will not be re-rendered
+for the downstream task.
 
 .. note:: Operators can add inlets and outlets automatically if the operator supports it.
 
@@ -96,26 +83,15 @@ generated from a list. Note that ``execution_date`` is a templated field and wil
           your own operators that override this method make sure to decorate your method with ``prepare_lineage`` and ``apply_lineage``
           respectively.
 
+Shorthand notation
+------------------
 
-Apache Atlas
-------------
+Shorthand notation is available as well, this works almost equal to unix command line pipes, inputs and outputs.
+Note that operator precedence_ still applies. Also the ``|`` operator will only work when the left hand side either
+has outlets defined (e.g. by using ``add_outlets(..)`` or has out of the box support of lineage ``operator.supports_lineage == True``.
 
-Airflow can send its lineage metadata to Apache Atlas. You need to enable the ``atlas`` backend and configure it
-properly, e.g. in your ``airflow.cfg``:
+.. code:: python
 
-.. code:: ini
+    f_in > run_this | (run_this_last > outlets)
 
-    [lineage]
-    backend = airflow.lineage.backend.atlas.AtlasBackend
-
-    [atlas]
-    username = my_username
-    password = my_password
-    host = host
-    port = 21000
-
-
-Please make sure to have the ``atlasclient`` package installed.
-
-.. note::
-    For more information on setting the configuration, see :doc:`howto/set-config`
+.. _precedence: https://docs.python.org/3/reference/expressions.html

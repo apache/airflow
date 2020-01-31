@@ -80,6 +80,7 @@ def apply_defaults(func):
         for arg in sig_cache.parameters:
             if arg not in kwargs and arg in default_args:
                 kwargs[arg] = default_args[arg]
+
         missing_args = list(non_optional_args - set(kwargs))
         if missing_args:
             msg = "Argument {0} is required".format(missing_args)

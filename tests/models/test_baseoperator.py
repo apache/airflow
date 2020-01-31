@@ -26,6 +26,7 @@ import jinja2
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
+from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import chain, cross_downstream
 from airflow.operators.dummy_operator import DummyOperator
@@ -285,3 +286,51 @@ class TestBaseOperatorMethods(unittest.TestCase):
         [op1, op2, op3, op4, op5] = [DummyOperator(task_id='t{i}'.format(i=i), dag=dag) for i in range(1, 6)]
         with self.assertRaises(AirflowException):
             chain([op1, op2], [op3, op4, op5])
+
+    def test_lineage_composition(self):
+        """
+        Test composition with lineage
+        """
+        inlet = File(url="in")
+        outlet = File(url="out")
+        dag = DAG("test-dag", start_date=DEFAULT_DATE)
+        task1 = DummyOperator(task_id="op1", dag=dag)
+        task2 = DummyOperator(task_id="op2", dag=dag)
+
+        # mock
+        task1.supports_lineage = True
+
+        # note: operator precedence still applies
+        inlet > task1 | (task2 > outlet)
+
+        self.assertEqual(task1.get_inlet_defs(), [inlet])
+        self.assertEqual(task2.get_inlet_defs(), [task1.task_id])
+        self.assertEqual(task2.get_outlet_defs(), [outlet])
+
+        fail = ClassWithCustomAttributes()
+        with self.assertRaises(TypeError):
+            fail > task1
+        with self.assertRaises(TypeError):
+            task1 > fail
+        with self.assertRaises(TypeError):
+            fail | task1
+        with self.assertRaises(TypeError):
+            task1 | fail
+
+        task3 = DummyOperator(task_id="op3", dag=dag)
+        extra = File(url="extra")
+        [inlet, extra] > task3
+
+        self.assertEqual(task3.get_inlet_defs(), [inlet, extra])
+
+        task1.supports_lineage = False
+        with self.assertRaises(ValueError):
+            task1 | task3
+
+        self.assertEqual(task2.supports_lineage, False)
+        task2 | task3
+        self.assertEqual(len(task3.get_inlet_defs()), 3)
+
+        task4 = DummyOperator(task_id="op4", dag=dag)
+        task4 > [inlet, outlet, extra]
+        self.assertEqual(task4.get_outlet_defs(), [inlet, outlet, extra])

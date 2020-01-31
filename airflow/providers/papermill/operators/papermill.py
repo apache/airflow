@@ -29,7 +29,7 @@ from airflow.utils.decorators import apply_defaults
 @attr.s(auto_attribs=True)
 class NoteBook(File):
     type_hint: Optional[str] = "jupyter_notebook"
-    parameters: Dict = {}
+    parameters: Optional[Dict] = {}
 
     meta_schema: str = __name__ + '.NoteBook'
 
@@ -45,19 +45,26 @@ class PapermillOperator(BaseOperator):
     :param parameters: the notebook parameters to set
     :type parameters: dict
     """
+    supports_lineage = True
+
     @apply_defaults
     def __init__(self,
-                 input_nb: str,
-                 output_nb: str,
-                 parameters: Dict,
+                 input_nb: Optional[str] = None,
+                 output_nb: Optional[str] = None,
+                 parameters: Optional[Dict] = None,
                  *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.inlets.append(NoteBook(url=input_nb,
-                                    parameters=parameters))
-        self.outlets.append(NoteBook(url=output_nb))
+        if input_nb:
+            self.inlets.append(NoteBook(url=input_nb,
+                                        parameters=parameters))
+        if output_nb:
+            self.outlets.append(NoteBook(url=output_nb))
 
     def execute(self, context):
+        if not self.inlets or not self.outlets:
+            raise ValueError("Input notebook or output notebook is not specified")
+
         for i in range(len(self.inlets)):
             pm.execute_notebook(self.inlets[i].url, self.outlets[i].url,
                                 parameters=self.inlets[i].parameters,
