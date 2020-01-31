@@ -1710,7 +1710,7 @@ class Airflow(AirflowBaseView):
             root=root,
             form=form,
             chart=chart.htmlcontent,
-            tab_title='tries',
+            tab_title='Tries',
         )
 
     @expose('/landing_times')
@@ -1789,7 +1789,7 @@ class Airflow(AirflowBaseView):
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
-            tab_title='landing times',
+            tab_title='Landing times',
         )
 
     @expose('/paused', methods=['POST'])
