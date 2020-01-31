@@ -545,7 +545,7 @@ Step 4: Prepare PR
 
    For example, to address this example JIRA ticket, do the following:
 
-   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/concepts.html#email-configuration>`__.
+   * Read about `email configuration in Airflow <https://airflow.readthedocs.io/en/latest/howto/email-config.html>`__.
 
    * Find the class you should modify. For the example ticket,
      this is `email.py <https://github.com/apache/airflow/blob/master/airflow/utils/email.py>`__.
