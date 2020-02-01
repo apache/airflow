@@ -763,25 +763,26 @@ For example:
 
   start_op >> branch_op >> [continue_op, stop_op]
 
-If you wish to implement your own operators with branching functionality, you
-can inherit from :class:`~airflow.operators.branch_operator.BaseBranchOperator`,
-which behaves similarly to ``BranchPythonOperator`` but expects you to provide
-an implementation of the method ``choose_branch``. As with the callable for
-``BranchPythonOperator``, this method should return the ID of a downstream task,
-or a list of task IDs, which will be run, and all others will be skipped.
+Most of the times you can get away with passing a ``python_callable`` to ``BranchPythonOperator``
+to create branching logic. However, if you do wish to implement your own operators with branching
+functionality, you can inherit from ``BranchPythonOperator`` too. If jinja templating is needed for
+the arguments of ``python_callable``, pass them as ``op_args`` or ``op_kwargs`` to
+``BranchPythonOperator``.
 
 .. code:: python
 
-  class MyBranchOperator(BaseBranchOperator):
-      def choose_branch(self, context):
+  class MyBranchOperator(BranchPythonOperator):
+      def __init__(self, *args, **kwargs):
           """
           Run an extra branch on the first day of the month
           """
-          if context['execution_date'].day == 1:
-              return ['daily_task_id', 'monthly_task_id']
-          else:
-              return 'daily_task_id'
+          def python_callable(execution_date, **_):
+            if execution_date.day == 1:
+                return ['daily_task_id', 'monthly_task_id']
+            else:
+                return 'daily_task_id'
 
+          super().__init__(python_callable=python_callable, *args, **kwargs)
 
 SubDAGs
 =======

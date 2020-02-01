@@ -17,9 +17,12 @@
 # under the License.
 """Branching operators"""
 
+import warnings
 from typing import Dict, Iterable, Union
 
 from airflow.models import BaseOperator, SkipMixin
+
+warnings.warn("This module is deprecated. Please use `airflow.operators.python.BranchPythonOperator`.")
 
 
 class BaseBranchOperator(BaseOperator, SkipMixin):

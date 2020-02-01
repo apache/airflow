@@ -19,14 +19,12 @@
 This module contains an operator to run downstream tasks only for the
 latest scheduled DagRun
 """
-from typing import Dict, Iterable, Union
-
 import pendulum
 
-from airflow.operators.branch_operator import BaseBranchOperator
+from airflow.operators.python import BranchPythonOperator
 
 
-class LatestOnlyOperator(BaseBranchOperator):
+class LatestOnlyOperator(BranchPythonOperator):
     """
     Allows a workflow to skip tasks that are not running during the most
     recent schedule interval.
@@ -40,28 +38,30 @@ class LatestOnlyOperator(BaseBranchOperator):
 
     ui_color = '#e9ffdb'  # nyanza
 
-    def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
-        # If the DAG Run is externally triggered, then return without
-        # skipping downstream tasks
-        if context['dag_run'] and context['dag_run'].external_trigger:
+    def __init__(self, *args, **kwargs):
+        def python_callable(dag_run, task, dag, execution_date, **_):
+            # If the DAG Run is externally triggered, then return without
+            # skipping downstream tasks
+            if dag_run and dag_run.external_trigger:
+                self.log.info(
+                    "Externally triggered DAG_Run: allowing execution to proceed.")
+                return list(task.get_direct_relative_ids(upstream=False))
+
+            now = pendulum.utcnow()
+            left_window = dag.following_schedule(execution_date)
+            right_window = dag.following_schedule(left_window)
             self.log.info(
-                "Externally triggered DAG_Run: allowing execution to proceed.")
-            return context['task'].get_direct_relative_ids(upstream=False)
+                'Checking latest only with left_window: %s right_window: %s now: %s',
+                left_window, right_window, now
+            )
 
-        now = pendulum.utcnow()
-        left_window = context['dag'].following_schedule(
-            context['execution_date'])
-        right_window = context['dag'].following_schedule(left_window)
-        self.log.info(
-            'Checking latest only with left_window: %s right_window: %s now: %s',
-            left_window, right_window, now
-        )
+            if not left_window < now <= right_window:
+                self.log.info('Not latest execution, skipping downstream.')
+                # we return an empty list, thus the parent BranchPythonOperator
+                # won't exclude any downstream tasks from skipping.
+                return []
+            else:
+                self.log.info('Latest, allowing execution to proceed.')
+                return list(task.get_direct_relative_ids(upstream=False))
 
-        if not left_window < now <= right_window:
-            self.log.info('Not latest execution, skipping downstream.')
-            # we return an empty list, thus the parent BaseBranchOperator
-            # won't exclude any downstream tasks from skipping.
-            return []
-        else:
-            self.log.info('Latest, allowing execution to proceed.')
-            return context['task'].get_direct_relative_ids(upstream=False)
+        super().__init__(python_callable=python_callable, *args, **kwargs)
