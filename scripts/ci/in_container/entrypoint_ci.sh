@@ -133,10 +133,6 @@ if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
         echo
         exit 1
     fi
-else
-    echo
-    echo "No kerberos. If you want to start it, enable kerberos with --integration kerberos switch"
-    echo
 fi
 
 

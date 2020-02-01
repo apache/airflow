@@ -61,37 +61,35 @@ function on_exit() {
 }
 
 export EXIT_CODE=0
+export DISABLED_INTEGRATIONS=""
 
 function check_integration {
     INTEGRATION_NAME=$1
     CALL=$2
     MAX_CHECK=${3:=1}
 
-    echo "==============================================================================================="
-    echo "             Checking integration ${INTEGRATION_NAME}"
-    echo "==============================================================================================="
-
     ENV_VAR_NAME=INTEGRATION_${INTEGRATION_NAME^^}
     if [[ ${!ENV_VAR_NAME:=} != "true" ]]; then
-        echo "             Integration ${INTEGRATION_NAME} disabled. Not checking"
-        echo "==============================================================================================="
+        DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${INTEGRATION_NAME}"
         return
     fi
 
+    echo "-----------------------------------------------------------------------------------------------"
+    echo "             Checking integration ${INTEGRATION_NAME}"
+    echo "-----------------------------------------------------------------------------------------------"
     while true
     do
-        echo "Executing: ${CALL}"
-        echo "-----------------------------------------------------------------------------------------------"
         set +e
-        eval "${CALL}"
+        LAST_CHECK_RESULT=$(eval "${CALL}" 2>&1)
         RES=$?
         set -e
-        echo "-----------------------------------------------------------------------------------------------"
         if [[ ${RES} == 0 ]]; then
+            echo
             echo "             Integration ${INTEGRATION_NAME} OK!"
+            echo
             break
         else
-            echo "             ${INTEGRATION_NAME} is not yet ready -> exit code ${RES}"
+            echo -n "."
             MAX_CHECK=$((MAX_CHECK-1))
         fi
         if [[ ${MAX_CHECK} == 0 ]]; then
@@ -108,9 +106,12 @@ function check_integration {
     done
     if [[ ${RES} != 0 ]]; then
         echo "        ERROR: Integration ${INTEGRATION_NAME} could not be started!"
+        echo
+        echo "${LAST_CHECK_RESULT}"
+        echo
         export EXIT_CODE=${RES}
     fi
-    echo "==============================================================================================="
+    echo "-----------------------------------------------------------------------------------------------"
 }
 
 trap on_exit EXIT
@@ -129,7 +130,6 @@ if [[ -n ${BACKEND:=} ]]; then
     if [[ ${BACKEND} == "mysql" ]]; then
         # Wait until mysql is ready!
         MYSQL_CONTAINER=$(docker ps -qf "name=mysql")
-        echo "MySQL container: ${MYSQL_CONTAINER}"
         if [[ -z ${MYSQL_CONTAINER} ]]; then
             echo
             echo "ERROR! MYSQL container is not started. Exiting!"
@@ -137,10 +137,11 @@ if [[ -n ${BACKEND:=} ]]; then
             exit 1
         fi
         MAX_CHECK=60
+        echo
+        echo "Checking if MySQL is ready for connections (double restarts in the logs)"
+        echo
         while true
         do
-            echo
-            echo "Checking if MySQL is ready for connections"
             CONNECTION_READY_MESSAGES=$(docker logs "${MYSQL_CONTAINER}" 2>&1 | \
                 grep -c "mysqld: ready for connections" )
             # MySQL when starting from dockerfile starts a temporary server first because it
@@ -148,27 +149,27 @@ if [[ -n ${BACKEND:=} ]]; then
             # it will start a second server to serve this newly created database
             # That's why we should wait until docker logs contain "ready for connections" twice
             # more info: https://github.com/docker-library/mysql/issues/527
-            if [[ ${CONNECTION_READY_MESSAGES} == 2 ]];
+            if [[ ${CONNECTION_READY_MESSAGES} -gt 1 ]];
             then
+                echo
                 echo
                 echo "MySQL is ready for connections!"
                 echo
                 break
             else
-                echo
-                echo "Number of 'ready for connections' in MySQL logs: ${CONNECTION_READY_MESSAGES}"
-                echo
+                echo -n "."
             fi
             MAX_CHECK=$((MAX_CHECK-1))
             if [[ ${MAX_CHECK} == 0 ]]; then
                 echo
                 echo "ERROR! Maximum number of retries while waiting for MySQL. Exiting"
                 echo
+                echo "Last check: ${CONNECTION_READY_MESSAGES} connection ready messages (expected >=2)"
+                echo
+                echo "==============================================================================================="
+                echo
                 exit 1
             else
-                echo
-                echo "Sleeping! ${MAX_CHECK} retries left!"
-                echo
                 sleep 1
             fi
         done
@@ -177,44 +178,45 @@ if [[ -n ${BACKEND:=} ]]; then
     MAX_CHECK=3
     while true
     do
-        AIRFLOW__LOGGING__LOGGING_LEVEL=error airflow db check
+        LAST_CHECK_RESULT=$(AIRFLOW__LOGGING__LOGGING_LEVEL=error airflow db check 2>&1)
         RES=$?
         if [[ ${RES} == 0 ]]; then
             break
         fi
+        echo -n "."
         MAX_CHECK=$((MAX_CHECK-1))
         if [[ ${MAX_CHECK} == 0 ]]; then
             echo
-            echo "ERROR! Maximum number of retries while connecting to DB. Exiting"
+            echo "==============================================================================================="
+            echo "             ERROR! Failure while checking backend database!"
+            echo
+            echo "${LAST_CHECK_RESULT}"
+            echo
+            echo "==============================================================================================="
             echo
             exit 1
         else
-            echo
-            echo "Sleeping! ${MAX_CHECK} retries left!"
-            echo
             sleep 1
         fi
     done
     set -e
+    if [[ ${RES} == 0 ]]; then
+        echo "==============================================================================================="
+        echo "             Backend database is sane"
+        echo "==============================================================================================="
+        echo
+    fi
+    export EXIT_CODE=${RES}
 else
     echo "==============================================================================================="
     echo "             Skip checking backend - BACKEND not set"
     echo "==============================================================================================="
-    if [[ ${RES} == 0 ]]; then
-        echo "-----------------------------------------------------------------------------------------------"
-        echo
-        echo "Backend database is sane"
-        echo
-        echo "-----------------------------------------------------------------------------------------------"
-    else
-        echo "-----------------------------------------------------------------------------------------------"
-        echo
-        echo "Error when checking backend database"
-        echo
-        echo "-----------------------------------------------------------------------------------------------"
-    fi
-    export EXIT_CODE=${RES}
+    echo
 fi
+
+echo "==============================================================================================="
+echo "             Checking integrations"
+echo "==============================================================================================="
 
 
 check_integration kerberos "nc -zvv kerberos 88" 30
@@ -224,11 +226,24 @@ check_integration rabbitmq "nc -zvv rabbitmq 5672" 20
 check_integration cassandra "nc -zvv cassandra 9042" 20
 check_integration openldap "nc -zvv openldap 389" 20
 
+echo "==============================================================================================="
+echo "             Finished checking integrations"
+echo "==============================================================================================="
+
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "CI environment is not sane!"
     echo
     exit ${EXIT_CODE}
+fi
+
+if [[ ${DISABLED_INTEGRATIONS} != "" ]]; then
+    echo
+    echo "Disabled integrations:${DISABLED_INTEGRATIONS}"
+    echo
+    echo "You can enable an integration by adding --integration <INTEGRATION_NAME>"
+    echo "You can enable all integrations by adding --integration all"
+    echo
 fi
 
 echo
