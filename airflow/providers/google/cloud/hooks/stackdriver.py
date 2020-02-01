@@ -30,7 +30,7 @@ from google.protobuf.json_format import MessageToDict, MessageToJson, Parse
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import CloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
 class StackdriverHook(CloudBaseHook):

@@ -19,7 +19,7 @@
 
 from google.api_core.gapic_v1.method import DEFAULT
 
-from airflow.gcp.hooks.stackdriver import StackdriverHook
+from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
