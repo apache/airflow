@@ -35,7 +35,7 @@ from airflow.settings import json
 from airflow.utils.module_loading import import_string
 from airflow.www.utils import get_python_source
 
-WHITELIST_OPERATOR_EXTRA_LINKS: List[str] = [
+BUILTIN_OPERATOR_EXTRA_LINKS: List[str] = [
     "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink",
     "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink",
     "airflow.providers.qubole.operators.qubole.QDSLink"
@@ -426,7 +426,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             #   )
 
             _operator_link_class_path, data = list(_operator_links_source.items())[0]
-            if _operator_link_class_path in WHITELIST_OPERATOR_EXTRA_LINKS:
+            if _operator_link_class_path in BUILTIN_OPERATOR_EXTRA_LINKS:
                 single_op_link_class = import_string(_operator_link_class_path)
             elif _operator_link_class_path in registered_operator_link_classes:
                 single_op_link_class = registered_operator_link_classes[_operator_link_class_path]
