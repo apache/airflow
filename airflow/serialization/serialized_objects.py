@@ -20,7 +20,7 @@ import datetime
 import enum
 import logging
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, Optional, Set, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Union
 
 import cattr
 import pendulum
@@ -32,7 +32,14 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
+from airflow.utils.module_loading import import_string
 from airflow.www.utils import get_python_source
+
+WHITELIST_OPERATOR_EXTRA_LINKS: List[str] = [
+    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink",
+    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink",
+    "airflow.providers.qubole.operators.qubole.QDSLink"
+]
 
 
 class BaseSerialization:
@@ -418,15 +425,16 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             #       }
             #   )
 
-            _operator_link_class, data = list(_operator_links_source.items())[0]
-
-            if _operator_link_class in registered_operator_link_classes:
-                single_op_link_class_name = registered_operator_link_classes[_operator_link_class]
+            _operator_link_class_path, data = list(_operator_links_source.items())[0]
+            if _operator_link_class_path in WHITELIST_OPERATOR_EXTRA_LINKS:
+                single_op_link_class = import_string(_operator_link_class_path)
+            elif _operator_link_class_path in registered_operator_link_classes:
+                single_op_link_class = registered_operator_link_classes[_operator_link_class_path]
             else:
-                raise KeyError("Operator Link class %r not registered" % _operator_link_class)
+                raise KeyError("Operator Link class %r not registered" % _operator_link_class_path)
 
             op_predefined_extra_link: BaseOperatorLink = cattr.structure(
-                data, single_op_link_class_name)
+                data, single_op_link_class)
 
             op_predefined_extra_links.update(
                 {op_predefined_extra_link.name: op_predefined_extra_link}
