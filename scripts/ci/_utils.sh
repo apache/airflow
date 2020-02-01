@@ -957,7 +957,7 @@ function build_image_on_ci() {
     echo
 
     if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"Kubernetes"* ]]; then
-        match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/kubernetes/.*\.py' \
+        match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/runtime/kubernetes/.*\.py' \
             'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
             'scripts/ci/.*' 'airflow/example_dags/.*'
         if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
