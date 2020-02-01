@@ -32,7 +32,8 @@ from airflow.utils.module_loading import import_string
 
 # A map that assigns a connection type to a tuple that contains
 # the path of the class and the name of the conn_id key parameter.
-CONN_TYPE_TYP_TO_HOOK = {
+# PLEASE KEEP BELOW LIST IN ALPHABETICAL ORDER.
+CONN_TYPE_TO_HOOK = {
     "azure_cosmos": (
         "airflow.providers.microsoft.azure.hooks.azure_cosmos.AzureCosmosDBHook",
         "azure_cosmos_conn_id",
@@ -70,6 +71,7 @@ CONN_TYPE_TYP_TO_HOOK = {
     "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
     "wasb": ("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", "wasb_conn_id"),
 }
+# PLEASE KEEP ABOVE LIST IN ALPHABETICAL ORDER.
 
 
 # Python automatically converts all letters to lowercase in hostname
@@ -278,11 +280,11 @@ class Connection(Base, LoggingMixin):
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
     def get_hook(self):
-        hook_class_name, conn_id_param = CONN_TYPE_TYP_TO_HOOK.get(self.conn_type, (None, None))
+        hook_class_name, conn_id_param = CONN_TYPE_TO_HOOK.get(self.conn_type, (None, None))
         if not hook_class_name:
-            raise AirflowException("Unknown hook type {}".format(self.conn_type))
+            raise AirflowException('Unknown hook type "{}"'.format(self.conn_type))
         hook_class = import_string(hook_class_name)
-        return hook_class(*{conn_id_param: self.conn_id})
+        return hook_class(**{conn_id_param: self.conn_id})
 
     def __repr__(self):
         return self.conn_id
