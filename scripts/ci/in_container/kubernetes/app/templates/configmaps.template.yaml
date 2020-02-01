@@ -24,13 +24,15 @@ data:
   airflow.cfg: |
     [core]
     dags_folder = {{CONFIGMAP_DAGS_FOLDER}}
-    base_log_folder = /root/airflow/logs
-    logging_level = INFO
     executor = KubernetesExecutor
     parallelism = 32
     load_examples = False
     plugins_folder = /root/airflow/plugins
     sql_alchemy_conn = $SQL_ALCHEMY_CONN
+
+    [logging]
+    base_log_folder = /root/airflow/logs
+    logging_level = INFO
 
     [scheduler]
     dag_dir_list_interval = 300

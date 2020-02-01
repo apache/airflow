@@ -31,7 +31,7 @@ LOG_DATA = "Airflow log data" * 20
 
 class TestServeLogs(unittest.TestCase):
     def test_should_serve_file(self):
-        log_dir = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
+        log_dir = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
         log_port = conf.get('celery', 'WORKER_LOG_SERVER_PORT')
         with NamedTemporaryFile(dir=log_dir) as f:
             f.write(LOG_DATA.encode())
