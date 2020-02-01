@@ -49,7 +49,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Install basic apt dependencies
-RUN curl -L https://deb.nodesource.com/setup_10.x | bash - \
+RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
     && curl https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - > /dev/null \
     && echo "deb https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list \
     && apt-get update \
@@ -161,7 +161,7 @@ RUN HADOOP_DISTRO="cdh" \
     && HADOOP_DOWNLOAD_URL="${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz" \
     && HADOOP_TMP_FILE="/tmp/hadoop.tar.gz" \
     && mkdir -pv "${HADOOP_HOME}" \
-    && curl -L "${HADOOP_DOWNLOAD_URL}" -o "${HADOOP_TMP_FILE}" \
+    && curl --fail --location "${HADOOP_DOWNLOAD_URL}" --output "${HADOOP_TMP_FILE}" \
     && tar xzf "${HADOOP_TMP_FILE}" --absolute-names --strip-components 1 -C "${HADOOP_HOME}" \
     && rm "${HADOOP_TMP_FILE}" \
     && echo "Installing Hive" \
@@ -173,7 +173,7 @@ RUN HADOOP_DISTRO="cdh" \
     && mkdir -pv "/user/hive/warehouse" \
     && chmod -R 777 "${HIVE_HOME}" \
     && chmod -R 777 "/user/" \
-    && curl -L "${HIVE_URL}" -o "${HIVE_TMP_FILE}" \
+    && curl --fail --location  "${HIVE_URL}" --output "${HIVE_TMP_FILE}" \
     && tar xzf "${HIVE_TMP_FILE}" --strip-components 1 -C "${HIVE_HOME}" \
     && rm "${HIVE_TMP_FILE}"
 
@@ -187,12 +187,12 @@ RUN MINICLUSTER_BASE="https://github.com/bolkedebruin/minicluster/releases/downl
     && MINICLUSTER_URL="${MINICLUSTER_BASE}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip" \
     && MINICLUSTER_TMP_FILE="/tmp/minicluster.zip" \
     && mkdir -pv "${MINICLUSTER_HOME}" \
-    && curl -L "${MINICLUSTER_URL}" -o "${MINICLUSTER_TMP_FILE}" \
+    && curl --fail --location "${MINICLUSTER_URL}" --output "${MINICLUSTER_TMP_FILE}" \
     && unzip "${MINICLUSTER_TMP_FILE}" -d "/opt" \
     && rm "${MINICLUSTER_TMP_FILE}"
 
 # Install Docker
-RUN curl -L https://download.docker.com/linux/debian/gpg | apt-key add - \
+RUN curl --fail --location https://download.docker.com/linux/debian/gpg | apt-key add - \
     && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian stretch stable" \
     && apt-get update \
     && apt-get -y install --no-install-recommends docker-ce \
@@ -203,28 +203,54 @@ RUN curl -L https://download.docker.com/linux/debian/gpg | apt-key add - \
 ARG KUBECTL_VERSION="v1.15.3"
 
 RUN KUBECTL_URL="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
-  && curl -L "${KUBECTL_URL}" -o "/usr/local/bin/kubectl" \
+  && curl --fail --location  "${KUBECTL_URL}" --output "/usr/local/bin/kubectl" \
   && chmod +x /usr/local/bin/kubectl
 
 # Install Kind
 ARG KIND_VERSION="v0.6.1"
 
 RUN KIND_URL="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64" \
-   && curl -L "${KIND_URL}" -o "/usr/local/bin/kind" \
+   && curl --fail --location "${KIND_URL}" --output "/usr/local/bin/kind" \
    && chmod +x /usr/local/bin/kind
 
 # Install Apache RAT
 ARG RAT_VERSION="0.13"
+ARG RAT_BACKUP_SITE_1="https://www-eu.apache.org/dist/creadur"
+ARG RAT_BACKUP_SITE_2="https://www-us.apache.org/dist/creadur"
+# It's OK to use HTTP rather than https here as we verify it later with gpg from the
+# offcial backup servers of Apache!
+ARG RAT_MIRROR_1="http://mirror.serverion.com/apache/creadur"
+ARG RAT_MIRROR_2="http://mirror.cc.columbia.edu/pub/software/apache/creadur"
 
-RUN RAT_URL="https://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar" \
+RUN RAT_TARGZ_FILE_NAME="apache-rat-${RAT_VERSION}-bin.tar.gz" \
+    && RAT_FOLDER="apache-rat-${RAT_VERSION}" \
+    && RAT_KEYS_URL_1="${RAT_BACKUP_SITE_1}/KEYS" \
+    && RAT_KEYS_URL_2="${RAT_BACKUP_SITE_2}/KEYS"  \
+    && RAT_ASC_URL_1="${RAT_BACKUP_SITE_1}/${RAT_FOLDER}/${RAT_TARGZ_FILE_NAME}.asc" \
+    && RAT_ASC_URL_2="${RAT_BACKUP_SITE_2}/${RAT_FOLDER}/${RAT_TARGZ_FILE_NAME}.asc" \
+    && RAT_URL_1="${RAT_MIRROR_1}/${RAT_FOLDER}/${RAT_TARGZ_FILE_NAME}" \
+    && RAT_URL_2="${RAT_MIRROR_2}/${RAT_FOLDER}/${RAT_TARGZ_FILE_NAME}"  \
+    && RAT_TAR_GZ="/opt/${RAT_TARGZ_FILE_NAME}" \
+    && RAT_TAR_GZ_ASC="/opt/${RAT_TARGZ_FILE_NAME}.asc" \
+    && RAT_KEYS="/opt/KEYS" \
+    && RAT_JAR_IN_TAR="${RAT_FOLDER}/apache-rat-${RAT_VERSION}.jar" \
     && RAT_JAR="/opt/apache-rat.jar" \
-    && RAT_JAR_MD5="${RAT_JAR}.md5" \
-    && RAT_URL_MD5="${RAT_URL}.md5" \
-    && echo "Downloading RAT from ${RAT_URL} to ${RAT_JAR}" \
-    && curl -L "${RAT_URL}" -o "${RAT_JAR}" \
-    && curl -L "${RAT_URL_MD5}" -o "${RAT_JAR_MD5}" \
-    && jar -tf "${RAT_JAR}" > /dev/null \
-    && md5sum -c <<<"$(cat "${RAT_JAR_MD5}") ${RAT_JAR}"
+    && echo "Downloading KEYS from backup Apache servers: ${RAT_KEYS_URL_1}, ${RAT_KEYS_URL_2}" \
+    && (curl --fail --location "${RAT_KEYS_URL_1}" --output "${RAT_KEYS}" || \
+        curl --fail --location "${RAT_KEYS_URL_2}" --output "${RAT_KEYS}") \
+    && echo "Downloading ASC from backup Apache servers: ${RAT_ASC_URL_1}, ${RAT_ASC_URL_2}" \
+    && (curl --fail --location "${RAT_ASC_URL_1}" --output "${RAT_TAR_GZ_ASC}" || \
+        curl --fail --location "${RAT_ASC_URL_2}" --output "${RAT_TAR_GZ_ASC}") \
+    && echo "Downloading RAT from mirrors: ${RAT_URL_1}, ${RAT_URL_2} to ${RAT_JAR}" \
+    && (curl --fail --location "${RAT_URL_1}" --output "${RAT_TAR_GZ}" || \
+        curl --fail --location "${RAT_URL_2}" --output "${RAT_TAR_GZ}") \
+    && gpg --import ${RAT_KEYS} \
+    && gpg --verify "${RAT_TAR_GZ_ASC}" "${RAT_TAR_GZ}" \
+    && tar --extract --gzip --file "${RAT_TAR_GZ}" -C /opt "${RAT_JAR_IN_TAR}" \
+    && mv -v /opt/"${RAT_JAR_IN_TAR}" "${RAT_JAR}" \
+    && rm -vrf "${RAT_TAR_GZ}" "/opt/${RAT_FOLDER}" \
+    && rm -f "${RAT_KEYS}" \
+    && jar -tf "${RAT_JAR}" >/dev/null
 
 # Setup PIP
 # By default PIP install run without cache to make image smaller
