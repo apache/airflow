@@ -18,6 +18,7 @@
 # under the License.
 """Password authentication backend"""
 import base64
+import logging
 from functools import wraps
 
 import flask_login
@@ -32,14 +33,13 @@ from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
 from airflow import models
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session
 
 LOGIN_MANAGER = flask_login.LoginManager()
 LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
 LOGIN_MANAGER.login_message = None
 
-LOG = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 CLIENT_AUTH = None
@@ -108,7 +108,7 @@ class PasswordUser(models.User):
 @provide_session
 def load_user(userid, session=None):
     """Loads user from the database"""
-    LOG.debug("Loading user %s", userid)
+    log.debug("Loading user %s", userid)
     if not userid or userid == 'None':
         return None
 
@@ -140,7 +140,7 @@ def authenticate(session, username, password):
     if not user.authenticate(password):
         raise AuthenticationError()
 
-    LOG.info("User %s successfully authenticated", username)
+    log.info("User %s successfully authenticated", username)
     return user
 
 

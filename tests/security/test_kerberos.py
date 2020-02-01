@@ -21,8 +21,8 @@ import os
 import unittest
 from argparse import Namespace
 
-from airflow import LoggingMixin
 from airflow.configuration import conf
+from airflow.security import kerberos
 from airflow.security.kerberos import renew_from_kt
 from tests.test_utils.config import conf_vars
 
@@ -58,7 +58,7 @@ class TestKerberos(unittest.TestCase):
                 renew_from_kt(principal=self.args.principal,  # pylint: disable=no-member
                               keytab=self.args.keytab)
 
-                with self.assertLogs(LoggingMixin().log) as log:
+                with self.assertLogs(kerberos.log) as log:
                     self.assertIn(
                         'kinit: krb5_init_creds_set_keytab: Failed to find '
                         'airflow@LUPUS.GRIDDYNAMICS.NET in keytab FILE:{} '

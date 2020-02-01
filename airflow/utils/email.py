@@ -19,6 +19,7 @@
 
 import collections
 import importlib
+import logging
 import os
 import smtplib
 from email.mime.application import MIMEApplication
@@ -29,7 +30,8 @@ from typing import Iterable, List, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 def send_email(to, subject, html_content,
@@ -99,7 +101,6 @@ def send_mime_email(e_from, e_to, mime_msg, dryrun=False):
     """
     Send MIME email.
     """
-    log = LoggingMixin().log
 
     smtp_host = conf.get('smtp', 'SMTP_HOST')
     smtp_port = conf.getint('smtp', 'SMTP_PORT')

@@ -20,6 +20,7 @@
 Provides lineage support functions
 """
 import json
+import logging
 from functools import wraps
 from typing import Any, Dict, Optional
 
@@ -28,7 +29,6 @@ import jinja2
 from cattr import structure, unstructure
 
 from airflow.models.base import Operator
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
 ENV = jinja2.Environment()
@@ -37,7 +37,7 @@ PIPELINE_OUTLETS = "pipeline_outlets"
 PIPELINE_INLETS = "pipeline_inlets"
 AUTO = "auto"
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 @attr.s(auto_attribs=True)

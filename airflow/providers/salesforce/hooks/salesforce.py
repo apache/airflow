@@ -24,13 +24,15 @@ retrieve data from it, and write that data to a file for other uses.
 .. note:: this hook also relies on the simple_salesforce package:
       https://github.com/simple-salesforce/simple-salesforce
 """
+import logging
 import time
 
 import pandas as pd
 from simple_salesforce import Salesforce
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 class SalesforceHook(BaseHook):
@@ -169,7 +171,6 @@ class SalesforceHook(BaseHook):
         try:
             column = pd.to_datetime(column)
         except ValueError:
-            log = LoggingMixin().log
             log.warning("Could not convert field to timestamps: %s", column.name)
             return column
 

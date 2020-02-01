@@ -279,7 +279,7 @@ class AwsBatchClient(LoggingMixin):
         job_status = job.get("status")
 
         if job_status == "SUCCEEDED":
-            self.log.info("AWS batch job ({}) succeeded: {}".format(job_id, job))
+            self.log.info("AWS batch job (%s) succeeded: %s", job_id, job)
             return True
 
         if job_status == "FAILED":

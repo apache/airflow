@@ -17,12 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Authentication backend"""
-
+import logging
 from importlib import import_module
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 class ApiAuth:  # pylint: disable=too-few-public-methods
@@ -32,8 +33,6 @@ class ApiAuth:  # pylint: disable=too-few-public-methods
 
 
 API_AUTH = ApiAuth()
-
-LOG = LoggingMixin().log
 
 
 def load_auth():
@@ -47,7 +46,7 @@ def load_auth():
     try:
         API_AUTH.api_auth = import_module(auth_backend)
     except ImportError as err:
-        LOG.critical(
+        log.critical(
             "Cannot import %s for API authentication due to: %s",
             auth_backend, err
         )

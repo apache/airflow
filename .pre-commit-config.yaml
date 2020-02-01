@@ -243,6 +243,12 @@ repos:
         entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
         files: \.py$
         pass_filenames: true
+      - id: incorrect-use-of-LoggingMixin
+        language: pygrep
+        name: Make sure LoggingMixin is not used alone
+        entry: "LoggingMixin\\(\\)"
+        files: \.py$
+        pass_filenames: true
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh

@@ -16,9 +16,12 @@
 # under the License.
 """All executors."""
 import importlib
+import logging
 from typing import Optional
 
 from airflow.executors.base_executor import BaseExecutor
+
+log = logging.getLogger(__name__)
 
 
 class ExecutorLoader:
@@ -54,8 +57,6 @@ class ExecutorLoader:
 
         cls._default_executor = ExecutorLoader._get_executor(executor_name)
 
-        from airflow import LoggingMixin
-        log = LoggingMixin().log
         log.info("Using executor %s", executor_name)
 
         return cls._default_executor

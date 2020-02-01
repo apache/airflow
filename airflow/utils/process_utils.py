@@ -20,13 +20,12 @@
 """
 Utilities for running process with writing output to logger
 """
+import logging
 import shlex
 import subprocess
 from typing import List
 
-from airflow import LoggingMixin
-
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def execute_in_subprocess(cmd: List[str]):

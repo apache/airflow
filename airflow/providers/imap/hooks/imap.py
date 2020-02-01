@@ -293,7 +293,7 @@ class Mail(LoggingMixin):
                 else attachment.has_equal_name(name)
             if found_attachment:
                 file_name, file_payload = attachment.get_file()
-                self.log.info('Found attachment: {}'.format(file_name))
+                self.log.info('Found attachment: %s', file_name)
                 attachments.append((file_name, file_payload))
                 if find_first:
                     break

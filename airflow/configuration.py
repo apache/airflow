@@ -17,6 +17,7 @@
 # under the License.
 
 import copy
+import logging
 import os
 import pathlib
 import shlex
@@ -34,9 +35,8 @@ from cryptography.fernet import Fernet
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 # show Airflow's deprecation warnings
 warnings.filterwarnings(

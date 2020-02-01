@@ -19,6 +19,7 @@
 
 import datetime
 import json
+import logging
 import os
 
 import pendulum
@@ -26,9 +27,7 @@ from dateutil import relativedelta
 from sqlalchemy import event, exc
 from sqlalchemy.types import DateTime, Text, TypeDecorator
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 utc = pendulum.timezone('UTC')
 
 

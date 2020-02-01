@@ -112,12 +112,13 @@ class GrpcHook(BaseHook):
             except grpc.RpcError as ex:
                 # noinspection PyUnresolvedReferences
                 self.log.exception(
-                    "Error occurred when calling the grpc service: {0}, method: {1} \
-                    status code: {2}, error details: {3}"
-                    .format(stub.__class__.__name__,
-                            call_func,
-                            ex.code(),  # pylint: disable=no-member
-                            ex.details()))  # pylint: disable=no-member
+                    "Error occurred when calling the grpc service: %s, method: %s \
+                    status code: %s, error details: %s",
+                    stub.__class__.__name__,
+                    call_func,
+                    ex.code(),  # pylint: disable=no-member
+                    ex.details()  # pylint: disable=no-member
+                )
                 raise ex
 
     def _get_field(self, field_name, default=None):

@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 import os
 
 from airflow import models, settings
@@ -26,10 +26,9 @@ from airflow.models import Connection
 from airflow.models.pool import Pool
 # We need to add this model manually to get reset working well
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session  # noqa  # pylint: disable=unused-import
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 @provide_session

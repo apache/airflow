@@ -100,7 +100,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
             conn.extra = json.dumps(extras)
             session.commit()
         except BaseException as ex:
-            self.log.info('Airflow DB Session error:' + str(ex))
+            self.log.info('Airflow DB Session error: %s', str(ex))
             session.rollback()
             raise
         finally:
@@ -126,7 +126,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
             conn.extra = json.dumps(extras)
             session.commit()
         except BaseException as ex:
-            self.log.info('Airflow DB Session error:' + str(ex))
+            self.log.info('Airflow DB Session error: %s', str(ex))
             session.rollback()
             raise
         finally:
@@ -147,14 +147,14 @@ class GcpAuthenticator(LoggingCommandExecutor):
         else:
             gcp_config_dir = os.path.join(AIRFLOW_MAIN_FOLDER, os.pardir, "config")
         if not os.path.isdir(gcp_config_dir):
-            self.log.info("The {} is not a directory".format(gcp_config_dir))
+            self.log.info("The %s is not a directory", gcp_config_dir)
         key_dir = os.path.join(gcp_config_dir, "keys")
         if not os.path.isdir(key_dir):
-            self.log.info("The {} is not a directory".format(key_dir))
+            self.log.info("The %s is not a directory", key_dir)
             return
         key_path = os.path.join(key_dir, self.gcp_key)
         if not os.path.isfile(key_path):
-            self.log.info("The {} is missing".format(key_path))
+            self.log.info("The %s file is missing", key_path)
         self.full_key_path = key_path
 
     def _validate_key_set(self):
@@ -172,7 +172,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         Authenticate with service account specified via key name.
         """
         self._validate_key_set()
-        self.log.info("Setting the GCP key to {}".format(self.full_key_path))
+        self.log.info("Setting the GCP key to %s", self.full_key_path)
         # Checking if we can authenticate using service account credentials provided
         self.execute_cmd(
             [
@@ -206,7 +206,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
             GcpAuthenticator.original_account = self.check_output(
                 ['gcloud', 'config', 'get-value', 'account', '--project={}'.format(self.project_id)]
             ).decode('utf-8')
-            self.log.info("Storing account: to restore it later {}".format(GcpAuthenticator.original_account))
+            self.log.info("Storing account: to restore it later %s", GcpAuthenticator.original_account)
 
     def gcp_restore_authentication(self):
         """
@@ -214,7 +214,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         """
         self._validate_key_set()
         if GcpAuthenticator.original_account:
-            self.log.info("Restoring original account stored: {}".format(GcpAuthenticator.original_account))
+            self.log.info("Restoring original account stored: %s", GcpAuthenticator.original_account)
             subprocess.call(
                 [
                     'gcloud',

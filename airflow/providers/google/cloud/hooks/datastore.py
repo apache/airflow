@@ -282,8 +282,9 @@ class DatastoreHook(CloudBaseHook):
 
             state = result['metadata']['common']['state']  # type: str
             if state == 'PROCESSING':
-                self.log.info('Operation is processing. Re-polling state in {} seconds'
-                              .format(polling_interval_in_seconds))
+                self.log.info(
+                    'Operation is processing. Re-polling state in %s seconds', polling_interval_in_seconds
+                )
                 time.sleep(polling_interval_in_seconds)
             else:
                 return result

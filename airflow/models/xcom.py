@@ -18,6 +18,7 @@
 # under the License.
 
 import json
+import logging
 import pickle
 from typing import Any, Iterable, Optional, Union
 
@@ -32,6 +33,8 @@ from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+log = logging.getLogger(__name__)
 
 # MAX XCOM Size is 48KB
 # https://github.com/apache/airflow/pull/1618#discussion_r68249677
@@ -205,7 +208,6 @@ class XCom(Base, LoggingMixin):
         try:
             return json.dumps(value).encode('UTF-8')
         except ValueError:
-            log = LoggingMixin().log
             log.error("Could not serialize the XCOM value into JSON. "
                       "If you are using pickles instead of JSON "
                       "for XCOM, then you need to enable pickle "
@@ -223,7 +225,6 @@ class XCom(Base, LoggingMixin):
         try:
             return json.loads(result.value.decode('UTF-8'))
         except ValueError:
-            log = LoggingMixin().log
             log.error("Could not deserialize the XCOM value from JSON. "
                       "If you are using pickles instead of JSON "
                       "for XCOM, then you need to enable pickle "

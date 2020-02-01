@@ -21,7 +21,7 @@
 This module contains a BigQuery Hook, as well as a very basic PEP 249
 implementation for BigQuery.
 """
-
+import logging
 import time
 import warnings
 from copy import deepcopy
@@ -40,6 +40,8 @@ from airflow import AirflowException
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 # pylint: disable=too-many-public-methods
@@ -2638,7 +2640,6 @@ def _split_tablename(table_input: str, default_project_id: str,
 
     if project_id is None:
         if var_name is not None:
-            log = LoggingMixin().log
             log.info(
                 'Project not included in %s: %s; using project "%s"',
                 var_name, table_input, default_project_id

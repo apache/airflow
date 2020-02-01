@@ -17,19 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Web HDFS"""
+import logging
+
 from hdfs import HdfsError, InsecureClient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 _kerberos_security_mode = conf.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
     try:
         from hdfs.ext.kerberos import KerberosClient  # pylint: disable=ungrouped-imports
     except ImportError:
-        log = LoggingMixin().log
         log.error("Could not load the Kerberos extension for the WebHDFSHook.")
         raise
 

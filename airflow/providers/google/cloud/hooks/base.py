@@ -42,11 +42,12 @@ from google.auth.environment_vars import CREDENTIALS
 from googleapiclient.errors import HttpError
 from googleapiclient.http import set_user_agent
 
-from airflow import LoggingMixin, version
+from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
-logger = LoggingMixin().log
+log = logging.getLogger(__name__)
+
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)  # type: Sequence[str]
 
@@ -150,21 +151,23 @@ class CloudBaseHook(BaseHook):
                 "Please provide only one value."
             )
         if not key_path and not keyfile_dict:
-            self.log.info('Getting connection using `google.auth.default()` '
-                          'since no key file is defined for hook.')
+            self.log.info(
+                'Getting connection using `google.auth.default()` since no key file is defined for hook.'
+            )
             credentials, project_id = google.auth.default(scopes=self.scopes)
         elif key_path:
             # Get credentials from a JSON file.
             if key_path.endswith('.json'):
-                self.log.debug('Getting connection using JSON key file %s' % key_path)
+                self.log.debug('Getting connection using JSON key file %s', key_path)
                 credentials = (
                     google.oauth2.service_account.Credentials.from_service_account_file(
                         key_path, scopes=self.scopes)
                 )
                 project_id = credentials.project_id
             elif key_path.endswith('.p12'):
-                raise AirflowException('Legacy P12 key file are not supported, '
-                                       'use a JSON key file.')
+                raise AirflowException(
+                    'Legacy P12 key file are not supported, use a JSON key file.'
+                )
             else:
                 raise AirflowException('Unrecognised extension for key file.')
         else:
@@ -291,8 +294,8 @@ class CloudBaseHook(BaseHook):
             default_kwargs = {
                 'wait': tenacity.wait_exponential(multiplier=1, max=100),
                 'retry': retry_if_temporary_quota(),
-                'before': tenacity.before_log(logger, logging.DEBUG),
-                'after': tenacity.after_log(logger, logging.DEBUG),
+                'before': tenacity.before_log(log, logging.DEBUG),
+                'after': tenacity.after_log(log, logging.DEBUG),
             }
             default_kwargs.update(**kwargs)
             return tenacity.retry(

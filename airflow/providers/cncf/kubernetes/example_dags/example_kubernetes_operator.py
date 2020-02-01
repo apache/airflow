@@ -19,11 +19,12 @@
 """
 This is an example dag for using the KubernetesPodOperator.
 """
+import logging
+
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 try:
     # Kubernetes is optional, so not available in vanilla Airflow
@@ -65,6 +66,6 @@ try:
         )
 
 except ImportError as e:
-    log.warning("Could not import KubernetesPodOperator: " + str(e))
-    log.warning("Install kubernetes dependencies with: "
+    log.warning("Could not import KubernetesPodOperator: %s, ", str(e))
+    log.warning("Install kubernetes dependencies with: \n"
                 "    pip install 'apache-airflow[kubernetes]'")

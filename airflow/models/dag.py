@@ -19,6 +19,7 @@
 
 import copy
 import functools
+import logging
 import os
 import pickle
 import re
@@ -56,6 +57,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
+
+log = logging.getLogger(__name__)
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -1558,7 +1561,6 @@ class DAG(BaseDag, LoggingMixin):
         :type expiration_date: datetime
         :return: None
         """
-        log = LoggingMixin().log
         for dag in session.query(
                 DagModel).filter(DagModel.last_scheduler_run < expiration_date,
                                  DagModel.is_active).all():
@@ -1839,7 +1841,6 @@ class DagModel(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        log = LoggingMixin().log
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ",
                   cls.__tablename__)
 

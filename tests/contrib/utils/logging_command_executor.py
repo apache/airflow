@@ -26,32 +26,32 @@ class LoggingCommandExecutor(LoggingMixin):
 
     def execute_cmd(self, cmd, silent=False, cwd=None):
         if silent:
-            self.log.info("Executing in silent mode: '{}'".format(" ".join(cmd)))
+            self.log.info("Executing in silent mode: '%s'", " ".join(cmd))
             with open(os.devnull, 'w') as dev_null:
                 return subprocess.call(args=cmd, stdout=dev_null, stderr=subprocess.STDOUT)
         else:
-            self.log.info("Executing: '{}'".format(" ".join(cmd)))
+            self.log.info("Executing: '%s'", " ".join(cmd))
             process = subprocess.Popen(
                 args=cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, cwd=cwd
             )
             output, err = process.communicate()
             retcode = process.poll()
-            self.log.info("Stdout: {}".format(output))
-            self.log.info("Stderr: {}".format(err))
+            self.log.info("Stdout: %s", output)
+            self.log.info("Stderr: %s", err)
             if retcode:
                 self.log.warning("Error when executing %s", " ".join(cmd))
             return retcode
 
     def check_output(self, cmd):
-        self.log.info("Executing for output: '{}'".format(" ".join(cmd)))
+        self.log.info("Executing for output: '%s'", " ".join(cmd))
         process = subprocess.Popen(args=cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         output, err = process.communicate()
         retcode = process.poll()
         if retcode:
-            self.log.info("Error when executing '{}'".format(" ".join(cmd)))
-            self.log.info("Stdout: {}".format(output))
-            self.log.info("Stderr: {}".format(err))
+            self.log.info("Error when executing '%s'", " ".join(cmd))
+            self.log.info("Stdout: %s", output)
+            self.log.info("Stderr: %s", err)
             raise AirflowException("Retcode {} on {} with stdout: {}, stderr: {}".
                                    format(retcode, " ".join(cmd), output, err))
         return output

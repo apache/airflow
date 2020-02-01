@@ -237,7 +237,7 @@ class CloudDLPHook(CloudBaseHook):
         while wait_until_finished:
             job = self.get_dlp_job(dlp_job_id=job_name, project_id=project_id)
 
-            self.log.info("DLP job {} state: {}.".format(job.name, DlpJob.JobState.Name(job.state)))
+            self.log.info("DLP job %s state: %s.", job.name, DlpJob.JobState.Name(job.state))
 
             if job.state == DlpJob.JobState.DONE:
                 return job

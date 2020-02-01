@@ -18,16 +18,14 @@
 # under the License.
 
 """Sentry Integration"""
-
-
+import logging
 from functools import wraps
 
 from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 class DummySentry:

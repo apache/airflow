@@ -17,14 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import logging
 from io import StringIO
 
 from qds_sdk.commands import Command
 
 from airflow.exceptions import AirflowException
 from airflow.providers.qubole.hooks.qubole import QuboleHook
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 COL_DELIM = '\t'
 ROW_DELIM = '\r\n'
@@ -90,7 +91,6 @@ class QuboleCheckHook(QuboleHook):
             cmd = Command.find(cmd_id)
             if cmd is not None:
                 if cmd.status == 'running':
-                    log = LoggingMixin().log
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
@@ -102,14 +102,13 @@ class QuboleCheckHook(QuboleHook):
         return record_list
 
     def get_query_results(self):
-        log = LoggingMixin().log
         if self.cmd is not None:
             cmd_id = self.cmd.id
-            log.info("command id: " + str(cmd_id))
+            self.log.info("command id: " + str(cmd_id))
             query_result_buffer = StringIO()
             self.cmd.get_results(fp=query_result_buffer, inline=True, delim=COL_DELIM)
             query_result = query_result_buffer.getvalue()
             query_result_buffer.close()
             return query_result
         else:
-            log.info("Qubole command not found")
+            self.log.info("Qubole command not found")

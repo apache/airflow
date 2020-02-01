@@ -19,6 +19,7 @@
 #
 """Qubole hook"""
 import datetime
+import logging
 import os
 import pathlib
 import time
@@ -32,8 +33,9 @@ from qds_sdk.qubole import Qubole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+
+log = logging.getLogger(__name__)
 
 COMMAND_CLASSES = {
     "hivecmd": HiveCommand,
@@ -118,7 +120,6 @@ class QuboleHook(BaseHook):
         if cmd_id is not None:
             cmd = Command.find(cmd_id)
             if cmd is not None:
-                log = LoggingMixin().log
                 if cmd.status == 'done':
                     log.info('Command ID: %s has been succeeded, hence marking this '
                              'TI as Success.', cmd_id)

@@ -18,7 +18,7 @@
 """
 This module contains a Google ML Engine Hook.
 """
-
+import logging
 import random
 import time
 from typing import Callable, Dict, List, Optional
@@ -27,14 +27,14 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version as airflow_version
+
+log = logging.getLogger(__name__)
 
 _AIRFLOW_VERSION = 'v' + airflow_version.replace('.', '-').replace('+', '-')
 
 
 def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
-    log = LoggingMixin().log
 
     for i in range(0, max_n):
         try:
@@ -143,7 +143,7 @@ class MLEngineHook(CloudBaseHook):
                     job_id
                 )
             else:
-                self.log.error('Failed to create MLEngine job: {}'.format(e))
+                self.log.error('Failed to create MLEngine job: %s', e)
                 raise
 
         return self._wait_for_job_done(project_id, job_id)
@@ -172,7 +172,7 @@ class MLEngineHook(CloudBaseHook):
                     # polling after 30 seconds when quota failure occurs
                     time.sleep(30)
                 else:
-                    self.log.error('Failed to get MLEngine job: {}'.format(e))
+                    self.log.error('Failed to get MLEngine job: %s', e)
                     raise
 
     def _wait_for_job_done(self, project_id: str, job_id: str, interval: int = 30):

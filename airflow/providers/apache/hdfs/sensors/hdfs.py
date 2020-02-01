@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
 import re
 import sys
 
@@ -23,7 +24,8 @@ from airflow import settings
 from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 class HdfsSensor(BaseSensorOperator):
@@ -63,7 +65,6 @@ class HdfsSensor(BaseSensorOperator):
         :return: (bool) depending on the matching criteria
         """
         if size:
-            log = LoggingMixin().log
             log.debug(
                 'Filtering for file size >= %s in files: %s',
                 size, map(lambda x: x['path'], result)
@@ -88,7 +89,6 @@ class HdfsSensor(BaseSensorOperator):
         :rtype: list[dict]
         """
         if ignore_copying:
-            log = LoggingMixin().log
             regex_builder = r"^.*\.(%s$)$" % '$|'.join(ignored_ext)
             ignored_extensions_regex = re.compile(regex_builder)
             log.debug(

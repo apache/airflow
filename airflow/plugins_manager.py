@@ -19,6 +19,7 @@
 # noinspection PyDeprecation
 import importlib
 import inspect
+import logging
 import os
 import re
 import sys
@@ -28,9 +29,8 @@ from typing import Any, Callable, Dict, List, Optional, Type
 import pkg_resources
 
 from airflow import settings
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 import_errors = {}
 

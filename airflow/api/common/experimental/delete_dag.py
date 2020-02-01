@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Delete DAGs APIs."""
+import logging
 
 from sqlalchemy import or_
 
@@ -25,8 +26,9 @@ from airflow.exceptions import DagNotFound
 from airflow.models import DagModel, TaskFail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import STORE_SERIALIZED_DAGS
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
+
+log = logging.getLogger(__name__)
 
 
 @provide_session
@@ -39,8 +41,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session=None) -> i
     :param session: session used
     :return count of deleted dags
     """
-    logger = LoggingMixin()
-    logger.log.info("Deleting DAG: %s", dag_id)
+    log.info("Deleting DAG: %s", dag_id)
     dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
     if dag is None:
         raise DagNotFound("Dag id {} not found".format(dag_id))

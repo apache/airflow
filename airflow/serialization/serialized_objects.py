@@ -26,7 +26,7 @@ import cattr
 import pendulum
 from dateutil import relativedelta
 
-from airflow import DAG, AirflowException, LoggingMixin
+from airflow import DAG, AirflowException
 from airflow.models import Connection
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -35,12 +35,14 @@ from airflow.settings import json
 from airflow.utils.module_loading import import_string
 from airflow.www.utils import get_python_source
 
+log = logging.getLogger(__name__)
+FAILED = 'serialization_failed'
+
 BUILTIN_OPERATOR_EXTRA_LINKS: List[str] = [
     "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink",
     "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink",
     "airflow.providers.qubole.operators.qubole.QDSLink"
 ]
-
 
 class BaseSerialization:
     """BaseSerialization provides utils for serialization."""
@@ -196,10 +198,10 @@ class BaseSerialization:
                 return cls._encode(
                     [cls._serialize(v) for v in var], type_=DAT.TUPLE)
             else:
-                LOG.debug('Cast type %s to str in serialization.', type(var))
+                log.debug('Cast type %s to str in serialization.', type(var))
                 return str(var)
         except Exception:  # pylint: disable=broad-except
-            LOG.warning('Failed to stringify.', exc_info=True)
+            log.warning('Failed to stringify.', exc_info=True)
             return FAILED
     # pylint: enable=too-many-return-statements
 
@@ -581,7 +583,3 @@ class SerializedDAG(DAG, BaseSerialization):
         if ver != cls.SERIALIZER_VERSION:
             raise ValueError("Unsure how to deserialize version {!r}".format(ver))
         return cls.deserialize_dag(serialized_obj['dag'])
-
-
-LOG = LoggingMixin().log
-FAILED = 'serialization_failed'
