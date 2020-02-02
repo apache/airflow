@@ -26,7 +26,7 @@ from airflow.utils import process_utils
 class TestExecuteInSubProcess(unittest.TestCase):
 
     def test_should_print_all_messages1(self):
-        with self.assertLogs("airflow.utils.log.logging_mixin.LoggingMixin") as logs:
+        with self.assertLogs(process_utils.log) as logs:
             process_utils.execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
 
         msgs = [record.getMessage() for record in logs.records]
