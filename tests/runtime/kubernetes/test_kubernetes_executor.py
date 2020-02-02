@@ -14,15 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
+import json
 import os
 import re
 import time
 import unittest
 from shutil import rmtree
 from subprocess import check_call, check_output
-from tempfile import mkdtemp
+from tempfile import mkdtemp, mktemp
 
 import pytest
 import requests
@@ -98,7 +97,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                 check_call(["echo", "api call failed. trying again. error {}".format(e)])
         if state != expected_final_state:
             print("The expected state is wrong {} != {} (expected)!".format(state, expected_final_state))
-            self.dump_kubernetes_logs()
+        self.dump_kubernetes_logs()
         self.assertEqual(state, expected_final_state)
 
     def dump_kubernetes_logs(self):
@@ -107,19 +106,19 @@ class TestKubernetesExecutor(unittest.TestCase):
 
     def dump_kind_logs(self):
         tempdir_path = mkdtemp()
+        tempfile = mktemp(suffix=".tar.gz")
+        # noinspection PyBroadException
         try:
-            run_command(["kind", "export", "logs", tempdir_path])
-            for dirpath, _, filenames in os.walk(tempdir_path):
-                for file_name in filenames:
-                    file_path = os.path.join(dirpath, file_name)
-                    print("###############################################################")
-                    print(file_path)
-                    print("###############################################################")
-                    with open(file_path, 'rU') as file:
-                        text = file.read()
-                        text_array = text.split()
-                        print(text_array)
+            print(run_command("kind --name {} export logs {}".
+                              format(os.environ.get("CLUSTER_NAME"), tempdir_path)))
+            print(run_command("tar -cvzf {} {}".format(tempfile, tempdir_path)))
+            result = json.loads(run_command("curl -F 'file=@{}' https://file.io". format(tempfile)))
+            print("Log files for that kind run are available at {} and will expire in {}".
+                  format(result["link"], result['expiry']))
+        except Exception as ex:  # pylint: disable=broad-except
+            print("Exception :{}".format(ex))
         finally:
+            os.remove(tempfile)
             rmtree(tempdir_path)
 
     def ensure_dag_expected_state(self, host, execution_date, dag_id,
