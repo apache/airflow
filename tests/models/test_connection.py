@@ -26,6 +26,7 @@ from parameterized import parameterized
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import Connection, crypto
+from airflow.models.connection import CONN_TYPE_TO_HOOK
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 from tests.test_utils.config import conf_vars
 
@@ -512,3 +513,11 @@ class TestConnection(unittest.TestCase):
         assert conns[0].login == 'username'
         assert conns[0].password == 'password'
         assert conns[0].port == 5432
+
+
+class TestConnTypeToHook(unittest.TestCase):
+    def test_enforce_alphabetical_order(self):
+        current_keys = list(CONN_TYPE_TO_HOOK.keys())
+        expected_keys = sorted(current_keys)
+
+        self.assertEqual(expected_keys, current_keys)
