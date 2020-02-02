@@ -46,7 +46,7 @@ class RedshiftHook(AwsHook):
         except conn.exceptions.ClusterNotFoundFault:
             return 'cluster_not_found'
 
-    def delete_cluster(
+    def delete_cluster(  # pylint: disable=invalid-name
             self,
             cluster_identifier,
             skip_final_cluster_snapshot=True,
