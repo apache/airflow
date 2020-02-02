@@ -225,7 +225,7 @@ Securing Connections
 --------------------
 
 Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt passwords in the connection
-configuration. It guarantees that a password encrypted using it cannot be manipulated or read without the key.
+configuration. It guarantees that without the encryption password, Connection Passwords cannot be manipulated or read without the key.
 
 For information on configuring Fernet, look at :ref:`security/fernet`.
 
