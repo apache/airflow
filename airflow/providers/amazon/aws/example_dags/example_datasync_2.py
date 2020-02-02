@@ -34,6 +34,7 @@ This DAG relies on the following environment variables:
 """
 
 import json
+import re
 from os import getenv
 
 from airflow import models
@@ -63,11 +64,12 @@ bucket_access_role_arn = (
 )
 default_destination_location_kwargs = """\
 {"S3BucketArn": "arn:aws:s3:::mybucket",
-    "S3Config": {"BucketAccessRoleArn": bucket_access_role_arn}
+    "S3Config": {"BucketAccessRoleArn":
+    "arn:aws:iam::11112223344:role/r-11112223344-my-bucket-access-role"}
 }"""
 CREATE_DESTINATION_LOCATION_KWARGS = json.loads(
     getenv("CREATE_DESTINATION_LOCATION_KWARGS",
-           default_destination_location_kwargs)
+           re.sub(r"[\s+]", '', default_destination_location_kwargs))
 )
 
 default_update_task_kwargs = '{"Name": "Updated by Airflow"}'
