@@ -75,4 +75,5 @@ class AthenaSensor(BaseSensorOperator):
         return True
 
     def get_hook(self):
+        """Create and return an AWSAthenaHook."""
         return AWSAthenaHook(self.aws_conn_id, self.sleep_time)
