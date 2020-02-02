@@ -91,6 +91,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         self.create_integer_fields()
 
     def create_integer_fields(self):
+        """Set fields which should be casted to integers."""
         if 'EndpointConfig' in self.config:
             self.integer_fields = [
                 ['EndpointConfig', 'ProductionVariants', 'InitialInstanceCount']
