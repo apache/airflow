@@ -43,7 +43,6 @@
 ./airflow/providers/qubole/operators/qubole_check.py
 ./airflow/providers/redis/operators/redis_publish.py
 ./airflow/providers/google/cloud/operators/s3_to_gcs.py
-./airflow/providers/amazon/aws/operators/sagemaker_base.py
 ./airflow/providers/amazon/aws/operators/sagemaker_endpoint_config.py
 ./airflow/providers/amazon/aws/operators/sagemaker_endpoint.py
 ./airflow/providers/amazon/aws/operators/sagemaker_model.py

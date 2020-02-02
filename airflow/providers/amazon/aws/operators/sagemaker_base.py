@@ -53,6 +53,7 @@ class SageMakerBaseOperator(BaseOperator):
         self.hook = None
 
     def parse_integer(self, config, field):
+        """Recursive method for parsing string fields holding integer values to integers."""
         if len(field) == 1:
             if isinstance(config, list):
                 for sub_config in config:
@@ -74,15 +75,18 @@ class SageMakerBaseOperator(BaseOperator):
         return
 
     def parse_config_integers(self):
-        # Parse the integer fields of training config to integers
-        # in case the config is rendered by Jinja and all fields are str
+        """
+        Parse the integer fields of training config to integers in case the config is rendered by Jinja and
+        all fields are str.
+        """
         for field in self.integer_fields:
             self.parse_integer(self.config, field)
 
     def expand_role(self):
-        pass
+        """Placeholder for calling boto3's expand_role(), which expands an IAM role name into an ARN."""
 
     def preprocess_config(self):
+        """Process the config into a usable form."""
         self.log.info(
             'Preprocessing the config and doing required s3_operations'
         )
@@ -93,8 +97,8 @@ class SageMakerBaseOperator(BaseOperator):
         self.expand_role()
 
         self.log.info(
-            'After preprocessing the config is:\n {}'.format(
-                json.dumps(self.config, sort_keys=True, indent=4, separators=(',', ': ')))
+            "After preprocessing the config is:\n %s",
+            json.dumps(self.config, sort_keys=True, indent=4, separators=(",", ": ")),
         )
 
     def execute(self, context):
