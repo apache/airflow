@@ -30,7 +30,7 @@ from airflow import DAG, exceptions, settings
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.jobs.local_task_job import LocalTaskJob
-from airflow.models import DagBag, DagRun, TaskFail, TaskInstance
+from airflow.models import DagBag, DagRun, TaskFail, TaskInstance, Variable
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
@@ -484,6 +484,13 @@ class TestCore(unittest.TestCase):
 
         self.assertEqual(context['prev_ds'], execution_ds)
         self.assertEqual(context['prev_ds_nodash'], execution_ds_nodash)
+
+    def test_variable_set_existing_value_to_blank(self):
+        test_value = 'Some value'
+        test_key = 'test_key'
+        Variable.set(test_key, test_value)
+        Variable.set(test_key, '')
+        self.assertEqual(None, Variable.get('test_key'))
 
 
 if __name__ == '__main__':
