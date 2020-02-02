@@ -23,7 +23,7 @@ import datetime
 import enum
 import logging
 import six
-from typing import TYPE_CHECKING, Optional, Union, Dict
+from typing import TYPE_CHECKING, Optional, Union, Dict, List
 
 import cattr
 import pendulum
@@ -36,6 +36,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
+from airflow.utils.module_loading import import_string
 from airflow.www.utils import get_python_source
 
 try:
@@ -47,6 +48,17 @@ if TYPE_CHECKING:
     from inspect import Parameter
 
 log = logging.getLogger(__name__)
+
+
+BUILTIN_OPERATOR_EXTRA_LINKS = [
+    "airflow.contrib.operators.bigquery_operator.BigQueryConsoleLink",
+    "airflow.contrib.operators.bigquery_operator.BigQueryConsoleIndexableLink",
+    "airflow.contrib.operators.qubole_operator.QDSLink",
+    # providers new paths
+    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink",
+    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink",
+    "airflow.providers.qubole.operators.qubole.QDSLink"
+]  # type: List[str]
 
 
 class BaseSerialization:
@@ -459,15 +471,16 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             #   list(_operator_links_source.items())[0] =
             #   ('airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink', {'index': 0})
 
-            _operator_link_class, data = list(_operator_links_source.items())[0]
-
-            if _operator_link_class in registered_operator_link_classes:
-                single_op_link_class_name = registered_operator_link_classes[_operator_link_class]
+            _operator_link_class_path, data = list(_operator_links_source.items())[0]
+            if _operator_link_class_path in BUILTIN_OPERATOR_EXTRA_LINKS:
+                single_op_link_class = import_string(_operator_link_class_path)
+            elif _operator_link_class_path in registered_operator_link_classes:
+                single_op_link_class = registered_operator_link_classes[_operator_link_class_path]
             else:
-                raise KeyError("Operator Link class %r not registered" % _operator_link_class)
+                raise KeyError("Operator Link class %r not registered" % _operator_link_class_path)
 
             op_predefined_extra_link = cattr.structure(
-                data, single_op_link_class_name)    # type: BaseOperatorLink
+                data, single_op_link_class)    # type: BaseOperatorLink
 
             op_predefined_extra_links.update(
                 {op_predefined_extra_link.name: op_predefined_extra_link}
