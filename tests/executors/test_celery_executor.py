@@ -138,5 +138,9 @@ class CeleryExecutorTest(unittest.TestCase):
         mock_stats_gauge.assert_has_calls(calls)
 
 
+def test_operation_timeout_config():
+    assert celery_executor.OPERATION_TIMEOUT == 2
+
+
 if __name__ == '__main__':
     unittest.main()
