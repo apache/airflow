@@ -33,7 +33,6 @@
 ./airflow/providers/dindding/operators/dingding.py
 ./airflow/providers/discord/operators/discord_webhook.py
 ./airflow/providers/apache/druid/operators/druid.py
-./airflow/providers/amazon/aws/operators/emr_add_steps.py
 ./airflow/providers/amazon/aws/operators/emr_create_job_flow.py
 ./airflow/providers/amazon/aws/operators/emr_terminate_job_flow.py
 ./airflow/providers/microsoft/azure/operators/file_to_wasb.py

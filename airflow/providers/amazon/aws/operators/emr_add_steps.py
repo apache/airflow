@@ -57,7 +57,7 @@ class EmrAddStepsOperator(BaseOperator):
             *args, **kwargs):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        if not ((job_flow_id is None) ^ (job_flow_name is None)):
+        if not (job_flow_id is None) ^ (job_flow_name is None):
             raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
         super().__init__(*args, **kwargs)
         steps = steps or []
