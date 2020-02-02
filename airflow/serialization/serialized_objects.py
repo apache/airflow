@@ -44,6 +44,7 @@ BUILTIN_OPERATOR_EXTRA_LINKS: List[str] = [
     "airflow.providers.qubole.operators.qubole.QDSLink"
 ]
 
+
 class BaseSerialization:
     """BaseSerialization provides utils for serialization."""
 
