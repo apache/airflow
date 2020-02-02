@@ -83,4 +83,4 @@ with DAG(
         dag=dag,
     )
 
-    create_template > inspect_content > delete_template
+    create_template >> inspect_content >> delete_template
