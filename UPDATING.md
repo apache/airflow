@@ -61,7 +61,7 @@ https://developers.google.com/style/inclusive-documentation
 
 ### Drop plugin support for stat_name_handler
 
-In previous, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
+In previous version, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
 option in `[scheduler]` section to achieve the same effect.
 
 If your plugin looked like this and was available through the `test_plugin` path:
