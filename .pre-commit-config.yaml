@@ -252,7 +252,7 @@ repos:
       - id: daysago-import-check
         language: pygrep
         name: Make sure days_ago is imported from airflow.utils.dates
-        entry: "(airflow\\.|)utils\\.dates\\.days_ago"
+        entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
         files: \.py$
         pass_filenames: true
       - id: build
