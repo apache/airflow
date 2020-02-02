@@ -21,8 +21,7 @@ This is an example dag for using the Kubernetes Executor.
 """
 import os
 
-from libs.helper import print_stuff
-
+from airflow.example_dags.libs.helper import print_stuff
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
