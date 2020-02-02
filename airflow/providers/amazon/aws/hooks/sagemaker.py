@@ -332,7 +332,7 @@ class SageMakerHook(AwsHook):
             billable_time = \
                 (describe_response['TrainingEndTime'] - describe_response['TrainingStartTime']) * \
                 describe_response['ResourceConfig']['InstanceCount']
-            self.log.info('Billable seconds:{}'.format(int(billable_time.total_seconds()) + 1))
+            self.log.info('Billable seconds: %d', int(billable_time.total_seconds()) + 1)
 
         return response
 
@@ -635,7 +635,7 @@ class SageMakerHook(AwsHook):
                 response = describe_function(job_name)
                 status = response[key]
                 self.log.info('Job still running for %s seconds... '
-                              'current status is %s' % (sec, status))
+                              'current status is %s', sec, status)
             except KeyError:
                 raise AirflowException('Could not get status of the SageMaker job')
             except ClientError:
@@ -738,4 +738,4 @@ class SageMakerHook(AwsHook):
                 raise AirflowException('Error training {}: {} Reason: {}'.format(job_name, status, reason))
             billable_time = (last_description['TrainingEndTime'] - last_description['TrainingStartTime']) \
                 * instance_count
-            self.log.info('Billable seconds:{}'.format(int(billable_time.total_seconds()) + 1))
+            self.log.info('Billable seconds: %d', int(billable_time.total_seconds()) + 1)
