@@ -1010,7 +1010,7 @@ class TestSchedulerJob(unittest.TestCase):
             old_children)
         self.assertFalse(current_children)
 
-    @mock.patch('airflow.stats.Stats.incr')
+    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
     def test_process_executor_events(self, mock_stats_incr):
         dag_id = "test_process_executor_events"
         dag_id2 = "test_process_executor_events_2"
