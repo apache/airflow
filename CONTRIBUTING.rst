@@ -142,9 +142,9 @@ these guidelines:
     ticket. The JIRA link should also be added to the PR description. In case of documentation only changes
     the JIRA ticket is not necessary.
 
--   Preface your commit's subject & PR title with **[AIRFLOW-XXXX] COMMIT_MSG** where *XXXX*
+-   Preface your commit's subject & PR title with **[AIRFLOW-NNNN] COMMIT_MSG** where *NNNN*
     is the JIRA number. For example: [AIRFLOW-5574] Fix Google Analytics script loading. In case of
-    documentation only changes you can omit JIRA issue and leave the "XXXX".
+    documentation only changes you should put "[AIRFLOW-XXXX]" instead.
     We compose Airflow release notes from all commit titles in a release. By placing the JIRA number in the
     commit title and hence in the release notes, we let Airflow users look into
     JIRA and GitHub PRs for more details about a particular change.
