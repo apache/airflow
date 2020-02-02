@@ -73,7 +73,6 @@
 ./airflow/providers/mysql/operators/vertica_to_mysql.py
 ./airflow/providers/microsoft/azure/operators/wasb_delete_blob.py
 ./airflow/providers/microsoft/winrm/operators/winrm.py
-./airflow/providers/amazon/aws/sensors/glue_catalog_partition.py
 ./airflow/providers/microsoft/azure/sensors/azure_cosmos.py
 ./airflow/sensors/bash.py
 ./airflow/providers/celery/sensors/celery_queue.py

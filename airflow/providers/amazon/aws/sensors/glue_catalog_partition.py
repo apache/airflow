@@ -66,6 +66,7 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
+        self.hook = None
 
     def poke(self, context):
         """
@@ -84,10 +85,8 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         """
         Gets the AwsGlueCatalogHook
         """
-        if not hasattr(self, 'hook'):
+        if self.hook is None:
             from airflow.providers.amazon.aws.hooks.glue_catalog import AwsGlueCatalogHook
-            self.hook = AwsGlueCatalogHook(
-                aws_conn_id=self.aws_conn_id,
-                region_name=self.region_name)
+            self.hook = AwsGlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
         return self.hook
