@@ -640,30 +640,27 @@ function run_flake8() {
 
     if [[ "${#FILES[@]}" == "0" ]]; then
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_flake8.sh" \
             "${AIRFLOW_CI_IMAGE}" \
-            "${FILES[@]}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_flake8.sh" "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
 }
@@ -682,31 +679,29 @@ function run_bats_tests() {
 
 function run_docs() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
-            --entrypoint \
-            "/opt/airflow/docs/build.sh" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/docs/build.sh" \
             | tee -a "${OUTPUT_LOG}"
 }
 
 function run_check_license() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_check_licence.sh" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_check_licence.sh" \
             | tee -a "${OUTPUT_LOG}"
 }
 
@@ -714,31 +709,27 @@ function run_mypy() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_mypy.sh" \
             "${AIRFLOW_CI_IMAGE}" \
-            "airflow" "tests" "docs" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "airflow" "tests" "docs" \
             | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init" \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_mypy.sh" \
             --rm \
             "${AIRFLOW_CI_IMAGE}" \
-            "${FILES[@]}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
 }
@@ -747,30 +738,27 @@ function run_pylint_main() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init" \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             "${AIRFLOW_CI_IMAGE}" \
-            "${FILES[@]}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
 }
@@ -780,30 +768,27 @@ function run_pylint_tests() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
             "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
         docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --init \
+            --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
             --env AIRFLOW_CI_SILENT \
             --env HOST_USER_ID="$(id -ur)" \
             --env HOST_GROUP_ID="$(id -gr)" \
             --rm \
-            --entrypoint \
-            "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" \
             "${AIRFLOW_CI_IMAGE}" \
-            "${FILES[@]}" \
+            "--" "/opt/airflow/scripts/ci/in_container/run_pylint_tests.sh" "${FILES[@]}" \
             | tee -a "${OUTPUT_LOG}"
     fi
 }
