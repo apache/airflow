@@ -61,8 +61,7 @@ class MongoToS3Operator(BaseOperator):
         self.mongo_collection = mongo_collection
         # Grab query and determine if we need to run an aggregate pipeline
         self.mongo_query = mongo_query
-        self.is_pipeline = True if isinstance(
-            self.mongo_query, list) else False
+        self.is_pipeline = isinstance(self.mongo_query, list)
 
         # S3 Settings
         self.s3_bucket = s3_bucket

@@ -37,7 +37,6 @@
 ./airflow/providers/grpc/operators/grpc.py
 ./airflow/providers/jenkins/operators/jenkins_job_trigger.py
 ./airflow/providers/jira/operators/jira.py
-./airflow/providers/amazon/aws/operators/mongo_to_s3.py
 ./airflow/providers/opsgenie/operators/opsgenie_alert.py
 ./airflow/providers/microsoft/azure/operators/oracle_to_azure_data_lake_transfer.py
 ./airflow/providers/oracle/operators/oracle_to_oracle_transfer.py
