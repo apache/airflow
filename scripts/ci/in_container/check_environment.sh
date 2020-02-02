@@ -98,9 +98,6 @@ function check_integration {
             echo
             break
         else
-            echo
-            echo "Sleeping! ${MAX_CHECK} retries left!"
-            echo
             sleep 1
         fi
     done
