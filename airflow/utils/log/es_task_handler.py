@@ -181,7 +181,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             try:
                 metadata['max_offset'] = s[max_log_line - 1].execute()[-1].offset if max_log_line > 0 else 0
             except Exception:
-                self.log.exception('Could not get current log size with log_id: {}'.format(log_id))
+                self.log.exception('Could not get current log size with log_id: %s', log_id)
 
         logs = []
         if max_log_line != 0:

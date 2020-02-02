@@ -791,7 +791,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     self.kube_scheduler.run_next(task)
                 except ApiException as e:
                     self.log.warning('ApiException when attempting to run task, re-queueing. '
-                                     'Message: %s' % json.loads(e.body)['message'])
+                                     'Message: %s', json.loads(e.body)['message'])
                     self.task_queue.put(task)
                 except HTTPError as e:
                     self.log.warning('HTTPError when attempting to run task, re-queueing. '

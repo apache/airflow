@@ -44,6 +44,7 @@
 
 from future.standard_library import install_aliases
 
+import logging
 import os
 
 from functools import wraps
@@ -61,14 +62,13 @@ import kerberos
 from requests_kerberos import HTTPKerberosAuth
 
 from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 install_aliases()
 # pylint: disable=c-extension-no-member
 CLIENT_AUTH = HTTPKerberosAuth(service='airflow')
-
-LOG = LoggingMixin().log
 
 
 class KerberosService:  # pylint: disable=too-few-public-methods
@@ -87,7 +87,7 @@ def init_app(app):
     hostname = app.config.get('SERVER_NAME')
     if not hostname:
         hostname = getfqdn()
-    LOG.info("Kerberos: hostname %s", hostname)
+    log.info("Kerberos: hostname %s", hostname)
 
     service = 'airflow'
 
@@ -97,12 +97,12 @@ def init_app(app):
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
 
     try:
-        LOG.info("Kerberos init: %s %s", service, hostname)
+        log.info("Kerberos init: %s %s", service, hostname)
         principal = kerberos.getServerPrincipalDetails(service, hostname)
     except kerberos.KrbError as err:
-        LOG.warning("Kerberos: %s", err)
+        log.warning("Kerberos: %s", err)
     else:
-        LOG.info("Kerberos API: server is %s", principal)
+        log.info("Kerberos API: server is %s", principal)
 
 
 def _unauthorized():

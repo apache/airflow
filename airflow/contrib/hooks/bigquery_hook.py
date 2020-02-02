@@ -21,9 +21,9 @@
 This module contains a BigQuery Hook, as well as a very basic PEP 249
 implementation for BigQuery.
 """
-
-import time
+import logging
 import six
+import time
 from builtins import range
 from copy import deepcopy
 from six import iteritems
@@ -42,6 +42,8 @@ from pandas_gbq import read_gbq
 from pandas_gbq.gbq import \
     _test_google_api_imports as gbq_test_google_api_imports
 from pandas_gbq.gbq import GbqConnector
+
+log = logging.getLogger(__name__)
 
 
 class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
@@ -2233,7 +2235,6 @@ def _split_tablename(table_input, default_project_id, var_name=None):
 
     if project_id is None:
         if var_name is not None:
-            log = LoggingMixin().log
             log.info(
                 'Project not included in %s: %s; using project "%s"',
                 var_name, table_input, default_project_id

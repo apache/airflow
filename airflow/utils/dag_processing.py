@@ -61,6 +61,8 @@ from airflow.utils.state import State
 if six.PY2:
     ConnectionError = IOError
 
+log = logging.getLogger(__name__)
+
 
 class SimpleDag(BaseDag):
     """
@@ -367,7 +369,6 @@ def list_py_file_paths(directory, safe_mode=conf.getboolean('core', 'DAG_DISCOVE
 
                     file_paths.append(file_path)
                 except Exception:
-                    log = LoggingMixin().log
                     log.exception("Error while examining %s", f)
     if include_examples:
         import airflow.example_dags

@@ -29,7 +29,7 @@ import cattr
 import pendulum
 from dateutil import relativedelta
 
-from airflow import DAG, AirflowException, LoggingMixin
+from airflow import DAG, AirflowException
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -45,6 +45,8 @@ except ImportError:
 
 if TYPE_CHECKING:
     from inspect import Parameter
+
+log = logging.getLogger(__name__)
 
 
 class BaseSerialization:
@@ -212,10 +214,10 @@ class BaseSerialization:
                 return cls._encode(
                     [cls._serialize(v) for v in var], type_=DAT.TUPLE)
             else:
-                LOG.debug('Cast type %s to str in serialization.', type(var))
+                log.debug('Cast type %s to str in serialization.', type(var))
                 return str(var)
         except Exception:  # pylint: disable=broad-except
-            LOG.warning('Failed to stringify.', exc_info=True)
+            log.warning('Failed to stringify.', exc_info=True)
             return FAILED
 
     @classmethod
@@ -618,8 +620,6 @@ class SerializedDAG(DAG, BaseSerialization):
             raise ValueError("Unsure how to deserialize version {!r}".format(ver))
         return cls.deserialize_dag(serialized_obj['dag'])
 
-
-LOG = LoggingMixin().log
 
 # Serialization failure returns 'failed'.
 FAILED = 'serialization_failed'

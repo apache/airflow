@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.utils.log.logging_mixin import LoggingMixin
+import logging
+
 from airflow.contrib.hooks.qubole_hook import QuboleHook
 from airflow.exceptions import AirflowException
 from qds_sdk.commands import Command
@@ -30,6 +31,9 @@ except ImportError:
 
 COL_DELIM = '\t'
 ROW_DELIM = '\r\n'
+
+
+log = logging.getLogger(__name__)
 
 
 def isint(value):
@@ -92,7 +96,6 @@ class QuboleCheckHook(QuboleHook):
             cmd = Command.find(cmd_id)
             if cmd is not None:
                 if cmd.status == 'running':
-                    log = LoggingMixin().log
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
@@ -104,7 +107,6 @@ class QuboleCheckHook(QuboleHook):
         return record_list
 
     def get_query_results(self):
-        log = LoggingMixin().log
         if self.cmd is not None:
             cmd_id = self.cmd.id
             log.info("command id: " + str(cmd_id))

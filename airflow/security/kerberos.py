@@ -32,18 +32,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Kerberos security provider"""
-
+import logging
 import socket
 import subprocess
 import sys
 import time
 
-from airflow import LoggingMixin
 from airflow.configuration import conf
 
 NEED_KRB181_WORKAROUND = None
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def renew_from_kt(principal, keytab):

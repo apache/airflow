@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import logging
 from typing import Any
 
 import six
@@ -29,7 +30,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 import airflow
-from airflow import models, version, LoggingMixin
+from airflow import models, version
 from airflow.configuration import conf
 from airflow.models.connection import Connection
 from airflow.settings import Session, STATE_COLORS
@@ -41,6 +42,7 @@ from airflow import settings
 from airflow.utils.net import get_hostname
 
 csrf = CSRFProtect()
+log = logging.getLogger(__name__)
 
 
 def create_app(config=None, testing=False):
@@ -152,7 +154,6 @@ def create_app(config=None, testing=False):
 
         def integrate_plugins():
             """Integrate plugins to the context"""
-            log = LoggingMixin().log
             from airflow.plugins_manager import (
                 admin_views, flask_blueprints, menu_links)
             for v in admin_views:

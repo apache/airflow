@@ -46,18 +46,17 @@ class Variable(Base, LoggingMixin):
         return '{} : {}'.format(self.key, self._val)
 
     def get_val(self):
-        log = LoggingMixin().log
         if self._val is not None and self.is_encrypted:
             try:
                 fernet = get_fernet()
                 return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
             except InvalidFernetToken:
-                log.error("Can't decrypt _val for key={}, invalid token "
-                          "or value".format(self.key))
+                self.log.error("Can't decrypt _val for key={}, invalid token "
+                               "or value".format(self.key))
                 return None
             except Exception:
-                log.error("Can't decrypt _val for key={}, FERNET_KEY "
-                          "configuration missing".format(self.key))
+                self.log.error("Can't decrypt _val for key={}, FERNET_KEY "
+                               "configuration missing".format(self.key))
                 return None
         else:
             return self._val

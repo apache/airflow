@@ -95,7 +95,7 @@ api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
                                auth=api.API_AUTH.api_auth.CLIENT_AUTH)
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 DAGS_FOLDER = settings.DAGS_FOLDER
 

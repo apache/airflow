@@ -26,15 +26,17 @@ for other uses.
 NOTE:   this hook also relies on the simple_salesforce package:
         https://github.com/simple-salesforce/simple-salesforce
 """
+import json
+import logging
+import time
+
 from simple_salesforce import Salesforce
 from airflow.hooks.base_hook import BaseHook
 
-import json
-
 import pandas as pd
-import time
 
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 class SalesforceHook(BaseHook):
@@ -176,7 +178,6 @@ class SalesforceHook(BaseHook):
         try:
             col = pd.to_datetime(col)
         except ValueError:
-            log = LoggingMixin().log
             log.warning(
                 "Could not convert field to timestamps: %s", col.name
             )

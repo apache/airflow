@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 import re
 
 from googleapiclient.errors import HttpError
@@ -24,9 +24,8 @@ from airflow.contrib.hooks.gcp_mlengine_hook import MLEngineHook
 from airflow.exceptions import AirflowException
 from airflow.operators import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def _normalize_mlengine_job_id(job_id):

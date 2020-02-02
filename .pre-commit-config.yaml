@@ -286,6 +286,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^common/_common_values.sh$|^breeze-complete$
+      - id: incorrect-use-of-LoggingMixin
+        language: pygrep
+        name: Make sure LoggingMixin is not used alone
+        entry: "LoggingMixin\\(\\)"
+        files: \.py$
+        pass_filenames: true
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh 3.5 false

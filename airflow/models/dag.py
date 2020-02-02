@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import copy
 import functools
+import logging
 import os
 import pickle
 import re
@@ -67,6 +68,8 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator  # Avoid circular dependency
 
 install_aliases()
+
+log = logging.getLogger(__name__)
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -1601,7 +1604,6 @@ class DAG(BaseDag, LoggingMixin):
         :type expiration_date: datetime
         :return: None
         """
-        log = LoggingMixin().log
         for dag in session.query(
                 DagModel).filter(DagModel.last_scheduler_run < expiration_date,
                                  DagModel.is_active).all():
@@ -1899,7 +1901,6 @@ class DagModel(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        log = LoggingMixin().log
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ",
                   cls.__tablename__)
         dag_models = session.query(cls).all()

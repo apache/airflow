@@ -28,6 +28,7 @@ import copy
 import errno
 from future import standard_library
 import multiprocessing
+import logging
 import os
 import shlex
 import six
@@ -41,11 +42,10 @@ import yaml
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 standard_library.install_aliases()
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 # show Airflow's deprecation warnings
 if not sys.warnoptions:

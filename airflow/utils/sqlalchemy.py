@@ -23,6 +23,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
+import logging
 import os
 import json
 import pendulum
@@ -32,9 +33,8 @@ from sqlalchemy import event, exc
 from sqlalchemy.types import Text, DateTime, TypeDecorator
 
 from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 utc = pendulum.timezone('UTC')
 
 using_mysql = conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql')

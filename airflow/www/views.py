@@ -65,11 +65,9 @@ from wtforms import (
 import nvd3
 
 import airflow
-from airflow import LoggingMixin, configuration
+from airflow import configuration
 from airflow.configuration import conf
-from airflow import models
-from airflow import settings
-from airflow import jobs
+from airflow import jobs, models, settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_running,
                                                         set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
@@ -105,6 +103,8 @@ logout_user = airflow.login.logout_user
 FILTER_BY_OWNER = False
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
+
+log = logging.getLogger(__name__)
 
 if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
     # filter_by_owner if authentication is enabled and filter_by_owner is true
@@ -2790,7 +2790,6 @@ class XComView(wwwutils.SuperUserMixin, AirflowModelView):
             try:
                 model.value = json.dumps(model.value).encode('UTF-8')
             except ValueError:
-                log = LoggingMixin().log
                 log.error("Could not serialize the XCOM value into JSON. "
                           "If you are using pickles instead of JSON "
                           "for XCOM, then you need to enable pickle "

@@ -24,14 +24,14 @@ from __future__ import unicode_literals
 
 from functools import wraps
 
+import logging
 import os
 import contextlib
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager

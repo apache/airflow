@@ -29,6 +29,7 @@ except ImportError:
     from collections import Iterable as CollectionIterable
 
 import importlib
+import logging
 import os
 import smtplib
 
@@ -40,7 +41,8 @@ from typing import Iterable, List, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 def send_email(to, subject, html_content,
@@ -107,7 +109,6 @@ def send_email_smtp(to, subject, html_content, files=None,
 
 
 def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
-    log = LoggingMixin().log
 
     SMTP_HOST = conf.get('smtp', 'SMTP_HOST')
     SMTP_PORT = conf.getint('smtp', 'SMTP_PORT')
