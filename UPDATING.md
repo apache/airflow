@@ -59,6 +59,28 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Drop plugin support for stat_name_handler
+
+In previous, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
+option in `[scheduler]` section to achieve the same effect.
+
+If your plugin looked like this and was available through the `test_plugin` path:
+```python
+def my_stat_name_handler(stat):
+    return stat
+
+class AirflowTestPlugin(AirflowPlugin):
+    name = "test_plugin"
+    stat_name_handler = my_stat_name_handler
+```
+then your `airflow.cfg` file should look like this:
+```ini
+[scheduler]
+stat_name_handler=test_plugin.my_stat_name_handler
+```
+
+This change is intended to simplify the statsd configuration.
+
 ### Failure callback will be called when task is marked failed
 When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
 

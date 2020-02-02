@@ -23,10 +23,11 @@ import socket
 import string
 import textwrap
 from functools import wraps
-from typing import Any
+from typing import Any, Callable
 
 from airflow.configuration import conf
 from airflow.exceptions import InvalidStatsNameException
+from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class DummyStatsLogger:
 ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + '_.-')
 
 
-def stat_name_default_handler(stat_name, max_length=250):
+def stat_name_default_handler(stat_name, max_length=250) -> str:
     if not isinstance(stat_name, str):
         raise InvalidStatsNameException('The stat_name has to be a string')
     if len(stat_name) > max_length:
@@ -70,20 +71,25 @@ def stat_name_default_handler(stat_name, max_length=250):
     return stat_name
 
 
-def validate_stat(f):
-    @wraps(f)
+def get_current_handle_stat_name_func() -> Callable[[str], str]:
+    stat_name_handler_name = conf.get('scheduler', 'stat_name_handler')
+    if stat_name_handler_name:
+        handle_stat_name_func = import_string(stat_name_handler_name)
+    else:
+        handle_stat_name_func = stat_name_default_handler
+    return handle_stat_name_func
+
+
+def validate_stat(fn):
+    @wraps(fn)
     def wrapper(_self, stat, *args, **kwargs):
         try:
-            from airflow.plugins_manager import stat_name_handler
-            if stat_name_handler:
-                handle_stat_name_func = stat_name_handler
-            else:
-                handle_stat_name_func = stat_name_default_handler
+            handle_stat_name_func = get_current_handle_stat_name_func()
             stat_name = handle_stat_name_func(stat)
+            return fn(_self, stat_name, *args, **kwargs)
         except InvalidStatsNameException:
-            log.warning('Invalid stat name: {}.'.format(stat), exc_info=True)
+            log.warning('Invalid stat name: %s.', stat, exc_info=True)
             return
-        return f(_self, stat_name, *args, **kwargs)
 
     return wrapper
 

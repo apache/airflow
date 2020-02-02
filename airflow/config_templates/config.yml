@@ -1375,6 +1375,17 @@
       type: string
       example: ~
       default: ""
+    - name: stat_name_handler
+      description: |
+        A function that validate the statsd stat name, apply changes to the stat name if necessary and return
+        the transformed stat name.
+
+        The function should have the following signature:
+        def func_name(stat_name: str) -> str:
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     - name: max_threads
       description: |
         The scheduler can run multiple threads in parallel to schedule dags.

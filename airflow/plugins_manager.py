@@ -24,7 +24,7 @@ import os
 import re
 import sys
 import types
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 import pkg_resources
 
@@ -52,13 +52,6 @@ class AirflowPlugin:
     menu_links: List[Any] = []
     appbuilder_views: List[Any] = []
     appbuilder_menu_items: List[Any] = []
-
-    # A function that validate the statsd stat name, apply changes
-    # to the stat name if necessary and return the transformed stat name.
-    #
-    # The function should have the following signature:
-    # def func_name(stat_name: str) -> str:
-    stat_name_handler: Optional[Callable[[str], str]] = None
 
     # A list of global operator extra links that can redirect users to
     # external systems. These extra links will be available on the
@@ -203,7 +196,6 @@ flask_blueprints: List[Any] = []
 menu_links: List[Any] = []
 flask_appbuilder_views: List[Any] = []
 flask_appbuilder_menu_links: List[Any] = []
-stat_name_handler: Any = None
 global_operator_extra_links: List[Any] = []
 operator_extra_links: List[Any] = []
 registered_operator_link_classes: Dict[str, Type] = {}
@@ -213,7 +205,6 @@ Used by the DAG serialization code to only allow specific classes to be created
 during deserialization
 """
 
-stat_name_handlers = []
 for p in plugins:
     if not p.name:
         raise AirflowPluginException("Plugin name is missing.")
@@ -236,8 +227,6 @@ for p in plugins:
         'name': p.name,
         'blueprint': bp
     } for bp in p.flask_blueprints])
-    if p.stat_name_handler:
-        stat_name_handlers.append(p.stat_name_handler)
     global_operator_extra_links.extend(p.global_operator_extra_links)
     operator_extra_links.extend(list(p.operator_extra_links))
 
@@ -246,13 +235,6 @@ for p in plugins:
                        link.__class__.__name__): link.__class__
         for link in p.operator_extra_links
     })
-
-if len(stat_name_handlers) > 1:
-    raise AirflowPluginException(
-        'Specified more than one stat_name_handler ({}) '
-        'is not allowed.'.format(stat_name_handlers))
-
-stat_name_handler = stat_name_handlers[0] if len(stat_name_handlers) == 1 else None
 
 
 def integrate_operator_plugins() -> None:
