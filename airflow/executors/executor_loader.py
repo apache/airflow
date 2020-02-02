@@ -73,7 +73,6 @@ class ExecutorLoader:
             return executor()
         else:
             # Load plugins here for executors as at that time the plugins might not have been initialized yet
-            # TODO: verify the above and remove two lines below in case plugins are always initialized first
             from airflow import plugins_manager
             plugins_manager.integrate_executor_plugins()
             executor_path = executor_name.split('.')

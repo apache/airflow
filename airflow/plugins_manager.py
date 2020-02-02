@@ -327,6 +327,5 @@ def integrate_plugins() -> None:
     integrate_operator_plugins()
     integrate_sensor_plugins()
     integrate_hook_plugins()
-    integrate_executor_plugins()
     integrate_macro_plugins()
     register_inbuilt_operator_links()
