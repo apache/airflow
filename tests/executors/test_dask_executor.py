@@ -151,7 +151,7 @@ class TestDaskExecutorTLS(TestBaseDask):
 
     @mock.patch('airflow.executors.dask_executor.DaskExecutor.sync')
     @mock.patch('airflow.executors.base_executor.BaseExecutor.trigger_tasks')
-    @mock.patch('airflow.stats.Stats.gauge')
+    @mock.patch('airflow.executors.base_executor.Stats.gauge')
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = DaskExecutor()
         executor.heartbeat()
