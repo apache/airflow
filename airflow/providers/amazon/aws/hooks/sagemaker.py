@@ -33,6 +33,10 @@ from airflow.utils import timezone
 
 
 class LogState:
+    """
+    Enum-style class holding all possible states of CloudWatch log streams.
+    https://sagemaker.readthedocs.io/en/stable/session.html#sagemaker.session.LogState
+    """
     STARTING = 1
     WAIT_IN_PROGRESS = 2
     TAILING = 3
@@ -47,14 +51,14 @@ Position = collections.namedtuple('Position', ['timestamp', 'skip'])
 
 def argmin(arr, f):
     """Return the index, i, in arr that minimizes f(arr[i])"""
-    m = None
-    i = None
+    min_value = None
+    min_idx = None
     for idx, item in enumerate(arr):
         if item is not None:
-            if m is None or f(item) < m:
-                m = f(item)
-                i = idx
-    return i
+            if min_value is None or f(item) < min_value:
+                min_value = f(item)
+                min_idx = idx
+    return min_idx
 
 
 def secondary_training_status_changed(current_job_description, prev_job_description):
@@ -276,12 +280,12 @@ class SageMakerHook(AwsHook):
         event_iters = [self.logs_hook.get_log_events(log_group, s, positions[s].timestamp, positions[s].skip)
                        for s in streams]
         events = []
-        for s in event_iters:
-            if not s:
+        for event_stream in event_iters:
+            if not event_stream:
                 events.append(None)
                 continue
             try:
-                events.append(next(s))
+                events.append(next(event_stream))
             except StopIteration:
                 events.append(None)
 
@@ -650,7 +654,7 @@ class SageMakerHook(AwsHook):
 
             if max_ingestion_time and sec > max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
-                raise AirflowException('SageMaker job took more than %s seconds', max_ingestion_time)
+                raise AirflowException(f'SageMaker job took more than {max_ingestion_time} seconds')
 
         self.log.info('SageMaker Job Compeleted')
         response = describe_function(job_name)
@@ -729,7 +733,7 @@ class SageMakerHook(AwsHook):
 
             if max_ingestion_time and sec > max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
-                raise AirflowException('SageMaker job took more than %s seconds', max_ingestion_time)
+                raise AirflowException(f'SageMaker job took more than {max_ingestion_time} seconds')
 
         if wait_for_completion:
             status = last_description['TrainingJobStatus']
