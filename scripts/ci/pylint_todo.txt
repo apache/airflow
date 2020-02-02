@@ -43,7 +43,6 @@
 ./airflow/providers/qubole/operators/qubole_check.py
 ./airflow/providers/redis/operators/redis_publish.py
 ./airflow/providers/google/cloud/operators/s3_to_gcs.py
-./airflow/providers/amazon/aws/operators/sagemaker_transform.py
 ./airflow/providers/segment/operators/segment_track_event.py
 ./airflow/providers/slack/operators/slack_webhook.py
 ./airflow/providers/apache/spark/operators/spark_jdbc.py

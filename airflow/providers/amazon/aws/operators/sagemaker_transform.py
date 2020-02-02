@@ -78,6 +78,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.create_integer_fields()
 
     def create_integer_fields(self):
+        """Set fields which should be casted to integers."""
         self.integer_fields = [
             ['Transform', 'TransformResources', 'InstanceCount'],
             ['Transform', 'MaxConcurrentTransforms'],
