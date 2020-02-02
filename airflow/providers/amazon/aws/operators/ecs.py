@@ -215,8 +215,7 @@ class ECSOperator(BaseOperator):  # pylint: disable=too-many-instance-attributes
             # This is a `stoppedReason` that indicates a task has not
             # successfully finished, but there is no other indication of failure
             # in the response.
-            # See,
-            # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html  # noqa: E501
+            # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html
             if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.',
                         task.get('stoppedReason', '')):
                 raise AirflowException(
