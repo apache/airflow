@@ -65,7 +65,6 @@ def run_command(command):
     """
     Runs command and returns stdout
     """
-    print("Running command: {}".format(command))
     process = subprocess.Popen(
         shlex.split(command),
         stdout=subprocess.PIPE,
