@@ -81,11 +81,11 @@ class LoggingMixin(object):
 
 
 class StreamLogWriter(object):
-    encoding = False
-
     """
     Allows to redirect stdout and stderr to logger
     """
+    encoding = None
+
     def __init__(self, logger, level):
         """
         :param log: The log level method to write to, ie. log.debug, log.warning
