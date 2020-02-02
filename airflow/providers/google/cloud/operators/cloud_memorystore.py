@@ -683,7 +683,6 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
 
     template_fields = (
         "memory_size_gb",
-        "instance",
         "location",
         "instance_id",
         "project_id",
