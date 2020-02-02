@@ -249,6 +249,12 @@ repos:
         entry: "LoggingMixin\\(\\)"
         files: \.py$
         pass_filenames: true
+      - id: daysago-import-check
+        language: pygrep
+        name: Make sure days_ago is imported from airflow.utils.dates
+        entry: "(airflow\\.|)utils\\.dates\\.days_ago"
+        files: \.py$
+        pass_filenames: true
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh
