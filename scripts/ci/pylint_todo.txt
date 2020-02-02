@@ -67,7 +67,6 @@
 ./airflow/providers/qubole/sensors/qubole.py
 ./airflow/providers/redis/sensors/redis_key.py
 ./airflow/providers/redis/sensors/redis_pub_sub.py
-./airflow/providers/amazon/aws/sensors/sagemaker_training.py
 ./airflow/providers/microsoft/azure/sensors/wasb.py
 ./airflow/sensors/weekday_sensor.py
 ./airflow/hooks/dbapi_hook.py

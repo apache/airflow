@@ -56,6 +56,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.log_resource_inited = False
 
     def init_log_resource(self, hook):
+        """Set tailing LogState for associated training job."""
         description = hook.describe_training_job(self.job_name)
         self.instance_count = description['ResourceConfig']['InstanceCount']
 
