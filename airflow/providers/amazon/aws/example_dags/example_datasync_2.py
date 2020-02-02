@@ -36,8 +36,9 @@ This DAG relies on the following environment variables:
 import json
 from os import getenv
 
-from airflow import models, utils
+from airflow import models
 from airflow.providers.amazon.aws.operators.datasync import AWSDataSyncOperator
+from airflow.utils.dates import days_ago
 
 # [START howto_operator_datasync_2_args]
 SOURCE_LOCATION_URI = getenv(
@@ -74,7 +75,7 @@ UPDATE_TASK_KWARGS = json.loads(
     getenv("UPDATE_TASK_KWARGS", default_update_task_kwargs)
 )
 
-default_args = {"start_date": utils.dates.days_ago(1)}
+default_args = {"start_date": days_ago(1)}
 # [END howto_operator_datasync_2_args]
 
 with models.DAG(
