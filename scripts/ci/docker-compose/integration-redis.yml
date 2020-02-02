@@ -18,7 +18,6 @@
 version: "2.2"
 services:
   redis:
-    init: true
     image: redis:5.0.1
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source

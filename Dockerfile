@@ -57,6 +57,7 @@ RUN curl --fail --location https://deb.nodesource.com/setup_10.x | bash - \
            apt-utils \
            build-essential \
            dirmngr \
+           dumb-init \
            freetds-bin \
            freetds-dev \
            git \
@@ -351,6 +352,9 @@ RUN \
         && pip uninstall --yes apache-airflow; \
     fi
 
+# Link dumb-init for backwards compatibility (so that older images also work)
+RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
+
 # Install NPM dependencies here. The NPM dependencies don't change that often and we already have pip
 # installed dependencies in case of CI optimised build, so it is ok to install NPM deps here
 # Rather than after setup.py is added.
@@ -429,6 +433,6 @@ ENV PATH="${HOME}:${PATH}"
 
 EXPOSE 8080
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint.sh"]
 
 CMD ["--help"]
