@@ -11,7 +11,6 @@
 ./airflow/providers/datadog/hooks/datadog.py
 ./airflow/providers/dingding/hooks/dingding.py
 ./airflow/providers/ddiscord/hooks/discord_webhook.py
-./airflow/providers/amazon/aws/hooks/emr.py
 ./airflow/hooks/filesystem.py
 ./airflow/providers/ftp/hooks/ftp.py
 ./airflow/providers/jenkins/hooks/jenkins.py

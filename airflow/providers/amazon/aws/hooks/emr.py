@@ -39,6 +39,16 @@ class EmrHook(AwsHook):
         return self.conn
 
     def get_cluster_id_by_name(self, emr_cluster_name, cluster_states):
+        """
+        Fetch id of EMR cluster with given name and (optional) states. Will return only if single id is found.
+
+        :param emr_cluster_name: Name of a cluster to find
+        :type emr_cluster_name: str
+        :param cluster_states: State(s) of cluster to find
+        :type cluster_states: list
+        :return: id of the EMR cluster
+        """
+
         conn = self.get_conn()
 
         response = conn.list_clusters(
@@ -54,7 +64,7 @@ class EmrHook(AwsHook):
             self.log.info('Found cluster name = %s id = %s', emr_cluster_name, cluster_id)
             return cluster_id
         elif len(matching_clusters) > 1:
-            raise AirflowException('More than one cluster found for name %s', emr_cluster_name)
+            raise AirflowException(f'More than one cluster found for name {emr_cluster_name}')
         else:
             self.log.info('No cluster found for name %s', emr_cluster_name)
             return None
