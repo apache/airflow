@@ -150,6 +150,10 @@ repos:
       - id: check-executables-have-shebangs
       - id: check-xml
       - id: trailing-whitespace
+      - id: fix-encoding-pragma
+        args:
+          - --remove
+        exclude: ^airflow/_vendor/.*$
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.4.4
     hooks:
