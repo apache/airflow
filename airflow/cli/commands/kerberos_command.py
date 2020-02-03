@@ -20,7 +20,7 @@ import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
-from airflow.security import kerberos as krb
+from airflow.security import kerberos_security as krb
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 

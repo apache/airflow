@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.grpc.hooks.grpc`."""
+"""This module is deprecated. Please use `airflow.providers.grpc.hooks.airflow_grpc`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.grpc.hooks.grpc import GrpcHook  # noqa
+from airflow.providers.grpc.hooks.airflow_grpc import GrpcHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.grpc.hooks.grpc`.",
+    "This module is deprecated. Please use `airflow.providers.grpc.hooks.airflow_grpc`.",
     DeprecationWarning, stacklevel=2
 )

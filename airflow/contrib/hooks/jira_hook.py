@@ -16,15 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.jira.hooks.jira`."""
+"""This module is deprecated. Please use `airflow.providers.jira.hooks.airflow_jira`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.jira.hooks.jira import JiraHook  # noqa
+from airflow.providers.jira.hooks.airflow_jira import JiraHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.jira.hooks.jira`.",
+    "This module is deprecated. Please use `airflow.providers.jira.hooks.airflow_jira`.",
     DeprecationWarning,
     stacklevel=2,
 )

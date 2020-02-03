@@ -47,6 +47,7 @@ services:
       - ../../../hooks:/opt/airflow/hooks:cached
       - ../../../logs:/root/airflow/logs:cached
       - ../../../pylintrc:/opt/airflow/pylintrc:cached
+      - ../../../pylint_plugins:/opt/airflow/pylint_plugins:cached
       - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
       - ../../../scripts:/opt/airflow/scripts:cached
       - ../../../scripts/ci/in_container/entrypoint_ci.sh:/entrypoint_ci.sh:cached

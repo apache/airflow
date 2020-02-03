@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -77,7 +78,7 @@ Foundation.
 
    * - `Apache Cassandra <http://cassandra.apache.org/>`__
      -
-     - :mod:`airflow.providers.apache.cassandra.hooks.cassandra`
+     - :mod:`airflow.providers.apache.cassandra.hooks.airflow_cassandra`
      -
      - :mod:`airflow.providers.apache.cassandra.sensors.record`,
        :mod:`airflow.providers.apache.cassandra.sensors.table`
@@ -129,7 +130,7 @@ Foundation.
 
    * - `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
      -
-     - :mod:`airflow.providers.apache.hdfs.hooks.hdfs`
+     - :mod:`airflow.providers.apache.hdfs.hooks.airflow_hdfs`
      -
      - :mod:`airflow.providers.apache.hdfs.sensors.hdfs`
 
@@ -864,9 +865,9 @@ These integrations allow you to perform various operations within various servic
 
    * - `Atlassian Jira <https://www.atlassian.com/pl/software/jira>`__
      -
-     - :mod:`airflow.providers.jira.hooks.jira`
+     - :mod:`airflow.providers.jira.hooks.airflow_jira`
      - :mod:`airflow.providers.jira.operators.jira`
-     - :mod:`airflow.providers.jira.sensors.jira`
+     - :mod:`airflow.providers.jira.sensors.airflow_jira`
 
    * - `Databricks <https://databricks.com/>`__
      -
@@ -878,7 +879,7 @@ These integrations allow you to perform various operations within various servic
      -
      - :mod:`airflow.providers.datadog.hooks.datadog`
      -
-     - :mod:`airflow.providers.datadog.sensors.datadog`
+     - :mod:`airflow.providers.datadog.sensors.airflow_datadog`
 
    * - `Pagerduty <https://www.pagerduty.com/>`__
      -
@@ -930,7 +931,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
      -
-     - :mod:`airflow.providers.cloudant.hooks.cloudant`
+     - :mod:`airflow.providers.cloudant.hooks.airflow_cloudant`
      -
      -
 
@@ -976,7 +977,7 @@ These integrations allow you to perform various operations within various servic
 
    * - `Snowflake <https://www.snowflake.com/>`__
      -
-     - :mod:`airflow.providers.snowflake.hooks.snowflake`
+     - :mod:`airflow.providers.snowflake.hooks.airflow_snowflake`
      - :mod:`airflow.providers.snowflake.operators.snowflake`
      -
 
@@ -1047,8 +1048,8 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Docker <https://docs.docker.com/install/>`__
      -
-     - :mod:`airflow.providers.docker.hooks.docker`
-     - :mod:`airflow.providers.docker.operators.docker`,
+     - :mod:`airflow.providers.docker.hooks.airflow_docker`
+     - :mod:`airflow.providers.docker.operators.docker_operator`,
        :mod:`airflow.providers.docker.operators.docker_swarm`
      -
 
@@ -1129,7 +1130,7 @@ These integrations allow you to perform various operations using various softwar
 
    * - `Redis <https://redis.io/>`__
      -
-     - :mod:`airflow.providers.redis.hooks.redis`
+     - :mod:`airflow.providers.redis.hooks.airflow_redis`
      - :mod:`airflow.providers.redis.operators.redis_publish`
      - :mod:`airflow.providers.redis.sensors.redis_pub_sub`,
        :mod:`airflow.providers.redis.sensors.redis_key`
@@ -1300,14 +1301,14 @@ communication protocols or interface.
 
    * - `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-gb/windows/win32/winrm/portal>`__
      -
-     - :mod:`airflow.providers.microsoft.winrm.hooks.winrm`
-     - :mod:`airflow.providers.microsoft.winrm.operators.winrm`
+     - :mod:`airflow.providers.microsoft.winrm.hooks.airflow_winrm`
+     - :mod:`airflow.providers.microsoft.winrm.operators.airflow_winrm`
      -
 
    * - `gRPC <https://grpc.io/>`__
      -
-     - :mod:`airflow.providers.grpc.hooks.grpc`
-     - :mod:`airflow.providers.grpc.operators.grpc`
+     - :mod:`airflow.providers.grpc.hooks.airflow_grpc`
+     - :mod:`airflow.providers.grpc.operators.airflow_grpc`
      -
 
 Transfer operators and hooks

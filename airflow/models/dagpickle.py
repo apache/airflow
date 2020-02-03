@@ -21,7 +21,7 @@ from sqlalchemy import Column, Integer, PickleType, Text
 
 from airflow.models.base import Base
 from airflow.utils import timezone
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy_utils import UtcDateTime
 
 
 class DagPickle(Base):

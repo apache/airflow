@@ -31,7 +31,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy_utils import UtcDateTime
 
 log = logging.getLogger(__name__)
 

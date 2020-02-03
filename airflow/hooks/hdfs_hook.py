@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.apache.hdfs.hooks.hdfs`."""
+"""This module is deprecated. Please use `airflow.providers.apache.hdfs.hooks.airflow_hdfs`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook, HDFSHookException  # noqa
+from airflow.providers.apache.hdfs.hooks.airflow_hdfs import HDFSHook, HDFSHookException  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.apache.hdfs.hooks.hdfs`.",
+    "This module is deprecated. Please use `airflow.providers.apache.hdfs.hooks.airflow_hdfs`.",
     DeprecationWarning, stacklevel=2
 )

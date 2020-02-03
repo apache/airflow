@@ -39,7 +39,7 @@ from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
-from airflow.utils.json import AirflowJsonEncoder
+from airflow.utils.json_encoder import AirflowJsonEncoder
 from airflow.utils.state import State
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
@@ -469,7 +469,7 @@ class CustomSQLAInterface(SQLAInterface):
         clean_column_names()
 
     def is_utcdatetime(self, col_name):
-        from airflow.utils.sqlalchemy import UtcDateTime
+        from airflow.utils.sqlalchemy_utils import UtcDateTime
 
         if col_name in self.list_columns:
             obj = self.list_columns[col_name].type

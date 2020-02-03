@@ -34,7 +34,7 @@ from sqlalchemy.pool import NullPool
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
 from airflow.utils.module_loading import import_string
-from airflow.utils.sqlalchemy import setup_event_handlers
+from airflow.utils.sqlalchemy_utils import setup_event_handlers
 
 log = logging.getLogger(__name__)
 

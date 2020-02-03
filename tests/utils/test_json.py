@@ -22,7 +22,7 @@ from datetime import date, datetime
 
 import numpy as np
 
-from airflow.utils import json as utils_json
+from airflow.utils import json_encoder as utils_json
 
 
 class TestAirflowJsonEncoder(unittest.TestCase):

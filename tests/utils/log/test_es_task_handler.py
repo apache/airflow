@@ -32,8 +32,7 @@ from airflow.utils import timezone
 from airflow.utils.log.es_task_handler import ElasticsearchTaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-
-from .elasticmock import elasticmock
+from tests.utils.log.elasticmock.elasticmock import elasticmock
 
 
 class TestElasticsearchTaskHandler(unittest.TestCase):

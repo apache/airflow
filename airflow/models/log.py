@@ -20,7 +20,7 @@ from sqlalchemy import Column, Index, Integer, String, Text
 
 from airflow.models.base import ID_LEN, Base
 from airflow.utils import timezone
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy_utils import UtcDateTime
 
 
 class Log(Base):

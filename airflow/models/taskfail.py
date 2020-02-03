@@ -19,7 +19,7 @@
 from sqlalchemy import Column, Index, Integer, String
 
 from airflow.models.base import ID_LEN, Base
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy_utils import UtcDateTime
 
 
 class TaskFail(Base):

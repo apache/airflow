@@ -32,8 +32,8 @@ from datetime import timedelta
 
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
-from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
+from airflow.providers.microsoft.winrm.hooks.airflow_winrm import WinRMHook
+from airflow.providers.microsoft.winrm.operators.airflow_winrm import WinRMOperator
 from airflow.utils.dates import days_ago
 
 default_args = {

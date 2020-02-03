@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.cloudant.hooks.cloudant`."""
+"""This module is deprecated. Please use `airflow.providers.cloudant.hooks.airflow_cloudant`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.cloudant.hooks.cloudant import CloudantHook  # noqa
+from airflow.providers.cloudant.hooks.airflow_cloudant import CloudantHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.cloudant.hooks.cloudant`.",
+    "This module is deprecated. Please use `airflow.providers.cloudant.hooks.airflow_cloudant`.",
     DeprecationWarning, stacklevel=2
 )

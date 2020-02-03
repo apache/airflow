@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.microsoft.winrm.operators.winrm`."""
+"""This module is deprecated. Please use `airflow.providers.microsoft.winrm.operators.airflow_winrm`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator  # noqa
+from airflow.providers.microsoft.winrm.operators.airflow_winrm import WinRMOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.microsoft.winrm.operators.winrm`.",
+    "This module is deprecated. Please use `airflow.providers.microsoft.winrm.operators.airflow_winrm`.",
     DeprecationWarning, stacklevel=2
 )

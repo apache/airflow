@@ -45,7 +45,7 @@ Default Connection IDs
 The following connection IDs are used by default.
 
 ``grpc_default``
-    Used by the :class:`~airflow.providers.grpc.hooks.grpc.GrpcHook`
+    Used by the :class:`~airflow.providers.grpc.hooks.airflow_grpc.GrpcHook`
     hook.
 
 Configuring the Connection

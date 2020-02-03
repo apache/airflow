@@ -42,6 +42,7 @@ from airflow.configuration import default_config_yaml
 
 try:
     import sphinx_airflow_theme  # pylint: disable=unused-import
+
     airflow_theme_is_available = True
 except ImportError:
     airflow_theme_is_available = False
@@ -259,7 +260,6 @@ pygments_style = 'sphinx'
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
 keep_warnings = True
-
 
 intersphinx_mapping = {
     'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
@@ -485,7 +485,7 @@ autoapi_ignore = [
     '*/airflow/contrib/sensors/*',
     '*/airflow/contrib/hooks/*',
     '*/airflow/contrib/operators/*',
-
+    '*/airflow/hooks/zendesk_hook',
     '*/node_modules/*',
     '*/migrations/*',
 ]
@@ -525,3 +525,91 @@ html_context = {
     'github_version': os.environ.get('GITHUB_TREE', None),
     'display_github': os.environ.get('GITHUB_TREE', None) is not None,
 }
+
+# Monkey-patching for implicit namespaces
+
+import autoapi.mappers.python.mapper  # isort:skip  # pylint: disable=wrong-import-position,wrong-import-order
+import autoapi.mappers.python.parser  # isort:skip  # pylint: disable=wrong-import-position,wrong-import-order
+# pylint: disable=redefined-outer-name
+
+
+def __namespace_autoapi_mapper__find_files(self, patterns, dirs, ignore):
+    for dir_ in dirs:
+        dir_root = os.path.abspath(os.path.join(dir_, os.pardir))
+        for path in self.find_files(patterns=patterns, dirs=[dir_], ignore=ignore):
+            yield dir_root, path
+
+
+def __namespace_autoapi_mapper_load(self, patterns, dirs, ignore=None):
+    """Load objects from the filesystem into the ``paths`` dictionary
+    Also include an attribute on the object, ``relative_path`` which is the
+    shortened, relative path the package/module
+    """
+    import sphinx
+    from sphinx.util.console import bold  # pylint: disable=no-name-in-module
+
+
+    dir_root_files = list(self._find_files(patterns, dirs, ignore))  # pylint: disable=protected-access
+    for dir_root, path in sphinx.util.status_iterator(
+        dir_root_files,
+        bold("[AutoAPI] [With Implicit Packages] Reading files... "),
+        length=len(dir_root_files),
+        stringify_func=(lambda x: x[1]),
+    ):
+        data = self.read_file(path=path, dir_root=dir_root)
+        if data:
+            data["relative_path"] = os.path.relpath(path, dir_root)
+            self.paths[path] = data
+
+def __namespace_autoapi_mapper_read_file(self, path, **kwargs):  # pylint: disable=unused-argument
+    dir_root = kwargs.get("dir_root")
+    try:
+        parsed_data = autoapi.mappers.python.parser.Parser().parse_file_in_namespace(path, dir_root)
+        return parsed_data
+    except (IOError, TypeError, ImportError):
+        autoapi.mappers.python.mapper.LOGGER.warning("Error reading file: {0}".format(path))
+    return None
+
+
+def __namespace_autoapi_parser_parse_file_in_namespace(self, path, dir_root):
+    return self._parse_file(  # pylint: disable=protected-access
+        path, lambda directory: os.path.abspath(directory) != dir_root
+    )
+
+
+def __namespace_autoapi_parser__parse_file(self, path, condition):
+    import astroid
+    import collections
+    directory, filename = os.path.split(path)
+    module_parts = []
+    if filename != "__init__.py":
+        module_part = os.path.splitext(filename)[0]
+        module_parts = [module_part]
+    module_parts = collections.deque(module_parts)
+    while directory and condition(directory):
+        directory, module_part = os.path.split(directory)
+        if module_part:
+            module_parts.appendleft(module_part)
+
+    module_name = ".".join(module_parts)
+    node = astroid.MANAGER.ast_from_file(path, module_name, source=True)
+    return self.parse(node)
+
+
+def __namespace_autoapi_parser_parse_file(self, path):
+    return self._parse_file(  # pylint: disable=protected-access
+        path,
+        lambda directory: os.path.isfile(os.path.join(directory, "__init__.py")),
+    )
+
+
+autoapi.mappers.python.mapper.PythonSphinxMapper._find_files = \
+    __namespace_autoapi_mapper__find_files  # pylint: disable=protected-access
+autoapi.mappers.python.mapper.PythonSphinxMapper.load = __namespace_autoapi_mapper_load
+autoapi.mappers.python.mapper.PythonSphinxMapper.read_file = __namespace_autoapi_mapper_read_file
+autoapi.mappers.python.parser.Parser.parse_file_in_namespace = \
+    __namespace_autoapi_parser_parse_file_in_namespace
+autoapi.mappers.python.parser.Parser.parse_file = \
+    __namespace_autoapi_parser_parse_file
+autoapi.mappers.python.parser.Parser._parse_file = \
+    __namespace_autoapi_parser__parse_file  # pylint: disable=protected-access

@@ -23,7 +23,7 @@ of a table in a Cassandra cluster.
 
 from typing import Dict
 
-from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
+from airflow.providers.apache.cassandra.hooks.airflow_cassandra import CassandraHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

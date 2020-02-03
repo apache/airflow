@@ -30,7 +30,7 @@ from airflow.utils.session import create_session
 # To move it to a shared module.
 def make_example_dags(module):
     """Loads DAGs from a module for test."""
-    dagbag = DagBag(module.__path__[0])
+    dagbag = DagBag(module.__path__._path[0])
     return dagbag.dags
 
 

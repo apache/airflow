@@ -21,7 +21,7 @@
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.jira.sensors.jira import JiraSensor, JiraTicketSensor  # noqa
+from airflow.providers.jira.sensors.airflow_jira import JiraSensor, JiraTicketSensor  # noqa
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.jira.sensors.jira`.",

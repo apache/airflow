@@ -54,7 +54,7 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import Interval, UtcDateTime
+from airflow.utils.sqlalchemy_utils import Interval, UtcDateTime
 from airflow.utils.state import State
 
 log = logging.getLogger(__name__)

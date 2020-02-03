@@ -19,7 +19,7 @@
 from sqlalchemy import Column, Integer, String, Text
 
 from airflow.models.base import Base
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy_utils import UtcDateTime
 
 
 class ImportError(Base):

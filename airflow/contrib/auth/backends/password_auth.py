@@ -32,6 +32,7 @@ from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
 from airflow import models
+from airflow.contrib.auth.backends.authentication_error import AuthenticationError
 from airflow.utils.session import create_session, provide_session
 
 LOGIN_MANAGER = flask_login.LoginManager()
@@ -42,10 +43,6 @@ log = logging.getLogger(__name__)
 
 
 CLIENT_AUTH = None
-
-
-class AuthenticationError(Exception):
-    """Error returned on authentication problems"""
 
 
 # pylint: disable=no-member

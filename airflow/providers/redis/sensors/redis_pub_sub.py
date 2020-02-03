@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.providers.redis.hooks.redis import RedisHook
+from airflow.providers.redis.hooks.airflow_redis import RedisHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 

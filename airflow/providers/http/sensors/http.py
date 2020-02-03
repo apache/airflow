@@ -1,3 +1,5 @@
+# pylint: disable=unused-import
+# Note that unused import here is to get rid of namedtuple unused-import which is raised erroneously
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file

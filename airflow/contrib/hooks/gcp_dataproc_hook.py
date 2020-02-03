@@ -36,7 +36,7 @@ class DataProcHook(DataprocHook):
     def __init__(self, *args, **kwargs):
         warnings.warn(
             """This class is deprecated.
-            Please use `airflow.providers.google.cloud.hooks.dataproc.DataprocHook`.""",
+            Please use `airflow.providers.google.cloud.hooks.airflow_dataproc.DataprocHook`.""",
             DeprecationWarning, stacklevel=2
         )
 

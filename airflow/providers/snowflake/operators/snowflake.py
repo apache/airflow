@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.models import BaseOperator
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.hooks.airflow_snowflake import SnowflakeHook
 from airflow.utils.decorators import apply_defaults
 
 

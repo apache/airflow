@@ -26,6 +26,7 @@ from flask_oauthlib.client import OAuth
 
 from airflow import models
 from airflow.configuration import AirflowConfigException, conf
+from airflow.contrib.auth.backends.authentication_error import AuthenticationError
 from airflow.utils.session import provide_session
 
 log = logging.getLogger(__name__)
@@ -66,10 +67,6 @@ class GHEUser(models.User):
     def is_superuser(self):
         """Access all the things"""
         return True
-
-
-class AuthenticationError(Exception):
-    pass
 
 
 class GHEAuthBackend:

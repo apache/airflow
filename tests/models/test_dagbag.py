@@ -215,7 +215,7 @@ class TestDagBag(unittest.TestCase):
         """
         Test that we can refresh an ordinary .py DAG
         """
-        example_dags_folder = airflow.example_dags.__path__[0]
+        example_dags_folder = airflow.example_dags.__path__._path[0]   # pylint: disable=no-member
 
         dag_id = "example_bash_operator"
         fileloc = os.path.realpath(

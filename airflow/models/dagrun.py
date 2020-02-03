@@ -31,7 +31,7 @@ from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, DepContext
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy_utils import UtcDateTime
 from airflow.utils.state import State
 
 

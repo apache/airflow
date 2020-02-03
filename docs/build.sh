@@ -80,7 +80,9 @@ echo
 echo "Checking the status of the operators-and-hooks-ref.rst file."
 echo
 
-mapfile -t DEPRECATED_MODULES < <(grep -R -i -l 'This module is deprecated.' ../airflow --include '*.py' | \
+mapfile -t DEPRECATED_MODULES < <(grep -R \
+    -i -l 'This module is deprecated.' ../airflow --exclude-dir=node_modules \
+    --include '*.py' | \
     cut -d "/" -f 2- | \
     sort | \
     uniq | \
@@ -89,7 +91,8 @@ mapfile -t DEPRECATED_MODULES < <(grep -R -i -l 'This module is deprecated.' ../
 
 IGNORED_MISSING_MODULES=('airflow.providers.google.cloud.hooks.base')
 
-mapfile -t ALL_MODULES < <(find ../airflow/{,gcp/,providers/*/*/,providers/*/}{operators,sensors,hooks} -name "*.py" | \
+mapfile -t ALL_MODULES < <(find ../airflow/{providers/*/*/,providers/*/}{operators,sensors,hooks} \
+    -name "*.py" | \
     grep -v "__init__" | \
     grep -v "__pycache__" | \
     cut -d "/" -f 2- | \
@@ -141,7 +144,7 @@ SUCCEED_LINE=$(make html |\
 NUM_CURRENT_WARNINGS=$(echo "${SUCCEED_LINE}" |\
     sed -E 's/build succeeded, ([0-9]+) warnings?\./\1/g')
 
-if [[  -f /.dockerenv ]]; then
+if [[  -f /.dockerenv && -n "${HOST_USER_ID}" ]]; then
     # We are inside the container which means that we should fix back the permissions of the
     # _build and _api folder files, so that they can be accessed by the host user
     # The _api folder should be deleted by then but just in case we should change the ownership

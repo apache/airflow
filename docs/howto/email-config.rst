@@ -26,7 +26,7 @@ in the ``email`` section.
 
   [email]
 
-  email_backend = airflow.utils.email.send_email_smtp
+  email_backend = airflow.utils.email_utils.send_email_smtp
 
   subject_template = /path/to/my_subject_template_file
   html_content_template = /path/to/my_html_content_template_file

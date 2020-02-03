@@ -19,44 +19,42 @@ import glob
 import mmap
 import os
 import unittest
+from typing import Optional
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)
 )
 
 MISSING_TEST_FILES = {
-    'tests/providers/amazon/aws/hooks/test_athena.py',
-    'tests/providers/amazon/aws/hooks/test_s3.py',
-    'tests/providers/apache/cassandra/sensors/test_record.py',
-    'tests/providers/apache/cassandra/sensors/test_table.py',
-    'tests/providers/apache/hdfs/sensors/test_web_hdfs.py',
-    'tests/providers/apache/hive/operators/test_vertica_to_hive.py',
-    'tests/providers/apache/hive/sensors/test_hive_partition.py',
-    'tests/providers/apache/hive/sensors/test_metastore_partition.py',
-    'tests/providers/apache/pig/operators/test_pig.py',
-    'tests/providers/apache/spark/hooks/test_spark_jdbc_script.py',
-    'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod.py',
-    'tests/providers/google/cloud/operators/test_datastore.py',
-    'tests/providers/google/cloud/operators/test_gcs_to_bigquery.py',
-    'tests/providers/google/cloud/operators/test_sql_to_gcs.py',
-    'tests/providers/google/cloud/sensors/test_bigquery.py',
+    'tests/providers/amazon/aws/hooks/test_athena_hooks.py',
+    'tests/providers/amazon/aws/hooks/test_s3_hooks.py',
+    'tests/providers/apache/cassandra/sensors/test_record_sensors.py',
+    'tests/providers/apache/cassandra/sensors/test_table_sensors.py',
+    'tests/providers/apache/hdfs/sensors/test_web_hdfs_sensors.py',
+    'tests/providers/apache/hive/operators/test_vertica_to_hive_operators.py',
+    'tests/providers/apache/hive/sensors/test_hive_partition_sensors.py',
+    'tests/providers/apache/hive/sensors/test_metastore_partition_sensors.py',
+    'tests/providers/apache/pig/operators/test_pig_operators.py',
+    'tests/providers/apache/spark/hooks/test_spark_jdbc_script_hooks.py',
+    'tests/providers/cncf/kubernetes/operators/test_kubernetes_pod_operators.py',
+    'tests/providers/google/cloud/operators/test_datastore_operators.py',
+    'tests/providers/google/cloud/operators/test_gcs_to_bigquery_operators.py',
+    'tests/providers/google/cloud/operators/test_sql_to_gcs_operators.py',
+    'tests/providers/google/cloud/sensors/test_bigquery_sensors.py',
     'tests/providers/google/cloud/utils/test_field_sanitizer.py',
     'tests/providers/google/cloud/utils/test_field_validator.py',
     'tests/providers/google/cloud/utils/test_mlengine_operator_utils.py',
     'tests/providers/google/cloud/utils/test_mlengine_prediction_summary.py',
-    'tests/providers/jenkins/hooks/test_jenkins.py',
-    'tests/providers/microsoft/azure/sensors/test_azure_cosmos.py',
-    'tests/providers/microsoft/mssql/hooks/test_mssql.py',
-    'tests/providers/microsoft/mssql/operators/test_mssql.py',
-    'tests/providers/oracle/operators/test_oracle.py',
-    'tests/providers/presto/operators/test_presto_check.py',
-    'tests/providers/qubole/hooks/test_qubole.py',
-    'tests/providers/samba/hooks/test_samba.py',
-    'tests/providers/snowflake/hooks/test_snowflake.py',
-    'tests/providers/snowflake/operators/test_s3_to_snowflake.py',
-    'tests/providers/snowflake/operators/test_snowflake.py',
-    'tests/providers/sqlite/operators/test_sqlite.py',
-    'tests/providers/vertica/hooks/test_vertica.py'
+    'tests/providers/jenkins/hooks/test_jenkins_hooks.py',
+    'tests/providers/microsoft/azure/sensors/test_azure_cosmos_sensors.py',
+    'tests/providers/microsoft/mssql/hooks/test_mssql_hooks.py',
+    'tests/providers/microsoft/mssql/operators/test_mssql_operators.py',
+    'tests/providers/oracle/operators/test_oracle_operators.py',
+    'tests/providers/presto/operators/test_presto_check_operators.py',
+    'tests/providers/qubole/hooks/test_qubole_hooks.py',
+    'tests/providers/samba/hooks/test_samba_hooks.py',
+    'tests/providers/sqlite/operators/test_sqlite_operators.py',
+    'tests/providers/vertica/hooks/test_vertica_hooks.py'
 }
 
 
@@ -89,35 +87,39 @@ class TestProjectStructure(unittest.TestCase):
         """
         Assert every module in /airflow/providers has a corresponding test_ file in tests/airflow/providers.
         """
+        def get_test_file_path(file_path: str) -> Optional[str]:
+            if not file_path.endswith(".py"):
+                return None
+            path_array = file_path.split("/")
+            file_name = path_array[-1]
+            folder = path_array[-2]
+            if folder in {'hooks', 'operators', 'sensors'}:
+                path_array[-1] = f"test_{file_name.rpartition('.')[0]}_{folder}.py"
+            else:
+                path_array[-1] = f"test_{file_name}"
+            path_array[0] = "tests"
+            return "/".join(path_array)
         # TODO: Should we extend this test to cover other directories?
-        expected_test_files = glob.glob(f"{ROOT_FOLDER}/airflow/providers/**/*.py", recursive=True)
+        expected_test_file_paths = glob.glob(f"{ROOT_FOLDER}/airflow/providers/**/*.py", recursive=True)
         # Make path relative
-        expected_test_files = (os.path.relpath(f, ROOT_FOLDER) for f in expected_test_files)
+        expected_test_file_paths = (os.path.relpath(f, ROOT_FOLDER) for f in expected_test_file_paths)
         # Exclude example_dags
-        expected_test_files = (f for f in expected_test_files if "/example_dags/" not in f)
-        # Exclude __init__.py
-        expected_test_files = (f for f in expected_test_files if not f.endswith("__init__.py"))
-        # Change airflow/ to tests/
-        expected_test_files = (
-            f'tests/{f.partition("/")[2]}'
-            for f in expected_test_files if not f.endswith("__init__.py")
+        expected_test_file_paths = (f for f in expected_test_file_paths if "/example_dags/" not in f)
+        # convert test names
+        expected_test_file_paths = (
+            get_test_file_path(f) for f in expected_test_file_paths
         )
-        # Add test_ prefix to filename
-        expected_test_files = (
-            f'{f.rpartition("/")[0]}/test_{f.rpartition("/")[2]}'
-            for f in expected_test_files if not f.endswith("__init__.py")
-        )
-
+        # exclude Nones
+        expected_test_file_paths = filter(None, expected_test_file_paths)
         current_test_files = glob.glob(f"{ROOT_FOLDER}/tests/providers/**/*.py", recursive=True)
         # Make path relative
         current_test_files = (os.path.relpath(f, ROOT_FOLDER) for f in current_test_files)
-        # Exclude __init__.py
-        current_test_files = (f for f in current_test_files if not f.endswith("__init__.py"))
 
-        expected_test_files = set(expected_test_files)
+        expected_test_file_paths = set(expected_test_file_paths)
         current_test_files = set(current_test_files)
 
-        missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
+        missing_tests_files = expected_test_file_paths - \
+            expected_test_file_paths.intersection(current_test_files)
         self.assertEqual(set(), missing_tests_files - MISSING_TEST_FILES)
 
     def test_keep_missing_test_files_update(self):

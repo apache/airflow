@@ -948,7 +948,7 @@
       version_added: ~
       type: string
       example: ~
-      default: "airflow.utils.email.send_email_smtp"
+      default: "airflow.utils.email_utils.send_email_smtp"
     - name: default_email_on_retry
       description: |
         Whether email alerts should be sent when a task is retried
@@ -963,11 +963,10 @@
       type: boolean
       example: ~
       default: "True"
-
 - name: smtp
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
-    the airflow.utils.email.send_email_smtp function, you have to configure an
+    the airflow.utils.email_utils.send_email_smtp function, you have to configure an
     smtp server here
   options:
     - name: smtp_host

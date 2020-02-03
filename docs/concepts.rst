@@ -276,7 +276,7 @@ Airflow provides operators for many common tasks, including:
 - ``Sensor`` - an Operator that waits (polls) for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
-operators: :class:`~airflow.providers.docker.operators.docker.DockerOperator`,
+operators: :class:`~airflow.providers.docker.operators.docker_operator.DockerOperator`,
 :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`, :class:`~airflow.providers.amazon.aws.operators.s3_file_transform.S3FileTransformOperator`,
 :class:`~airflow.providers.mysql.operators.presto_to_mysql.PrestoToMySqlTransfer`,
 :class:`~airflow.providers.slack.operators.slack.SlackAPIOperator`... you get the idea!

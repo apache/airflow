@@ -339,7 +339,7 @@ class TestDagFileProcessor(unittest.TestCase):
         self.assertIn(email1, send_email_to)
         self.assertNotIn(email2, send_email_to)
 
-    @mock.patch("airflow.utils.email.send_email")
+    @mock.patch("airflow.utils.email_utils.send_email")
     def test_dag_file_processor_sla_miss_email_exception(self, mock_send_email):
         """
         Test that the dag file processor gracefully logs an exception if there is a problem
@@ -2688,7 +2688,7 @@ class TestSchedulerJob(unittest.TestCase):
         ignored_files = {
             'helper.py',
         }
-        example_dag_folder = airflow.example_dags.__path__[0]
+        example_dag_folder = airflow.example_dags.__path__._path[0]  # pylint: disable=no-member
         for root, _, files in os.walk(example_dag_folder):  # pylint: disable=too-many-nested-blocks
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):

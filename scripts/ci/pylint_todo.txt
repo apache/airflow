@@ -99,7 +99,6 @@
 ./airflow/operators/dagrun_operator.py
 ./airflow/providers/apache/druid/operators/druid_check.py
 ./airflow/operators/dummy_operator.py
-./airflow/providers/email/operators/email.py
 ./airflow/operators/generic_transfer.py
 ./airflow/providers/apache/hive/operators/hive.py
 ./airflow/providers/apache/hive/operators/hive_stats.py

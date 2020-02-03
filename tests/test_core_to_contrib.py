@@ -185,11 +185,11 @@ HOOK = [
         'airflow.hooks.druid_hook.DruidDbApiHook',
     ),
     (
-        'airflow.providers.apache.hdfs.hooks.hdfs.HDFSHookException',
+        'airflow.providers.apache.hdfs.hooks.airflow_hdfs.HDFSHookException',
         'airflow.hooks.hdfs_hook.HDFSHookException',
     ),
     (
-        'airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook',
+        'airflow.providers.apache.hdfs.hooks.airflow_hdfs.HDFSHook',
         'airflow.hooks.hdfs_hook.HDFSHook',
     ),
     (
@@ -266,11 +266,11 @@ HOOK = [
         'airflow.contrib.hooks.openfaas_hook.OpenFaasHook',
     ),
     (
-        'airflow.providers.redis.hooks.redis.RedisHook',
+        'airflow.providers.redis.hooks.airflow_redis.RedisHook',
         'airflow.contrib.hooks.redis_hook.RedisHook',
     ),
     (
-        'airflow.providers.docker.hooks.docker.DockerHook',
+        'airflow.providers.docker.hooks.airflow_docker.DockerHook',
         'airflow.hooks.docker_hook.DockerHook',
     ),
     (
@@ -302,7 +302,7 @@ HOOK = [
         'airflow.hooks.sqlite_hook.SqliteHook',
     ),
     (
-        'airflow.providers.cloudant.hooks.cloudant.CloudantHook',
+        'airflow.providers.cloudant.hooks.airflow_cloudant.CloudantHook',
         'airflow.contrib.hooks.cloudant_hook.CloudantHook',
     ),
     (
@@ -390,7 +390,7 @@ HOOK = [
         'airflow.contrib.hooks.ssh_hook.SSHHook',
     ),
     (
-        'airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook',
+        'airflow.providers.microsoft.winrm.hooks.airflow_winrm.WinRMHook',
         'airflow.contrib.hooks.winrm_hook.WinRMHook',
     ),
     (
@@ -1160,7 +1160,7 @@ OPERATOR = [
         'airflow.operators.bash_operator.BashOperator',
     ),
     (
-        'airflow.providers.docker.operators.docker.DockerOperator',
+        'airflow.providers.docker.operators.docker_operator.DockerOperator',
         'airflow.operators.docker_operator.DockerOperator',
     ),
     (
@@ -1260,7 +1260,7 @@ OPERATOR = [
         'airflow.contrib.operators.vertica_operator.VerticaOperator',
     ),
     (
-        'airflow.providers.datadog.sensors.datadog.DatadogSensor',
+        'airflow.providers.datadog.sensors.airflow_datadog.DatadogSensor',
         'airflow.contrib.sensors.datadog_sensor.DatadogSensor',
     ),
 
@@ -1273,7 +1273,7 @@ OPERATOR = [
         'airflow.operators.slack_operator.SlackAPIOperator',
     ),
     (
-        'airflow.providers.grpc.operators.grpc.GrpcOperator',
+        'airflow.providers.grpc.operators.airflow_grpc.GrpcOperator',
         'airflow.contrib.operators.grpc_operator.GrpcOperator',
     ),
     (
@@ -1281,7 +1281,7 @@ OPERATOR = [
         'airflow.contrib.operators.ssh_operator.SSHOperator',
     ),
     (
-        'airflow.providers.microsoft.winrm.operators.winrm.WinRMOperator',
+        'airflow.providers.microsoft.winrm.operators.airflow_winrm.WinRMOperator',
         'airflow.contrib.operators.winrm_operator.WinRMOperator',
     ),
     (
@@ -1548,7 +1548,7 @@ SENSOR = [
         'airflow.contrib.sensors.redis_pub_sub_sensor.RedisPubSubSensor',
     ),
     (
-        'airflow.providers.datadog.sensors.datadog.DatadogSensor',
+        'airflow.providers.datadog.sensors.airflow_datadog.DatadogSensor',
         'airflow.contrib.sensors.datadog_sensor.DatadogSensor',
     ),
     (

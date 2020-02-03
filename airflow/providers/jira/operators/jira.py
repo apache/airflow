@@ -19,7 +19,7 @@
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.jira.hooks.jira import JIRAError, JiraHook
+from airflow.providers.jira.hooks.airflow_jira import JIRAError, JiraHook
 from airflow.utils.decorators import apply_defaults
 
 

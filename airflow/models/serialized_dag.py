@@ -33,7 +33,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy_utils import UtcDateTime
 
 log = logging.getLogger(__name__)
 

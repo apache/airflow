@@ -45,9 +45,12 @@ import os
 from functools import wraps
 from socket import getfqdn
 
-import kerberos
 # noinspection PyProtectedMember
 from flask import Response, _request_ctx_stack as stack, g, make_response, request  # type: ignore
+from kerberos import (  # pylint: disable=no-name-in-module
+    AUTH_GSS_COMPLETE, AUTH_GSS_CONTINUE, GSSError, KrbError, authGSSServerClean, authGSSServerInit,
+    authGSSServerResponse, authGSSServerStep, authGSSServerUserName, getServerPrincipalDetails,
+)
 from requests_kerberos import HTTPKerberosAuth
 
 from airflow.configuration import conf
@@ -85,8 +88,8 @@ def init_app(app):
 
     try:
         log.info("Kerberos init: %s %s", service, hostname)
-        principal = kerberos.getServerPrincipalDetails(service, hostname)
-    except kerberos.KrbError as err:
+        principal = getServerPrincipalDetails(service, hostname)
+    except KrbError as err:
         log.warning("Kerberos: %s", err)
     else:
         log.info("Kerberos API: server is %s", principal)
@@ -108,22 +111,22 @@ def _gssapi_authenticate(token):
     state = None
     ctx = stack.top
     try:
-        return_code, state = kerberos.authGSSServerInit(_KERBEROS_SERVICE.service_name)
-        if return_code != kerberos.AUTH_GSS_COMPLETE:
+        return_code, state = authGSSServerInit(_KERBEROS_SERVICE.service_name)
+        if return_code != AUTH_GSS_COMPLETE:
             return None
-        return_code = kerberos.authGSSServerStep(state, token)
-        if return_code == kerberos.AUTH_GSS_COMPLETE:
-            ctx.kerberos_token = kerberos.authGSSServerResponse(state)
-            ctx.kerberos_user = kerberos.authGSSServerUserName(state)
+        return_code = authGSSServerStep(state, token)
+        if return_code == AUTH_GSS_COMPLETE:
+            ctx.kerberos_token = authGSSServerResponse(state)
+            ctx.kerberos_user = authGSSServerUserName(state)
             return return_code
-        if return_code == kerberos.AUTH_GSS_CONTINUE:
-            return kerberos.AUTH_GSS_CONTINUE
+        if return_code == AUTH_GSS_CONTINUE:
+            return AUTH_GSS_CONTINUE
         return None
-    except kerberos.GSSError:
+    except GSSError:
         return None
     finally:
         if state:
-            kerberos.authGSSServerClean(state)
+            authGSSServerClean(state)
 
 
 def requires_authentication(function):
@@ -135,7 +138,7 @@ def requires_authentication(function):
             ctx = stack.top
             token = ''.join(header.split()[1:])
             return_code = _gssapi_authenticate(token)
-            if return_code == kerberos.AUTH_GSS_COMPLETE:
+            if return_code == AUTH_GSS_COMPLETE:
                 g.user = ctx.kerberos_user
                 response = function(*args, **kwargs)
                 response = make_response(response)
@@ -144,7 +147,7 @@ def requires_authentication(function):
                                                                      ctx.kerberos_token])
 
                 return response
-            if return_code != kerberos.AUTH_GSS_CONTINUE:
+            if return_code != AUTH_GSS_CONTINUE:
                 return _forbidden()
         return _unauthorized()
     return decorated

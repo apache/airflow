@@ -44,11 +44,11 @@ from elasticsearch import Elasticsearch
 from elasticsearch.client.utils import query_params
 from elasticsearch.exceptions import NotFoundError
 
-from .utilities import get_random_id
-
-
 # pylint: disable=redefined-builtin
 # noinspection PyShadowingBuiltins
+from tests.utils.log.elasticmock.utilities import get_random_id
+
+
 class FakeElasticsearch(Elasticsearch):
     __documents_dict = None
 

@@ -35,7 +35,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from airflow import settings, version
 from airflow.configuration import conf
 from airflow.logging_config import configure_logging
-from airflow.utils.json import AirflowJsonEncoder
+from airflow.utils.json_encoder import AirflowJsonEncoder
 from airflow.www.static_config import configure_manifest_files
 
 app = None  # type: Any

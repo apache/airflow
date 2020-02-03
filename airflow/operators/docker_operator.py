@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.docker.operators.docker`."""
+"""This module is deprecated. Please use `airflow.providers.docker.operators.docker_operator`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.docker.operators.docker import DockerOperator  # noqa
+from airflow.providers.docker.operators.docker_operator import DockerOperator  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.docker.operators.docker`.",
+    "This module is deprecated. Please use `airflow.providers.docker.operators.docker_operator`.",
     DeprecationWarning, stacklevel=2
 )

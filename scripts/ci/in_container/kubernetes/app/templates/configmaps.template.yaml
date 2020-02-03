@@ -145,7 +145,7 @@ data:
 
     [smtp]
     # If you want airflow to send emails on retries, failure, and you want to use
-    # the airflow.utils.email.send_email_smtp function, you have to configure an
+    # the airflow.utils.email_utils.send_email_smtp function, you have to configure an
     # smtp server here
     smtp_host = localhost
     smtp_starttls = True

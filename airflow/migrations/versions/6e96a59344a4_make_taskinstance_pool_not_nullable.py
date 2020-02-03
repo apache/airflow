@@ -31,7 +31,7 @@ from sqlalchemy import Column, Float, Integer, PickleType, String
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy_utils import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = '6e96a59344a4'

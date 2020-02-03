@@ -29,6 +29,7 @@ from wtforms.validators import InputRequired
 
 from airflow import models
 from airflow.configuration import conf
+from airflow.contrib.auth.backends.authentication_error import AuthenticationError
 from airflow.exceptions import AirflowConfigException
 from airflow.security import utils
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -38,10 +39,6 @@ from airflow.utils.session import provide_session
 LOGIN_MANAGER = flask_login.LoginManager()
 LOGIN_MANAGER.login_view = 'airflow.login'  # Calls login() below
 LOGIN_MANAGER.login_message = None
-
-
-class AuthenticationError(Exception):
-    """Error raised when authentication error occurs"""
 
 
 class KerberosUser(models.User, LoggingMixin):

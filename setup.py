@@ -26,7 +26,7 @@ import unittest
 from importlib import util
 from typing import List
 
-from setuptools import Command, find_packages, setup
+from setuptools import Command, find_namespace_packages, setup
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +117,9 @@ def git_version(version_: str) -> str:
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
             return ''
+        except git.InvalidGitRepositoryError:
+            logger.warning('Invalid .git directory not found: Cannot compute the git version')
+            return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
@@ -190,7 +193,7 @@ datadog = [
 doc = [
     'sphinx>=2.1.2',
     'sphinx-argparse>=0.1.13',
-    'sphinx-autoapi==1.0.0',
+    'sphinx-autoapi==1.2.1',
     'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
@@ -433,7 +436,7 @@ def do_setup():
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(exclude=['tests*']),
+        packages=find_namespace_packages(exclude=['tests*']),
         package_data={
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb"],
             'airflow.serialization': ["*.json"],

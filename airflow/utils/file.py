@@ -126,7 +126,9 @@ def list_py_file_paths(directory: str,
             find_dag_file_paths(file_paths, files, patterns, root, safe_mode)
     if include_examples:
         from airflow import example_dags
-        example_dag_folder = example_dags.__path__[0]  # type: ignore
+        # noinspection PyProtectedMember
+        example_dag_folder = \
+            example_dags.__path__._path[0]  # type: ignore  # pylint: disable=no-member,protected-access
         file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
     return file_paths
 

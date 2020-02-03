@@ -30,7 +30,7 @@ from datetime import timedelta
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import ShortCircuitOperator
-from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.providers.docker.operators.docker_operator import DockerOperator
 from airflow.utils.dates import days_ago
 
 default_args = {

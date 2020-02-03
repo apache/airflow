@@ -17,7 +17,7 @@
 # under the License.
 
 from airflow.models import BaseOperator
-from airflow.providers.redis.hooks.redis import RedisHook
+from airflow.providers.redis.hooks.airflow_redis import RedisHook
 from airflow.utils.decorators import apply_defaults
 
 
