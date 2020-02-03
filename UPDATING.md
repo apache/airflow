@@ -908,6 +908,16 @@ The 'properties' and 'jars' properties for the Dataproc related operators (`Data
 and `dataproc_jars`respectively.
 Arguments for dataproc_properties dataproc_jars
 
+### Changes to skipping behaviour of LatestOnlyOperator
+
+In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and undirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
+
+No change is needed if only the default trigger rule `all_success` is being used.
+
+If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
+
+The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+
 ## Airflow 1.10.7
 
 ### Changes in experimental API execution_date microseconds replacement
@@ -964,16 +974,6 @@ The following metrics are deprecated and won't be emitted in Airflow 2.0:
 - `collect_dags` -- use `dag_processing.total_parse_time` instead
 - `dag.loading-duration.<basename>` -- use `dag_processing.last_duration.<basename>` instead
 - `dag_processing.last_runtime.<basename>` -- use `dag_processing.last_duration.<basename>` instead
-
-### Changes to skipping behaviour of LatestOnlyOperator
-
-In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and undirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
-
-No change is needed if only the default trigger rule `all_success` is being used.
-
-If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
-
-The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
 
 ## Airflow 1.10.5
 
