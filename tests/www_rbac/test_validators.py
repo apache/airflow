@@ -20,6 +20,8 @@
 import mock
 import unittest
 
+import six
+
 from airflow.www_rbac import validators
 
 
@@ -89,6 +91,50 @@ class TestGreaterEqualThan(unittest.TestCase):
             "^This field must be greater than or equal to MyField.$",
             self._validate,
             message="This field must be greater than or equal to MyField.",
+        )
+
+
+class TestValidJson(unittest.TestCase):
+
+    def setUp(self):
+        super(TestValidJson, self).setUp()
+        self.form_field_mock = mock.MagicMock(data='{"valid":"True"}')
+        self.form_field_mock.gettext.side_effect = lambda msg: msg
+        self.form_mock = mock.MagicMock(spec_set=dict)
+
+    def _validate(self, message=None):
+
+        validator = validators.ValidJson(message=message)
+
+        return validator(self.form_mock, self.form_field_mock)
+
+    def test_form_field_is_none(self):
+        self.form_field_mock.data = None
+
+        self.assertIsNone(self._validate())
+
+    def test_validation_pass(self):
+        self.assertIsNone(self._validate())
+
+    def test_validation_raises_default_message(self):
+        self.form_field_mock.data = '2017-05-04'
+
+        six.assertRaisesRegex(
+            self,
+            validators.ValidationError,
+            "JSON Validation Error:.*",
+            self._validate,
+        )
+
+    def test_validation_raises_custom_message(self):
+        self.form_field_mock.data = '2017-05-04'
+
+        six.assertRaisesRegex(
+            self,
+            validators.ValidationError,
+            "Invalid JSON",
+            self._validate,
+            message="Invalid JSON: {}",
         )
 
 

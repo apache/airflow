@@ -22,19 +22,21 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from airflow.models import Connection
-from airflow.utils import timezone
+import json
 
+from flask_appbuilder.fieldwidgets import (
+    BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, DateTimePickerWidget, Select2Widget,
+)
 from flask_appbuilder.forms import DynamicForm
-from flask_appbuilder.fieldwidgets import (BS3TextFieldWidget, BS3TextAreaFieldWidget,
-                                           BS3PasswordFieldWidget, Select2Widget,
-                                           DateTimePickerWidget)
 from flask_babel import lazy_gettext
 from flask_wtf import FlaskForm
 
 from wtforms import validators
 from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
                             StringField, DateTimeField, BooleanField)
+from airflow.models import Connection
+from airflow.utils import timezone
+from airflow.www_rbac.validators import ValidJson
 
 
 class DateTimeForm(FlaskForm):
@@ -86,12 +88,18 @@ class DagRunForm(DynamicForm):
         widget=DateTimePickerWidget())
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
+    conf = TextAreaField(
+        lazy_gettext('Conf'),
+        validators=[ValidJson(), validators.Optional()],
+        widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
         # TODO: This is probably better done as a custom field type so we can
         # set TZ at parse time
         super(DagRunForm, self).populate_obj(item)
         item.execution_date = timezone.make_aware(item.execution_date)
+        if item.conf:
+            item.conf = json.loads(item.conf)
 
 
 class ConnectionForm(DynamicForm):
