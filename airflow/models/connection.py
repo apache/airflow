@@ -44,6 +44,10 @@ CONN_TYPE_TO_HOOK = {
     "cassandra": ("airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook", "cassandra_conn_id"),
     "cloudant": ("airflow.providers.cloudant.hooks.cloudant.CloudantHook", "cloudant_conn_id"),
     "docker": ("airflow.providers.docker.hooks.docker.DockerHook", "docker_conn_id"),
+    "elasticsearch": (
+        "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
+        "elasticsearch_conn_id"
+    ),
     "gcpcloudsql": (
         "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
         "gcp_cloudsql_conn_id",
@@ -110,6 +114,7 @@ class Connection(Base, LoggingMixin):
 
     _types = [
         ('docker', 'Docker Registry'),
+        ('elasticsearch', 'Elasticsearch'),
         ('fs', 'File (path)'),
         ('ftp', 'FTP'),
         ('google_cloud_platform', 'Google Cloud Platform'),

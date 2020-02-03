@@ -202,8 +202,9 @@ druid = [
     'pydruid>=0.4.1',
 ]
 elasticsearch = [
-    'elasticsearch>=5.0.0,<6.0.0',
-    'elasticsearch-dsl>=5.0.0,<6.0.0',
+    'elasticsearch>7',
+    'elasticsearch-dbapi==0.1.0',
+    'elasticsearch-dsl>=5.0.0',
 ]
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',

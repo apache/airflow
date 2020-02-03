@@ -151,6 +151,16 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="elasticsearch_default",
+            conn_type="elasticsearch",
+            host="localhost",
+            schema="http",
+            port=9200
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="emr_default",
             conn_type="emr",
             extra="""
