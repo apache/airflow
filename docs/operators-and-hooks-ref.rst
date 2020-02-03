@@ -1052,6 +1052,12 @@ These integrations allow you to perform various operations using various softwar
        :mod:`airflow.providers.docker.operators.docker_swarm`
      -
 
+   * - `Elasticsearch <https://https://www.elastic.co/elasticsearch>`__
+     -
+     - :mod:`airflow.providers.elasticsearch.hooks.elasticsearch`
+     -
+     -
+
    * - `GNU Bash <https://www.gnu.org/software/bash/>`__
      - :doc:`How to use <howto/operator/bash>`
      -

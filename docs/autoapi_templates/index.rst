@@ -225,6 +225,8 @@ All hooks are in the following packages:
 
   airflow/providers/docker/hooks/index
 
+  airflow/providers/elasticsearch/hooks/index
+
   airflow/providers/ftp/hooks/index
 
   airflow/providers/google/cloud/hooks/index
