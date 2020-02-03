@@ -39,6 +39,7 @@ Fundamentals
 * :mod:`airflow.operators.branch_operator`
 * :mod:`airflow.operators.check_operator`
 * :mod:`airflow.operators.dagrun_operator`
+* :mod:`airflow.operators.data_quality_operator`
 * :mod:`airflow.operators.dummy_operator`
 * :mod:`airflow.operators.generic_transfer`
 * :mod:`airflow.operators.latest_only_operator`
