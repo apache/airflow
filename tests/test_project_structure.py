@@ -86,6 +86,9 @@ class TestProjectStructure(unittest.TestCase):
                 self.fail(f"File {filename} contains illegal pattern - {pattern}")
 
     def test_providers_modules_should_have_tests(self):
+        """
+        Assert every module in /airflow/providers has a corresponding test_ file in tests/airflow/providers.
+        """
         # TODO: Should we extend this test to cover other directories?
         expected_test_files = glob.glob(f"{ROOT_FOLDER}/airflow/providers/**/*.py", recursive=True)
         # Make path relative
@@ -115,15 +118,15 @@ class TestProjectStructure(unittest.TestCase):
         current_test_files = set(current_test_files)
 
         missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
-        self.assertEqual(missing_tests_files, MISSING_TEST_FILES)
+        self.assertEqual(set(), missing_tests_files - MISSING_TEST_FILES)
 
     def test_keep_missing_test_files_update(self):
         new_test_files = []
         for test_file in MISSING_TEST_FILES:
             if os.path.isfile(f"{ROOT_FOLDER}/{test_file}"):
                 new_test_files.append(test_file)
-        new_files_text = '\n'.join(new_test_files)
         if new_test_files:
+            new_files_text = '\n'.join(new_test_files)
             self.fail(
                 "It looks like you added a missing test files:\n"
                 f"{new_files_text}"
