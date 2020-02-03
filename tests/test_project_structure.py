@@ -128,7 +128,7 @@ class TestProjectStructure(unittest.TestCase):
         if new_test_files:
             new_files_text = '\n'.join(new_test_files)
             self.fail(
-                "It looks like you added a missing test files:\n"
+                "You've added a test file currently listed as missing:\n"
                 f"{new_files_text}"
                 "\n"
                 "Thank you very much.\n"
