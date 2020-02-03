@@ -726,9 +726,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         Occasionally print out stats about how fast the files are getting processed
         """
-        if self.print_stats_interval > 0 and (
-                timezone.utcnow() -
-                self.last_stat_print_time).total_seconds() > self.print_stats_interval:
+        if 0 < self.print_stats_interval < (
+                timezone.utcnow() - self.last_stat_print_time).total_seconds():
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = timezone.utcnow()
