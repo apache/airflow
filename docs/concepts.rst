@@ -698,6 +698,9 @@ as such. The third call uses the ``default_var`` parameter with the value
 isn't defined. The get function will throw a ``KeyError`` if the variable
 doesn't exist and no default is provided.
 
+In the UI, setting a variable to '' is equivalent to not setting the variable at all
+(i.e. getValue will return None rather than '').
+
 You can use a variable from a jinja template with the syntax :
 
 .. code:: bash
