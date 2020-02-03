@@ -19,13 +19,11 @@
 
 from google.api_core.gapic_v1.method import DEFAULT
 
-from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
 from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
 from airflow.utils.decorators import apply_defaults
 
 
-# Alerting Operators
-# List alert operators
 class StackdriverListAlertPoliciesOperator(BaseOperator):
     """
     Fetches all the Alert Policies identified by the filter passed as
@@ -77,6 +75,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     template_fields = ('filter_',)
     ui_color = "#e5ffcc"
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
         self,
@@ -251,7 +250,6 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         )
 
 
-# Upsert alert operator
 class StackdriverUpsertAlertOperator(BaseOperator):
     """
     Creates a new alert or updates an existing policy identified
@@ -319,7 +317,6 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         )
 
 
-# Delete alert operator
 class StackdriverDeleteAlertOperator(BaseOperator):
     """
     Deletes an alerting policy.
@@ -383,8 +380,6 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         )
 
 
-# Notification Channel Operators
-# List notif channels
 class StackdriverListNotificationChannelsOperator(BaseOperator):
     """
     Fetches all the Notification Channels identified by the filter passed as
@@ -437,6 +432,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
 
     ui_color = "#e5ffcc"
 
+    # pylint: disable=too-many-arguments
     @apply_defaults
     def __init__(
         self,
