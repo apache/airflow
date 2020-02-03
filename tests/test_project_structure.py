@@ -27,7 +27,7 @@ ROOT_FOLDER = os.path.realpath(
 
 class TestProjectStructure(unittest.TestCase):
     def test_reference_to_providers_from_core(self):
-        for filename in glob.glob(f"{ROOT_FOLDER}/example_dags/**.py", recursive=True):
+        for filename in glob.glob(f"{ROOT_FOLDER}/example_dags/**/*.py", recursive=True):
             self.assert_file_not_contains(filename, "providers")
 
     def test_deprecated_packages(self):
