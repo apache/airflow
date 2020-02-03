@@ -1093,32 +1093,44 @@ class Airflow(AirflowBaseView):
     @has_access
     @provide_session
     def blocked(self, session=None):
+        allowed_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+
+        if 'all_dags' in allowed_dag_ids:
+            allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
+
+        selected_dag_ids = {
+            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+        }
+
+        if selected_dag_ids:
+            filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
+        else:
+            filter_dag_ids = allowed_dag_ids
+
+        if not filter_dag_ids:
+            return wwwutils.json_response([])
+
         DR = models.DagRun
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+
+        dags = (
+            session.query(DR.dag_id, sqla.func.count(DR.id))
+                   .filter(DR.state == State.RUNNING)
+                   .filter(DR.dag_id.in_(filter_dag_ids))
+                   .group_by(DR.dag_id)
+        )
 
         payload = []
-        if filter_dag_ids:
-            dags = (
-                session.query(DR.dag_id, sqla.func.count(DR.id))
-                       .filter(DR.state == State.RUNNING)
-                       .group_by(DR.dag_id)
-
-            )
-            if 'all_dags' not in filter_dag_ids:
-                dags = dags.filter(DR.dag_id.in_(filter_dag_ids))
-            dags = dags.all()
-
-            for dag_id, active_dag_runs in dags:
-                dag = dagbag.get_dag(dag_id)
-                max_active_runs = dagbag.dags[dag_id].max_active_runs
-                if dag:
-                    # TODO: Make max_active_runs a column so we can query for it directly
-                    max_active_runs = dag.max_active_runs
-                payload.append({
-                    'dag_id': dag_id,
-                    'active_dag_run': active_dag_runs,
-                    'max_active_runs': max_active_runs,
-                })
+        for dag_id, active_dag_runs in dags:
+            max_active_runs = 0
+            dag = dagbag.get_dag(dag_id)
+            if dag:
+                # TODO: Make max_active_runs a column so we can query for it directly
+                max_active_runs = dag.max_active_runs
+            payload.append({
+                'dag_id': dag_id,
+                'active_dag_run': active_dag_runs,
+                'max_active_runs': max_active_runs,
+            })
         return wwwutils.json_response(payload)
 
     def _mark_dagrun_state_as_failed(self, dag_id, execution_date, confirmed, origin):
