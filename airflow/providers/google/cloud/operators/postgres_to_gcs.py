@@ -94,7 +94,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             return datetime.timedelta(
                 hours=formated_time.tm_hour,
                 minutes=formated_time.tm_min,
-                seconds=formated_time.tm_sec).seconds
+                seconds=formated_time.tm_sec).total_seconds()
         if isinstance(value, dict):
             return json.dumps(value)
         if isinstance(value, Decimal):
