@@ -22,12 +22,14 @@
 Kubernetes Operator
 ===================
 
-The :class:`airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator` allows you to create
+The :class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` allows you to create
 Pods on Kubernetes. It works with any type of executor.
 
 .. code:: python
 
-    from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+    import kubernetes.client.models as k8s
+
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
     from airflow.contrib.kubernetes.secret import Secret
     from airflow.contrib.kubernetes.volume import Volume
     from airflow.contrib.kubernetes.volume_mount import VolumeMount
@@ -51,6 +53,30 @@ Pods on Kubernetes. It works with any type of executor.
           }
         }
     volume = Volume(name='test-volume', configs=volume_config)
+
+    init_container_volume_mounts = [k8s.V1VolumeMount(
+      mount_path='/etc/foo',
+      name='test-volume',
+      sub_path=None,
+      read_only=True
+    )]
+
+    init_environments = [k8s.V1EnvVar(
+      name='key1',
+      value='value1'
+    ), k8s.V1EnvVar(
+      name='key2',
+      value='value2'
+    )]
+
+    init_container = k8s.V1Container(
+      name="init-container",
+      image="ubuntu:16.04",
+      env=init_environments,
+      volume_mounts=init_container_volume_mounts,
+      command=["bash", "-cx"],
+      args=["echo 10"]
+    )
 
     affinity = {
         'nodeAffinity': {
@@ -124,5 +150,6 @@ Pods on Kubernetes. It works with any type of executor.
                               is_delete_operator_pod=True,
                               hostnetwork=False,
                               tolerations=tolerations,
-                              configmaps=configmaps
+                              configmaps=configmaps,
+                              init_containers=[init_container],
                               )

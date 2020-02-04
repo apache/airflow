@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,7 +23,7 @@ from airflow.api.common.experimental.delete_dag import delete_dag
 from airflow.exceptions import DagNotFound
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.dates import days_ago
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 DM = models.DagModel

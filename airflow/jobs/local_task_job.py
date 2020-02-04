@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,7 +19,6 @@
 
 import os
 import signal
-import time
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -28,8 +26,8 @@ from airflow.jobs.base_job import BaseJob
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -112,13 +110,6 @@ class LocalTaskJob(BaseJob):
                                            "exceeded limit ({}s)."
                                            .format(time_since_last_heartbeat,
                                                    heartbeat_time_limit))
-
-                if time_since_last_heartbeat < self.heartrate:
-                    sleep_for = self.heartrate - time_since_last_heartbeat
-                    self.log.info("Time since last heartbeat(%.2f s) < heartrate(%s s)"
-                                  ", sleeping for %s s", time_since_last_heartbeat,
-                                  self.heartrate, sleep_for)
-                    time.sleep(sleep_for)
         finally:
             self.on_kill()
 
@@ -162,5 +153,8 @@ class LocalTaskJob(BaseJob):
                 "Taking the poison pill.",
                 ti.state
             )
+            if ti.state == State.FAILED and ti.task.on_failure_callback:
+                context = ti.get_template_context()
+                ti.task.on_failure_callback(context)
             self.task_runner.terminate()
             self.terminating = True

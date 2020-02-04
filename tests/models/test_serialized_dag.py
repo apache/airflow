@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,9 +21,10 @@
 import unittest
 
 from airflow import example_dags as example_dags_module
-from airflow.models import DagBag, SerializedDagModel as SDM
-from airflow.serialization.serialized_dag import SerializedDAG
-from airflow.utils import db
+from airflow.models import DagBag
+from airflow.models.serialized_dag import SerializedDagModel as SDM
+from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.utils.session import create_session
 
 
 # To move it to a shared module.
@@ -35,7 +35,7 @@ def make_example_dags(module):
 
 
 def clear_db_serialized_dags():
-    with db.create_session() as session:
+    with create_session() as session:
         session.query(SDM).delete()
 
 
@@ -62,7 +62,7 @@ class SerializedDagModelTest(unittest.TestCase):
         """DAGs can be written into database."""
         example_dags = self._write_example_dags()
 
-        with db.create_session() as session:
+        with create_session() as session:
             for dag in example_dags.values():
                 self.assertTrue(SDM.has_dag(dag.dag_id))
                 result = session.query(
@@ -83,7 +83,7 @@ class SerializedDagModelTest(unittest.TestCase):
             self.assertTrue(serialized_dag.dag_id == dag.dag_id)
             self.assertTrue(set(serialized_dag.task_dict) == set(dag.task_dict))
 
-    def test_remove_dags(self):
+    def test_remove_dags_by_id(self):
         """DAGs can be removed from database."""
         example_dags_list = list(self._write_example_dags().values())
         # Remove SubDags from the list as they are not stored in DB in a separate row
@@ -94,9 +94,16 @@ class SerializedDagModelTest(unittest.TestCase):
         SDM.remove_dag(dag_removed_by_id.dag_id)
         self.assertFalse(SDM.has_dag(dag_removed_by_id.dag_id))
 
+    def test_remove_dags_by_filepath(self):
+        """DAGs can be removed from database."""
+        example_dags_list = list(self._write_example_dags().values())
+        # Remove SubDags from the list as they are not stored in DB in a separate row
+        # and are directly added in Json blob of the main DAG
+        filtered_example_dags_list = [dag for dag in example_dags_list if not dag.is_subdag]
         # Tests removing by file path.
-        dag_removed_by_file = filtered_example_dags_list[1]
-        example_dag_files = [dag.full_filepath for dag in filtered_example_dags_list]
+        dag_removed_by_file = filtered_example_dags_list[0]
+        # remove repeated files for those DAGs that define multiple dags in the same file (set comprehension)
+        example_dag_files = list({dag.full_filepath for dag in filtered_example_dags_list})
         example_dag_files.remove(dag_removed_by_file.full_filepath)
         SDM.remove_deleted_dags(example_dag_files)
         self.assertFalse(SDM.has_dag(dag_removed_by_file.dag_id))

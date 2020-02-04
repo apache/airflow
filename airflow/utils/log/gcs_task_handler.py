@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -44,13 +43,16 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
+        """
+        Returns GCS hook.
+        """
+        remote_conn_id = conf.get('logging', 'REMOTE_LOG_CONN_ID')
         try:
-            from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
-            return GoogleCloudStorageHook(
+            from airflow.providers.google.cloud.hooks.gcs import GCSHook
+            return GCSHook(
                 google_cloud_storage_conn_id=remote_conn_id
             )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             self.log.error(
                 'Could not create a GoogleCloudStorageHook with connection id '
                 '"%s". %s\n\nPlease make sure that airflow[gcp] is installed '
@@ -67,7 +69,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def close(self):
         """
-        Close and upload local log file to remote storage S3.
+        Close and upload local log file to remote storage GCS.
         """
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
@@ -113,7 +115,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             log = '*** Reading remote log from {}.\n{}\n'.format(
                 remote_loc, remote_log)
             return log, {'end_of_log': True}
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(
                 remote_loc, str(e))
             self.log.error(log)
@@ -148,8 +150,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             try:
                 old_log = self.gcs_read(remote_log_location)
                 log = '\n'.join([old_log, log]) if old_log else log
-            except Exception as e:
-                if not hasattr(e, 'resp') or e.resp.get('status') != '404':
+            except Exception as e:  # pylint: disable=broad-except
+                if not hasattr(e, 'resp') or e.resp.get('status') != '404':  # pylint: disable=no-member
                     log = '*** Previous log discarded: {}\n\n'.format(str(e)) + log
 
         try:
@@ -162,7 +164,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
                 # closed).
                 tmpfile.flush()
                 self.hook.upload(bkt, blob, tmpfile.name)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             self.log.error('Could not write logs to %s: %s', remote_log_location, e)
 
     @staticmethod

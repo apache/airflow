@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -28,37 +27,23 @@ isort:skip_file
 """
 
 # flake8: noqa: F401
-# pylint:disable=wrong-import-position
+# pylint: disable=wrong-import-position
 from typing import Callable, Optional
 
+from airflow import utils
 from airflow import settings
 from airflow import version
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
+from airflow.models.dag import DAG
 
 __version__ = version.version
 
 settings.initialize()
 
-login = None  # type: Optional[Callable]
+from airflow.plugins_manager import integrate_plugins
 
-from airflow import executors
-from airflow import hooks
-from airflow import macros
-from airflow import operators
-from airflow import sensors
+login: Optional[Callable] = None
 
-
-class AirflowMacroPlugin:
-    # pylint:disable=missing-docstring
-    def __init__(self, namespace):
-        self.namespace = namespace
-
-
-operators._integrate_plugins()  # pylint:disable=protected-access
-sensors._integrate_plugins()  # pylint:disable=protected-access
-hooks._integrate_plugins()  # pylint:disable=protected-access
-executors._integrate_plugins()  # pylint:disable=protected-access
-macros._integrate_plugins()  # pylint:disable=protected-access
+integrate_plugins()

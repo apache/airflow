@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import json
+import os
 import unittest
 from datetime import timedelta
+from unittest import mock
 from urllib.parse import quote_plus
 
 from airflow import settings
@@ -27,8 +27,13 @@ from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
+from airflow.version import version
 from airflow.www import app as application
 from tests.test_utils.db import clear_db_pools
+
+ROOT_FOLDER = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir, os.pardir)
+)
 
 
 class TestBase(unittest.TestCase):
@@ -65,6 +70,14 @@ class TestApiExperimental(TestBase):
         session.commit()
         session.close()
         super().tearDown()
+
+    def test_info(self):
+        url = '/api/experimental/info'
+
+        resp_raw = self.client.get(url)
+        resp = json.loads(resp_raw.data.decode('utf-8'))
+
+        self.assertEqual(version, resp['version'])
 
     def test_task_info(self):
         url_template = '/api/experimental/dags/{}/tasks/{}'
@@ -274,6 +287,67 @@ class TestApiExperimental(TestBase):
         )
         self.assertEqual(200, response.status_code)
         self.assertIn('state', response.data.decode('utf-8'))
+        self.assertNotIn('error', response.data.decode('utf-8'))
+
+        # Test error for nonexistent dag
+        response = self.client.get(
+            url_template.format('does_not_exist_dag', datetime_string),
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+        # Test error for nonexistent dag run (wrong execution_date)
+        response = self.client.get(
+            url_template.format(dag_id, wrong_datetime_string)
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+        # Test error for bad datetime format
+        response = self.client.get(
+            url_template.format(dag_id, 'not_a_datetime')
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+
+class TestLineageApiExperimental(TestBase):
+    PAPERMILL_EXAMPLE_DAGS = os.path.join(ROOT_FOLDER, "airflow", "providers", "papermill", "example_dags")
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        session = Session()
+        session.query(DagRun).delete()
+        session.query(TaskInstance).delete()
+        session.commit()
+        session.close()
+
+        dagbag = DagBag(include_examples=False, dag_folder=cls.PAPERMILL_EXAMPLE_DAGS)
+        for dag in dagbag.dags.values():
+            dag.sync_to_db()
+
+    @mock.patch("airflow.settings.DAGS_FOLDER", PAPERMILL_EXAMPLE_DAGS)
+    def test_lineage_info(self):
+        url_template = '/api/experimental/lineage/{}/{}'
+        dag_id = 'example_papermill_operator'
+        execution_date = utcnow().replace(microsecond=0)
+        datetime_string = quote_plus(execution_date.isoformat())
+        wrong_datetime_string = quote_plus(
+            datetime(1990, 1, 1, 1, 1, 1).isoformat()
+        )
+
+        # create DagRun
+        trigger_dag(dag_id=dag_id,
+                    run_id='test_lineage_info_run',
+                    execution_date=execution_date)
+
+        # test correct execution
+        response = self.client.get(
+            url_template.format(dag_id, datetime_string)
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertIn('task_ids', response.data.decode('utf-8'))
         self.assertNotIn('error', response.data.decode('utf-8'))
 
         # Test error for nonexistent dag

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import logging
+
 import flask_login
 from flask import redirect, request, url_for
 # Need to expose these downstream
@@ -25,10 +26,9 @@ from flask_oauthlib.client import OAuth
 
 from airflow import models
 from airflow.configuration import conf
-from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def get_config_param(param):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -32,7 +31,7 @@ from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 from google.cloud.pubsub_v1.types import Duration, MessageStoragePolicy, PushConfig
 from googleapiclient.errors import HttpError
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 from airflow.version import version
 
 
@@ -43,7 +42,7 @@ class PubSubException(Exception):
 
 
 # noinspection PyAbstractClass
-class PubSubHook(GoogleCloudBaseHook):
+class PubSubHook(CloudBaseHook):
     """
     Hook for accessing Google Pub/Sub.
 
@@ -82,7 +81,7 @@ class PubSubHook(GoogleCloudBaseHook):
             client_info=self.client_info
         )
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def publish(
         self,
         topic: str,
@@ -103,7 +102,8 @@ class PubSubHook(GoogleCloudBaseHook):
             If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         self._validate_messages(messages)
 
         publisher = self.get_conn()
@@ -149,7 +149,7 @@ class PubSubHook(GoogleCloudBaseHook):
                     "Wrong message. If 'data' is not provided 'attributes' must be a non empty dictionary.")
 
     # pylint: disable=too-many-arguments
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_topic(
         self,
         topic: str,
@@ -198,7 +198,8 @@ class PubSubHook(GoogleCloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         publisher = self.get_conn()
         topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
 
@@ -227,7 +228,7 @@ class PubSubHook(GoogleCloudBaseHook):
 
         self.log.info("Created topic (path) %s", topic_path)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_topic(
         self,
         topic: str,
@@ -259,7 +260,8 @@ class PubSubHook(GoogleCloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         publisher = self.get_conn()
         topic_path = PublisherClient.topic_path(project_id, topic)  # pylint: disable=no-member
 
@@ -281,7 +283,7 @@ class PubSubHook(GoogleCloudBaseHook):
         self.log.info("Deleted topic (path) %s", topic_path)
 
     # pylint: disable=too-many-arguments
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_subscription(
         self,
         topic: str,
@@ -352,7 +354,8 @@ class PubSubHook(GoogleCloudBaseHook):
             the ``subscription`` parameter is not supplied
         :rtype: str
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         subscriber = self.subscriber_client
 
         if not subscription:
@@ -392,7 +395,7 @@ class PubSubHook(GoogleCloudBaseHook):
         self.log.info("Created subscription (path) %s for topic (path) %s", subscription_path, topic_path)
         return subscription
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_subscription(
         self,
         subscription: str,
@@ -423,7 +426,8 @@ class PubSubHook(GoogleCloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 
@@ -446,7 +450,7 @@ class PubSubHook(GoogleCloudBaseHook):
 
         self.log.info("Deleted subscription (path) %s", subscription_path)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def pull(
         self,
         subscription: str,
@@ -487,7 +491,8 @@ class PubSubHook(GoogleCloudBaseHook):
             the base64-encoded message content. See
             https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 
@@ -508,7 +513,7 @@ class PubSubHook(GoogleCloudBaseHook):
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException('Error pulling messages from subscription {}'.format(subscription_path), e)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def acknowledge(
         self,
         subscription: str,
@@ -540,7 +545,8 @@ class PubSubHook(GoogleCloudBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :type metadata: Sequence[Tuple[str, str]]]
         """
-        assert project_id is not None
+        if not project_id:
+            raise ValueError("Project ID should be set.")
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 

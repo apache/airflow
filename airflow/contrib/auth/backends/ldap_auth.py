@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 import re
 import ssl
 import traceback
@@ -30,14 +29,13 @@ from wtforms.validators import InputRequired
 
 from airflow import models
 from airflow.configuration import AirflowConfigException, conf
-from airflow.utils.db import provide_session
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 class AuthenticationError(Exception):
