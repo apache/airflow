@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,10 +19,11 @@
 import unittest
 from datetime import datetime
 
+import mock
+
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
-from tests.compat import mock
 
 
 class TestCheckOperator(unittest.TestCase):

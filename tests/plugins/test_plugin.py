@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,7 +26,7 @@ from airflow.models.baseoperator import BaseOperator
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.tests import (
+from tests.test_utils.mock_operators import (
     AirflowLink, AirflowLink2, CustomBaseIndexOpLink, CustomOpLink, GithubLink, GoogleLink,
 )
 
@@ -63,7 +62,7 @@ class PluginTestAppBuilderBaseView(AppBuilderBaseView):
 
     @expose("/")
     def test(self):
-        return self.render("test_plugin/test.html", content="Hello galaxy!")
+        return self.render_template("test_plugin/test.html", content="Hello galaxy!")
 
 
 v_appbuilder_view = PluginTestAppBuilderBaseView()
@@ -85,13 +84,6 @@ bp = Blueprint(
     static_url_path='/static/test_plugin')
 
 
-class StatsClass:
-    @staticmethod
-    # Create a handler to validate statsd stat name
-    def stat_name_dummy_handler(stat_name: str) -> str:
-        return stat_name
-
-
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -103,7 +95,6 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
-    stat_name_handler = StatsClass.stat_name_dummy_handler
     global_operator_extra_links = [
         AirflowLink(),
         GithubLink(),

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from tempfile import TemporaryDirectory
 
-from airflow.utils.file import TemporaryDirectory
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 

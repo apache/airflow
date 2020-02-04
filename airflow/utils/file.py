@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,31 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import errno
+import logging
 import os
 import re
-import shutil
 import zipfile
-from contextlib import contextmanager
-from tempfile import mkdtemp
 from typing import Dict, List, Optional, Pattern
 
-from airflow import LoggingMixin, conf
+from airflow import conf
+
+log = logging.getLogger(__name__)
 
 
-@contextmanager
-def TemporaryDirectory(suffix='', prefix=None, dir=None):
-    name = mkdtemp(suffix=suffix, prefix=prefix, dir=dir)
-    try:
-        yield name
-    finally:
-        try:
-            shutil.rmtree(name)
-        except OSError as e:
-            # ENOENT - no such file or directory
-            if e.errno != errno.ENOENT:
-                raise e
+def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
+    """
+    This function is deprecated. Please use `tempfile.TemporaryDirectory`
+    """
+    import warnings
+    from tempfile import TemporaryDirectory as TmpDir
+    warnings.warn(
+        "This function is deprecated. Please use `tempfile.TemporaryDirectory`",
+        DeprecationWarning, stacklevel=2
+    )
+    return TmpDir(*args, **kwargs)
 
 
 def mkdirs(path, mode):
@@ -154,7 +150,6 @@ def find_dag_file_paths(file_paths, files, patterns, root, safe_mode):
 
             file_paths.append(file_path)
         except Exception:  # pylint: disable=broad-except
-            log = LoggingMixin().log
             log.exception("Error while examining %s", f)
 
 

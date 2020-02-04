@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -450,8 +449,8 @@ class TestBaseSensor(unittest.TestCase):
         # poke returns False and AirflowRescheduleException is raised
         date1 = timezone.utcnow()
         with freeze_time(date1):
-            for dt in self.dag.date_range(DEFAULT_DATE, end_date=DEFAULT_DATE):
-                TaskInstance(sensor, dt).run(
+            for date in self.dag.date_range(DEFAULT_DATE, end_date=DEFAULT_DATE):
+                TaskInstance(sensor, date).run(
                     ignore_ti_state=True,
                     test_mode=True)
         tis = dr.get_task_instances()

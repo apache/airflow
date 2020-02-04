@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -40,9 +39,9 @@ from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.gcp.hooks.gcs import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version as airflow_version
@@ -417,7 +416,7 @@ class ClusterGenerator:
 
 
 # pylint: disable=too-many-instance-attributes
-class DataprocClusterCreateOperator(BaseOperator):
+class DataprocCreateClusterOperator(BaseOperator):
     """
     Create a new cluster on Google Cloud Dataproc. The operator will wait until the
     creation is successful or an error occurs in the creation process.
@@ -528,7 +527,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         return MessageToDict(cluster)
 
 
-class DataprocClusterScaleOperator(BaseOperator):
+class DataprocScaleClusterOperator(BaseOperator):
     """
     Scale, up or down, a cluster on Google Cloud Dataproc.
     The operator will wait until the cluster is re-scaled.
@@ -664,7 +663,7 @@ class DataprocClusterScaleOperator(BaseOperator):
         self.log.info("Cluster scaling finished")
 
 
-class DataprocClusterDeleteOperator(BaseOperator):
+class DataprocDeleteClusterOperator(BaseOperator):
     """
     Deletes a cluster in a project.
 
@@ -736,7 +735,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
         self.log.info("Cluster deleted.")
 
 
-class DataProcJobBaseOperator(BaseOperator):
+class DataprocJobBaseOperator(BaseOperator):
     """
     The base class for operators that launch job on DataProc.
 
@@ -863,7 +862,7 @@ class DataProcJobBaseOperator(BaseOperator):
             )
 
 
-class DataProcPigOperator(DataProcJobBaseOperator):
+class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     """
     Start a Pig query Job on a Cloud DataProc cluster. The parameters of the operation
     will be passed to the cluster.
@@ -960,7 +959,7 @@ class DataProcPigOperator(DataProcJobBaseOperator):
         super().execute(context)
 
 
-class DataProcHiveOperator(DataProcJobBaseOperator):
+class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     """
     Start a Hive query Job on a Cloud DataProc cluster.
 
@@ -1026,7 +1025,7 @@ class DataProcHiveOperator(DataProcJobBaseOperator):
         super().execute(context)
 
 
-class DataProcSparkSqlOperator(DataProcJobBaseOperator):
+class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     """
     Start a Spark SQL query Job on a Cloud DataProc cluster.
 
@@ -1092,7 +1091,7 @@ class DataProcSparkSqlOperator(DataProcJobBaseOperator):
         super().execute(context)
 
 
-class DataProcSparkOperator(DataProcJobBaseOperator):
+class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     """
     Start a Spark Job on a Cloud DataProc cluster.
 
@@ -1165,7 +1164,7 @@ class DataProcSparkOperator(DataProcJobBaseOperator):
         super().execute(context)
 
 
-class DataProcHadoopOperator(DataProcJobBaseOperator):
+class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     """
     Start a Hadoop Job on a Cloud DataProc cluster.
 
@@ -1238,7 +1237,7 @@ class DataProcHadoopOperator(DataProcJobBaseOperator):
         super().execute(context)
 
 
-class DataProcPySparkOperator(DataProcJobBaseOperator):
+class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     """
     Start a PySpark Job on a Cloud DataProc cluster.
 
@@ -1279,7 +1278,7 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
 
         self.log.info("Uploading %s to %s", local_file, temp_filename)
 
-        GoogleCloudStorageHook(
+        GCSHook(
             google_cloud_storage_conn_id=self.gcp_conn_id
         ).upload(
             bucket_name=bucket,
@@ -1360,7 +1359,7 @@ class DataProcPySparkOperator(DataProcJobBaseOperator):
         super().execute(context)
 
 
-class DataprocWorkflowTemplateInstantiateOperator(BaseOperator):
+class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
     """
     Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
     until the WorkflowTemplate is finished executing.
@@ -1455,7 +1454,7 @@ class DataprocWorkflowTemplateInstantiateOperator(BaseOperator):
         self.log.info('Template instantiated.')
 
 
-class DataprocWorkflowTemplateInstantiateInlineOperator(BaseOperator):
+class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
     """
     Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
     wait until the WorkflowTemplate is finished executing.

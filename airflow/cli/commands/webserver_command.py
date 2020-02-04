@@ -16,6 +16,7 @@
 # under the License.
 
 """Webserver command"""
+import logging
 import os
 import signal
 import subprocess
@@ -27,13 +28,13 @@ import daemon
 import psutil
 from daemon.pidfile import TimeoutPIDLockFile
 
-from airflow import AirflowException, LoggingMixin, conf, settings
+from airflow import AirflowException, conf, settings
 from airflow.exceptions import AirflowWebServerTimeout
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 from airflow.www.app import cached_app, create_app
 
-LOG = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def get_num_ready_workers_running(gunicorn_master_proc):
@@ -95,7 +96,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
 
     def start_refresh(gunicorn_master_proc):
         batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
-        LOG.debug('%s doing a refresh of %s workers', state, batch_size)
+        log.debug('%s doing a refresh of %s workers', state, batch_size)
         sys.stdout.flush()
         sys.stderr.flush()
 
@@ -120,14 +121,14 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
 
             # Whenever some workers are not ready, wait until all workers are ready
             if num_ready_workers_running < num_workers_running:
-                LOG.debug('%s some workers are starting up, waiting...', state)
+                log.debug('%s some workers are starting up, waiting...', state)
                 sys.stdout.flush()
                 time.sleep(1)
 
             # Kill a worker gracefully by asking gunicorn to reduce number of workers
             elif num_workers_running > num_workers_expected:
                 excess = num_workers_running - num_workers_expected
-                LOG.debug('%s killing %s workers', state, excess)
+                log.debug('%s killing %s workers', state, excess)
 
                 for _ in range(excess):
                     gunicorn_master_proc.send_signal(signal.SIGTTOU)
@@ -139,7 +140,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
             # Start a new worker by asking gunicorn to increase number of workers
             elif num_workers_running == num_workers_expected:
                 refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
-                LOG.debug(
+                log.debug(
                     '%s sleeping for %ss starting doing a refresh...',
                     state, refresh_interval
                 )
@@ -148,7 +149,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
 
             else:
                 # num_ready_workers_running == num_workers_running < num_workers_expected
-                LOG.error((
+                log.error((
                     "%s some workers seem to have died and gunicorn"
                     "did not restart them as expected"
                 ), state)
@@ -158,8 +159,8 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
                 ) < num_workers_expected:
                     start_refresh(gunicorn_master_proc)
     except (AirflowWebServerTimeout, OSError) as err:
-        LOG.error(err)
-        LOG.error("Shutting down webserver")
+        log.error(err)
+        log.error("Shutting down webserver")
         try:
             gunicorn_master_proc.terminate()
             gunicorn_master_proc.wait()
@@ -285,7 +286,7 @@ def webserver(args):
                             gunicorn_master_proc_pid = int(file.read())
                             break
                     except OSError:
-                        LOG.debug("Waiting for gunicorn's pid file to be created.")
+                        log.debug("Waiting for gunicorn's pid file to be created.")
                         time.sleep(0.1)
 
                 gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)

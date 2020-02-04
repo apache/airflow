@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,11 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import importlib
 import unittest
+from unittest import mock
 from unittest.mock import Mock
 
+import airflow
+from airflow.exceptions import InvalidStatsNameException
 from airflow.stats import AllowListValidator, SafeStatsdLogger
+from tests.test_utils.config import conf_vars
 
 
 class TestStats(unittest.TestCase):
@@ -63,3 +66,37 @@ class TestStatsWithAllowList(unittest.TestCase):
     def test_not_increment_counter_if_not_allowed(self):
         self.stats.incr('stats_three')
         self.statsd_client.assert_not_called()
+
+
+def always_invalid(stat_name):
+    raise InvalidStatsNameException("Invalid name: {}".format(stat_name))
+
+
+def always_valid(stat_name):
+    return stat_name
+
+
+class TestCustomStatsName(unittest.TestCase):
+    @conf_vars({
+        ('scheduler', 'statsd_on'): 'True',
+        ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_invalid'
+    })
+    @mock.patch("statsd.StatsClient")
+    def test_does_not_send_stats_when_the_name_is_not_valid(self, mock_statsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        mock_statsd.return_value.assert_not_called()
+
+    @conf_vars({
+        ('scheduler', 'statsd_on'): 'True',
+        ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_valid'
+    })
+    @mock.patch("statsd.StatsClient")
+    def test_does_send_stats_when_the_name_is_valid(self, mock_statsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        mock_statsd.return_value.incr.assert_called_once_with('dummy_key', 1, 1)
+
+    def tearDown(self) -> None:
+        # To avoid side-effect
+        importlib.reload(airflow.stats)

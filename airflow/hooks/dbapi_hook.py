@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -74,8 +73,11 @@ class DbApiHook(BaseHook):
         host = conn.host
         if conn.port is not None:
             host += ':{port}'.format(port=conn.port)
-        return '{conn.conn_type}://{login}{host}/{conn.schema}'.format(
+        uri = '{conn.conn_type}://{login}{host}/'.format(
             conn=conn, login=login, host=host)
+        if conn.schema:
+            uri += conn.schema
+        return uri
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         if engine_kwargs is None:

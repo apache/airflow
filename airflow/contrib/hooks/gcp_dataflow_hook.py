@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,14 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.gcp.hooks.dataflow`."""
+"""This module is deprecated. Please use `airflow.providers.google.cloud.hooks.dataflow`."""
 
 import warnings
 
-# pylint: disable=unused-import
-from airflow.gcp.hooks.dataflow import DEFAULT_DATAFLOW_LOCATION, DataFlowHook, DataflowJobStatus  # noqa
+from airflow.providers.google.cloud.hooks.dataflow import DataflowHook
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.gcp.hooks.dataflow`.",
+    "This module is deprecated. Please use `airflow.providers.google.cloud.hooks.dataflow`.",
     DeprecationWarning, stacklevel=2
 )
+
+
+class DataFlowHook(DataflowHook):
+    """
+    This class is deprecated. Please use `airflow.providers.google.cloud.hooks.dataflow.DataflowHook`.
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. "
+            "Please use `airflow.providers.google.cloud.hooks.dataflow.DataflowHook`.",
+            DeprecationWarning, stacklevel=2
+        )
+        super().__init__(*args, **kwargs)
