@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -28,7 +27,6 @@ import time
 from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import timedelta
-from time import sleep
 from typing import List, Set
 
 from setproctitle import setproctitle
@@ -37,23 +35,23 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, SCHEDULED_DEPS, DepContext
+from airflow.ti_deps.dep_context import SCHEDULED_DEPS, DepContext
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
     AbstractDagFileProcessorProcess, DagFileProcessorAgent, SimpleDag, SimpleDagBag,
 )
-from airflow.utils.db import provide_session
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -430,7 +428,18 @@ class DagFileProcessor(LoggingMixin):
             """.format(task_list=task_list, blocking_task_list=blocking_task_list,
                        bug=asciiart.bug)
 
-            tasks_missed_sla = [dag.get_task(sla.task_id) for sla in slas]
+            tasks_missed_sla = []
+            for sla in slas:
+                try:
+                    task = dag.get_task(sla.task_id)
+                except TaskNotFound:
+                    # task already deleted from DAG, skip it
+                    self.log.warning(
+                        "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.",
+                        sla.task_id)
+                    continue
+                tasks_missed_sla.append(task)
+
             emails = set()
             for task in tasks_missed_sla:
                 if task.email:
@@ -629,8 +638,9 @@ class DagFileProcessor(LoggingMixin):
         active_dag_runs = []
         for run in dag_runs:
             self.log.info("Examining DAG run %s", run)
-            # don't consider runs that are executed in the future
-            if run.execution_date > timezone.utcnow():
+            # don't consider runs that are executed in the future unless
+            # specified by config and schedule_interval is None
+            if run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
                 self.log.error(
                     "Execution date is in future: %s",
                     run.execution_date
@@ -649,28 +659,10 @@ class DagFileProcessor(LoggingMixin):
             run.dag = dag
             # todo: preferably the integrity check happens at dag collection time
             run.verify_integrity(session=session)
-            run.update_state(session=session)
+            ready_tis = run.update_state(session=session)
             if run.state == State.RUNNING:
-                make_transient(run)
-                active_dag_runs.append(run)
-
-        for run in active_dag_runs:
-            self.log.debug("Examining active DAG run: %s", run)
-            tis = run.get_task_instances(state=SCHEDULEABLE_STATES)
-
-            # this loop is quite slow as it uses are_dependencies_met for
-            # every task (in ti.is_runnable). This is also called in
-            # update_state above which has already checked these tasks
-            for ti in tis:
-                task = dag.get_task(ti.task_id)
-
-                # fixme: ti.task is transient but needs to be set
-                ti.task = task
-
-                if ti.are_dependencies_met(
-                    dep_context=DepContext(flag_upstream_failed=True),
-                    session=session
-                ):
+                self.log.debug("Examining active DAG run: %s", run)
+                for ti in ready_tis:
                     self.log.debug('Queuing task: %s', ti)
                     task_instances_list.append(ti.key)
 
@@ -680,7 +672,7 @@ class DagFileProcessor(LoggingMixin):
 
         1. Create appropriate DagRun(s) in the DB.
         2. Create appropriate TaskInstance(s) in the DB.
-        3. Send emails for tasks that have missed SLAs.
+        3. Send emails for tasks that have missed SLAs (if CHECK_SLAS config enabled).
 
         :param dagbag: a collection of DAGs to process
         :type dagbag: airflow.models.DagBag
@@ -690,6 +682,7 @@ class DagFileProcessor(LoggingMixin):
         :type tis_out: list[TaskInstance]
         :rtype: None
         """
+        check_slas = conf.getboolean('core', 'CHECK_SLAS', fallback=True)
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
             if not dag:
@@ -715,7 +708,8 @@ class DagFileProcessor(LoggingMixin):
                             schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
-            self.manage_slas(dag)
+            if check_slas:
+                self.manage_slas(dag)
 
     def _find_dags_to_process(self, dags: List[DAG], paused_dag_ids: Set[str]):
         """
@@ -908,8 +902,11 @@ class SchedulerJob(BaseJob):
             self._log = log
 
         self.using_sqlite = False
-        if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
+        self.using_mysql = False
+        if conf.get('core', 'sql_alchemy_conn').lower().startswith('sqlite'):
             self.using_sqlite = True
+        if conf.get('core', 'sql_alchemy_conn').lower().startswith('mysql'):
+            self.using_mysql = True
 
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent = None
@@ -979,7 +976,9 @@ class SchedulerJob(BaseJob):
             .filter(or_(
                 models.DagRun.state != State.RUNNING,
                 models.DagRun.state.is_(None)))
-        if self.using_sqlite:
+        # We need to do this for mysql as well because it can cause deadlocks
+        # as discussed in https://issues.apache.org/jira/browse/AIRFLOW-2516
+        if self.using_sqlite or self.using_mysql:
             tis_to_change = query \
                 .with_for_update() \
                 .all()
@@ -1073,12 +1072,18 @@ class SchedulerJob(BaseJob):
         )
 
         # Additional filters on task instance state
-        if None in states:
-            ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(states))  # noqa: E711 pylint: disable=singleton-comparison
-            )
-        else:
-            ti_query = ti_query.filter(TI.state.in_(states))
+        if states:
+            if None in states:
+                if all(x is None for x in states):
+                    ti_query = ti_query.filter(TI.state == None)  # noqa pylint: disable=singleton-comparison
+                else:
+                    not_none_states = [state for state in states if state]
+                    ti_query = ti_query.filter(
+                        or_(TI.state == None,  # noqa: E711 pylint: disable=singleton-comparison
+                            TI.state.in_(not_none_states))
+                    )
+            else:
+                ti_query = ti_query.filter(TI.state.in_(states))
 
         task_instances_to_examine = ti_query.all()
 
@@ -1241,12 +1246,18 @@ class SchedulerJob(BaseJob):
             .query(TI)
             .filter(or_(*filter_for_ti_state_change)))
 
-        if None in acceptable_states:
-            ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(acceptable_states))  # noqa pylint: disable=singleton-comparison
-            )
-        else:
-            ti_query = ti_query.filter(TI.state.in_(acceptable_states))
+        if acceptable_states:
+            if None in acceptable_states:
+                if all(x is None for x in acceptable_states):
+                    ti_query = ti_query.filter(TI.state == None)  # noqa pylint: disable=singleton-comparison
+                else:
+                    not_none_acceptable_states = [state for state in acceptable_states if state]
+                    ti_query = ti_query.filter(
+                        or_(TI.state == None,  # noqa pylint: disable=singleton-comparison
+                            TI.state.in_(not_none_acceptable_states))
+                    )
+            else:
+                ti_query = ti_query.filter(TI.state.in_(acceptable_states))
 
         tis_to_set_to_queued = (
             ti_query
@@ -1521,9 +1532,10 @@ class SchedulerJob(BaseJob):
         # Last time that self.heartbeat() was called.
         last_self_heartbeat_time = timezone.utcnow()
 
+        is_unit_test = conf.getboolean('core', 'unit_test_mode')
+
         # For the execute duration, parse and schedule DAGs
         while True:
-            self.log.debug("Starting Loop...")
             loop_start_time = time.time()
 
             if self.using_sqlite:
@@ -1534,7 +1546,6 @@ class SchedulerJob(BaseJob):
                     "Waiting for processors to finish since we're using sqlite")
                 self.processor_agent.wait_until_finished()
 
-            self.log.debug("Harvesting DAG parsing results")
             simple_dags = self._get_simple_dags()
             self.log.debug("Harvested {} SimpleDAGs".format(len(simple_dags)))
 
@@ -1552,7 +1563,6 @@ class SchedulerJob(BaseJob):
                 self.heartbeat()
                 last_self_heartbeat_time = timezone.utcnow()
 
-            is_unit_test = conf.getboolean('core', 'unit_test_mode')
             loop_end_time = time.time()
             loop_duration = loop_end_time - loop_start_time
             self.log.debug(
@@ -1560,20 +1570,12 @@ class SchedulerJob(BaseJob):
                 loop_duration)
 
             if not is_unit_test:
-                self.log.debug("Sleeping for %.2f seconds", self._processor_poll_interval)
                 time.sleep(self._processor_poll_interval)
 
             if self.processor_agent.done:
                 self.log.info("Exiting scheduler loop as all files"
                               " have been processed {} times".format(self.num_runs))
                 break
-
-            if loop_duration < 1 and not is_unit_test:
-                sleep_length = 1 - loop_duration
-                self.log.debug(
-                    "Sleeping for {0:.2f} seconds to prevent excessive logging"
-                    .format(sleep_length))
-                sleep(sleep_length)
 
         # Stop any processors
         self.processor_agent.terminate()

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,7 +18,7 @@
 
 from typing import NamedTuple
 
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 
 
 class BaseTIDep:

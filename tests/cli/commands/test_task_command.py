@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,13 +18,14 @@
 #
 import io
 import unittest
-from argparse import Namespace
 from contextlib import redirect_stdout
 from datetime import datetime, timedelta
 from unittest import mock
-from unittest.mock import MagicMock
 
-from airflow import models
+from parameterized import parameterized
+from tabulate import tabulate
+
+from airflow import AirflowException, models
 from airflow.bin import cli
 from airflow.cli.commands import task_command
 from airflow.models import DagBag, TaskInstance
@@ -46,58 +46,6 @@ def reset(dag_id):
     session.close()
 
 
-def create_mock_args(  # pylint: disable=too-many-arguments
-    task_id,
-    dag_id,
-    subdir,
-    execution_date,
-    task_params=None,
-    dry_run=False,
-    queue=None,
-    pool=None,
-    priority_weight_total=None,
-    retries=0,
-    local=True,
-    mark_success=False,
-    ignore_all_dependencies=False,
-    ignore_depends_on_past=False,
-    ignore_dependencies=False,
-    force=False,
-    run_as_user=None,
-    executor_config=None,
-    cfg_path=None,
-    pickle=None,
-    raw=None,
-    interactive=None,
-):
-    if executor_config is None:
-        executor_config = {}
-    args = MagicMock(spec=Namespace)
-    args.task_id = task_id
-    args.dag_id = dag_id
-    args.subdir = subdir
-    args.task_params = task_params
-    args.execution_date = execution_date
-    args.dry_run = dry_run
-    args.queue = queue
-    args.pool = pool
-    args.priority_weight_total = priority_weight_total
-    args.retries = retries
-    args.local = local
-    args.run_as_user = run_as_user
-    args.executor_config = executor_config
-    args.cfg_path = cfg_path
-    args.pickle = pickle
-    args.raw = raw
-    args.mark_success = mark_success
-    args.ignore_all_dependencies = ignore_all_dependencies
-    args.ignore_depends_on_past = ignore_depends_on_past
-    args.ignore_dependencies = ignore_dependencies
-    args.force = force
-    args.interactive = interactive
-    return args
-
-
 class TestCliTasks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -115,12 +63,9 @@ class TestCliTasks(unittest.TestCase):
 
     def test_test(self):
         """Test the `airflow test` command"""
-        args = create_mock_args(
-            task_id='print_the_context',
-            dag_id='example_python_operator',
-            subdir=None,
-            execution_date=timezone.parse('2018-01-01')
-        )
+        args = self.parser.parse_args([
+            "tasks", "test", "example_python_operator", 'print_the_context', '2018-01-01'
+        ])
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
@@ -179,10 +124,74 @@ class TestCliTasks(unittest.TestCase):
             'tasks', 'run', 'example_bash_operator', 'runme_0', '-l',
             DEFAULT_DATE.isoformat()]))
 
+    @parameterized.expand(
+        [
+            ("--ignore_all_dependencies", ),
+            ("--ignore_depends_on_past", ),
+            ("--ignore_dependencies",),
+            ("--force",),
+        ],
+
+    )
+    def test_cli_run_invalid_raw_option(self, option: str):
+        with self.assertRaisesRegex(
+            AirflowException,
+            "Option --raw does not work with some of the other options on this command."
+        ):
+            task_command.task_run(self.parser.parse_args([  # type: ignore
+                'tasks', 'run', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat(), '--raw', option
+            ]))
+
+    def test_cli_run_mutually_exclusive(self):
+        with self.assertRaisesRegex(
+            AirflowException,
+            "Option --raw and --local are mutually exclusive."
+        ):
+            task_command.task_run(self.parser.parse_args([  # type: ignore
+                'tasks', 'run', 'example_bash_operator', 'runme_0', DEFAULT_DATE.isoformat(), '--raw',
+                '--local'
+            ]))
+
     def test_task_state(self):
         task_command.task_state(self.parser.parse_args([
             'tasks', 'state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
+
+    def test_task_states_for_dag_run(self):
+
+        dag2 = DagBag().dags['example_python_operator']
+
+        task2 = dag2.get_task(task_id='print_the_context')
+        defaut_date2 = timezone.make_aware(datetime(2016, 1, 9))
+        ti2 = TaskInstance(task2, defaut_date2)
+
+        ti2.set_state(State.SUCCESS)
+        ti_start = ti2.start_date
+        ti_end = ti2.end_date
+
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_states_for_dag_run(self.parser.parse_args([
+                'tasks', 'states_for_dag_run', 'example_python_operator', defaut_date2.isoformat()]))
+        actual_out = stdout.getvalue()
+
+        formatted_rows = [('example_python_operator',
+                           '2016-01-09 00:00:00+00:00',
+                           'print_the_context',
+                           'success',
+                           ti_start,
+                           ti_end)]
+
+        expected = tabulate(formatted_rows,
+                            ['dag',
+                             'exec_date',
+                             'task',
+                             'state',
+                             'start_date',
+                             'end_date'],
+                            tablefmt="fancy_grid")
+
+        # Check that prints, and log messages, are shown
+        self.assertEqual(expected.replace("\n", ""), actual_out.replace("\n", ""))
 
     def test_subdag_clear(self):
         args = self.parser.parse_args([
@@ -202,14 +211,18 @@ class TestCliTasks(unittest.TestCase):
         task_command.task_clear(args)
 
     def test_local_run(self):
-        args = create_mock_args(
-            task_id='print_the_context',
-            dag_id='example_python_operator',
-            subdir='/root/dags/example_python_operator.py',
-            interactive=True,
-            execution_date=timezone.parse('2018-04-27T08:39:51.298439+00:00')
-        )
-        dag = get_dag(args)
+        args = self.parser.parse_args([
+            'tasks',
+            'run',
+            'example_python_operator',
+            'print_the_context',
+            '2018-04-27T08:39:51.298439+00:00',
+            '--interactive',
+            '--subdir',
+            '/root/dags/example_python_operator.py'
+        ])
+
+        dag = get_dag(args.subdir, args.dag_id)
         reset(dag.dag_id)
 
         task_command.task_run(args)

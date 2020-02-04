@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -31,8 +30,9 @@ from airflow.models import TaskInstance as TI
 from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
-from tests.test_core import TEST_DAG_FOLDER
 from tests.test_utils.db import clear_db_runs
+
+TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -178,10 +178,10 @@ class TestStandardTaskRunner(unittest.TestCase):
 
     @staticmethod
     def _procs_in_pgroup(pgid):
-        for p in psutil.process_iter(attrs=['pid', 'name']):
+        for proc in psutil.process_iter(attrs=['pid', 'name']):
             try:
-                if os.getpgid(p.pid) == pgid and p.pid != 0:
-                    yield p
+                if os.getpgid(proc.pid) == pgid and proc.pid != 0:
+                    yield proc
             except OSError:
                 pass
 

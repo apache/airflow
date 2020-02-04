@@ -30,9 +30,10 @@ PARALLELISM: int = conf.getint('core', 'PARALLELISM')
 
 NOT_STARTED_MESSAGE = "The executor should be started first!"
 
-# Command to execute - might be either string or list of strings
-# with the same semantics as subprocess.Popen
-CommandType = Union[str, List[str]]
+# Command to execute - list of strings
+# the first element is always "airflow".
+# It should be result of TaskInstance.generate_command method.q
+CommandType = List[str]
 
 
 # Task that is queued. It contains all the information that is
@@ -150,16 +151,25 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
+    def order_queued_tasks_by_priority(self) -> List[Tuple[TaskInstanceKeyType, QueuedTaskInstanceType]]:
+        """
+        Orders the queued tasks by priority.
+
+        :return: List of tuples from the queued_tasks according to the priority.
+        """
+        return sorted(
+            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
+            key=lambda x: x[1][1],
+            reverse=True)
+
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Triggers tasks
 
         :param open_slots: Number of open slots
         """
-        sorted_queue = sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],
-            key=lambda x: x[1][1],
-            reverse=True)
+        sorted_queue = self.order_queued_tasks_by_priority()
+
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, _, simple_ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)

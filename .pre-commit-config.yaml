@@ -80,7 +80,7 @@ repos:
       - id: insert-license
         name: Add license for all shell files
         exclude: ^\.github/.*$"|^airflow/_vendor/.*$
-        files: ^breeze$|^breeze-complete$|\.sh$
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$|\.bats$
         args:
           - --comment-style
           - "|#|"
@@ -149,8 +149,9 @@ repos:
       - id: mixed-line-ending
       - id: check-executables-have-shebangs
       - id: check-xml
+      - id: trailing-whitespace
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.4.2
+    rev: v1.4.4
     hooks:
       - id: rst-backticks
       - id: python-no-log-warn
@@ -167,8 +168,7 @@ repos:
         name: Check Shell scripts syntax correctness
         language: docker_image
         entry: koalaman/shellcheck:stable -x -a
-        types: [shell]
-        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$
+        files: ^breeze$|^breeze-complete$|\.sh$|^hooks/build$|^hooks/push$|\.bash$|\.bats$
         exclude: ^airflow/_vendor/.*$
       - id: lint-dockerfile
         name: Lint dockerfile
@@ -212,7 +212,7 @@ repos:
         files: \.py$
       - id: base-operator
         language: pygrep
-        name: Make sure BaseOperator is imported from airflow.models.baseoperator in core
+        name: Make sure BaseOperator[Link] is imported from airflow.models.baseoperator in core
         entry: "from airflow\\.models import.* BaseOperator"
         files: \.py$
         pass_filenames: true
@@ -226,7 +226,7 @@ repos:
           ^airflow/contrib/.*$
       - id: base-operator
         language: pygrep
-        name: Make sure BaseOperator is imported from airflow.models outside of core
+        name: Make sure BaseOperator[Link] is imported from airflow.models outside of core
         entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
         pass_filenames: true
         files: >
@@ -237,6 +237,24 @@ repos:
           ^airflow/sensors/.*$|
           ^airflow/providers/.*\.py$|
           ^airflow/contrib/.*\.py$
+      - id: provide-create-sessions
+        language: pygrep
+        name: Make sure provide_session and create_session are imported from airflow.utils.session
+        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
+        files: \.py$
+        pass_filenames: true
+      - id: incorrect-use-of-LoggingMixin
+        language: pygrep
+        name: Make sure LoggingMixin is not used alone
+        entry: "LoggingMixin\\(\\)"
+        files: \.py$
+        pass_filenames: true
+      - id: daysago-import-check
+        language: pygrep
+        name: Make sure days_ago is imported from airflow.utils.dates
+        entry: "(airflow\\.){0,1}utils\\.dates\\.days_ago"
+        files: \.py$
+        pass_filenames: true
       - id: build
         name: Check if image build is needed
         entry: ./scripts/ci/pre_commit_ci_build.sh
@@ -250,6 +268,14 @@ repos:
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
         require_serial: true
+      - id: airflow-config-yaml
+        name: Checks for consistency between config.yml and default_config.cfg
+        language: python
+        files: "^airflow/config_templates/config.yml$|^airflow/config_templates/default_airflow.cfg$"
+        pass_filenames: false
+        require_serial: false
+        entry: scripts/ci/pre_commit_yaml_to_cfg.py
+        additional_dependencies: ['pyyaml']
       - id: mypy
         name: Run mypy
         language: system
@@ -271,10 +297,16 @@ repos:
         entry: "./scripts/ci/pre_commit_pylint_tests.sh"
         files: ^tests/.*\.py$
         pass_filenames: true
-        require_serial: false  # For tests, it's perfectly OK to run pylint in parallel
+        require_serial: true
       - id: flake8
         name: Run flake8
         language: system
         entry: "./scripts/ci/pre_commit_flake8.sh"
         files: \.py$
         pass_filenames: true
+      - id: bat-tests
+        name: Run BATS bash tests for changed bash files
+        language: system
+        entry: "./scripts/ci/pre_commit_bat_tests.sh"
+        files: ^breeze$|^breeze-complete$|\.sh$|\.bash$
+        pass_filenames: false
