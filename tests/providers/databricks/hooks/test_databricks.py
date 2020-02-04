@@ -427,7 +427,7 @@ class TestDatabricksHookTokenDeprecated(unittest.TestCase):
     Tests for DatabricksHook when auth is done with token.
     """
 
-    @db.provide_session
+    @provide_session
     def setUp(self, session=None):
         conn = session.query(Connection) \
             .filter(Connection.conn_id == DEFAULT_CONN_ID) \
