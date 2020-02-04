@@ -212,6 +212,7 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
 # Generate top-level
 
+# do not exclude these top-level modules from the doc build:
 allowed_top_level = ("exceptions.py",)
 
 for path in glob(f"{ROOT_DIR}/airflow/*"):
