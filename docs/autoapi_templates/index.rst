@@ -320,13 +320,3 @@ persisted in the database.
   :maxdepth: 1
 
   airflow/models/index
-
-
-Core and community package
---------------------------
-Formerly the core code was maintained by the original creators - Airbnb. The code
-that was in the contrib package was supported by the community. The project
-was passed to the Apache community and currently the entire code is
-maintained by the community, so now the division has no justification,
-and it is only due to historical reasons. Currently, all new classes are
-added only to the contrib package.
