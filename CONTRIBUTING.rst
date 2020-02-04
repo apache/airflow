@@ -115,11 +115,14 @@ To generate a local version:
     The docs build script ``build.sh`` requires bash 4.0 or greater.
     If you are building on Mac OS, you can install latest version of bash with homebrew.
 
-**Known issue:**
+**Known issues:**
 
-If you are creating a new directory in the ``airflow.providers`` package, you should also
-update ``docs/autoapi_templates/index.rst`` file.
+If you are creating a new directory for new integration in the ``airflow.providers`` package,
+you should also update the ``docs/autoapi_templates/index.rst`` file.
 
+If you are createing a `hooks`, `sensors`, `operators` directory in
+the ``airflow.providers`` package, you should also update
+the ``docs/operators-and-hooks-ref.rst`` file.
 
 Pull Request Guidelines
 =======================
