@@ -29,9 +29,10 @@ from tabulate import tabulate
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.api.client import get_current_api_client
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.utils import cli as cli_utils, db
-from airflow.utils.cli import get_dag, process_subdir, sigint_handler
+from airflow.utils import cli as cli_utils
+from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
 from airflow.utils.dot_renderer import render_dag
+from airflow.utils.session import create_session
 
 
 def _tabulate_dag_runs(dag_runs: List[DagRun], tablefmt="fancy_grid"):
@@ -60,7 +61,7 @@ def dag_backfill(args, dag=None):
 
     signal.signal(signal.SIGTERM, sigint_handler)
 
-    dag = dag or get_dag(args)
+    dag = dag or get_dag(args.subdir, args.dag_id)
 
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
@@ -170,7 +171,7 @@ def set_is_paused(is_paused, args):
 
 def dag_show(args):
     """Displays DAG or saves it's graphic representation to the file"""
-    dag = get_dag(args)
+    dag = get_dag(args.subdir, args.dag_id)
     dot = render_dag(dag)
     if args.save:
         filename, _, fileformat = args.save.rpartition('.')
@@ -199,13 +200,22 @@ def dag_show(args):
 @cli_utils.action_logging
 def dag_state(args):
     """
-    Returns the state of a DagRun at the command line.
+    Returns the state (and conf if exists) of a DagRun at the command line.
     >>> airflow dags state tutorial 2015-01-01T00:00:00.000000
     running
+    >>> airflow dags state a_dag_with_conf_passed 2015-01-01T00:00:00.000000
+    failed, {"name": "bob", "age": "42"}
     """
-    dag = get_dag(args)
+    if args.subdir:
+        dag = get_dag(args.subdir, args.dag_id)
+    else:
+        dag = get_dag_by_file_location(args.dag_id)
     dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
-    print(dr[0].state if len(dr) > 0 else None)  # pylint: disable=len-as-condition
+    out = dr[0].state if dr else None
+    confout = ''
+    if out and dr[0].conf:
+        confout = ', ' + json.dumps(dr[0].conf)
+    print(str(out) + confout)
 
 
 @cli_utils.action_logging
@@ -215,7 +225,7 @@ def dag_next_execution(args):
     >>> airflow dags next_execution tutorial
     2018-08-31 10:38:00
     """
-    dag = get_dag(args)
+    dag = get_dag(args.subdir, args.dag_id)
 
     if dag.is_paused:
         print("[INFO] Please be reminded this DAG is PAUSED now.")
@@ -266,7 +276,7 @@ def dag_list_jobs(args, dag=None):
     if args.state:
         queries.append(jobs.BaseJob.state == args.state)
 
-    with db.create_session() as session:
+    with create_session() as session:
         all_jobs = (session
                     .query(jobs.BaseJob)
                     .filter(*queries)

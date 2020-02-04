@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-
+.. _cli:
 
 Command Line Interface Reference
 ================================
@@ -23,6 +23,9 @@ Command Line Interface Reference
 Airflow has a very rich command line interface that allows for
 many types of operation on a DAG, starting services, and supporting
 development and testing.
+
+.. note::
+    For more information on usage CLI, see :doc:`usage-cli`
 
 .. contents:: Content
     :local:

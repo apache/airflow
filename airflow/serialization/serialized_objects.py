@@ -20,19 +20,29 @@ import datetime
 import enum
 import logging
 from inspect import Parameter, signature
-from typing import Any, Dict, Iterable, Optional, Set, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Union
 
 import cattr
 import pendulum
 from dateutil import relativedelta
 
-from airflow import DAG, AirflowException, LoggingMixin
+from airflow import DAG, AirflowException
 from airflow.models import Connection
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.json_schema import Validator, load_dag_schema
 from airflow.settings import json
+from airflow.utils.module_loading import import_string
 from airflow.www.utils import get_python_source
+
+log = logging.getLogger(__name__)
+FAILED = 'serialization_failed'
+
+BUILTIN_OPERATOR_EXTRA_LINKS: List[str] = [
+    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink",
+    "airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink",
+    "airflow.providers.qubole.operators.qubole.QDSLink"
+]
 
 
 class BaseSerialization:
@@ -189,10 +199,10 @@ class BaseSerialization:
                 return cls._encode(
                     [cls._serialize(v) for v in var], type_=DAT.TUPLE)
             else:
-                LOG.debug('Cast type %s to str in serialization.', type(var))
+                log.debug('Cast type %s to str in serialization.', type(var))
                 return str(var)
         except Exception:  # pylint: disable=broad-except
-            LOG.warning('Failed to stringify.', exc_info=True)
+            log.warning('Failed to stringify.', exc_info=True)
             return FAILED
     # pylint: enable=too-many-return-statements
 
@@ -252,8 +262,13 @@ class BaseSerialization:
         user explicitly specifies an attribute with the same "value" as the
         default. (This is because ``"default" is "default"`` will be False as
         they are different strings with the same characters.)
+
+        Also returns True if the value is an empty list or empty dict. This is done
+        to account for the case where the default value of the field is None but has the
+        ``field = field or {}`` set.
         """
-        if attrname in cls._CONSTRUCTOR_PARAMS and cls._CONSTRUCTOR_PARAMS[attrname].default is value:
+        if attrname in cls._CONSTRUCTOR_PARAMS and \
+                (cls._CONSTRUCTOR_PARAMS[attrname].default is value or (value in [{}, []])):
             return True
         return False
 
@@ -265,11 +280,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     Class specific attributes used by UI are move to object attributes.
     """
 
-    _decorated_fields = {'executor_config', }
+    _decorated_fields = {'executor_config'}
 
     _CONSTRUCTOR_PARAMS = {
         k: v for k, v in signature(BaseOperator).parameters.items()
-        if v.default is not v.empty and v.default is not None
+        if v.default is not v.empty
     }
 
     def __init__(self, *args, **kwargs):
@@ -366,9 +381,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             dag_date = getattr(op.dag, attrname, None)
             if var is dag_date or var == dag_date:
                 return True
-        if attrname in {"executor_config", "params"} and not var:
-            # Don't store empty executor config or params dicts.
-            return True
         return super()._is_excluded(var, attrname, op)
 
     @classmethod
@@ -394,23 +406,38 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             # Example of a single iteration:
             #
             #   _operator_links_source =
-            #   {'airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink': {'index': 0}},
+            #   {
+            #       'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink': {
+            #           'index': 0
+            #       }
+            #   },
             #
             #   list(_operator_links_source.items()) =
-            #   [('airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink', {'index': 0})]
+            #   [
+            #       (
+            #           'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
+            #           {'index': 0}
+            #       )
+            #   ]
             #
             #   list(_operator_links_source.items())[0] =
-            #   ('airflow.gcp.operators.bigquery.BigQueryConsoleIndexableLink', {'index': 0})
+            #   (
+            #       'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
+            #       {
+            #           'index': 0
+            #       }
+            #   )
 
-            _operator_link_class, data = list(_operator_links_source.items())[0]
-
-            if _operator_link_class in registered_operator_link_classes:
-                single_op_link_class_name = registered_operator_link_classes[_operator_link_class]
+            _operator_link_class_path, data = list(_operator_links_source.items())[0]
+            if _operator_link_class_path in BUILTIN_OPERATOR_EXTRA_LINKS:
+                single_op_link_class = import_string(_operator_link_class_path)
+            elif _operator_link_class_path in registered_operator_link_classes:
+                single_op_link_class = registered_operator_link_classes[_operator_link_class_path]
             else:
-                raise KeyError("Operator Link class %r not registered" % _operator_link_class)
+                raise KeyError("Operator Link class %r not registered" % _operator_link_class_path)
 
             op_predefined_extra_link: BaseOperatorLink = cattr.structure(
-                data, single_op_link_class_name)
+                data, single_op_link_class)
 
             op_predefined_extra_links.update(
                 {op_predefined_extra_link.name: op_predefined_extra_link}
@@ -425,7 +452,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     ):
         """
         Serialize Operator Links. Store the import path of the OperatorLink and the arguments
-        passed to it. Example ``[{'airflow.gcp.operators.bigquery.BigQueryConsoleLink': {}}]``
+        passed to it. Example
+        ``[{'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink': {}}]``
 
         :param operator_extra_links: Operator Link
         :return: Serialized Operator Link
@@ -470,7 +498,7 @@ class SerializedDAG(DAG, BaseSerialization):
         }
         return {
             param_to_attr.get(k, k): v for k, v in signature(DAG).parameters.items()
-            if v.default is not v.empty and v.default is not None
+            if v.default is not v.empty
         }
     _CONSTRUCTOR_PARAMS = __get_constructor_defaults.__func__()  # type: ignore
     del __get_constructor_defaults
@@ -556,7 +584,3 @@ class SerializedDAG(DAG, BaseSerialization):
         if ver != cls.SERIALIZER_VERSION:
             raise ValueError("Unsure how to deserialize version {!r}".format(ver))
         return cls.deserialize_dag(serialized_obj['dag'])
-
-
-LOG = LoggingMixin().log
-FAILED = 'serialization_failed'

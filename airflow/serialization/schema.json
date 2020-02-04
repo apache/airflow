@@ -92,10 +92,13 @@
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
         "dagrun_timeout": { "$ref": "#/definitions/timedelta" },
-        "doc_md": { "type" : "string"}
+        "doc_md": { "type" : "string"},
+        "_default_view": { "type" : "string"},
+        "_access_control": {"$ref": "#/definitions/dict" },
+        "is_paused_upon_creation":  { "type": "boolean" },
+        "tags": { "type": "array" }
       },
       "required": [
-        "params",
         "_dag_id",
         "fileloc",
         "tasks"
@@ -131,6 +134,7 @@
         "retries": { "type": "number" },
         "queue": { "type": "string" },
         "pool": { "type": "string" },
+        "pool_slots": { "type": "number" },
         "execution_timeout": { "$ref": "#/definitions/timedelta" },
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },

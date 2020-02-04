@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
+
 from flask_appbuilder.fieldwidgets import (
     BS3PasswordFieldWidget, BS3TextAreaFieldWidget, BS3TextFieldWidget, DateTimePickerWidget, Select2Widget,
 )
@@ -30,6 +31,7 @@ from wtforms.fields import (
 
 from airflow.models import Connection
 from airflow.utils import timezone
+from airflow.www.validators import ValidJson
 
 
 class DateTimeForm(FlaskForm):
@@ -81,12 +83,18 @@ class DagRunForm(DynamicForm):
         widget=DateTimePickerWidget())
     external_trigger = BooleanField(
         lazy_gettext('External Trigger'))
+    conf = TextAreaField(
+        lazy_gettext('Conf'),
+        validators=[ValidJson(), validators.Optional()],
+        widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
         # TODO: This is probably better done as a custom field type so we can
         # set TZ at parse time
         super().populate_obj(item)
         item.execution_date = timezone.make_aware(item.execution_date)
+        if item.conf:
+            item.conf = json.loads(item.conf)
 
 
 class ConnectionForm(DynamicForm):

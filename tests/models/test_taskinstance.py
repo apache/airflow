@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,7 +20,7 @@ import datetime
 import time
 import unittest
 import urllib
-from typing import List, Union
+from typing import List, Optional, Union
 from unittest.mock import mock_open, patch
 
 import pendulum
@@ -31,21 +30,45 @@ from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.python import PythonSensor
 from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.db import create_session, provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
+
+
+class CallbackWrapper:
+    task_id: Optional[str] = None
+    dag_id: Optional[str] = None
+    execution_date: Optional[datetime.datetime] = None
+    task_state_in_callback: Optional[str] = None
+    callback_ran = False
+
+    def wrap_task_instance(self, ti):
+        self.task_id = ti.task_id
+        self.dag_id = ti.dag_id
+        self.execution_date = ti.execution_date
+        self.task_state_in_callback = ""
+        self.callback_ran = False
+
+    def success_handler(self, context):  # pylint: disable=unused-argument
+        self.callback_ran = True
+        session = settings.Session()
+        temp_instance = session.query(TI).filter(
+            TI.task_id == self.task_id).filter(
+            TI.dag_id == self.dag_id).filter(
+            TI.execution_date == self.execution_date).one()
+        self.task_state_in_callback = temp_instance.state
 
 
 class TestTaskInstance(unittest.TestCase):
@@ -105,11 +128,11 @@ class TestTaskInstance(unittest.TestCase):
             op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9))
 
     def test_timezone_awareness(self):
-        NAIVE_DATETIME = DEFAULT_DATE.replace(tzinfo=None)
+        naive_datetime = DEFAULT_DATE.replace(tzinfo=None)
 
         # check ti without dag (just for bw compat)
         op_no_dag = DummyOperator(task_id='op_no_dag')
-        ti = TI(task=op_no_dag, execution_date=NAIVE_DATETIME)
+        ti = TI(task=op_no_dag, execution_date=naive_datetime)
 
         self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
@@ -117,23 +140,23 @@ class TestTaskInstance(unittest.TestCase):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         op1 = DummyOperator(task_id='op_1')
         dag.add_task(op1)
-        ti = TI(task=op1, execution_date=NAIVE_DATETIME)
+        ti = TI(task=op1, execution_date=naive_datetime)
 
         self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
         # with dag and localized execution_date
-        tz = pendulum.timezone("Europe/Amsterdam")
-        execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tz)
+        tzinfo = pendulum.timezone("Europe/Amsterdam")
+        execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
         utc_date = timezone.convert_to_utc(execution_date)
         ti = TI(task=op1, execution_date=execution_date)
         self.assertEqual(ti.execution_date, utc_date)
 
     def test_task_naive_datetime(self):
-        NAIVE_DATETIME = DEFAULT_DATE.replace(tzinfo=None)
+        naive_datetime = DEFAULT_DATE.replace(tzinfo=None)
 
         op_no_dag = DummyOperator(task_id='test_task_naive_datetime',
-                                  start_date=NAIVE_DATETIME,
-                                  end_date=NAIVE_DATETIME)
+                                  start_date=naive_datetime,
+                                  end_date=naive_datetime)
 
         self.assertTrue(op_no_dag.start_date.tzinfo)
         self.assertTrue(op_no_dag.end_date.tzinfo)
@@ -346,6 +369,19 @@ class TestTaskInstance(unittest.TestCase):
         db.clear_db_pools()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    def test_pool_slots_property(self):
+        """
+        test that try to create a task with pool_slots less than 1
+        """
+        def create_task_instance():
+            dag = models.DAG(dag_id='test_run_pooling_task')
+            task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
+                                 pool='test_pool', pool_slots=0, owner='airflow',
+                                 start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+            return TI(task=task, execution_date=timezone.utcnow())
+
+        self.assertRaises(AirflowException, create_task_instance)
+
     @provide_session
     def test_ti_updates_with_task(self, session=None):
         """
@@ -521,30 +557,30 @@ class TestTaskInstance(unittest.TestCase):
             task=task, execution_date=DEFAULT_DATE)
         ti.end_date = pendulum.instance(timezone.utcnow())
 
-        dt = ti.next_retry_datetime()
+        date = ti.next_retry_datetime()
         # between 30 * 2^0.5 and 30 * 2^1 (15 and 30)
         period = ti.end_date.add(seconds=30) - ti.end_date.add(seconds=15)
-        self.assertTrue(dt in period)
+        self.assertTrue(date in period)
 
         ti.try_number = 3
-        dt = ti.next_retry_datetime()
+        date = ti.next_retry_datetime()
         # between 30 * 2^2 and 30 * 2^3 (120 and 240)
         period = ti.end_date.add(seconds=240) - ti.end_date.add(seconds=120)
-        self.assertTrue(dt in period)
+        self.assertTrue(date in period)
 
         ti.try_number = 5
-        dt = ti.next_retry_datetime()
+        date = ti.next_retry_datetime()
         # between 30 * 2^4 and 30 * 2^5 (480 and 960)
         period = ti.end_date.add(seconds=960) - ti.end_date.add(seconds=480)
-        self.assertTrue(dt in period)
+        self.assertTrue(date in period)
 
         ti.try_number = 9
-        dt = ti.next_retry_datetime()
-        self.assertEqual(dt, ti.end_date + max_delay)
+        date = ti.next_retry_datetime()
+        self.assertEqual(date, ti.end_date + max_delay)
 
         ti.try_number = 50
-        dt = ti.next_retry_datetime()
-        self.assertEqual(dt, ti.end_date + max_delay)
+        date = ti.next_retry_datetime()
+        self.assertEqual(date, ti.end_date + max_delay)
 
     def test_next_retry_datetime_short_intervals(self):
         delay = datetime.timedelta(seconds=1)
@@ -565,10 +601,10 @@ class TestTaskInstance(unittest.TestCase):
             task=task, execution_date=DEFAULT_DATE)
         ti.end_date = pendulum.instance(timezone.utcnow())
 
-        dt = ti.next_retry_datetime()
+        date = ti.next_retry_datetime()
         # between 1 * 2^0.5 and 1 * 2^1 (15 and 30)
         period = ti.end_date.add(seconds=1) - ti.end_date.add(seconds=15)
-        self.assertTrue(dt in period)
+        self.assertTrue(date in period)
 
     @patch.object(TI, 'pool_full')
     def test_reschedule_handling(self, mock_pool_full):
@@ -579,7 +615,7 @@ class TestTaskInstance(unittest.TestCase):
         done = False
         fail = False
 
-        def callable():
+        def func():
             if fail:
                 raise AirflowException()
             return done
@@ -589,7 +625,7 @@ class TestTaskInstance(unittest.TestCase):
             task_id='test_reschedule_handling_sensor',
             poke_interval=0,
             mode='reschedule',
-            python_callable=callable,
+            python_callable=func,
             retries=1,
             retry_delay=datetime.timedelta(seconds=0),
             dag=dag,
@@ -618,7 +654,7 @@ class TestTaskInstance(unittest.TestCase):
             self.assertEqual(ti.start_date, expected_start_date)
             self.assertEqual(ti.end_date, expected_end_date)
             self.assertEqual(ti.duration, expected_duration)
-            trs = TaskReschedule.find_for_task_instance(ti)
+            trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
             self.assertEqual(len(trs), expected_task_reschedule_count)
 
         date1 = timezone.utcnow()
@@ -675,7 +711,7 @@ class TestTaskInstance(unittest.TestCase):
         done = False
         fail = False
 
-        def callable():
+        def func():
             if fail:
                 raise AirflowException()
             return done
@@ -685,7 +721,7 @@ class TestTaskInstance(unittest.TestCase):
             task_id='test_reschedule_handling_sensor',
             poke_interval=0,
             mode='reschedule',
-            python_callable=callable,
+            python_callable=func,
             retries=1,
             retry_delay=datetime.timedelta(seconds=0),
             dag=dag,
@@ -714,7 +750,7 @@ class TestTaskInstance(unittest.TestCase):
             self.assertEqual(ti.start_date, expected_start_date)
             self.assertEqual(ti.end_date, expected_end_date)
             self.assertEqual(ti.duration, expected_duration)
-            trs = TaskReschedule.find_for_task_instance(ti)
+            trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
             self.assertEqual(len(trs), expected_task_reschedule_count)
 
         date1 = timezone.utcnow()
@@ -728,7 +764,7 @@ class TestTaskInstance(unittest.TestCase):
         self.assertEqual(ti.state, State.NONE)
         self.assertEqual(ti._try_number, 0)
         # Check that reschedules for ti have also been cleared.
-        trs = TaskReschedule.find_for_task_instance(ti)
+        trs = TaskReschedule.find_for_task_instance(ti)  # pylint: disable=no-value-for-parameter
         self.assertFalse(trs)
 
     def test_depends_on_past(self):
@@ -821,14 +857,15 @@ class TestTaskInstance(unittest.TestCase):
         run_date = task.start_date + datetime.timedelta(days=5)
 
         ti = TI(downstream, run_date)
-        dep_results = TriggerRuleDep()._evaluate_trigger_rule(
+        dep_results = TriggerRuleDep()._evaluate_trigger_rule(  # pylint: disable=no-value-for-parameter
             ti=ti,
             successes=successes,
             skipped=skipped,
             failed=failed,
             upstream_failed=upstream_failed,
             done=done,
-            flag_upstream_failed=flag_upstream_failed)
+            flag_upstream_failed=flag_upstream_failed,
+        )
         completed = all([dep.passed for dep in dep_results])
 
         self.assertEqual(completed, expect_completed)
@@ -976,7 +1013,7 @@ class TestTaskInstance(unittest.TestCase):
             pass
 
         class TestOperator(PythonOperator):
-            def post_execute(self, context, result):
+            def post_execute(self, context, result=None):
                 if result == 'error':
                     raise TestError('expected error.')
 
@@ -1079,12 +1116,12 @@ class TestTaskInstance(unittest.TestCase):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='op', dag=dag)
         ti = TI(task=task, execution_date=now)
-        d = urllib.parse.parse_qs(
+        query = urllib.parse.parse_qs(
             urllib.parse.urlparse(ti.mark_success_url).query,
             keep_blank_values=True, strict_parsing=True)
-        self.assertEqual(d['dag_id'][0], 'dag')
-        self.assertEqual(d['task_id'][0], 'op')
-        self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
+        self.assertEqual(query['dag_id'][0], 'dag')
+        self.assertEqual(query['task_id'][0], 'op')
+        self.assertEqual(pendulum.parse(query['execution_date'][0]), now)
 
     def test_overwrite_params_with_dag_run_conf(self):
         task = DummyOperator(task_id='op')
@@ -1185,37 +1222,20 @@ class TestTaskInstance(unittest.TestCase):
         self.assertIsNone(ti.duration)
 
     def test_success_callbak_no_race_condition(self):
-        class CallbackWrapper:
-            def wrap_task_instance(self, ti):
-                self.task_id = ti.task_id
-                self.dag_id = ti.dag_id
-                self.execution_date = ti.execution_date
-                self.task_state_in_callback = ""
-                self.callback_ran = False
-
-            def success_handler(self, context):  # pylint: disable=unused-argument
-                self.callback_ran = True
-                session = settings.Session()
-                temp_instance = session.query(TI).filter(
-                    TI.task_id == self.task_id).filter(
-                    TI.dag_id == self.dag_id).filter(
-                    TI.execution_date == self.execution_date).one()
-                self.task_state_in_callback = temp_instance.state
-
-        cw = CallbackWrapper()
+        callback_wrapper = CallbackWrapper()
         dag = DAG('test_success_callbak_no_race_condition', start_date=DEFAULT_DATE,
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task = DummyOperator(task_id='op', email='test@test.test',
-                             on_success_callback=cw.success_handler, dag=dag)
+                             on_success_callback=callback_wrapper.success_handler, dag=dag)
         ti = TI(task=task, execution_date=datetime.datetime.now())
         ti.state = State.RUNNING
         session = settings.Session()
         session.merge(ti)
         session.commit()
-        cw.wrap_task_instance(ti)
+        callback_wrapper.wrap_task_instance(ti)
         ti._run_raw_task()
-        self.assertTrue(cw.callback_ran)
-        self.assertEqual(cw.task_state_in_callback, State.RUNNING)
+        self.assertTrue(callback_wrapper.callback_ran)
+        self.assertEqual(callback_wrapper.task_state_in_callback, State.RUNNING)
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
@@ -1240,13 +1260,13 @@ class TestTaskInstance(unittest.TestCase):
 
         with create_session() as session:  # type: Session
 
-            d0 = pendulum.parse('2019-01-01T00:00:00+00:00')
+            date = pendulum.parse('2019-01-01T00:00:00+00:00')
 
             ret = []
 
             for idx, state in enumerate(scenario):
-                ed = d0.add(days=idx)
-                ti = get_test_ti(session, ed, state)
+                new_date = date.add(days=idx)
+                ti = get_test_ti(session, new_date, state)
                 ret.append(ti)
 
             return ret
@@ -1414,3 +1434,65 @@ class TestTaskInstance(unittest.TestCase):
         context = ti.get_template_context()
         with self.assertRaises(KeyError):
             task.render_template('{{ var.json.get("missing_variable") }}', context)
+
+    def test_execute_callback(self):
+        called = False
+
+        def on_execute_callable(context):
+            nonlocal called
+            called = True
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_dagrun_execute_callback'
+            )
+
+        dag = DAG('test_execute_callbak', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task = DummyOperator(task_id='op', email='test@test.test',
+                             on_execute_callback=on_execute_callable,
+                             dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        assert called
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
+    def test_handle_failure(self):
+        import mock
+
+        start_date = timezone.datetime(2016, 6, 1)
+        dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)
+
+        mock_on_failure_1 = mock.MagicMock()
+        mock_on_retry_1 = mock.MagicMock()
+        task1 = DummyOperator(task_id="test_handle_failure_on_failure",
+                              on_failure_callback=mock_on_failure_1,
+                              on_retry_callback=mock_on_retry_1,
+                              dag=dag)
+        ti1 = TI(task=task1, execution_date=start_date)
+        ti1.state = State.FAILED
+        ti1.handle_failure("test failure handling")
+
+        context_arg_1 = mock_on_failure_1.call_args[0][0]
+        assert context_arg_1 and "task_instance" in context_arg_1
+        mock_on_retry_1.assert_not_called()
+
+        mock_on_failure_2 = mock.MagicMock()
+        mock_on_retry_2 = mock.MagicMock()
+        task2 = DummyOperator(task_id="test_handle_failure_on_retry",
+                              on_failure_callback=mock_on_failure_2,
+                              on_retry_callback=mock_on_retry_2,
+                              retries=1,
+                              dag=dag)
+        ti2 = TI(task=task2, execution_date=start_date)
+        ti2.state = State.FAILED
+        ti2.handle_failure("test retry handling")
+
+        mock_on_failure_2.assert_not_called()
+
+        context_arg_2 = mock_on_retry_2.call_args[0][0]
+        assert context_arg_2 and "task_instance" in context_arg_2

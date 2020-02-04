@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -43,7 +42,7 @@ class TestTaskHandlerWithCustomFormatter(unittest.TestCase):
             'formatter': 'airflow',
             'stream': 'sys.stdout'
         }
-        conf.set('core', 'task_log_prefix_template', "{{ti.dag_id}}-{{ti.task_id}}")
+        conf.set('logging', 'task_log_prefix_template', "{{ti.dag_id}}-{{ti.task_id}}")
 
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False

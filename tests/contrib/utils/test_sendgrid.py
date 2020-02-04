@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,8 +22,9 @@ import os
 import tempfile
 import unittest
 
+import mock
+
 from airflow.contrib.utils.sendgrid import send_email
-from tests.compat import mock
 
 
 class TestSendEmailSendGrid(unittest.TestCase):
