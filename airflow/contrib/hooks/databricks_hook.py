@@ -147,14 +147,29 @@ class DatabricksHook(BaseHook):
         :rtype: dict
         """
         method, endpoint = endpoint_info
-
-        if 'token' in self.databricks_conn.extra_dejson:
-            self.log.info('Using token auth. ')
+        
+        # Note: host/auth logic made more complicated to maintain
+        # backward compatibility with this commit:
+        # https://github.com/apache/airflow/pull/5635
+        if self.databricks_conn.password[0:4] == "dapi":
+            self.log.info('Using token auth.')
+            auth = _TokenAuth(self.databricks_conn.password)
+        # DEPRECATED: Will be removed in a future release
+        elif 'token' in self.databricks_conn.extra_dejson:
+            self.log.warn('Found token in extras. This will be deprecated in a '
+                          'future release. Use password field instead.')
+            self.log.info('Using token auth.')
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
-            host = self._parse_host(self.databricks_conn.extra_dejson['host'])
         else:
             self.log.info('Using basic auth. ')
             auth = (self.databricks_conn.login, self.databricks_conn.password)
+        
+        # DEPRECATED: Will be removed in a future release
+        if 'host' in self.databricks_conn.extra_dejson:
+            self.log.warn('Found host in extras. This will be deprecated in a '
+                          'future release. Use host field instead.')
+            host = self._parse_host(self.databricks_conn.extra_dejson['host'])
+        else:
             host = self.databricks_conn.host
 
         url = 'https://{host}/{endpoint}'.format(

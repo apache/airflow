@@ -201,9 +201,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
         This field will be templated.
     :type timeout_seconds: int32
     :param databricks_conn_id: The name of the Airflow connection to use.
-        By default and in the common case this will be ``databricks_default``. To use
-        token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        By default and in the common case this will be ``databricks_default``. Token
+        based authentication is automatically detected by the presence of the ``dapi`
+        prefix in the password field.
     :type databricks_conn_id: str
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
@@ -410,9 +410,9 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
     :type timeout_seconds: int32
     :param databricks_conn_id: The name of the Airflow connection to use.
-        By default and in the common case this will be ``databricks_default``. To use
-        token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        By default and in the common case this will be ``databricks_default``. Token
+        based authentication is automatically detected by the presence of the ``dapi`
+        prefix in the password field.
     :type databricks_conn_id: str
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.

@@ -400,6 +400,39 @@ class TestDatabricksHookToken(unittest.TestCase):
         conn = session.query(Connection) \
             .filter(Connection.conn_id == DEFAULT_CONN_ID) \
             .first()
+        conn.extra = None
+
+        session.commit()
+
+        self.hook = DatabricksHook()
+
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {
+            'notebook_task': NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER
+        }
+        run_id = self.hook.submit_run(json)
+
+        self.assertEqual(run_id, '1')
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        self.assertEqual(kwargs['auth'].token, TOKEN)
+
+class TestDatabricksHookTokenDeprecated(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done with token.
+    """
+
+    @db.provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection) \
+            .filter(Connection.conn_id == DEFAULT_CONN_ID) \
+            .first()
         conn.extra = json.dumps({'token': TOKEN, 'host': HOST})
 
         session.commit()
