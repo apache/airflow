@@ -32,7 +32,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.models import (
     DAG, DagRun, Pool, RenderedTaskInstanceFields, TaskFail, TaskInstance as TI, TaskReschedule, Variable,
 )
@@ -1503,6 +1503,47 @@ class TestTaskInstance(unittest.TestCase):
         context_arg_3 = mock_on_failure_3.call_args[0][0]
         assert context_arg_3 and "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
+
+    def test_does_not_retry_on_airflow_fail_exception(self):
+        def fail():
+            raise AirflowFailException("hopeless")
+
+        dag = models.DAG(dag_id='test_does_not_retry_on_airflow_fail_exception')
+        task = PythonOperator(
+            task_id='test_raise_airflow_fail_exception',
+            dag=dag,
+            python_callable=fail,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
+            retries=1
+        )
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        try:
+            ti.run()
+        except AirflowFailException:
+            pass  # expected
+        self.assertEqual(State.FAILED, ti.state)
+
+    def test_retries_on_other_exceptions(self):
+        def fail():
+            raise AirflowException("maybe this will pass?")
+
+        dag = models.DAG(dag_id='test_retries_on_other_exceptions')
+        task = PythonOperator(
+            task_id='test_raise_other_exception',
+            dag=dag,
+            python_callable=fail,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
+            retries=1
+        )
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        try:
+            ti.run()
+        except AirflowException:
+            pass  # expected
+        self.assertEqual(State.UP_FOR_RETRY, ti.state)
+
 
     def _env_var_check_callback(self):
         self.assertEqual('test_echo_env_variables', os.environ['AIRFLOW_CTX_DAG_ID'])
