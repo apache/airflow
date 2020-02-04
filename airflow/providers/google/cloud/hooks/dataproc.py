@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -28,15 +27,15 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from cached_property import cached_property
 from google.api_core.retry import Retry
-from google.cloud.dataproc_v1beta2 import (  # pylint:disable=no-name-in-module
+from google.cloud.dataproc_v1beta2 import (  # pylint: disable=no-name-in-module
     ClusterControllerClient, JobControllerClient, WorkflowTemplateServiceClient,
 )
-from google.cloud.dataproc_v1beta2.types import (  # pylint:disable=no-name-in-module
+from google.cloud.dataproc_v1beta2.types import (  # pylint: disable=no-name-in-module
     Cluster, Duration, FieldMask, Job, JobStatus, WorkflowTemplate,
 )
 
 from airflow import AirflowException
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 from airflow.version import version as airflow_version
 
 
@@ -204,7 +203,7 @@ class DataProcJobBuilder:
         return self.job
 
 
-class DataprocHook(GoogleCloudBaseHook):
+class DataprocHook(CloudBaseHook):
     """
     Hook for Google Cloud Dataproc APIs.
 
@@ -250,7 +249,7 @@ class DataprocHook(GoogleCloudBaseHook):
             client_options=client_options
         )
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_cluster(
         self,
         region: str,
@@ -297,7 +296,7 @@ class DataprocHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def delete_cluster(
         self,
         region: str,
@@ -347,7 +346,7 @@ class DataprocHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def diagnose_cluster(
         self,
         region: str,
@@ -387,7 +386,7 @@ class DataprocHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def get_cluster(
         self,
         region: str,
@@ -426,7 +425,7 @@ class DataprocHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def list_clusters(
         self,
         region: str,
@@ -471,8 +470,8 @@ class DataprocHook(GoogleCloudBaseHook):
         )
         return result
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
-    def update_cluster(  # pylint:disable=too-many-arguments
+    @CloudBaseHook.fallback_to_default_project_id
+    def update_cluster(  # pylint: disable=too-many-arguments
         self,
         location: str,
         cluster_name: str,
@@ -558,7 +557,7 @@ class DataprocHook(GoogleCloudBaseHook):
         )
         return operation
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def create_workflow_template(
         self,
         location: str,
@@ -597,7 +596,7 @@ class DataprocHook(GoogleCloudBaseHook):
             metadata=metadata
         )
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def instantiate_workflow_template(
         self,
         location: str,
@@ -654,7 +653,7 @@ class DataprocHook(GoogleCloudBaseHook):
         )
         return operation
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def instantiate_inline_workflow_template(
         self,
         location: str,
@@ -700,7 +699,7 @@ class DataprocHook(GoogleCloudBaseHook):
         )
         return operation
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def wait_for_job(
         self,
         job_id: str,
@@ -734,7 +733,7 @@ class DataprocHook(GoogleCloudBaseHook):
         if state == JobStatus.CANCELLED:
             raise AirflowException('Job was cancelled:\n{}'.format(job))
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def get_job(
         self,
         location: str,
@@ -773,7 +772,7 @@ class DataprocHook(GoogleCloudBaseHook):
         )
         return job
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def submit_job(
         self,
         location: str,
@@ -823,7 +822,7 @@ class DataprocHook(GoogleCloudBaseHook):
         project_id: str,
         job: Dict,
         region: str = 'global',
-        job_error_states: Optional[Iterable[str]] = None  # pylint:disable=unused-argument
+        job_error_states: Optional[Iterable[str]] = None  # pylint: disable=unused-argument
     ) -> None:
         """
         Submits Google Cloud Dataproc job.
@@ -855,7 +854,7 @@ class DataprocHook(GoogleCloudBaseHook):
             project_id=project_id
         )
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @CloudBaseHook.fallback_to_default_project_id
     def cancel_job(
         self,
         job_id: str,

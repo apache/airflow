@@ -84,6 +84,7 @@ Content
     concepts
     scheduler
     executor/index
+    dag-run
     plugins
     security
     timezone
@@ -95,6 +96,7 @@ Content
     lineage
     dag-serialization
     changelog
+    best-practices
     faq
     privacy_notice
 
@@ -107,3 +109,4 @@ Content
     Macros <macros-ref>
     Python API <_api/index>
     REST API <rest-api-ref>
+    Configurations <configurations-ref>

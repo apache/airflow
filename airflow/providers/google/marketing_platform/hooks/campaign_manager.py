@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,10 +23,10 @@ from typing import Any, Dict, List, Optional
 from googleapiclient import http
 from googleapiclient.discovery import Resource, build
 
-from airflow.gcp.hooks.base import GoogleCloudBaseHook
+from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 
 
-class GoogleCampaignManagerHook(GoogleCloudBaseHook):
+class GoogleCampaignManagerHook(CloudBaseHook):
     """
     Hook for Google Campaign Manager.
     """

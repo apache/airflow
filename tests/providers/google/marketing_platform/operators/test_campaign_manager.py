@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -69,7 +68,7 @@ class TestGoogleCampaignManagerGetReportOperator(TestCase):
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."
-        "campaign_manager.GoogleCloudStorageHook"
+        "campaign_manager.GCSHook"
     )
     @mock.patch(
         "airflow.providers.google.marketing_platform.operators."

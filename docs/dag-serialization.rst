@@ -76,9 +76,6 @@ which is why we said "almost" stateless.
     the execution date and even the data passed by the upstream task using Xcom.
 *   **Code View** will read the DAG File & show it using Pygments.
     However, it does not need to Parse the Python file so it is still a small operation.
-*   :doc:`Extra Operator Links <howto/define_extra_link>` for the inbuilt Operators would not no longer work.
-    However, you can define your own Operator Links via Airflow plugins.
-
 
 Using a different JSON Library
 ------------------------------

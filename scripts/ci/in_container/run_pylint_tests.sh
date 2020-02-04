@@ -28,19 +28,23 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
+export PYTHONPATH=${AIRFLOW_SOURCES}
+
 if [[ ${#@} == "0" ]]; then
     echo
     echo "Running pylint for 'tests' folder"
     echo
     find "./tests" -name "*.py" | \
     grep -vFf scripts/ci/pylint_todo.txt | \
-    xargs pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized
+    # running pylint using built-in parallel functionality might speed it up
+    xargs pylint -j 0 --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized
     RES=$?
 else
     print_in_container_info
     print_in_container_info "Running Pylint for tests with parameters: $*"
     print_in_container_info
-    pylint --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized "$@"
+    # running pylint using built-in parallel functionality might speed it up
+    pylint -j 0 --disable="${DISABLE_CHECKS_FOR_TESTS}" --output-format=colorized "$@"
     RES=$?
 fi
 

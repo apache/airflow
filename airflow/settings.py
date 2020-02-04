@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -31,7 +30,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.orm.session import Session as SASession
 from sqlalchemy.pool import NullPool
 
-import airflow
+# noinspection PyUnresolvedReferences
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
 from airflow.logging_config import configure_logging
 from airflow.utils.module_loading import import_string
@@ -65,16 +64,16 @@ LOGGING_LEVEL = logging.INFO
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
-LOG_FORMAT = conf.get('core', 'log_format')
-SIMPLE_LOG_FORMAT = conf.get('core', 'simple_log_format')
+LOG_FORMAT = conf.get('logging', 'log_format')
+SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 
-SQL_ALCHEMY_CONN = None  # type: Optional[str]
-DAGS_FOLDER = None  # type: Optional[str]
-PLUGINS_FOLDER = None  # type: Optional[str]
-LOGGING_CLASS_PATH = None  # type: Optional[str]
+SQL_ALCHEMY_CONN: Optional[str] = None
+DAGS_FOLDER: Optional[str] = None
+PLUGINS_FOLDER: Optional[str] = None
+LOGGING_CLASS_PATH: Optional[str] = None
 
-engine = None  # type: Optional[Engine]
-Session = None  # type: Optional[SASession]
+engine: Optional[Engine] = None
+Session: Optional[SASession] = None
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -184,11 +183,8 @@ def configure_orm(disable_connection_pool=False):
         engine_args['max_overflow'] = max_overflow
 
     # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use
-    # us.
+    # to utf-8 so jobs & users with non-latin1 characters can still use us.
     engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
-    # For Python2 we get back a newstr and need a str
-    engine_args['encoding'] = engine_args['encoding'].__str__()
 
     if conf.has_option('core', 'sql_alchemy_connect_args'):
         connect_args = import_string(
@@ -321,9 +317,6 @@ KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
               'LIGHTORANGE': '#FF9933'}
-
-# Used by DAG context_managers
-CONTEXT_MANAGER_DAG = None  # type: Optional[airflow.models.dag.DAG]
 
 # If store_serialized_dags is True, scheduler writes serialized DAGs to DB, and webserver
 # reads DAGs from DB instead of importing from files.

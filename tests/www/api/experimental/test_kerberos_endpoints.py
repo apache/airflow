@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,25 +23,26 @@ import unittest
 from datetime import datetime
 from unittest import mock
 
+import pytest
+
 from airflow.api.auth.backend.kerberos_auth import CLIENT_AUTH
 from airflow.configuration import conf
 from airflow.www import app as application
 
 
-@unittest.skipIf('KRB5_KTNAME' not in os.environ,
-                 'Skipping Kerberos API tests due to missing KRB5_KTNAME')
+@pytest.mark.integration("kerberos")
 class TestApiKerberos(unittest.TestCase):
     def setUp(self):
         try:
             conf.add_section("api")
-        except Exception:  # pylint:disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             pass
         conf.set("api",
                  "auth_backend",
                  "airflow.api.auth.backend.kerberos_auth")
         try:
             conf.add_section("kerberos")
-        except Exception:  # pylint:disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             pass
         conf.set("kerberos",
                  "keytab",

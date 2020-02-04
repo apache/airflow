@@ -63,6 +63,8 @@ Committers
 - @aijamalnk (Aizhamal Nurmamat kyzy)
 - @milton0825 (Chao-Han Tsai)
 - @feluelle (Felix Uellendall)
+- @sekikn (Kengo Seki)
+- @nuclearpinguin (Tomasz Urbaszek)
 
 
 For the full list of contributors, take a look at `Airflow's Github

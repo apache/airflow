@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 from typing import Optional
 
 from cryptography.fernet import Fernet, MultiFernet
@@ -24,7 +23,8 @@ from cryptography.fernet import Fernet, MultiFernet
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.typing_compat import Protocol
-from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = logging.getLogger(__name__)
 
 
 class FernetProtocol(Protocol):
@@ -67,7 +67,6 @@ def get_fernet():
     :raises: airflow.exceptions.AirflowException if there's a problem trying to load Fernet
     """
     global _fernet
-    log = LoggingMixin().log
 
     if _fernet:
         return _fernet

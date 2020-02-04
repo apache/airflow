@@ -58,6 +58,14 @@
       "type": "string",
       "pattern": "^#[a-fA-F0-9]{3,6}$"
     },
+    "extra_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 1
+      }
+    },
     "dag": {
       "type": "object",
       "properties": {
@@ -84,10 +92,13 @@
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
         "dagrun_timeout": { "$ref": "#/definitions/timedelta" },
-        "doc_md": { "type" : "string"}
+        "doc_md": { "type" : "string"},
+        "_default_view": { "type" : "string"},
+        "_access_control": {"$ref": "#/definitions/dict" },
+        "is_paused_upon_creation":  { "type": "boolean" },
+        "tags": { "type": "array" }
       },
       "required": [
-        "params",
         "_dag_id",
         "fileloc",
         "tasks"
@@ -112,6 +123,7 @@
       "properties": {
         "_task_type": { "type": "string" },
         "_task_module": { "type": "string" },
+        "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },
@@ -122,6 +134,7 @@
         "retries": { "type": "number" },
         "queue": { "type": "string" },
         "pool": { "type": "string" },
+        "pool_slots": { "type": "number" },
         "execution_timeout": { "$ref": "#/definitions/timedelta" },
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },

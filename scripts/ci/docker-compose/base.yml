@@ -1,0 +1,58 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+version: "2.2"
+services:
+  airflow-testing:
+    image: ${AIRFLOW_CI_IMAGE}
+    init: true
+    entrypoint: ["/bin/bash", "-c"]
+    environment:
+      - USER=root
+      - ADDITIONAL_PATH=~/.local/bin
+      - HADOOP_DISTRO=cdh
+      - HADOOP_HOME=/opt/hadoop-cdh
+      - HADOOP_OPTS=-D/opt/krb5.conf
+      - HIVE_HOME=/opt/hive
+      - MINICLUSTER_HOME=/opt/minicluster
+      - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
+      - BACKEND
+      - CI
+      - SOURCE_BRANCH
+      - TRAVIS
+      - TRAVIS_BRANCH
+      - TRAVIS_BUILD_DIR
+      - TRAVIS_JOB_ID
+      - TRAVIS_JOB_NUMBER
+      - TRAVIS_PULL_REQUEST
+      - TRAVIS_COMMIT
+      - TRAVIS_REPO_SLUG
+      - TRAVIS_OS_NAME
+      - TRAVIS_TAG
+      - RUN_TESTS
+      - AIRFLOW_CI_VERBOSE
+      - AIRFLOW_CI_SILENT
+      - AIRFLOW_CI_IMAGE
+      - RUNTIME
+      - ENABLE_KIND_CLUSTER
+      - ENABLED_INTEGRATIONS
+      - RUN_INTEGRATION_TESTS
+      - BREEZE
+    volumes:
+      # Pass docker to inside of the container so that Kind and Moto tests can use it.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source

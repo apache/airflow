@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -34,3 +33,8 @@ metadata = (
 Base = declarative_base(metadata=metadata)  # type: Any
 
 ID_LEN = 250
+
+
+# used for typing
+class Operator:
+    pass

@@ -22,4 +22,13 @@ MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export REMEMBER_LAST_ANSWER="false"
 export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 
-"${MY_DIR}/local_ci_build.sh"
+# shellcheck source=scripts/ci/_utils.sh
+. "${MY_DIR}/_utils.sh"
+
+basic_sanity_checks
+
+script_start
+
+rebuild_all_images_if_needed_and_confirmed
+
+script_end

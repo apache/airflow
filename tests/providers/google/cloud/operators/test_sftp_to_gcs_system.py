@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,9 +17,9 @@
 # under the License.
 """System tests for Google Cloud Build operators"""
 
-from tests.gcp.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.providers.google.cloud.operators.test_sftp_to_gcs_system_helper import SFTPtoGcsTestHelper
-from tests.test_utils.gcp_system_helpers import GCP_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
 from tests.test_utils.system_tests_class import SystemTest
 
 
@@ -41,7 +40,7 @@ class SFTPToGcsExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def test_run_example_dag(self):
-        self.run_dag("example_sftp_to_gcs", GCP_DAG_FOLDER)
+        self.run_dag("example_sftp_to_gcs", CLOUD_DAG_FOLDER)
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):

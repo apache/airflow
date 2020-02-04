@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,6 +18,7 @@
 
 import datetime
 import json
+import logging
 import os
 
 import pendulum
@@ -26,20 +26,21 @@ from dateutil import relativedelta
 from sqlalchemy import event, exc
 from sqlalchemy.types import DateTime, Text, TypeDecorator
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 utc = pendulum.timezone('UTC')
 
 
 def setup_event_handlers(engine):
+    """
+    Setups event handlers.
+    """
     @event.listens_for(engine, "connect")
-    def connect(dbapi_connection, connection_record):  # pylint: disable=unused-variable
+    def connect(dbapi_connection, connection_record):  # pylint: disable=unused-argument
         connection_record.info['pid'] = os.getpid()
 
     if engine.dialect.name == "sqlite":
         @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection, connection_record):  # pylint: disable=unused-variable
+        def set_sqlite_pragma(dbapi_connection, connection_record):  # pylint: disable=unused-argument
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
@@ -47,13 +48,13 @@ def setup_event_handlers(engine):
     # this ensures sanity in mysql when storing datetimes (not required for postgres)
     if engine.dialect.name == "mysql":
         @event.listens_for(engine, "connect")
-        def set_mysql_timezone(dbapi_connection, connection_record):  # pylint: disable=unused-variable
+        def set_mysql_timezone(dbapi_connection, connection_record):  # pylint: disable=unused-argument
             cursor = dbapi_connection.cursor()
             cursor.execute("SET time_zone = '+00:00'")
             cursor.close()
 
     @event.listens_for(engine, "checkout")
-    def checkout(dbapi_connection, connection_record, connection_proxy):  # pylint: disable=unused-variable
+    def checkout(dbapi_connection, connection_record, connection_proxy):  # pylint: disable=unused-argument
         pid = os.getpid()
         if connection_record.info['pid'] != pid:
             connection_record.connection = connection_proxy.connection = None
@@ -90,6 +91,7 @@ class UtcDateTime(TypeDecorator):
                 raise ValueError('naive datetime is disallowed')
 
             return value.astimezone(utc)
+        return None
 
     def process_result_value(self, value, dialect):
         """
@@ -109,7 +111,9 @@ class UtcDateTime(TypeDecorator):
 
 
 class Interval(TypeDecorator):
-
+    """
+    Base class representing a time interval.
+    """
     impl = Text
 
     attr_keys = {
@@ -121,7 +125,7 @@ class Interval(TypeDecorator):
     }
 
     def process_bind_param(self, value, dialect):
-        if type(value) in self.attr_keys:
+        if isinstance(value, tuple(self.attr_keys)):
             attrs = {
                 key: getattr(value, key)
                 for key in self.attr_keys[type(value)]
