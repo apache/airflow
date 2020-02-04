@@ -1182,7 +1182,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
-    def handle_failure(self, error, test_mode=None, context=None, session=None, force_fail=False):
+    def handle_failure(self, error, test_mode=None, context=None, force_fail=False, session=None):
         if test_mode is None:
             test_mode = self.test_mode
         if context is None:
