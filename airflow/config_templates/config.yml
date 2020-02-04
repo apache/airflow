@@ -2129,7 +2129,7 @@
       version_added: 2.0
       type: int
       example: ~
-      default: "1000"
+      default: "100"
     - name: redis_url
       description: ~
       version_added: 2.0
