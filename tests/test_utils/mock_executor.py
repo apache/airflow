@@ -19,7 +19,7 @@
 from collections import defaultdict
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 

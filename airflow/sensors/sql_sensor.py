@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -71,7 +70,7 @@ class SqlSensor(BaseSensorOperator):
         conn = BaseHook.get_connection(self.conn_id)
 
         allowed_conn_type = {'google_cloud_platform', 'jdbc', 'mssql',
-                             'mysql', 'oracle', 'postgres',
+                             'mysql', 'odbc', 'oracle', 'postgres',
                              'presto', 'sqlite', 'vertica'}
         if conn.conn_type not in allowed_conn_type:
             raise AirflowException("The connection type is not supported by SqlSensor. " +

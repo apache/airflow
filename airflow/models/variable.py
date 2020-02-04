@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,8 +26,8 @@ from sqlalchemy.orm import synonym
 
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 
 class Variable(Base, LoggingMixin):
@@ -45,16 +44,15 @@ class Variable(Base, LoggingMixin):
         return '{} : {}'.format(self.key, self._val)
 
     def get_val(self):
-        log = LoggingMixin().log
         if self._val and self.is_encrypted:
             try:
                 fernet = get_fernet()
                 return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
             except InvalidFernetToken:
-                log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
+                self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
                 return None
             except Exception:
-                log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
+                self.log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
                 return None
         else:
             return self._val
@@ -132,7 +130,7 @@ class Variable(Base, LoggingMixin):
         else:
             stored_value = str(value)
 
-        Variable.delete(key)
+        Variable.delete(key, session=session)
         session.add(Variable(key=key, val=stored_value))  # type: ignore
         session.flush()
 

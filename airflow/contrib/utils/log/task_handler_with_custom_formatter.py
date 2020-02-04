@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -44,7 +43,7 @@ class TaskHandlerWithCustomFormatter(StreamHandler):
         """
         if ti.raw:
             return
-        prefix = conf.get('core', 'task_log_prefix_template')
+        prefix = conf.get('logging', 'task_log_prefix_template')
 
         rendered_prefix = ""
         if prefix:

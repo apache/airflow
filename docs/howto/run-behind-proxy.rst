@@ -82,7 +82,7 @@ middleware in your ``airflow.cfg``::
 
 If you need to configure the individual parameters to the ``ProxyFix`` middleware,
 you can set them individually in your ``airflow.cfg``::
-  
+
     [webserver]
     proxy_fix_x_for = 1
     proxy_fix_x_host = 3

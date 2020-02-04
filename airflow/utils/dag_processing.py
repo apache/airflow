@@ -43,10 +43,10 @@ from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.helpers import reap_process_group
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -109,7 +109,7 @@ class SimpleDag(BaseDag):
         return self._concurrency
 
     @property
-    def is_paused(self) -> bool:
+    def is_paused(self) -> bool:    # pylint: disable=invalid-overridden-method
         """
         :return: whether this DAG is paused or not
         :rtype: bool
@@ -117,7 +117,7 @@ class SimpleDag(BaseDag):
         return self._is_paused
 
     @property
-    def pickle_id(self) -> Optional[str]:
+    def pickle_id(self) -> Optional[str]:    # pylint: disable=invalid-overridden-method
         """
         :return: The pickle ID for this DAG, if it has one. Otherwise None.
         :rtype: unicode
@@ -401,7 +401,7 @@ class DagFileProcessorAgent(LoggingMixin):
         # e.g. RotatingFileHandler. And it can cause connection corruption if we
         # do not recreate the SQLA connection pool.
         os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
-        os.environ['AIRFLOW__CORE__COLORED_CONSOLE_LOG'] = 'False'
+        os.environ['AIRFLOW__LOGGING__COLORED_CONSOLE_LOG'] = 'False'
         # Replicating the behavior of how logging module was loaded
         # in logging_config.py
         importlib.reload(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
@@ -622,22 +622,20 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         )
 
         # In sync mode we want timeout=None -- wait forever until a message is received
-        poll_time = None  # type: Optional[float]
         if self._async_mode:
             poll_time = 0.0
-            self.log.debug("Starting DagFileProcessorManager in async mode")
         else:
             poll_time = None
-            self.log.debug("Starting DagFileProcessorManager in sync mode")
 
         # Used to track how long it takes us to get once around every file in the DAG folder.
         self._parsing_start_time = timezone.utcnow()
         while True:
             loop_start_time = time.time()
 
+            # pylint: disable=no-else-break
             if self._signal_conn.poll(poll_time):
                 agent_signal = self._signal_conn.recv()
-                self.log.debug("Recived %s singal from DagFileProcessorAgent", agent_signal)
+                self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                 if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
                     self.terminate()
                     break
@@ -652,7 +650,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
                 # are told to (as that would open another connection to the
                 # SQLite DB which isn't a good practice
                 continue
-
+            # pylint: enable=no-else-break
             self._refresh_dag_dir()
             self._find_zombies()  # pylint: disable=no-value-for-parameter
 
@@ -728,7 +726,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         Occasionally print out stats about how fast the files are getting processed
         """
-        if (timezone.utcnow() - self.last_stat_print_time).total_seconds() > self.print_stats_interval:
+        if 0 < self.print_stats_interval < (
+                timezone.utcnow() - self.last_stat_print_time).total_seconds():
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = timezone.utcnow()
@@ -985,7 +984,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         simple_dags = []
         for file_path, processor in finished_processors.items():
             if processor.result is None:
-                self.log.warning(
+                self.log.error(
                     "Processor for %s exited with return code %s.",
                     processor.file_path, processor.exit_code
                 )

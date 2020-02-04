@@ -98,3 +98,7 @@ Endpoints
 .. http:delete:: /api/experimental/pools/<string:name>
 
   Delete pool.
+
+.. http:get:: /api/experimental/lineage/<DAG_ID>/<string:execution_date>/
+
+  Returns the lineage information for the dag.

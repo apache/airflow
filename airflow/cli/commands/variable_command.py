@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,12 +20,13 @@ import json
 import os
 
 from airflow.models import Variable
-from airflow.utils import cli as cli_utils, db
+from airflow.utils import cli as cli_utils
+from airflow.utils.session import create_session
 
 
 def variables_list(args):
     """Displays all of the variables"""
-    with db.create_session() as session:
+    with create_session() as session:
         variables = session.query(Variable)
     print("\n".join(var.key for var in variables))
 
@@ -95,7 +95,7 @@ def _import_helper(filepath):
 def _variable_export_helper(filepath):
     """Helps export all of the variables to the file"""
     var_dict = {}
-    with db.create_session() as session:
+    with create_session() as session:
         qry = session.query(Variable).all()
 
         data = json.JSONDecoder()
