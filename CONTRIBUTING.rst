@@ -117,7 +117,7 @@ To generate a local version:
 
 **Known issue:**
 
-If you are creating a new directory in the ``airflow.providers`` package, you should also 
+If you are creating a new directory in the ``airflow.providers`` package, you should also
 update ``docs/autoapi_templates/index.rst`` file.
 
 
