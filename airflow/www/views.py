@@ -2205,6 +2205,8 @@ class ConnectionModelView(AirflowModelView):
                     'extra__grpc__auth_type',
                     'extra__grpc__credential_pem_file',
                     'extra__grpc__scopes',
+                    'extra__yandexcloud__service_account_json',
+                    'extra__yandexcloud__service_account_json_path',
                     'extra__yandexcloud__oauth',
                     'extra__yandexcloud__public_ssh_key',
                     'extra__yandexcloud__folder_id',
