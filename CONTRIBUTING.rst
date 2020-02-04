@@ -120,7 +120,7 @@ To generate a local version:
 If you are creating a new directory for new integration in the ``airflow.providers`` package,
 you should also update the ``docs/autoapi_templates/index.rst`` file.
 
-If you are createing a `hooks`, `sensors`, `operators` directory in
+If you are createing a ``hooks``, ``sensors``, ``operators`` directory in
 the ``airflow.providers`` package, you should also update
 the ``docs/operators-and-hooks-ref.rst`` file.
 
