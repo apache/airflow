@@ -23,8 +23,8 @@ import unittest
 from mock import Mock, patch
 from sqlalchemy.exc import OperationalError
 
-from airflow.jobs.base_job import BaseJob
-from airflow.utils import timezone
+from airflow.jobs import BaseJob
+from airflow.utils import configuration, timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -72,10 +72,12 @@ class TestBaseJob(unittest.TestCase):
 
         with create_session() as session:
             old_job = self.TestJob(None, heartrate=10)
-            old_job.latest_heartbeat = old_job.latest_heartbeat - datetime.timedelta(seconds=20)
+            session.add(old_job)
+            session.flush()
+            old_job.update_heartbeat(old_job.get_heartbeat() - datetime.timedelta(seconds=20))
             job = self.TestJob(None, heartrate=10)
             session.add(job)
-            session.add(old_job)
+            session.merge(old_job)
             session.flush()
 
             self.assertEqual(
@@ -89,10 +91,10 @@ class TestBaseJob(unittest.TestCase):
         job = self.TestJob(None, heartrate=10, state=State.RUNNING)
         self.assertTrue(job.is_alive())
 
-        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
+        job.update_heartbeat(timezone.utcnow() - datetime.timedelta(seconds=20))
         self.assertTrue(job.is_alive())
 
-        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=21)
+        job.update_heartbeat(timezone.utcnow() - datetime.timedelta(seconds=21))
         self.assertFalse(job.is_alive())
 
         # test because .seconds was used before instead of total_seconds
@@ -101,7 +103,7 @@ class TestBaseJob(unittest.TestCase):
         self.assertFalse(job.is_alive())
 
         job.state = State.SUCCESS
-        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
+        job.update_heartbeat(timezone.utcnow() - datetime.timedelta(seconds=10))
         self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")
 
     @patch('airflow.jobs.base_job.create_session')
@@ -112,10 +114,59 @@ class TestBaseJob(unittest.TestCase):
             mock_create_session.return_value.__enter__.return_value = mock_session
 
             job = self.TestJob(None, heartrate=10, state=State.RUNNING)
-            job.latest_heartbeat = when
+            job._legacy_heartbeat = when
 
             mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
 
             job.heartbeat()
 
             self.assertEqual(job.latest_heartbeat, when, "attriubte not updated when heartbeat fails")
+
+    def test_update_heartbeat(self):
+        with create_session() as session:
+            job = self.TestJob(None)
+            session.add(job)
+            session.flush()
+
+            old_heartbeat = job.get_heartbeat()
+            new_heartbeat_expected = old_heartbeat + datetime.timedelta(seconds=10)
+            job.update_heartbeat(heartbeat_time=new_heartbeat_expected, session=session)
+            new_heartbeat_actual = job.get_heartbeat()
+
+            self.assertEqual(new_heartbeat_expected, new_heartbeat_actual)
+
+    def test_update_heartbeat_redis(self):
+        with patch.object(configuration.conf, 'getboolean', return_value=True):
+            with patch('airflow.jobs.BaseJob.redis') as mocked_redis:
+                with create_session() as session:
+                    job = self.TestJob(None)
+                    session.add(job)
+                    session.flush()
+
+                    heartbeat = timezone.utcnow()
+                    heartbeat_in_seconds = (heartbeat - timezone.utc_epoch()).total_seconds()
+
+                    job.update_heartbeat(heartbeat_time=heartbeat)
+                    Mock.assert_called_with(mocked_redis.zadd,
+                                            'TestJob',
+                                            {str(job.id): str(heartbeat_in_seconds)})
+
+    def test_get_heartbeat_initial(self):
+        with create_session() as session:
+            job = self.TestJob(None)
+            session.add(job)
+            session.flush()
+
+            self.assertIsNotNone(job.get_heartbeat())
+
+    def test_get_heartbeat_initial_redis(self):
+        with patch.object(configuration.conf, 'getboolean', return_value=True):
+            with patch('airflow.jobs.BaseJob.redis') as mocked_redis:
+                with create_session() as session:
+                    job = self.TestJob(None)
+                    session.add(job)
+                    session.flush()
+
+                    mocked_redis.zscore.return_value = None
+
+                    self.assertIsNotNone(job.get_heartbeat())

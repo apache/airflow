@@ -1060,13 +1060,13 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         if not self._last_zombie_query_time or \
                 (now - self._last_zombie_query_time).total_seconds() > self._zombie_query_interval:
             # to avoid circular imports
-            from airflow.jobs import BaseJob
+            from airflow.jobs import LocalTaskJob
             self.log.info("Finding 'running' jobs without a recent heartbeat")
             limit_dttm = timezone.utcnow() - timedelta(
                 seconds=self._zombie_threshold_secs)
             self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
 
-            zombies = BaseJob.get_zombie_running_tis(limit_dttm, session=session)
+            zombies = LocalTaskJob.get_zombie_running_tis(limit_dttm, session=session)
             self._last_zombie_query_time = timezone.utcnow()
             for sti in zombies:
                 self.log.info(

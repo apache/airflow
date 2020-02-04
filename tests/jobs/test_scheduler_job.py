@@ -1060,10 +1060,10 @@ class TestSchedulerJob(unittest.TestCase):
         job = SchedulerJob(None, heartrate=10, state=State.RUNNING)
         self.assertTrue(job.is_alive())
 
-        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
+        job.update_heartbeat(timezone.utcnow() - datetime.timedelta(seconds=20))
         self.assertTrue(job.is_alive())
 
-        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=31)
+        job.update_heartbeat(timezone.utcnow() - datetime.timedelta(seconds=31))
         self.assertFalse(job.is_alive())
 
         # test because .seconds was used before instead of total_seconds
@@ -1072,7 +1072,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertFalse(job.is_alive())
 
         job.state = State.SUCCESS
-        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
+        job.update_heartbeat(timezone.utcnow() - datetime.timedelta(seconds=10))
         self.assertFalse(job.is_alive(), "Completed jobs even with recent heartbeat should not be alive")
 
     def run_single_scheduler_loop_with_no_dags(self, dags_folder):

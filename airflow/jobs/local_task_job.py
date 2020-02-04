@@ -21,13 +21,17 @@ import os
 import signal
 from typing import Optional
 
+from pendulum import utcfromtimestamp
+from sqlalchemy import or_
+
+import airflow
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job import BaseJob
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
-from airflow.utils import timezone
+from airflow.utils import helpers, timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -167,3 +171,55 @@ class LocalTaskJob(BaseJob):
                 ti.task.on_success_callback(context)
             self.task_runner.terminate()
             self.terminating = True
+
+    @classmethod
+    def get_zombie_running_tis(cls, limit_dttm, session=None):
+        def batch_get(acc, items):
+            # Redis has no batch functionality for zscore
+            # see https://github.com/antirez/redis/issues/2344
+            lua_script = '''
+                local res = {}
+                while #ARGV > 0 do
+                    res[#res+1] = redis.call('ZSCORE', KEYS[1], table.remove(ARGV, 1))
+                end
+                return res
+            '''
+            from airflow.jobs import LocalTaskJob
+            return acc + cls.redis.register_script(lua_script)(keys=[LocalTaskJob.__name__], args=items)
+
+        TI = airflow.models.TaskInstance
+
+        if conf.getboolean('heartbeat', 'redis_enabled'):
+            batch_size = conf.getint('heartbeat', 'redis_get_batch_size')
+            ti_job = (
+                session
+                .query(TI, cls)
+                .join(cls, TI.job_id == cls.id)
+                .filter(TI.state == State.RUNNING)
+                .all())
+            job_id_to_ti_job = dict([(job.id, (ti, job)) for ti, job in ti_job])
+            job_ids = list(job_id_to_ti_job.keys())
+            heartbeats = helpers.reduce_in_chunks(batch_get, job_ids, [], batch_size)
+            zombie_tis = []
+            for heartbeat_raw, job_id in zip(heartbeats, job_ids):
+                ti, job = job_id_to_ti_job[job_id]
+                heartbeat = heartbeat_raw and utcfromtimestamp(float(heartbeat_raw))
+                if ((not heartbeat and job._legacy_heartbeat < limit_dttm) or
+                        (heartbeat and heartbeat < limit_dttm) or
+                        job.state != State.RUNNING):
+                    zombie_tis.append(SimpleTaskInstance(ti))
+            return zombie_tis
+        else:
+            tis = (
+                session
+                .query(TI)
+                .join(cls, TI.job_id == cls.id)
+                .filter(TI.state == State.RUNNING)
+                .filter(
+                    or_(
+                        cls.state != State.RUNNING,
+                        cls._legacy_heartbeat < limit_dttm,
+                    )
+                ).all()
+            )
+            return [SimpleTaskInstance(ti) for ti in tis]

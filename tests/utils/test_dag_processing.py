@@ -231,10 +231,11 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 ti = TI(task, DEFAULT_DATE, State.RUNNING)
                 local_job = LJ(ti)
                 local_job.state = State.SHUTDOWN
-                local_job.id = 1
+                session.add(local_job)
+                session.commit()
+
                 ti.job_id = local_job.id
 
-                session.add(local_job)
                 session.add(ti)
                 session.commit()
                 fake_zombies = [SimpleTaskInstance(ti)]
@@ -340,7 +341,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
     def tearDown(self):
         # Remove any new modules imported during the test run. This lets us
         # import the same source files for more than one test.
-        for mod in sys.modules:
+        for mod in list(sys.modules.keys()):
             if mod not in self.old_modules:
                 del sys.modules[mod]
 

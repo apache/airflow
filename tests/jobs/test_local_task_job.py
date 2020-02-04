@@ -20,6 +20,7 @@ import multiprocessing
 import os
 import time
 import unittest
+from datetime import timedelta
 
 import pytest
 from mock import patch
@@ -30,7 +31,7 @@ from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
@@ -49,6 +50,32 @@ class TestLocalTaskJob(unittest.TestCase):
         patcher = patch('airflow.jobs.base_job.sleep')
         self.addCleanup(patcher.stop)
         self.mock_base_job_sleep = patcher.start()
+
+    def create_ti_with_job(self, dag_id, task_id, state, session):
+        dag = DAG(
+            dag_id,
+            start_date=DEFAULT_DATE
+        )
+        with dag:
+            DummyOperator(task_id=task_id)
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id='test',
+                               state=State.SUCCESS,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE)
+        ti = dr.get_task_instance(task_id=task_id)
+        job = LocalTaskJob(task_instance=ti,
+                           executor=SequentialExecutor())
+        ti.state = state
+        job.state = state
+        session.merge(ti)
+        session.add(job)
+        session.commit()
+        ti.job_id = job.id
+        session.merge(ti)
+        session.commit()
+        return (ti, job)
 
     def test_localtaskjob_essential_attr(self):
         """
@@ -155,7 +182,7 @@ class TestLocalTaskJob(unittest.TestCase):
             job = LocalTaskJob(task_instance=ti, executor=MockExecutor(do_update=False))
             job.heartrate = 2
             heartbeat_records = []
-            job.heartbeat_callback = lambda session: heartbeat_records.append(job.latest_heartbeat)
+            job.heartbeat_callback = lambda session: heartbeat_records.append(job.get_heartbeat())
             job._execute()
             self.assertGreater(len(heartbeat_records), 2)
             for i in range(1, len(heartbeat_records)):
@@ -401,3 +428,104 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertTrue(data['called'])
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
+
+    def test_get_zombie_running_tis(self):
+        # cases
+        # heartbefore expiration
+        # heartbeat after expiration
+        # job state not in running
+        # non running TI
+        limit_dttm = timezone.utcnow()
+        before_dttm = limit_dttm - timedelta(seconds=5)
+        after_dttm = limit_dttm + timedelta(seconds=5)
+
+        expected = set()
+
+        with create_session() as session:
+            test_name = 'test_get_zombie_running_tis_redis_'
+
+            ti1, job1 = self.create_ti_with_job(test_name + '1', 'task', State.RUNNING, session)
+            _, job2 = self.create_ti_with_job(test_name + '2', 'task', State.RUNNING, session)
+            ti3, job3 = self.create_ti_with_job(test_name + '3', 'task', State.RUNNING, session)
+            _ = self.create_ti_with_job(test_name + '6', 'task', State.FAILED, session)
+            session.commit()
+            job1._legacy_heartbeat = before_dttm
+            job2._legacy_heartbeat = after_dttm
+            job3._legacy_heartbeat = before_dttm
+            job3.state = State.FAILED
+
+            expected.add(SimpleTaskInstance(ti1).key)
+            expected.add(SimpleTaskInstance(ti3).key)
+            session.merge(job1)
+            session.merge(job2)
+            session.merge(job3)
+            session.commit()
+
+            res = LocalTaskJob.get_zombie_running_tis(limit_dttm, session=session)
+            res_as_set = {sti.key for sti in res}
+            self.assertEqual(expected, res_as_set)
+
+    def test_get_zombie_running_tis_redis(self):
+        # cases
+        # no heartbeat before expiration
+        # no heartbeat after expiration
+        # heartbefore expiration
+        # heartbeat after expiration
+        # job state not in running
+        # non running TI
+        limit_dttm = timezone.utcnow()
+        before_dttm = limit_dttm - timedelta(seconds=5)
+        after_dttm = limit_dttm + timedelta(seconds=5)
+
+        expected = set()
+
+        with create_session() as session:
+            test_name = 'test_get_zombie_running_tis_redis_'
+
+            ti1, job1 = self.create_ti_with_job(test_name + '1', 'task', State.RUNNING, session)
+            _, job2 = self.create_ti_with_job(test_name + '2', 'task', State.RUNNING, session)
+            ti3, job3 = self.create_ti_with_job(test_name + '3', 'task', State.RUNNING, session)
+            _, job4 = self.create_ti_with_job(test_name + '4', 'task', State.RUNNING, session)
+            ti5, job5 = self.create_ti_with_job(test_name + '5', 'task', State.RUNNING, session)
+            _ = self.create_ti_with_job(test_name + '6', 'task', State.FAILED, session)
+            session.commit()
+            job1._legacy_heartbeat = before_dttm
+            job2._legacy_heartbeat = after_dttm
+            job3._legacy_heartbeat = before_dttm
+            job4._legacy_heartbeat = before_dttm
+            job5._legacy_heartbeat = before_dttm
+            job5.state = State.FAILED
+
+            expected.add(SimpleTaskInstance(ti1).key)
+            expected.add(SimpleTaskInstance(ti3).key)
+            expected.add(SimpleTaskInstance(ti5).key)
+            session.merge(job1)
+            session.merge(job2)
+            session.merge(job3)
+            session.merge(job4)
+            session.merge(job5)
+            session.commit()
+
+            def mock_method(keys, args):
+                self.assertEqual([LocalTaskJob.__name__], keys)
+                results = []
+                for arg in args:
+                    if arg in (job1.id, job2.id):
+                        dttm = None
+                    elif arg == job3.id:
+                        dttm = before_dttm
+                    elif arg in (job4.id, job5.id):
+                        dttm = after_dttm
+                    else:
+                        # should not happen
+                        self.fail('invalid id')
+                    results.append(dttm and (dttm - timezone.utc_epoch()).total_seconds())
+                return results
+
+            with patch.object(configuration.conf, 'getint', return_value=3):
+                with patch.object(configuration.conf, 'getboolean', return_value=True):
+                    with patch('airflow.jobs.BaseJob.redis') as mocked_redis:
+                        mocked_redis.register_script.return_value = mock_method
+                        res = LocalTaskJob.get_zombie_running_tis(limit_dttm, session=session)
+                        res_as_set = {sti.key for sti in res}
+                        self.assertEqual(expected, res_as_set)

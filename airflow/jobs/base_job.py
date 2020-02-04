@@ -27,7 +27,6 @@ from sqlalchemy import Column, Index, Integer, String, and_, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-import airflow
 from airflow import models
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -35,7 +34,6 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.base import ID_LEN, Base
 from airflow.stats import Stats
 from airflow.utils import helpers, timezone
-from airflow.utils.dag_processing import SimpleTaskInstance
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -82,6 +80,8 @@ class BaseJob(Base, LoggingMixin):
     heartrate = conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC')
     if conf.getboolean('heartbeat', 'redis_enabled'):
         redis = Redis.from_url(conf.get('heartbeat', 'redis_url'))
+    else:
+        redis = None
 
     def __init__(
             self,
@@ -93,12 +93,12 @@ class BaseJob(Base, LoggingMixin):
         self.executor = executor or ExecutorLoader.get_default_executor()
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
+        self._legacy_heartbeat = timezone.utcnow()
         if heartrate is not None:
             self.heartrate = heartrate
         self.unixname = getpass.getuser()
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         super().__init__(*args, **kwargs)
-        self.update_heartbeat()
 
     @classmethod
     @provide_session
@@ -113,11 +113,16 @@ class BaseJob(Base, LoggingMixin):
         :param session: Database session
         :rtype: BaseJob or None
         """
+        latest_job_sql = session.query(cls).order_by(cls._legacy_heartbeat.desc()).limit(1).first()
         if conf.getboolean('heartbeat', 'redis_enabled'):
             latest_id = cls.redis.zrange(cls.__name__, -1, -1)
-            return latest_id and session.query(cls).get(int(latest_id))
+            latest_job_redis = latest_id and session.query(cls).get(int(latest_id))
+            if latest_id and latest_job_redis.get_heartbeat() > latest_job_sql._legacy_heartbeat:
+                return latest_job_redis
+            else:
+                return latest_job_sql
         else:
-            return session.query(cls).order_by(cls._legacy_heartbeat.desc()).limit(1).first()
+            return latest_job_sql
 
     def is_alive(self, grace_multiplier=2.1):
         """
@@ -133,7 +138,7 @@ class BaseJob(Base, LoggingMixin):
         """
         return (
             self.state == State.RUNNING and
-            (timezone.utcnow() - self.latest_heartbeat).total_seconds() < self.heartrate * grace_multiplier
+            (timezone.utcnow() - self.get_heartbeat()).total_seconds() < self.heartrate * grace_multiplier
         )
 
     @provide_session
@@ -320,75 +325,22 @@ class BaseJob(Base, LoggingMixin):
         return reset_tis
 
     @provide_session
-    def update_heartbeat(self, initial_heartbeat=False, session=None):
+    def update_heartbeat(self, heartbeat_time=None, session=None):
+        if heartbeat_time is None:
+            heartbeat_time = timezone.utcnow()
         if conf.getboolean('heartbeat', 'redis_enabled'):
             self.redis.zadd(
                 self.job_type,
-                {str(self.id): str((timezone.utcnow() - timezone.utc_epoch()).total_seconds())})
+                {str(self.id): str((heartbeat_time - timezone.utc_epoch()).total_seconds())})
         else:
-            if initial_heartbeat:
-                self._legacy_heartbeat = timezone.utcnow()
-            else:
-                # Update last heartbeat time
-                session.merge(self)
-                self._legacy_heartbeat = timezone.utcnow()
-                session.commit()
+            # Update last heartbeat time
+            session.merge(self)
+            self._legacy_heartbeat = heartbeat_time
+            session.commit()
 
     def get_heartbeat(self):
         if conf.getboolean('heartbeat', 'redis_enabled'):
             redis_result = self.redis.zscore(self.job_type, str(self.id))
-            return redis_result and utcfromtimestamp(redis_result)
+            return (redis_result and utcfromtimestamp(redis_result)) or self._legacy_heartbeat
         else:
             return self._legacy_heartbeat
-
-    @classmethod
-    def get_zombie_running_tis(cls, limit_dttm, session=None):
-        def batch_get(acc, items):
-            # Redis has no batch functionality for zscore
-            # see https://github.com/antirez/redis/issues/2344
-            lua_script = '''
-                local res = {}
-                while #ARGV > 0 do
-                    res[#res+1] = redis.call('ZSCORE', KEYS[1], table.remove(ARGV, 1))
-                end
-                return res
-            '''
-            from airflow.jobs import LocalTaskJob
-            return acc + cls.redis.register_script(lua_script)(keys=[LocalTaskJob.__name__], args=items)
-
-        TI = airflow.models.TaskInstance
-
-        if conf.getboolean('heartbeat', 'redis_enabled'):
-            batch_size = conf.getint('heartbeat', 'redis_get_batch_size')
-            ti_job = (
-                session
-                .query(TI, cls)
-                .join(cls, TI.job_id == cls.id)
-                .filter(TI.state == State.RUNNING)
-                .all())
-            job_id_to_ti_job = dict([(job.id, (ti, job)) for ti, job in ti_job])
-            job_ids = job_id_to_ti_job.keys()
-            heartbeats = helpers.reduce_in_chunks(batch_get, job_ids, [], batch_size)
-            zombie_tis = []
-            for heartbeat_raw, job_id in zip(heartbeats, job_ids):
-                ti, job = job_id_to_ti_job[job_id]
-                heartbeat = heartbeat_raw and utcfromtimestamp(float(heartbeat_raw))
-                if ((not heartbeat and job.start_date < limit_dttm) or
-                        (heartbeat and heartbeat < limit_dttm) or
-                        job.state != State.RUNNING):
-                    zombie_tis.append(SimpleTaskInstance(ti))
-            return zombie_tis
-        else:
-            tis = (
-                session
-                .query(TI)
-                .join(cls, TI.job_id == cls.id)
-                .filter(TI.state == State.RUNNING)
-                .filter(
-                    or_(
-                        cls.state != State.RUNNING,
-                        cls._legacy_heartbeat < limit_dttm,
-                    )
-                ).all()
-            )
-            return [SimpleTaskInstance(ti) for ti in tis]
