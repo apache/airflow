@@ -24,7 +24,11 @@ The Yandex.Cloud connection type enables the authentication in Yandex.Cloud serv
 Authenticating to Yandex.Cloud
 ---------------------------------
 
-At the moment only user OAuth token is available as an auth method.
+Normally service account keys are used for Yandex.Cloud API authentication.
+https://cloud.yandex.com/docs/cli/operations/authentication/service-account
+
+As an alternative to service account key, user OAuth token can be used for authentication.
+See the https://cloud.yandex.com/docs/cli/quickstart for obtaining a user OAuth token.
 
 Default Connection IDs
 ----------------------
@@ -34,8 +38,15 @@ All hooks and operators related to Yandex.Cloud use ``yandexcloud_default`` conn
 Configuring the Connection
 --------------------------
 
+Service account auth JSON
+    JSON object as a string like::
+        {"id", "...", "service_account_id": "...", "private_key": "..."}
+
+Service account auth JSON file path
+    Path to the file containing service account auth JSON.
+
 OAuth Token
-    See the https://cloud.yandex.com/docs/cli/quickstart for obtaining a token.
+    OAuth token as a string.
 
 SSH public key (optional)
     The key will be placed to all created Compute nodes, allowing to have a root shell there.

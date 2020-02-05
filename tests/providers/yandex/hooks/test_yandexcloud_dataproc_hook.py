@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -27,8 +25,6 @@ try:
     from airflow.providers.yandex.hooks.yandexcloud_dataproc_hook import DataprocHook
 
     import yandexcloud
-    from yandex.cloud.dataproc.v1.cluster_pb2 import Cluster
-    from yandex.cloud.operation.operation_pb2 import Operation
 except ImportError:
     yandexcloud = None
 
@@ -79,48 +75,11 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
         self.connection = Connection(extra=json.dumps({'extra__yandexcloud__oauth': OAUTH_TOKEN}))
         self._init_hook()
 
-    @unittest.skipIf(
-        not HAS_CREDENTIALS,
-        'Skipping Yadnex.Cloud not mocked test: no Yandex.Cloud credentials provided'
-    )
-    def test_create_and_delete_dataproc_cluster(self):
-        """
-        Test that uses real auth credentials for Yandex.Cloud
-        """
-        # pylint will not see protobuf object methods without plugin pylint_protobuf
-        # pylint: disable=no-member
-        cluster_id = None
-        try:
-            result = self.hook.create_cluster(
-                cluster_name=CLUSTER_NAME,
-                ssh_public_keys=SSH_PUBLIC_KEYS,
-                folder_id=FOLDER_ID,
-                subnet_id=SUBNET_ID,
-                zone=AVAILABILITY_ZONE_ID,
-                s3_bucket=S3_BUCKET_NAME_FOR_LOGS,
-                cluster_image_version=CLUSTER_IMAGE_VERSION,
-                service_account_id=SERVICE_ACCOUNT_ID,
-            )
-            self.assertTrue(isinstance(result, Cluster))
-            cluster_id = result.id
-            self.assertEqual(result.name, CLUSTER_NAME)
-            self.assertEqual(result.health, 0)
-            cluster_id = result.id
-        finally:
-            result = self.hook.delete_cluster(
-                cluster_id
-            )
-            self.assertTrue(isinstance(result, Operation))
-            self.assertTrue(result.done)
-            self.assertEqual(result.error.code, 0)
-
-    @patch('yandexcloud.SDK.client')
-    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
-    def test_create_dataproc_cluster_mocked(self, wait_for_operation_mock, client_mock):
+    @patch('yandexcloud.SDK.create_operation_and_get_result')
+    def test_create_dataproc_cluster_mocked(self, create_operation_mock):
         self._init_hook()
-        wait_for_operation_mock.return_value.error.code = 0
 
-        self.hook.create_cluster(
+        self.hook.client.create_cluster(
             cluster_name=CLUSTER_NAME,
             ssh_public_keys=SSH_PUBLIC_KEYS,
             folder_id=FOLDER_ID,
@@ -130,28 +89,21 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
             cluster_image_version=CLUSTER_IMAGE_VERSION,
             service_account_id=SERVICE_ACCOUNT_ID,
         )
-        self.assertTrue(client_mock.called)
-        self.assertTrue(wait_for_operation_mock.return_value.response.Unpack.called)
-        self.assertTrue(client_mock.return_value.Create.called)
+        self.assertTrue(create_operation_mock.called)
 
-    @patch('yandexcloud.SDK.client')
-    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
-    def test_delete_dataproc_cluster_mocked(self, wait_for_operation_mock, client_mock):
+    @patch('yandexcloud.SDK.create_operation_and_get_result')
+    def test_delete_dataproc_cluster_mocked(self, create_operation_mock):
         self._init_hook()
-        wait_for_operation_mock.return_value.error.code = 0
-        self.hook.delete_cluster(
+        self.hook.client.delete_cluster(
             'my_cluster_id'
         )
-        self.assertTrue(wait_for_operation_mock.called)
-        self.assertTrue(client_mock.return_value.Delete.called)
+        self.assertTrue(create_operation_mock.called)
 
-    @patch('yandexcloud.SDK.client')
-    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
-    def test_run_hive_job_hook(self, wait_for_operation_mock, client_mock):
+    @patch('yandexcloud.SDK.create_operation_and_get_result')
+    def test_create_hive_job_hook(self, create_operation_mock):
         self._init_hook()
-        wait_for_operation_mock.return_value.error.code = 0
 
-        self.hook.run_hive_job(
+        self.hook.client.create_hive_job(
             cluster_id='my_cluster_id',
             continue_on_failure=False,
             name='Hive job',
@@ -159,19 +111,15 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
             query='SELECT 1;',
             script_variables=None,
         )
-        self.assertTrue(client_mock.called)
-        self.assertTrue(wait_for_operation_mock.return_value.response.Unpack.called)
-        self.assertTrue(client_mock.return_value.Create.called)
+        self.assertTrue(create_operation_mock.called)
 
-    @patch('yandexcloud.SDK.client')
-    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
-    def test_run_mapreduce_job_hook(self, wait_for_operation_mock, client_mock):
+    @patch('yandexcloud.SDK.create_operation_and_get_result')
+    def test_create_mapreduce_job_hook(self, create_operation_mock):
         self._init_hook()
-        wait_for_operation_mock.return_value.error.code = 0
 
-        self.hook.run_mapreduce_job(
+        self.hook.client.create_mapreduce_job(
             archive_uris=None,
-            arguments=[
+            args=[
                 '-mapper', 'mapper.py', '-reducer', 'reducer.py', '-numReduceTasks', '1', '-input',
                 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2', '-output',
                 's3a://some-out-bucket/dataproc/job/results'
@@ -191,19 +139,15 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
                 'mapreduce.job.maps': '6'
             }
         )
-        self.assertTrue(client_mock.called)
-        self.assertTrue(wait_for_operation_mock.return_value.response.Unpack.called)
-        self.assertTrue(client_mock.return_value.Create.called)
+        self.assertTrue(create_operation_mock.called)
 
-    @patch('yandexcloud.SDK.client')
-    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
-    def test_run_spark_job_hook(self, wait_for_operation_mock, client_mock):
+    @patch('yandexcloud.SDK.create_operation_and_get_result')
+    def test_create_spark_job_hook(self, create_operation_mock):
         self._init_hook()
-        wait_for_operation_mock.return_value.error.code = 0
 
-        self.hook.run_spark_job(
+        self.hook.client.create_spark_job(
             archive_uris=['s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip'],
-            arguments=[
+            args=[
                 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
                 's3a://some-out-bucket/dataproc/job/results/${{JOB_ID}}'
             ],
@@ -220,19 +164,15 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
             name='Spark job',
             properties={'spark.submit.deployMode': 'cluster'}
         )
-        self.assertTrue(client_mock.called)
-        self.assertTrue(wait_for_operation_mock.return_value.response.Unpack.called)
-        self.assertTrue(client_mock.return_value.Create.called)
+        self.assertTrue(create_operation_mock.called)
 
-    @patch('yandexcloud.SDK.client')
-    @patch('airflow.providers.yandex.hooks.yandexcloud_base_hook.YandexCloudBaseHook.wait_for_operation')
-    def test_run_pyspark_job_hook(self, wait_for_operation_mock, client_mock):
+    @patch('yandexcloud.SDK.create_operation_and_get_result')
+    def test_create_pyspark_job_hook(self, create_operation_mock):
         self._init_hook()
-        wait_for_operation_mock.return_value.error.code = 0
 
-        self.hook.run_pyspark_job(
+        self.hook.client.create_pyspark_job(
             archive_uris=['s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip'],
-            arguments=[
+            args=[
                 's3a://some-in-bucket/jobs/sources/data/cities500.txt.bz2',
                 's3a://some-out-bucket/jobs/results/${{JOB_ID}}'
             ],
@@ -248,6 +188,4 @@ class TestYandexCloudDataprocHook(unittest.TestCase):
             properties={'spark.submit.deployMode': 'cluster'},
             python_file_uris=['s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py']
         )
-        self.assertTrue(client_mock.called)
-        self.assertTrue(wait_for_operation_mock.return_value.response.Unpack.called)
-        self.assertTrue(client_mock.return_value.Create.called)
+        self.assertTrue(create_operation_mock.called)

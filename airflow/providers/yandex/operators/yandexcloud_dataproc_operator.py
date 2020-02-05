@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -54,9 +52,9 @@ class DataprocCreateClusterOperator(YandexCloudBaseOperator):
                  computenode_disk_size=15,
                  computenode_disk_type='network-ssd',
                  computenode_count=0,
-                 *args,
+                 *arguments,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*arguments, **kwargs)
         self.folder_id = folder_id
         self.connection_id = connection_id
         self.cluster_name = cluster_name
@@ -84,7 +82,7 @@ class DataprocCreateClusterOperator(YandexCloudBaseOperator):
         self.hook = DataprocHook(
             connection_id=self.connection_id,
         )
-        cluster_id = self.hook.create_cluster(
+        operation_result = self.hook.client.create_cluster(
             folder_id=self.folder_id,
             cluster_name=self.cluster_name,
             cluster_description=self.cluster_description,
@@ -107,7 +105,7 @@ class DataprocCreateClusterOperator(YandexCloudBaseOperator):
             computenode_disk_type=self.computenode_disk_type,
             computenode_count=self.computenode_count,
         )
-        context['task_instance'].xcom_push(key='cluster_id', value=cluster_id)
+        context['task_instance'].xcom_push(key='cluster_id', value=operation_result.response.id)
         context['task_instance'].xcom_push(key='yandexcloud_connection_id', value=self.connection_id)
 
 
@@ -117,9 +115,9 @@ class DataprocDeleteClusterOperator(YandexCloudBaseOperator):
     def __init__(self,
                  connection_id=None,
                  cluster_id=None,
-                 *args,
+                 *arguments,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*arguments, **kwargs)
         self.connection_id = connection_id
         self.cluster_id = cluster_id
 
@@ -131,10 +129,10 @@ class DataprocDeleteClusterOperator(YandexCloudBaseOperator):
         self.hook = DataprocHook(
             connection_id=connection_id,
         )
-        self.hook.delete_cluster(cluster_id)
+        self.hook.client.delete_cluster(cluster_id)
 
 
-class DataprocRunHiveJobOperator(YandexCloudBaseOperator):
+class DataprocCreateHiveJobOperator(YandexCloudBaseOperator):
     """Runs Hive job in Data Proc cluster."""
 
     # pylint: disable=too-many-arguments
@@ -149,9 +147,9 @@ class DataprocRunHiveJobOperator(YandexCloudBaseOperator):
                  name='Hive job',
                  cluster_id=None,
                  connection_id=None,
-                 *args,
+                 *arguments,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*arguments, **kwargs)
         self.query = query
         self.query_file_uri = query_file_uri
         self.script_variables = script_variables
@@ -169,7 +167,7 @@ class DataprocRunHiveJobOperator(YandexCloudBaseOperator):
         self.hook = DataprocHook(
             connection_id=connection_id,
         )
-        self.hook.run_hive_job(
+        self.hook.client.create_hive_job(
             query=self.query,
             query_file_uri=self.query_file_uri,
             script_variables=self.script_variables,
@@ -180,7 +178,7 @@ class DataprocRunHiveJobOperator(YandexCloudBaseOperator):
         )
 
 
-class DataprocRunMapReduceJobOperator(YandexCloudBaseOperator):
+class DataprocCreateMapReduceJobOperator(YandexCloudBaseOperator):
     """Runs Mapreduce job in Data Proc cluster."""
 
     # pylint: disable=too-many-arguments
@@ -192,20 +190,20 @@ class DataprocRunMapReduceJobOperator(YandexCloudBaseOperator):
                  jar_file_uris=None,
                  archive_uris=None,
                  file_uris=None,
-                 arguments=None,
+                 args=None,
                  properties=None,
                  name='Mapreduce job',
                  cluster_id=None,
                  connection_id=None,
-                 *args,
+                 *arguments,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*arguments, **kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
         self.archive_uris = archive_uris
         self.file_uris = file_uris
-        self.arguments = arguments
+        self.args = args
         self.properties = properties
         self.name = name
         self.cluster_id = cluster_id
@@ -219,20 +217,20 @@ class DataprocRunMapReduceJobOperator(YandexCloudBaseOperator):
         self.hook = DataprocHook(
             connection_id=connection_id,
         )
-        self.hook.run_mapreduce_job(
+        self.hook.client.create_mapreduce_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
             jar_file_uris=self.jar_file_uris,
             archive_uris=self.archive_uris,
             file_uris=self.file_uris,
-            arguments=self.arguments,
+            args=self.args,
             properties=self.properties,
             name=self.name,
             cluster_id=cluster_id,
         )
 
 
-class DataprocRunSparkJobOperator(YandexCloudBaseOperator):
+class DataprocCreateSparkJobOperator(YandexCloudBaseOperator):
     """Runs Spark job in Data Proc cluster."""
 
     # pylint: disable=too-many-arguments
@@ -244,20 +242,20 @@ class DataprocRunSparkJobOperator(YandexCloudBaseOperator):
                  jar_file_uris=None,
                  archive_uris=None,
                  file_uris=None,
-                 arguments=None,
+                 args=None,
                  properties=None,
                  name='Spark job',
                  cluster_id=None,
                  connection_id=None,
-                 *args,
+                 *arguments,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*arguments, **kwargs)
         self.main_class = main_class
         self.main_jar_file_uri = main_jar_file_uri
         self.jar_file_uris = jar_file_uris
         self.archive_uris = archive_uris
         self.file_uris = file_uris
-        self.arguments = arguments
+        self.args = args
         self.properties = properties
         self.name = name
         self.cluster_id = cluster_id
@@ -271,20 +269,20 @@ class DataprocRunSparkJobOperator(YandexCloudBaseOperator):
         self.hook = DataprocHook(
             connection_id=connection_id,
         )
-        self.hook.run_spark_job(
+        self.hook.client.create_spark_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
             jar_file_uris=self.jar_file_uris,
             archive_uris=self.archive_uris,
             file_uris=self.file_uris,
-            arguments=self.arguments,
+            args=self.args,
             properties=self.properties,
             name=self.name,
             cluster_id=cluster_id,
         )
 
 
-class DataprocRunPysparkJobOperator(YandexCloudBaseOperator):
+class DataprocCreatePysparkJobOperator(YandexCloudBaseOperator):
     """Runs Pyspark job in Data Proc cluster."""
 
     # pylint: disable=too-many-arguments
@@ -296,20 +294,20 @@ class DataprocRunPysparkJobOperator(YandexCloudBaseOperator):
                  jar_file_uris=None,
                  archive_uris=None,
                  file_uris=None,
-                 arguments=None,
+                 args=None,
                  properties=None,
                  name='Pyspark job',
                  cluster_id=None,
                  connection_id=None,
-                 *args,
+                 *arguments,
                  **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*arguments, **kwargs)
         self.main_python_file_uri = main_python_file_uri
         self.python_file_uris = python_file_uris
         self.jar_file_uris = jar_file_uris
         self.archive_uris = archive_uris
         self.file_uris = file_uris
-        self.arguments = arguments
+        self.args = args
         self.properties = properties
         self.name = name
         self.cluster_id = cluster_id
@@ -323,13 +321,13 @@ class DataprocRunPysparkJobOperator(YandexCloudBaseOperator):
         self.hook = DataprocHook(
             connection_id=connection_id,
         )
-        self.hook.run_pyspark_job(
+        self.hook.client.create_pyspark_job(
             main_python_file_uri=self.main_python_file_uri,
             python_file_uris=self.python_file_uris,
             jar_file_uris=self.jar_file_uris,
             archive_uris=self.archive_uris,
             file_uris=self.file_uris,
-            arguments=self.arguments,
+            args=self.args,
             properties=self.properties,
             name=self.name,
             cluster_id=cluster_id,

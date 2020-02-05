@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -19,8 +17,8 @@
 
 from airflow import DAG
 from airflow.providers.yandex.operators.yandexcloud_dataproc_operator import (
-    DataprocCreateClusterOperator, DataprocDeleteClusterOperator, DataprocRunHiveJobOperator,
-    DataprocRunMapReduceJobOperator, DataprocRunPysparkJobOperator, DataprocRunSparkJobOperator,
+    DataprocCreateClusterOperator, DataprocCreateHiveJobOperator, DataprocCreateMapReduceJobOperator,
+    DataprocCreatePysparkJobOperator, DataprocCreateSparkJobOperator, DataprocDeleteClusterOperator,
 )
 from airflow.utils.dates import days_ago
 
@@ -55,13 +53,13 @@ with DAG(
         s3_bucket=S3_BUCKET_NAME_FOR_JOB_LOGS,
     )
 
-    run_hive_query = DataprocRunHiveJobOperator(
-        task_id='run_hive_query',
+    create_hive_query = DataprocCreateHiveJobOperator(
+        task_id='create_hive_query',
         query='SELECT 1;',
     )
 
-    run_hive_query_from_file = DataprocRunHiveJobOperator(
-        task_id='run_hive_query_from_file',
+    create_hive_query_from_file = DataprocCreateHiveJobOperator(
+        task_id='create_hive_query_from_file',
         query_file_uri='s3a://data-proc-public/jobs/sources/hive-001/main.sql',
         script_variables={
             'CITIES_URI': 's3a://data-proc-public/jobs/sources/hive-001/cities/',
@@ -69,14 +67,14 @@ with DAG(
         }
     )
 
-    run_mapreduce_job = DataprocRunMapReduceJobOperator(
-        task_id='run_mapreduce_job',
+    create_mapreduce_job = DataprocCreateMapReduceJobOperator(
+        task_id='create_mapreduce_job',
         main_class='org.apache.hadoop.streaming.HadoopStreaming',
         file_uris=[
             's3a://data-proc-public/jobs/sources/mapreduce-001/mapper.py',
             's3a://data-proc-public/jobs/sources/mapreduce-001/reducer.py'
         ],
-        arguments=[
+        args=[
             '-mapper', 'mapper.py',
             '-reducer', 'reducer.py',
             '-numReduceTasks', '1',
@@ -90,8 +88,8 @@ with DAG(
         },
     )
 
-    run_spark_job = DataprocRunSparkJobOperator(
-        task_id='run_spark_job',
+    create_spark_job = DataprocCreateSparkJobOperator(
+        task_id='create_spark_job',
         main_jar_file_uri='s3a://data-proc-public/jobs/sources/java/dataproc-examples-1.0.jar',
         main_class='ru.yandex.cloud.dataproc.examples.PopulationSparkJob',
         file_uris=[
@@ -106,7 +104,7 @@ with DAG(
             's3a://data-proc-public/jobs/sources/java/opencsv-4.1.jar',
             's3a://data-proc-public/jobs/sources/java/json-20190722.jar'
         ],
-        arguments=[
+        args=[
             's3a://data-proc-public/jobs/sources/data/cities500.txt.bz2',
             's3a://{bucket}/dataproc/job/results/${{JOB_ID}}'.format(bucket=S3_BUCKET_NAME_FOR_JOB_LOGS),
         ],
@@ -115,8 +113,8 @@ with DAG(
         },
     )
 
-    run_pyspark_job = DataprocRunPysparkJobOperator(
-        task_id='run_pyspark_job',
+    create_pyspark_job = DataprocCreatePysparkJobOperator(
+        task_id='create_pyspark_job',
         main_python_file_uri='s3a://data-proc-public/jobs/sources/pyspark-001/main.py',
         python_file_uris=[
             's3a://data-proc-public/jobs/sources/pyspark-001/geonames.py',
@@ -127,7 +125,7 @@ with DAG(
         archive_uris=[
             's3a://data-proc-public/jobs/sources/data/country-codes.csv.zip',
         ],
-        arguments=[
+        args=[
             's3a://data-proc-public/jobs/sources/data/cities500.txt.bz2',
             's3a://{bucket}/jobs/results/${{JOB_ID}}'.format(bucket=S3_BUCKET_NAME_FOR_JOB_LOGS),
         ],
@@ -145,5 +143,5 @@ with DAG(
         task_id='delete_cluster',
     )
 
-    create_cluster >> run_mapreduce_job >> run_hive_query >> run_hive_query_from_file \
-        >> run_spark_job >> run_pyspark_job >> delete_cluster
+    create_cluster >> create_mapreduce_job >> create_hive_query >> create_hive_query_from_file \
+        >> create_spark_job >> create_pyspark_job >> delete_cluster

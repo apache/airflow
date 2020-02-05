@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -384,7 +383,6 @@ devel = [
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
     'coverage',
-    'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
@@ -425,7 +423,7 @@ devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel 
              password + pinot + redis + salesforce + samba + segment + sendgrid +
              sentry + slack + snowflake + ssh + statsd + virtualenv + webhdfs + yandexcloud + zendesk)
 
-# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
+# Snakebite are not Python 3 compatible :'(
 if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]

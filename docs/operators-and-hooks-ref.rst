@@ -884,14 +884,14 @@ These integrations allow you to perform various operations within the Yandex.Clo
 
    * - `Base Classes <https://cloud.yandex.com>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
-     - :mod:`airflow.contrib.hooks.yandexcloud_base_hook`
-     - :mod:`airflow.contrib.operators.yandexcloud_base_operator`
+     - :mod:`airflow.providers.yandex.hooks.yandexcloud_base_hook`
+     - :mod:`airflow.providers.yandex.operators.yandexcloud_base_operator`
      -
 
    * - `Data Proc <https://cloud.yandex.com/services/data-proc>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
-     - :mod:`airflow.contrib.hooks.yandexcloud_dataproc_hook`
-     - :mod:`airflow.contrib.operators.yandexcloud_dataproc_operator`
+     - :mod:`airflow.providers.yandex.hooks.yandexcloud_dataproc_hook`
+     - :mod:`airflow.providers.yandex.operators.yandexcloud_dataproc_operator`
      -
 
 .. _yc_service:
