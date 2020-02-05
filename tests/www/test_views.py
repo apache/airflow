@@ -475,20 +475,20 @@ class TestAirflowBaseViews(TestBase):
 
     def test_blocked(self):
         url = 'blocked'
-        resp = self.client.get(url, follow_redirects=True)
+        resp = self.client.post(url, follow_redirects=True)
         self.assertEqual(200, resp.status_code)
 
     def test_dag_stats(self):
-        resp = self.client.get('dag_stats', follow_redirects=True)
+        resp = self.client.post('dag_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
     def test_task_stats(self):
-        resp = self.client.get('task_stats', follow_redirects=True)
+        resp = self.client.post('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
     def test_task_stats_only_noncompleted(self):
         conf.set("webserver", "show_recent_stats_for_completed_runs", "False")
-        resp = self.client.get('task_stats', follow_redirects=True)
+        resp = self.client.post('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
     def test_dag_details(self):
@@ -507,19 +507,22 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('runme_1', resp)
 
     def test_last_dagruns(self):
-        resp = self.client.get('last_dagruns', follow_redirects=True)
+        resp = self.client.post('last_dagruns', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_last_dagruns_success_when_selecting_dags(self):
-        resp = self.client.get('last_dagruns?dag_ids=example_subdag_operator', follow_redirects=True)
+        resp = self.client.post('last_dagruns',
+                                json={'dag_ids': ['example_subdag_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertNotIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
 
         # Multiple
-        resp = self.client.get('last_dagruns?dag_ids=example_subdag_operator,example_bash_operator',
-                               follow_redirects=True)
+        resp = self.client.post('last_dagruns',
+                                json={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
@@ -1413,33 +1416,36 @@ class TestDagACLView(TestBase):
     def test_dag_stats_success(self):
         self.logout()
         self.login()
-        resp = self.client.get('dag_stats', follow_redirects=True)
+        resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_dag_stats_failure(self):
         self.logout()
         self.login()
-        resp = self.client.get('dag_stats', follow_redirects=True)
+        resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_not_in_response('example_subdag_operator', resp)
 
     def test_dag_stats_success_for_all_dag_user(self):
         self.logout()
         self.login(username='all_dag_user',
                    password='all_dag_user')
-        resp = self.client.get('dag_stats', follow_redirects=True)
+        resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_subdag_operator', resp)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_dag_stats_success_when_selecting_dags(self):
-        resp = self.client.get('dag_stats?dag_ids=example_subdag_operator', follow_redirects=True)
+        resp = self.client.post('dag_stats',
+                                json={'dag_ids': ['example_subdag_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertNotIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
 
         # Multiple
-        resp = self.client.get('dag_stats?dag_ids=example_subdag_operator,example_bash_operator',
-                               follow_redirects=True)
+        resp = self.client.post('dag_stats',
+                                json={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
@@ -1449,20 +1455,20 @@ class TestDagACLView(TestBase):
     def test_task_stats_success(self):
         self.logout()
         self.login()
-        resp = self.client.get('task_stats', follow_redirects=True)
+        resp = self.client.post('task_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_task_stats_failure(self):
         self.logout()
         self.login()
-        resp = self.client.get('task_stats', follow_redirects=True)
+        resp = self.client.post('task_stats', follow_redirects=True)
         self.check_content_not_in_response('example_subdag_operator', resp)
 
     def test_task_stats_success_for_all_dag_user(self):
         self.logout()
         self.login(username='all_dag_user',
                    password='all_dag_user')
-        resp = self.client.get('task_stats', follow_redirects=True)
+        resp = self.client.post('task_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_in_response('example_subdag_operator', resp)
 
@@ -1471,15 +1477,18 @@ class TestDagACLView(TestBase):
         self.login(username='all_dag_user',
                    password='all_dag_user')
 
-        resp = self.client.get('task_stats?dag_ids=example_subdag_operator', follow_redirects=True)
+        resp = self.client.post('task_stats',
+                                json={'dag_ids': ['example_subdag_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertNotIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
 
         # Multiple
-        resp = self.client.get('task_stats?dag_ids=example_subdag_operator,example_bash_operator',
-                               follow_redirects=True)
+        resp = self.client.post('task_stats',
+                                json={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
@@ -1649,7 +1658,7 @@ class TestDagACLView(TestBase):
         url = 'blocked'
         self.logout()
         self.login()
-        resp = self.client.get(url, follow_redirects=True)
+        resp = self.client.post(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_blocked_success_for_all_dag_user(self):
@@ -1657,20 +1666,23 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='all_dag_user',
                    password='all_dag_user')
-        resp = self.client.get(url, follow_redirects=True)
+        resp = self.client.post(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_in_response('example_subdag_operator', resp)
 
     def test_blocked_success_when_selecting_dags(self):
-        resp = self.client.get('blocked?dag_ids=example_subdag_operator', follow_redirects=True)
+        resp = self.client.post('blocked',
+                                json={'dag_ids': ['example_subdag_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
         self.assertNotIn('example_bash_operator', blocked_dags)
         self.assertIn('example_subdag_operator', blocked_dags)
 
         # Multiple
-        resp = self.client.get('blocked?dag_ids=example_subdag_operator,example_bash_operator',
-                               follow_redirects=True)
+        resp = self.client.post('blocked',
+                                json={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
         self.assertIn('example_bash_operator', blocked_dags)

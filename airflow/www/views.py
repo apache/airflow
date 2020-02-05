@@ -328,7 +328,7 @@ class Airflow(AirflowBaseView):
             num_runs=num_runs,
             tags=tags)
 
-    @expose('/dag_stats')
+    @expose('/dag_stats', methods=['POST'])
     @has_access
     @provide_session
     def dag_stats(self, session=None):
@@ -341,9 +341,10 @@ class Airflow(AirflowBaseView):
         dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state))\
             .group_by(dr.dag_id, dr.state)
 
-        # Filter by get parameters
+        # Filter by post parameters
+        request_dag_ids = request.get_json() or {}
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+            unquote(dag_id) for dag_id in request_dag_ids.get('dag_ids', []) if dag_id
         }
 
         if selected_dag_ids:
@@ -376,7 +377,7 @@ class Airflow(AirflowBaseView):
 
         return wwwutils.json_response(payload)
 
-    @expose('/task_stats')
+    @expose('/task_stats', methods=['POST'])
     @has_access
     @provide_session
     def task_stats(self, session=None):
@@ -392,9 +393,10 @@ class Airflow(AirflowBaseView):
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = {dag_id for dag_id, in session.query(models.DagModel.dag_id)}
 
-        # Filter by get parameters
+        # Filter by post parameters
+        request_dag_ids = request.get_json() or {}
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+            unquote(dag_id) for dag_id in request_dag_ids.get('dag_ids', []) if dag_id
         }
 
         if selected_dag_ids:
@@ -476,7 +478,7 @@ class Airflow(AirflowBaseView):
                 })
         return wwwutils.json_response(payload)
 
-    @expose('/last_dagruns')
+    @expose('/last_dagruns', methods=['POST'])
     @has_access
     @provide_session
     def last_dagruns(self, session=None):
@@ -487,8 +489,10 @@ class Airflow(AirflowBaseView):
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
+        # Filter by post parameters
+        request_dag_ids = request.get_json() or {}
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+            unquote(dag_id) for dag_id in request_dag_ids.get('dag_ids', []) if dag_id
         }
 
         if selected_dag_ids:
@@ -1100,7 +1104,7 @@ class Airflow(AirflowBaseView):
         return self._clear_dag_tis(dag, start_date, end_date, origin,
                                    recursive=True, confirmed=confirmed)
 
-    @expose('/blocked')
+    @expose('/blocked', methods=['POST'])
     @has_access
     @provide_session
     def blocked(self, session=None):
@@ -1109,8 +1113,10 @@ class Airflow(AirflowBaseView):
         if 'all_dags' in allowed_dag_ids:
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
+        # Filter by post parameters
+        request_dag_ids = request.get_json() or {}
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request.args.get('dag_ids', '').split(',') if dag_id
+            unquote(dag_id) for dag_id in request_dag_ids.get('dag_ids', []) if dag_id
         }
 
         if selected_dag_ids:
