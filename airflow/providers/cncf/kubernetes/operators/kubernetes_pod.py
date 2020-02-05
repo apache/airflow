@@ -116,6 +116,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type is_delete_operator_pod: bool
     :param hostnetwork: If True enable host networking on the pod.
     :type hostnetwork: bool
+    :param host_aliases: A list of hostAliases.
+    :type host_aliases: list
     :param tolerations: A list of kubernetes tolerations.
     :type tolerations: list tolerations
     :param configmaps: A list of configmap names objects that we
@@ -175,6 +177,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  service_account_name: str = 'default',
                  is_delete_operator_pod: bool = False,
                  hostnetwork: bool = False,
+                 host_aliases: Optional[List] = None,
                  tolerations: Optional[List] = None,
                  configmaps: Optional[List] = None,
                  security_context: Optional[Dict] = None,
@@ -220,6 +223,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
+        self.host_aliases = host_aliases or []
         self.tolerations = tolerations or []
         self.configmaps = configmaps or []
         self.security_context = security_context or {}

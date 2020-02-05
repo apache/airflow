@@ -91,6 +91,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                     'volumeMounts': [],
                 }],
                 'hostNetwork': False,
+                'hostAliases': [],
                 'imagePullSecrets': [],
                 'initContainers': [],
                 'nodeSelector': {},
@@ -203,6 +204,31 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod['spec']['hostNetwork'] = True
         self.assertEqual(self.expected_pod['spec'], actual_pod['spec'])
         self.assertEqual(self.expected_pod['metadata']['labels'], actual_pod['metadata']['labels'])
+
+    def test_pod_host_aliases(self):
+        host_aliases = [{
+            "hostnames": [
+                "foo.bar",
+                "www.foo.bar"
+            ],
+            "ip": "1.2.3.4"
+        }]
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            host_aliases=host_aliases
+        )
+        k.execute(None)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['hostAliases'] = host_aliases
+        self.assertEqual(self.expected_pod, actual_pod)
 
     def test_pod_dnspolicy(self):
         dns_policy = "ClusterFirstWithHostNet"

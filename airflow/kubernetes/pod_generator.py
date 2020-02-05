@@ -138,6 +138,8 @@ class PodGenerator:
     :type affinity: Optional[dict]
     :param hostnetwork: If True enable host networking on the pod
     :type hostnetwork: bool
+    :param host_aliases: A list of hostAliases.
+    :type host_aliases: list hostAliases
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: Optional[list]
     :param security_context: A dict containing the security context for the pod
@@ -181,6 +183,7 @@ class PodGenerator:
         annotations: Optional[Dict[str, str]] = None,
         affinity: Optional[dict] = None,
         hostnetwork: bool = False,
+        host_aliases: Optional[List] = None,
         tolerations: Optional[list] = None,
         security_context: Optional[Union[k8s.V1PodSecurityContext, dict]] = None,
         configmaps: Optional[List[str]] = None,
@@ -247,6 +250,7 @@ class PodGenerator:
         self.spec.dns_policy = dnspolicy
         self.spec.scheduler_name = schedulername
         self.spec.host_network = hostnetwork
+        self.spec.host_aliases = host_aliases
         self.spec.affinity = affinity
         self.spec.service_account_name = service_account_name
         self.spec.init_containers = init_containers
