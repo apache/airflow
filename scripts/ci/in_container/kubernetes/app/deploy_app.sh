@@ -64,8 +64,14 @@ else
     CONFIGMAP_DAGS_VOLUME_CLAIM=
 fi
 
-CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/airflow}
-CONFIGMAP_BRANCH=${DEFAULT_BRANCH:=master}
+if [[ ${TRAVIS_PULL_REQUEST} != "" && ${TRAVIS_PULL_REQUEST} != "false" ]]; then
+    CONFIGMAP_GIT_REPO=${TRAVIS_PULL_REQUEST_SLUG}
+    CONFIGMAP_BRANCH=${TRAVIS_PULL_REQUEST_BRANCH}
+else
+    CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/airflow}
+    CONFIGMAP_BRANCH=${TRAVIS_BRANCH:=master}
+fi
+
 
 if [[ "${KUBERNETES_MODE}" == "persistent_mode" ]]; then
     sed -e "s/{{INIT_GIT_SYNC}}//g" \
