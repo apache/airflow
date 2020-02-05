@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use `airflow.providers.snowflake.hooks.snowflake`."""
+"""This module is deprecated. Please use `airflow.providers.snowflake.hooks.airflow_snowflake`."""
 
 import warnings
 
@@ -24,7 +24,7 @@ import warnings
 from airflow.providers.snowflake.hooks.airflow_snowflake import SnowflakeHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.snowflake.hooks.snowflake`.",
+    "This module is deprecated. Please use `airflow.providers.snowflake.hooks.airflow_snowflake`.",
     DeprecationWarning,
     stacklevel=2,
 )
