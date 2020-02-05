@@ -371,9 +371,9 @@ This is done using ``./scripts/ci/in_container/kubernetes/app/deploy_app.sh`` sc
 4. The script will wait until all the applications are ready and reachable
 
 After the deployment is finished you can run Kubernetes tests immediately in the same way as other tests.
-The Kubernetes tests are in ``tests/integration/kubernetes`` folder.
+The Kubernetes tests are in ``tests/runtime/kubernetes`` folder.
 
-You can run all the integration tests for Kubernetes with ``pytest tests/integration/kubernetes``.
+You can run all the integration tests for Kubernetes with ``pytest tests/runtime/kubernetes``.
 
 
 Running runtime-specific tests
