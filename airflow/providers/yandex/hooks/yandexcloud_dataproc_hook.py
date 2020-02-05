@@ -16,7 +16,7 @@
 # under the License.
 #
 
-from airflow.providers.yandex.hooks.yandexcloud_base_hook import YandexCloudBaseHook
+from airflow.providers.yandex.hooks import YandexCloudBaseHook
 
 
 class DataprocHook(YandexCloudBaseHook):

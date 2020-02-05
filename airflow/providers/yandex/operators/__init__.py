@@ -14,3 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
+
+
+class YandexCloudBaseOperator(BaseOperator):
+    """The base class for operators that poll on a Dataproc Operation."""
+    @apply_defaults
+    def __init__(self,
+                 connection_id='yandexcloud_default',
+                 *args,
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.connection_id = connection_id
+        self.hook = None
+
+    def execute(self, context):
+        raise NotImplementedError()

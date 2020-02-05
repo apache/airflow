@@ -17,7 +17,7 @@
 #
 
 from airflow.providers.yandex.hooks.yandexcloud_dataproc_hook import DataprocHook
-from airflow.providers.yandex.operators.yandexcloud_base_operator import YandexCloudBaseOperator
+from airflow.providers.yandex.operators import YandexCloudBaseOperator
 from airflow.utils.decorators import apply_defaults
 
 
