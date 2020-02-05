@@ -17,12 +17,10 @@
  under the License.
 #}
 
-{% extends 'appbuilder/init.html' %}
-{% import 'appbuilder/baselib.html' as baselib %}
+{% extends 'appbuilder/baselayout.html' %}
 
 {% block head_css %}
   {{ super() }}
-
 
   {% if not appbuilder.app_theme %}
     {# airflowDefaultTheme.css file contains the styles from local bootstrap-theme.css #}
@@ -34,47 +32,19 @@
 {% endblock %}
 
 
-{% block body %}
-    {% include 'appbuilder/general/confirm.html' %}
-    {% include 'appbuilder/general/alert.html' %}
-    {% block navbar %}
-        <header class="top" role="header">
-        {% include 'appbuilder/navbar.html' %}
-        </header>
-    {% endblock %}
-
-
-    <div class="container">
-      <div class="row">
-          {% block messages %}
-            {% include 'appbuilder/flash.html' %}
-            {% if scheduler_job is defined and (not scheduler_job or not scheduler_job.is_alive()) %}
-              <div class="alert alert-warning">
-                <p>The scheduler does not appear to be running.
-                {% if scheduler_job %}
-                Last heartbeat was received <time title="{{ scheduler_job.latest_heartbeat.isoformat() }}" datetime="{{ scheduler_job.latest_heartbeat.isoformat() }}">{{ macros.datetime_diff_for_humans(scheduler_job.latest_heartbeat) }}</time>.
-                {% endif %}
-                </p>
-                <p>The DAGs list may not update, and new tasks will not be scheduled.</p>
-              </div>
-            {% endif %}
-          {% endblock %}
-          {% block content %}
-          {% endblock %}
-      </div>
+{% block messages %}
+  {% include 'appbuilder/flash.html' %}
+  {% if scheduler_job is defined and (not scheduler_job or not scheduler_job.is_alive()) %}
+    <div class="alert alert-warning">
+      <p>The scheduler does not appear to be running.
+      {% if scheduler_job %}
+      Last heartbeat was received <time title="{{ scheduler_job.latest_heartbeat.isoformat() }}" datetime="{{ scheduler_job.latest_heartbeat.isoformat() }}">{{ macros.datetime_diff_for_humans(scheduler_job.latest_heartbeat) }}</time>.
+      {% endif %}
+      </p>
+      <p>The DAGs list may not update, and new tasks will not be scheduled.</p>
     </div>
-
-    {% block footer %}
-        <footer>
-        <div class="img-rounded nav-fixed-bottom">
-            <div class="container">
-                {% include 'appbuilder/footer.html' %}
-            </div>
-        </div>
-        </footer>
-    {% endblock %}
+  {% endif %}
 {% endblock %}
-
 
 {% block tail_js %}
   {{ super() }}
