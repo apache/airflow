@@ -165,6 +165,34 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
         return branch
 
 
+def create_branch_join(branch_operator, *args, **kwargs):
+    """
+    Create a join task for a branching logic. This join task is always executed regardless
+    of which branches are followed. It is only skipped if the ``branch_operator`` is skipped.
+    """
+    def python_callable(ti, **_):
+        from airflow.utils.session import create_session
+        from airflow.exceptions import AirflowSkipException
+        from airflow.utils.state import State
+        from airflow.models import TaskInstance
+
+        with create_session() as session:
+            branch_ti = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.task_id == branch_operator.task_id,
+                TaskInstance.execution_date == ti.execution_date
+            ).one_or_none()
+
+            if not branch_ti:
+                return
+
+            if branch_ti.state == State.SKIPPED:
+                raise AirflowSkipException(f"Skipping because parent task {branch_operator.task_id} "
+                                           "is skipped.")
+
+    return PythonOperator(trigger_rule="none_failed", python_callable=python_callable, *args, **kwargs)
+
+
 class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
     Allows a workflow to continue only if a condition is met. Otherwise, the

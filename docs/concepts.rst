@@ -696,8 +696,8 @@ based on an arbitrary condition which is typically related to something
 that happened in an upstream task. One way to do this is by using the
 ``BranchPythonOperator``.
 
-The ``BranchPythonOperator`` is much like the PythonOperator except that it
-expects a ``python_callable`` that returns a task_id (or list of task_ids). The
+The ``BranchPythonOperator`` is a ``PythonOperator`` that expects a
+``python_callable`` that returns a task_id (or list of task_ids). The
 task_id returned is followed, and all of the other paths are skipped.
 The task_id returned by the Python function has to reference a task
 directly downstream from the BranchPythonOperator task.
@@ -758,6 +758,34 @@ or a list of task IDs, which will be run, and all others will be skipped.
               return ['daily_task_id', 'monthly_task_id']
           else:
               return 'daily_task_id'
+
+
+Nested Branching
+================
+
+If you have more complicated workflows with multiple levels of branching,
+be careful about how the branches are joined together. The join tasks are usually
+given ``none_failed`` trigger rule, which are executed even if all its parents are
+skipped. But the join task in nested branching should logically be skipped whenever
+its parent ``BranchPythonOperator`` is skipped. Use ``create_branch_join()``
+to create the join task that does this.
+
+.. code:: python
+
+    branch_1 = BranchPythonOperator(task_id="branch_1", python_callable=lambda: "true_1")
+    join_1 = create_branch_join(task_id="join_1", branch_operator=branch_1)
+    true_1 = DummyOperator(task_id="true_1")
+    false_1 = DummyOperator(task_id="false_1")
+    branch_2 = BranchPythonOperator(task_id="branch_2", python_callable=lambda: "true_2")
+    join_2 = create_branch_join(task_id="join_2", branch_operator=branch_2)
+    true_2 = DummyOperator(task_id="true_2")
+    false_2 = DummyOperator(task_id="false_2")
+    false_3 = DummyOperator(task_id="false_3")
+
+    branch_1 >> true_1 >> join_1
+    branch_1 >> false_1 >> branch_2 >> [true_2, false_2] >> join_2 >> false_3 >> join_1
+
+.. image:: img/nested_branching.png
 
 
 SubDAGs

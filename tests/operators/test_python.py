@@ -28,13 +28,15 @@ from subprocess import CalledProcessError
 from typing import List
 
 import funcsigs
+import pendulum
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.taskinstance import clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import (
-    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator,
+    BranchPythonOperator, PythonOperator, PythonVirtualenvOperator, ShortCircuitOperator, create_branch_join,
 )
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -923,3 +925,69 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         def f(templates_dict):
             return templates_dict['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
+
+
+def test_create_branch_join():
+    """
+    Test create_branch_join creates a PythonOperator with none_failed trigger_rule and skip
+    itslef when its parent branch operator is skipped.
+    """
+    from airflow.exceptions import AirflowSkipException
+    from airflow.utils.trigger_rule import TriggerRule
+
+    execution_date = pendulum.datetime(2020, 1, 1)
+    dag = DAG(dag_id="test_create_branch_join", start_date=execution_date)
+    branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "not_exist", dag=dag)
+    join = create_branch_join(branch, task_id="join", dag=dag)
+
+    assert join.trigger_rule == TriggerRule.NONE_FAILED
+
+    with create_session() as session:
+        branch_ti = TI(branch, execution_date)
+        session.add(branch_ti)
+        branch_ti.state = State.SUCCESS
+        context = {"ti": TI(join, execution_date=execution_date)}
+        # If branch is SUCCESS, join should not raise errors.
+        join.execute(context)
+
+        branch_ti.state = State.SKIPPED
+        session.merge(branch_ti)
+
+        # If branch is SKIPPED, join should skip itself.
+        with pytest.raises(AirflowSkipException):
+            join.execute(context)
+
+        session.rollback()
+
+
+def test_nested_branch_python_operator():
+    """
+    Test nested branching logic in example_nested_branch_dag.py.
+    When branch_1 skips false_1, false_3 should skip itself.
+    """
+    from airflow.models import DagBag
+
+    dag = DagBag().get_dag("example_nested_branch_dag")
+
+    assert dag
+
+    execution_date = dag.start_date
+
+    dag_run = dag.create_dagrun(
+        run_id=f'manual__{execution_date.isoformat()}',
+        execution_date=execution_date,
+        state=State.RUNNING
+    )
+    for task in dag.topological_sort():
+        TI(task, execution_date=execution_date).run()
+        dag_run.update_state()
+
+    with create_session() as session:
+        def get_state(task_id):
+            return session.query(TI).filter(TI.dag_id == dag.dag_id,
+                                            TI.execution_date == execution_date,
+                                            TI.task_id == task_id).one().state
+
+        assert get_state("true_1") == State.SUCCESS
+        assert get_state("false_3") == State.SKIPPED
+        assert get_state("join_1") == State.SUCCESS
