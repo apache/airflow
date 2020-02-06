@@ -102,7 +102,7 @@ class StackdriverHook(CloudBaseHook):
         :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
-        :param project_id: The location used for the operation.
+        :param project_id: The project to fetch alerts from.
         :type project_id: str
         """
         client = self._get_policy_client()
@@ -122,21 +122,25 @@ class StackdriverHook(CloudBaseHook):
         else:
             return policies_
 
+    @CloudBaseHook.fallback_to_default_project_id
     def _toggle_policy_status(
         self,
         new_state,
+        project_id=None,
         filter_=None,
         retry=DEFAULT,
         timeout=DEFAULT,
         metadata=None
     ):
         client = self._get_policy_client()
-        policies_ = client.list_alert_policies(filter_=filter_)
+        policies_ = self.list_alert_policies(project_id=project_id, filter_=filter_)
+        print(policies_)
         for policy in policies_:
+            print(policy)
             if policy.enabled.value != bool(new_state):
                 policy.enabled.value = bool(new_state)
                 mask = monitoring_v3.types.field_mask_pb2.FieldMask()
-                mask.paths.append('enabled')
+                mask.paths.append('enabled')  # pylint: disable=no-member
                 client.update_alert_policy(
                     alert_policy=policy,
                     update_mask=mask,
@@ -145,8 +149,10 @@ class StackdriverHook(CloudBaseHook):
                     metadata=metadata
                 )
 
+    @CloudBaseHook.fallback_to_default_project_id
     def enable_alert_policies(
         self,
+        project_id=None,
         filter_=None,
         retry=DEFAULT,
         timeout=DEFAULT,
@@ -156,17 +162,8 @@ class StackdriverHook(CloudBaseHook):
         Enables one or more disabled alerting policies identified by filter_
         parameter. Inoperative in case the policy is already enabled.
 
-        **Example**: ::
-
-            get_data = BigQueryGetDataOperator(
-                task_id='get_data_from_bq',
-                dataset_id='test_dataset',
-                table_id='Transaction_partitions',
-                max_results='100',
-                selected_fields='DATE',
-                gcp_conn_id='airflow-conn-id'
-            )
-
+        :param project_id: The project in which alert needs to be enabled.
+        :type project_id: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by alert policies to be enabled.
             For more details, see `sorting and filtering
@@ -184,14 +181,17 @@ class StackdriverHook(CloudBaseHook):
         """
         self._toggle_policy_status(
             new_state=True,
+            project_id=project_id,
             filter_=filter_,
             retry=retry,
             timeout=timeout,
             metadata=metadata
         )
 
+    @CloudBaseHook.fallback_to_default_project_id
     def disable_alert_policies(
         self,
+        project_id=None,
         filter_=None,
         retry=DEFAULT,
         timeout=DEFAULT,
@@ -201,17 +201,8 @@ class StackdriverHook(CloudBaseHook):
         Disables one or more enabled alerting policies identified by filter_
         parameter. Inoperative in case the policy is already disabled.
 
-        **Example**: ::
-
-            get_data = BigQueryGetDataOperator(
-                task_id='get_data_from_bq',
-                dataset_id='test_dataset',
-                table_id='Transaction_partitions',
-                max_results='100',
-                selected_fields='DATE',
-                gcp_conn_id='airflow-conn-id'
-            )
-
+        :param project_id: The project in which alert needs to be disabled.
+        :type project_id: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by alert policies to be disabled.
             For more details, see `sorting and filtering
@@ -229,6 +220,7 @@ class StackdriverHook(CloudBaseHook):
         """
         self._toggle_policy_status(
             filter_=filter_,
+            project_id=project_id,
             new_state=False,
             retry=retry,
             timeout=timeout,
@@ -239,6 +231,7 @@ class StackdriverHook(CloudBaseHook):
     def upsert_alert(
         self,
         alerts,
+        project_id=None,
         retry=DEFAULT,
         timeout=DEFAULT,
         metadata=None
@@ -247,18 +240,9 @@ class StackdriverHook(CloudBaseHook):
          Creates a new alert or updates an existing policy identified
          the name field in the alerts parameter.
 
-         **Example**: ::
-
-             get_data = BigQueryGetDataOperator(
-                 task_id='get_data_from_bq',
-                 dataset_id='test_dataset',
-                 table_id='Transaction_partitions',
-                 max_results='100',
-                 selected_fields='DATE',
-                 gcp_conn_id='airflow-conn-id'
-             )
-
-         :param alerts: A JSON string or file that specifies all the alerts that needs
+        :param project_id: The project in which alert needs to be created/updated.
+        :type project_id: str
+        :param alerts: A JSON string or file that specifies all the alerts that needs
              to be either created or updated. For more details, see `alert policies
              <https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.alertPolicies#AlertPolicy>`__.
              (templated)
@@ -277,15 +261,16 @@ class StackdriverHook(CloudBaseHook):
         channel_client = self._get_channel_client()
 
         record = json.loads(alerts)
-        existing_policies = [policy['name'] for policy in self.list_alert_policies(format_='dict')]
-        existing_channels = [channel['name'] for channel in self.list_notification_channels(format_='dict')]
+        existing_policies = [policy['name'] for policy in
+                             self.list_alert_policies(project_id=project_id, format_='dict')]
+        existing_channels = [channel['name'] for channel in
+                             self.list_notification_channels(project_id=project_id, format_='dict')]
         policies_ = []
         channels = []
 
         for channel in record["channels"]:
             channel_json = json.dumps(channel)
-            channels.append(Parse(channel_json
-                                  , monitoring_v3.types.notification_pb2.NotificationChannel()))
+            channels.append(Parse(channel_json, monitoring_v3.types.notification_pb2.NotificationChannel()))
         for policy in record["policies"]:
             policy_json = json.dumps(policy)
             policies_.append(Parse(policy_json, monitoring_v3.types.alert_pb2.AlertPolicy()))
@@ -307,6 +292,7 @@ class StackdriverHook(CloudBaseHook):
                 old_name = channel.name
                 channel.ClearField('name')
                 new_channel = channel_client.create_notification_channel(
+                    name='projects/{project_id}'.format(project_id=project_id),
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
@@ -344,6 +330,7 @@ class StackdriverHook(CloudBaseHook):
                 for condition in policy.conditions:
                     condition.ClearField('name')
                 policy = policy_client.create_alert_policy(
+                    name='projects/{project_id}'.format(project_id=project_id),
                     alert_policy=policy,
                     retry=retry,
                     timeout=timeout,
@@ -360,17 +347,6 @@ class StackdriverHook(CloudBaseHook):
     ):
         """
         Deletes an alerting policy.
-
-        **Example**: ::
-
-            get_data = BigQueryGetDataOperator(
-                task_id='get_data_from_bq',
-                dataset_id='test_dataset',
-                table_id='Transaction_partitions',
-                max_results='100',
-                selected_fields='DATE',
-                gcp_conn_id='airflow-conn-id'
-            )
 
         :param name: The alerting policy to delete. The format is:
                          ``projects/[PROJECT_ID]/alertPolicies/[ALERT_POLICY_ID]``.
@@ -418,17 +394,6 @@ class StackdriverHook(CloudBaseHook):
         which returns python dictionary, stringified JSON and protobuf
         respectively.
 
-        **Example**: ::
-
-            get_data = BigQueryGetDataOperator(
-                task_id='get_data_from_bq',
-                dataset_id='test_dataset',
-                table_id='Transaction_partitions',
-                max_results='100',
-                selected_fields='DATE',
-                gcp_conn_id='airflow-conn-id'
-            )
-
         :param format_: (Optional) Desired output format of the result. The
             supported formats are "dict", "json" and None which returns
             python dictionary, stringified JSON and protobuf respectively.
@@ -459,6 +424,8 @@ class StackdriverHook(CloudBaseHook):
         :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: str
+        :param project_id: The project to fetch notification channels from.
+        :type project_id: str
         """
 
         client = self._get_channel_client()
@@ -478,21 +445,26 @@ class StackdriverHook(CloudBaseHook):
         else:
             return channels
 
+    @CloudBaseHook.fallback_to_default_project_id
     def _toggle_channel_status(
         self,
         new_state,
+        project_id=None,
         filter_=None,
         retry=DEFAULT,
         timeout=DEFAULT,
         metadata=None
     ):
         client = self._get_channel_client()
-        channels = client.list_notification_channels(filter_=filter_)
+        channels = client.list_notification_channels(
+            name='projects/{project_id}'.format(project_id=project_id),
+            filter_=filter_
+        )
         for channel in channels:
             if channel.enabled.value != bool(new_state):
                 channel.enabled.value = bool(new_state)
                 mask = monitoring_v3.types.field_mask_pb2.FieldMask()
-                mask.paths.append('enabled')
+                mask.paths.append('enabled')  # pylint: disable=no-member
                 client.update_notification_channel(
                     notification_channel=channel,
                     update_mask=mask,
@@ -501,27 +473,21 @@ class StackdriverHook(CloudBaseHook):
                     metadata=metadata
                 )
 
-    def enable_notification_status(
+    @CloudBaseHook.fallback_to_default_project_id
+    def enable_notification_channels(
         self,
+        project_id=None,
         filter_=None,
         retry=DEFAULT,
         timeout=DEFAULT,
-        metadata=None):
+        metadata=None
+    ):
         """
         Enables one or more disabled alerting policies identified by filter_
         parameter. Inoperative in case the policy is already enabled.
 
-        **Example**: ::
-
-            get_data = BigQueryGetDataOperator(
-                task_id='get_data_from_bq',
-                dataset_id='test_dataset',
-                table_id='Transaction_partitions',
-                max_results='100',
-                selected_fields='DATE',
-                gcp_conn_id='airflow-conn-id'
-            )
-
+        :param project_id: The project in which notification channels needs to be enabled.
+        :type project_id: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by notification channels to be enabled.
             For more details, see `sorting and filtering
@@ -539,6 +505,7 @@ class StackdriverHook(CloudBaseHook):
         """
 
         self._toggle_channel_status(
+            project_id=project_id,
             filter_=filter_,
             new_state=True,
             retry=retry,
@@ -546,9 +513,11 @@ class StackdriverHook(CloudBaseHook):
             metadata=metadata
         )
 
-    def disable_notification_status(
+    @CloudBaseHook.fallback_to_default_project_id
+    def disable_notification_channels(
         self,
         filter_=None,
+        project_id=None,
         retry=DEFAULT,
         timeout=DEFAULT,
         metadata=None
@@ -557,17 +526,8 @@ class StackdriverHook(CloudBaseHook):
         Disables one or more enabled notification channels identified by filter_
         parameter. Inoperative in case the policy is already disabled.
 
-        **Example**: ::
-
-            get_data = BigQueryGetDataOperator(
-                task_id='get_data_from_bq',
-                dataset_id='test_dataset',
-                table_id='Transaction_partitions',
-                max_results='100',
-                selected_fields='DATE',
-                gcp_conn_id='airflow-conn-id'
-            )
-
+        :param project_id: The project in which notification channels needs to be enabled.
+        :type project_id: str
         :param filter_:  If provided, this field specifies the criteria that
             must be met by alert policies to be disabled.
             For more details, see `sorting and filtering
@@ -586,6 +546,7 @@ class StackdriverHook(CloudBaseHook):
 
         self._toggle_channel_status(
             filter_=filter_,
+            project_id=project_id,
             new_state=False,
             retry=retry,
             timeout=timeout,
@@ -596,6 +557,7 @@ class StackdriverHook(CloudBaseHook):
     def upsert_channel(
         self,
         channels,
+        project_id=None,
         retry=DEFAULT,
         timeout=DEFAULT,
         metadata=None
@@ -604,22 +566,13 @@ class StackdriverHook(CloudBaseHook):
         Creates a new notification or updates an existing notification channel
         identified the name field in the alerts parameter.
 
-        **Example**: ::
-
-            get_data = BigQueryGetDataOperator(
-                task_id='get_data_from_bq',
-                dataset_id='test_dataset',
-                table_id='Transaction_partitions',
-                max_results='100',
-                selected_fields='DATE',
-                gcp_conn_id='airflow-conn-id'
-            )
-
         :param channels: A JSON string or file that specifies all the alerts that needs
             to be either created or updated. For more details, see `notification channels
             <https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.notificationChannels>`__.
             (templated)
         :type channels: str
+        :param project_id: The project in which notification channels needs to be created/updated.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is
             specified, requests will be retried using a default configuration.
         :type retry: str
@@ -634,7 +587,8 @@ class StackdriverHook(CloudBaseHook):
         channel_client = self._get_channel_client()
 
         record = json.loads(channels)
-        existing_channels = [channel["name"] for channel in self.list_notification_channels()]
+        existing_channels = [channel["name"] for channel in
+                             self.list_notification_channels(project_id=project_id, format_="dict")]
         channels = []
         channel_name_map = {}
 
@@ -652,6 +606,7 @@ class StackdriverHook(CloudBaseHook):
                 old_name = channel.name
                 channel.ClearField('name')
                 new_channel = channel_client.create_notification_channel(
+                    name='projects/{project_id}'.format(project_id=project_id),
                     notification_channel=channel,
                     retry=retry,
                     timeout=timeout,
@@ -671,17 +626,6 @@ class StackdriverHook(CloudBaseHook):
     ):
         """
         Deletes a notification channel.
-
-        **Example**: ::
-
-            get_data = BigQueryGetDataOperator(
-                task_id='get_data_from_bq',
-                dataset_id='test_dataset',
-                table_id='Transaction_partitions',
-                max_results='100',
-                selected_fields='DATE',
-                gcp_conn_id='airflow-conn-id'
-            )
 
         :param name: The alerting policy to delete. The format is:
                          ``projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]``.

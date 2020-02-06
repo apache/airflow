@@ -64,7 +64,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: The location used for the operation.
+    :param project_id: The project to fetch alerts from.
     :type project_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -141,7 +141,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: The location used for the operation.
+    :param project_id: The project in which alert needs to be enabled.
     :type project_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -178,6 +178,7 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
             self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
         self.hook.enable_alert_policies(
             filter_=self.filter_,
+            project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata
@@ -206,7 +207,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: The location used for the operation.
+    :param project_id: The project in which alert needs to be disabled.
     :type project_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -244,6 +245,7 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
             self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
         self.hook.disable_alert_policies(
             filter_=self.filter_,
+            project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata
@@ -271,7 +273,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: The location used for the operation.
+    :param project_id: The project in which alert needs to be created/updated.
     :type project_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -311,6 +313,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
             self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
         self.hook.upsert_alert(
             alerts=self.alerts,
+            project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata
@@ -335,7 +338,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: The location used for the operation.
+    :param project_id: The project from which alert needs to be deleted.
     :type project_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -420,7 +423,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: The location used for the operation.
+    :param project_id: The project to fetch notification channels from.
     :type project_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -466,6 +469,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
             self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
         return self.hook.list_notification_channels(
             format_=self.format_,
+            project_id=self.project_id,
             filter_=self.filter_,
             order_by=self.order_by,
             page_size=self.page_size,
@@ -533,8 +537,9 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     def execute(self, context):
         if self.hook is None:
             self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
-        self.hook.enable_notification_status(
+        self.hook.enable_notification_channels(
             filter_=self.filter_,
+            project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata
@@ -562,7 +567,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: The location used for the operation.
+    :param project_id: The project in which notification channels needs to be enabled.
     :type project_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -599,8 +604,9 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     def execute(self, context):
         if self.hook is None:
             self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
-        self.hook.disable_alert_policies(
+        self.hook.disable_notification_channels(
             filter_=self.filter_,
+            project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata
@@ -628,7 +634,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: The location used for the operation.
+    :param project_id: The project in which notification channels needs to be created/updated.
     :type project_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -668,6 +674,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
             self.hook = StackdriverHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
         self.hook.upsert_channel(
             channels=self.channels,
+            project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata
@@ -692,7 +699,7 @@ class StackdriverDeleteNotificationChannel(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
     :type gcp_conn_id: str
-    :param project_id: The location used for the operation.
+    :param project_id: The project from which notification channel needs to be deleted.
     :type project_id: str
     :param delegate_to: (Optional) The account to impersonate, if any.
         For this to work, the service account making the request must have
