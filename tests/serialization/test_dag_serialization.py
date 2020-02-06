@@ -87,6 +87,18 @@ serialized_simple_dag_ground_truth = {
             },
         ],
         "timezone": "UTC",
+        "_access_control": {
+            "__type": "dict",
+            "__var": {
+                "test_role": {
+                    "__type": "set",
+                    "__var": [
+                        "can_dag_read",
+                        "can_dag_edit"
+                    ]
+                }
+            }
+        }
     },
 }
 
@@ -112,6 +124,9 @@ def make_simple_dag():
         },
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
+        access_control={
+            "test_role": {"can_dag_read", "can_dag_edit"}
+        }
     ) as dag:
         CustomOperator(task_id='custom_task')
         BashOperator(task_id='bash_task', bash_command='echo {{ task.task_id }}', owner='airflow')
@@ -219,12 +234,16 @@ class TestStringifiedDAGs(unittest.TestCase):
 
         def sorted_serialized_dag(dag_dict: dict):
             """
-            Sorts the "tasks" list in the serialised dag python dictionary
-            This is needed as the order of tasks should not matter but assertEqual
-            would fail if the order of tasks list changes in dag dictionary
+            Sorts the "tasks" list and "access_control" permissions in the
+            serialised dag python dictionary. This is needed as the order of
+            items should not matter but assertEqual would fail if the order of
+            items changes in the dag dictionary
             """
             dag_dict["dag"]["tasks"] = sorted(dag_dict["dag"]["tasks"],
                                               key=lambda x: sorted(x.keys()))
+            dag_dict["dag"]["_access_control"]["__var"]["test_role"]["__var"] = sorted(
+                dag_dict["dag"]["_access_control"]["__var"]["test_role"]["__var"]
+            )
             return dag_dict
 
         self.assertEqual(sorted_serialized_dag(ground_truth_dag),
