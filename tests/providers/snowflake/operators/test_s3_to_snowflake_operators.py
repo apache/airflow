@@ -24,7 +24,7 @@ from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
 class TestS3ToSnowflakeTransfer(unittest.TestCase):
-    @mock.patch("airflow.providers.snowflake.hooks.airflow_snowflake.SnowflakeHook.run")
+    @mock.patch("airflow.hooks.dbapi_hook.DbApiHook.run")
     def test_execute(self, mock_run):
         s3_keys = ['1.csv', '2.csv']
         table = 'table'
