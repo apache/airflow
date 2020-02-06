@@ -86,6 +86,18 @@ serialized_simple_dag_ground_truth = {
             },
         ],
         "timezone": "UTC",
+        "_access_control": {
+            "__type": "dict",
+            "__var": {
+                "test": {
+                    "__type": "set",
+                    "__var": [
+                        "can_dag_read",
+                        "can_dag_edit"
+                    ]
+                }
+            }
+        }
     },
 }
 
@@ -111,6 +123,9 @@ def make_simple_dag():
         },
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
+        access_control={
+            "test": {"can_dag_read", "can_dag_edit"}
+        }
     )
     BaseOperator(task_id='simple_task', dag=dag, owner='airflow')
     CustomOperator(task_id='custom_task', dag=dag)
