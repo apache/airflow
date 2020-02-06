@@ -90,6 +90,11 @@ class TestDb(unittest.TestCase):
             lambda t: (t[0] == 'remove_index' and
                        t[1].name == 'permission_view_id'),
 
+            # Ignore all deleted tables (we keep them in metadata for
+            # reset to delete those tables if they are present
+            lambda t: (t[0] == 'add_table' and
+                       t[1].name in ('chart', 'user', 'users', 'dag_stats')),
+
             # from test_security unit test
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'some_model'),

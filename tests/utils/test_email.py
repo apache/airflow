@@ -30,8 +30,6 @@ from tests.test_utils.config import conf_vars
 
 EMAILS = ['test1@example.com', 'test2@example.com']
 
-send_email_test = mock.MagicMock()
-
 
 class TestEmail(unittest.TestCase):
 
