@@ -42,9 +42,13 @@ pytest "${PYTEST_ARGS[@]}"
 RES=$?
 
 set +x
-if [[ "${RES}" == "0" ]]; then
+if [[ "${RES}" == "0" && ${CI} == "true" ]]; then
     echo "All tests successful"
     bash <(curl -s https://codecov.io/bash)
+fi
+
+if [[ ${CI} == "true" ]]; then
+    send_docker_logs_to_file_io
 fi
 
 in_container_script_end
