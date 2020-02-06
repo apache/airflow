@@ -20,7 +20,9 @@
 import unittest
 
 import boto3
+import pytest
 
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 try:
@@ -46,9 +48,14 @@ class TestAwsS3Hook(unittest.TestCase):
         self.assertIsNotNone(hook.get_conn())
 
     @mock_s3
-    def test_delete_objects_bucket_does_not_exist(self):
+    def test_delete_objects_key_does_not_exist(self):
+        bucket = self.create_bucket()
         hook = S3Hook()
-        self.assertFalse(hook.delete_objects(bucket='does-not-exist', keys=['key-1']))
+        with pytest.raises(AirflowException) as err:
+            hook.delete_objects(bucket=bucket, keys=['key-1'])
+
+        assert isinstance(err.value, AirflowException)
+        assert "Errors when deleting: ['key-1']" == str(err.value)
 
     @mock_s3
     def test_delete_objects_one_key(self):
@@ -56,7 +63,7 @@ class TestAwsS3Hook(unittest.TestCase):
         key = 'key-1'
         self.s3.Object(bucket, key).put(Body=b'Data')
         hook = S3Hook()
-        self.assertTrue(hook.delete_objects(bucket=bucket, keys=[key]))
+        hook.delete_objects(bucket=bucket, keys=[key])
         self.assertListEqual([o.key for o in self.s3.Bucket(bucket).objects.all()], [])
 
     @mock_s3
@@ -72,7 +79,7 @@ class TestAwsS3Hook(unittest.TestCase):
 
         self.assertEqual(num_keys_to_remove, len([o for o in self.s3.Bucket(bucket).objects.all()]))
         hook = S3Hook()
-        self.assertTrue(hook.delete_objects(bucket=bucket, keys=keys))
+        hook.delete_objects(bucket=bucket, keys=keys)
         self.assertListEqual([o.key for o in self.s3.Bucket(bucket).objects.all()], [])
 
 

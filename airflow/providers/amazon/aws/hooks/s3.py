@@ -606,9 +606,6 @@ class S3Hook(AwsHook):
             When ``keys`` is a list, it's supposed to be the list of the
             keys to delete.
         :type keys: str or list
-
-        :return: False on failure to delete at least one batch and True on success.
-        :rtype: bool
         """
         if isinstance(keys, str):
             keys = [keys]
@@ -616,12 +613,13 @@ class S3Hook(AwsHook):
         s3 = self.get_conn()
         batch = 1000
         for i in range(0, len(keys), batch):
-            try:
-                s3.delete_objects(
-                    Bucket=bucket,
-                    Delete={"Objects": [{"Key": k} for k in keys[i: i + batch]]}
-                )
-            except ClientError as e:
-                self.log.error(e.response["Error"]["Message"])
-                return False
-        return True
+            response = s3.delete_objects(
+                Bucket=bucket,
+                Delete={"Objects": [{"Key": k} for k in keys[i: i + batch]]}
+            )
+            deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
+            self.log.info("Deleted: %s", deleted_keys)
+            if "Errors" in response:
+                errors_keys = [x['Key'] for x in response.get("Errors", [])]
+                raise AirflowException("Errors when deleting: {}".format(errors_keys))
+
