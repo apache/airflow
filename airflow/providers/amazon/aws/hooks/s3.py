@@ -622,4 +622,3 @@ class S3Hook(AwsHook):
             if "Errors" in response:
                 errors_keys = [x['Key'] for x in response.get("Errors", [])]
                 raise AirflowException("Errors when deleting: {}".format(errors_keys))
-
