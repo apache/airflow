@@ -18,19 +18,17 @@
 
 import datetime
 import unittest
-from unittest import mock
 
 from airflow import DAG
 from airflow.providers.email.operators.email import EmailOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
+from tests.test_utils.mock_mail import send_email_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
 INTERVAL = datetime.timedelta(hours=12)
 FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
-
-send_email_test = mock.Mock()
 
 
 class TestEmailOperator(unittest.TestCase):
@@ -58,7 +56,7 @@ class TestEmailOperator(unittest.TestCase):
     def test_execute(self):
         with conf_vars(
             {('email', 'email_backend'):
-                'tests.providers.email.operators.test_email_operators.send_email_test'}
+                'tests.test_utils.mock_mail.send_email_test'}
         ):
             self._run_as_operator()
-        assert send_email_test.call_count == 1
+        assert send_email_test.call_count == 1, "The send test email method should be called"
