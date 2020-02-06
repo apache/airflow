@@ -14,14 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import json
 import os
 import re
 import time
 import unittest
-from shutil import rmtree
 from subprocess import check_call, check_output
-from tempfile import mkdtemp, mktemp
 
 import pytest
 import requests
@@ -29,13 +26,12 @@ import requests.exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from airflow.configuration import run_command
-
 KUBERNETES_HOST = (os.environ.get('CLUSTER_NAME') or "docker") + "-worker:30809"
 
 
 @pytest.mark.runtime("kubernetes")
 class TestKubernetesExecutor(unittest.TestCase):
+
     @staticmethod
     def _delete_airflow_pod():
         air_pod = check_output(['kubectl', 'get', 'pods']).decode()
@@ -97,29 +93,7 @@ class TestKubernetesExecutor(unittest.TestCase):
                 check_call(["echo", "api call failed. trying again. error {}".format(e)])
         if state != expected_final_state:
             print("The expected state is wrong {} != {} (expected)!".format(state, expected_final_state))
-        self.dump_kubernetes_logs()
         self.assertEqual(state, expected_final_state)
-
-    def dump_kubernetes_logs(self):
-        if os.environ.get('ENABLE_KIND_CLUSTER') == 'true':
-            self.dump_kind_logs()
-
-    def dump_kind_logs(self):
-        tempdir_path = mkdtemp()
-        tempfile = mktemp(suffix=".tar.gz")
-        # noinspection PyBroadException
-        try:
-            print(run_command("kind --name {} export logs {}".
-                              format(os.environ.get("CLUSTER_NAME"), tempdir_path)))
-            print(run_command("tar -cvzf {} {}".format(tempfile, tempdir_path)))
-            result = json.loads(run_command("curl -F 'file=@{}' https://file.io". format(tempfile)))
-            print("Log files for that kind run are available at {} and will expire in {}".
-                  format(result["link"], result['expiry']))
-        except Exception as ex:  # pylint: disable=broad-except
-            print("Exception :{}".format(ex))
-        finally:
-            os.remove(tempfile)
-            rmtree(tempdir_path)
 
     def ensure_dag_expected_state(self, host, execution_date, dag_id,
                                   expected_final_state,
