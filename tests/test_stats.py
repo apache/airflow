@@ -22,7 +22,7 @@ from unittest.mock import Mock
 
 import airflow
 from airflow.exceptions import InvalidStatsNameException
-from airflow.stats import AllowListValidator, SafeStatsdLogger
+from airflow.stats import AllowListValidator, SafeDogStatsdLogger, SafeStatsdLogger
 from tests.test_utils.config import conf_vars
 
 
@@ -48,6 +48,101 @@ class TestStats(unittest.TestCase):
         self.stats.incr('test/$tats')
         self.statsd_client.assert_not_called()
 
+    @conf_vars({
+        ('scheduler', 'statsd_on'): 'True'
+    })
+    @mock.patch("statsd.StatsClient")
+    def test_does_send_stats_using_statsd(self, mock_statsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        mock_statsd.return_value.incr.assert_called_once_with('dummy_key', 1, 1)
+
+    @conf_vars({
+        ('scheduler', 'statsd_on'): 'True'
+    })
+    @mock.patch("datadog.DogStatsd")
+    def test_does_not_send_stats_using_dogstatsd(self, mock_dogstatsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        mock_dogstatsd.return_value.assert_not_called()
+
+    def tearDown(self) -> None:
+        # To avoid side-effect
+        importlib.reload(airflow.stats)
+
+
+class TestDogStats(unittest.TestCase):
+
+    def setUp(self):
+        self.dogstatsd_client = Mock()
+        self.dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client)
+
+    def test_increment_counter_with_valid_name_with_dogstatsd(self):
+        self.dogstatsd.incr('test_stats_run')
+        self.dogstatsd_client.increment.assert_called_once_with(
+            metric='test_stats_run', sample_rate=1, tags=[], value=1
+        )
+
+    def test_stat_name_must_be_a_string_with_dogstatsd(self):
+        self.dogstatsd.incr(list())
+        self.dogstatsd_client.assert_not_called()
+
+    def test_stat_name_must_not_exceed_max_length_with_dogstatsd(self):
+        self.dogstatsd.incr('X' * 300)
+        self.dogstatsd_client.assert_not_called()
+
+    def test_stat_name_must_only_include_whitelisted_characters_with_dogstatsd(self):
+        self.dogstatsd.incr('test/$tats')
+        self.dogstatsd_client.assert_not_called()
+
+    @conf_vars({
+        ('scheduler', 'statsd_datadog_enabled'): 'True'
+    })
+    @mock.patch("datadog.DogStatsd")
+    def test_does_send_stats_using_dogstatsd_when_dogstatsd_on(self, mock_dogstatsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        mock_dogstatsd.return_value.increment.assert_called_once_with(
+            metric='dummy_key', sample_rate=1, tags=[], value=1
+        )
+
+    @conf_vars({
+        ('scheduler', 'statsd_datadog_enabled'): 'True'
+    })
+    @mock.patch("datadog.DogStatsd")
+    def test_does_send_stats_using_dogstatsd_with_tags(self, mock_dogstatsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key", 1, 1, ['key1:value1', 'key2:value2'])
+        mock_dogstatsd.return_value.increment.assert_called_once_with(
+            metric='dummy_key', sample_rate=1, tags=['key1:value1', 'key2:value2'], value=1
+        )
+
+    @conf_vars({
+        ('scheduler', 'statsd_on'): 'True',
+        ('scheduler', 'statsd_datadog_enabled'): 'True'
+    })
+    @mock.patch("datadog.DogStatsd")
+    def test_does_send_stats_using_dogstatsd_when_statsd_and_dogstatsd_both_on(self, mock_dogstatsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        mock_dogstatsd.return_value.increment.assert_called_once_with(
+            metric='dummy_key', sample_rate=1, tags=[], value=1
+        )
+
+    @conf_vars({
+        ('scheduler', 'statsd_on'): 'True',
+        ('scheduler', 'statsd_datadog_enabled'): 'True'
+    })
+    @mock.patch("statsd.StatsClient")
+    def test_does_not_send_stats_using_statsd_when_statsd_and_dogstatsd_both_on(self, mock_statsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        mock_statsd.return_value.assert_not_called()
+
+    def tearDown(self) -> None:
+        # To avoid side-effect
+        importlib.reload(airflow.stats)
+
 
 class TestStatsWithAllowList(unittest.TestCase):
 
@@ -68,6 +163,29 @@ class TestStatsWithAllowList(unittest.TestCase):
         self.statsd_client.assert_not_called()
 
 
+class TestDogStatsWithAllowList(unittest.TestCase):
+
+    def setUp(self):
+        self.dogstatsd_client = Mock()
+        self.dogstats = SafeDogStatsdLogger(self.dogstatsd_client, AllowListValidator("stats_one, stats_two"))
+
+    def test_increment_counter_with_allowed_key(self):
+        self.dogstats.incr('stats_one')
+        self.dogstatsd_client.increment.assert_called_once_with(
+            metric='stats_one', sample_rate=1, tags=[], value=1
+        )
+
+    def test_increment_counter_with_allowed_prefix(self):
+        self.dogstats.incr('stats_two.bla')
+        self.dogstatsd_client.increment.assert_called_once_with(
+            metric='stats_two.bla', sample_rate=1, tags=[], value=1
+        )
+
+    def test_not_increment_counter_if_not_allowed(self):
+        self.dogstats.incr('stats_three')
+        self.dogstatsd_client.assert_not_called()
+
+
 def always_invalid(stat_name):
     raise InvalidStatsNameException("Invalid name: {}".format(stat_name))
 
@@ -82,20 +200,42 @@ class TestCustomStatsName(unittest.TestCase):
         ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_invalid'
     })
     @mock.patch("statsd.StatsClient")
-    def test_does_not_send_stats_when_the_name_is_not_valid(self, mock_statsd):
+    def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self, mock_statsd):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("dummy_key")
         mock_statsd.return_value.assert_not_called()
+
+    @conf_vars({
+        ('scheduler', 'statsd_datadog_enabled'): 'True',
+        ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_invalid'
+    })
+    @mock.patch("datadog.DogStatsd")
+    def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self, mock_dogstatsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        mock_dogstatsd.return_value.assert_not_called()
 
     @conf_vars({
         ('scheduler', 'statsd_on'): 'True',
         ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_valid'
     })
     @mock.patch("statsd.StatsClient")
-    def test_does_send_stats_when_the_name_is_valid(self, mock_statsd):
+    def test_does_send_stats_using_statsd_when_the_name_is_valid(self, mock_statsd):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("dummy_key")
         mock_statsd.return_value.incr.assert_called_once_with('dummy_key', 1, 1)
+
+    @conf_vars({
+        ('scheduler', 'statsd_datadog_enabled'): 'True',
+        ('scheduler', 'stat_name_handler'): 'tests.test_stats.always_valid'
+    })
+    @mock.patch("datadog.DogStatsd")
+    def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self, mock_dogstatsd):
+        importlib.reload(airflow.stats)
+        airflow.stats.Stats.incr("dummy_key")
+        mock_dogstatsd.return_value.increment.assert_called_once_with(
+            metric='dummy_key', sample_rate=1, tags=[], value=1
+        )
 
     def tearDown(self) -> None:
         # To avoid side-effect
