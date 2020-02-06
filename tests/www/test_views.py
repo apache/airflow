@@ -512,7 +512,7 @@ class TestAirflowBaseViews(TestBase):
 
     def test_last_dagruns_success_when_selecting_dags(self):
         resp = self.client.post('last_dagruns',
-                                json={'dag_ids': ['example_subdag_operator']},
+                                data={'dag_ids': ['example_subdag_operator']},
                                 follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
@@ -521,7 +521,7 @@ class TestAirflowBaseViews(TestBase):
 
         # Multiple
         resp = self.client.post('last_dagruns',
-                                json={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
                                 follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
@@ -1435,7 +1435,7 @@ class TestDagACLView(TestBase):
 
     def test_dag_stats_success_when_selecting_dags(self):
         resp = self.client.post('dag_stats',
-                                json={'dag_ids': ['example_subdag_operator']},
+                                data={'dag_ids': ['example_subdag_operator']},
                                 follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
@@ -1444,7 +1444,7 @@ class TestDagACLView(TestBase):
 
         # Multiple
         resp = self.client.post('dag_stats',
-                                json={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
                                 follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
@@ -1478,7 +1478,7 @@ class TestDagACLView(TestBase):
                    password='all_dag_user')
 
         resp = self.client.post('task_stats',
-                                json={'dag_ids': ['example_subdag_operator']},
+                                data={'dag_ids': ['example_subdag_operator']},
                                 follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
@@ -1487,7 +1487,7 @@ class TestDagACLView(TestBase):
 
         # Multiple
         resp = self.client.post('task_stats',
-                                json={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
                                 follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
@@ -1672,7 +1672,7 @@ class TestDagACLView(TestBase):
 
     def test_blocked_success_when_selecting_dags(self):
         resp = self.client.post('blocked',
-                                json={'dag_ids': ['example_subdag_operator']},
+                                data={'dag_ids': ['example_subdag_operator']},
                                 follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
@@ -1681,7 +1681,7 @@ class TestDagACLView(TestBase):
 
         # Multiple
         resp = self.client.post('blocked',
-                                json={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
                                 follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}

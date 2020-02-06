@@ -342,9 +342,8 @@ class Airflow(AirflowBaseView):
             .group_by(dr.dag_id, dr.state)
 
         # Filter by post parameters
-        request_dag_ids = request.get_json() or {}
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request_dag_ids.get('dag_ids', []) if dag_id
+            unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id
         }
 
         if selected_dag_ids:
@@ -394,9 +393,8 @@ class Airflow(AirflowBaseView):
             allowed_dag_ids = {dag_id for dag_id, in session.query(models.DagModel.dag_id)}
 
         # Filter by post parameters
-        request_dag_ids = request.get_json() or {}
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request_dag_ids.get('dag_ids', []) if dag_id
+            unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id
         }
 
         if selected_dag_ids:
@@ -490,9 +488,8 @@ class Airflow(AirflowBaseView):
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
-        request_dag_ids = request.get_json() or {}
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request_dag_ids.get('dag_ids', []) if dag_id
+            unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id
         }
 
         if selected_dag_ids:
@@ -1114,9 +1111,8 @@ class Airflow(AirflowBaseView):
             allowed_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
         # Filter by post parameters
-        request_dag_ids = request.get_json() or {}
         selected_dag_ids = {
-            unquote(dag_id) for dag_id in request_dag_ids.get('dag_ids', []) if dag_id
+            unquote(dag_id) for dag_id in request.form.getlist('dag_ids') if dag_id
         }
 
         if selected_dag_ids:

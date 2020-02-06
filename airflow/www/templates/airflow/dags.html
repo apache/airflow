@@ -526,16 +526,16 @@
         // dags on page fetch stats
         d3.json("{{ url_for('Airflow.blocked') }}")
           .header("X-CSRFToken", "{{ csrf_token() }}")
-          .post(JSON.stringify({'dag_ids': encoded_dag_ids}), blockedHandler);
+          .post("dag_ids="  + (encoded_dag_ids.join(',')), blockedHandler);
         d3.json("{{ url_for('Airflow.last_dagruns') }}")
           .header("X-CSRFToken", "{{ csrf_token() }}")
-          .post(JSON.stringify({'dag_ids': encoded_dag_ids}), lastDagRunsHandler);
+          .post("dag_ids="  + (encoded_dag_ids.join(',')), lastDagRunsHandler);
         d3.json("{{ url_for('Airflow.dag_stats') }}")
           .header("X-CSRFToken", "{{ csrf_token() }}")
-          .post(JSON.stringify({'dag_ids': encoded_dag_ids}), dagStatsHandler);
+          .post("dag_ids="  + (encoded_dag_ids.join(',')), dagStatsHandler);
         d3.json("{{ url_for('Airflow.task_stats') }}")
           .header("X-CSRFToken", "{{ csrf_token() }}")
-          .post(JSON.stringify({'dag_ids': encoded_dag_ids}), taskStatsHandler);
+          .post("dag_ids="  + (encoded_dag_ids.join(',')), taskStatsHandler);
       }
       else {
         // no dags, hide the loading gifs
