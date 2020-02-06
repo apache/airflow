@@ -36,6 +36,7 @@ services:
       - TRAVIS
       - TRAVIS_BRANCH
       - TRAVIS_BUILD_DIR
+      - TRAVIS_BUILD_ID
       - TRAVIS_JOB_ID
       - TRAVIS_JOB_NUMBER
       - TRAVIS_PULL_REQUEST
