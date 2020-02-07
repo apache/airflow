@@ -30,6 +30,7 @@ from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.utils.helpers import chunks
 
 
 def provide_bucket_name(func):
@@ -611,11 +612,14 @@ class S3Hook(AwsHook):
             keys = [keys]
 
         s3 = self.get_conn()
-        batch = 1000
-        for i in range(0, len(keys), batch):
+
+        # We can only send a maximum of 1000 keys per request.
+        # For details see:
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.delete_objects
+        for chunk in chunks(keys, chunk_size=1000):
             response = s3.delete_objects(
                 Bucket=bucket,
-                Delete={"Objects": [{"Key": k} for k in keys[i: i + batch]]}
+                Delete={"Objects": [{"Key": k} for k in chunk]}
             )
             deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
             self.log.info("Deleted: %s", deleted_keys)
