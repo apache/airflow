@@ -29,6 +29,7 @@ class SnowflakeHook(DbApiHook):
     Interact with Snowflake.
     get_sqlalchemy_engine() depends on snowflake-sqlalchemy
     """
+    conn_name_attr = 'snowflake_conn_id'
     default_conn_name = 'snowflake_default'
     supports_autocommit = True
 

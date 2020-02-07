@@ -52,9 +52,6 @@ MISSING_TEST_FILES = {
     'tests/providers/presto/operators/test_presto_check.py',
     'tests/providers/qubole/hooks/test_qubole.py',
     'tests/providers/samba/hooks/test_samba.py',
-    'tests/providers/snowflake/hooks/test_snowflake.py',
-    'tests/providers/snowflake/operators/test_s3_to_snowflake.py',
-    'tests/providers/snowflake/operators/test_snowflake.py',
     'tests/providers/sqlite/operators/test_sqlite.py',
     'tests/providers/vertica/hooks/test_vertica.py'
 }
