@@ -350,18 +350,12 @@ class DagRun(Base, LoggingMixin):
             TI.task_id.desc(),
             TI.execution_date.desc(),
         ).all()
-        fresh_tis = list(fresh_tis)
 
         # Sort scheduleable_tasks
-        scheduleable_tasks.sort(key=lambda ti: (ti.dag_id, ti.task_id, ti.execution_date))
+        scheduleable_tasks_map = {t.key: t for t in scheduleable_tasks}
 
-        # Assert same length
-        if len(fresh_tis) != len(scheduleable_tasks):
-            raise AirflowException(
-                "Result number of tasks from db differs from number of schedule task instances."
-            )
-
-        for stale_ti, fresh_ti in zip(scheduleable_tasks, fresh_tis):
+        for fresh_ti in fresh_tis:
+            stale_ti = scheduleable_tasks_map[fresh_ti.key]
             if stale_ti.are_dependencies_met(
                 dep_context=DepContext(
                     flag_upstream_failed=True,
