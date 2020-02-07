@@ -681,7 +681,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         )
 
 
-class StackdriverDeleteNotificationChannel(BaseOperator):
+class StackdriverDeleteNotificationChannelOperator(BaseOperator):
     """
     Deletes a notification channel.
     :param name: The alerting policy to delete. The format is:

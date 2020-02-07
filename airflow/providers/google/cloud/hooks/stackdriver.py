@@ -23,7 +23,7 @@ This module contains GCP Stackdriver operators.
 
 import json
 
-from google.api_core.exceptions import InvalidArgument, NotFound
+from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import monitoring_v3
 from google.protobuf.json_format import MessageToDict, MessageToJson, Parse
@@ -134,9 +134,7 @@ class StackdriverHook(CloudBaseHook):
     ):
         client = self._get_policy_client()
         policies_ = self.list_alert_policies(project_id=project_id, filter_=filter_)
-        print(policies_)
         for policy in policies_:
-            print(policy)
             if policy.enabled.value != bool(new_state):
                 policy.enabled.value = bool(new_state)
                 mask = monitoring_v3.types.field_mask_pb2.FieldMask()
@@ -309,12 +307,6 @@ class StackdriverHook(CloudBaseHook):
                 if new_channel:
                     policy.notification_channels[i] = new_channel
 
-            try:
-                policy_client.update_alert_policy(policy)
-            except NotFound:
-                pass
-            except InvalidArgument:
-                pass
             if policy.name in existing_policies:
                 try:
                     policy_client.update_alert_policy(
@@ -329,7 +321,7 @@ class StackdriverHook(CloudBaseHook):
                 policy.ClearField('name')
                 for condition in policy.conditions:
                     condition.ClearField('name')
-                policy = policy_client.create_alert_policy(
+                policy_client.create_alert_policy(
                     name='projects/{project_id}'.format(project_id=project_id),
                     alert_policy=policy,
                     retry=retry,
@@ -337,7 +329,6 @@ class StackdriverHook(CloudBaseHook):
                     metadata=None
                 )
 
-    @CloudBaseHook.fallback_to_default_project_id
     def delete_alert_policy(
         self,
         name,
@@ -460,7 +451,11 @@ class StackdriverHook(CloudBaseHook):
             name='projects/{project_id}'.format(project_id=project_id),
             filter_=filter_
         )
+        print(channels)
         for channel in channels:
+            print(channel.name)
+            print(str(channel.enabled.value))
+            print(str(new_state))
             if channel.enabled.value != bool(new_state):
                 channel.enabled.value = bool(new_state)
                 mask = monitoring_v3.types.field_mask_pb2.FieldMask()
@@ -601,7 +596,12 @@ class StackdriverHook(CloudBaseHook):
                 VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
 
             if channel.name in existing_channels:
-                channel_client.update_notification_channel(channel)
+                channel_client.update_notification_channel(
+                    notification_channel=channel,
+                    retry=retry,
+                    timeout=timeout,
+                    metadata=metadata
+                )
             else:
                 old_name = channel.name
                 channel.ClearField('name')
@@ -616,7 +616,6 @@ class StackdriverHook(CloudBaseHook):
 
         return channel_name_map
 
-    @CloudBaseHook.fallback_to_default_project_id
     def delete_notification_channel(
         self,
         name,
