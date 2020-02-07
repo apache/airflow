@@ -36,7 +36,6 @@ from pandas_gbq.gbq import (
 )
 
 from airflow import AirflowException
-from airflow.exceptions import AirflowBadRequest
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.providers.google.cloud.hooks.base import CloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1111,16 +1110,6 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         """
         service = self.get_service()
         # check to see if the table exists
-        if 'tableReference' not in table_resource:
-            raise AirflowBadRequest(
-                '"tableReference" is required within table_resource parameter. '
-                'See https://cloud.google.com/bigquery/docs/reference/v2/tables#resource'
-            )
-        if 'tableId' not in table_resource["tableReference"]:
-            raise AirflowBadRequest(
-                '"tableId" is required within table_resource["tableReference"]. '
-                'See https://cloud.google.com/bigquery/docs/reference/v2/tables#resource'
-            )
         table_id = table_resource['tableReference']['tableId']
         project_id = project_id if project_id is not None else self.project_id
         tables_list_resp = service.tables().list(  # pylint: disable=no-member

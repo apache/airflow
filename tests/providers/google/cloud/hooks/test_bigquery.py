@@ -23,7 +23,6 @@ from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.exceptions import AirflowBadRequest
 from airflow.providers.google.cloud.hooks import bigquery as hook
 from airflow.providers.google.cloud.hooks.bigquery import (
     _api_resource_configs_duplication_check, _cleanse_time_partitioning, _validate_src_fmt_configs,
@@ -1415,51 +1414,6 @@ class TestTableOperations(unittest.TestCase):
             tableId=table1
         )
 
-    @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
-        return_value=(CREDENTIALS, PROJECT_ID),
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_table_upsert_on_exception1(self, mock_get_service, mock_get_creds_and_proj_id):
-        table_resource = {
-            "expirationTime": 123456
-        }
-        bq_hook = hook.BigQueryHook()
-        with self.assertRaisesRegex(
-            AirflowBadRequest,
-            r"\"tableReference\" is required within table_resource parameter. "
-            r"See https://cloud.google.com/bigquery/docs/reference/v2/tables#resource"
-        ):
-            bq_hook.run_table_upsert(
-                dataset_id=DATASET_ID,
-                table_resource=table_resource,
-                project_id=PROJECT_ID
-            )
-
-    @mock.patch(
-        'airflow.providers.google.cloud.hooks.base.CloudBaseHook._get_credentials_and_project_id',
-        return_value=(CREDENTIALS, PROJECT_ID),
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    def test_table_upsert_on_exception2(self, mock_get_service, mock_get_creds_and_proj_id):
-        table_resource = {
-            "expiration": 123456,
-            "tableReference": {
-                "table": TABLE_ID
-            }
-        }
-        bq_hook = hook.BigQueryHook()
-        with self.assertRaisesRegex(
-            AirflowBadRequest,
-            r"\"tableId\" is required within table_resource\[\"tableReference\"\]. "
-            "See https://cloud.google.com/bigquery/docs/reference/v2/tables#resource"
-        ):
-            bq_hook.run_table_upsert(
-                dataset_id=DATASET_ID,
-                table_resource=table_resource,
-                project_id=PROJECT_ID
-            )
-
 
 class TestBigQueryCursor(unittest.TestCase):
 
@@ -1745,11 +1699,11 @@ class TestLabelsInRunJob(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
     def test_run_query_with_arg(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
-
         def run_with_config(config):
             self.assertEqual(
                 config['labels'], {'label1': 'test1', 'label2': 'test2'}
             )
+
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
@@ -2026,6 +1980,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
     def test_run_load_default(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
         def run_with_config(config):
             self.assertIsNone(config['load'].get('timePartitioning'))
+
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
@@ -2067,6 +2022,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
                     'expirationMs': 1000
                 }
             )
+
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
@@ -2088,6 +2044,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
     def test_run_query_default(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
         def run_with_config(config):
             self.assertIsNone(config['query'].get('timePartitioning'))
+
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
@@ -2111,6 +2068,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
                     'expirationMs': 1000
                 }
             )
+
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
@@ -2153,9 +2111,9 @@ class TestClusteringInRunJob(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
     def test_run_load_default(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
-
         def run_with_config(config):
             self.assertIsNone(config['load'].get('clustering'))
+
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
@@ -2174,7 +2132,6 @@ class TestClusteringInRunJob(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
     def test_run_load_with_arg(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
-
         def run_with_config(config):
             self.assertEqual(
                 config['load']['clustering'],
@@ -2182,6 +2139,7 @@ class TestClusteringInRunJob(unittest.TestCase):
                     'fields': ['field1', 'field2']
                 }
             )
+
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
@@ -2202,9 +2160,9 @@ class TestClusteringInRunJob(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
     def test_run_query_default(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
-
         def run_with_config(config):
             self.assertIsNone(config['query'].get('clustering'))
+
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
@@ -2219,7 +2177,6 @@ class TestClusteringInRunJob(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration")
     def test_run_query_with_arg(self, mocked_rwc, mock_get_service, mock_get_creds_and_proj_id):
-
         def run_with_config(config):
             self.assertEqual(
                 config['query']['clustering'],
@@ -2227,6 +2184,7 @@ class TestClusteringInRunJob(unittest.TestCase):
                     'fields': ['field1', 'field2']
                 }
             )
+
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryHook()
