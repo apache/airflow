@@ -1449,7 +1449,6 @@ class TestTaskInstance(unittest.TestCase):
         import mock
 
         start_date = timezone.datetime(2016, 6, 1)
-        end_date = timezone.datetime(2018, 6, 1)
         dag = models.DAG(dag_id="test_handle_failure", schedule_interval=None, start_date=start_date)
 
         mock_on_failure_1 = mock.MagicMock()
@@ -1460,8 +1459,6 @@ class TestTaskInstance(unittest.TestCase):
                               dag=dag)
         ti1 = TI(task=task1, execution_date=start_date)
         ti1.state = State.FAILED
-        ti1.start_date = start_date
-        ti1.end_date = end_date
         ti1.handle_failure("test failure handling")
 
         context_arg_1 = mock_on_failure_1.call_args[0][0]
@@ -1477,8 +1474,6 @@ class TestTaskInstance(unittest.TestCase):
                               dag=dag)
         ti2 = TI(task=task2, execution_date=start_date)
         ti2.state = State.FAILED
-        ti2.start_date = start_date
-        ti2.end_date = end_date
         ti2.handle_failure("test retry handling")
 
         mock_on_failure_2.assert_not_called()
@@ -1496,8 +1491,6 @@ class TestTaskInstance(unittest.TestCase):
                               dag=dag)
         ti3 = TI(task=task3, execution_date=start_date)
         ti3.state = State.FAILED
-        ti3.start_date = start_date
-        ti3.end_date = end_date
         ti3.handle_failure("test force_fail handling", force_fail=True)
 
         context_arg_3 = mock_on_failure_3.call_args[0][0]

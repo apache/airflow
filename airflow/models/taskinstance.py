@@ -1230,11 +1230,10 @@ class TaskInstance(Base, LoggingMixin):
             log_message,
             self.dag_id,
             self.task_id,
-            self.execution_date.strftime('%Y%m%dT%H%M%S'),
-            self.start_date.strftime('%Y%m%dT%H%M%S'),
-            self.end_date.strftime('%Y%m%dT%H%M%S')
+            self._safe_date('execution_date', '%Y%m%dT%H%M%S'),
+            self._safe_date('start_date', '%Y%m%dT%H%M%S'),
+            self._safe_date('end_date', '%Y%m%dT%H%M%S')
         )
-
         if email_for_state and task.email:
             try:
                 self.email_alert(error)
@@ -1257,6 +1256,12 @@ class TaskInstance(Base, LoggingMixin):
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry"""
         return self.task.retries and self.try_number <= self.max_tries
+
+    def _safe_date(self, date_attr, fmt):
+        result = getattr(self, date_attr, None)
+        if result is not None:
+            return result.strftime(fmt)
+        return ''
 
     @provide_session
     def get_template_context(self, session=None) -> Dict[str, Any]:
