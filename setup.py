@@ -374,6 +374,7 @@ def do_setup():
             'thrift>=0.9.2',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
+            'werkzeug<1.0.0',
             'zope.deprecation>=4.0, <5.0',
         ],
         setup_requires=[
