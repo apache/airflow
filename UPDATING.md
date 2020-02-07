@@ -26,6 +26,7 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 1.10.8](#airflow-1108)
 - [Airflow 1.10.7](#airflow-1107)
 - [Airflow 1.10.6](#airflow-1106)
 - [Airflow 1.10.5](#airflow-1105)
@@ -80,11 +81,6 @@ stat_name_handler=test_plugin.my_stat_name_handler
 ```
 
 This change is intended to simplify the statsd configuration.
-
-### Failure callback will be called when task is marked failed
-When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
-
-See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
 
 ### Move methods from BiqQueryBaseCursor to BigQueryHook
 
@@ -917,6 +913,13 @@ No change is needed if only the default trigger rule `all_success` is being used
 If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
 
 The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+
+## Airflow 1.10.8
+
+### Failure callback will be called when task is marked failed
+When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
+
+See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
 
 ## Airflow 1.10.7
 
