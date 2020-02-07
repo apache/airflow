@@ -32,7 +32,7 @@ from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.queue_task_run import LocalTaskJobDeferredRun
+from airflow.models.queue_task_run import TaskExecutionRequest
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType, TaskInstanceStateType
 from airflow.utils.module_loading import import_string
 from airflow.utils.timeout import timeout
@@ -64,17 +64,17 @@ app = Celery(
 
 
 @app.task
-def execute_deferred_run(deferred_run_kwargs: Dict) -> None:
-    """Executes Deferred Run."""
-    queue_task_run = LocalTaskJobDeferredRun(**deferred_run_kwargs)
-    command_to_exec = queue_task_run.as_command()
+def execute_task_execution_request(task_execution_request_kwargs: Dict) -> None:
+    """Executes Task Execution Request."""
+    task_execution_request = TaskExecutionRequest(**task_execution_request_kwargs)
+    command_to_exec = task_execution_request.as_command()
     log.info("Executing command in Celery: %s", command_to_exec)
     env = os.environ.copy()
     try:
         subprocess.check_call(command_to_exec, stderr=subprocess.STDOUT,
                               close_fds=True, env=env)
     except subprocess.CalledProcessError as e:
-        log.exception('execute_deferred_run encountered a CalledProcessError')
+        log.exception('execute_task_execution_request encountered a CalledProcessError')
         log.error(e.output)
         raise AirflowException('Celery command failed')
 
@@ -119,24 +119,24 @@ def fetch_celery_task_state(celery_task: Tuple[TaskInstanceKeyType, AsyncResult]
 
 
 # Task instance that is sent over Celery queues
-# TaskInstanceKeyType, SimpleTaskInstance, LocalTaskJobDeferredRun, queue_name, CallableTask
+# TaskInstanceKeyType, SimpleTaskInstance, TaskExecutionRequest, queue_name, CallableTask
 TaskInstanceInCelery = Tuple[
-    TaskInstanceKeyType, SimpleTaskInstance, LocalTaskJobDeferredRun, Optional[str], Task
+    TaskInstanceKeyType, SimpleTaskInstance, TaskExecutionRequest, Optional[str], Task
 ]
 
 
 def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
-        -> Tuple[TaskInstanceKeyType, LocalTaskJobDeferredRun, Union[AsyncResult, ExceptionWithTraceback]]:
+        -> Tuple[TaskInstanceKeyType, TaskExecutionRequest, Union[AsyncResult, ExceptionWithTraceback]]:
     """Sends task to executor."""
-    key, _, deferred_run, queue, task_to_run = task_tuple
+    key, _, task_execution_request, queue, task_to_run = task_tuple
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
-            result = task_to_run.apply_async(args=[deferred_run.__dict__], queue=queue)
+            result = task_to_run.apply_async(args=[task_execution_request.__dict__], queue=queue)
     except Exception as e:  # pylint: disable=broad-except
         exception_traceback = "Celery Task ID: {}\n{}".format(key, traceback.format_exc())
         result = ExceptionWithTraceback(e, exception_traceback)
 
-    return key, deferred_run, result
+    return key, task_execution_request, result
 
 
 class CeleryExecutor(BaseExecutor):
@@ -201,8 +201,10 @@ class CeleryExecutor(BaseExecutor):
         task_tuples_to_send: List[TaskInstanceInCelery] = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (deferred_run, _, queue, simple_ti) = sorted_queue.pop(0)
-            task_tuples_to_send.append((key, simple_ti, deferred_run, queue, execute_deferred_run))
+            key, (task_execution_request, _, queue, simple_ti) = sorted_queue.pop(0)
+            task_tuples_to_send.append(
+                (key, simple_ti, task_execution_request, queue, execute_task_execution_request)
+            )
 
         cached_celery_backend = None
         if task_tuples_to_send:
@@ -228,7 +230,7 @@ class CeleryExecutor(BaseExecutor):
             send_pool.join()
             self.log.debug('Sent all tasks.')
 
-            for key, deferred_run, result in key_and_async_results:
+            for key, task_execution_request, result in key_and_async_results:
                 if isinstance(result, ExceptionWithTraceback):
                     self.log.error(  # pylint: disable=logging-not-lazy
                         CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
@@ -314,7 +316,7 @@ class CeleryExecutor(BaseExecutor):
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      deferred_run: LocalTaskJobDeferredRun,
+                      task_execution_request: TaskExecutionRequest,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None):
         """Do not allow async execution for Celery executor."""

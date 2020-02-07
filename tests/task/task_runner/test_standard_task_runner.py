@@ -74,21 +74,24 @@ class TestStandardTaskRunner(unittest.TestCase):
         local_task_job = mock.Mock()
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.get_raw_task_deferred_run.return_value.as_command.return_value = [
-            'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
-        ]
 
-        runner = StandardTaskRunner(local_task_job)
-        runner.start()
-        time.sleep(0.5)
+        with mock.patch(
+            "airflow.task.task_runner.base_task_runner.BaseTaskRunner.prepare_command",
+            return_value=[
+                'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
+            ]
+        ):
+            runner = StandardTaskRunner(local_task_job)
+            runner.start()
+            time.sleep(0.5)
 
-        pgid = os.getpgid(runner.process.pid)
-        self.assertGreater(pgid, 0)
-        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+            pgid = os.getpgid(runner.process.pid)
+            self.assertGreater(pgid, 0)
+            self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
 
-        processes = list(self._procs_in_pgroup(pgid))
+            processes = list(self._procs_in_pgroup(pgid))
 
-        runner.terminate()
+            runner.terminate()
 
         for process in processes:
             self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))
@@ -100,22 +103,24 @@ class TestStandardTaskRunner(unittest.TestCase):
         local_task_job.task_instance = mock.MagicMock()
         local_task_job.task_instance.run_as_user = getpass.getuser()
 
-        local_task_job.task_instance.get_raw_task_deferred_run.return_value.as_command.return_value = [
-            'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
-        ]
+        with mock.patch(
+            "airflow.task.task_runner.base_task_runner.BaseTaskRunner.prepare_command",
+            return_value=[
+                'airflow', 'tasks', 'test', 'test_on_kill', 'task1', '2016-01-01'
+            ]
+        ):
+            runner = StandardTaskRunner(local_task_job)
 
-        runner = StandardTaskRunner(local_task_job)
+            runner.start()
+            time.sleep(0.5)
 
-        runner.start()
-        time.sleep(0.5)
+            pgid = os.getpgid(runner.process.pid)
+            self.assertGreater(pgid, 0)
+            self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
 
-        pgid = os.getpgid(runner.process.pid)
-        self.assertGreater(pgid, 0)
-        self.assertNotEqual(pgid, os.getpgid(0), "Task should be in a different process group to us")
+            processes = list(self._procs_in_pgroup(pgid))
 
-        processes = list(self._procs_in_pgroup(pgid))
-
-        runner.terminate()
+            runner.terminate()
 
         for process in processes:
             self.assertFalse(psutil.pid_exists(process.pid), "{} is still alive".format(process))

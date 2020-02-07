@@ -25,7 +25,7 @@ import pytest
 from airflow.configuration import conf
 from airflow.jobs import BackfillJob
 from airflow.models import DagBag
-from airflow.models.queue_task_run import LocalTaskJobDeferredRun
+from airflow.models.queue_task_run import TaskExecutionRequest
 from airflow.utils import timezone
 
 try:
@@ -52,15 +52,15 @@ class TestBaseDask(unittest.TestCase):
         # start the executor
         executor.start()
 
-        success_deferred_run = LocalTaskJobDeferredRun(
+        success_task_execution_request = TaskExecutionRequest(
             None, None, None, mock_command=["true", "some_parameter"]
         )
-        fail_deferred_run = LocalTaskJobDeferredRun(
+        fail_task_execution_request = TaskExecutionRequest(
             None, None, None, mock_command=["false", "some_parameter"]
         )
 
-        executor.execute_async(key='success', deferred_run=success_deferred_run)
-        executor.execute_async(key='fail', deferred_run=fail_deferred_run)
+        executor.execute_async(key='success', task_execution_request=success_task_execution_request)
+        executor.execute_async(key='fail', task_execution_request=fail_task_execution_request)
 
         success_future = next(
             k for k, v in executor.futures.items() if v == 'success')

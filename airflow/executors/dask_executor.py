@@ -25,7 +25,7 @@ from distributed.security import Security
 from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor
-from airflow.models.queue_task_run import LocalTaskJobDeferredRun
+from airflow.models.queue_task_run import TaskExecutionRequest
 from airflow.models.taskinstance import TaskInstanceKeyType
 
 
@@ -63,14 +63,14 @@ class DaskExecutor(BaseExecutor):
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      deferred_run: LocalTaskJobDeferredRun,
+                      task_execution_request: TaskExecutionRequest,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:
         if not self.futures:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
         def airflow_run():
-            return subprocess.check_call(deferred_run.as_command(), close_fds=True)
+            return subprocess.check_call(task_execution_request.as_command(), close_fds=True)
 
         if not self.client:
             raise AirflowException(NOT_STARTED_MESSAGE)

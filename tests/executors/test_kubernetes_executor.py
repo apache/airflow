@@ -25,7 +25,7 @@ from datetime import datetime
 import mock
 from urllib3 import HTTPResponse
 
-from airflow.models.queue_task_run import LocalTaskJobDeferredRun
+from airflow.models.queue_task_run import TaskExecutionRequest
 from tests.test_utils.config import conf_vars
 
 try:
@@ -202,13 +202,13 @@ class TestKubernetesExecutor(unittest.TestCase):
 
         # Execute a task while the Api Throws errors
         try_number = 1
-        deffered_run = LocalTaskJobDeferredRun(
+        task_execution_request = TaskExecutionRequest(
             dag_id=None, task_id=None, execution_date=None, mock_command="true"
         )
         kubernetes_executor.execute_async(
             key=('dag', 'task', datetime.utcnow(), try_number),
             queue=None,
-            deferred_run=deffered_run,
+            task_execution_request=task_execution_request,
             executor_config={}
         )
         kubernetes_executor.sync()

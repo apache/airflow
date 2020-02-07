@@ -61,15 +61,15 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Introduction of LocalTaskJobDeferred in the Executor.
+### Introduction of TaskExecutionRequest in the Executor.
 
-The executor uses ``LocalTaskJobDeferredRun`` instead of a list of strings with the command to be executed.
-All methods and fields that previously used the `command` parameter now use `deferred_run`.
+The BaseExecutor now uses `TaskExecutionRequest` instead of a list of strings with the command to be executed.
+All methods and fields that previously used the `command` parameter now use `task_execution_request`.
 If your executor only extends non-implemented methods from BaseExecutor, you only need to update
-the ``execute_async`` method.
+the `execute_async` method.
 
 The code below
-```diff
+```python
     def execute_async(
         self,
         key: TaskInstanceKeyType,
@@ -82,22 +82,21 @@ The code below
         self.task_queue.put((key, command))
 ```
 can be replaced by the following code:
-```diff
+```python
     def execute_async(
         self,
         key: TaskInstanceKeyType,
-        deferred_run: LocalTaskJobDeferredRun,
+        task_execution_request: TaskExecutionRequest,
         queue: Optional[str] = None,
         executor_config: Optional[Any] = None) -> None:
 
         [...]
 
-        command = deferred_run.as_command()
+        command = task_execution_request.as_command()
         self.task_queue.put((key, command))
 ```
 
-This change allows the development of executors that run LocalTaskJob in a different way e.g.
-using fork instead of creating a new process.
+This change allows the development of executors that run LocalTaskJob in a different way.
 
 ### Added `airflow dags test` CLI command
 

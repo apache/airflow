@@ -85,14 +85,30 @@ class BaseTaskRunner(LoggingMixin):
             cfg_path = tmp_configuration_copy(chmod=0o600)
 
         self._cfg_path = cfg_path
-        self._command = popen_prepend + self._task_instance.get_raw_task_deferred_run(
-            pickle_id=local_task_job.pickle_id,
-            mark_success=local_task_job.mark_success,
-            job_id=local_task_job.id,
-            pool=local_task_job.pool,
-            cfg_path=cfg_path,
-        ).as_command()
+        self._command = popen_prepend + self.prepare_command(cfg_path, local_task_job)
         self.process = None
+
+    def prepare_command(self, cfg_path, local_task_job):
+        ti = local_task_job.task_instance
+        should_pass_filepath = not local_task_job.pickle_id
+
+        subdir = ti.task.dag.portable_path if should_pass_filepath else None
+
+        iso = ti.execution_date.isoformat()
+        cmd = ["airflow", "tasks", "run", str(ti.dag_id), str(ti.task_id), str(iso), "--raw"]
+        if local_task_job.mark_success:
+            cmd.extend(["--mark_success"])
+        if local_task_job.pickle_id:
+            cmd.extend(["--pickle", str(local_task_job.pickle_id)])
+        if local_task_job.id:
+            cmd.extend(["--job_id", str(local_task_job.id)])
+        if local_task_job.pool:
+            cmd.extend(["--pool", local_task_job.pool])
+        if subdir:
+            cmd.extend(["--subdir", subdir])
+        if cfg_path:
+            cmd.extend(["--cfg_path", cfg_path])
+        return cmd
 
     def _read_task_logs(self, stream):
         while True:

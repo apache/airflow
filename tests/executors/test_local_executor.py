@@ -20,48 +20,47 @@ import unittest
 from unittest import mock
 
 from airflow.executors.local_executor import LocalExecutor
-from airflow.models.queue_task_run import LocalTaskJobDeferredRun
+from airflow.models.queue_task_run import TaskExecutionRequest
 from airflow.utils.state import State
 
 
 class TestLocalExecutor(unittest.TestCase):
 
-    TEST_SUCCESS_DEFERRED_RUNS = 5
+    TEST_SUCCESS_TASK_EXECUTION_REQUESTS = 5
 
     def execution_parallelism(self, parallelism=0):
         executor = LocalExecutor(parallelism=parallelism)
         executor.start()
 
         success_key = 'success {}'
-        success_deferred_run = LocalTaskJobDeferredRun(
+        success_task_execution_request = TaskExecutionRequest(
             None, None, None, mock_command=['true', 'some_parameter'])
-        fail_deferred_run = LocalTaskJobDeferredRun(
+        fail_task_execution_request = TaskExecutionRequest(
             None, None, None, mock_command=['false', 'some_parameter'])
         self.assertTrue(executor.result_queue.empty())
 
         execution_date = datetime.datetime.now()
-        for i in range(self.TEST_SUCCESS_DEFERRED_RUNS):
+        for i in range(self.TEST_SUCCESS_TASK_EXECUTION_REQUESTS):
             key_id = success_key.format(i)
-            deferred_run = success_deferred_run
             key = key_id, 'fake_ti', execution_date, 0
             executor.running.add(key)
-            executor.execute_async(key=key, deferred_run=deferred_run)
+            executor.execute_async(key=key, task_execution_request=success_task_execution_request)
 
         fail_key = 'fail', 'fake_ti', execution_date, 0
         executor.running.add(fail_key)
-        executor.execute_async(key=fail_key, deferred_run=fail_deferred_run)
+        executor.execute_async(key=fail_key, task_execution_request=fail_task_execution_request)
 
         executor.end()
         # By that time Queues are already shutdown so we cannot check if they are empty
         self.assertEqual(len(executor.running), 0)
 
-        for i in range(self.TEST_SUCCESS_DEFERRED_RUNS):
+        for i in range(self.TEST_SUCCESS_TASK_EXECUTION_REQUESTS):
             key_id = success_key.format(i)
             key = key_id, 'fake_ti', execution_date, 0
             self.assertEqual(executor.event_buffer[key], State.SUCCESS)
         self.assertEqual(executor.event_buffer[fail_key], State.FAILED)
 
-        expected = self.TEST_SUCCESS_DEFERRED_RUNS + 1 if parallelism == 0 else parallelism
+        expected = self.TEST_SUCCESS_TASK_EXECUTION_REQUESTS + 1 if parallelism == 0 else parallelism
         self.assertEqual(executor.workers_used, expected)
 
     def test_execution_unlimited_parallelism(self):

@@ -25,7 +25,7 @@ from typing import List, Tuple
 
 from airflow import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.queue_task_run import LocalTaskJobDeferredRun
+from airflow.models.queue_task_run import TaskExecutionRequest
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKeyType
 from airflow.utils.state import State
 
@@ -42,7 +42,7 @@ class DebugExecutor(BaseExecutor):
 
     def __init__(self):
         super().__init__()
-        self.tasks_to_run: List[Tuple[TaskInstance, LocalTaskJobDeferredRun]] = []
+        self.tasks_to_run: List[Tuple[TaskInstance, TaskExecutionRequest]] = []
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
     def execute_async(self, *args, **kwargs) -> None:
@@ -53,7 +53,7 @@ class DebugExecutor(BaseExecutor):
     def sync(self) -> None:
         task_succeeded = True
         while self.tasks_to_run:
-            ti, queue_task_run = self.tasks_to_run.pop(0)
+            ti, task_execution_request = self.tasks_to_run.pop(0)
             if self.fail_fast and not task_succeeded:
                 self.log.info("Setting %s to %s", ti.key, State.UPSTREAM_FAILED)
                 ti.set_state(State.UPSTREAM_FAILED)
@@ -68,14 +68,16 @@ class DebugExecutor(BaseExecutor):
                 self.change_state(ti.key, State.FAILED)
                 continue
 
-            task_succeeded = self._run_task(ti, queue_task_run)
+            task_succeeded = self._run_task(ti, task_execution_request)
 
-    def _run_task(self, ti: TaskInstance, queue_task_run: LocalTaskJobDeferredRun) -> bool:
+    def _run_task(self, ti: TaskInstance, task_execution_request: TaskExecutionRequest) -> bool:
         self.log.debug("Executing task: %s", ti)
         key = ti.key
         try:
             ti._run_raw_task(  # pylint: disable=protected-access
-                job_id=ti.job_id, mark_success=queue_task_run.mark_success, pool=queue_task_run.pool
+                job_id=ti.job_id,
+                mark_success=task_execution_request.mark_success,
+                pool=task_execution_request.pool
             )
             self.change_state(key, State.SUCCESS)
             return True
@@ -97,12 +99,12 @@ class DebugExecutor(BaseExecutor):
             reverse=True,
         )
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (deferred_run, _, _, ti) = sorted_queue.pop(0)
+            key, (task_execution_request, _, _, ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running.add(key)
             if not isinstance(ti, TaskInstance):
                 raise ValueError(f"Expected TaskInstance, but found {type(ti)} type")
-            self.tasks_to_run.append((ti, deferred_run))
+            self.tasks_to_run.append((ti, task_execution_request))
 
     def end(self) -> None:
         """

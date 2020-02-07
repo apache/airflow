@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from airflow import LoggingMixin, conf
 from airflow.models import TaskInstance
-from airflow.models.queue_task_run import LocalTaskJobDeferredRun
+from airflow.models.queue_task_run import TaskExecutionRequest
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType
 from airflow.stats import Stats
 from airflow.utils.dag_processing import SimpleDag
@@ -35,9 +35,9 @@ NOT_STARTED_MESSAGE = "The executor should be started first!"
 # Task that is queued. It contains all the information that is
 # needed to run the task.
 #
-# Tuple of: deferred_run, priority, queue name, SimpleTaskInstance
+# Tuple of: task_execution_request, priority, queue name, SimpleTaskInstance
 QueuedTaskInstanceType = Tuple[
-    LocalTaskJobDeferredRun, int, Optional[str], Union[SimpleTaskInstance, TaskInstance]
+    TaskExecutionRequest, int, Optional[str], Union[SimpleTaskInstance, TaskInstance]
 ]
 
 
@@ -62,18 +62,18 @@ class BaseExecutor(LoggingMixin):
         Executors may need to get things started.
         """
 
-    def _queue_deferred_run(
+    def _queue_task_execution_request(
         self,
         simple_task_instance: SimpleTaskInstance,
-        deferred_run: LocalTaskJobDeferredRun,
+        task_execution_request: TaskExecutionRequest,
         priority: int = 1,
         queue: Optional[str] = None
     ):
-        """Queues deferred run of local task job to task"""
+        """Queues task exeuction request run of local task job to task"""
         if simple_task_instance.key not in self.queued_tasks and simple_task_instance.key not in self.running:
-            self.log.info("Adding to queue: %s", deferred_run)
+            self.log.info("Adding to queue: %s", task_execution_request)
             self.queued_tasks[simple_task_instance.key] = (
-                deferred_run, priority, queue, simple_task_instance
+                task_execution_request, priority, queue, simple_task_instance
             )
         else:
             self.log.info("could not queue task %s", simple_task_instance.key)
@@ -96,19 +96,22 @@ class BaseExecutor(LoggingMixin):
         # cfg_path is needed to propagate the config values if using impersonation
         # (run_as_user), given that there are different code paths running tasks.
         # For a long term solution we need to address AIRFLOW-1986
-        deferred_run = task_instance.get_local_task_job_deferred_run(
+        task_execution_request = TaskExecutionRequest(
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            execution_date=task_instance.execution_date,
             mark_success=mark_success,
-            ignore_all_deps=ignore_all_deps,
+            ignore_all_dependencies=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
+            ignore_dependencies=ignore_task_deps,
+            force=ignore_ti_state,
             pool=pool,
             pickle_id=pickle_id,
             cfg_path=cfg_path,
         )
-        self._queue_deferred_run(
+        self._queue_task_execution_request(
             SimpleTaskInstance(task_instance),
-            deferred_run,
+            task_execution_request,
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
 
@@ -117,7 +120,7 @@ class BaseExecutor(LoggingMixin):
         priority = simple_task_instance.priority_weight
         queue = simple_task_instance.queue
 
-        queue_task_run = LocalTaskJobDeferredRun(
+        task_execution_request = TaskExecutionRequest(
             dag_id=simple_task_instance.dag_id,
             task_id=simple_task_instance.task_id,
             execution_date=simple_task_instance.execution_date,
@@ -126,9 +129,9 @@ class BaseExecutor(LoggingMixin):
             pickle_id=simple_dag.pickle_id
         )
 
-        self._queue_deferred_run(
+        self._queue_task_execution_request(
             simple_task_instance,
-            queue_task_run,
+            task_execution_request,
             priority=priority,
             queue=queue
         )
@@ -194,11 +197,11 @@ class BaseExecutor(LoggingMixin):
         sorted_queue = self.order_queued_tasks_by_priority()
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
-            key, (deferred_run, _, _, simple_ti) = sorted_queue.pop(0)
+            key, (task_execution_request, _, _, simple_ti) = sorted_queue.pop(0)
             self.queued_tasks.pop(key)
             self.running.add(key)
             self.execute_async(key=key,
-                               deferred_run=deferred_run,
+                               task_execution_request=task_execution_request,
                                queue=None,
                                executor_config=simple_ti.executor_config)
 
@@ -255,14 +258,14 @@ class BaseExecutor(LoggingMixin):
 
     def execute_async(self,
                       key: TaskInstanceKeyType,
-                      deferred_run: LocalTaskJobDeferredRun,
+                      task_execution_request: TaskExecutionRequest,
                       queue: Optional[str] = None,
                       executor_config: Optional[Any] = None) -> None:  # pragma: no cover
         """
-        This method will execute the deferred run asynchronously.
+        This method will execute the task execution request run asynchronously.
 
         :param key: Unique key for the task instance
-        :param deferred_run: Deferred run of LocalTaskJob to run
+        :param task_execution_request: Task execution request that contains information about task
         :param queue: name of the queue
         :param executor_config: Configuration passed to the executor.
         """

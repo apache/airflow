@@ -18,88 +18,9 @@
 from airflow.utils import timezone
 
 
-class RawTaskDeferredRun:  # pylint: disable=too-many-instance-attributes
+class TaskExecutionRequest:  # pylint: disable=too-many-instance-attributes
     """
-    Generates the shell command required to execute this task instance.
-
-    :param dag_id: DAG ID
-    :type dag_id: unicode
-    :param task_id: Task ID
-    :type task_id: unicode
-    :param execution_date: Execution date for the task
-    :type execution_date: datetime.datetime
-    :param mark_success: Whether to mark the task as successful
-    :type mark_success: bool
-    :param pickle_id: If the DAG was serialized to the DB, the ID
-        associated with the pickled DAG
-    :type pickle_id: unicode
-    :param subdir: path to the file containing the DAG definition
-    :param job_id: job ID (needs more details)
-    :param pool: the Airflow pool that the task should run in
-    :type pool: unicode
-    :param cfg_path: the Path to the configuration file
-    :type cfg_path: str
-    :return: shell command that can be used to run the task instance
-    """
-    def __init__(  # pylint: disable=too-many-arguments
-        self,
-        dag_id,
-        task_id,
-        execution_date,
-        mark_success=None,
-        pickle_id=None,
-        job_id=None,
-        force=None,
-        pool=None,
-        subdir=None,
-        cfg_path=None,
-        mock_command=None,
-    ):
-        self.dag_id = dag_id
-        self.task_id = task_id
-        if isinstance(execution_date, str):
-            self.execution_date = timezone.parse(execution_date)
-        else:
-            self.execution_date = execution_date
-        self.mark_success = mark_success
-        self.pickle_id = pickle_id
-        self.job_id = job_id
-        self.force = force
-        self.pool = pool
-        self.subdir = subdir
-        self.cfg_path = cfg_path
-        self.mock_command = mock_command
-
-    def as_command(self):
-        """Generate CLI command"""
-        if self.mock_command:
-            return self.mock_command
-        iso = self.execution_date.isoformat()
-        cmd = ["airflow", "tasks", "run", str(self.dag_id), str(self.task_id), str(iso), "--raw"]
-        if self.mark_success:
-            cmd.extend(["--mark_success"])
-        if self.pickle_id:
-            cmd.extend(["--pickle", str(self.pickle_id)])
-        if self.job_id:
-            cmd.extend(["--job_id", str(self.job_id)])
-        if self.force:
-            cmd.extend(["--force"])
-        if self.pool:
-            cmd.extend(["--pool", self.pool])
-        if self.subdir:
-            cmd.extend(["--subdir", self.subdir])
-        if self.cfg_path:
-            cmd.extend(["--cfg_path", self.cfg_path])
-        return cmd
-
-    def __repr__(self):
-        iso = self.execution_date.isoformat()
-        return f"RawTaskDeferredRun(dag_id={self.dag_id}, task_id={self.task_id}, execution_date={iso})"
-
-
-class LocalTaskJobDeferredRun:  # pylint: disable=too-many-instance-attributes
-    """
-    Generates the shell command required to execute this task instance.
+    Information about the task to be executor by the Executor.
 
     :param dag_id: DAG ID
     :type dag_id: unicode
@@ -203,4 +124,4 @@ class LocalTaskJobDeferredRun:  # pylint: disable=too-many-instance-attributes
 
     def __repr__(self):
         iso = self.execution_date.isoformat()
-        return f"LocalTaskJobDeferredRun(dag_id={self.dag_id}, task_id={self.task_id}, execution_date={iso})"
+        return f"TaskExecutionRequest(dag_id={self.dag_id}, task_id={self.task_id}, execution_date={iso})"

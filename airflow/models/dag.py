@@ -559,6 +559,16 @@ class DAG(BaseDag, LoggingMixin):
         return list(self.task_dict.keys())
 
     @property
+    def portable_path(self) -> str:
+        """
+        Return path that can be used on another node.
+        """
+        if self.full_filepath != self.filepath:
+            return "DAGS_FOLDER/{}".format(self.filepath)
+        else:
+            return self.full_filepath
+
+    @property
     def filepath(self):
         """
         File location of where the dag object is instantiated
