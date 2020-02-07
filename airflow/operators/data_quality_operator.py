@@ -95,7 +95,7 @@ class BaseDataQualityOperator(BaseOperator):
         get_sql_value executes a sql query given proper connection parameters.
         The result of the sql query should be one and only one numeric value.
         """
-        hook = BaseHook.get_connection(conn_id).get_hook()
+        hook = BaseHook.get_hook(conn_id=conn_id)
         result = hook.get_records(sql)
         if len(result) > 1:
             raise ValueError("Result from sql query contains more than 1 entry")
