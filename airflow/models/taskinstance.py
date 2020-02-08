@@ -466,7 +466,6 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
-
     def refresh_from_task(self, task, pool_override=None):
         """
         Copy the necessary attributes of a TaskInstance using its task.
@@ -480,7 +479,6 @@ class TaskInstance(Base, LoggingMixin):
         self.run_as_user = task.run_as_user
         self.executor_config = task.executor_config
         self.operator = task.__class__.__name__
-
 
     @provide_session
     def clear_xcom_data(self, session=None):
