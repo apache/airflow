@@ -30,6 +30,7 @@ from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineDeleteVersionOperator, MLEngineGetModelOperator, MLEngineListVersionsOperator,
     MLEngineManageModelOperator, MLEngineManageVersionOperator, MLEngineSetDefaultVersionOperator,
     MLEngineStartBatchPredictionJobOperator, MLEngineStartTrainingJobOperator,
+    MLEngineTrainingJobFailureOperator,
 )
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
@@ -402,6 +403,55 @@ class TestMLEngineTrainingOperator(unittest.TestCase):
         hook_instance.create_job.assert_called_once_with(
             project_id='test-project', job=self.TRAINING_INPUT, use_existing_job_fn=ANY)
         self.assertEqual('A failure message', str(context.exception))
+
+
+class TestMLEngineTrainingJobFailureOperator(unittest.TestCase):
+
+    TRAINING_DEFAULT_ARGS = {
+        'project_id': 'test-project',
+        'job_id': 'test_training',
+        'task_id': 'test-training'
+    }
+
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    def test_success_cancel_training_job(self, mock_hook):
+        success_response = {}
+        hook_instance = mock_hook.return_value
+        hook_instance.cancel_job.return_value = success_response
+
+        cancel_training_op = MLEngineTrainingJobFailureOperator(
+            **self.TRAINING_DEFAULT_ARGS)
+        cancel_training_op.execute(None)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default', delegate_to=None)
+        # Make sure only 'cancel_job' is invoked on hook instance
+        self.assertEqual(len(hook_instance.mock_calls), 1)
+        hook_instance.cancel_job.assert_called_once_with(
+            project_id=self.TRAINING_DEFAULT_ARGS['project_id'], job_id=self.TRAINING_DEFAULT_ARGS['job_id'])
+
+    @patch('airflow.providers.google.cloud.operators.mlengine.MLEngineHook')
+    def test_http_error(self, mock_hook):
+        http_error_code = 403
+        hook_instance = mock_hook.return_value
+        hook_instance.cancel_job.side_effect = HttpError(
+            resp=httplib2.Response({
+                'status': http_error_code
+            }),
+            content=b'Forbidden')
+
+        with self.assertRaises(HttpError) as context:
+            cancel_training_op = MLEngineTrainingJobFailureOperator(
+                **self.TRAINING_DEFAULT_ARGS)
+            cancel_training_op.execute(None)
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id='google_cloud_default', delegate_to=None)
+        # Make sure only 'create_job' is invoked on hook instance
+        self.assertEqual(len(hook_instance.mock_calls), 1)
+        hook_instance.cancel_job.assert_called_once_with(
+            project_id=self.TRAINING_DEFAULT_ARGS['project_id'], job_id=self.TRAINING_DEFAULT_ARGS['job_id'])
+        self.assertEqual(http_error_code, context.exception.resp.status)
 
 
 class TestMLEngineModelOperator(unittest.TestCase):
