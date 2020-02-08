@@ -24,6 +24,7 @@ import subprocess
 import sys
 import unittest
 from importlib import util
+from os.path import dirname
 from typing import List
 
 from setuptools import Command, find_packages, setup
@@ -73,6 +74,7 @@ class CleanCommand(Command):
     # noinspection PyMethodMayBeStatic
     def run(self):
         """Run command to remove temporary files and directories."""
+        os.chdir(dirname(__file__))
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
@@ -113,7 +115,7 @@ def git_version(version_: str) -> str:
     try:
         import git
         try:
-            repo = git.Repo('.git')
+            repo = git.Repo(os.path.join(*[dirname(__file__), '.git']))
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
             return ''
@@ -133,7 +135,7 @@ def git_version(version_: str) -> str:
         return 'no_git_version'
 
 
-def write_version(filename: str = os.path.join(*["airflow", "git_version"])):
+def write_version(filename: str = os.path.join(*[dirname(__file__), "airflow", "git_version"])):
     """
     Write the Semver version + git hash to file, e.g. ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
 

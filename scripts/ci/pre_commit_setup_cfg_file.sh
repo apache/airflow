@@ -1,4 +1,4 @@
-#
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,19 +16,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-include NOTICE
-include LICENSE
-include CHANGELOG.txt
-include README.md
-graft licenses
-graft airflow/www
-graft airflow/www/static
-graft airflow/www/templates
-graft airflow/_vendor/
-include airflow/alembic.ini
-include airflow/git_version
-graft scripts/systemd
-graft scripts/upstart
-graft airflow/config_templates
-recursive-exclude airflow/www/node_modules *
-global-exclude __pycache__  *.pyc
+set -euo pipefail
+
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+TMP_FILE=$(mktemp)
+TMP_OUTPUT=$(mktemp)
+
+cd "${MY_DIR}/../../" || exit;
+
+export AIRFLOW_CI_SILENT="true"
+find  "licenses" -type f -exec echo "  " {} \; | sort >>"${TMP_FILE}"
+
+SETUP_CFG_FILE="${MY_DIR}/../../setup.cfg"
+
+LEAD='^# Start of licenses generated automatically$'
+TAIL='^# End of licences generated automatically$'
+
+BEGIN_GEN=$(grep -n "${LEAD}" <"${SETUP_CFG_FILE}" | sed 's/\(.*\):.*/\1/g')
+END_GEN=$(grep -n "${TAIL}" <"${SETUP_CFG_FILE}" | sed 's/\(.*\):.*/\1/g')
+cat <(head -n "${BEGIN_GEN}" "${SETUP_CFG_FILE}") \
+    "${TMP_FILE}" \
+    <(tail -n +"${END_GEN}" "${SETUP_CFG_FILE}") \
+    >"${TMP_OUTPUT}"
+
+mv "${TMP_OUTPUT}" "${SETUP_CFG_FILE}"

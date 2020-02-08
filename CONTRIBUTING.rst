@@ -826,3 +826,43 @@ Resources & Links
 - `Airflow’s official documentation <http://airflow.apache.org/>`__
 
 - `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__
+
+Preparing backport packages
+===========================
+
+As part of preparation to Airflow 2.0 we decided to prepare backport of providers package that will be
+possible to install in the Airflow 1.10.*, Python 3.6+ environment.
+Some of those packages will be soon (after testing) officially released via PyPi, but you can build and
+prepare such packages on your own easily.
+
+* The setuptools.py script only works in python3.6+. This is also our minimally supported python
+  version to use the packages in.
+
+* Make sure you have ``setuptools`` and ``wheel`` installed in your python environment. The easiest way
+  to do it is to run ``pip install setuptools wheel``
+
+* Enter the ``backport_packages`` directory
+
+* Usually you only build some of the providers package. The ``providers`` directory is separated into
+  separate providers. You can see the list of all available providers by running
+  ``python setup_backport_packages.py list-backport-packages``. You can build the backport package
+  by running ``python setup.py <PROVIDER_NAME> bdist_wheel``. Note that there
+  might be (and are) dependencies between some packages that might prevent subset of the packages
+  to be used without installing the packages they depend on. This will be solved soon by
+  adding cross-dependencies between packages.
+
+* You can build 'all providers' package by running
+  ``python setup_backport_packages.py providers bdist_wheel``. This package contains all providers thus
+  it does not have issues with cross-dependencies.
+
+* This creates a wheel package in your ``dist`` folder with a name similar to:
+  ``apache_airflow_providers-0.0.1-py2.py3-none-any.whl``
+
+* You can install this package with ``pip install <PACKAGE_FILE>``
+
+
+* You can also build sdist (source distribution packages) by running
+  ``python setup.py <PROVIDER_NAME> sdist`` but this is only needed in case of distribution of the packages.
+
+Note that those are unofficial packages yet - they are not yet released in PyPi, but you might use them to
+test the master versions of operators/hooks/sensors in a 1.10.* environment of airflow with Python3.6+

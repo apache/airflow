@@ -35,6 +35,10 @@ services:
   - docker
 jobs:
   include:
+    - name: "Prepare backport packages"
+      before_install: echo
+      stage: pre-test
+      script: ./scripts/ci/ci_prepare_backport_packages.sh
     - name: "Static checks"
       stage: pre-test
       script: ./scripts/ci/ci_run_all_static_checks.sh
