@@ -61,21 +61,6 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
 
-def refresh_from_task(ti, task, pool_override=None):
-    """
-    Copy the necessary attributes of a TaskInstance using its task.
-    """
-    ti.queue = task.queue
-    ti.pool = pool_override or task.pool
-    ti.pool_slots = task.pool_slots
-    ti.priority_weight = task.priority_weight_total
-    ti.run_as_user = task.run_as_user
-    ti.max_tries = task.retries
-    ti.run_as_user = task.run_as_user
-    ti.executor_config = task.executor_config
-    ti.operator = task.__class__.__name__
-
-
 def clear_task_instances(tis,
                          session,
                          activate_dag_runs=True,
@@ -100,7 +85,7 @@ def clear_task_instances(tis,
             task_id = ti.task_id
             if dag and dag.has_task(task_id):
                 task = dag.get_task(task_id)
-                refresh_from_task(ti, task)
+                ti.refresh_from_task(task)
                 task_retries = task.retries
                 ti.max_tries = ti.try_number + task_retries - 1
             else:
@@ -193,7 +178,7 @@ class TaskInstance(Base, LoggingMixin):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.task = task
-        refresh_from_task(self, task)
+        self.refresh_from_task(task)
         self._log = logging.getLogger("airflow.task")
 
         # make sure we have a localized execution_date stored in UTC
@@ -480,6 +465,22 @@ class TaskInstance(Base, LoggingMixin):
                 self.executor_config = ti.executor_config
         else:
             self.state = None
+
+
+    def refresh_from_task(self, task, pool_override=None):
+        """
+        Copy the necessary attributes of a TaskInstance using its task.
+        """
+        self.queue = task.queue
+        self.pool = pool_override or task.pool
+        self.pool_slots = task.pool_slots
+        self.priority_weight = task.priority_weight_total
+        self.run_as_user = task.run_as_user
+        self.max_tries = task.retries
+        self.run_as_user = task.run_as_user
+        self.executor_config = task.executor_config
+        self.operator = task.__class__.__name__
+
 
     @provide_session
     def clear_xcom_data(self, session=None):
@@ -782,7 +783,7 @@ class TaskInstance(Base, LoggingMixin):
         :rtype: bool
         """
         task = self.task
-        refresh_from_task(self, task, pool_override=pool)
+        self.refresh_from_task(task, pool_override=pool)
         self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
@@ -897,8 +898,8 @@ class TaskInstance(Base, LoggingMixin):
 
         task = self.task
         self.test_mode = test_mode
+        self.refresh_from_task(task, pool_override=pool)
         self.refresh_from_db(session=session)
-        refresh_from_task(self, task, pool_override=pool)
         self.job_id = job_id
         self.hostname = get_hostname()
 
