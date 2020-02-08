@@ -21,50 +21,42 @@ This is an example dag for using the KubernetesPodOperator.
 import logging
 
 from airflow import DAG
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.utils.dates import days_ago
 
 log = logging.getLogger(__name__)
 
-try:
-    # Kubernetes is optional, so not available in vanilla Airflow
-    # pip install 'apache-airflow[kubernetes]'
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
-    default_args = {
-        'owner': 'airflow',
-        'start_date': days_ago(2)
-    }
+default_args = {
+    'owner': 'airflow',
+    'start_date': days_ago(2)
+}
 
-    with DAG(
-        dag_id='example_kubernetes_operator',
-        default_args=default_args,
-        schedule_interval=None,
-        tags=['example'],
-    ) as dag:
+with DAG(
+    dag_id='example_kubernetes_operator',
+    default_args=default_args,
+    schedule_interval=None,
+    tags=['example'],
+) as dag:
 
-        tolerations = [
-            {
-                'key': "key",
-                'operator': 'Equal',
-                'value': 'value'
-            }
-        ]
+    tolerations = [
+        {
+            'key': "key",
+            'operator': 'Equal',
+            'value': 'value'
+        }
+    ]
 
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo", "10"],
-            labels={"foo": "bar"},
-            name="airflow-test-pod",
-            in_cluster=False,
-            task_id="task",
-            get_logs=True,
-            is_delete_operator_pod=False,
-            tolerations=tolerations
-        )
-
-except ImportError as e:
-    log.warning("Could not import KubernetesPodOperator: %s, ", str(e))
-    log.warning("Install kubernetes dependencies with: \n"
-                "    pip install 'apache-airflow[kubernetes]'")
+    k = KubernetesPodOperator(
+        namespace='default',
+        image="ubuntu:16.04",
+        cmds=["bash", "-cx"],
+        arguments=["echo", "10"],
+        labels={"foo": "bar"},
+        name="airflow-test-pod",
+        in_cluster=False,
+        task_id="task",
+        get_logs=True,
+        is_delete_operator_pod=False,
+        tolerations=tolerations
+    )

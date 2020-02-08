@@ -19,6 +19,7 @@
 
 import io
 import itertools
+import json
 import logging
 import os
 import sys
@@ -26,12 +27,9 @@ import textwrap
 from importlib import util
 from os.path import dirname
 from shutil import copytree, rmtree
-from typing import List
+from typing import Dict, List
 
 from setuptools import Command, find_packages, setup as setuptools_setup
-
-sys.path.append(os.path.join(dirname(__file__), os.pardir))
-
 
 logger = logging.getLogger(__name__)
 
@@ -75,67 +73,69 @@ class CleanCommand(Command):
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
-def get_providers_dependencies():
-    import setup  # From AIRFLOW_SOURCES/setup.py
+sys.path.append(os.path.join(dirname(__file__), os.pardir))
 
-    return {
-        "amazon": [setup.aws],
-        "apache.cassandra": [setup.cassandra],
-        "apache.druid": [setup.druid],
-        "apache.hdfs": [setup.hdfs],
-        "apache.hive": [setup.hive],
-        "apache.pig": [],
-        "apache.pinot": [setup.pinot],
-        "apache.spark": [],
-        "apache.sqoop": [],
-        "celery": [setup.celery],
-        "cloudant": [setup.cloudant],
-        "cncf.kubernetes": [setup.kubernetes],
-        "databricks": [setup.databricks],
-        "datadog": [setup.datadog],
-        "dingding": [],
-        "discord": [],
-        "docker": [setup.docker],
-        "email": [],
-        "ftp": [],
-        "google.cloud": [setup.gcp],
-        "google.marketing_platform": [setup.gcp],
-        "google.suite": [setup.gcp],
-        "grpc": [setup.grpc],
-        "http": [],
-        "imap": [],
-        "jdbc": [setup.jdbc],
-        "jenkins": [setup.jenkins],
-        "jira": [setup.jira],
-        "microsoft.azure": [setup.azure],
-        "microsoft.mssql": [setup.mssql],
-        "microsoft.winrm": [setup.winrm],
-        "mongo": [setup.mongo],
-        "mysql": [setup.mysql],
-        "odbc": [setup.odbc],
-        "openfass": [],
-        "opsgenie": [],
-        "oracle": [setup.oracle],
-        "pagerduty": [setup.pagerduty],
-        "papermill": [setup.papermill],
-        "postgres": [setup.postgres],
-        "presto": [setup.presto],
-        "qubole": [setup.qds],
-        "redis": [setup.redis],
-        "salesforce": [setup.salesforce],
-        "samba": [setup.samba],
-        "segment": [setup.segment],
-        "sftp": [setup.ssh],
-        "slack": [setup.slack],
-        "snowflake": [setup.snowflake],
-        "sqlite": [],
-        "ssh": [setup.ssh],
-        "vertica": [setup.vertica],
-        "zendesk": [setup.zendesk],
-    }
+import setup  # From AIRFLOW_SOURCES/setup.py # noqa  # isort:skip
 
 
-PROVIDERS_DEPENDENCIES = get_providers_dependencies()
+PROVIDERS_DEPENDENCIES: Dict[str, List[str]] = {
+    "amazon": setup.aws,
+    "apache.cassandra": setup.cassandra,
+    "apache.druid": setup.druid,
+    "apache.hdfs": setup.hdfs,
+    "apache.hive": setup.hive,
+    "apache.livy": [],
+    "apache.pig": [],
+    "apache.pinot": setup.pinot,
+    "apache.spark": [],
+    "apache.sqoop": [],
+    "celery": setup.celery,
+    "cloudant": setup.cloudant,
+    "cncf.kubernetes": setup.kubernetes,
+    "databricks": setup.databricks,
+    "datadog": setup.datadog,
+    "dingding": [],
+    "discord": [],
+    "docker": setup.docker,
+    "email": [],
+    "elasticsearch": [],
+    "ftp": [],
+    "google": setup.gcp,
+    "grpc": setup.grpc,
+    "http": [],
+    "imap": [],
+    "jdbc": setup.jdbc,
+    "jenkins": setup.jenkins,
+    "jira": setup.jira,
+    "microsoft.azure": setup.azure,
+    "microsoft.mssql": setup.mssql,
+    "microsoft.winrm": setup.winrm,
+    "mongo": setup.mongo,
+    "mysql": setup.mysql,
+    "odbc": setup.odbc,
+    "openfass": [],
+    "opsgenie": [],
+    "oracle": setup.oracle,
+    "pagerduty": setup.pagerduty,
+    "papermill": setup.papermill,
+    "postgres": setup.postgres,
+    "presto": setup.presto,
+    "qubole": setup.qds,
+    "redis": setup.redis,
+    "salesforce": setup.salesforce,
+    "samba": setup.samba,
+    "segment": setup.segment,
+    "sftp": setup.ssh,
+    "slack": setup.slack,
+    "snowflake": setup.snowflake,
+    "sqlite": [],
+    "ssh": setup.ssh,
+    "vertica": setup.vertica,
+    "yandex": [],
+    "zendesk": setup.zendesk,
+}
+
+DEPENDENCIES_JSON_FILE = os.path.join(os.pardir, "airflow", "providers", "dependencies.json")
 
 
 def copy_provider_sources():
@@ -149,13 +149,15 @@ def copy_provider_sources():
              os.path.join(dirname(__file__), "airflow", "providers"))
 
 
-def do_setup_package_providers(provider_module: str, deps: List[str]):
-    """Set up package providers"""
-    import setup  # From AIRFLOW_SOURCES/setup.py
+def get_provider_package_name(provider_module: str):
+    return "apache-airflow-providers-" + provider_module.replace(".", "-")
+
+
+def do_setup_package_providers(provider_module: str, deps: List[str], extras: Dict[str, List[str]]):
     setup.write_version()
     copy_provider_sources()
-    provider_package_name = provider_module.replace(".", "_")
-    package_name = f'apache-airflow-providers-{provider_package_name}' if provider_module != "providers" \
+    provider_package_name = get_provider_package_name(provider_module)
+    package_name = f'{provider_package_name}' if provider_module != "providers" \
         else f'apache-airflow-providers'
     package_prefix = f'airflow.providers.{provider_module}' if provider_module != 'providers' \
         else 'airflow.providers'
@@ -174,6 +176,7 @@ Back-ported {package_name} to 1.10.* series of Airflow.
         include_package_data=True,
         zip_safe=False,
         install_requires=['apache-airflow~=1.10'] + deps,
+        extras_require=extras,
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'Environment :: Console',
@@ -188,12 +191,24 @@ Back-ported {package_name} to 1.10.* series of Airflow.
     )
 
 
-def find_package_dependencies(package):
+def find_package_dependencies(package: str) -> List[str]:
     """Finds dependencies for the packages"""
     if package != 'providers':
-        return PROVIDERS_DEPENDENCIES.get(package)
+        return PROVIDERS_DEPENDENCIES[package]
     else:
-        return list(itertools.chain(PROVIDERS_DEPENDENCIES.values()))
+        return list(itertools.chain(*PROVIDERS_DEPENDENCIES.values()))
+
+
+def find_package_extras(package: str) -> Dict[str, List[str]]:
+    """Finds extras for the packages"""
+    if package == 'providers':
+        return {}
+    with open(DEPENDENCIES_JSON_FILE, "rt") as dependencies_file:
+        cross_provider_dependencies: Dict[str, List[str]] = json.load(dependencies_file)
+    extras_dict = {module: [get_provider_package_name(module)]
+                   for module in cross_provider_dependencies[package]} \
+        if cross_provider_dependencies.get(package) else {}
+    return extras_dict
 
 
 def get_provider_packages():
@@ -247,4 +262,6 @@ if __name__ == "__main__":
         del sys.argv[1]
         print(f"Building backport package: {provider_package}")
         dependencies = find_package_dependencies(package=provider_package)
-        do_setup_package_providers(provider_module=provider_package, deps=dependencies)
+        do_setup_package_providers(provider_module=provider_package,
+                                   deps=dependencies,
+                                   extras=find_package_extras(provider_package))

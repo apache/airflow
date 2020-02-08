@@ -1,0 +1,63 @@
+{
+  "amazon": [
+    "apache.hive",
+    "google",
+    "imap",
+    "mongo",
+    "postgres",
+    "ssh"
+  ],
+  "apache.druid": [
+    "apache.hive"
+  ],
+  "apache.hive": [
+    "amazon",
+    "microsoft.mssql",
+    "mysql",
+    "presto",
+    "samba",
+    "vertica"
+  ],
+  "apache.livy": [
+    "http"
+  ],
+  "dingding": [
+    "http"
+  ],
+  "discord": [
+    "http"
+  ],
+  "google": [
+    "amazon",
+    "apache.cassandra",
+    "cncf.kubernetes",
+    "microsoft.azure",
+    "microsoft.mssql",
+    "mysql",
+    "postgres",
+    "sftp"
+  ],
+  "microsoft.azure": [
+    "oracle"
+  ],
+  "microsoft.mssql": [
+    "odbc"
+  ],
+  "mysql": [
+    "amazon",
+    "presto",
+    "vertica"
+  ],
+  "opsgenie": [
+    "http"
+  ],
+  "postgres": [
+    "amazon"
+  ],
+  "sftp": [
+    "ssh"
+  ],
+  "slack": [
+    "http"
+  ]
+}

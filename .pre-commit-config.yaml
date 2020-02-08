@@ -209,6 +209,13 @@ repos:
         files: ^setup.cfg$
         pass_filenames: false
         require_serial: true
+      - id: build-providers-dependencies
+        name: Build cross-dependencies for providers packages
+        entry: "./scripts/ci/pre_commit_build_providers_dependencies.sh"
+        language: system
+        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
+        pass_filenames: false
+        require_serial: true
       - id: pydevd
         language: pygrep
         name: Check for pydevd debug statements accidentally left
