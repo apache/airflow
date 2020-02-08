@@ -904,7 +904,7 @@ if [[ ${INITIALIZE_LOCAL_VIRTUALENV} == "true" ]]; then
         if [[ ${SYSTEM} == "Darwin" ]]; then
             echo "  brew install sqlite mysql postgresql"
         else
-            echo "  sudo apt-get install openssl sqlite libmysqlclient-dev libmysqld-dev postgresql --confirm"
+            echo "  sudo apt-get install python3-dev python-dev openssl sqlite default-libmysqlclient-dev libmysqld-dev postgresql --confirm"
         fi
         echo
         echo "#######################################################################"

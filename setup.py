@@ -503,7 +503,7 @@ def do_setup():
         # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
         #####################################################################################################
         setup_requires=[
-            'docutils>=0.14, <1.0',
+            'docutils>=0.14, <0.16'
             'gitpython>=2.0.2',
         ],
         extras_require={
