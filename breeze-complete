@@ -17,20 +17,57 @@
 # specific language governing permissions and limitations
 # under the License.
 
-_BREEZE_ALLOWED_PYTHON_VERSIONS=" 3.6 3.7 "
-_BREEZE_ALLOWED_BACKENDS=" sqlite mysql postgres "
-_BREEZE_ALLOWED_INTEGRATIONS=" cassandra kerberos mongo openldap rabbitmq redis all "
-_BREEZE_ALLOWED_KUBERNETES_MODES=" persistent_mode git_mode "
-_BREEZE_ALLOWED_KUBERNETES_VERSIONS=" v1.15.3 v1.16.2 "
-_BREEZE_ALLOWED_STATIC_CHECKS=" all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck"
+_BREEZE_ALLOWED_PYTHON_VERSIONS="3.6 3.7"
+_BREEZE_ALLOWED_BACKENDS="sqlite mysql postgres"
+_BREEZE_ALLOWED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis all"
+_BREEZE_ALLOWED_KUBERNETES_MODES="persistent_mode git_mode"
+_BREEZE_ALLOWED_KUBERNETES_VERSIONS="v1.15.3 v1.16.2"
+_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(cat <<-EOF
+current
+1.10.9
+1.10.8
+1.10.7
+1.10.6
+1.10.5
+1.10.4
+1.10.3
+1.10.2
+1.10.1
+EOF
+)
+_BREEZE_ALLOWED_STATIC_CHECKS=$(cat <<-EOF
+all
+all-but-pylint
+bat-tests
+check-apache-license
+check-executables-have-shebangs
+check-hooks-apply
+check-merge-conflict
+check-xml
+debug-statements
+doctoc
+detect-private-key
+end-of-file-fixer
+flake8
+forbid-tabs
+insert-license
+lint-dockerfile
+mixed-line-ending
+mypy
+pylint
+pylint-test
+setup-order
+shellcheck
+EOF
+)
 _BREEZE_DEFAULT_DOCKERHUB_USER="apache"
 _BREEZE_DEFAULT_DOCKERHUB_REPO="airflow"
 
 _BREEZE_SHORT_OPTIONS="
 h P: B: I: K Z X
 M: V:
-s b O N
-v y n q C A
+s N: b O
+v y n q C A f
 r p R L u
 c D: H: e a
 t: d: k x: S: F:
@@ -39,8 +76,8 @@ t: d: k x: S: F:
 _BREEZE_LONG_OPTIONS="
 help python: backend: integration: start-kind-cluster recreate-kind-cluster stop-kind-cluster
 kubernetes-mode: kubernetes-version:
-skip-mounting-local-sources build-only build-docs
-verbose assume-yes assume-no assume-quit toggle-suppress-cheatsheet toggle-suppress-asciiart
+skip-mounting-local-sources install-airflow-version: build-only build-docs
+verbose assume-yes assume-no assume-quit toggle-suppress-cheatsheet toggle-suppress-asciiart forward-credentials
 force-build-images force-pull-images force-clean-images use-local-cache push-images
 cleanup-image dockerhub-user: dockerhub-repo: initialize-local-virtualenv setup-autocomplete
 test-target: docker-compose: stop-environment execute-command: static-check: static-check-all-files:
@@ -50,34 +87,48 @@ test-target: docker-compose: stop-environment execute-command: static-check: sta
 
 _BREEZE_KNOWN_VALUES=""
 
-function _get_known_values_breeze {
+function _get_known_values_breeze() {
     case "$1" in
-        -P | --python )
-            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_PYTHON_VERSIONS} ;;
-        -B | --backend )
-            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_BACKENDS} ;;
-        -I | --integration )
-            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INTEGRATIONS} ;;
-        -M | --kubernetes-mode )
-            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_MODES} ;;
-        -V | --kubernetes-version )
-            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_VERSIONS} ;;
-        -S | --static-check )
-            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS} ;;
-        -F | --static-check-all-files )
-            _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS} ;;
-        -d | --docker-compose )
-            # shellcheck disable=SC2034
-            if typeset -f "_docker_compose" > /dev/null; then
-              _docker_compose
-            fi
-            _BREEZE_KNOWN_VALUES="" ;;
-        -D | --dockerhub-user )
-            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}" ;;
-        -H | --dockerhub-repo )
-            _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}" ;;
-        *)
-            _BREEZE_KNOWN_VALUES=""
+    -P | --python)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_PYTHON_VERSIONS}
+        ;;
+    -B | --backend)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_BACKENDS}
+        ;;
+    -I | --integration)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INTEGRATIONS}
+        ;;
+    -M | --kubernetes-mode)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_MODES}
+        ;;
+    -V | --kubernetes-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_KUBERNETES_VERSIONS}
+        ;;
+    -S | --static-check)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
+        ;;
+    -F | --static-check-all-files)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_STATIC_CHECKS}
+        ;;
+    -N | --install-airflow-version)
+        _BREEZE_KNOWN_VALUES=${_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS}
+        ;;
+    -d | --docker-compose)
+        # shellcheck disable=SC2034
+        if typeset -f "_docker_compose" >/dev/null; then
+            _docker_compose
+        fi
+        _BREEZE_KNOWN_VALUES=""
+        ;;
+    -D | --dockerhub-user)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_USER}"
+        ;;
+    -H | --dockerhub-repo)
+        _BREEZE_KNOWN_VALUES="${_BREEZE_DEFAULT_DOCKERHUB_REPO}"
+        ;;
+    *)
+        _BREEZE_KNOWN_VALUES=""
+        ;;
     esac
 }
 
@@ -103,11 +154,11 @@ function _build_options_breeze {
 }
 
 function _listcontains_breeze {
-  local WORD
-  for WORD in $1; do
+    local WORD
+    for WORD in $1; do
     [[ ${WORD} = "$2" ]] && return 0
-  done
-  return 1
+    done
+    return 1
 }
 
 # A completion function for breeze
@@ -121,7 +172,7 @@ function _comp_breeze {
 
     for OPTION in ${_BREEZE_SHORT_OPTIONS}
     do
-        LAST_CHAR="${OPTION:$((${#OPTION}-1)):1}"
+        LAST_CHAR="${OPTION:$((${#OPTION} - 1)):1}"
         GETOPT_OPTION='-'${OPTION//:/}
         if [[ "${LAST_CHAR}" == ":" ]]; then
             EXTRA_ARG_OPTIONS="${EXTRA_ARG_OPTIONS} ${GETOPT_OPTION}"
@@ -130,7 +181,7 @@ function _comp_breeze {
     done
     for OPTION in ${_BREEZE_LONG_OPTIONS}
     do
-        LAST_CHAR="${OPTION:$((${#OPTION}-1)):1}"
+        LAST_CHAR="${OPTION:$((${#OPTION} - 1)):1}"
         GETOPT_OPTION='--'${OPTION//:/}
         ALL_OPTIONS="${ALL_OPTIONS} ${GETOPT_OPTION}"
         if [[ "${LAST_CHAR}" == ":" ]]; then
@@ -138,9 +189,9 @@ function _comp_breeze {
         fi
     done
 
-    LAST_COMMAND_PREFIX="${COMP_WORDS[${#COMP_WORDS[@]}-1]}"
+    LAST_COMMAND_PREFIX="${COMP_WORDS[${#COMP_WORDS[@]} - 1]}"
     if [[ ${#COMP_WORDS[@]} -gt 1 ]]; then
-        PREVIOUS_COMMAND="${COMP_WORDS[${#COMP_WORDS[@]}-2]}"
+        PREVIOUS_COMMAND="${COMP_WORDS[${#COMP_WORDS[@]} - 2]}"
     else
         PREVIOUS_COMMAND=""
     fi

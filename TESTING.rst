@@ -25,36 +25,36 @@ Airflow Test Infrastructure
   and local virtualenv.
 
 * **Integration tests** are available in the Breeze development environment
-  that is also used for Airflow Travis CI tests. Integration test are special tests that require
-  additional services running - such as Postgres/Mysql/Kerberos etc. Those tests are not yet
-  clearly marked as integration tests but soon they will be clearly separated by pytest annotations.
+  that is also used for Airflow Travis CI tests. Integration tests are special tests that require
+  additional services running, such as Postgres, MySQL, Kerberos, etc. Currently, these tests are not
+  marked as integration tests but soon they will be clearly separated by ``pytest`` annotations.
 
 * **System tests** are automatic tests that use external systems like
   Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
-  Note that automated execution of these tests is still
-  `work in progress <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-4+Support+for+System+Tests+for+external+systems#app-switcher>`_.
+  The tests can be executed on both current version of Apache Airflow, and any of the older
+  versions from 1.10.* series.
 
-This document is about running python tests, before the tests are run we also use
-`static code checks <STATIC_CODE_CHECKS.rst>`__ which allow to catch typical errors in code
-before tests are executed.
+This document is about running Python tests. Before the tests are run, use
+`static code checks <STATIC_CODE_CHECKS.rst>`__ that enable catching typical errors in the code.
 
 Airflow Unit Tests
 ==================
 
 All tests for Apache Airflow are run using `pytest <http://doc.pytest.org/en/latest/>`_ .
 
-Writing unit tests
+Writing Unit Tests
 ------------------
 
-There are a few guidelines that you should follow when writing unit tests:
+Follow the guidelines when writing unit tests:
 
-* Standard unit tests that do not require integrations with external systems should mock all communication
-* All our tests are run with pytest make sure you set your IDE/runners (see below) to use pytest by default
-* For new tests we should use standard "asserts" of python and pytest decorators/context managers for testing
-  rather than unittest ones. Look at `Pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
-* We use parameterized framework for tests that have variations in parameters
-* We plan to convert all unittests to standard "asserts" semi-automatically but this will be done later
-  in Airflow 2.0 development phase. That will include setUp/tearDown/context managers and decorators
+* For standard unit tests that do not require integrations with external systems, make sure to simulate all communications.
+* All Airflow tests are run with ``pytest``. Make sure to set your IDE/runners (see below) to use ``pytest`` by default.
+* For new tests, use standard "asserts" of Python and ``pytest`` decorators/context managers for testing
+  rather than ``unittest`` ones. See `Pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
+* Use a parameterized framework for tests that have variations in parameters.
+
+**NOTE:** We plan to convert all unit tests to standard "asserts" semi-automatically but this will be done later
+in Airflow 2.0 development phase. That will include setUp/tearDown/context managers and decorators.
 
 Running Unit Tests from IDE
 ---------------------------
@@ -72,68 +72,65 @@ and run unit tests as follows:
     :align: center
     :alt: Running unit tests
 
-Note that you can run the unit tests in the standalone local virtualenv
+**NOTE:** You can run the unit tests in the standalone local virtualenv
 (with no Breeze installed) if they do not have dependencies such as
 Postgres/MySQL/Hadoop/etc.
 
 
 Running Unit Tests
 --------------------------------
-To run unit, integration and system tests from the Breeze and your
-virtualenv you can use `pytest <http://doc.pytest.org/en/latest/>`_ framework.
+To run unit, integration, and system tests from the Breeze and your
+virtualenv, you can use the `pytest <http://doc.pytest.org/en/latest/>`_ framework.
 
-Custom pytest plugin run ``airflow db init`` and ``airflow db reset`` the first
-time you launch them, so you can count on the database being initialized. Currently,
-when you run tests not supported **in the local virtualenv, the tests may either fail
+Custom ``pytest`` plugin run ``airflow db init`` and ``airflow db reset`` the first
+time you launch them. So, you can count on the database being initialized. Currently,
+when you run tests not supported **in the local virtualenv, they may either fail
 or provide an error message**.
 
-There are many available options for selecting specific test in pytest. Details could be found
-in official documentation but here are few basic examples:
+There are many available options for selecting a specific test in ``pytest``. Details can be found
+in the official documentation but here are a few basic examples:
 
 .. code-block:: bash
 
     pytest -k "TestCore and not check"
 
-This will run ``TestCore`` class but will skip tests of this class that includes 'check' in their names.
-For better performance (due to test collection) you should do:
+This runs the ``TestCore`` class but skips tests of this class that include 'check' in their names.
+For better performance (due to a test collection), run:
 
 .. code-block:: bash
 
     pytest tests/tests_core.py -k "TestCore and not bash".
 
-This flag is useful when used like this:
+This flag is useful when used to run a single test like this:
 
 .. code-block:: bash
 
     pytest tests/tests_core.py -k "test_check_operators"
 
-to run single test. This can also be done by specifying full path to the test:
+This can also be done by specifying a full path to the test:
 
 .. code-block:: bash
 
     pytest tests/test_core.py::TestCore::test_check_operators
 
-To run whole test class:
+To run the whole test class, enter:
 
 .. code-block:: bash
 
     pytest tests/test_core.py::TestCore
 
-You can use all available pytest flags, for example to increase log level
-for debugging purposes:
+You can use all available ``pytest`` flags. For example, to increase a log level
+for debugging purposes, enter:
 
 .. code-block:: bash
 
     pytest --log-level=DEBUG tests/test_core.py::TestCore
 
-**Note:** We do not provide a clear distinction between tests
-(Unit/Integration/System tests), but we are working on it.
 
-
-Running Tests for a Specified Target using Breeze from the host
+Running Tests for a Specified Target Using Breeze from the Host
 ---------------------------------------------------------------
 
-If you wish to only run tests and not to drop into shell, you can do this by providing the
+If you wish to only run tests and not to drop into shell, apply the
 ``-t``, ``--test-target`` flag. You can add extra pytest flags after ``--`` in the command line.
 
 .. code-block:: bash
@@ -156,24 +153,24 @@ You can also specify individual tests or a group of tests:
 Airflow Integration Tests
 =========================
 
-Some of the tests in Airflow are Integration tests. Those tests require not only airflow-testing docker
-image but also extra images with integrations (such as redis/mongodb etc.).
+Some of the tests in Airflow are integration tests. These tests require not only ``airflow-testing`` Docker
+image but also extra images with integrations (such as ``redis``, ``mongodb``, etc.).
 
 
-Enabling integrations
+Enabling Integrations
 ---------------------
 
-Running Airflow integration tests cannot be run in local virtualenv. They can only run in Breeze
+Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
 environment with enabled integrations and in Travis CI.
 
-When you are in Breeze environment, by default all integrations are disabled - this way only true unit tests
-can be executed in Breeze. You can enable the integration by passing ``--integration <INTEGRATION>``
+When you are in the Breeze environment, by default all integrations are disabled. This enables only true unit tests
+to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
 switch when starting Breeze. You can specify multiple integrations by repeating the ``--integration`` switch
-or by using ``--integration all`` switch which enables all integrations.
+or by using the ``--integration all`` switch that enables all integrations.
 
-Note, that every integration requires separate container with the corresponding integration image,
-so they take precious resources on your PC - mainly memory. The integrations started are not stopped
-until you stop the Breeze environment with ``--stop-environment`` switch.
+NOTE: Every integration requires a separate container with the corresponding integration image.
+So, they take precious resources on your PC, mainly, the memory. The started integrations are not stopped
+until you stop the Breeze environment with the ``--stop-environment`` switch.
 
 The following integrations are available:
 
@@ -196,40 +193,40 @@ The following integrations are available:
    * - redis
      - Integration required for Celery executor tests
 
-Below command starts mongo integration only:
+To start the ``mongo`` integration only, enter:
 
 .. code-block:: bash
 
     ./breeze --integration mongo
 
-Below command starts mongo and cassandra integrations:
+To start ``mongo`` and ``cassandra`` integrations, enter:
 
 .. code-block:: bash
 
     ./breeze --integration mongo --integration cassandra
 
-Below command starts all integrations:
+To start all integrations, enter:
 
 .. code-block:: bash
 
     ./breeze --integration all
 
-In the CI environment integrations can be enabled by specifying ``ENABLED_INTEGRATIONS`` variable
-storing space-separated list of integrations to start. Thanks to that we can run integration and
-integration-less tests separately in different jobs which is desired from the memory usage point of view.
+In the CI environment, integrations can be enabled by specifying the ``ENABLED_INTEGRATIONS`` variable
+storing a space-separated list of integrations to start. Thanks to that, we can run integration and
+integration-less tests separately in different jobs, which is desired from the memory usage point of view.
 
 Note that Kerberos is a special kind of integration. There are some tests that run differently when
-Kerberos integration is enabled (they retrieve and use Kerberos authentication token) and differently when the
-Kerberos integration is disabled (they do not retrieve nor use the token). Therefore one of the test job
-for the CI system should run all tests with kerberos integration enabled to test both scenarios.
+Kerberos integration is enabled (they retrieve and use a Kerberos authentication token) and differently when the
+Kerberos integration is disabled (they neither retrieve nor use the token). Therefore, one of the test jobs
+for the CI system should run all tests with the Kerberos integration enabled to test both scenarios.
 
-Running integration tests
+Running Integration Tests
 -------------------------
 
-All tests that are using an integration are marked with custom pytest marker ``pytest.mark.integration``.
-The marker has single parameter - name of the integration.
+All tests using an integration are marked with a custom pytest marker ``pytest.mark.integration``.
+The marker has a single parameter - the name of an integration.
 
-Example redis-integration test:
+Example of the ``redis`` integration test:
 
 .. code-block:: python
 
@@ -241,53 +238,56 @@ Example redis-integration test:
         self.assertTrue(redis.ping(), 'Connection to Redis with PING works.')
 
 The markers can be specified at the test level or at the class level (then all tests in this class
-require the integration). You can add multiple markers with different integrations for tests that
+require an integration). You can add multiple markers with different integrations for tests that
 require more than one integration.
 
-The behaviour of such marked tests is that it is skipped in case required integration is not enabled.
-The skip message will clearly say what's needed in order to use that tests.
+If such a marked test does not have a required integration enabled, it is skipped.
+The skip message clearly says what is needed to use the test.
 
-You can run all tests that are using certain integration with the custom pytest flag ``--integrations``,
-where you can pass integrations as comma separated values. You can also specify ``all`` in order to start
-tests for all integrations. Note that if an integration is not enabled in Breeze or CI.
+To run all tests with a certain integration, use the custom pytest flag ``--integrations``,
+where you can pass integrations as comma-separated values. You can also specify ``all`` to start
+tests for all integrations.
 
-Example that runs only ``mongo`` integration tests:
+**NOTE:** If an integration is not enabled in Breeze or Travis CI,
+the affected test will be skipped.
+
+To run only ``mongo`` integration tests:
 
 .. code-block:: bash
 
     pytest --integrations mongo
 
-Example that runs integration tests fot ``mogo`` and ``rabbitmq``:
+To run integration tests fot ``mongo`` and ``rabbitmq``:
 
 .. code-block:: bash
 
     pytest --integrations mongo,rabbitmq
 
-Example that runs all integration tests:
+To runs all integration tests:
 
 .. code-block:: bash
 
     pytest --integrations all
 
-Note that collecting all tests takes quite some time, so if you know where your tests are located you can
-speed up test collection significantly by providing the folder where the tests are located.
+Note that collecting all tests takes some time. So, if you know where your tests are located, you can
+speed up the test collection significantly by providing the folder where the tests are located.
 
-Here is an example of collection limited only to apache providers directory:
+Here is an example of the collection limited to the ``providers/apache`` directory:
 
 .. code-block:: bash
 
     pytest --integrations cassandra tests/providers/apache/
 
-Running backend-specific tests
+Running Backend-Specific Tests
 ------------------------------
 
-Some tests that are using a specific backend are marked with custom pytest marker ``pytest.mark.backend``.
-The marker has single parameter - name of the backend. It correspond with the ``--backend`` switch of
-the Breeze environment (one of ``mysql``, ``sqlite``, ``postgres``). Those tests will only run when
-the Breeze environment is running with the right backend. You can specify more than one backend
-in the marker - then the test will run for all those backends specified.
+Tests that are using a specific backend are marked with a custom pytest marker ``pytest.mark.backend``.
+The marker has a single parameter - the name of a backend. It corresponds to the ``--backend`` switch of
+the Breeze environment (one of ``mysql``, ``sqlite``, or ``postgres``). Backen-specific tests only run when
+the Breeze environment is running with the right backend. If you specify more than one backend
+in the marker, the test runs for all specified backends.
 
-Example postgres-only test:
+Example of the ``postgres`` only test:
 
 .. code-block:: python
 
@@ -296,7 +296,7 @@ Example postgres-only test:
         ...
 
 
-Example postgres,mysql test (they are skipped with sqlite backend):
+Example of the ``postgres,mysql`` test (they are skipped with the ``sqlite`` backend):
 
 .. code-block:: python
 
@@ -305,8 +305,8 @@ Example postgres,mysql test (they are skipped with sqlite backend):
         ...
 
 
-You can use custom ``--backend`` switch in pytest to only run tests specific for that backend.
-Here is an example of only running postgres-specific backend tests:
+You can use the custom ``--backend`` switch in pytest to only run tests specific for that backend.
+Here is an example of running only postgres-specific backend tests:
 
 .. code-block:: bash
 
@@ -315,74 +315,74 @@ Here is an example of only running postgres-specific backend tests:
 Running Tests with Kubernetes
 -----------------------------
 
-Starting Kubernetes Cluster when starting Breeze
+Starting Kubernetes Cluster when Starting Breeze
 ................................................
 
-In order to run Kubernetes in Breeze you can start Breeze with ``--start-kind-cluster`` switch. This will
-automatically create a Kind Kubernetes cluster in the same ``docker`` engine that is used to run Breeze
+To run Kubernetes in Breeze, you can start Breeze with the ``--start-kind-cluster`` switch. This
+automatically creates a Kind Kubernetes cluster in the same ``docker`` engine that is used to run Breeze.
 Setting up the Kubernetes cluster takes some time so the cluster continues running
-until the cluster is stopped with ``--stop-kind-cluster`` switch or until ``--recreate-kind-cluster``
-switch is used rather than ``--start-kind-cluster``. Starting breeze with kind cluster automatically
+until the it is stopped with the ``--stop-kind-cluster`` switch or until the ``--recreate-kind-cluster``
+switch is used rather than ``--start-kind-cluster``. Starting Breeze with the Kind Cluster automatically
 sets ``runtime`` to ``kubernetes`` (see below).
 
-The cluster name follows the pattern ``airflow-python-X.Y.Z-vA.B.C`` where X.Y.Z is Python version
-and A.B.C is kubernetes version. This way you can have multiple clusters setup and running at the same
-time for different python versions and different kubernetes versions.
+The cluster name follows the pattern ``airflow-python-X.Y.Z-vA.B.C`` where X.Y.Z is a Python version
+and A.B.C is a Kubernetes version. This way you can have multiple clusters set up and running at the same
+time for different Python versions and different Kubernetes versions.
 
-The Control Plane is available from inside the docker image via ``<CLUSTER_NAME>-control-plane:6443``
-host:port, the worker of the kind cluster is available at  <CLUSTER_NAME>-worker
+The Control Plane is available from inside the Docker image via ``<CLUSTER_NAME>-control-plane:6443``
+host:port, the worker of the Kind Cluster is available at  <CLUSTER_NAME>-worker
 and webserver port for the worker is 30809.
 
-The Kubernetes Cluster is started but in order to deploy airflow to Kubernetes cluster you need to:
+After the Kubernetes Cluster is started, you need to deploy Airflow to the cluster:
 
 1. Build the image.
-2. Load it to Kubernetes cluster.
-3. Deploy airflow application.
+2. Load it to the Kubernetes cluster.
+3. Deploy the Airflow application.
 
-It can be done with single script: ``./scripts/ci/in_container/kubernetes/deploy_airflow_to_kubernetes.sh``
+It can be done with a single script: ``./scripts/ci/in_container/kubernetes/deploy_airflow_to_kubernetes.sh``.
 
 You can, however, work separately on the image in Kubernetes and deploying the Airflow app in the cluster.
 
-Building Airflow Images and Loading them to Kubernetes cluster
+Building and Loading Airflow Images to Kubernetes Cluster
 ..............................................................
 
-This is done using ``./scripts/ci/in_container/kubernetes/docker/rebuild_airflow_image.sh`` script:
+Use the script ``./scripts/ci/in_container/kubernetes/docker/rebuild_airflow_image.sh`` that does the following:
 
-1. Latest ``apache/airflow:master-pythonX.Y-ci`` images are rebuilt using latest sources.
-2. New Kubernetes image based on the  ``apache/airflow:master-pythonX.Y-ci`` is built with
-   necessary scripts added to run in kubernetes. The image is tagged with
-   ``apache/airflow:master-pythonX.Y-ci-kubernetes`` tag.
-3. The image is loaded to the kind cluster using ``kind load`` command
+1. Rebuilds the latest ``apache/airflow:master-pythonX.Y-ci`` images using the latest sources.
+2. Builds a new Kubernetes image based on the  ``apache/airflow:master-pythonX.Y-ci`` using
+   necessary scripts added to run in Kubernetes. The image is tagged as
+   ``apache/airflow:master-pythonX.Y-ci-kubernetes``.
+3. Loads the image to the Kind Cluster using the ``kind load`` command.
 
-Deploying Airflow Application in the Kubernetes cluster
+Deploying the Airflow Application in the Kubernetes Cluster
 .......................................................
 
-This is done using ``./scripts/ci/in_container/kubernetes/app/deploy_app.sh`` script:
+Use the script ``./scripts/ci/in_container/kubernetes/app/deploy_app.sh`` that does the following:
 
-1. Kubernetes resources are prepared by processing template from ``template`` directory, replacing
+1. Prepares Kubernetes resources by processing a template from the ``template`` directory and replacing
    variables with the right images and locations:
    - configmaps.yaml
    - airflow.yaml
-2. The existing resources are used without replacing any variables inside:
+2. Uses the existing resources without replacing any variables inside:
    - secrets.yaml
    - postgres.yaml
    - volumes.yaml
-3. All the resources are applied in the Kind cluster
-4. The script will wait until all the applications are ready and reachable
+3. Applies all the resources to the Kind Cluster.
+4. Waits for all the applications to be ready and reachable.
 
-After the deployment is finished you can run Kubernetes tests immediately in the same way as other tests.
-The Kubernetes tests are in ``tests/runtime/kubernetes`` folder.
+After the deployment is finished, you can run Kubernetes tests immediately in the same way as other tests.
+The Kubernetes tests are available in the ``tests/runtime/kubernetes`` folder.
 
 You can run all the integration tests for Kubernetes with ``pytest tests/runtime/kubernetes``.
 
 
-Running runtime-specific tests
+Running Runtime-Specific Tests
 ------------------------------
 
-Some tests that are using a specific runtime are marked with custom pytest marker ``pytest.mark.runtime``.
-The marker has single parameter - name of the runtime. For the moment the only supported runtime is
-``kubernetes``. This runtime is set when you run Breeze with ``--start-kind-cluster`` option.
-Those tests will only run when the selectd runtime is started.
+Tests using a specific runtime are marked with a custom pytest marker ``pytest.mark.runtime``.
+The marker has a single parameter - the name of a runtime. At the moment the only supported runtime is
+``kubernetes``. This runtime is set when you run Breeze with the ``--start-kind-cluster`` option.
+Runtime-specific tests run only when the selectd runtime is started.
 
 
 .. code-block:: python
@@ -391,16 +391,16 @@ Those tests will only run when the selectd runtime is started.
     class TestKubernetesExecutor(unittest.TestCase):
 
 
-You can use custom ``--runtime`` switch in pytest to only run tests specific for that backend.
+You can use the custom ``--runtime`` switch in pytest to only run tests specific for that backend.
 
-Here is an example of only running kubernetes-runtime backend tests:
+To run only kubernetes-runtime backend tests, enter:
 
 .. code-block:: bash
 
     pytest --runtime kubernetes
 
-Note! For convenience and faster search, all runtime tests are stored in ``tests.runtime`` package. You
-can speed up collection of tests in this case by:
+**NOTE:** For convenience and faster search, all runtime tests are stored in the ``tests.runtime`` package. In this case, you
+can speed up the collection of tests by running:
 
 .. code-block:: bash
 
@@ -474,21 +474,99 @@ More information:
 Airflow System Tests
 ====================
 
-The System tests for Airflow are not yet fully implemented. They are Work In Progress of the
-`AIP-4 Support for System Tests for external systems <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-4+Support+for+System+Tests+for+external+systems>`__.
-These tests need to communicate with external services/systems that are available
+System tests need to communicate with external services/systems that are available
 if you have appropriate credentials configured for your tests.
-The tests derive from ``tests.system_test_class.SystemTests`` class.
+The system tests derive from the ``tests.test_utils.system_test_class.SystemTests`` class. They should also
+be marked with ``@pytest.marker.system(SYSTEM)`` where ``system`` designates the system
+to be tested (for example, ``google.cloud``). These tests are skipped by default.
+You can execute the system tests by providing the ``--systems SYSTEMS`` flag to ``pytest``.
 
-The system tests execute a specified
-example DAG file that runs the DAG end-to-end.
+The system tests execute a specified example DAG file that runs the DAG end-to-end.
 
-An example of such a system test is
-``airflow.tests.providers.google.operators.test_natural_language_system.CloudNaturalLanguageExampleDagsTest``.
+See more details about adding new system tests below.
 
-For now you can execute the system tests and follow messages printed to get them running. Soon more information on
-running the tests will be available.
+Running System Tests
+--------------------
+**Prerequisites:** You may need to set some variables to run system tests. If you need to
+add some intialization of environment variables to Breeze, you can always add a
+``variables.env`` file in the ``files/airflow-breeze-config/variables.env`` file. It will be automatically
+sourced when entering the Breeze environment.
 
+To execute system tests, specify the ``--systems SYSTEMS``
+flag where ``SYSTEMS`` is a coma-separated list of systems to run the system tests for.
+
+Forwarding Authentication from the Host
+----------------------------------------------------
+
+For system tests, you can also forward authentication from the host to your Breeze container. You can specify
+the ``--forward-credentials`` flag when starting Breeze. Then, it will also forward the most commonly used
+credentials stored in your ``home`` directory. Use this feature with care as it makes your personal credentials
+visible to anything that you have installed inside the Docker container.
+
+Currently forwarded credentials are:
+  * all credentials stored in ``${HOME}/.config`` (for example, GCP credentials)
+  * credentials stored in ``${HOME}/.gsutil`` for ``gsutil`` tool from GCS
+  * credentials stored in ``${HOME}/.boto`` and ``${HOME}/.s3`` (for AWS authentication)
+  * credentials stored in ``${HOME}/.docker`` for docker
+  * credentials stored in ``${HOME}/.kube`` for kubectl
+  * credentials stored in ``${HOME}/.ssh`` for SSH
+
+
+Adding a New System Test
+--------------------------
+
+We are working on automating system tests execution (AIP-4) but for now system tests are skipped when
+tests are run in our CI system. But to enable the test automation, we encourage you to add system
+tests whenever an operator/hook/sensor is added/modified in a given system.
+
+* To add your own system tests, derive them from the
+  ``tests.test_utils.system_tests_class.SystemTest` class and mark with the
+  ``@pytest.mark.system(SYSTEM_NAME)`` marker. The system name should follow the path defined in
+  the ``providers`` package (for example, the system tests from ``tests.providers.google.cloud``
+  package should be marked with ``@pytest.mark.system("google.cloud")``.
+* If your system tests need some credential files to be available for an
+  authentication with external systems, make sure to keep these credentials in the
+  ``files/airflow-breeze-config/keys`` directory. Mark your tests with
+  ``@pytest.mark.credential_file(<FILE>)`` so that they are skipped if such a credential file is not there.
+  The tests should read the right credentials and authenticate on their own. The credentials are read
+  in Breeze from the ``/files`` directory. The local "files" folder is mounted to the "/files" folder in Breeze.
+* If your system tests are long-lasting ones (i.e., require more than 20-30 minutes
+  to complete), mark them with the ```@pytest.markers.long_running`` marker.
+  Such tests are skipped by default unless you specify the ``--long-lasting`` flag to pytest.
+* The system test itself (python class) does not have any logic. Such a test runs
+  the DAG specified by its ID. This DAG should contain the actual DAG logic
+  to execute. Make sure to define the DAG in ``providers/<SYSTEM_NAME>/example_dags``. These example DAGs
+  are also used to take some snippets of code out of them when documentation is generated. So, having these
+  DAGs runnable is a great way to make sure the documenation is describing a working example. Inside
+  your test class/test method, simply use ``self.run_dag(<DAG_ID>,<DAG_FOLDER>)`` to run the DAG. Then,
+  the system class will take care about running the DAG. Note that the DAG_FOLDER should be
+  a subdirectory of the ``tests.test_utils.AIRFLOW_MAIN_FOLDER`` + ``providers/<SYSTEM_NAME>/example_dags``.
+
+An example of a system test is available in:
+
+``airflow.tests.providers.google.operators.test_natunal_language_system.CloudNaturalLanguageExampleDagsTest``.
+
+It runs the DAG defined in ``airflow.providers.google.cloud.example_dags.example_natural_language.py``.
+
+Running Tests for Older Airflow Versions
+----------------------------------------
+
+The tests can be executed against the master version of Airflow but they also work
+with older versions. This is especially useful to test back-ported operators
+from Airflow 2.0 to 1.10.* versions.
+
+To run the tests for Airflow 1.10.* series, you need to run Breeze with
+``--install-airflow-version==<VERSION>`` to install a different version of Airflow.
+If ``current`` is specified (default), then the current version of Airflow is used.
+Otherwise, the released version of Airflow is installed.
+
+The commands make sure that the source version of master Airflow is removed and the released version of
+Airflow from ``Pypi`` is installed. Note that tests sources are not removed and they can be used
+to run tests (unit tests and system tests) against the freshly installed version.
+
+This works best for system tests: all the system tests should work for at least latest released 1.10.x
+Airflow version. Some of the unit and integration tests might also work in the same
+fashion but it is not necessary or expected.
 
 Local and Remote Debugging in IDE
 =================================
@@ -518,14 +596,14 @@ your local sources to the ``/opt/airflow`` location of the sources within the co
     :align: center
     :alt: Source code mapping
 
-DAG testing
+DAG Testing
 ===========
 
-To ease and speed up process of developing DAGs you can use
-py:class:`~airflow.executors.debug_executor.DebugExecutor` - a single process executor
-for debugging purposes. Using this executor you can run and debug DAGs from your IDE.
+To ease and speed up process of developing DAGs, you can use
+py:class:`~airflow.executors.debug_executor.DebugExecutor`, which is a single process executor
+for debugging purposes. Using this executor, you can run and debug DAGs from your IDE.
 
-**IDE setup steps:**
+To set up the IDE:
 
 1. Add ``main`` block at the end of your DAG file to make it runnable.
 It will run a backfill job:
@@ -537,16 +615,16 @@ It will run a backfill job:
     dag.run()
 
 
-2. Setup ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in run configuration of your IDE. In
-   this step you should also setup all environment variables required by your DAG.
+2. Set up ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in the run configuration of your IDE.
+   Make sure to also set up all environment variables required by your DAG.
 
 3. Run and debug the DAG file.
 
-Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
-all other running or scheduled tasks fail immediately. To enable this option set
+Additionally, ``DebugExecutor`` can be used in a fail-fast mode that will make
+all other running or scheduled tasks fail immediately. To enable this option, set
 ``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
 
-Also, with the Airflow CLI command ``airflow dags test`` you can execute one complete run of a DAG:
+Also, with the Airflow CLI command ``airflow dags test``, you can execute one complete run of a DAG:
 
 .. code-block:: bash
 
@@ -554,52 +632,52 @@ Also, with the Airflow CLI command ``airflow dags test`` you can execute one com
     airflow dags test example_branch_operator 2018-01-01
 
 
-BASH unit testing (BATS)
+BASH Unit Testing (BATS)
 ========================
 
-We have started to add tests to cover Bash scripts we have in our codeabase.
-The tests are placed in ``tests\bats`` folder.
-They require BAT CLI to be installed if you want to run them in your
-host or via docker image.
+We have started adding tests to cover Bash scripts we have in our codebase.
+The tests are placed in the ``tests\bats`` folder.
+They require BAT CLI to be installed if you want to run them on your
+host or via a Docker image.
 
-BATS CLI installation
+Installing BATS CLI
 ---------------------
 
-You can find installation guide as well as information on how to write
-the bash tests in [BATS installation](https://github.com/bats-core/bats-core#installation)
+You can find an installation guide as well as information on how to write
+the bash tests in `BATS Installation <https://github.com/bats-core/bats-core#installation>`_.
 
-Running BATS tests in the host
+Running BATS Tests on the Host
 ------------------------------
 
-Running all tests:
+To run all tests:
 
 ```
 bats -r tests/bats/
 ```
 
-Running single test:
+To run a single test:
 
 ```
 bats tests/bats/your_test_file.bats
 ```
 
-Running BATS tests via docker
+Running BATS Tests via Docker
 -----------------------------
 
-Running all tests:
+To run all tests:
 
 ```
 docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest -r /airflow/tests/bats
 ```
 
-Running single test:
+To run a single test:
 
 ```
 docker run -it --workdir /airflow -v $(pwd):/airflow  bats/bats:latest /airflow/tests/bats/your_test_file.bats
 ```
 
-BATS usage
+Using BATS
 ----------
 
-You can read more about using BATS CLI and writing tests in:
-[BATS usage](https://github.com/bats-core/bats-core#usage)
+You can read more about using BATS CLI and writing tests in
+`BATS Usage <https://github.com/bats-core/bats-core#usage>`_.

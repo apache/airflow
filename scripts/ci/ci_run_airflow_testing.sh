@@ -42,10 +42,24 @@ export AIRFLOW_CI_VERBOSE=${VERBOSE}
 # opposite - whether diagnostic messages should be silenced
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 
+# Forwards host credentials to the container
+export FORWARD_CREDENTIALS=${FORWARD_CREDENTIALS:="false"}
+
+# Installs different airflow version than current from the sources
+export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:="current"}
+
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then
     DOCKER_COMPOSE_LOCAL=("-f" "${MY_DIR}/docker-compose/local.yml")
 else
     DOCKER_COMPOSE_LOCAL=()
+fi
+
+if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
+    DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/forward-credentials.yml")
+fi
+
+if [[ ${INSTALL_AIRFLOW_VERSION} != "current" ]]; then
+    DOCKER_COMPOSE_LOCAL+=("-f" "${MY_DIR}/docker-compose/remove-sources.yml")
 fi
 
 echo

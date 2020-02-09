@@ -70,74 +70,93 @@ function check_integration {
     echo "-----------------------------------------------------------------------------------------------"
 }
 
-export EXIT_CODE=0
+function check_db_connection {
+    MAX_CHECK=${1:=3}
 
-if [[ -n ${BACKEND:=} ]]; then
-    echo "Checking backend: ${BACKEND}"
-
-    set +e
-    if [[ ${BACKEND} == "mysql" ]]; then
-        # Wait until mysql is ready!
-        MYSQL_CONTAINER=$(docker ps -qf "name=mysql")
-        if [[ -z ${MYSQL_CONTAINER} ]]; then
-            echo
-            echo "ERROR! MYSQL container is not started. Exiting!"
-            echo
-            exit 1
-        fi
-        MAX_CHECK=60
-        echo "Checking if MySQL is ready for connections (double restarts in the logs)"
-        while true
-        do
-            CONNECTION_READY_MESSAGES=$(docker logs "${MYSQL_CONTAINER}" 2>&1 | \
-                grep -c "mysqld: ready for connections" )
-            # MySQL when starting from dockerfile starts a temporary server first because it
-            # starts with an empty database first and it will create the airflow database and then
-            # it will start a second server to serve this newly created database
-            # That's why we should wait until docker logs contain "ready for connections" twice
-            # more info: https://github.com/docker-library/mysql/issues/527
-            if [[ ${CONNECTION_READY_MESSAGES} -gt 1 ]];
-            then
-                echo
-                echo
-                echo "MySQL is ready for connections!"
-                echo
-                break
-            else
-                echo -n "."
-            fi
-            MAX_CHECK=$((MAX_CHECK-1))
-            if [[ ${MAX_CHECK} == 0 ]]; then
-                echo
-                echo "ERROR! Maximum number of retries while waiting for MySQL. Exiting"
-                echo
-                echo "Last check: ${CONNECTION_READY_MESSAGES} connection ready messages (expected >=2)"
-                echo
-                echo "==============================================================================================="
-                echo
-                exit 1
-            else
-                sleep 1
-            fi
-        done
+    if [[ ${BACKEND} == "postgres" ]]; then
+        HOSTNAME=postgres
+        PORT=5432
+    elif [[ ${BACKEND} == "mysql" ]]; then
+        HOSTNAME=mysql
+        PORT=3306
+    else
+        return
     fi
-
-    MAX_CHECK=3
+    echo "-----------------------------------------------------------------------------------------------"
+    echo "             Checking DB ${BACKEND}"
+    echo "-----------------------------------------------------------------------------------------------"
     while true
     do
-        LAST_CHECK_RESULT=$(AIRFLOW__LOGGING__LOGGING_LEVEL=error airflow db check 2>&1)
+        set +e
+        LAST_CHECK_RESULT=$(nc -zvv ${HOSTNAME} ${PORT} 2>&1)
         RES=$?
+        set -e
         if [[ ${RES} == 0 ]]; then
+            echo
+            echo "             Backend ${BACKEND} OK!"
+            echo
             break
+        else
+            echo -n "."
+            MAX_CHECK=$((MAX_CHECK-1))
         fi
-        echo -n "."
+        if [[ ${MAX_CHECK} == 0 ]]; then
+            echo
+            echo "ERROR! Maximum number of retries while checking ${BACKEND} db. Exiting"
+            echo
+            break
+        else
+            sleep 1
+        fi
+    done
+    if [[ ${RES} != 0 ]]; then
+        echo "        ERROR: ${BACKEND} db could not be reached!"
+        echo
+        echo "${LAST_CHECK_RESULT}"
+        echo
+        export EXIT_CODE=${RES}
+    fi
+    echo "-----------------------------------------------------------------------------------------------"
+}
+
+function check_mysql_logs {
+    MAX_CHECK=${1:=60}
+    # Wait until mysql is ready!
+    MYSQL_CONTAINER=$(docker ps -qf "name=mysql")
+    if [[ -z ${MYSQL_CONTAINER} ]]; then
+        echo
+        echo "ERROR! MYSQL container is not started. Exiting!"
+        echo
+        exit 1
+    fi
+    echo
+    echo "Checking if MySQL is ready for connections (double restarts in the logs)"
+    echo
+    while true
+    do
+        CONNECTION_READY_MESSAGES=$(docker logs "${MYSQL_CONTAINER}" 2>&1 | \
+            grep -c "mysqld: ready for connections" )
+        # MySQL when starting from dockerfile starts a temporary server first because it
+        # starts with an empty database first and it will create the airflow database and then
+        # it will start a second server to serve this newly created database
+        # That's why we should wait until docker logs contain "ready for connections" twice
+        # more info: https://github.com/docker-library/mysql/issues/527
+        if [[ ${CONNECTION_READY_MESSAGES} -gt 1 ]];
+        then
+            echo
+            echo
+            echo "MySQL is ready for connections!"
+            echo
+            break
+        else
+            echo -n "."
+        fi
         MAX_CHECK=$((MAX_CHECK-1))
         if [[ ${MAX_CHECK} == 0 ]]; then
             echo
-            echo "==============================================================================================="
-            echo "             ERROR! Failure while checking backend database!"
+            echo "ERROR! Maximum number of retries while waiting for MySQL. Exiting"
             echo
-            echo "${LAST_CHECK_RESULT}"
+            echo "Last check: ${CONNECTION_READY_MESSAGES} connection ready messages (expected >=2)"
             echo
             echo "==============================================================================================="
             echo
@@ -146,8 +165,27 @@ if [[ -n ${BACKEND:=} ]]; then
             sleep 1
         fi
     done
+}
+
+if [[ -n ${BACKEND:=} ]]; then
+    echo "==============================================================================================="
+    echo "             Checking backend: ${BACKEND}"
+    echo "==============================================================================================="
+
+    set +e
+    if [[ ${BACKEND} == "mysql" ]]; then
+        check_mysql_logs 60
+    fi
+
+    check_db_connection 5
+
     set -e
-    export EXIT_CODE=${RES}
+    if [[ ${EXIT_CODE} == 0 ]]; then
+        echo "==============================================================================================="
+        echo "             Backend database is sane"
+        echo "==============================================================================================="
+        echo
+    fi
 else
     echo "==============================================================================================="
     echo "             Skip checking backend - BACKEND not set"

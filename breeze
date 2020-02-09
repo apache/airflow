@@ -84,6 +84,7 @@ function setup_default_breeze_variables() {
 
     # If true, the docker images are rebuilt locally.
     export NEEDS_DOCKER_BUILD="false"
+    export NEEDS_DOCKER_BUILD="false"
 
     # By default we only pull images if we do not have them locally.
     # This can be overridden by -p flag
@@ -101,7 +102,14 @@ function setup_default_breeze_variables() {
     # By default we do not push images. This can be overridden by -u flag.
     export PUSH_IMAGES=${PUSH_IMAGES:="false"}
 
-    # Determine version of the Airflow from version.py
+    # Forward credentials to docker
+    export FORWARD_CREDENTIALS="false"
+
+    # If install released airflow is set to specified version, then the source version of airflow
+    # is removed and the specified version of airflow is installed from pypi
+    export INSTALL_AIRFLOW_VERSION=${INSTALL_AIRFLOW_VERSION:="current"}
+
+# Determine version of the Airflow from version.py
     AIRFLOW_VERSION=$(cat airflow/version.py - << EOF | python
 print(version.replace("+",""))
 EOF
@@ -123,6 +131,7 @@ EOF
     _BREEZE_DEFAULT_BACKEND="sqlite"
     _BREEZE_DEFAULT_KUBERNETES_MODE="git_mode"
     _BREEZE_DEFAULT_KUBERNETES_VERSION="v1.15.3"
+    _BREEZE_DEFAULT_INSTALL_AIRFLOW_VERSION="current"
 
     STATIC_CHECK_PYTHON_VERSION=3.6
 }
@@ -299,13 +308,14 @@ function print_badge {
 &&&&&&&&&&&&&  &&     &&&&@   &&&&&&&&&&&@  &&&&&&&&&&&&  @&&&&&&&&&&&   &&&&&&&&&&&
 
 
-                               Branch name:        ${BRANCH_NAME}
-                               Docker image:       ${AIRFLOW_CI_IMAGE}
-                               Airflow version:    ${AIRFLOW_VERSION}
-                               Python version:     ${PYTHON_VERSION}
-                               DockerHub user:     ${DOCKERHUB_USER}
-                               DockerHub repo:     ${DOCKERHUB_REPO}
-                               Backend:            ${BACKEND}
+                               Branch name:            ${BRANCH_NAME}
+                               Docker image:           ${AIRFLOW_CI_IMAGE}
+                               Airflow source version: ${AIRFLOW_VERSION}
+                               Airflow installed:      ${INSTALL_AIRFLOW_VERSION}
+                               Python version:         ${PYTHON_VERSION}
+                               DockerHub user:         ${DOCKERHUB_USER}
+                               DockerHub repo:         ${DOCKERHUB_REPO}
+                               Backend:                ${BACKEND}
 EOF
         if [[ ${RUNTIME} == "kubernetes" ]]; then
             cat <<EOF
@@ -322,13 +332,14 @@ EOF
     else
         cat <<EOF
 
-   Branch name:        ${BRANCH_NAME}
-   Docker image:       ${AIRFLOW_CI_IMAGE}
-   Airflow version:    ${AIRFLOW_VERSION}
-   Python version:     ${PYTHON_VERSION}
-   DockerHub user:     ${DOCKERHUB_USER}
-   DockerHub repo:     ${DOCKERHUB_REPO}
-   Backend:            ${BACKEND}
+   Branch name:             ${BRANCH_NAME}
+   Docker image:            ${AIRFLOW_CI_IMAGE}
+   Airflow source version:  ${AIRFLOW_VERSION}
+   Airflow installed:       ${INSTALL_AIRFLOW_VERSION}
+   Python version:          ${PYTHON_VERSION}
+   DockerHub user:          ${DOCKERHUB_USER}
+   DockerHub repo:          ${DOCKERHUB_REPO}
+   Backend:                 ${BACKEND}
 EOF
         if [[ ${RUNTIME} == "kubernetes" ]]; then
             cat <<EOF
@@ -363,6 +374,7 @@ export ENABLE_KIND_CLUSTER="${ENABLE_KIND_CLUSTER}"
 export KUBERNETES_MODE="${KUBERNETES_MODE}"
 export KUBERNETES_VERSION="${KUBERNETES_VERSION}"
 export AIRFLOW_VERSION="${AIRFLOW_VERSION}"
+export INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION}"
 export RUN_TESTS="${TESTS}"
 export WEBSERVER_HOST_PORT="${WEBSERVER_HOST_PORT}"
 export POSTGRES_HOST_PORT="${POSTGRES_HOST_PORT}"
@@ -378,11 +390,21 @@ function prepare_command_files() {
     BACKEND_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml
     LOCAL_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/local.yml
     KUBERNETES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/runtime-kubernetes.yml
+    REMOVE_SOURCES_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/remove-sources.yml
+    FORWARD_CREDENTIALS_DOCKER_COMPOSE_FILE=${SCRIPTS_CI_DIR}/docker-compose/forward-credentials.yml
 
     COMPOSE_FILE=${MAIN_DOCKER_COMPOSE_FILE}:${BACKEND_DOCKER_COMPOSE_FILE}
 
     if [[ "${SKIP_MOUNTING_LOCAL_SOURCES}" != "true" ]]; then
         COMPOSE_FILE=${COMPOSE_FILE}:${LOCAL_DOCKER_COMPOSE_FILE}
+    fi
+
+    if [[ ${FORWARD_CREDENTIALS} == "true" ]]; then
+        COMPOSE_FILE=${COMPOSE_FILE}:${FORWARD_CREDENTIALS_DOCKER_COMPOSE_FILE}
+    fi
+
+    if [[ ${INSTALL_AIRFLOW_VERSION} != "current" ]]; then
+        COMPOSE_FILE=${COMPOSE_FILE}:${REMOVE_SOURCES_DOCKER_COMPOSE_FILE}
     fi
 
     if [[ ${RUNTIME} == "kubernetes" ]]; then
@@ -510,6 +532,11 @@ function parse_arguments() {
           echo "Skip mounting local sources: ${SKIP_MOUNTING_LOCAL_SOURCES}"
           echo
           shift ;;
+        -N|--install-airflow-version)
+          INSTALL_AIRFLOW_VERSION="${2}"
+          echo "Installs version of Airflow: ${INSTALL_AIRFLOW_VERSION}"
+          echo
+          shift 2 ;;
         -b|--build-only)
           COMMAND_TO_RUN="build_ci_images_only"
           # if you want to build an image - assume you want to build it :)
@@ -611,6 +638,11 @@ function parse_arguments() {
           echo
           COMMAND_TO_RUN="perform_initialize_local_virtualenv"
           shift ;;
+        -f|--forward-credentials)
+          echo "Fowarding credentials. Be careful as your credentials ar available in the container!"
+          echo
+          export FORWARD_CREDENTIALS="true"
+          shift 1 ;;
         -a|--setup-autocomplete)
           echo "Setting up autocomplete"
           echo
@@ -639,14 +671,14 @@ function parse_arguments() {
           export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
           export STATIC_CHECK="${2}"
           export STATIC_CHECK_ALL_FILES="false"
-          export EXTRA_STATIC_CHECK_OPTIONS=("--show-diff-on-failure")
+          EXTRA_STATIC_CHECK_OPTIONS+=("--show-diff-on-failure")
           shift 2 ;;
         -F|--static-check-all-files)
           COMMAND_TO_RUN="perform_static_checks"
           export PYTHON_VERSION=${STATIC_CHECK_PYTHON_VERSION}
           export STATIC_CHECK="${2}"
           export STATIC_CHECK_ALL_FILES="true"
-          export EXTRA_STATIC_CHECK_OPTIONS=("--all-files" "--show-diff-on-failure")
+          EXTRA_STATIC_CHECK_OPTIONS+=("--all-files" "--show-diff-on-failure")
           shift 2 ;;
         -O|--build-docs)
           COMMAND_TO_RUN="build_docs"
@@ -667,6 +699,22 @@ function parse_arguments() {
 }
 
 usage() {
+      LIST_PREFIX="            "
+      WIDTH=$((SEPARATOR_WIDTH>80 ? 80: SEPARATOR_WIDTH))
+      ALLOWED_PYTHON_VERSIONS=$(echo "${_BREEZE_ALLOWED_PYTHON_VERSIONS=""}" | tr '\n' ' ' | \
+          fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+      ALLOWED_BACKENDS=$(echo "${_BREEZE_ALLOWED_BACKENDS=""}" | tr '\n' ' ' | \
+          fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+      ALLOWED_STATIC_CHECKS=$(echo "${_BREEZE_ALLOWED_STATIC_CHECKS=""}" | tr '\n' ' ' | \
+          fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+      ALLOWED_INTEGRATIONS=$(echo "${_BREEZE_ALLOWED_INTEGRATIONS=""}" | tr '\n' ' ' | \
+          fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+      ALLOWED_KUBERNETES_MODES=$(echo "${_BREEZE_ALLOWED_KUBERNETES_MODES=""}" | tr '\n' ' ' | \
+          fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+      ALLOWED_KUBERNETES_VERSIONS=$(echo "${_BREEZE_ALLOWED_KUBERNETES_VERSIONS=""}" | tr '\n' ' ' | \
+          fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
+      ALLOWED_INSTALL_AIRFLOW_VERSIONS=$(echo "${_BREEZE_ALLOWED_INSTALL_AIRFLOW_VERSIONS=""}" | \
+          tr '\n' ' ' | fold -w "${WIDTH}" -s | sed "s/^/${LIST_PREFIX}/")
       echo """
 
 *********************************************************************************************************
@@ -721,8 +769,10 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 
 -S, --static-check <STATIC_CHECK>
         Run selected static checks for currently changed files. You should specify static check that
-        you would like to run or 'all' to run all checks. One of
-        [${_BREEZE_ALLOWED_STATIC_CHECKS:=}].
+        you would like to run or 'all' to run all checks. One of:
+
+${ALLOWED_STATIC_CHECKS}
+
         You can pass extra arguments including options to to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
 
@@ -735,8 +785,10 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 
 -F, --static-check-all-files <STATIC_CHECK>
         Run selected static checks for all applicable files. You should specify static check that
-        you would like to run or 'all' to run all checks. One of
-        [${_BREEZE_ALLOWED_STATIC_CHECKS:=}].
+        you would like to run or 'all' to run all checks. One of:
+
+${ALLOWED_STATIC_CHECKS}
+
         You can pass extra arguments including options to the pre-commit framework as
         <EXTRA_ARGS> passed after --. For example:
 
@@ -771,17 +823,26 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 
 -P, --python <PYTHON_VERSION>
         Python version used for the image. This is always major/minor version.
-        One of [${_BREEZE_ALLOWED_PYTHON_VERSIONS:=}]. Default is the python3 or python on the path.
+        One of:
+
+${ALLOWED_PYTHON_VERSIONS}
+
 
 -B, --backend <BACKEND>
         Backend to use for tests - it determines which database is used.
-        One of [${_BREEZE_ALLOWED_BACKENDS:=}]. Default: ${_BREEZE_DEFAULT_BACKEND:=}
+        One of:
+
+${ALLOWED_BACKENDS}
+
+        Default: ${_BREEZE_DEFAULT_BACKEND:=}
 
 -I, --integration <INTEGRATION>
         Integration to start during tests - it determines which integrations are started for integration
         tests. There can be more than one integration started, or all to start all integrations.
         Selected integrations are not saved for future execution.
-        One of [${_BREEZE_ALLOWED_INTEGRATIONS:=}].
+        One of:
+
+${ALLOWED_INTEGRATIONS}
 
 *********************************************************************************************************
 **
@@ -808,11 +869,19 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 
 -M, --kubernetes-mode <KUBERNETES_MODE>
         Kubernetes mode - only used in case --start-kind-cluster flag is specified.
-        One of [${_BREEZE_ALLOWED_KUBERNETES_MODES:=}]. Default: ${_BREEZE_DEFAULT_KUBERNETES_MODE:=}
+        One of:
+
+${ALLOWED_KUBERNETES_MODES}
+
+        Default: ${_BREEZE_DEFAULT_KUBERNETES_MODE:=}
 
 -V, --kubernetes-version <KUBERNETES_VERSION>
         Kubernetes version - only used in case --start-kind-cluster flag is specified.
-        One of [${_BREEZE_ALLOWED_KUBERNETES_VERSIONS:=}]. Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
+        One of:
+
+${ALLOWED_KUBERNETES_VERSIONS}
+
+        Default: ${_BREEZE_DEFAULT_KUBERNETES_VERSION:=}
 
 *********************************************************************************************************
 **
@@ -826,6 +895,21 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 
 *********************************************************************************************************
 **
+** Install Airflow if different than current
+**
+*********************************************************************************************************
+
+-N, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
+        If different than 'current' removes the source-installed airflow and installs a
+        released version of Airflow instead. One of:
+
+
+${ALLOWED_INSTALL_AIRFLOW_VERSIONS}
+
+        Default: ${_BREEZE_DEFAULT_INSTALL_AIRFLOW_VERSION:=}.
+
+*********************************************************************************************************
+**
 ** Assume answers to questions
 **
 *********************************************************************************************************
@@ -835,6 +919,16 @@ The swiss-knife-army tool for Airflow testings. It allows to perform various tes
 
 -n, --assume-no
         Assume 'no' answer to all questions.
+
+*********************************************************************************************************
+**
+** Credentials
+**
+*********************************************************************************************************
+
+-f, --forward-credentials
+        Forwards host credentials to docker container. Use with care as it will make your credentials
+        Available to everything you install in Docker.
 
 *********************************************************************************************************
 **
@@ -975,6 +1069,7 @@ function check_and_save_all_params() {
     check_and_save_allowed_param "BACKEND"  "backend" "--backend"
     check_and_save_allowed_param "KUBERNETES_MODE"  "Kubernetes mode" "--kubernetes-mode"
     check_and_save_allowed_param "KUBERNETES_VERSION"  "Kubernetes version" "--kubernetes-version"
+    check_and_save_allowed_param "INSTALL_AIRFLOW_VERSION"  "Install airflow version" "--install-airflow-version"
 
     # Can't verify those
     save_to_file DOCKERHUB_USER

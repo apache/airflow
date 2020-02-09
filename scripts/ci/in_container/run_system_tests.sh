@@ -16,33 +16,41 @@
 # specific language governing permissions and limitations
 # under the License.
 
+#
+# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-TMP_FILE=$(mktemp)
-TMP_OUTPUT=$(mktemp)
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
-cd "${MY_DIR}/../../" || exit;
+in_container_basic_sanity_check
 
-echo "
-.. code-block:: text
-" >"${TMP_FILE}"
+in_container_script_start
 
-export SEPARATOR_WIDTH=80
-export AIRFLOW_CI_SILENT="true"
-./breeze --help | sed 's/^/  /' | sed 's/ *$//' >>"${TMP_FILE}"
+# any argument received is overriding the default nose execution arguments:
+PYTEST_ARGS=( "$@" )
 
-BREEZE_RST_FILE="${MY_DIR}/../../BREEZE.rst"
+echo
+echo "Starting the tests with those pytest arguments: ${PYTEST_ARGS[*]}"
+echo
+set +e
 
-LEAD='^ \.\. START BREEZE HELP MARKER$'
-TAIL='^ \.\. END BREEZE HELP MARKER$'
+pytest "${PYTEST_ARGS[@]}"
 
-BEGIN_GEN=$(grep -n "${LEAD}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
-END_GEN=$(grep -n "${TAIL}" <"${BREEZE_RST_FILE}" | sed 's/\(.*\):.*/\1/g')
-cat <(head -n "${BEGIN_GEN}" "${BREEZE_RST_FILE}") \
-    "${TMP_FILE}" \
-    <(tail -n +"${END_GEN}" "${BREEZE_RST_FILE}") \
-    >"${TMP_OUTPUT}"
+RES=$?
 
-mv "${TMP_OUTPUT}" "${BREEZE_RST_FILE}"
+set +x
+if [[ "${RES}" == "0" && ${CI} == "true" ]]; then
+    echo "All tests successful"
+fi
+
+if [[ ${CI} == "true" ]]; then
+    send_docker_logs_to_file_io
+    send_airflow_logs_to_file_io
+fi
+
+in_container_script_end
+
+exit "${RES}"

@@ -51,26 +51,42 @@ echo
 ARGS=( "$@" )
 
 RUN_TESTS=${RUN_TESTS:="true"}
+INSTALL_AIRFLOW_VERSION="${INSTALL_AIRFLOW_VERSION:=""}"
 
-if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
-    echo
-    echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
-    echo
-    pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
-    yarn install --frozen-lockfile
-    echo
-    popd &>/dev/null || exit 1
-fi
-if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
-    pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
-    echo
-    echo "Building production version of javascript files (Sources mounted from Host)"
-    echo
-    echo
-    yarn run prod
-    echo
-    echo
-    popd &>/dev/null || exit 1
+if [[ ${INSTALL_AIRFLOW_VERSION} == "current" ]]; then
+    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/node_modules" ]]; then
+        echo
+        echo "Installing node modules as they are not yet installed (Sources mounted from Host)"
+        echo
+        pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
+        yarn install --frozen-lockfile
+        echo
+        popd &>/dev/null || exit 1
+    fi
+    if [[ ! -d "${AIRFLOW_SOURCES}/airflow/www/static/dist" ]]; then
+        pushd "${AIRFLOW_SOURCES}/airflow/www/" &>/dev/null || exit 1
+        echo
+        echo "Building production version of javascript files (Sources mounted from Host)"
+        echo
+        echo
+        yarn run prod
+        echo
+        echo
+        popd &>/dev/null || exit 1
+    fi
+    # Cleanup the logs, tmp when entering the environment
+    sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
+    sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
+    mkdir -p "${AIRFLOW_SOURCES}"/logs/
+    mkdir -p "${AIRFLOW_SOURCES}"/tmp/
+    export PYTHONPATH=${AIRFLOW_SOURCES}
+else
+    if [[ ${AIRFLOW_VERSION} == *1.10* || ${INSTALL_AIRFLOW_VERSION} == *1.10* ]]; then
+        export RUN_AIRFLOW_1_10="true"
+    else
+        export RUN_AIRFLOW_1_10="false"
+    fi
+    install_released_airflow_version "${INSTALL_AIRFLOW_VERSION}"
 fi
 
 export HADOOP_DISTRO="${HADOOP_DISTRO:="cdh"}"
@@ -92,16 +108,9 @@ if [[ ! -h /home/travis/build/apache/airflow ]]; then
   sudo ln -s "${AIRFLOW_SOURCES}" /home/travis/build/apache/airflow
 fi
 
-# Cleanup the logs, tmp when entering the environment
-sudo rm -rf "${AIRFLOW_SOURCES}"/logs/*
-sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
-mkdir -p "${AIRFLOW_SOURCES}"/logs/
-mkdir -p "${AIRFLOW_SOURCES}"/tmp/
-
 mkdir -pv "${AIRFLOW_HOME}/logs/"
 cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
-export PYTHONPATH=${AIRFLOW_SOURCES}
 
 "${MY_DIR}/check_environment.sh"
 
@@ -164,6 +173,26 @@ if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     fi
 fi
 
+export FILES_DIR="/files"
+export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
+VARIABLES_ENV_FILE="variables.env"
+
+if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
+    -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${VARIABLES_ENV_FILE}" ]]; then
+    pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
+    echo
+    echo "Sourcing environment variables from ${VARIABLES_ENV_FILE} in ${AIRFLOW_BREEZE_CONFIG_DIR}"
+    echo
+     # shellcheck disable=1090
+    source "${VARIABLES_ENV_FILE}"
+    popd >/dev/null 2>&1 || exit 1
+else
+    echo
+    echo "You can add ${AIRFLOW_BREEZE_CONFIG_DIR} directory and place ${VARIABLES_ENV_FILE}"
+    echo "In it to make breeze source the variables automatically for you"
+    echo
+fi
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" == "false" ]]; then
@@ -212,5 +241,11 @@ if [[ -n ${RUNTIME} ]]; then
     fi
 fi
 
+
 ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN}")
-"${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
+
+if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
+    "${MY_DIR}/run_system_tests.sh" "${ARGS[@]}"
+else
+    "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
+fi

@@ -28,6 +28,7 @@ tests_directory = os.path.dirname(os.path.realpath(__file__))
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = (os.environ.get("AWS_DEFAULT_REGION") or "us-east-1")
+os.environ["CREDENTIALS_DIR"] = (os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys")
 
 
 @pytest.fixture()
@@ -87,6 +88,26 @@ def pytest_addoption(parser):
         metavar="RUNTIME",
         help="only run tests matching the runtime: [kubernetes].",
     )
+    group.addoption(
+        "--systems",
+        action="store",
+        metavar="SYSTEMS",
+        help="only run tests matching the systems specified [google.cloud, google.marketing_platform]",
+    )
+    group.addoption(
+        "--include-long-running",
+        action="store_true",
+        help="Includes long running tests (marked with long_running) marker ",
+    )
+
+
+def initial_db_init():
+    if os.environ.get("RUN_AIRFLOW_1_10") == "true":
+        print("Attempting to reset the db using airflow command")
+        os.system("airflow resetdb -y")
+    else:
+        from airflow.utils import db
+        db.resetdb()
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -101,6 +122,10 @@ def breeze_test_helper(request):
         print("Skipping db initialization. Tests do not require database")
         return
 
+    from airflow import __version__
+    if __version__.startswith("1.10"):
+        os.environ['RUN_AIRFLOW_1_10'] = "true"
+
     print(" AIRFLOW ".center(60, "="))
 
     # Setup test environment for breeze
@@ -109,27 +134,17 @@ def breeze_test_helper(request):
 
     print(f"Home of the user: {home}\nAirflow home {airflow_home}")
 
-    from airflow.utils import db
-
     # Initialize Airflow db if required
     lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
     if request.config.option.db_init:
         print("Initializing the DB - forced with --with-db-init switch.")
-        try:
-            db.initdb()
-        except:  # pylint: disable=bare-except # noqa
-            print("Skipping db initialization because database already exists.")
-        db.resetdb()
+        initial_db_init()
     elif not os.path.exists(lock_file):
         print(
             "Initializing the DB - first time after entering the container.\n"
             "You can force re-initialization the database by adding --with-db-init switch to run-tests."
         )
-        try:
-            db.initdb()
-        except:  # pylint: disable=bare-except # noqa
-            print("Skipping db initialization because database already exists.")
-        db.resetdb()
+        initial_db_init()
         # Create pid file
         with open(lock_file, "w+"):
             pass
@@ -159,6 +174,15 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "runtime(name): mark test to run with named runtime"
     )
+    config.addinivalue_line(
+        "markers", "system(name): mark test to run with named system"
+    )
+    config.addinivalue_line(
+        "markers", "long_running(name): mark test that run for a long time (many minutes)"
+    )
+    config.addinivalue_line(
+        "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
+    )
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -168,8 +192,8 @@ def skip_if_not_marked_with_integration(selected_integrations, item):
             return
     pytest.skip("The test is skipped because it does not have the right integration marker. "
                 "Only tests marked with pytest.mark.integration(INTEGRATION) are run with INTEGRATION"
-                " being one of {}. {item}".
-                format(selected_integrations, item=item))
+                " being one of {integration}. {item}".
+                format(integration=selected_integrations, item=item))
 
 
 def skip_if_not_marked_with_backend(selected_backend, item):
@@ -178,9 +202,9 @@ def skip_if_not_marked_with_backend(selected_backend, item):
         if selected_backend in backend_names:
             return
     pytest.skip("The test is skipped because it does not have the right backend marker "
-                "Only tests marked with pytest.mark.backend('{}') are run"
+                "Only tests marked with pytest.mark.backend('{backend}') are run"
                 ": {item}".
-                format(selected_backend, item=item))
+                format(backend=selected_backend, item=item))
 
 
 def skip_if_not_marked_with_runtime(selected_runtime, item):
@@ -189,8 +213,35 @@ def skip_if_not_marked_with_runtime(selected_runtime, item):
         if runtime_name == selected_runtime:
             return
     pytest.skip("The test is skipped because it has not been selected via --runtime switch. "
-                "Only tests marked with pytest.mark.runtime('{}') are run: {item}".
-                format(selected_runtime, item=item))
+                "Only tests marked with pytest.mark.runtime('{runtime}') are run: {item}".
+                format(runtime=selected_runtime, item=item))
+
+
+def skip_if_not_marked_with_system(selected_systems, item):
+    for marker in item.iter_markers(name="system"):
+        systems_name = marker.args[0]
+        if systems_name in selected_systems or "all" in selected_systems:
+            return
+    pytest.skip("The test is skipped because it does not have the right system marker. "
+                "Only tests marked with pytest.mark.system(SYSTEM) are run with SYSTEM"
+                " being one of {systems}. {item}".
+                format(systems=selected_systems, item=item))
+
+
+def skip_system_test(item):
+    for marker in item.iter_markers(name="system"):
+        pytest.skip("The test is skipped because it has system marker. "
+                    "System tests are only run when --systems flag "
+                    "with the right system ({system}) is passed to pytest. {item}".
+                    format(system=marker.args[0], item=item))
+
+
+def skip_long_running_test(item):
+    for _ in item.iter_markers(name="long_running"):
+        pytest.skip("The test is skipped because it has long_running marker. "
+                    "And system tests are only run when --long-lasting flag "
+                    "is passed to pytest. {item}".
+                    format(item=item))
 
 
 def skip_if_integration_disabled(marker, item):
@@ -199,10 +250,10 @@ def skip_if_integration_disabled(marker, item):
     environment_variable_value = os.environ.get(environment_variable_name)
     if not environment_variable_value or environment_variable_value != "true":
         pytest.skip("The test requires {integration_name} integration started and "
-                    "{} environment variable to be set to true (it is '{}')."
+                    "{name} environment variable to be set to true (it is '{value}')."
                     " It can be set by specifying '--integration {integration_name}' at breeze startup"
                     ": {item}".
-                    format(environment_variable_name, environment_variable_value,
+                    format(name=environment_variable_name, value=environment_variable_value,
                            integration_name=integration_name, item=item))
 
 
@@ -212,10 +263,10 @@ def skip_if_runtime_disabled(marker, item):
     environment_variable_value = os.environ.get(environment_variable_name)
     if not environment_variable_value or environment_variable_value != runtime_name:
         pytest.skip("The test requires {runtime_name} integration started and "
-                    "{} environment variable to be set to true (it is '{}')."
+                    "{name} environment variable to be set to true (it is '{value}')."
                     " It can be set by specifying '--environment {runtime_name}' at breeze startup"
                     ": {item}".
-                    format(environment_variable_name, environment_variable_value,
+                    format(name=environment_variable_name, value=environment_variable_value,
                            runtime_name=runtime_name, item=item))
 
 
@@ -225,20 +276,36 @@ def skip_if_wrong_backend(marker, item):
     environment_variable_value = os.environ.get(environment_variable_name)
     if not environment_variable_value or environment_variable_value not in valid_backend_names:
         pytest.skip("The test requires one of {valid_backend_names} backend started and "
-                    "{} environment variable to be set to true (it is '{}')."
+                    "{name} environment variable to be set to 'true' (it is '{value}')."
                     " It can be set by specifying backend at breeze startup"
                     ": {item}".
-                    format(environment_variable_name, environment_variable_value,
+                    format(name=environment_variable_name, value=environment_variable_value,
                            valid_backend_names=valid_backend_names, item=item))
+
+
+def skip_if_credential_file_missing(item):
+    for marker in item.iter_markers(name="credential_file"):
+        credential_file = marker.args[0]
+        credential_path = os.path.join(os.environ.get('CREDENTIALS_DIR'), credential_file)
+        if not os.path.exists(credential_path):
+            pytest.skip("The test requires credential file {path}: {item}".
+                        format(path=credential_path, item=item))
 
 
 def pytest_runtest_setup(item):
     selected_integrations = item.config.getoption("--integrations")
     selected_integrations_list = selected_integrations.split(",") if selected_integrations else []
+    selected_systems = item.config.getoption("--systems")
+    selected_systems_list = selected_systems.split(",") if selected_systems else []
+    include_long_running = item.config.getoption("--include-long-running")
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
     if selected_integrations_list:
-        skip_if_not_marked_with_integration(selected_integrations, item)
+        skip_if_not_marked_with_integration(selected_integrations_list, item)
+    if selected_systems_list:
+        skip_if_not_marked_with_system(selected_systems_list, item)
+    else:
+        skip_system_test(item)
     for marker in item.iter_markers(name="backend"):
         skip_if_wrong_backend(marker, item)
     selected_backend = item.config.getoption("--backend")
@@ -249,3 +316,6 @@ def pytest_runtest_setup(item):
     selected_runtime = item.config.getoption("--runtime")
     if selected_runtime:
         skip_if_not_marked_with_runtime(selected_runtime, item)
+    if not include_long_running:
+        skip_long_running_test(item)
+    skip_if_credential_file_missing(item)

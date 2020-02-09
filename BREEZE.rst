@@ -206,6 +206,12 @@ run tests immediately.
 You can `set up autocomplete <#setting-up-autocomplete>`_ for commands and add the
 checked-out Airflow repository to your PATH to run Breeze without the ``./`` and from any directory.
 
+
+When you enter the Breeze environment, automatically an environment file is sourced from
+``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
+automatically mounted to the container under ``/files`` path and you can put there any files you want
+to make available fot the Breeze container.
+
 Stopping Breeze
 ---------------
 
@@ -610,8 +616,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -S, --static-check <STATIC_CHECK>
           Run selected static checks for currently changed files. You should specify static check that
-          you would like to run or 'all' to run all checks. One of
-          [ all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck].
+          you would like to run or 'all' to run all checks. One of:
+
+              all all-but-pylint bat-tests check-apache-license
+              check-executables-have-shebangs check-hooks-apply check-merge-conflict
+              check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8
+              forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint
+              pylint-test setup-order shellcheck
+
           You can pass extra arguments including options to to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 
@@ -624,8 +636,14 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -F, --static-check-all-files <STATIC_CHECK>
           Run selected static checks for all applicable files. You should specify static check that
-          you would like to run or 'all' to run all checks. One of
-          [ all all-but-pylint bat-tests check-apache-license check-executables-have-shebangs check-hooks-apply check-merge-conflict check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8 forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint pylint-test setup-order shellcheck].
+          you would like to run or 'all' to run all checks. One of:
+
+              all all-but-pylint bat-tests check-apache-license
+              check-executables-have-shebangs check-hooks-apply check-merge-conflict
+              check-xml debug-statements doctoc detect-private-key end-of-file-fixer flake8
+              forbid-tabs insert-license lint-dockerfile mixed-line-ending mypy pylint
+              pylint-test setup-order shellcheck
+
           You can pass extra arguments including options to the pre-commit framework as
           <EXTRA_ARGS> passed after --. For example:
 
@@ -660,17 +678,26 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -P, --python <PYTHON_VERSION>
           Python version used for the image. This is always major/minor version.
-          One of [ 3.6 3.7 ]. Default is the python3 or python on the path.
+          One of:
+
+              3.6 3.7
+
 
   -B, --backend <BACKEND>
           Backend to use for tests - it determines which database is used.
-          One of [ sqlite mysql postgres ]. Default: sqlite
+          One of:
+
+              sqlite mysql postgres
+
+          Default: sqlite
 
   -I, --integration <INTEGRATION>
           Integration to start during tests - it determines which integrations are started for integration
           tests. There can be more than one integration started, or all to start all integrations.
           Selected integrations are not saved for future execution.
-          One of [ cassandra kerberos mongo openldap rabbitmq redis all ].
+          One of:
+
+              cassandra kerberos mongo openldap rabbitmq redis all
 
   *********************************************************************************************************
   **
@@ -697,11 +724,19 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -M, --kubernetes-mode <KUBERNETES_MODE>
           Kubernetes mode - only used in case --start-kind-cluster flag is specified.
-          One of [ persistent_mode git_mode ]. Default: git_mode
+          One of:
+
+              persistent_mode git_mode
+
+          Default: git_mode
 
   -V, --kubernetes-version <KUBERNETES_VERSION>
           Kubernetes version - only used in case --start-kind-cluster flag is specified.
-          One of [ v1.15.3 v1.16.2 ]. Default: v1.15.3
+          One of:
+
+              v1.15.3 v1.16.2
+
+          Default: v1.15.3
 
   *********************************************************************************************************
   **
@@ -715,6 +750,21 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   *********************************************************************************************************
   **
+  ** Install Airflow if different than current
+  **
+  *********************************************************************************************************
+
+  -N, --install-airflow-version <INSTALL_AIRFLOW_VERSION>
+          If different than 'current' removes the source-installed airflow and installs a
+          released version of Airflow instead. One of:
+
+
+              current 1.10.9 1.10.8 1.10.7 1.10.6 1.10.5 1.10.4 1.10.3 1.10.2 1.10.1
+
+          Default: current.
+
+  *********************************************************************************************************
+  **
   ** Assume answers to questions
   **
   *********************************************************************************************************
@@ -724,6 +774,16 @@ This is the current syntax for  `./breeze <./breeze>`_:
 
   -n, --assume-no
           Assume 'no' answer to all questions.
+
+  *********************************************************************************************************
+  **
+  ** Credentials
+  **
+  *********************************************************************************************************
+
+  -f, --forward-credentials
+          Forwards host credentials to docker container. Use with care as it will make your credentials
+          Available to everything you install in Docker.
 
   *********************************************************************************************************
   **

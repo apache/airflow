@@ -16,14 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import unittest
 from typing import Optional, Sequence
 
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
-AIRFLOW_MAIN_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
-)
 CLOUD_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "cloud", "example_dags"
 )
@@ -35,43 +32,6 @@ POSTGRES_LOCAL_EXECUTOR = os.path.join(
 )
 
 
-SKIP_TEST_WARNING = """
-The test is only run when the test is run in environment with GCP-system-tests enabled
-environment. You can enable it in one of two ways:
-
-* Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
-  directory which keeps the {} key.
-* Run this test within automated environment variable workspace where
-  config directory is checked out next to the airflow one.
-
-"""
-
-SKIP_LONG_TEST_WARNING = """
-The test is only run when the test is run in with GCP-system-tests enabled
-environment. And environment variable GCP_ENABLE_LONG_TESTS is set to True.
-You can enable it in one of two ways:
-
-* Set GCP_CONFIG_DIR environment variable to point to the GCP configuration
-  directory which keeps variables.env file with environment variables to set
-  and keys directory which keeps service account keys in .json format and
-  set GCP_ENABLE_LONG_TESTS to True
-* Run this test within automated environment variable workspace where
-  config directory is checked out next to the airflow one.
-"""
-
-
-LOCAL_EXECUTOR_WARNING = """
-The test requires local executor. Please set AIRFLOW_CONFIG variable to '{}'
-and make sure you have a Postgres server running locally and
-airflow/airflow.db database created.
-
-You can create the database via these commands:
-'createuser root'
-'createdb airflow/airflow.db`
-
-"""
-
-
 def resolve_full_gcp_key_path(key: str) -> str:
     """
     Returns path full path to provided GCP key.
@@ -80,40 +40,9 @@ def resolve_full_gcp_key_path(key: str) -> str:
     :type key: str
     :returns: Full path to the key
     """
-    path = os.environ.get("GCP_CONFIG_DIR", "/config")
-    key = os.path.join(path, "keys", key)
+    path = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
+    key = os.path.join(path, key)
     return key
-
-
-def skip_gcp_system(
-    service_key: str, long_lasting: bool = False, require_local_executor: bool = False
-):
-    """
-    Decorator for skipping GCP system tests.
-
-    :param service_key: name of the service key that will be used to provide credentials
-    :type service_key: str
-    :param long_lasting: set True if a test take relatively long time
-    :type long_lasting: bool
-    :param require_local_executor: set True if test config must use local executor
-    :type require_local_executor: bool
-    """
-    try:
-        full_key_path = resolve_full_gcp_key_path(service_key)
-        with open(full_key_path):
-            pass
-    except FileNotFoundError:
-        return unittest.skip(SKIP_TEST_WARNING.format(service_key))
-
-    if long_lasting and os.environ.get("GCP_ENABLE_LONG_TESTS") == "True":
-        return unittest.skip(SKIP_LONG_TEST_WARNING)
-
-    if require_local_executor and POSTGRES_LOCAL_EXECUTOR != os.environ.get(
-        "AIRFLOW_CONFIG"
-    ):
-        return unittest.skip(LOCAL_EXECUTOR_WARNING.format(POSTGRES_LOCAL_EXECUTOR))
-
-    return lambda cls: cls
 
 
 def provide_gcp_context(

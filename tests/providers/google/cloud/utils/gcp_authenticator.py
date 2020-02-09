@@ -23,8 +23,9 @@ from typing import Optional  # noqa: W0611
 from airflow import AirflowException, settings
 from airflow.models import Connection
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
-
 # Please keep these variables in alphabetical order.
+from tests.test_utils import AIRFLOW_MAIN_FOLDER
+
 GCP_AI_KEY = 'gcp_ai.json'
 GCP_AUTOML_KEY = 'gcp_automl.json'
 GCP_BIGQUERY_KEY = 'gcp_bigquery.json'
@@ -52,10 +53,6 @@ KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'
 SCOPE_EXTRA = 'extra__google_cloud_platform__scope'
 PROJECT_EXTRA = 'extra__google_cloud_platform__project'
-
-AIRFLOW_MAIN_FOLDER = os.path.realpath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir)
-)
 
 
 class GcpAuthenticator(LoggingCommandExecutor):
