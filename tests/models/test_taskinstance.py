@@ -24,10 +24,10 @@ from typing import List, Optional, Union
 from unittest.mock import mock_open, patch
 
 import pendulum
+import pytest
 from freezegun import freeze_time
 from parameterized import param, parameterized
 from sqlalchemy.orm.session import Session
-import pytest
 
 from airflow import models, settings
 from airflow.configuration import conf
