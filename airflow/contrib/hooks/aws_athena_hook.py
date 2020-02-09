@@ -74,7 +74,7 @@ class AWSAthenaHook(AwsHook):
                                                          ClientRequestToken=client_request_token,
                                                          QueryExecutionContext=query_context,
                                                          ResultConfiguration=result_configuration,
-                                                         Workgroup=workgroup)
+                                                         WorkGroup=workgroup)
         query_execution_id = response['QueryExecutionId']
         return query_execution_id
 
