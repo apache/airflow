@@ -116,6 +116,9 @@ def git_version(version_):
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
             return ''
+        except git.InvalidGitRepositoryError:
+            logger.warning('Invalid .git directory not found: Cannot compute the git version')
+            return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
