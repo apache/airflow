@@ -178,7 +178,7 @@ function in_container_refresh_pylint_todo() {
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
 
 function start_output_heartbeat() {
-    MESSAGE=${1:="Still working!"}
+    MESSAGE=${1:-"Still working!"}
     INTERVAL=${2:=10}
     echo
     echo "Starting output heartbeat"
@@ -257,6 +257,16 @@ function dump_container_logs() {
     done
 }
 
+function dump_airflow_logs() {
+    echo "###########################################################################################"
+    echo "                   Dumping logs from all the airflow tasks"
+    echo "###########################################################################################"
+    pushd /root/airflow/ || exit 1
+    tar -czf "${1}" logs
+    popd || exit 1
+    echo "###########################################################################################"
+}
+
 
 function send_docker_logs_to_file_io() {
     echo "##############################################################################"
@@ -266,6 +276,21 @@ function send_docker_logs_to_file_io() {
     echo "##############################################################################"
     DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_docker_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}.log.gz
     dump_container_logs 2>&1 | gzip >"${DUMP_FILE}"
+    echo
+    echo "   Logs saved to ${DUMP_FILE}"
+    echo
+    echo "##############################################################################"
+    curl -F "file=@${DUMP_FILE}" https://file.io
+}
+
+function send_airflow_logs_to_file_io() {
+    echo "##############################################################################"
+    echo
+    echo "   DUMPING LOG FILES FROM AIRFLOW AND SENDING THEM TO file.io"
+    echo
+    echo "##############################################################################"
+    DUMP_FILE=/tmp/$(date "+%Y-%m-%d")_airflow_${TRAVIS_BUILD_ID:="default"}_${TRAVIS_JOB_ID:="default"}.log.tar.gz
+    dump_airflow_logs "${DUMP_FILE}"
     echo
     echo "   Logs saved to ${DUMP_FILE}"
     echo
@@ -299,4 +324,13 @@ function send_kubernetes_logs_to_file_io() {
     echo
     echo "##############################################################################"
     curl -F "file=@${DUMP_DIR}.tar.gz" https://file.io
+}
+
+function install_old_airflow_version() {
+    pip uninstall apache-airflow -y || true
+    find /root/airflow/ -type f -print0 | xargs rm -f
+    unset PYTHONPATH
+    cd /opt/airflow-backport/ || exit 1
+    # TODO: add support for older versions that are not installing correctly out-of-the-box
+    pip install "apache-airflow==${1}"
 }

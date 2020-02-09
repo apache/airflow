@@ -31,8 +31,7 @@ Airflow Test Infrastructure
 
 * **System tests** are automatic tests that use external systems like
   Google Cloud Platform. These tests are intended for an end-to-end DAG execution.
-  Note that automated execution of these tests is still
-  `work in progress <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-4+Support+for+System+Tests+for+external+systems#app-switcher>`_.
+  The tests can be executde on both.
 
 This document is about running python tests, before the tests are run we also use
 `static code checks <STATIC_CODE_CHECKS.rst>`__ which allow to catch typical errors in code
@@ -474,20 +473,58 @@ More information:
 Airflow System Tests
 ====================
 
-The System tests for Airflow are not yet fully implemented. They are Work In Progress of the
-`AIP-4 Support for System Tests for external systems <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-4+Support+for+System+Tests+for+external+systems>`__.
 These tests need to communicate with external services/systems that are available
 if you have appropriate credentials configured for your tests.
-The tests derive from ``tests.system_test_class.SystemTests`` class.
+The tests derive from ``tests.system_test_class.SystemTests`` class. They should also
+be marked with ``@pytest.marker.system(SYSTEM)`` where system designates the system
+to be tested (for example ``google.cloud``). Those tests are skipped by default.
+You can execute the tests providing ``--systems SYSTEMS`` flag to pytest.
 
-The system tests execute a specified
-example DAG file that runs the DAG end-to-end.
+The system tests execute a specified example DAG file that runs the DAG end-to-end.
+
+Most of the system tests have also addtional requirements for example they need to have
+credentials to connect to external systems. This is don with pytest marker
+``@pytest.markers.credential_file(file)`` where "file" is a file containing
+credentials. The credential file should be relative path from
+``/files/airflow-breeze-config/keys`` directory. In Breeze environment it is mapped
+from the ``files`` directory in airflow's sources.
+
+Some of the system tests are long lasting ones (they require more than 20-30 minutes
+to complete}. They are marked with ```@pytest.markers.long_lasting`` marker.
+They are skipped by default unless you specify ``--long-lasting`` flag to pytest.
 
 An example of such a system test is
 ``airflow.tests.providers.google.operators.test_natural_language_system.CloudNaturalLanguageExampleDagsTest``.
 
-For now you can execute the system tests and follow messages printed to get them running. Soon more information on
-running the tests will be available.
+
+Running system tests for a system
+---------------------------------
+
+As mentioned above - the system tests are only executed when you specify ``--systems SYSTEMS
+flag where SYSTEMS is coma-separated list of systems to run the system tests for.
+
+
+Running system tests for older Airlow versions
+----------------------------------------------
+
+The system tests can be executed against the master version of airflow but they also work
+with older versions of airflow. This is especially useful to tests backported operators
+from airflow 2.0 to 1.10.* versions.
+
+In order to run the tests for airflFow 1.10.* series you need to do the following steps after entering
+the Breeze environment:
+
+.. code-block:: bash
+
+  unset PYTHONPATH
+  ./scripts/ci/in_container/install_older_airflow.sh <AIRFLOW_VERSION>
+  cd /opt/airflow-backport/
+
+The commands make sure that older version of Airflow is installed and source version of master airflow
+is removed from the PYTHONPATH. Also the current system tests are mapped to
+/opt/airflow-backport/test directory so you can run them directly from there.
+
+You can skip <AIRLFOW_VERSION> and the latest version of stable airflow is installed.
 
 
 Local and Remote Debugging in IDE

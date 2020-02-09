@@ -84,7 +84,6 @@ function print_info() {
 # Simple (?) no-dependency needed Yaml PARSER
 # From https://stackoverflow.com/questions/5014632/how-can-i-parse-a-yaml-file-from-a-linux-shell-script
 function parse_yaml {
-
     if [[ -z $1 ]]; then
         echo "Please provide yaml filename as first parameter."
         exit 1
@@ -119,6 +118,7 @@ function parse_yaml {
 # from airflow-testing section to "-v" "volume mapping" series of options
 function convert_docker_mounts_to_docker_params() {
     ESCAPED_AIRFLOW_SOURCES=$(echo "${AIRFLOW_SOURCES}" | sed -e 's/[\/&]/\\&/g')
+    ESCAPED_HOME=$(echo "${HOME}" | sed -e 's/[\/&]/\\&/g')
     # shellcheck disable=2046
     while IFS= read -r LINE; do
         echo "-v"
@@ -126,6 +126,7 @@ function convert_docker_mounts_to_docker_params() {
     done < <(parse_yaml scripts/ci/docker-compose/local.yml COMPOSE_ | \
             grep "COMPOSE_services_airflow-testing_volumes_" | \
             sed "s/..\/..\/../${ESCAPED_AIRFLOW_SOURCES}/" | \
+            sed "s/\${HOME}/${ESCAPED_HOME}/" | \
             sed "s/COMPOSE_services_airflow-testing_volumes_//" | \
             sort -t "=" -k 1 -n | \
             cut -d "=" -f 2- | \

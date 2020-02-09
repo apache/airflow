@@ -29,6 +29,23 @@ in_container_basic_sanity_check
 
 in_container_script_start
 
+# You can run the system tests against any version of airflow - it will be reinstalled if
+# different than current
+export SYSTEM_TEST_AIRFLOW_VERSION=${SYSTEM_TEST_AIRFLOW_VERSION:="current"}
+
+if [[ ${SYSTEM_TEST_AIRFLOW_VERSION} == *1.10* ]]; then
+    export RUN_TESTS_FOR_AIRFLOW_1_10="true"
+fi
+
+cd "${AIRFLOW_SOURCES}"
+
+if [[ ${SYSTEM_TEST_AIRFLOW_VERSION} == "current" ]]; then
+    pip install -e .
+    export PYTHONPATH="${AIRFLOW_SOURCES}"
+else
+    install_old_airflow_version "${SYSTEM_TEST_AIRFLOW_VERSION}"
+fi
+
 # any argument received is overriding the default nose execution arguments:
 PYTEST_ARGS=( "$@" )
 
@@ -44,18 +61,12 @@ RES=$?
 set +x
 if [[ "${RES}" == "0" && ${CI} == "true" ]]; then
     echo "All tests successful"
-    bash <(curl -s https://codecov.io/bash)
 fi
 
 if [[ ${CI} == "true" ]]; then
     send_docker_logs_to_file_io
     send_airflow_logs_to_file_io
 fi
-
-if [[ ${CI} == "true" && ${ENABLE_KIND_CLUSTER} == "true" ]]; then
-    send_kubernetes_logs_to_file_io
-fi
-
 
 in_container_script_end
 

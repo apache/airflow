@@ -17,10 +17,12 @@
 # under the License.
 import os
 
+import pytest
+
 from airflow import AirflowException
 from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
@@ -28,7 +30,9 @@ GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
 SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 
-@skip_gcp_system(GCP_CLOUDSQL_KEY, require_local_executor=True)
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.system("google.cloud")
+@pytest.mark.credential_file(GCP_CLOUDSQL_KEY)
 class CloudSqlExampleDagsIntegrationTest(SystemTest):
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def tearDown(self):

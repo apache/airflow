@@ -176,6 +176,18 @@ if [[ "${ENABLE_KIND_CLUSTER}" == "true" ]]; then
     fi
 fi
 
+export FILES_DIR="/files"
+export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
+VARIABLES_ENV_FILE="${AIRFLOW_BREEZE_CONFIG_DIR}/variables.env"
+
+if [[ -f ${VARIABLES_ENV_FILE} ]]; then
+    echo
+    echo "Sourcing environment variables from ${VARIABLES_ENV_FILE}"
+    echo
+     # shellcheck disable=1090
+    source "${VARIABLES_ENV_FILE}"
+fi
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" == "false" ]]; then
@@ -220,7 +232,13 @@ if [[ -n ${RUNTIME} ]]; then
     fi
 fi
 
+
 ARGS=("${CI_ARGS[@]}" "${TEST_DIR}")
-"${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
+
+if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
+    "${MY_DIR}/run_system_tests.sh" "${ARGS[@]}"
+else
+    "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
+fi
 
 in_container_script_end

@@ -60,7 +60,9 @@ services_airflow-testing_volumes_26="../../../scripts/ci/in_container/entrypoint
 services_airflow-testing_volumes_27="../../../setup.cfg:/opt/airflow/setup.cfg:cached"
 services_airflow-testing_volumes_28="../../../setup.py:/opt/airflow/setup.py:cached"
 services_airflow-testing_volumes_29="../../../tests:/opt/airflow/tests:cached"
-services_airflow-testing_volumes_30="../../../tmp:/opt/airflow/tmp:cached"
+services_airflow-testing_volumes_30="../../../tests:/opt/airflow-backport/tests:cached"
+services_airflow-testing_volumes_31="../../../tmp:/opt/airflow/tmp:cached"
+services_airflow-testing_volumes_32="${HOME}/.config:/root/.config"
 services_airflow-testing_environment_1="HOST_USER_ID"
 services_airflow-testing_environment_2="HOST_GROUP_ID"
 services_airflow-testing_environment_3="PYTHONDONTWRITEBYTECODE"
@@ -132,6 +134,10 @@ ${AIRFLOW_SOURCES}/setup.py:/opt/airflow/setup.py:cached
 -v
 ${AIRFLOW_SOURCES}/tests:/opt/airflow/tests:cached
 -v
+${AIRFLOW_SOURCES}/tests:/opt/airflow-backport/tests:cached
+-v
 ${AIRFLOW_SOURCES}/tmp:/opt/airflow/tmp:cached
+-v
+${HOME}/.config:/root/.config
 EOF
 }

@@ -21,13 +21,16 @@
 This module contains various unit tests for
 example_gcp_dlp DAG
 """
+import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DLP_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context, skip_gcp_system
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
 from tests.test_utils.system_tests_class import SystemTest
 
 
-@skip_gcp_system(GCP_DLP_KEY, require_local_executor=True)
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.system("google.cloud")
+@pytest.mark.credential_file(GCP_DLP_KEY)
 class GcpDLPExampleDagsSystemTest(SystemTest):
     @provide_gcp_context(GCP_DLP_KEY)
     def test_run_example_dag_function(self):
