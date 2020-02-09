@@ -468,7 +468,12 @@ class TaskInstance(Base, LoggingMixin):
 
     def refresh_from_task(self, task, pool_override=None):
         """
-        Copy the necessary attributes of a TaskInstance using its task.
+        Copy common attributes from the given task.
+
+        :param task: The task object to copy from
+        :type task: BaseOperator
+        :param pool_override: Use the pool_override instead of task's pool
+        :type pool_override: str
         """
         self.queue = task.queue
         self.pool = pool_override or task.pool
@@ -476,7 +481,6 @@ class TaskInstance(Base, LoggingMixin):
         self.priority_weight = task.priority_weight_total
         self.run_as_user = task.run_as_user
         self.max_tries = task.retries
-        self.run_as_user = task.run_as_user
         self.executor_config = task.executor_config
         self.operator = task.__class__.__name__
 
