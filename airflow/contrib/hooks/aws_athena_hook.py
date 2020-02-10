@@ -54,7 +54,7 @@ class AWSAthenaHook(AwsHook):
         return self.conn
 
     def run_query(self, query, query_context, result_configuration, client_request_token=None,
-                  workgroup='default'):
+                  workgroup='primary'):
         """
         Run Presto query on athena with provided config and return submitted query_execution_id
 
@@ -66,7 +66,7 @@ class AWSAthenaHook(AwsHook):
         :type result_configuration: dict
         :param client_request_token: Unique token created by user to avoid multiple executions of same query
         :type client_request_token: str
-        :param workgroup: Athena workgroup name, when not specified, will be 'default'
+        :param workgroup: Athena workgroup name, when not specified, will be 'primary'
         :type workgroup: str
         :return: str
         """

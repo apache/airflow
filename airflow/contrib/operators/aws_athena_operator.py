@@ -53,7 +53,7 @@ class AWSAthenaOperator(BaseOperator):
     @apply_defaults
     def __init__(self, query, database, output_location, aws_conn_id='aws_default', client_request_token=None,
                  query_execution_context=None, result_configuration=None, sleep_time=30, max_tries=None,
-                 workgroup='default',
+                 workgroup='primary',
                  *args, **kwargs):
         super(AWSAthenaOperator, self).__init__(*args, **kwargs)
         self.query = query
