@@ -227,14 +227,15 @@ class TestDagRun(unittest.TestCase):
                                execution_date=now,
                                start_date=now)
 
-        dr.update_state()
-        self.assertEqual(dr.state, State.RUNNING)
-
         ti_op1 = dr.get_task_instance(task_id=op1.task_id)
         ti_op1.set_state(state=State.SUCCESS, session=session)
         ti_op2 = dr.get_task_instance(task_id=op2.task_id)
         ti_op2.set_state(state=State.NONE, session=session)
 
+        dr.update_state()
+        self.assertEqual(dr.state, State.RUNNING)
+
+        ti_op2.set_state(state=State.NONE, session=session)
         op2.trigger_rule = 'invalid'
         dr.update_state()
         self.assertEqual(dr.state, State.FAILED)

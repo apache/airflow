@@ -1546,7 +1546,7 @@ class TaskInstance(Base, LoggingMixin):
                                for ti in tis])
             return or_(*filter_for_tis)
 
-        raise AirflowException("All elements must have the same type: `TaskInstance` or `TaskInstanceKey`.")
+        raise TypeError("All elements must have the same type: `TaskInstance` or `TaskInstanceKey`.")
 
 
 # State of the task instance.

@@ -16,13 +16,14 @@
 # under the License.
 
 import os
-from time import sleep, time
+import statistics
+from time import monotonic, sleep
 from typing import List, NamedTuple, Optional, Tuple
 
 import pandas as pd
 
 # Setup environment before any Airflow import
-DAG_FOLDER = "/opt/airflow/scripts/perf/dags"
+DAG_FOLDER = os.path.join(os.path.dirname(__file__), "dags")
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = DAG_FOLDER
 os.environ["AIRFLOW__DEBUG__SQLALCHEMY_STATS"] = "True"
 os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
@@ -139,16 +140,16 @@ def run_test() -> Tuple[List[Query], float]:
     if os.path.exists(LOG_FILE):
         os.remove(LOG_FILE)
 
-    tic = time()
+    tic = monotonic()
     run_scheduler_job(with_db_reset=False)
-    toc = time()
+    toc = monotonic()
     queries = make_report()
     return queries, toc - tic
 
 
 def rows_to_csv(rows: List[dict], name: Optional[str] = None) -> pd.DataFrame:
     df = pd.DataFrame(rows)
-    name = name or f"/files/sql_stats_{int(time())}.csv"
+    name = name or f"/files/sql_stats_{int(monotonic())}.csv"
     df.to_csv(name, index=False)
     print(f"Saved result to {name}")
     return df
@@ -172,6 +173,12 @@ def main() -> None:
 
     rows_to_csv(rows, name="/files/sql_after_remote.csv")
     print(times)
+    msg = "Time for %d dag runs: %.4fs"
+
+    if len(times) > 1:
+        print((msg + " (±%.3fs)") % (len(times), statistics.mean(times), statistics.stdev(times)))
+    else:
+        print(msg % (len(times), times[0]))
 
 
 if __name__ == "__main__":

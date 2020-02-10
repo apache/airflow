@@ -75,13 +75,13 @@ def setup_event_handlers(engine):
 
         @event.listens_for(engine, "after_cursor_execute")
         def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-            total = time.time() - conn.info['query_start_time'].pop(-1)
+            total = time.time() - conn.info['query_start_time'].pop()
             file_name = [
                 f"'{f.name}':{f.filename}:{f.lineno}" for f
                 in traceback.extract_stack() if 'sqlalchemy' not in f.filename][-1]
             stack = [f for f in traceback.extract_stack() if 'sqlalchemy' not in f.filename]
             stack_info = ">".join([f"{f.filename.rpartition('/')[-1]}:{f.name}" for f in stack][-3:])
-            conn.info.setdefault('query_start_time', []).append(time.time())
+            conn.info.setdefault('query_start_time', []).append(time.monotonic())
             log.info("@SQLALCHEMY %s |$ %s |$ %s |$  %s ",
                      total, file_name, stack_info, statement.replace("\n", " ")
                      )

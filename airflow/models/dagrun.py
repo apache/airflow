@@ -337,33 +337,31 @@ class DagRun(Base, LoggingMixin):
         return ready_tis
 
     def _get_ready_tis(self, scheduleable_tasks, finished_tasks, session):
+        old_states = {}
         ready_tis = []
         changed_tis = False
 
         if not scheduleable_tasks:
             return ready_tis, changed_tis
 
-        # Refresh states
-        filter_for_tis = TI.filter_for_tis(scheduleable_tasks)
-        fresh_tis = session.query(TI).filter(filter_for_tis).order_by(
-            TI.dag_id.desc(),
-            TI.task_id.desc(),
-            TI.execution_date.desc(),
-        ).all()
-
-        # Sort scheduleable_tasks
-        scheduleable_tasks_map = {t.key: t for t in scheduleable_tasks}
-
-        for fresh_ti in fresh_tis:
-            stale_ti = scheduleable_tasks_map[fresh_ti.key]
-            if stale_ti.are_dependencies_met(
+        # Check dependencies
+        for st in scheduleable_tasks:
+            old_state = st.state
+            if st.are_dependencies_met(
                 dep_context=DepContext(
                     flag_upstream_failed=True,
                     finished_tasks=finished_tasks),
                     session=session):
-                ready_tis.append(stale_ti)
-            elif stale_ti.state != fresh_ti.state:
-                changed_tis = True
+                ready_tis.append(st)
+            else:
+                old_states[st.key] = old_state
+
+        # Check if any ti changed state
+        tis_filter = TI.filter_for_tis(old_states.keys())
+        if tis_filter is not None:
+            fresh_tis = session.query(TI).filter(tis_filter).all()
+            changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
+
         return ready_tis, changed_tis
 
     def _are_premature_tis(self, unfinished_tasks, finished_tasks, session):

@@ -32,17 +32,9 @@ _FIRST_LEVEL_TASKS = 10
 _SECOND_LEVEL_TASKS = 10
 DAG_ID = f"big_dag_{_FIRST_LEVEL_TASKS}-{_SECOND_LEVEL_TASKS}"
 
-dag = DAG(
-    DAG_ID,
-    default_args=default_args,
-    catchup=True,
-    schedule_interval=timedelta(minutes=1),
-    is_paused_upon_creation=False,
-)
-
 
 def print_context(ds, ti, **kwargs):
-    print("Running %s %s", ti.task_id, ti.execution_date)
+    print(f"Running {ti.task_id} {ti.execution_date}")
     return "Whatever you return gets printed in the logs"
 
 
@@ -50,17 +42,21 @@ def generate_parallel_tasks(name_prefix, num_of_tasks, deps):
     tasks = []
     for t_id in range(num_of_tasks):
         run_this = PythonOperator(
-            task_id="%s_%s" % (name_prefix, t_id),
+            task_id=f"{name_prefix}_{t_id}",
             python_callable=print_context,
-            dag=dag,
         )
-        run_this.set_upstream(deps)
+        run_this << deps
         tasks.append(run_this)
     return tasks
 
 
-zero_level_tasks = generate_parallel_tasks("l0", 1, [])
-first_level_tasks = generate_parallel_tasks("l1", _FIRST_LEVEL_TASKS, zero_level_tasks)
-second_level_tasks = generate_parallel_tasks(
-    "l2", _SECOND_LEVEL_TASKS, first_level_tasks
-)
+with DAG(
+    DAG_ID,
+    default_args=default_args,
+    catchup=True,
+    schedule_interval=timedelta(minutes=1),
+    is_paused_upon_creation=False,
+):
+    zero_level_tasks = generate_parallel_tasks("l0", 1, [])
+    first_level_tasks = generate_parallel_tasks("l1", _FIRST_LEVEL_TASKS, zero_level_tasks)
+    second_level_tasks = generate_parallel_tasks("l2", _SECOND_LEVEL_TASKS, first_level_tasks)

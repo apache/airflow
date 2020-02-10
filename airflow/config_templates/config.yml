@@ -495,13 +495,6 @@
       type: string
       example: ~
       default: "False"
-    - name: sqlalchemy_stats
-      description: |
-        Set to True to enable logging of SQLAlchemy queries and execution times.
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
 - name: api
   description: ~
   options:
