@@ -34,6 +34,6 @@ KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 mkdir -p "${AIRFLOW_SOURCES}/files"
 
 # We need to install six apparently
-sudo pip install pre-commit six==1.14.0
+sudo pip install pre-commit 'six~=1.14'
 
 script_end
