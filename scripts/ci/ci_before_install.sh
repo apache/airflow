@@ -33,6 +33,7 @@ KUBERNETES_MODE=${KUBERNETES_MODE:=""}
 
 mkdir -p "${AIRFLOW_SOURCES}/files"
 
-sudo pip install pre-commit
+# We need newer version of six for Travis as they bundle 1.11.0 version
+sudo pip install pre-commit 'six~=1.14'
 
 script_end
