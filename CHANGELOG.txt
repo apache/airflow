@@ -907,7 +907,7 @@ Doc-only changes
 - [AIRFLOW-XXX] Reduce log spam in tests (#5174)
 - [AIRFLOW-XXX] Speed up tests for PythonSensor (#5158)
 - [AIRFLOW-XXX] Add Bas Harenslak to committer list (#5157)
-- [AIRFLOW-XXX] Add Jarek Potiuk to commiter list (#5132)
+- [AIRFLOW-XXX] Add Jarek Potiuk to committer list (#5132)
 - [AIRFLOW-XXX] Update docstring for SchedulerJob (#5105)
 - [AIRFLOW-XXX] Fix docstrings for CassandraToGoogleCloudStorageOperator (#5103)
 - [AIRFLOW-XXX] update SlackWebhookHook and SlackWebhookOperator docstring (#5074)
