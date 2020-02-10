@@ -583,7 +583,7 @@ These integrations allow you to copy data from/to Amazon Web Services.
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
      - :mod:`airflow.providers.amazon.aws.operators.sftp_to_s3`
-     
+
    * - `MySQL <https://www.mysql.com/>`__
      - `Amazon Simple Storage Service (S3) <https://aws.amazon.com/s3/>`_
      -
