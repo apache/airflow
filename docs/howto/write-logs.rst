@@ -47,7 +47,7 @@ Advanced configuration
 Not all configuration options are available from the ``airflow.cfg`` file. Some configuration options require
 that the logging config class be overwritten. This can be done by ``logging_config_class`` option
 in ``airflow.cfg`` file. This option should specify the import path indicating to a configuration compatible with
-:class:`logging.config.dictConfig`. If your file is a standard import location, then you should set a  :any:``PYTHONPATH`` environment.
+:class:`logging.config.dictConfig`. If your file is a standard import location, then you should set a  :any:`PYTHONPATH` environment.
 
 Follow the steps below to enable custom logging config class:
 
