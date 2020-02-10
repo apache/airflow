@@ -38,7 +38,7 @@
     <div class="alert alert-warning">
       <p>The scheduler does not appear to be running.
       {% if scheduler_job %}
-      Last heartbeat was received <time title="{{ scheduler_job.latest_heartbeat.isoformat() }}" datetime="{{ scheduler_job.latest_heartbeat.isoformat() }}">{{ macros.datetime_diff_for_humans(scheduler_job.latest_heartbeat) }}</time>.
+      Last heartbeat was received <time title="{{ scheduler_job.get_heartbeat().isoformat() }}" datetime="{{ scheduler_job.get_heartbeat().isoformat() }}">{{ macros.datetime_diff_for_humans(scheduler_job.get_heartbeat()) }}</time>.
       {% endif %}
       </p>
       <p>The DAGs list may not update, and new tasks will not be scheduled.</p>

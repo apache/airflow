@@ -114,13 +114,17 @@ class TestBaseJob(unittest.TestCase):
             mock_create_session.return_value.__enter__.return_value = mock_session
 
             job = self.TestJob(None, heartrate=10, state=State.RUNNING)
-            job._legacy_heartbeat = when
+            session.add(job)
+            session.commit()
+            job.update_heartbeat(heartbeat_time=when)
 
             mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
 
             job.heartbeat()
 
-            self.assertEqual(job.latest_heartbeat, when, "attriubte not updated when heartbeat fails")
+            job = session.query(BaseJob).filter(BaseJob.id == job.id).first()
+
+            self.assertEqual(job.get_heartbeat(), when, "attribute not updated when heartbeat fails")
 
     def test_update_heartbeat(self):
         with create_session() as session:

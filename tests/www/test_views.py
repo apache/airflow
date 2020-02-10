@@ -377,10 +377,10 @@ class TestAirflowBaseViews(TestBase):
 
         # case-1: healthy scheduler status
         last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()
-        self.session.add(BaseJob(job_type='SchedulerJob',
-                                 state='running',
-                                 latest_heartbeat=last_scheduler_heartbeat_for_testing_1))
+        job1 = BaseJob(job_type='SchedulerJob', state='running')
+        self.session.add(job1)
         self.session.commit()
+        job1.update_heartbeat(heartbeat_time=last_scheduler_heartbeat_for_testing_1, session=self.session)
 
         resp_json = json.loads(self.client.get('health', follow_redirects=True).data.decode('utf-8'))
 
@@ -390,22 +390,22 @@ class TestAirflowBaseViews(TestBase):
                          resp_json['scheduler']['latest_scheduler_heartbeat'])
 
         self.session.query(BaseJob).\
-            filter(BaseJob.job_type == 'SchedulerJob',
-                   BaseJob.state == 'running',
-                   BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_1).\
+            filter(BaseJob.id == job1.id).\
             delete()
         self.session.commit()
 
         # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
         last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
-        (self.session
-             .query(BaseJob)
-             .filter(BaseJob.job_type == 'SchedulerJob')
-             .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)}))
-        self.session.add(BaseJob(job_type='SchedulerJob',
-                                 state='running',
-                                 latest_heartbeat=last_scheduler_heartbeat_for_testing_2))
+        jobs = (self.session.query(BaseJob).filter(BaseJob.job_type == 'SchedulerJob').all())
+
+        for job in jobs:
+            job.update_heartbeat(heartbeat_time=last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1),
+                                 session=self.session)
+
+        job2 = BaseJob(job_type='SchedulerJob', state='running')
+        self.session.add(job2)
         self.session.commit()
+        job2.update_heartbeat(heartbeat_time=last_scheduler_heartbeat_for_testing_2, session=self.session)
 
         resp_json = json.loads(self.client.get('health', follow_redirects=True).data.decode('utf-8'))
 
@@ -415,9 +415,7 @@ class TestAirflowBaseViews(TestBase):
                          resp_json['scheduler']['latest_scheduler_heartbeat'])
 
         self.session.query(BaseJob).\
-            filter(BaseJob.job_type == 'SchedulerJob',
-                   BaseJob.state == 'running',
-                   BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_2).\
+            filter(BaseJob.job_type == job2.id).\
             delete()
         self.session.commit()
 
