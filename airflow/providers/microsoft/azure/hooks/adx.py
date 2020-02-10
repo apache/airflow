@@ -20,9 +20,9 @@
 """This module contains Azure Data Explorer hook"""
 from typing import Dict, Optional
 
-from azure.kusto.data._response import KustoResponseDataSetV2
 from azure.kusto.data.exceptions import KustoServiceError
 from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
+from azure.kusto.data.response import KustoResponseDataSetV2
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -129,7 +129,7 @@ class AzureDataExplorerHook(BaseHook):
                   options: Optional[Dict] = None) -> KustoResponseDataSetV2:
         """
         Run KQL query using provided configuration, and return
-        `azure.kusto.data._response.KustoResponseDataSet` instance.
+        `azure.kusto.data.response.KustoResponseDataSet` instance.
         If query is unsuccessful AirflowException is raised.
 
         :param query: KQL query to run
