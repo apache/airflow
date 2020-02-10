@@ -734,6 +734,7 @@ you should write `@GoogleCloudBaseHook.provide_gcp_credential_file`
 
 Note: The order of arguments has changed for `check_for_prefix`.
 The `bucket_name` is now optional. It falls back to the `connection schema` attribute.
+The `delete_objects` now returns `None` instead of a response, since the method now makes multiple api requests when the keys list length is > 1000.
 
 ### Changes to Google Transfer Operator
 To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator`
