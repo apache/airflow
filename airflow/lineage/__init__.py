@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,6 +19,7 @@
 Provides lineage support functions
 """
 import json
+import logging
 from functools import wraps
 from typing import Any, Dict, Optional
 
@@ -28,7 +28,6 @@ import jinja2
 from cattr import structure, unstructure
 
 from airflow.models.base import Operator
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
 ENV = jinja2.Environment()
@@ -37,7 +36,7 @@ PIPELINE_OUTLETS = "pipeline_outlets"
 PIPELINE_INLETS = "pipeline_inlets"
 AUTO = "auto"
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 @attr.s(auto_attribs=True)
@@ -154,8 +153,6 @@ def prepare_lineage(func):
 
             self.inlets.extend(_inlets)
             self.inlets.extend(self._inlets)
-            self.inlets = [_render_object(i, context)
-                           for i in self.inlets if attr.has(i)]
 
         elif self._inlets:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")
@@ -165,8 +162,12 @@ def prepare_lineage(func):
 
         self.outlets.extend(self._outlets)
 
-        self.outlets = list(map(lambda i: _render_object(i, context),
-                            filter(attr.has, self.outlets)))
+        # render inlets and outlets
+        self.inlets = [_render_object(i, context)
+                       for i in self.inlets if attr.has(i)]
+
+        self.outlets = [_render_object(i, context)
+                        for i in self.outlets if attr.has(i)]
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
         return func(self, context, *args, **kwargs)

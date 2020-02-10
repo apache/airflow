@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,20 +15,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 import os
 
-from airflow import models, settings
+from sqlalchemy import Table
+
+from airflow import settings
 from airflow.configuration import conf
+# noinspection PyUnresolvedReferences
 from airflow.jobs.base_job import BaseJob  # noqa: F401  # pylint: disable=unused-import
-from airflow.models import Connection
-from airflow.models.pool import Pool
+# noinspection PyUnresolvedReferences
+from airflow.models import (  # noqa: F401 # pylint: disable=unused-import
+    DAG, XCOM_RETURN_KEY, BaseOperator, BaseOperatorLink, Connection, DagBag, DagModel, DagPickle, DagRun,
+    DagTag, Log, Pool, SkipMixin, SlaMiss, TaskFail, TaskInstance, TaskReschedule, Variable, XCom,
+)
 # We need to add this model manually to get reset working well
+# noinspection PyUnresolvedReferences
 from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401  # pylint: disable=unused-import
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session, provide_session  # noqa  # pylint: disable=unused-import
 
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 @provide_session
@@ -459,12 +464,12 @@ def initdb():
 
     create_default_connections()
 
-    dagbag = models.DagBag()
+    dagbag = DagBag()
     # Save individual DAGs in the ORM
     for dag in dagbag.dags.values():
         dag.sync_to_db()
     # Deactivate the unknown ones
-    models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
+    DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
     from flask_appbuilder.models.sqla import Base
     Base.metadata.create_all(settings.engine)  # pylint: disable=no-member
@@ -494,23 +499,59 @@ def resetdb():
     """
     Clear out the database
     """
-    # alembic adds significant import time, so we import it lazily
-    # noinspection PyUnresolvedReferences
-    from alembic.migration import MigrationContext
 
     log.info("Dropping tables that exist")
 
     connection = settings.engine.connect()
-    models.base.Base.metadata.drop_all(connection)
-    migartion_ctx = MigrationContext.configure(connection)
-    version = migartion_ctx._version  # pylint: disable=protected-access
+
+    drop_airflow_models(connection)
+    drop_flask_models(connection)
+
+    initdb()
+
+
+def drop_airflow_models(connection):
+    """
+    Drops all airflow models.
+    @param connection:
+    @return: None
+    """
+    from airflow.models.base import Base
+    # Drop connection and chart - those tables have been deleted and in case you
+    # run resetdb on schema with chart or users table will fail
+    chart = Table('chart', Base.metadata)
+    chart.drop(settings.engine, checkfirst=True)
+    user = Table('user', Base.metadata)
+    user.drop(settings.engine, checkfirst=True)
+    users = Table('users', Base.metadata)
+    users.drop(settings.engine, checkfirst=True)
+    dag_stats = Table('dag_stats', Base.metadata)
+    dag_stats.drop(settings.engine, checkfirst=True)
+
+    Base.metadata.drop_all(connection)
+    # we remove the Tables here so that if resetdb is run metadata does not keep the old tables.
+    Base.metadata.remove(dag_stats)
+    Base.metadata.remove(users)
+    Base.metadata.remove(user)
+    Base.metadata.remove(chart)
+    # alembic adds significant import time, so we import it lazily
+    # noinspection PyUnresolvedReferences
+    from alembic.migration import MigrationContext
+    migration_ctx = MigrationContext.configure(connection)
+    # noinspection PyProtectedMember
+    version = migration_ctx._version  # pylint: disable=protected-access
     if version.exists(connection):
         version.drop(connection)
 
+
+def drop_flask_models(connection):
+    """
+    Drops all Flask models.
+    @param connection:
+    @return:
+    """
     from flask_appbuilder.models.sqla import Base
     Base.metadata.drop_all(connection)  # pylint: disable=no-member
-
-    initdb()
 
 
 @provide_session

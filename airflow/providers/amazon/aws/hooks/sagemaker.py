@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -25,14 +24,18 @@ import warnings
 
 from botocore.exceptions import ClientError
 
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils import timezone
 
 
 class LogState:
+    """
+    Enum-style class holding all possible states of CloudWatch log streams.
+    https://sagemaker.readthedocs.io/en/stable/session.html#sagemaker.session.LogState
+    """
     STARTING = 1
     WAIT_IN_PROGRESS = 2
     TAILING = 3
@@ -47,14 +50,14 @@ Position = collections.namedtuple('Position', ['timestamp', 'skip'])
 
 def argmin(arr, f):
     """Return the index, i, in arr that minimizes f(arr[i])"""
-    m = None
-    i = None
+    min_value = None
+    min_idx = None
     for idx, item in enumerate(arr):
         if item is not None:
-            if m is None or f(item) < m:
-                m = f(item)
-                i = idx
-    return i
+            if min_value is None or f(item) < min_value:
+                min_value = f(item)
+                min_idx = idx
+    return min_idx
 
 
 def secondary_training_status_changed(current_job_description, prev_job_description):
@@ -276,12 +279,12 @@ class SageMakerHook(AwsHook):
         event_iters = [self.logs_hook.get_log_events(log_group, s, positions[s].timestamp, positions[s].skip)
                        for s in streams]
         events = []
-        for s in event_iters:
-            if not s:
+        for event_stream in event_iters:
+            if not event_stream:
                 events.append(None)
                 continue
             try:
-                events.append(next(s))
+                events.append(next(event_stream))
             except StopIteration:
                 events.append(None)
 
@@ -332,7 +335,7 @@ class SageMakerHook(AwsHook):
             billable_time = \
                 (describe_response['TrainingEndTime'] - describe_response['TrainingStartTime']) * \
                 describe_response['ResourceConfig']['InstanceCount']
-            self.log.info('Billable seconds:{}'.format(int(billable_time.total_seconds()) + 1))
+            self.log.info('Billable seconds: %d', int(billable_time.total_seconds()) + 1)
 
         return response
 
@@ -635,7 +638,7 @@ class SageMakerHook(AwsHook):
                 response = describe_function(job_name)
                 status = response[key]
                 self.log.info('Job still running for %s seconds... '
-                              'current status is %s' % (sec, status))
+                              'current status is %s', sec, status)
             except KeyError:
                 raise AirflowException('Could not get status of the SageMaker job')
             except ClientError:
@@ -650,7 +653,7 @@ class SageMakerHook(AwsHook):
 
             if max_ingestion_time and sec > max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
-                raise AirflowException('SageMaker job took more than %s seconds', max_ingestion_time)
+                raise AirflowException(f'SageMaker job took more than {max_ingestion_time} seconds')
 
         self.log.info('SageMaker Job Compeleted')
         response = describe_function(job_name)
@@ -729,7 +732,7 @@ class SageMakerHook(AwsHook):
 
             if max_ingestion_time and sec > max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
-                raise AirflowException('SageMaker job took more than %s seconds', max_ingestion_time)
+                raise AirflowException(f'SageMaker job took more than {max_ingestion_time} seconds')
 
         if wait_for_completion:
             status = last_description['TrainingJobStatus']
@@ -738,4 +741,4 @@ class SageMakerHook(AwsHook):
                 raise AirflowException('Error training {}: {} Reason: {}'.format(job_name, status, reason))
             billable_time = (last_description['TrainingEndTime'] - last_description['TrainingStartTime']) \
                 * instance_count
-            self.log.info('Billable seconds:{}'.format(int(billable_time.total_seconds()) + 1))
+            self.log.info('Billable seconds: %d', int(billable_time.total_seconds()) + 1)

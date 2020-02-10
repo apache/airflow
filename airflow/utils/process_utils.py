@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,13 +19,12 @@
 """
 Utilities for running process with writing output to logger
 """
+import logging
 import shlex
 import subprocess
 from typing import List
 
-from airflow import LoggingMixin
-
-log = LoggingMixin().log
+log = logging.getLogger(__name__)
 
 
 def execute_in_subprocess(cmd: List[str]):

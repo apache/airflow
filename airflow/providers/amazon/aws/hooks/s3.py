@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,8 +28,8 @@ from urllib.parse import urlparse
 
 from botocore.exceptions import ClientError
 
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
 
 
 def provide_bucket_name(func):

@@ -47,7 +47,7 @@ export MOUNT_LOCAL_SOURCES=${MOUNT_LOCAL_SOURCES:="false"}
 # whethere verbose output should be produced
 export AIRFLOW_CI_VERBOSE=${VERBOSE}
 
-# opposite - whether diagnostict messages should be silenced
+# opposite - whether diagnostic messages should be silenced
 export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
 
 if [[ ${MOUNT_LOCAL_SOURCES} == "true" ]]; then

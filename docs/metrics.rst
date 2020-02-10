@@ -49,6 +49,16 @@ the metrics that start with the elements of the list:
     [scheduler]
     statsd_allow_list = scheduler,executor,dagrun
 
+If you want to redirect metrics to different name, you can configure ``stat_name_handler`` option
+in ``[scheduler]`` section.  It should point to a function that validate the statsd stat name, apply changes
+to the stat name if necessary and return the transformed stat name. The function may looks as follow:
+
+.. code-block:: ini
+
+    def my_custom_stat_name_handler(stat_name: str) -> str:
+        return stat_name.lower()[:32]
+
+
 Counters
 --------
 

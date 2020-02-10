@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -125,7 +124,6 @@ class CLIFactory:
             ("--output",), (
                 "Output table format. The specified value is passed to "
                 "the tabulate module (https://pypi.org/project/tabulate/). "
-                "Valid values are: ({})".format("|".join(tabulate_formats))
             ),
             choices=tabulate_formats,
             default="fancy_grid"),
@@ -1023,6 +1021,12 @@ class CLIFactory:
                         'flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
                         'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
                 },
+                {
+                    'name': 'stop',
+                    'func': lazy_load_command('airflow.cli.commands.celery_command.stop_worker'),
+                    'help': "Stop the Celery worker gracefully",
+                    'args': (),
+                }
             )
         })
     subparsers_dict = {sp.get('name') or sp['func'].__name__: sp for sp in subparsers}  # type: ignore

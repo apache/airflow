@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -39,7 +38,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.jobs.scheduler_job import DagFileProcessor
 from airflow.models import DAG, DagBag, DagModel, DagRun, Pool, SlaMiss, TaskInstance as TI, errors
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.dag_processing import SimpleDag, SimpleDagBag
@@ -1010,7 +1009,7 @@ class TestSchedulerJob(unittest.TestCase):
             old_children)
         self.assertFalse(current_children)
 
-    @mock.patch('airflow.stats.Stats.incr')
+    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
     def test_process_executor_events(self, mock_stats_incr):
         dag_id = "test_process_executor_events"
         dag_id2 = "test_process_executor_events_2"
@@ -2670,12 +2669,12 @@ class TestSchedulerJob(unittest.TestCase):
         detected_files = set()
         expected_files = set()
         # No_dags is empty, _invalid_ is ignored by .airflowignore
-        ignored_files = [
+        ignored_files = {
             'no_dags.py',
             'test_invalid_cron.py',
             'test_zip_invalid_cron.zip',
             'test_ignore_this.py',
-        ]
+        }
         for root, _, files in os.walk(TEST_DAG_FOLDER):  # pylint: disable=too-many-nested-blocks
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
@@ -2686,11 +2685,14 @@ class TestSchedulerJob(unittest.TestCase):
             detected_files.add(file_path)
         self.assertEqual(detected_files, expected_files)
 
+        ignored_files = {
+            'helper.py',
+        }
         example_dag_folder = airflow.example_dags.__path__[0]
         for root, _, files in os.walk(example_dag_folder):  # pylint: disable=too-many-nested-blocks
             for file_name in files:
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
-                    if file_name not in ['__init__.py']:
+                    if file_name not in ['__init__.py'] and file_name not in ignored_files:
                         expected_files.add(os.path.join(root, file_name))
         detected_files.clear()
         for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=True):

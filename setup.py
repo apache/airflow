@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -117,6 +116,9 @@ def git_version(version_: str) -> str:
             repo = git.Repo('.git')
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
+            return ''
+        except git.InvalidGitRepositoryError:
+            logger.warning('Invalid .git directory not found: Cannot compute the git version')
             return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
@@ -291,8 +293,8 @@ pagerduty = [
     'pypd>=1.1.0',
 ]
 papermill = [
-    'papermill[all]>=1.0.0',
-    'nteract-scrapbook[all]>=0.2.1',
+    'papermill[all]>=1.2.1',
+    'nteract-scrapbook[all]>=0.3.1',
 ]
 password = [
     'bcrypt>=2.0.0',
@@ -377,7 +379,6 @@ devel = [
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
     'coverage',
-    'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
@@ -416,9 +417,9 @@ devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel 
              doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
              kerberos + kubernetes + ldap + odbc + oracle + pagerduty + papermill +
              password + pinot + redis + salesforce + samba + segment + sendgrid +
-             sentry + slack + snowflake + ssh + virtualenv + webhdfs + zendesk)
+             sentry + slack + snowflake + ssh + statsd + virtualenv + webhdfs + zendesk)
 
-# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
+# Snakebite are not Python 3 compatible :'(
 if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
@@ -438,7 +439,7 @@ def do_setup():
         version=version,
         packages=find_packages(exclude=['tests*']),
         package_data={
-            '': ['airflow/alembic.ini', "airflow/git_version"],
+            '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb"],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,
@@ -473,6 +474,7 @@ def do_setup():
             'json-merge-patch==0.2',
             'jsonschema~=3.0',
             'lazy_object_proxy~=1.3',
+            'lockfile>=0.12.2',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
@@ -493,6 +495,7 @@ def do_setup():
             'typing-extensions>=3.7.4;python_version<"3.8"',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
+            'werkzeug<1.0.0',
             'zope.deprecation>=4.0, <5.0',
         ],
         #####################################################################################################

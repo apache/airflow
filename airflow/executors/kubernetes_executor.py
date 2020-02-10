@@ -819,8 +819,10 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     try:
                         self._change_state(key, state, pod_id)
                     except Exception as e:  # pylint: disable=broad-except
-                        self.log.exception('Exception: %s when attempting ' +
-                                           'to change state of %s to %s, re-queueing.', e, results, state)
+                        self.log.exception(
+                            "Exception: %s when attempting to change state of %s to %s, re-queueing.",
+                            e, results, state
+                        )
                         self.result_queue.put(results)
                 finally:
                     self.result_queue.task_done()
@@ -837,7 +839,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                     self.kube_scheduler.run_next(task)
                 except ApiException as e:
                     self.log.warning('ApiException when attempting to run task, re-queueing. '
-                                     'Message: %s' % json.loads(e.body)['message'])
+                                     'Message: %s', json.loads(e.body)['message'])
                     self.task_queue.put(task)
                 finally:
                     self.task_queue.task_done()
