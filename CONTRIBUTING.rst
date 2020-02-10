@@ -137,12 +137,14 @@ these guidelines:
 
 -   When merging PRs, wherever possible try to use **Squash and Merge** instead of **Rebase and Merge**.
 
--   Make sure every pull request has an associated
+-   Make sure every pull request introducing code changes has an associated
     `JIRA <https://issues.apache.org/jira/browse/AIRFLOW/?selectedTab=com.atlassian.jira.jira-projects-plugin:summary-panel>`__
-    ticket. The JIRA link should also be added to the PR description.
+    ticket. The JIRA link should also be added to the PR description. In case of documentation only changes
+    the JIRA ticket is not necessary.
 
--   Preface your commit's subject & PR title with **[AIRFLOW-XXX] COMMIT_MSG** where *XXX*
-    is the JIRA number. For example: [AIRFLOW-5574] Fix Google Analytics script loading.
+-   Preface your commit's subject & PR title with **[AIRFLOW-NNNN] COMMIT_MSG** where *NNNN*
+    is the JIRA number. For example: [AIRFLOW-5574] Fix Google Analytics script loading. In case of
+    documentation only changes you should put "[AIRFLOW-XXXX]" instead.
     We compose Airflow release notes from all commit titles in a release. By placing the JIRA number in the
     commit title and hence in the release notes, we let Airflow users look into
     JIRA and GitHub PRs for more details about a particular change.
