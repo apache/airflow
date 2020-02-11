@@ -216,18 +216,22 @@ if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
     CI_ARGS+=("--integrations" "${RUN_INTEGRATION_TESTS}" "-rpfExX")
 fi
 
-TEST_DIR="tests/"
+TESTS_TO_RUN="tests/"
+
+if [[ ${#@} -gt 0 && -n "$1" ]]; then
+    TESTS_TO_RUN="$1"
+fi
 
 if [[ -n ${RUNTIME} ]]; then
     CI_ARGS+=("--runtime" "${RUNTIME}" "-rpfExX")
-    TEST_DIR="tests/runtime"
+    TESTS_TO_RUN="tests/runtime"
     if [[ ${RUNTIME} == "kubernetes" ]]; then
         export SKIP_INIT_DB=true
         "${MY_DIR}/deploy_airflow_to_kubernetes.sh"
     fi
 fi
 
-ARGS=("${CI_ARGS[@]}" "${TEST_DIR}")
+ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN}")
 "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 
 in_container_script_end
