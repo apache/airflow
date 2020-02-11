@@ -151,7 +151,7 @@ class MLEngineHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def cancel_job(
         self,
-        job_id,
+        job_id: str,
         project_id: Optional[str] = None
     ) -> Dict:
 
