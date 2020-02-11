@@ -34,11 +34,11 @@ class TestMySqlToS3Operator(unittest.TestCase):
         query = "query"
         s3_bucket = "bucket"
         s3_key = "key"
-        
+
         test_df = pd.DataFrame({'a': '1', 'b': '2'}, index=[0, 1])
         get_pandas_df_mock = mock_mysql_hook.return_value.get_pandas_df
         get_pandas_df_mock.return_value = test_df
-        
+
         op = MySQLToS3Operator(query=query,
                                s3_bucket=s3_bucket,
                                s3_key=s3_key,
@@ -54,7 +54,7 @@ class TestMySqlToS3Operator(unittest.TestCase):
         mock_s3_hook.assert_called_once_with(aws_conn_id="aws_conn_id", verify=None)
 
         get_pandas_df_mock.assert_called_once_with(query)
-        
+
         with pickle_mock:
             temp_mock.assert_called_once_with(suffix=".csv")
             temp_mock.return_value.__enter__.return_value.name = "file"
