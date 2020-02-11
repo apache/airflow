@@ -26,10 +26,10 @@ from airflow.operators.mysql_to_s3_operator import MySQLToS3Operator
 
 class TestMySqlToS3Operator(unittest.TestCase):
 
-    @mock.patch("airflow.operators.mysql_to_s3_operator.MySqlHook")
-    @mock.patch("airflow.operators.mysql_to_s3_operator.S3Hook")
     @mock.patch("airflow.operators.mysql_to_s3_operator.tempfile.NamedTemporaryFile")
     @mock.patch("airflow.operators.mysql_to_s3_operator.pickle.dumps")
+    @mock.patch("airflow.operators.mysql_to_s3_operator.S3Hook")
+    @mock.patch("airflow.operators.mysql_to_s3_operator.MySqlHook")
     def test_execute(self, mock_s3_hook, mock_mysql_hook, temp_mock, pickle_mock):
         query = "query"
         s3_bucket = "bucket"
