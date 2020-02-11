@@ -89,6 +89,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.airflow_dags = 'dags'
         self.kube_config.airflow_logs = 'logs'
         self.kube_config.dags_volume_subpath = None
+        self.kube_config.dags_volume_mount_point = None
         self.kube_config.logs_volume_subpath = None
         self.kube_config.dags_in_image = False
         self.kube_config.dags_folder = None
@@ -174,6 +175,11 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_volume_host = ''
         dag_volume_mount_path = worker_config.generate_dag_volume_mount_path()
         self.assertEqual(dag_volume_mount_path, self.kube_config.dags_folder)
+
+        self.kube_config.dags_volume_mount_point = '/root/airflow/package'
+        dag_volume_mount_path = worker_config.generate_dag_volume_mount_path()
+        self.assertEqual(dag_volume_mount_path, '/root/airflow/package')
+        self.kube_config.dags_volume_mount_point = ''
 
         self.kube_config.dags_volume_claim = ''
         self.kube_config.dags_volume_host = '/host/airflow/dags'

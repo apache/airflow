@@ -152,6 +152,8 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         # DAGs directly
         self.dags_volume_claim = conf.get(self.kubernetes_section, 'dags_volume_claim')
 
+        self.dags_volume_mount_point = conf.get(self.kubernetes_section, 'dags_volume_mount_point')
+
         # This prop may optionally be set for PV Claims and is used to write logs
         self.logs_volume_claim = conf.get(self.kubernetes_section, 'logs_volume_claim')
 
