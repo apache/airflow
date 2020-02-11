@@ -159,7 +159,7 @@ class MLEngineHook(CloudBaseHook):
         Cancels a MLEngine job.
 
         :param project_id: The Google Cloud project id within which MLEngine
-            job will be launched. If set to None or missing, the default project_id from the GCP
+            job will be cancelled. If set to None or missing, the default project_id from the GCP
             connection is used.
         :type project_id: str
         :param job_id: A unique id for the want-to-be cancelled Google MLEngine training job.
