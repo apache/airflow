@@ -211,6 +211,10 @@ fi
 
 TEST_DIR="tests/"
 
+if [[ ${#@} -gt 0 && -n "$1" ]]; then
+    TEST_DIR="$1"
+fi
+
 if [[ -n ${RUNTIME} ]]; then
     CI_ARGS+=("--runtime" "${RUNTIME}" "-rpfExX")
     TEST_DIR="tests/runtime"
