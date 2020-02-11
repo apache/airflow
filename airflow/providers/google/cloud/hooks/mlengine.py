@@ -176,7 +176,7 @@ class MLEngineHook(CloudBaseHook):
         hook = self.get_conn()
 
         request = hook.projects().jobs().cancel(  # pylint: disable=no-member
-            name='projects/{}/jobs/{}'.format(project_id, job_id))
+            name=f'projects/{project_id}/jobs/{job_id}')
 
         try:
             return request.execute()
