@@ -22,13 +22,14 @@ from sqlalchemy.orm import exc
 from tabulate import tabulate
 
 from airflow.models import Connection
-from airflow.utils import cli as cli_utils, db
+from airflow.utils import cli as cli_utils
 from airflow.utils.cli import alternative_conn_specs
+from airflow.utils.session import create_session
 
 
 def connections_list(args):
     """Lists all connections at the command line"""
-    with db.create_session() as session:
+    with create_session() as session:
         conns = session.query(Connection.conn_id, Connection.conn_type,
                               Connection.host, Connection.port,
                               Connection.is_encrypted,
@@ -76,7 +77,7 @@ def connections_add(args):
     if args.conn_extra is not None:
         new_conn.set_extra(args.conn_extra)
 
-    with db.create_session() as session:
+    with create_session() as session:
         if not (session.query(Connection)
                 .filter(Connection.conn_id == new_conn.conn_id).first()):
             session.add(new_conn)
@@ -100,7 +101,7 @@ def connections_add(args):
 @cli_utils.action_logging
 def connections_delete(args):
     """Deletes connection from DB"""
-    with db.create_session() as session:
+    with create_session() as session:
         try:
             to_delete = (session
                          .query(Connection)

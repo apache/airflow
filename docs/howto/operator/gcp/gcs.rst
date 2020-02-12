@@ -35,10 +35,10 @@ GoogleCloudStorageToBigQueryOperator
 ------------------------------------
 
 Use the
-:class:`~airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
+:class:`~airflow.providers.google.cloud.operators.gcs_to_bigquery.GoogleCloudStorageToBigQueryOperator`
 to execute a BigQuery load job.
 
-.. exampleinclude:: ../../../../airflow/example_dags/example_gcs_to_bq.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs_to_bq.py
     :language: python
     :start-after: [START howto_operator_gcs_to_bq]
     :end-before: [END howto_operator_gcs_to_bq]
@@ -58,7 +58,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_gcs.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
     :language: python
     :start-after: [START howto_operator_gcs_acl_args_common]
     :end-before: [END howto_operator_gcs_acl_args_common]
@@ -66,7 +66,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_gcs.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_bucket_create_acl_entry_task]
@@ -75,7 +75,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/gcs.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/gcs.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_bucket_create_acl_template_fields]
@@ -102,7 +102,7 @@ Arguments
 
 Some arguments in the example DAG are taken from the OS environment variables:
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_gcs.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
     :language: python
     :start-after: [START howto_operator_gcs_acl_args_common]
     :end-before: [END howto_operator_gcs_acl_args_common]
@@ -110,7 +110,7 @@ Some arguments in the example DAG are taken from the OS environment variables:
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_gcs.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_object_create_acl_entry_task]
@@ -119,7 +119,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/gcp/operators/gcs.py
+.. literalinclude:: ../../../../airflow/providers/google/cloud/operators/gcs.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_object_create_acl_template_fields]
@@ -138,3 +138,30 @@ For further information, look at:
 
 * `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/storage/index.html>`__
 * `Product Documentation <https://cloud.google.com/storage/docs/>`__
+
+.. _howto/operator:GCSDeleteBucketOperator:
+
+Deleting Bucket
+^^^^^^^^^^^^^^^
+
+Deleting Bucket allows you to remove bucket object from the Google Cloud Storage.
+It is performed through the
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator` operator.
+
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_delete_bucket]
+    :end-before: [END howto_operator_gcs_delete_bucket]
+
+You can use :ref:`Jinja templating <jinja-templating>` with
+:template-fields:`airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator`
+parameters which allows you to dynamically determine values.
+
+Reference
+^^^^^^^^^
+
+For further information, look at:
+
+* `Client Library Documentation <https://googleapis.dev/python/storage/latest/buckets.html>`__
+* `Product Documentation <https://cloud.google.com/storage/docs/json_api/v1/buckets>`__

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tests.gcp.utils.gcp_authenticator import GCP_DISPLAY_VIDEO_KEY
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DISPLAY_VIDEO_KEY
 from tests.providers.google.marketing_platform.operators.test_display_video_system_helper import (
     GcpDisplayVideoSystemTestHelper,
 )

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,16 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base class for all hooks"""
+import logging
 import os
 import random
 from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
+
+log = logging.getLogger(__name__)
 
 
 class BaseHook(LoggingMixin):
@@ -85,7 +87,6 @@ class BaseHook(LoggingMixin):
         """
         conn = random.choice(list(cls.get_connections(conn_id)))
         if conn.host:
-            log = LoggingMixin().log
             log.info("Using connection to: %s", conn.log_info())
         return conn
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,7 +19,7 @@
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
 
 from airflow.models.base import ID_LEN, Base
-from airflow.utils.db import provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 

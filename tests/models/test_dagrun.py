@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -24,7 +23,7 @@ from airflow import models, settings
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, DagRun, TaskInstance as TI, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import ShortCircuitOperator
+from airflow.operators.python import ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
@@ -159,8 +158,8 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        updated_dag_state = dag_run.update_state()
-        self.assertEqual(State.SUCCESS, updated_dag_state)
+        dag_run.update_state()
+        self.assertEqual(State.SUCCESS, dag_run.state)
 
     def test_dagrun_success_conditions(self):
         session = settings.Session()
@@ -198,15 +197,15 @@ class TestDagRun(unittest.TestCase):
         ti_op4 = dr.get_task_instance(task_id=op4.task_id)
 
         # root is successful, but unfinished tasks
-        state = dr.update_state()
-        self.assertEqual(State.RUNNING, state)
+        dr.update_state()
+        self.assertEqual(State.RUNNING, dr.state)
 
         # one has failed, but root is successful
         ti_op2.set_state(state=State.FAILED, session=session)
         ti_op3.set_state(state=State.SUCCESS, session=session)
         ti_op4.set_state(state=State.SUCCESS, session=session)
-        state = dr.update_state()
-        self.assertEqual(State.SUCCESS, state)
+        dr.update_state()
+        self.assertEqual(State.SUCCESS, dr.state)
 
     def test_dagrun_deadlock(self):
         session = settings.Session()
@@ -321,8 +320,8 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        updated_dag_state = dag_run.update_state()
-        self.assertEqual(State.SUCCESS, updated_dag_state)
+        dag_run.update_state()
+        self.assertEqual(State.SUCCESS, dag_run.state)
 
     def test_dagrun_failure_callback(self):
         def on_failure_callable(context):
@@ -352,8 +351,8 @@ class TestDagRun(unittest.TestCase):
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
-        updated_dag_state = dag_run.update_state()
-        self.assertEqual(State.FAILED, updated_dag_state)
+        dag_run.update_state()
+        self.assertEqual(State.FAILED, dag_run.state)
 
     def test_dagrun_set_state_end_date(self):
         session = settings.Session()

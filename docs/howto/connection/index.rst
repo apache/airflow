@@ -60,7 +60,7 @@ Modify the connection properties and click the ``Save`` button to save your
 changes.
 
 Storing a Connection in Environment Variables
-------------------------------------------------
+---------------------------------------------
 
 The environment variable naming convention is ``AIRFLOW_CONN_<conn_id>``, all uppercase.
 
@@ -92,6 +92,8 @@ If using with a docker ``.env`` file, you may need to remove the single quotes.
 
     AIRFLOW_CONN_MY_PROD_DATABASE=my-conn-type://login:password@host:port/schema?param1=val1&param2=val2
 
+
+.. _connection/cli:
 
 Creating a Connection from the CLI
 ----------------------------------
@@ -219,6 +221,13 @@ To fix this, you can encode with :py:meth:`~urllib.parse.quote_plus`:
     >>> print(c.password)
     my-pa/ssword
 
+Securing Connections
+--------------------
+
+Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt passwords in the connection
+configuration. It guarantees that without the encryption password, Connection Passwords cannot be manipulated or read without the key.
+
+For information on configuring Fernet, look at :ref:`security/fernet`.
 
 Connection Types
 ----------------

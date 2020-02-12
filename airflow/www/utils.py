@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -471,9 +470,12 @@ class CustomSQLAInterface(SQLAInterface):
 
     def is_utcdatetime(self, col_name):
         from airflow.utils.sqlalchemy import UtcDateTime
-        obj = self.list_columns[col_name].type
-        return isinstance(obj, UtcDateTime) or \
-            isinstance(obj, sqla.types.TypeDecorator) and \
-            isinstance(obj.impl, UtcDateTime)
+
+        if col_name in self.list_columns:
+            obj = self.list_columns[col_name].type
+            return isinstance(obj, UtcDateTime) or \
+                isinstance(obj, sqla.types.TypeDecorator) and \
+                isinstance(obj.impl, UtcDateTime)
+        return False
 
     filter_converter_class = UtcAwareFilterConverter

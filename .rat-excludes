@@ -4,6 +4,7 @@
 .github/*
 .gitignore
 .gitattributes
+.airflow_db_initialised
 .airflowignore
 .coverage
 .coveragerc
@@ -31,6 +32,7 @@ CHANGELOG.txt
 .*lock
 unittests.cfg
 logs
+.bash_aliases
 
 # Generated doc files
 .*html
@@ -77,4 +79,8 @@ pylint_todo.txt
 # Locally mounted files
 .*egg-info/*
 .bash_history
+.bash_aliases
 .inputrc
+
+# the example notebook is ASF 2 licensed but RAT cannot read this
+input_notebook.ipynb

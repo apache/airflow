@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -31,7 +30,7 @@ from airflow import models
 from airflow.configuration import conf
 from airflow.models import DagBag, DagModel, TaskInstance as TI
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars

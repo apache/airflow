@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,12 +19,11 @@ import os
 import unittest
 from typing import Optional, Sequence
 
-from airflow.gcp.utils.credentials_provider import provide_gcp_conn_and_credentials
+from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
 
 AIRFLOW_MAIN_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
-GCP_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "gcp", "example_dags")
 CLOUD_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "cloud", "example_dags"
 )

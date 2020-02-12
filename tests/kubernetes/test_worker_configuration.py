@@ -17,8 +17,7 @@
 #
 
 import unittest
-import uuid
-from datetime import datetime
+from unittest.mock import ANY
 
 import mock
 
@@ -94,7 +93,13 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_folder = None
         self.kube_config.git_dags_folder_mount_point = None
         self.kube_config.kube_labels = {'dag_id': 'original_dag_id', 'my_label': 'label_id'}
+        self.kube_config.pod_template_file = ''
+        self.kube_config.restart_policy = ''
+        self.kube_config.image_pull_policy = ''
         self.api_client = ApiClient()
+
+    def tearDown(self) -> None:
+        self.kube_config = None
 
     def test_worker_configuration_no_subpaths(self):
         self.kube_config.dags_volume_claim = 'airflow-dags'
@@ -346,8 +351,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.git_subpath = 'path'
 
         worker_config = WorkerConfiguration(self.kube_config)
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         self.assertEqual(0, pod.spec.security_context.run_as_user)
 
@@ -356,8 +360,18 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_folder = 'dags'
 
         worker_config = WorkerConfiguration(self.kube_config)
-        pod = worker_config.make_pod("default", "sample-uuid", "test_pod_id", "test_dag_id",
-                                     "test_task_id", "2019-11-21 11:08:22.920875", 1, "bash -c 'ls /'")
+        pod = PodGenerator.construct_pod(
+            "test_dag_id",
+            "test_task_id",
+            "test_pod_id",
+            1,
+            "2019-11-21 11:08:22.920875",
+            ["bash -c 'ls /'"],
+            None,
+            worker_config.as_pod(),
+            "default",
+            "sample-uuid",
+        )
         expected_labels = {
             'airflow-worker': 'sample-uuid',
             'airflow_version': airflow_version.replace('+', '-'),
@@ -383,8 +397,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         worker_config = WorkerConfiguration(self.kube_config)
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         init_containers = worker_config._get_init_containers()
         git_ssh_key_file = next((x.value for x in init_containers[0].env
@@ -413,8 +426,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         worker_config = WorkerConfiguration(self.kube_config)
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         username_env = k8s.V1EnvVar(
             name='GIT_SYNC_USERNAME',
@@ -452,8 +464,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         worker_config = WorkerConfiguration(self.kube_config)
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         rev_env = k8s.V1EnvVar(
             name='GIT_SYNC_REV',
@@ -494,9 +505,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.kube_annotations = self.worker_annotations_config
         self.kube_config.dags_folder = 'dags'
         worker_config = WorkerConfiguration(self.kube_config)
-
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         self.assertTrue(pod.spec.affinity['podAntiAffinity'] is not None)
         self.assertEqual('app',
@@ -520,8 +529,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             tolerations=self.tolerations_config,
         ).gen_pod()
 
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         result = PodGenerator.reconcile_pods(pod, config_pod)
 
@@ -608,6 +616,112 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual(0, len(dag_volume_mount))
         self.assertEqual(0, len(init_containers))
 
+    def test_set_airflow_config_configmap(self):
+        """
+        Test that airflow.cfg can be set via configmap by
+        checking volume & volume-mounts are set correctly.
+        """
+        self.kube_config.airflow_home = '/usr/local/airflow'
+        self.kube_config.airflow_configmap = 'airflow-configmap'
+        self.kube_config.airflow_local_settings_configmap = None
+        self.kube_config.dags_folder = '/workers/path/to/dags'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        pod = worker_config.as_pod()
+
+        pod_spec_dict = pod.spec.to_dict()
+
+        airflow_config_volume = [
+            volume for volume in pod_spec_dict['volumes'] if volume["name"] == 'airflow-config'
+        ]
+        # Test that volume_name is found
+        self.assertEqual(1, len(airflow_config_volume))
+
+        # Test that config map exists
+        self.assertEqual(
+            {'default_mode': None, 'items': None, 'name': 'airflow-configmap', 'optional': None},
+            airflow_config_volume[0]['config_map']
+        )
+
+        # Test that only 1 Volume Mounts exists with 'airflow-config' name
+        # One for airflow.cfg
+        volume_mounts = [
+            volume_mount for volume_mount in pod_spec_dict['containers'][0]['volume_mounts']
+            if volume_mount['name'] == 'airflow-config'
+        ]
+
+        self.assertEqual(
+            [
+                {
+                    'mount_path': '/usr/local/airflow/airflow.cfg',
+                    'mount_propagation': None,
+                    'name': 'airflow-config',
+                    'read_only': True,
+                    'sub_path': 'airflow.cfg',
+                    'sub_path_expr': None
+                }
+            ],
+            volume_mounts
+        )
+
+    def test_set_airflow_local_settings_configmap(self):
+        """
+        Test that airflow_local_settings.py can be set via configmap by
+        checking volume & volume-mounts are set correctly.
+        """
+        self.kube_config.airflow_home = '/usr/local/airflow'
+        self.kube_config.airflow_configmap = 'airflow-configmap'
+        self.kube_config.airflow_local_settings_configmap = 'airflow-configmap'
+        self.kube_config.dags_folder = '/workers/path/to/dags'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        pod = worker_config.as_pod()
+
+        pod_spec_dict = pod.spec.to_dict()
+
+        airflow_config_volume = [
+            volume for volume in pod_spec_dict['volumes'] if volume["name"] == 'airflow-config'
+        ]
+        # Test that volume_name is found
+        self.assertEqual(1, len(airflow_config_volume))
+
+        # Test that config map exists
+        self.assertEqual(
+            {'default_mode': None, 'items': None, 'name': 'airflow-configmap', 'optional': None},
+            airflow_config_volume[0]['config_map']
+        )
+
+        # Test that 2 Volume Mounts exists and has 2 different mount-paths
+        # One for airflow.cfg
+        # Second for airflow_local_settings.py
+        volume_mounts = [
+            volume_mount for volume_mount in pod_spec_dict['containers'][0]['volume_mounts']
+            if volume_mount['name'] == 'airflow-config'
+        ]
+        self.assertEqual(2, len(volume_mounts))
+
+        self.assertEqual(
+            [
+                {
+                    'mount_path': '/usr/local/airflow/airflow.cfg',
+                    'mount_propagation': None,
+                    'name': 'airflow-config',
+                    'read_only': True,
+                    'sub_path': 'airflow.cfg',
+                    'sub_path_expr': None
+                },
+                {
+                    'mount_path': '/usr/local/airflow/config/airflow_local_settings.py',
+                    'mount_propagation': None,
+                    'name': 'airflow-config',
+                    'read_only': True,
+                    'sub_path': 'airflow_local_settings.py',
+                    'sub_path_expr': None
+                }
+            ],
+            volume_mounts
+        )
+
     def test_kubernetes_environment_variables(self):
         # Tests the kubernetes environment variables get copied into the worker pods
         input_environment = {
@@ -651,10 +765,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.env_from_secret_ref = 'secret_a,secret_b'
         worker_config = WorkerConfiguration(self.kube_config)
         secrets = worker_config._get_secrets()
-        expected = [
-            Secret('env', None, 'secret_a'),
-            Secret('env', None, 'secret_b')
-        ]
+        expected = [Secret('env', None, 'secret_a'), Secret('env', None, 'secret_b')]
         self.assertListEqual(expected, secrets)
 
     def test_get_env_from(self):
@@ -675,6 +786,15 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='secretref_a')),
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name='secretref_b'))
         ], configmaps)
+
+    def test_pod_template_file(self):
+        fixture = 'tests/kubernetes/pod.yaml'
+        self.kube_config.pod_template_file = fixture
+        worker_config = WorkerConfiguration(self.kube_config)
+        result = worker_config.as_pod()
+        expected = PodGenerator.deserialize_model_file(fixture)
+        expected.metadata.name = ANY
+        self.assertEqual(expected, result)
 
     def test_get_labels(self):
         worker_config = WorkerConfiguration(self.kube_config)
@@ -698,7 +818,6 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.image_pull_secrets = 'image_pull_secret1,image_pull_secret2'
 
         worker_config = WorkerConfiguration(self.kube_config)
-        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'")
+        pod = worker_config.as_pod()
 
         self.assertEqual(2, len(pod.spec.image_pull_secrets))

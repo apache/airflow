@@ -25,8 +25,7 @@ your ``$AIRFLOW_HOME`` directory (``~/airflow`` by default). This file contains 
 can edit it to change any of the settings. You can also set options with environment variables by using this format:
 ``$AIRFLOW__{SECTION}__{KEY}`` (note the double underscores).
 
-For example, the
-metadata database connection string can either be set in ``airflow.cfg`` like this:
+For example, the metadata database connection string can either be set in ``airflow.cfg`` like this:
 
 .. code-block:: ini
 
@@ -52,6 +51,7 @@ The following config options support this ``_cmd`` version:
 * ``sql_alchemy_conn`` in ``[core]`` section
 * ``fernet_key`` in ``[core]`` section
 * ``broker_url`` in ``[celery]`` section
+* ``flower_basic_auth`` in ``[celery]`` section
 * ``result_backend`` in ``[celery]`` section
 * ``password`` in ``[atlas]`` section
 * ``smtp_password`` in ``[smtp]`` section
@@ -59,7 +59,7 @@ The following config options support this ``_cmd`` version:
 * ``git_password`` in ``[kubernetes]`` section
 
 The ``_cmd`` config options can also be set using a corresponding environment variable
-the same way the usual config options can. For example: 
+the same way the usual config options can. For example:
 
 .. code-block:: bash
 
@@ -74,3 +74,6 @@ The universal order of precedence for all configuration options is as follows:
 #. set in ``airflow.cfg``
 #. command in ``airflow.cfg``
 #. Airflow's built in defaults
+
+.. note::
+    For more information on configuration options, see :doc:`../configurations-ref`

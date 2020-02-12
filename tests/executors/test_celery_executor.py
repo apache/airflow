@@ -26,6 +26,7 @@ from unittest import mock
 # leave this it is used by the test worker
 # noinspection PyUnresolvedReferences
 import celery.contrib.testing.tasks  # noqa: F401 pylint: disable=unused-import
+import pytest
 from celery import Celery, states as celery_states
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
@@ -36,7 +37,7 @@ from airflow.configuration import conf
 from airflow.executors import celery_executor
 from airflow.models import TaskInstance
 from airflow.models.taskinstance import SimpleTaskInstance
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.utils.state import State
 
 
@@ -71,8 +72,9 @@ class TestCeleryExecutor(unittest.TestCase):
                 set_event_loop(None)
 
     @parameterized.expand(_prepare_test_bodies())
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "sqlite is configured with SequentialExecutor")
+    @pytest.mark.integration("redis")
+    @pytest.mark.integration("rabbitmq")
+    @pytest.mark.backend("mysql", "postgres")
     def test_celery_integration(self, broker_url):
         with self._prepare_app(broker_url) as app:
             executor = celery_executor.CeleryExecutor()
@@ -127,8 +129,9 @@ class TestCeleryExecutor(unittest.TestCase):
         self.assertNotIn('success', executor.last_state)
         self.assertNotIn('fail', executor.last_state)
 
-    @unittest.skipIf('sqlite' in conf.get('core', 'sql_alchemy_conn'),
-                     "sqlite is configured with SequentialExecutor")
+    @pytest.mark.integration("redis")
+    @pytest.mark.integration("rabbitmq")
+    @pytest.mark.backend("mysql", "postgres")
     def test_error_sending_task(self):
         def fake_execute_command():
             pass
@@ -174,7 +177,7 @@ class TestCeleryExecutor(unittest.TestCase):
 
     @mock.patch('airflow.executors.celery_executor.CeleryExecutor.sync')
     @mock.patch('airflow.executors.celery_executor.CeleryExecutor.trigger_tasks')
-    @mock.patch('airflow.stats.Stats.gauge')
+    @mock.patch('airflow.executors.base_executor.Stats.gauge')
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = celery_executor.CeleryExecutor()
         executor.heartbeat()
@@ -182,6 +185,10 @@ class TestCeleryExecutor(unittest.TestCase):
                  mock.call('executor.queued_tasks', mock.ANY),
                  mock.call('executor.running_tasks', mock.ANY)]
         mock_stats_gauge.assert_has_calls(calls)
+
+
+def test_operation_timeout_config():
+    assert celery_executor.OPERATION_TIMEOUT == 2
 
 
 if __name__ == '__main__':

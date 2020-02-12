@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -28,7 +27,7 @@ from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
 from airflow.models import DagBag, DagModel
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_pools
 

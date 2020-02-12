@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -26,7 +25,7 @@ from airflow.configuration import conf
 from airflow.models import DAG, TaskInstance as TI, XCom, clear_task_instances
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 

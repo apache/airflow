@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,8 +28,9 @@ from urllib.parse import urlparse
 
 from botocore.exceptions import ClientError
 
-from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.utils.helpers import chunks
 
 
 def provide_bucket_name(func):
@@ -611,7 +611,18 @@ class S3Hook(AwsHook):
         if isinstance(keys, str):
             keys = [keys]
 
-        delete_dict = {"Objects": [{"Key": k} for k in keys]}
-        response = self.get_conn().delete_objects(Bucket=bucket, Delete=delete_dict)
+        s3 = self.get_conn()
 
-        return response
+        # We can only send a maximum of 1000 keys per request.
+        # For details see:
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.delete_objects
+        for chunk in chunks(keys, chunk_size=1000):
+            response = s3.delete_objects(
+                Bucket=bucket,
+                Delete={"Objects": [{"Key": k} for k in chunk]}
+            )
+            deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
+            self.log.info("Deleted: %s", deleted_keys)
+            if "Errors" in response:
+                errors_keys = [x['Key'] for x in response.get("Errors", [])]
+                raise AirflowException("Errors when deleting: {}".format(errors_keys))

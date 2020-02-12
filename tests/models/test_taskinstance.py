@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,7 +20,7 @@ import datetime
 import time
 import unittest
 import urllib
-from typing import List, Union
+from typing import List, Optional, Union
 from unittest.mock import mock_open, patch
 
 import pendulum
@@ -31,28 +30,28 @@ from sqlalchemy.orm.session import Session
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, DagRun, Pool, TaskFail, TaskInstance as TI, TaskReschedule, Variable
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.python import PythonSensor
 from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNABLE_STATES, RUNNING_DEPS
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.db import create_session, provide_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 
 
 class CallbackWrapper:
-    task_id = None
-    dag_id = None
-    execution_date = None
-    task_state_in_callback = None
+    task_id: Optional[str] = None
+    dag_id: Optional[str] = None
+    execution_date: Optional[datetime.datetime] = None
+    task_state_in_callback: Optional[str] = None
     callback_ran = False
 
     def wrap_task_instance(self, ti):
@@ -369,6 +368,19 @@ class TestTaskInstance(unittest.TestCase):
 
         db.clear_db_pools()
         self.assertEqual(ti.state, State.SUCCESS)
+
+    def test_pool_slots_property(self):
+        """
+        test that try to create a task with pool_slots less than 1
+        """
+        def create_task_instance():
+            dag = models.DAG(dag_id='test_run_pooling_task')
+            task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
+                                 pool='test_pool', pool_slots=0, owner='airflow',
+                                 start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+            return TI(task=task, execution_date=timezone.utcnow())
+
+        self.assertRaises(AirflowException, create_task_instance)
 
     @provide_session
     def test_ti_updates_with_task(self, session=None):

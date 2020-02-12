@@ -51,11 +51,11 @@ from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import REQUEUEABLE_DEPS, RUNNING_DEPS, DepContext
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
@@ -154,6 +154,7 @@ class TaskInstance(Base, LoggingMixin):
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(50), nullable=False)
+    pool_slots = Column(Integer, default=1)
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
@@ -194,6 +195,7 @@ class TaskInstance(Base, LoggingMixin):
 
         self.queue = task.queue
         self.pool = task.pool
+        self.pool_slots = task.pool_slots
         self.priority_weight = task.priority_weight_total
         self.try_number = 0
         self.max_tries = self.task.retries
@@ -458,6 +460,7 @@ class TaskInstance(Base, LoggingMixin):
             self.unixname = ti.unixname
             self.job_id = ti.job_id
             self.pool = ti.pool
+            self.pool_slots = ti.pool_slots
             self.queue = ti.queue
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
@@ -770,6 +773,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         task = self.task
         self.pool = pool or task.pool
+        self.pool_slots = task.pool_slots
         self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
@@ -885,6 +889,7 @@ class TaskInstance(Base, LoggingMixin):
 
         task = self.task
         self.pool = pool or task.pool
+        self.pool_slots = task.pool_slots
         self.test_mode = test_mode
         self.refresh_from_db(session=session)
         self.job_id = job_id
@@ -964,11 +969,26 @@ class TaskInstance(Base, LoggingMixin):
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
         except AirflowSkipException as e:
+            # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
             if e.args:
                 self.log.info(e)
             self.refresh_from_db(lock_for_update=True)
             self.state = State.SKIPPED
+            self.log.info(
+                'Marking task as SKIPPED.'
+                'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+                self.dag_id,
+                self.task_id,
+                self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                    self,
+                    'execution_date') and self.execution_date else '',
+                self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                    self,
+                    'start_date') and self.start_date else '',
+                self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                    self,
+                    'end_date') and self.end_date else '')
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
@@ -996,6 +1016,20 @@ class TaskInstance(Base, LoggingMixin):
 
         # Recording SUCCESS
         self.end_date = timezone.utcnow()
+        self.log.info(
+            'Marking task as SUCCESS.'
+            'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
+            self.dag_id,
+            self.task_id,
+            self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                self,
+                'execution_date') and self.execution_date else '',
+            self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                self,
+                'start_date') and self.start_date else '',
+            self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                self,
+                'end_date') and self.end_date else '')
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
@@ -1109,18 +1143,30 @@ class TaskInstance(Base, LoggingMixin):
                         'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
                         self.dag_id,
                         self.task_id,
-                        self.execution_date.strftime('%Y%m%dT%H%M%S'),
-                        self.start_date.strftime('%Y%m%dT%H%M%S'),
-                        self.end_date.strftime('%Y%m%dT%H%M%S'))
+                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'execution_date') and self.execution_date else '',
+                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'start_date') and self.start_date else '',
+                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'end_date') and self.end_date else '')
                 else:
                     self.log.info(
                         'Marking task as FAILED.'
                         'dag_id=%s, task_id=%s, execution_date=%s, start_date=%s, end_date=%s',
                         self.dag_id,
                         self.task_id,
-                        self.execution_date.strftime('%Y%m%dT%H%M%S'),
-                        self.start_date.strftime('%Y%m%dT%H%M%S'),
-                        self.end_date.strftime('%Y%m%dT%H%M%S'))
+                        self.execution_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'execution_date') and self.execution_date else '',
+                        self.start_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'start_date') and self.start_date else '',
+                        self.end_date.strftime('%Y%m%dT%H%M%S') if hasattr(
+                            self,
+                            'end_date') and self.end_date else '')
                 if task.email_on_failure and task.email:
                     self.email_alert(error)
         except Exception as e2:
@@ -1341,6 +1387,15 @@ class TaskInstance(Base, LoggingMixin):
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
+        default_html_content_err = (
+            'Try {{try_number}} out of {{max_tries + 1}}<br>'
+            'Exception:<br>Failed attempt to attach error logs<br>'
+            'Log: <a href="{{ti.log_url}}">Link</a><br>'
+            'Host: {{ti.hostname}}<br>'
+            'Log file: {{ti.log_filepath}}<br>'
+            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+        )
+
         def render(key, content):
             if conf.has_option('email', key):
                 path = conf.get('email', key)
@@ -1351,7 +1406,11 @@ class TaskInstance(Base, LoggingMixin):
 
         subject = render('subject_template', default_subject)
         html_content = render('html_content_template', default_html_content)
-        send_email(self.task.email, subject, html_content)
+        html_content_err = render('html_content_template', default_html_content_err)
+        try:
+            send_email(self.task.email, subject, html_content)
+        except Exception:
+            send_email(self.task.email, subject, html_content_err)
 
     def set_duration(self) -> None:
         if self.end_date and self.start_date:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -75,4 +74,5 @@ class AthenaSensor(BaseSensorOperator):
         return True
 
     def get_hook(self):
+        """Create and return an AWSAthenaHook."""
         return AWSAthenaHook(self.aws_conn_id, self.sleep_time)

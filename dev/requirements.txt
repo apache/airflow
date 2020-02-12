@@ -1,4 +1,5 @@
-click>=6.6,<7
+click~=7.0
 jira>=2.0.0
 keyring==10.1
 gitpython
+jinja2~=2.10

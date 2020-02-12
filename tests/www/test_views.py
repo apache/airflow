@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -33,7 +32,8 @@ from unittest import mock
 from urllib.parse import quote_plus
 
 import jinja2
-from flask import Markup, url_for
+import pytest
+from flask import Markup, session as flask_session, url_for
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
@@ -49,7 +49,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.ti_deps.dep_context import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
-from airflow.utils.db import create_session
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
@@ -446,6 +446,15 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('home', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
+    def test_home_filter_tags(self):
+        from airflow.www.views import FILTER_TAGS_COOKIE
+        with self.client:
+            self.client.get('home?tags=example&tags=data', follow_redirects=True)
+            self.assertEqual('example,data', flask_session[FILTER_TAGS_COOKIE])
+
+            self.client.get('home?reset_tags', follow_redirects=True)
+            self.assertEqual(None, flask_session[FILTER_TAGS_COOKIE])
+
     def test_task(self):
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
@@ -466,15 +475,20 @@ class TestAirflowBaseViews(TestBase):
 
     def test_blocked(self):
         url = 'blocked'
-        resp = self.client.get(url, follow_redirects=True)
+        resp = self.client.post(url, follow_redirects=True)
         self.assertEqual(200, resp.status_code)
 
     def test_dag_stats(self):
-        resp = self.client.get('dag_stats', follow_redirects=True)
+        resp = self.client.post('dag_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
     def test_task_stats(self):
-        resp = self.client.get('task_stats', follow_redirects=True)
+        resp = self.client.post('task_stats', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_task_stats_only_noncompleted(self):
+        conf.set("webserver", "show_recent_stats_for_completed_runs", "False")
+        resp = self.client.post('task_stats', follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
 
     def test_dag_details(self):
@@ -493,19 +507,22 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('runme_1', resp)
 
     def test_last_dagruns(self):
-        resp = self.client.get('last_dagruns', follow_redirects=True)
+        resp = self.client.post('last_dagruns', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_last_dagruns_success_when_selecting_dags(self):
-        resp = self.client.get('last_dagruns?dag_ids=example_subdag_operator', follow_redirects=True)
+        resp = self.client.post('last_dagruns',
+                                data={'dag_ids': ['example_subdag_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertNotIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
 
         # Multiple
-        resp = self.client.get('last_dagruns?dag_ids=example_subdag_operator,example_bash_operator',
-                               follow_redirects=True)
+        resp = self.client.post('last_dagruns',
+                                data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
@@ -682,17 +699,22 @@ class TestAirflowBaseViews(TestBase):
         # The delete-dag URL should be generated correctly for DAGs
         # that exist on the scheduler (DB) but not the webserver DagBag
 
+        dag_id = 'example_bash_operator'
         test_dag_id = "non_existent_dag"
 
         DM = models.DagModel
-        self.session.query(DM).filter(DM.dag_id == 'example_bash_operator').update({'dag_id': test_dag_id})
+        dag_query = self.session.query(DM).filter(DM.dag_id == dag_id)
+        dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error
+        self.session.commit()
+
+        dag_query.update({'dag_id': test_dag_id})
         self.session.commit()
 
         resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('/delete?dag_id={}'.format(test_dag_id), resp)
         self.check_content_in_response("return confirmDeleteDag(this, '{}')".format(test_dag_id), resp)
 
-        self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
+        self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': dag_id})
         self.session.commit()
 
 
@@ -1394,33 +1416,36 @@ class TestDagACLView(TestBase):
     def test_dag_stats_success(self):
         self.logout()
         self.login()
-        resp = self.client.get('dag_stats', follow_redirects=True)
+        resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_dag_stats_failure(self):
         self.logout()
         self.login()
-        resp = self.client.get('dag_stats', follow_redirects=True)
+        resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_not_in_response('example_subdag_operator', resp)
 
     def test_dag_stats_success_for_all_dag_user(self):
         self.logout()
         self.login(username='all_dag_user',
                    password='all_dag_user')
-        resp = self.client.get('dag_stats', follow_redirects=True)
+        resp = self.client.post('dag_stats', follow_redirects=True)
         self.check_content_in_response('example_subdag_operator', resp)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_dag_stats_success_when_selecting_dags(self):
-        resp = self.client.get('dag_stats?dag_ids=example_subdag_operator', follow_redirects=True)
+        resp = self.client.post('dag_stats',
+                                data={'dag_ids': ['example_subdag_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertNotIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
 
         # Multiple
-        resp = self.client.get('dag_stats?dag_ids=example_subdag_operator,example_bash_operator',
-                               follow_redirects=True)
+        resp = self.client.post('dag_stats',
+                                data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
@@ -1430,20 +1455,20 @@ class TestDagACLView(TestBase):
     def test_task_stats_success(self):
         self.logout()
         self.login()
-        resp = self.client.get('task_stats', follow_redirects=True)
+        resp = self.client.post('task_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_task_stats_failure(self):
         self.logout()
         self.login()
-        resp = self.client.get('task_stats', follow_redirects=True)
+        resp = self.client.post('task_stats', follow_redirects=True)
         self.check_content_not_in_response('example_subdag_operator', resp)
 
     def test_task_stats_success_for_all_dag_user(self):
         self.logout()
         self.login(username='all_dag_user',
                    password='all_dag_user')
-        resp = self.client.get('task_stats', follow_redirects=True)
+        resp = self.client.post('task_stats', follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_in_response('example_subdag_operator', resp)
 
@@ -1452,15 +1477,18 @@ class TestDagACLView(TestBase):
         self.login(username='all_dag_user',
                    password='all_dag_user')
 
-        resp = self.client.get('task_stats?dag_ids=example_subdag_operator', follow_redirects=True)
+        resp = self.client.post('task_stats',
+                                data={'dag_ids': ['example_subdag_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertNotIn('example_bash_operator', stats)
         self.assertIn('example_subdag_operator', stats)
 
         # Multiple
-        resp = self.client.get('task_stats?dag_ids=example_subdag_operator,example_bash_operator',
-                               follow_redirects=True)
+        resp = self.client.post('task_stats',
+                                data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         stats = json.loads(resp.data.decode('utf-8'))
         self.assertIn('example_bash_operator', stats)
@@ -1630,7 +1658,7 @@ class TestDagACLView(TestBase):
         url = 'blocked'
         self.logout()
         self.login()
-        resp = self.client.get(url, follow_redirects=True)
+        resp = self.client.post(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
     def test_blocked_success_for_all_dag_user(self):
@@ -1638,9 +1666,28 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='all_dag_user',
                    password='all_dag_user')
-        resp = self.client.get(url, follow_redirects=True)
+        resp = self.client.post(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
         self.check_content_in_response('example_subdag_operator', resp)
+
+    def test_blocked_success_when_selecting_dags(self):
+        resp = self.client.post('blocked',
+                                data={'dag_ids': ['example_subdag_operator']},
+                                follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
+        self.assertNotIn('example_bash_operator', blocked_dags)
+        self.assertIn('example_subdag_operator', blocked_dags)
+
+        # Multiple
+        resp = self.client.post('blocked',
+                                data={'dag_ids': ['example_subdag_operator', 'example_bash_operator']},
+                                follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        blocked_dags = {blocked['dag_id'] for blocked in json.loads(resp.data.decode('utf-8'))}
+        self.assertIn('example_bash_operator', blocked_dags)
+        self.assertIn('example_subdag_operator', blocked_dags)
+        self.check_content_not_in_response('example_xcom', resp)
 
     def test_failed_success(self):
         self.logout()
@@ -1846,8 +1893,7 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
-    @unittest.skipIf('mysql' in conf.get('core', 'sql_alchemy_conn'),
-                     "flaky when run on mysql")
+    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
     def test_trigger_dag_button(self):
 
         test_dag_id = "example_bash_operator"
@@ -1862,11 +1908,50 @@ class TestTriggerDag(TestBase):
         self.assertIsNotNone(run)
         self.assertIn("manual__", run.run_id)
 
+    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
+    def test_trigger_dag_conf(self):
+
+        test_dag_id = "example_bash_operator"
+        conf_dict = {'string': 'Hello, World!'}
+
+        DR = models.DagRun
+        self.session.query(DR).delete()
+        self.session.commit()
+
+        self.client.post('trigger?dag_id={}'.format(test_dag_id), data={'conf': json.dumps(conf_dict)})
+
+        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        self.assertIsNotNone(run)
+        self.assertIn("manual__", run.run_id)
+        self.assertEqual(run.conf, conf_dict)
+
+    @pytest.mark.xfail(condition=True, reason="This test might be flaky on mysql")
+    def test_trigger_dag_conf_malformed(self):
+        test_dag_id = "example_bash_operator"
+
+        DR = models.DagRun
+        self.session.query(DR).delete()
+        self.session.commit()
+
+        response = self.client.post('trigger?dag_id={}'.format(test_dag_id), data={'conf': '{"a": "b"'})
+        self.assertEqual(response.status_code, 302)
+
+        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        self.assertIsNone(run)
+
+    def test_trigger_dag_form(self):
+        test_dag_id = "example_bash_operator"
+
+        resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
+
+        self.assertEqual(resp.status_code, 200)
+        self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
+
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        from airflow.utils.tests import (
-            Dummy2TestOperator, Dummy3TestOperator)
+        from tests.test_utils.mock_operators import Dummy3TestOperator
+        from tests.test_utils.mock_operators import Dummy2TestOperator
         super().setUp()
         self.endpoint = "extra_links"
         self.default_date = datetime(2017, 1, 1)
@@ -2095,7 +2180,7 @@ class TestDagRunModelView(TestBase):
             "state": "running",
             "dag_id": "example_bash_operator",
             "execution_date": "2018-07-06 05:04:03",
-            "run_id": "manual_abc",
+            "run_id": "test_create_dagrun",
         }
         resp = self.client.post('/dagrun/add',
                                 data=data,
@@ -2105,6 +2190,39 @@ class TestDagRunModelView(TestBase):
         dr = self.session.query(models.DagRun).one()
 
         self.assertEqual(dr.execution_date, timezone.convert_to_utc(datetime(2018, 7, 6, 5, 4, 3)))
+
+    def test_create_dagrun_valid_conf(self):
+        conf_value = dict(Valid=True)
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:05:03",
+            "run_id": "test_create_dagrun_valid_conf",
+            "conf": json.dumps(conf_value)
+        }
+
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('Added Row', resp)
+        dr = self.session.query(models.DagRun).one()
+        self.assertEqual(dr.conf, conf_value)
+
+    def test_create_dagrun_invalid_conf(self):
+        data = {
+            "state": "running",
+            "dag_id": "example_bash_operator",
+            "execution_date": "2018-07-06 05:06:03",
+            "run_id": "test_create_dagrun_invalid_conf",
+            "conf": "INVALID: [JSON"
+        }
+
+        resp = self.client.post('/dagrun/add',
+                                data=data,
+                                follow_redirects=True)
+        self.check_content_in_response('JSON Validation Error:', resp)
+        dr = self.session.query(models.DagRun).all()
+        self.assertFalse(dr)
 
 
 class TestDecorators(TestBase):

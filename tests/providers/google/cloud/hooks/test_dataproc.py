@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -38,7 +37,7 @@ CLUSTER_NAME = "cluster-name"
 
 PARENT = "parent"
 NAME = "name"
-BASE_STRING = "airflow.gcp.hooks.base.{}"
+BASE_STRING = "airflow.providers.google.cloud.hooks.base.{}"
 DATAPROC_STRING = "airflow.providers.google.cloud.hooks.dataproc.{}"
 
 

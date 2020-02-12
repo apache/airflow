@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -118,6 +117,9 @@ def git_version(version_: str) -> str:
         except git.NoSuchPathError:
             logger.warning('.git directory not found: Cannot compute the git version')
             return ''
+        except git.InvalidGitRepositoryError:
+            logger.warning('Invalid .git directory not found: Cannot compute the git version')
+            return ''
     except ImportError:
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
@@ -159,6 +161,7 @@ aws = [
 azure = [
     'azure-cosmos>=3.0.1',
     'azure-datalake-store>=0.0.45',
+    'azure-kusto-data>=0.0.43',
     'azure-mgmt-containerinstance>=1.5.0',
     'azure-mgmt-datalake-store>=0.5.0',
     'azure-mgmt-resource>=2.2.0',
@@ -166,7 +169,7 @@ azure = [
     'azure-storage-blob<12.0',
 ]
 cassandra = [
-    'cassandra-driver>=3.13.0',
+    'cassandra-driver>=3.13.0,<3.21.0',
 ]
 celery = [
     'celery~=4.3',
@@ -192,6 +195,7 @@ doc = [
     'sphinx>=2.1.2',
     'sphinx-argparse>=0.1.13',
     'sphinx-autoapi==1.0.0',
+    'sphinx-jinja~=1.1',
     'sphinx-rtd-theme>=0.1.6',
     'sphinxcontrib-httpdomain>=1.7.0',
 ]
@@ -217,24 +221,25 @@ gcp = [
     'google-auth-httplib2>=0.0.1',
     'google-cloud-automl>=0.4.0',
     'google-cloud-bigquery-datatransfer>=0.4.0',
-    'google-cloud-bigtable==1.0.0',
+    'google-cloud-bigtable>=1.0.0',
     'google-cloud-container>=0.1.1',
-    'google-cloud-dataproc==0.5.0',
+    'google-cloud-dataproc>=0.5.0',
     'google-cloud-dlp>=0.11.0',
     'google-cloud-kms>=1.2.1',
     'google-cloud-language>=1.1.1',
-    'google-cloud-pubsub==1.0.0',
+    'google-cloud-logging>=1.14.0',
+    'google-cloud-pubsub>=1.0.0',
     'google-cloud-redis>=0.3.0',
     'google-cloud-spanner>=1.10.0',
     'google-cloud-speech>=0.36.3',
-    'google-cloud-storage~=1.16',
-    'google-cloud-tasks==1.2.1',
+    'google-cloud-storage>=1.16',
+    'google-cloud-tasks>=1.2.1',
     'google-cloud-texttospeech>=0.4.0',
     'google-cloud-translate>=1.5.0',
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
-    'httplib2~=0.9',
+    'httplib2~=0.15',  # not sure we're ready for 1.0 here; test before updating
     'pandas-gbq',
 ]
 grpc = [
@@ -279,6 +284,9 @@ mssql = [
 mysql = [
     'mysqlclient>=1.3.6,<1.4',
 ]
+odbc = [
+    'pyodbc',
+]
 oracle = [
     'cx_Oracle>=5.1.2',
 ]
@@ -286,8 +294,8 @@ pagerduty = [
     'pypd>=1.1.0',
 ]
 papermill = [
-    'papermill[all]>=1.0.0',
-    'nteract-scrapbook[all]>=0.2.1',
+    'papermill[all]>=1.2.1',
+    'nteract-scrapbook[all]>=0.3.1',
 ]
 password = [
     'bcrypt>=2.0.0',
@@ -372,7 +380,6 @@ devel = [
     'click==6.7',
     'contextdecorator;python_version<"3.4"',
     'coverage',
-    'dumb-init>=1.2.2',
     'flake8>=3.6.0',
     'flake8-colors',
     'flaky',
@@ -388,6 +395,7 @@ devel = [
     'pysftp',
     'pytest',
     'pytest-cov',
+    'pytest-instafail',
     'pywinrm',
     'qds-sdk>=1.9.6',
     'requests_mock',
@@ -408,11 +416,11 @@ devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel +
              doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
-             kerberos + kubernetes + ldap + oracle + pagerduty + papermill +
+             kerberos + kubernetes + ldap + odbc + oracle + pagerduty + papermill +
              password + pinot + redis + salesforce + samba + segment + sendgrid +
-             sentry + slack + snowflake + ssh + virtualenv + webhdfs + zendesk)
+             sentry + slack + snowflake + ssh + statsd + virtualenv + webhdfs + zendesk)
 
-# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
+# Snakebite are not Python 3 compatible :'(
 if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
@@ -432,7 +440,7 @@ def do_setup():
         version=version,
         packages=find_packages(exclude=['tests*']),
         package_data={
-            '': ['airflow/alembic.ini', "airflow/git_version"],
+            '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb"],
             'airflow.serialization': ["*.json"],
         },
         include_package_data=True,
@@ -448,7 +456,7 @@ def do_setup():
             'argcomplete~=1.10',
             'attrs~=19.3',
             'cached_property~=1.5',
-            'cattrs~=0.9',
+            'cattrs~=1.0',
             'colorlog==4.0.2',
             'croniter>=0.3.17, <0.4',
             'cryptography>=0.9.3',
@@ -467,6 +475,7 @@ def do_setup():
             'json-merge-patch==0.2',
             'jsonschema~=3.0',
             'lazy_object_proxy~=1.3',
+            'lockfile>=0.12.2',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
@@ -481,12 +490,13 @@ def do_setup():
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
             'termcolor==1.1.0',
-            'text-unidecode==1.2',
+            'text-unidecode==1.3',
             'thrift>=0.9.2',
             'typing;python_version<"3.6"',
             'typing-extensions>=3.7.4;python_version<"3.8"',
             'tzlocal>=1.4,<2.0.0',
             'unicodecsv>=0.14.1',
+            'werkzeug<1.0.0',
             'zope.deprecation>=4.0, <5.0',
         ],
         #####################################################################################################
@@ -495,7 +505,7 @@ def do_setup():
         # DEPENDENCIES_EPOCH_NUMBER in the Dockerfile
         #####################################################################################################
         setup_requires=[
-            'docutils>=0.14, <1.0',
+            'docutils>=0.14, <0.16'
             'gitpython>=2.0.2',
         ],
         extras_require={
@@ -534,6 +544,7 @@ def do_setup():
             'mongo': mongo,
             'mssql': mssql,
             'mysql': mysql,
+            'odbc': odbc,
             'oracle': oracle,
             'pagerduty': pagerduty,
             'papermill': papermill,

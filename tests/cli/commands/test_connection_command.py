@@ -24,7 +24,8 @@ from parameterized import parameterized
 from airflow.bin import cli
 from airflow.cli.commands import connection_command
 from airflow.models import Connection
-from airflow.utils.db import create_session, merge_conn, provide_session
+from airflow.utils.db import merge_conn
+from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
 TEST_CONN_IDS = [f"new{index}" for index in range(1, 7)]

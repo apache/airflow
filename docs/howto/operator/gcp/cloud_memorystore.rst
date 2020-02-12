@@ -45,7 +45,7 @@ presented as a compatibile dictonary also.
 
 Here is an example of instance
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :start-after: [START howto_operator_instance]
     :end-before: [END howto_operator_instance]
@@ -56,14 +56,14 @@ Configuration of bucket permissions for import / export
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is necessary to configure permissions for the bucket to import and export data. Too find the service
-account for your instance, run the :class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreCreateInstanceOperator` or
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreGetInstancesOperator` and
+account for your instance, run the :class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreCreateInstanceOperator` or
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreGetInstancesOperator` and
 make a use of the service account listed under ``persistenceIamIdentity``.
 
 You can use :class:`airflow.contrib.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator`
 operator to set permissions.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_set_acl_permission]
@@ -78,20 +78,20 @@ Create instance
 ^^^^^^^^^^^^^^^
 
 Create a instance is performed with the
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreCreateInstanceOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreCreateInstanceOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_instance]
     :end-before: [END howto_operator_create_instance]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreCreateInstanceOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreCreateInstanceOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_instance_result]
@@ -104,16 +104,16 @@ Delete instance
 ^^^^^^^^^^^^^^^
 
 Delete a instance is performed with the
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreDeleteInstanceOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreDeleteInstanceOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_instance]
     :end-before: [END howto_operator_delete_instance]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreDeleteInstanceOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreDeleteInstanceOperator`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:CloudMemorystoreExportInstanceOperator:
@@ -122,16 +122,16 @@ Export instance
 ^^^^^^^^^^^^^^^
 
 Delete a instance is performed with the
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreExportInstanceOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreExportInstanceOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_export_instance]
     :end-before: [END howto_operator_export_instance]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreExportInstanceOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreExportInstanceOperator`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:CloudMemorystoreFailoverInstanceOperator:
@@ -140,16 +140,16 @@ Failover instance
 ^^^^^^^^^^^^^^^^^
 
 Delete a instance is performed with the
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreFailoverInstanceOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreFailoverInstanceOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_failover_instance]
     :end-before: [END howto_operator_failover_instance]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreFailoverInstanceOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreFailoverInstanceOperator`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:CloudMemorystoreGetInstanceOperator:
@@ -158,16 +158,16 @@ Get instance
 ^^^^^^^^^^^^
 
 Delete a instance is performed with the
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreGetInstanceOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreGetInstanceOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_get_instance]
     :end-before: [END howto_operator_get_instance]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreGetInstanceOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreGetInstanceOperator`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:CloudMemorystoreImportOperator:
@@ -176,16 +176,16 @@ Import instance
 ^^^^^^^^^^^^^^^
 
 Delete a instance is performed with the
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreImportOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreImportOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_import_instance]
     :end-before: [END howto_operator_import_instance]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreImportOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreImportOperator`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:CloudMemorystoreListInstancesOperator:
@@ -194,20 +194,20 @@ List instances
 ^^^^^^^^^^^^^^
 
 List a instances is performed with the
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreListInstancesOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreListInstancesOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_list_instances]
     :end-before: [END howto_operator_list_instances]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreListInstancesOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreListInstancesOperator`
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_list_instances_result]
@@ -219,16 +219,16 @@ Update instance
 ^^^^^^^^^^^^^^^
 
 Update a instance is performed with the
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreUpdateInstanceOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreUpdateInstanceOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_update_instance]
     :end-before: [END howto_operator_update_instance]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreUpdateInstanceOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreUpdateInstanceOperator`
 parameters which allows you to dynamically determine values.
 
 
@@ -238,16 +238,16 @@ Scale instance
 ^^^^^^^^^^^^^^
 
 Scale a instance is performed with the
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreScaleInstanceOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreScaleInstanceOperator` operator.
 
-.. exampleinclude:: ../../../../airflow/gcp/example_dags/example_cloud_memorystore.py
+.. exampleinclude:: ../../../../airflow/providers/google/cloud/example_dags/example_cloud_memorystore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_scale_instance]
     :end-before: [END howto_operator_scale_instance]
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreScaleInstanceOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreScaleInstanceOperator`
 parameters which allows you to dynamically determine values.
 
 .. _howto/operator:CloudMemorystoreCreateInstanceAndImportOperator:
@@ -256,7 +256,7 @@ Create instance and import
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you want to create instances with imported data, you can use
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreCreateInstanceAndImportOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreCreateInstanceAndImportOperator` operator.
 
 .. _howto/operator:CloudMemorystoreExportAndDeleteInstanceOperator:
 
@@ -264,10 +264,10 @@ Export and delete instance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you want to export data and immediately delete instances then you can use
-:class:`~airflow.gcp.operators.cloud_memorystore.CloudMemorystoreExportAndDeleteInstanceOperator` operator.
+:class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreExportAndDeleteInstanceOperator` operator.
 
 You can use :ref:`Jinja templating <jinja-templating>` with
-:template-fields:`airflow.gcp.operators.cloud_memorystore.CloudMemorystoreScaleInstanceOperator`
+:template-fields:`airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreScaleInstanceOperator`
 parameters which allows you to dynamically determine values.
 
 Reference

@@ -43,10 +43,10 @@ from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.db import provide_session
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.helpers import reap_process_group
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
@@ -622,13 +622,10 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         )
 
         # In sync mode we want timeout=None -- wait forever until a message is received
-        poll_time = None  # type: Optional[float]
         if self._async_mode:
             poll_time = 0.0
-            self.log.debug("Starting DagFileProcessorManager in async mode")
         else:
             poll_time = None
-            self.log.debug("Starting DagFileProcessorManager in sync mode")
 
         # Used to track how long it takes us to get once around every file in the DAG folder.
         self._parsing_start_time = timezone.utcnow()
@@ -638,7 +635,7 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
             # pylint: disable=no-else-break
             if self._signal_conn.poll(poll_time):
                 agent_signal = self._signal_conn.recv()
-                self.log.debug("Recived %s singal from DagFileProcessorAgent", agent_signal)
+                self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                 if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
                     self.terminate()
                     break
@@ -729,7 +726,8 @@ class DagFileProcessorManager(LoggingMixin):  # pylint: disable=too-many-instanc
         """
         Occasionally print out stats about how fast the files are getting processed
         """
-        if (timezone.utcnow() - self.last_stat_print_time).total_seconds() > self.print_stats_interval:
+        if 0 < self.print_stats_interval < (
+                timezone.utcnow() - self.last_stat_print_time).total_seconds():
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = timezone.utcnow()

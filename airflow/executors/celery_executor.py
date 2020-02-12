@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Celery executor."""
+import logging
 import math
 import os
 import subprocess
@@ -30,20 +31,23 @@ from celery.result import AsyncResult
 from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import BaseExecutor, CommandType, QueuedTaskInstanceType
+from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKeyType, TaskInstanceStateType
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.timeout import timeout
+
+log = logging.getLogger(__name__)
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
 
 CELERY_SEND_ERR_MSG_HEADER = 'Error sending Celery task'
 
+OPERATION_TIMEOUT = conf.getint('celery', 'operation_timeout', fallback=2)
+
 '''
 To start the celery worker, run the command:
-airflow worker
+airflow celery worker
 '''
 
 if conf.has_option('celery', 'celery_config_options'):
@@ -61,7 +65,6 @@ app = Celery(
 @app.task
 def execute_command(command_to_exec: CommandType) -> None:
     """Executes command."""
-    log = LoggingMixin().log
     log.info("Executing command in Celery: %s", command_to_exec)
     env = os.environ.copy()
     try:
@@ -102,7 +105,7 @@ def fetch_celery_task_state(celery_task: Tuple[TaskInstanceKeyType, AsyncResult]
     """
 
     try:
-        with timeout(seconds=2):
+        with timeout(seconds=OPERATION_TIMEOUT):
             # Accessing state property of celery task will make actual network request
             # to get the current state of the task.
             return celery_task[0], celery_task[1].state
@@ -122,7 +125,7 @@ def send_task_to_executor(task_tuple: TaskInstanceInCelery) \
     """Sends task to executor."""
     key, _, command, queue, task_to_run = task_tuple
     try:
-        with timeout(seconds=2):
+        with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=[command], queue=queue)
     except Exception as e:  # pylint: disable=broad-except
         exception_traceback = "Celery Task ID: {}\n{}".format(key, traceback.format_exc())
@@ -222,7 +225,7 @@ class CeleryExecutor(BaseExecutor):
 
             for key, command, result in key_and_async_results:
                 if isinstance(result, ExceptionWithTraceback):
-                    self.log.error(
+                    self.log.error(  # pylint: disable=logging-not-lazy
                         CELERY_SEND_ERR_MSG_HEADER + ":%s\n%s\n", result.exception, result.traceback
                     )
                 elif result is not None:
@@ -233,17 +236,6 @@ class CeleryExecutor(BaseExecutor):
                     self.running.add(key)
                     self.tasks[key] = result
                     self.last_state[key] = celery_states.PENDING
-
-    def order_queued_tasks_by_priority(self) -> List[Tuple[TaskInstanceKeyType, QueuedTaskInstanceType]]:
-        """
-        Orders the queued tasks by priority.
-
-        :return: List of tuples from the queued_tasks according to the priority.
-        """
-        return sorted(
-            [(k, v) for k, v in self.queued_tasks.items()],  # pylint: disable=unnecessary-comprehension
-            key=lambda x: x[1][1],
-            reverse=True)
 
     def sync(self) -> None:
         num_processes = min(len(self.tasks), self._sync_parallelism)
@@ -278,7 +270,7 @@ class CeleryExecutor(BaseExecutor):
         """Updates states of the tasks."""
         for key_and_state in task_keys_to_states:
             if isinstance(key_and_state, ExceptionWithTraceback):
-                self.log.error(
+                self.log.error(  # pylint: disable=logging-not-lazy
                     CELERY_FETCH_ERR_MSG_HEADER + ", ignoring it:%s\n%s\n",
                     repr(key_and_state.exception), key_and_state.traceback
                 )

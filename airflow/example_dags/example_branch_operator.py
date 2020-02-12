@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -21,20 +20,21 @@
 
 import random
 
-import airflow
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import BranchPythonOperator
+from airflow.operators.python import BranchPythonOperator
+from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(2),
+    'start_date': days_ago(2),
 }
 
 dag = DAG(
     dag_id='example_branch_operator',
     default_args=args,
     schedule_interval="@daily",
+    tags=['example']
 )
 
 run_this_first = DummyOperator(
