@@ -663,7 +663,7 @@ These integrations allow you to perform various operations within the Google Clo
      -
 
    * - `Cloud SQL <https://cloud.google.com/sql/>`__
-     - :doc:`How to use <howto/operator/gcp/sql>`
+     - :doc:`How to use <howto/operator/gcp/cloud_sql>`
      - :mod:`airflow.providers.google.cloud.hooks.cloud_sql`
      - :mod:`airflow.providers.google.cloud.operators.cloud_sql`
      -
