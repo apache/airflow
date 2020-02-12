@@ -1731,6 +1731,16 @@
       type: string
       example: ~
       default: ""
+    - name: worker_pod_uses_args
+      description: |
+        If True (default False), worker pods will use the args field instead of command.
+
+        Using the args field means that command strings are passed through a
+        worker image's entry-point script.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
     - name: worker_container_tag
       description: |
         The tag of the Kubernetes Image for the Worker to Run
