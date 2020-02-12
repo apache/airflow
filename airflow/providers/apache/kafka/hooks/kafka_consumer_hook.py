@@ -45,6 +45,7 @@ class KafkaConsumerHook(BaseHook):
 
         :return:
             A Kafka Consumer object.
+
         """
         if not self._conn:
             conn = self.get_connection(self.conn_id)

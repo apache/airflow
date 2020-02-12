@@ -565,14 +565,8 @@ EXTRAS_REQUIREMENTS: Dict[str, Iterable[str]] = {
     "apache.druid": druid,
     "apache.hdfs": hdfs,
     "apache.hive": hive,
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "apache.kylin": kylin,
-=======
->>>>>>> 9ad001e9a... Removed unused imports
-=======
->>>>>>> 8ed04aed7... Removed unused imports
     "apache.kafka": kafka,
+    "apache.kylin": kylin,
     "apache.pinot": pinot,
     "apache.webhdfs": webhdfs,
     'async': async_packages,
