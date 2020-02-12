@@ -123,6 +123,39 @@ class ListExtras(Command):
         print("\n".join(wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)))
 
 
+class VerifyVersionCommand(Command):
+    """Custom command to verify that the git tag matches our version"""
+    description = 'verify that the git tag matches our version'
+    user_options = []  # type: ignore
+
+    def initialize_options(self):
+        """Set default values for options."""
+
+    def finalize_options(self):
+        """Set final values for options."""
+
+    def run(self):
+        tag = os.getenv('TAG')
+        branch = os.getenv('BRANCH')
+
+        if tag and tag != "v" + version:
+            info = "Git tag: {0} does not match the version of this app: v{1}".format(
+                tag, version
+            )
+            exit(info)
+        if branch and not version.startswith(branch.lstrip('v').replace('-', '.')):
+            info = "Git Branch: {0} does not match the version of this app: v{1}".format(
+                branch, version
+            )
+            exit(info)
+        import re
+        # Check the version matches the expected format of 1.10.7+astro.1
+        if not re.match(r'^\d\.\d+\.\d+(\.(dev|rc)\d+)?\+astro\.\d+$', version):
+            info = "Version: {0} does not match the expected format of '1.2.3+astro.4' " \
+                   "or '1.2.3.(dev|rc)4+astro.5'".format(version)
+            exit(info)
+
+
 def git_version(version_):
     """
     Return a version to identify the state of the underlying git repo. The version will
@@ -675,7 +708,13 @@ def do_setup():
         long_description=long_description,
         long_description_content_type='text/markdown',
         license='Apache License 2.0',
-        version=version,
+
+        # Astronomer note: we use a new "version epoch" here so that when
+        # people install our release (which is not published on PyPi) they can
+        # keep our version installed, without it pulling in the latest stock
+        # version from PyPi.
+        version="1!" + version,
+
         packages=find_packages(exclude=['tests*', 'airflow.upgrade*']),
         package_data={
             '': ['airflow/alembic.ini', "airflow/git_version", "*.ipynb",
@@ -717,6 +756,7 @@ def do_setup():
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets,
             'list_extras': ListExtras,
+            'verify': VerifyVersionCommand,
         },
         test_suite='setup.airflow_test_suite',
         python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',

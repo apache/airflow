@@ -173,7 +173,7 @@ repos:
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
         exclude:
-          ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml
+          ^.*init_git_sync\.template\.yaml$|^.*airflow\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml|^.github/workflows/ci.yml$   # yamllint disable-line rule:line-length
   ##
   ## Dear committer.
   ##
@@ -364,7 +364,7 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_mypy.sh"
         files: \.py$
-        exclude: ^dev|^provider_packages|^chart
+        exclude: ^dev|^provider_packages|^chart|^astronomer-certified-setup.py
       - id: mypy
         name: Run mypy for helm chart tests
         language: system
@@ -377,6 +377,7 @@ repos:
         language: system
         entry: "./scripts/ci/pre_commit/pre_commit_flake8.sh"
         files: \.py$
+        exclude: ^dev|astronomer-certified-setup.py
         pass_filenames: true
       - id: bats-in-container-tests
         name: Run in container bats tests
