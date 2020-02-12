@@ -23,7 +23,7 @@ from typing import Optional
 
 from pendulum import utcfromtimestamp
 from redis import Redis
-from sqlalchemy import Column, Index, Integer, String, and_, or_
+from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 

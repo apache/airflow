@@ -415,7 +415,7 @@ class TestAirflowBaseViews(TestBase):
                          resp_json['scheduler']['latest_scheduler_heartbeat'])
 
         self.session.query(BaseJob).\
-            filter(BaseJob.job_type == job2.id).\
+            filter(BaseJob.id == job2.id).\
             delete()
         self.session.commit()
 
