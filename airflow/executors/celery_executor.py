@@ -212,7 +212,6 @@ class CeleryExecutor(BaseExecutor):
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
             if queue == "kubernetes":
-                a = 5/0
                 self.kube_executor.execute_async(key, command, queue, simple_ti.executor_config)
             else:
                 task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
