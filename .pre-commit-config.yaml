@@ -253,7 +253,8 @@ repos:
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|
-          ^airflow/_vendor/
+          ^airflow/_vendor/|
+          ^astronomer-.*\.py$
         additional_dependencies: ['toml']
   - repo: https://github.com/asottile/yesqa
     rev: v1.3.0
@@ -783,7 +784,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
+        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev|astronomer-certified-setup.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.1']
       - id: run-mypy
@@ -807,7 +808,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_flake8.py
         files: \.py$
         pass_filenames: true
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|astronomer-certified-setup.py$
         additional_dependencies: ['rich>=12.4.1']
       - id: lint-javascript
         name: ESLint against airflow/ui
