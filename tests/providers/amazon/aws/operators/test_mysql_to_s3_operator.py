@@ -58,4 +58,4 @@ class TestMySqlToS3Operator(unittest.TestCase):
         with pickle_mock:
             temp_mock.assert_called_once_with(suffix=".csv")
             temp_mock.return_value.__enter__.return_value.name = "file"
-            mock_s3_hook.return_value.load_file("file", s3_bucket, s3_key)
+            mock_s3_hook.return_value.load_file.assert_called_once_with("file", s3_bucket, s3_key)
