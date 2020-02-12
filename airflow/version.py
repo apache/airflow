@@ -25,7 +25,8 @@ except ImportError:
     from importlib import metadata
 
 try:
-    version = metadata.version('apache-airflow')
+    version_ = metadata.version('apache-airflow')
+    version = version_.replace('1!', '')
 except metadata.PackageNotFoundError:
     import logging
 

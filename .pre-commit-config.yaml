@@ -228,7 +228,8 @@ repos:
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|
-          ^airflow/_vendor/
+          ^airflow/_vendor/|
+          ^astronomer-.*\.py$
   - repo: local
     hooks:
       - id: lint-openapi
@@ -461,7 +462,8 @@ repos:
       - id: bats-tests
         name: Run BATS bash tests for changed Breeze bash files
         language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/
+        entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/"
+        exclude: astronomer-certified-setup.py
         files: ^breeze$|^breeze-complete$|^tests/bats/breeze
         pass_filenames: false
       - id: bats-tests
@@ -628,7 +630,7 @@ repos:
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: \.py$
-        exclude: ^dev|^provider_packages|^chart|^docs|^airflow/_vendor/
+        exclude: ^dev|^provider_packages|^chart|^docs|^airflow/_vendor/|astronomer-certified-setup.py$
       - id: mypy
         name: Run mypy for helm chart tests
         language: system
@@ -647,7 +649,15 @@ repos:
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_pylint.sh
         files: \.py$
-        exclude: ^scripts/.*\.py$|^dev|^provider_packages|^chart|^tests|^kubernetes_tests|^airflow/_vendor/
+        exclude: |
+          ^scripts/.*\.py$|
+          ^dev|
+          ^provider_packages|
+          ^chart|
+          ^tests|
+          ^kubernetes_tests|
+          ^airflow/_vendor/|
+          astronomer-certified-setup.py$
         pass_filenames: true
         require_serial: true
       - id: pylint
