@@ -787,6 +787,34 @@ class TestKubernetesPodOperator(unittest.TestCase):
             }
         }, actual_pod)
 
+    @mock.patch("airflow.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    def test_pod_priority_class_name(self, mock_client, launcher_mock):
+        """Test ability to assign priorityClassName to pod
+
+        """
+        from airflow.utils.state import State
+
+        priority_class_name = "medium-test"
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            priority_class_name=priority_class_name,
+        )
+
+        launcher_mock.return_value = (State.SUCCESS, None)
+        k.execute(None)
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod['spec']['priorityClassName'] = priority_class_name
+        self.assertEqual(self.expected_pod, actual_pod)
+
 
 # pylint: enable=unused-argument
 if __name__ == '__main__':

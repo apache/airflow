@@ -152,4 +152,5 @@ Pods on Kubernetes. It works with any type of executor.
                               tolerations=tolerations,
                               configmaps=configmaps,
                               init_containers=[init_container],
+                              priority_class_name="medium",
                               )
