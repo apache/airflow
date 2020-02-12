@@ -27,7 +27,11 @@ def get_docs_url(page: Optional[str] = None) -> str:
             "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/"
         )
     else:
-        result = f'https://airflow.apache.org/docs/apache-airflow/{version.version}/'
+        try:
+            airflow_version = version.version.split('.dev')[0].split('+astro')[0]
+            result = f"https://airflow.apache.org/docs/apache-airflow/{airflow_version}/"
+        except Exception:  # pylint: disable=broad-except
+            result = "https://airflow.apache.org/docs/"
     if page:
         result = result + page
     return result

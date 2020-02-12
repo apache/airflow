@@ -241,7 +241,8 @@ repos:
           ^kubernetes_tests|
           .*example_dags/.*|
           ^chart/.*\.py$|
-          ^airflow/_vendor/
+          ^airflow/_vendor/|
+          ^astronomer-.*\.py$
         additional_dependencies: ['toml']
   - repo: https://github.com/asottile/yesqa
     rev: v1.2.3
@@ -504,7 +505,8 @@ repos:
       - id: bats-tests
         name: Run BATS bash tests for changed Breeze bash files
         language: system
-        entry: ./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/
+        entry: "./scripts/ci/pre_commit/pre_commit_bat_tests.sh tests/bats/breeze/"
+        exclude: astronomer-certified-setup.py
         files: ^breeze$|^breeze-complete$|^tests/bats/breeze
         pass_filenames: false
       - id: bats-tests
@@ -689,7 +691,7 @@ repos:
         language: system
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.sh
         files: \.py$
-        exclude: ^dev|^provider_packages|^chart|^docs|^airflow/_vendor/
+        exclude: ^dev|^provider_packages|^chart|^docs|^airflow/_vendor/|astronomer-certified-setup.py$
       - id: mypy
         name: Run mypy for helm chart tests
         language: system
@@ -709,5 +711,5 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_flake8.sh
         files: \.py$
         pass_filenames: true
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|astronomer-certified-setup.py$
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
