@@ -21,6 +21,7 @@ import re
 import string
 import unittest
 from datetime import datetime
+from queue import Queue
 
 import mock
 from urllib3 import HTTPResponse
@@ -117,6 +118,40 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
             serialized_datetime)
 
         self.assertEqual(datetime_obj, new_datetime_obj)
+
+    @unittest.skipIf(AirflowKubernetesScheduler is None,
+                     "kubernetes python package is not installed")
+    @conf_vars({
+        ('kubernetes', 'worker_pod_uses_args'): 'True',
+    })
+    @mock.patch('airflow.kubernetes.pod_launcher.PodLauncher.run_pod_async')
+    @mock.patch('airflow.executors.kubernetes_executor.KubernetesJobWatcher')
+    def test_worker_pod_uses_args(self, mock_kubernetes_job_watcher, run_pod_async):
+        kube_config = KubeConfig()
+        mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)
+        scheduler = AirflowKubernetesScheduler(kube_config, Queue(), Queue(), mock_kube_client, '1')
+        scheduler.launcher = mock.MagicMock()
+
+        test_command = '/bin/bash -c sleep 10'
+        scheduler.run_next((('dag_id', 'task_id', datetime.utcnow(), 1), test_command, None))
+
+        assert scheduler.launcher.run_pod_async.called
+
+        pod = scheduler.launcher.run_pod_async.call_args[0][0]
+
+        assert pod.spec.containers[0].command == []
+        assert pod.spec.containers[0].args == [test_command]
+
+        # Rerun with the default value
+        kube_config.worker_pod_uses_args = False
+
+        scheduler.run_next((('dag_id', 'task_id', datetime.utcnow(), 1), test_command, None))
+
+        assert scheduler.launcher.run_pod_async.called
+
+        pod = scheduler.launcher.run_pod_async.call_args[0][0]
+        assert pod.spec.containers[0].command == [test_command]
+        assert pod.spec.containers[0].args == []
 
 
 class TestKubeConfig(unittest.TestCase):
