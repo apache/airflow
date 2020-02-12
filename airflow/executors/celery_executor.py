@@ -21,6 +21,8 @@ import math
 import os
 import subprocess
 import time
+from cached_property import cached_property
+from airflow.executors.kubernetes_executor import KubernetesExecutor
 import traceback
 from multiprocessing import Pool, cpu_count
 from typing import Any, List, Optional, Tuple, Union
@@ -144,6 +146,17 @@ class CeleryExecutor(BaseExecutor):
     required to maintain such a system.
     """
 
+    @cached_property
+    def kube_executor(self) -> KubernetesExecutor:
+        """
+        lazily loads KubernetesExecutor
+        @return:
+        """
+        self.kube_executor_initialized = True
+        k = KubernetesExecutor()
+        k.start()
+        return k
+
     def __init__(self):
         super().__init__()
 
@@ -158,6 +171,7 @@ class CeleryExecutor(BaseExecutor):
         self._sync_pool = None
         self.tasks = {}
         self.last_state = {}
+        self.kube_executor_initialized = False
 
     def start(self) -> None:
         self.log.debug(
@@ -197,7 +211,11 @@ class CeleryExecutor(BaseExecutor):
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, simple_ti) = sorted_queue.pop(0)
-            task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
+            if queue == "kubernetes":
+                a = 5/0
+                self.kube_executor.execute_async(key, command, queue, simple_ti.executor_config)
+            else:
+                task_tuples_to_send.append((key, simple_ti, command, queue, execute_command))
 
         cached_celery_backend = None
         if task_tuples_to_send:
@@ -263,6 +281,8 @@ class CeleryExecutor(BaseExecutor):
         self.log.debug("Inquiries completed.")
 
         self.update_task_states(task_keys_to_states)
+        if self.kube_executor_initialized:
+            self.kube_executor.sync()
 
     def update_task_states(self,
                            task_keys_to_states: List[Union[TaskInstanceStateType,
