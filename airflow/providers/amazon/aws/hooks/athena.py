@@ -70,11 +70,13 @@ class AWSAthenaHook(AwsHook):
         :type workgroup: str
         :return: str
         """
-        response = self.get_conn().start_query_execution(QueryString=query,
-                                                         ClientRequestToken=client_request_token,
-                                                         QueryExecutionContext=query_context,
-                                                         ResultConfiguration=result_configuration,
-                                                         WorkGroup=workgroup)
+        params = dict(QueryString=query,
+                      QueryExecutionContext=query_context,
+                      ResultConfiguration=result_configuration,
+                      WorkGroup=workgroup)
+        if client_request_token:
+            params['ClientRequestToken'] = client_request_token
+        response = self.get_conn().start_query_execution(**params)
         query_execution_id = response['QueryExecutionId']
         return query_execution_id
 
