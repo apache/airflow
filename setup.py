@@ -105,6 +105,40 @@ class ListExtras(Command):
         print("\n".join(wrap(", ".join(EXTRAS_REQUIREMENTS.keys()), 100)))
 
 
+class VerifyVersionCommand(Command):
+    """Custom command to verify that the git tag matches our version"""
+
+    description = 'verify that the git tag matches our version'
+    user_options = []  # type: ignore
+
+    def initialize_options(self):
+        """Set default values for options."""
+
+    def finalize_options(self):
+        """Set final values for options."""
+
+    def run(self):
+        """Run Verify Version Command"""
+        tag = os.getenv('TAG')
+        branch = os.getenv('BRANCH')
+
+        if tag and tag != "v" + version:
+            info = f"Git tag: {tag} does not match the version of this app: v{version}"
+            sys.exit(info)
+        if branch and not version.startswith(branch.lstrip('v').replace('-', '.')):
+            info = f"Git Branch: {branch} does not match the version of this app: v{version}"
+            sys.exit(info)
+        import re
+
+        # Check the version matches the expected format of 1.10.7+astro.1
+        if not re.match(r'^\d\.\d+\.\d+(\.(dev|rc)\d+)?\+astro\.\d+$', version):
+            info = (
+                "Version: {} does not match the expected format of '1.2.3+astro.4' "
+                "or '1.2.3.(dev|rc)4+astro.5'".format(version)
+            )
+            sys.exit(info)
+
+
 def git_version(version_: str) -> str:
     """
     Return a version to identify the state of the underlying git repo. The version will
@@ -904,13 +938,19 @@ def do_setup():
     setup(
         # Most values come from setup.cfg -- see
         # https://setuptools.readthedocs.io/en/latest/userguide/declarative_config.html
-        version=version,
+
+        # Astronomer note: we use a new "version epoch" here so that when
+        # people install our release (which is not published on PyPi) they can
+        # keep our version installed, without it pulling in the latest stock
+        # version from PyPi.
+        version="1!" + version,
         extras_require=EXTRAS_REQUIREMENTS,
         download_url=('https://archive.apache.org/dist/airflow/' + version),
         cmdclass={
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets,
             'list_extras': ListExtras,
+            'verify': VerifyVersionCommand,
         },
         test_suite='setup.airflow_test_suite',
         **setup_kwargs,

@@ -96,3 +96,7 @@ input_notebook.ipynb
 # .git might be a file in case of worktree
 .git
 tmp
+
+# Astronomer extension scripts
+astronomer-*.sh
+astronomer-certified-setup.py

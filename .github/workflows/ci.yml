@@ -21,10 +21,10 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 0 * * *'
   push:
-    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-0']
-    tags: ['v2.0.0+astro.*']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-*']
+    tags: ['v2.0.0\+astro.*']
   pull_request:
-    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-0']
+    branches: ['master', 'v1-10-test', 'v1-10-stable', 'v2-0-*']
 
 env:
 
@@ -1089,3 +1089,55 @@ jobs:
           tags: true
           force: true
           branch: master
+
+  deploy:
+    timeout-minutes: 10
+    name: "Publish wheels"
+    runs-on: ubuntu-latest
+    needs:
+      - tests-sqlite
+      - tests-postgres
+      - tests-mysql
+      - docs
+    if: |
+      (startsWith(github.ref, 'refs/tags/v2.0.0+astro') || github.ref == 'refs/heads/v2-0-0') &&
+      github.event_name != 'pull_request'
+    env:
+      PULL_PYTHON_BASE_IMAGES_FROM_CACHE: "false"
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      CI_JOB_TYPE: "Prod image"
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - run: |
+          pip install --upgrade pip==19.0.2
+          pip install packaging GitPython wheel
+      - name: Create Python Wheel
+        run: ./scripts/ci/astronomer-release.sh
+      - name: "Deploy Python Wheel and tar.gz"
+        uses: actions-hub/gcloud@master
+        env:
+          APPLICATION_CREDENTIALS: ${{secrets.ASTRONOMER_PROD}}
+          PROJECT_ID: ${{secrets.GCLOUD_PROJECT_ID}}
+        with:
+          args: cp -a public-read -r ./dist/* gs://pip.astronomer.io/simple
+          cli: gsutil
+      - name: "Deploy '.build' file (containing deployed version number)"
+        uses: actions-hub/gcloud@master
+        env:
+          APPLICATION_CREDENTIALS: ${{secrets.ASTRONOMER_PROD}}
+          PROJECT_ID: ${{secrets.GCLOUD_PROJECT_ID}}
+        with:
+          args: >
+            -h "Cache-Control:no-cache,max-age=0"
+            cp -a public-read -r "./**/*.build" gs://pip.astronomer.io/simple/astronomer-certified
+          cli: gsutil
+      - name: Index Pages
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_CONTENT: ${{secrets.ASTRONOMER_PROD}}
+        run: |
+          git clone https://github.com/astronomer/pip-release-utilities.git pip-release-utilities
+          ./pip-release-utilities/build-index-page.sh pip.astronomer.io simple/apache-airflow
+          ./pip-release-utilities/build-index-page.sh pip.astronomer.io simple/astronomer-certified
