@@ -22,10 +22,91 @@ from unittest.mock import Mock, patch
 import pytest
 
 from airflow import DAG, AirflowException
-from airflow.models import TaskInstance
+from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.postgres_hook import PostgresHook
+from airflow.models import Connection, TaskInstance
 from airflow.operators.data_quality_operator import (
-    DataQualityThresholdCheckOperator, DataQualityThresholdSQLCheckOperator,
+    BaseDataQualityOperator, DataQualityThresholdCheckOperator, DataQualityThresholdSQLCheckOperator,
 )
+
+
+@patch.object(PostgresHook, "get_records")
+@patch.object(BaseHook, 'get_connection')
+class TestBaseDataQualityOperator(unittest.TestCase):
+
+    def test_get_sql_value_single_result(self, connection_mock, records_mock):
+        task = BaseDataQualityOperator(
+            task_id="one_result_task",
+            conn_id='test_id',
+            sql='SELECT COUNT(1) FROM test;'
+        )
+
+        connection_mock.return_value = Connection(conn_id='test_id', conn_type='postgres')
+        records_mock.return_value = [(10,)]
+
+        result = task.get_sql_value(
+            conn_id=task.conn_id,
+            sql=task.sql
+        )
+
+        assert result == 10
+
+    def test_get_sql_value_multiple_rows(self, connection_mock, records_mock):
+
+        task = BaseDataQualityOperator(
+            task_id="one_result_task",
+            conn_id='test_id',
+            sql='SELECT COUNT(1) FROM test;'
+        )
+
+        connection_mock.return_value = Connection(conn_id='test_id', conn_type='postgres')
+        records_mock.return_value = [(10,), (10,)]
+
+        with pytest.raises(ValueError) as exec_info:
+            task.get_sql_value(
+                conn_id=task.conn_id,
+                sql=task.sql
+            )
+
+        self.assertEqual(str(exec_info.value), "Result from sql query contains more than 1 entry")
+
+    def test_get_sql_value_multiple_values(self, connection_mock, records_mock):
+
+        task = BaseDataQualityOperator(
+            task_id="one_result_task",
+            conn_id='test_id',
+            sql='SELECT COUNT(1) FROM test;'
+        )
+
+        connection_mock.return_value = Connection(conn_id='test_id', conn_type='postgres')
+        records_mock.return_value = [(10, 100)]
+
+        with pytest.raises(ValueError) as exec_info:
+            task.get_sql_value(
+                conn_id=task.conn_id,
+                sql=task.sql
+            )
+
+        self.assertEqual(str(exec_info.value), "Result from sql query does not contain exactly 1 column")
+
+    def test_get_sql_value_no_result(self, connection_mock, records_mock):
+
+        task = BaseDataQualityOperator(
+            task_id="one_result_task",
+            conn_id='test_id',
+            sql='SELECT COUNT(1) FROM test;'
+        )
+
+        connection_mock.return_value = Connection(conn_id='test_id', conn_type='postgres')
+        records_mock.return_value = []
+
+        with pytest.raises(ValueError) as exec_info:
+            task.get_sql_value(
+                conn_id=task.conn_id,
+                sql=task.sql
+            )
+
+        self.assertEqual(str(exec_info.value), "No result returned from sql query")
 
 
 class TestDataQualityThresholdCheckOperator(unittest.TestCase):
@@ -128,3 +209,7 @@ class TestDataQualityThresholdSQLCheckOperator(unittest.TestCase):
             })
         self.assertTrue(task_mock.called)
         self.assertTrue("Result: 100 is not within thresholds 10 and 50" in str(exec_info.value))
+
+
+if __name__ == '__main__':
+    unittest.main()
