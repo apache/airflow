@@ -922,32 +922,39 @@ function build_image_on_ci() {
         "${AIRFLOW_SOURCES}/confirm" "Cleaning docker data and rebuilding"
     fi
 
-    export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-    export FORCE_BUILD="true"
-    export VERBOSE="${VERBOSE:="false"}"
-
     # Cleanup docker installation. It should be empty in CI but let's not risk
     docker system prune --all --force
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
 
-    echo
-    echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
-    echo
+    if [[ "${TRAVIS_PULL_REQUEST:=}" == "false" ]]; then
+        # If we are building a tag or a branch build, then we don't want to skip any tests
+        rebuild_ci_image_if_needed
+        return
+    else
+        # Don't try and find changed files for non-PR builds (tags, branch pushes etc.)
+        echo
+        echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
+        echo
 
-    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    git fetch origin "${TRAVIS_BRANCH}"
-    CHANGED_FILE_NAMES=$(git diff --name-only "remotes/origin/${TRAVIS_BRANCH}...HEAD")
-    echo
-    echo "Changed file names in this commit"
-    echo "${CHANGED_FILE_NAMES}"
-    echo
+        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+        git fetch origin "${TRAVIS_BRANCH}"
+        CHANGED_FILE_NAMES=$(git diff --name-only "remotes/origin/${TRAVIS_BRANCH}...HEAD")
+        echo
+        echo "Changed file names in this commit"
+        echo "${CHANGED_FILE_NAMES}"
+        echo
+    fi
+
+    export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+    export FORCE_BUILD="true"
+    export VERBOSE="${VERBOSE:="false"}"
 
     if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"Kubernetes"* ]]; then
         match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/runtime/kubernetes/.*\.py' \
             'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
             'scripts/ci/.*' 'airflow/example_dags/.*'
-        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+        if [[ ${FILE_MATCHES} == "true" ]]; then
             rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
@@ -955,7 +962,7 @@ function build_image_on_ci() {
     elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
         match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' \
             'airflow/www/.*\.html' 'scripts/ci/.*' 'airflow/example_dags/.*'
-        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+        if [[ ${FILE_MATCHES} == "true" ]]; then
             rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
