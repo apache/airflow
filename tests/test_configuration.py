@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import io
 import os
 import unittest
 import warnings
@@ -534,6 +534,13 @@ notacommand = OK
             fernet_key = conf.get('core', 'FERNET_KEY')
 
         self.assertEqual(value, fernet_key)
+
+    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
+    def test_write_should_respect_env_variable(self):
+        with io.StringIO() as string_file:
+            conf.write(string_file)
+            content = string_file.getvalue()
+        self.assertIn("dags_folder = /tmp/test_folder", content)
 
     def test_run_command(self):
         write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
