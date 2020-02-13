@@ -52,7 +52,7 @@ class TestAwsDataSyncHook(unittest.TestCase):
 
 
 # Explanation of: @mock.patch.object(AWSDataSyncHook, 'get_conn')
-# aws_hook.py fiddles with config files and changes the region
+# base_aws.py fiddles with config files and changes the region
 # If you have any ~/.credentials then aws_hook uses it for the region
 # This region might not match us-east-1 used for the mocked self.client
 

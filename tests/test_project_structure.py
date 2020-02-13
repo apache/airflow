@@ -16,6 +16,7 @@
 # under the License.
 
 import glob
+import itertools
 import mmap
 import os
 import unittest
@@ -147,7 +148,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         ('cloud', 'mysql_to_gcs'),
         ('cloud', 'mssql_to_gcs'),
         ('cloud', 'bigquery_to_gcs'),
-        ('suite', 'gcs_to_gdrive_operator'),
         ('cloud', 'local_to_gcs')
     }
 
@@ -163,7 +163,6 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         'datastore',
         'dlp',
         'gcs_to_bigquery',
-        'gcs_to_gdrive_operator',
         'kubernetes_engine',
         'local_to_gcs',
         'mlengine',
@@ -207,7 +206,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         with self.subTest("Keep update missing example dags list"):
             new_example_dag = set(example_sets).intersection(set(self.MISSING_EXAMPLE_DAGS))
             if new_example_dag:
-                new_example_dag_text = '\n'.join(new_example_dag)
+                new_example_dag_text = '\n'.join(str(f) for f in new_example_dag)
                 self.fail(
                     "You've added a example dag currently listed as missing:\n"
                     f"{new_example_dag_text}"
@@ -251,3 +250,20 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
         # Exclude __init__.py and pycache
         resource_files = (f for f in resource_files if not f.endswith("__init__.py"))
         return resource_files
+
+
+class TestOperatorsHooks(unittest.TestCase):
+    def test_some_suffix_is_illegal(self):
+        files = itertools.chain(*[
+            glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            for resource_type in ["operators", "hooks", "sensors", "example_dags"]
+            for part in ["airlfow", "tests"]
+        ])
+
+        invalid_files = [
+            f
+            for f in files
+            if any(f.endswith(suffix) for suffix in ["_operator.py", "_hook.py", "_sensor.py"])
+        ]
+
+        self.assertEqual([], invalid_files)

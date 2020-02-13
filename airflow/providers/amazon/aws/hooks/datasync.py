@@ -22,7 +22,7 @@ Interact with AWS DataSync, using the AWS ``boto3`` library.
 import time
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowTaskTimeout
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsHook
 
 
 class AWSDataSyncHook(AwsHook):

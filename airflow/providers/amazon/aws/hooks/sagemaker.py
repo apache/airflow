@@ -25,7 +25,7 @@ import warnings
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils import timezone

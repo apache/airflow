@@ -26,7 +26,7 @@ import pandas as pd
 
 import airflow.providers.amazon.aws.operators.hive_to_dynamodb
 from airflow import DAG
-from airflow.providers.amazon.aws.hooks.aws_dynamodb_hook import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.aws_dynamodb import AwsDynamoDBHook
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.aws_hook`."""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.base_aws`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook, _parse_s3_config, boto3  # noqa
+from airflow.providers.amazon.aws.hooks.base_aws import AwsHook, _parse_s3_config, boto3  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.aws_hook`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.base_aws`.",
     DeprecationWarning, stacklevel=2
 )

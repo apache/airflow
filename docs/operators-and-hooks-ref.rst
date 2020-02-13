@@ -289,7 +289,7 @@ AWS: Amazon Web Services
 
 Airflow has support for `Amazon Web Services <https://aws.amazon.com/>`__.
 
-All hooks are based on :mod:`airflow.providers.amazon.aws.hooks.aws_hook`.
+All hooks are based on :mod:`airflow.providers.amazon.aws.hooks.base_aws`.
 
 Service operators and hooks
 '''''''''''''''''''''''''''
@@ -350,7 +350,7 @@ These integrations allow you to perform various operations within the Amazon Web
 
    * - `Amazon DynamoDB <https://aws.amazon.com/dynamodb/>`__
      -
-     - :mod:`airflow.providers.amazon.aws.hooks.aws_dynamodb_hook`
+     - :mod:`airflow.providers.amazon.aws.hooks.aws_dynamodb`
      -
      -
 
@@ -783,7 +783,7 @@ These integrations allow you to copy data from/to Google Cloud Platform.
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
      -
-     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive_operator`
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
 
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - SFTP
@@ -1059,7 +1059,7 @@ These integrations allow you to perform various operations within various servic
    * - `Google Cloud Storage (GCS) <https://cloud.google.com/gcs/>`__
      - `Google Drive <https://www.google.com/drive/>`__
      -
-     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive_operator`
+     - :mod:`airflow.providers.google.suite.operators.gcs_to_gdrive`
 
    * - `Vertica <https://www.vertica.com/>`__
      - `Apache Hive <https://hive.apache.org/>`__

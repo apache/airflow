@@ -17,7 +17,7 @@
 # under the License.
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsHook
 from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
 from airflow.utils.decorators import apply_defaults
 

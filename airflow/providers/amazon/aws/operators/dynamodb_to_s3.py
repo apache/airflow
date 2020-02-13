@@ -31,7 +31,7 @@ from uuid import uuid4
 from boto.compat import json  # type: ignore
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.aws_dynamodb_hook import AwsDynamoDBHook
+from airflow.providers.amazon.aws.hooks.aws_dynamodb import AwsDynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 

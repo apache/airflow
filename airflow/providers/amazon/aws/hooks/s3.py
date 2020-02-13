@@ -29,7 +29,7 @@ from urllib.parse import urlparse
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsHook
 from airflow.utils.helpers import chunks
 
 

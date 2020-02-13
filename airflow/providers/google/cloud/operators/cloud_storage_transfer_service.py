@@ -35,7 +35,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
 from airflow.utils.decorators import apply_defaults
 
 try:
-    from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsHook
 except ImportError:  # pragma: no cover
     AwsHook = None  # type: ignore
 
