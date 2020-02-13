@@ -351,6 +351,9 @@ ssh = [
 statsd = [
     'statsd>=3.3.0, <4.0',
 ]
+tableau = [
+    'tableauserverclient==0.9',
+]
 vertica = [
     'vertica-python>=0.5.1',
 ]
@@ -418,11 +421,11 @@ else:
 
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
-devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel +
-             doc + docker + druid + elasticsearch + gcp + grpc + jdbc + jenkins +
-             kerberos + kubernetes + ldap + odbc + oracle + pagerduty + papermill +
-             password + pinot + redis + salesforce + samba + segment + sendgrid +
-             sentry + slack + snowflake + ssh + statsd + virtualenv + webhdfs + yandexcloud + zendesk)
+devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel + doc + docker + druid +
+             elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + odbc + oracle +
+             pagerduty + papermill + password + pinot + redis + salesforce + samba + segment + sendgrid +
+             sentry + slack + snowflake + ssh + statsd + tableau + virtualenv + webhdfs + yandexcloud +
+             zendesk)
 
 # Snakebite are not Python 3 compatible :'(
 if PY3:
@@ -567,6 +570,7 @@ def do_setup():
             'snowflake': snowflake,
             'ssh': ssh,
             'statsd': statsd,
+            'tableau': tableau,
             'vertica': vertica,
             'webhdfs': webhdfs,
             'winrm': winrm,

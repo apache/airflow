@@ -449,6 +449,17 @@ def create_default_connections(session=None):
     )
     merge_conn(
         Connection(
+            conn_id="tableau_default",
+            conn_type="tableau",
+            host="https://tableau.server.url",
+            login="user",
+            password="password",
+            extra='{"site_id": "my_site"}',
+        ),
+        session
+    )
+    merge_conn(
+        Connection(
             conn_id="vertica_default",
             conn_type="vertica",
             host="localhost",

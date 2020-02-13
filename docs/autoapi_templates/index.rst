@@ -164,6 +164,10 @@ All operators are in the following packages:
 
   airflow/providers/redis/sensors/index
 
+  airflow/providers/salesforce/operators/index
+
+  airflow/providers/salesforce/sensors/index
+
   airflow/providers/segment/operators/index
 
   airflow/providers/sftp/operators/index

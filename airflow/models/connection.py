@@ -71,6 +71,7 @@ CONN_TYPE_TO_HOOK = {
     "presto": ("airflow.providers.presto.hooks.presto.PrestoHook", "presto_conn_id"),
     "redis": ("airflow.providers.redis.hooks.redis.RedisHook", "redis_conn_id"),
     "sqlite": ("airflow.providers.sqlite.hooks.sqlite.SqliteHook", "sqlite_conn_id"),
+    "tableau": ("airflow.providers.salesforce.hooks.tableau.TableauHook", "tableau_conn_id"),
     "vertica": ("airflow.providers.vertica.hooks.vertica.VerticaHook", "vertica_conn_id"),
     "wasb": ("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", "wasb_conn_id"),
 }
@@ -159,6 +160,7 @@ class Connection(Base, LoggingMixin):
         ('grpc', 'GRPC Connection'),
         ('yandexcloud', 'Yandex Cloud'),
         ('livy', 'Apache Livy'),
+        ('tableau', 'Tableau'),
     ]
 
     def __init__(
