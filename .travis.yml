@@ -34,14 +34,21 @@ jobs:
   include:
     - name: "Static checks"
       stage: pre-test
-      script: ./scripts/ci/ci_run_all_static_tests.sh
+      script: ./scripts/ci/ci_run_all_static_checks.sh
+      env: >-
+        PYTHON_VERSION=3.6
+        AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
+        SKIP=pylint-tests
+    - name: "Static checks - pylint tests only"
+      stage: pre-test
+      script: ./scripts/ci/ci_run_static_checks_pylint_tests.sh
       env: >-
         PYTHON_VERSION=3.6
         AIRFLOW_MOUNT_SOURCE_DIR_FOR_STATIC_CHECKS="true"
     - name: "Build documentation"
       env: >-
         PYTHON_VERSION=3.6
-      stage: pre-test
+      stage: test
       script: ./scripts/ci/ci_docs.sh
     - name: "Tests [Postgres][3.6][Kubernetes][persistent]"
       env: >-
@@ -94,11 +101,11 @@ jobs:
         ENABLED_INTEGRATIONS="cassandra kerberos mongo openldap rabbitmq redis"
         RUN_INTEGRATION_TESTS=all
       stage: test
-      script: ./scripts/ci/ci_run_airflow_testing.sh tests/tests_core.py
-    - name: "Tests [MySQL][3.7][kerberos-temporarily-disabled]"
+    - name: "Tests [MySQL][3.7][kerberos]"
       env: >-
         BACKEND=mysql
         PYTHON_VERSION=3.7
+        ENABLED_INTEGRATIONS="kerberos"
       stage: test
   services:
     - docker

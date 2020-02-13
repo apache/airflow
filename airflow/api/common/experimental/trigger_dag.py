@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -47,10 +46,10 @@ def _trigger_dag(
     :param replace_microseconds: whether microseconds should be zeroed
     :return: list of triggered dags
     """
+    dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
+
     if dag_id not in dag_bag.dags:
         raise DagNotFound("Dag id {} not found".format(dag_id))
-
-    dag = dag_bag.get_dag(dag_id)
 
     execution_date = execution_date if execution_date else timezone.utcnow()
 
@@ -122,7 +121,14 @@ def trigger_dag(
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
         raise DagNotFound("Dag id {} not found in DagModel".format(dag_id))
-    dagbag = DagBag(dag_folder=dag_model.fileloc)
+
+    def read_store_serialized_dags():
+        from airflow.configuration import conf
+        return conf.getboolean('core', 'store_serialized_dags')
+    dagbag = DagBag(
+        dag_folder=dag_model.fileloc,
+        store_serialized_dags=read_store_serialized_dags()
+    )
     dag_run = DagRun()
     triggers = _trigger_dag(
         dag_id=dag_id,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -26,17 +25,17 @@ from airflow import DAG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import TaskInstance
-from airflow.operators.hive_to_mysql import HiveToMySqlTransfer
-from airflow.operators.hive_to_samba_operator import Hive2SambaOperator
-from airflow.operators.presto_check_operator import PrestoCheckOperator
-from airflow.operators.presto_to_mysql import PrestoToMySqlTransfer
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
+from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer
+from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
+from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer
+from airflow.providers.presto.operators.presto_check import PrestoCheckOperator
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils import timezone
 
@@ -65,31 +64,6 @@ class TestHiveEnvironment(unittest.TestCase):
             PARTITION(ds='{{ ds }}')
         SELECT state, year, name, gender, num FROM static_babynames;
         """
-
-
-class TestHiveCli(unittest.TestCase):
-
-    def setUp(self):
-        self.nondefault_schema = "nondefault"
-        os.environ["AIRFLOW__CORE__SECURITY"] = "kerberos"
-
-    def tearDown(self):
-        del os.environ["AIRFLOW__CORE__SECURITY"]
-
-    def test_get_proxy_user_value(self):
-        from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-
-        hook = HiveCliHook()
-        returner = mock.MagicMock()
-        returner.extra_dejson = {'proxy_user': 'a_user_proxy'}
-        hook.use_beeline = True
-        hook.conn = returner
-
-        # Run
-        result = hook._prepare_cli_cmd()
-
-        # Verify
-        self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])
 
 
 class HiveOperatorConfigTest(TestHiveEnvironment):

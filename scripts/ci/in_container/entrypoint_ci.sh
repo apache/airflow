@@ -110,6 +110,32 @@ sudo rm -rf "${AIRFLOW_SOURCES}"/tmp/*
 mkdir -p "${AIRFLOW_SOURCES}"/logs/
 mkdir -p "${AIRFLOW_SOURCES}"/tmp/
 
+mkdir -pv "${AIRFLOW_HOME}/logs/"
+cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
+
+export PYTHONPATH=${AIRFLOW_SOURCES}
+
+"${MY_DIR}/check_environment.sh"
+
+if [[ ${INTEGRATION_KERBEROS:="false"} == "true" ]]; then
+    set +e
+    setup_kerberos
+    RES=$?
+    set -e
+
+    if [[ ${RES} != 0 ]]; then
+        echo
+        echo "ERROR !!!!Kerberos initialisation requested, but failed"
+        echo
+        echo "I will exit now, and you need to run 'breeze --stop-environment' to kill kerberos."
+        echo
+        echo "Then you can again run 'breeze --integration kerberos' to start it again"
+        echo
+        exit 1
+    fi
+fi
+
+
 if [[ "${RUNTIME}" == "" ]]; then
     # Start MiniCluster
     java -cp "/opt/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster \
@@ -125,70 +151,11 @@ if [[ "${RUNTIME}" == "" ]]; then
 
     # SSH Service
     sudo service ssh restart >/dev/null 2>&1
-
-    if [[ ${DEPS:="true"} == "true" ]]; then
-        # Setting up kerberos
-
-        FQDN=$(hostname)
-        ADMIN="admin"
-        PASS="airflow"
-        KRB5_KTNAME=/etc/airflow.keytab
-
-        if [[ ${AIRFLOW_CI_VERBOSE} == "true" ]]; then
-            echo
-            echo "Hosts:"
-            echo
-            cat /etc/hosts
-            echo
-            echo "Hostname: ${FQDN}"
-            echo
-        fi
-
-        sudo cp "${MY_DIR}/krb5/krb5.conf" /etc/krb5.conf
-
-        set +e
-        echo -e "${PASS}\n${PASS}" | \
-            sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "addprinc -randkey airflow/${FQDN}" 2>&1 \
-              | sudo tee "${AIRFLOW_HOME}/logs/kadmin_1.log" >/dev/null
-        RES_1=$?
-
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow" 2>&1 \
-              | sudo tee "${AIRFLOW_HOME}/logs/kadmin_2.log" >/dev/null
-        RES_2=$?
-
-        sudo kadmin -p "${ADMIN}/admin" -w "${PASS}" -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}" 2>&1 \
-              | sudo tee "${AIRFLOW_HOME}/logs``/kadmin_3.log" >/dev/null
-        RES_3=$?
-        set -e
-
-        if [[ ${RES_1} != 0 || ${RES_2} != 0 || ${RES_3} != 0 ]]; then
-            if [[ -n ${KRB5_CONFIG:=} ]]; then
-                echo
-                echo "ERROR !!!!Kerberos initialisation requested, but failed"
-                echo
-                echo "I will exit now, and you need to run 'breeze --stop-environment' to kill kerberos."
-                echo
-                echo "Then you can again run 'breeze --integration kerberos' to start it again"
-                echo
-            fi
-            echo
-            echo "No kerberos. If you want to start it, exit and run 'breeze --integration kerberos'"
-            echo
-        else
-            echo
-            echo "Kerberos enabled and working."
-            echo
-            sudo chmod 0644 "${KRB5_KTNAME}"
-        fi
-
-    fi
 fi
 
-mkdir -pv "${AIRFLOW_HOME}/logs/"
-
-cp -f "${MY_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
 export KIND_CLUSTER_OPERATION="${KIND_CLUSTER_OPERATION:="start"}"
+export KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
 
 if [[ ${RUNTIME:=""} == "kubernetes" ]]; then
     unset KRB5_CONFIG
@@ -220,10 +187,6 @@ fi
 
 set -u
 
-KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
-
-"${MY_DIR}/check_environment.sh"
-
 if [[ "${TRAVIS}" == "true" ]]; then
     CI_ARGS=(
         "--verbosity=0"
@@ -233,6 +196,7 @@ if [[ "${TRAVIS}" == "true" ]]; then
         "--cov=airflow/"
         "--cov-config=.coveragerc"
         "--cov-report=html:airflow/www/static/coverage/"
+        "--maxfail=50"
         "--pythonwarnings=ignore::DeprecationWarning"
         "--pythonwarnings=ignore::PendingDeprecationWarning"
         )
@@ -244,20 +208,22 @@ if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
     CI_ARGS+=("--integrations" "${RUN_INTEGRATION_TESTS}" "-rpfExX")
 fi
 
-TEST_DIR="tests/"
+TESTS_TO_RUN="tests/"
+
+if [[ ${#@} -gt 0 && -n "$1" ]]; then
+    TESTS_TO_RUN="$1"
+fi
 
 if [[ -n ${RUNTIME} ]]; then
     CI_ARGS+=("--runtime" "${RUNTIME}" "-rpfExX")
-    TEST_DIR="tests/runtime"
+    TESTS_TO_RUN="tests/runtime"
     if [[ ${RUNTIME} == "kubernetes" ]]; then
         export SKIP_INIT_DB=true
         "${MY_DIR}/deploy_airflow_to_kubernetes.sh"
     fi
 fi
 
-export PYTHONPATH=${AIRFLOW_SOURCES}
-
-ARGS=("${CI_ARGS[@]}" "${TEST_DIR}")
+ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN}")
 "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
 
 in_container_script_end

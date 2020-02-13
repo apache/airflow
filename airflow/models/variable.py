@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -45,16 +44,15 @@ class Variable(Base, LoggingMixin):
         return '{} : {}'.format(self.key, self._val)
 
     def get_val(self):
-        log = LoggingMixin().log
         if self._val and self.is_encrypted:
             try:
                 fernet = get_fernet()
                 return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
             except InvalidFernetToken:
-                log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
+                self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
                 return None
             except Exception:
-                log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
+                self.log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
                 return None
         else:
             return self._val

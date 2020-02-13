@@ -65,6 +65,12 @@ Docker Community Edition
   `cleaning up the images <#cleaning-up-the-images>`_. Also see
   `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
 
+Here is an example configuration with more than 200GB disk space for Docker:
+
+.. image:: images/disk_space_osx.png
+    :align: left
+    :alt: Disk space OSX
+
 Docker Compose
 --------------
 
@@ -280,7 +286,7 @@ You can manually trigger building the local images using the script:
 
 .. code-block::
 
-  ./scripts/ci/local_ci_build.sh
+  ./breeze --build-only
 
 The scripts that build the images are optimized to minimize the time needed to rebuild the image when
 the source code of Airflow evolves. This means that if you already have the image locally downloaded and
@@ -302,7 +308,7 @@ To manually force pulling the images for static checks, use the script:
 
 .. code-block::
 
-  ./scripts/ci/local_ci_pull_and_build.sh
+  ./breeze --build-only --force-pull-images
 
 In the future Breeze will warn you when you are recommended to pull images.
 
@@ -347,6 +353,9 @@ embedded in the container and changes to these sources will not be persistent.
 After you run Breeze for the first time, you will have an empty directory ``files`` in your source code,
 which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
 configure and run Docker. They will not be removed between Docker runs.
+
+If you wish to add local DAGs that can be run by Breeze, you can add the dags to ``/files/dags`` and then
+run ``export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"`` once the container has started.
 
 Adding/Modifying Dependencies
 -----------------------------
@@ -401,7 +410,12 @@ You can connect to these ports/databases using:
 * Mysql: ``jdbc:mysql://localhost:23306/airflow?user=root``
 
 Start the webserver manually with the ``airflow webserver`` command if you want to connect
-to the webserver. You can use ``tmux`` to multiply terminals.
+to the webserver. You can use ``tmux`` to multiply terminals. You may need to create a user prior to
+running the webserver in order to log in. This can be done with the following command:
+
+.. code-block:: bash
+
+    airflow users create --role Admin --username admin --password admin --email admin@example.com --firstname foo --lastname bar
 
 For databases, you need to run ``airflow db reset`` at least once (or run some tests) after you started
 Airflow Breeze to get the database/tables created. You can connect to databases with IDE or any other
@@ -853,4 +867,4 @@ y the root user, you can fix the ownership of those files by running this script
 
 .. code-block::
 
-  ./scripts/ci/local_ci_fix_ownership.sh
+  ./scripts/ci/ci_fix_ownership.sh

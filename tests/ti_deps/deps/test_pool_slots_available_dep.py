@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -40,22 +39,22 @@ class TestPoolSlotsAvailableDep(unittest.TestCase):
     @patch('airflow.models.Pool.open_slots', return_value=0)
     # pylint: disable=unused-argument
     def test_pooled_task_reached_concurrency(self, mock_open_slots):
-        ti = Mock(pool='test_pool')
+        ti = Mock(pool='test_pool', pool_slots=1)
         self.assertFalse(PoolSlotsAvailableDep().is_met(ti=ti))
 
     @patch('airflow.models.Pool.open_slots', return_value=1)
     # pylint: disable=unused-argument
     def test_pooled_task_pass(self, mock_open_slots):
-        ti = Mock(pool='test_pool')
+        ti = Mock(pool='test_pool', pool_slots=1)
         self.assertTrue(PoolSlotsAvailableDep().is_met(ti=ti))
 
     @patch('airflow.models.Pool.open_slots', return_value=0)
     # pylint: disable=unused-argument
     def test_running_pooled_task_pass(self, mock_open_slots):
         for state in STATES_TO_COUNT_AS_RUNNING:
-            ti = Mock(pool='test_pool', state=state)
+            ti = Mock(pool='test_pool', state=state, pool_slots=1)
             self.assertTrue(PoolSlotsAvailableDep().is_met(ti=ti))
 
     def test_task_with_nonexistent_pool(self):
-        ti = Mock(pool='nonexistent_pool')
+        ti = Mock(pool='nonexistent_pool', pool_slots=1)
         self.assertFalse(PoolSlotsAvailableDep().is_met(ti=ti))

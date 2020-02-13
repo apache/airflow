@@ -200,16 +200,22 @@ def dag_show(args):
 @cli_utils.action_logging
 def dag_state(args):
     """
-    Returns the state of a DagRun at the command line.
+    Returns the state (and conf if exists) of a DagRun at the command line.
     >>> airflow dags state tutorial 2015-01-01T00:00:00.000000
     running
+    >>> airflow dags state a_dag_with_conf_passed 2015-01-01T00:00:00.000000
+    failed, {"name": "bob", "age": "42"}
     """
     if args.subdir:
         dag = get_dag(args.subdir, args.dag_id)
     else:
         dag = get_dag_by_file_location(args.dag_id)
     dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
-    print(dr[0].state if len(dr) > 0 else None)  # pylint: disable=len-as-condition
+    out = dr[0].state if dr else None
+    confout = ''
+    if out and dr[0].conf:
+        confout = ', ' + json.dumps(dr[0].conf)
+    print(str(out) + confout)
 
 
 @cli_utils.action_logging

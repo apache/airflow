@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -36,14 +35,14 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow import models, settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DAG, DagRun, SlaMiss, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import SCHEDULEABLE_STATES, SCHEDULED_DEPS, DepContext
+from airflow.ti_deps.dep_context import SCHEDULED_DEPS, DepContext
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (
@@ -429,7 +428,18 @@ class DagFileProcessor(LoggingMixin):
             """.format(task_list=task_list, blocking_task_list=blocking_task_list,
                        bug=asciiart.bug)
 
-            tasks_missed_sla = [dag.get_task(sla.task_id) for sla in slas]
+            tasks_missed_sla = []
+            for sla in slas:
+                try:
+                    task = dag.get_task(sla.task_id)
+                except TaskNotFound:
+                    # task already deleted from DAG, skip it
+                    self.log.warning(
+                        "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.",
+                        sla.task_id)
+                    continue
+                tasks_missed_sla.append(task)
+
             emails = set()
             for task in tasks_missed_sla:
                 if task.email:
@@ -628,8 +638,9 @@ class DagFileProcessor(LoggingMixin):
         active_dag_runs = []
         for run in dag_runs:
             self.log.info("Examining DAG run %s", run)
-            # don't consider runs that are executed in the future
-            if run.execution_date > timezone.utcnow():
+            # don't consider runs that are executed in the future unless
+            # specified by config and schedule_interval is None
+            if run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
                 self.log.error(
                     "Execution date is in future: %s",
                     run.execution_date
@@ -648,28 +659,10 @@ class DagFileProcessor(LoggingMixin):
             run.dag = dag
             # todo: preferably the integrity check happens at dag collection time
             run.verify_integrity(session=session)
-            run.update_state(session=session)
+            ready_tis = run.update_state(session=session)
             if run.state == State.RUNNING:
-                make_transient(run)
-                active_dag_runs.append(run)
-
-        for run in active_dag_runs:
-            self.log.debug("Examining active DAG run: %s", run)
-            tis = run.get_task_instances(state=SCHEDULEABLE_STATES)
-
-            # this loop is quite slow as it uses are_dependencies_met for
-            # every task (in ti.is_runnable). This is also called in
-            # update_state above which has already checked these tasks
-            for ti in tis:
-                task = dag.get_task(ti.task_id)
-
-                # fixme: ti.task is transient but needs to be set
-                ti.task = task
-
-                if ti.are_dependencies_met(
-                    dep_context=DepContext(flag_upstream_failed=True),
-                    session=session
-                ):
+                self.log.debug("Examining active DAG run: %s", run)
+                for ti in ready_tis:
                     self.log.debug('Queuing task: %s', ti)
                     task_instances_list.append(ti.key)
 

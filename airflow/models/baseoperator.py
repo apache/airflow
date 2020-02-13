@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -178,6 +177,9 @@ class BaseOperator(Operator, LoggingMixin):
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
     :type pool: str
+    :param pool_slots: the number of pool slots this task should use (>= 1)
+        Values less than 1 are not allowed.
+    :type pool_slots: int
     :param sla: time by which the job is expected to succeed. Note that
         this represents the ``timedelta`` after the period is closed. For
         example if you set an SLA of 1 hour, the scheduler would send an email
@@ -288,6 +290,9 @@ class BaseOperator(Operator, LoggingMixin):
         'do_xcom_push',
     }
 
+    # Defines if the operator supports lineage without manual definitions
+    supports_lineage = False
+
     # noinspection PyUnusedLocal
     # pylint: disable=too-many-arguments,too-many-locals, too-many-statements
     @apply_defaults
@@ -296,8 +301,8 @@ class BaseOperator(Operator, LoggingMixin):
         task_id: str,
         owner: str = conf.get('operators', 'DEFAULT_OWNER'),
         email: Optional[Union[str, Iterable[str]]] = None,
-        email_on_retry: bool = True,
-        email_on_failure: bool = True,
+        email_on_retry: bool = conf.getboolean('email', 'default_email_on_retry', fallback=True),
+        email_on_failure: bool = conf.getboolean('email', 'default_email_on_failure', fallback=True),
         retries: Optional[int] = conf.getint('core', 'default_task_retries', fallback=0),
         retry_delay: timedelta = timedelta(seconds=300),
         retry_exponential_backoff: bool = False,
@@ -313,6 +318,7 @@ class BaseOperator(Operator, LoggingMixin):
         weight_rule: str = WeightRule.DOWNSTREAM,
         queue: str = conf.get('celery', 'default_queue'),
         pool: str = Pool.DEFAULT_POOL_NAME,
+        pool_slots: int = 1,
         sla: Optional[timedelta] = None,
         execution_timeout: Optional[timedelta] = None,
         on_execute_callback: Optional[Callable] = None,
@@ -381,6 +387,10 @@ class BaseOperator(Operator, LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
+        self.pool_slots = pool_slots
+        if self.pool_slots < 1:
+            raise AirflowException("pool slots for %s in dag %s cannot be less than 1"
+                                   % (self.task_id, dag.dag_id))
         self.sla = sla
         self.execution_timeout = execution_timeout
         self.on_execute_callback = on_execute_callback
@@ -446,9 +456,6 @@ class BaseOperator(Operator, LoggingMixin):
     def __ne__(self, other):
         return not self == other
 
-    def __lt__(self, other):
-        return self.task_id < other.task_id
-
     def __hash__(self):
         hash_components = [type(self)]
         for component in self._comps:
@@ -510,7 +517,78 @@ class BaseOperator(Operator, LoggingMixin):
         self.__rshift__(other)
         return self
 
+    # including lineage information
+    def __or__(self, other):
+        """
+        Called for [This Operator] | [Operator], The inlets of other
+        will be set to pickup the outlets from this operator. Other will
+        be set as a downstream task of this operator.
+        """
+        if isinstance(other, BaseOperator):
+            if not self._outlets and not self.supports_lineage:
+                raise ValueError("No outlets defined for this operator")
+            other.add_inlets([self.task_id])
+            self.set_downstream(other)
+        else:
+            raise TypeError(f"Right hand side ({other}) is not an Operator")
+
+        return self
+
     # /Composing Operators ---------------------------------------------
+
+    def __gt__(self, other):
+        """
+        Called for [Operator] > [Outlet], so that if other is an attr annotated object
+        it is set as an outlet of this Operator.
+        """
+        if not isinstance(other, Iterable):
+            other = [other]
+
+        for obj in other:
+            if not attr.has(obj):
+                raise TypeError(f"Left hand side ({obj}) is not an outlet")
+        self.add_outlets(other)
+
+        return self
+
+    def __lt__(self, other):
+        """
+        Called for [Inlet] > [Operator] or [Operator] < [Inlet], so that if other is
+        an attr annotated object it is set as an inlet to this operator
+        """
+        if not isinstance(other, Iterable):
+            other = [other]
+
+        for obj in other:
+            if not attr.has(obj):
+                raise TypeError(f"{obj} cannot be an inlet")
+        self.add_inlets(other)
+
+        return self
+
+    def add_inlets(self, inlets: Iterable[Any]):
+        """
+        Sets inlets to this operator
+        """
+        self._inlets.extend(inlets)
+
+    def add_outlets(self, outlets: Iterable[Any]):
+        """
+        Defines the outlets of this operator
+        """
+        self._outlets.extend(outlets)
+
+    def get_inlet_defs(self):
+        """
+        :return: list of inlets defined for this operator
+        """
+        return self._inlets
+
+    def get_outlet_defs(self):
+        """
+        :return: list of outlets defined for this operator
+        """
+        return self._outlets
 
     @property
     def dag(self) -> Any:

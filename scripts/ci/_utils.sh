@@ -473,8 +473,11 @@ function confirm_image_rebuild() {
         echo >&2
         echo >&2 "ERROR: The image needs ${ACTION} for ${THE_IMAGE_TYPE} - it is outdated. "
         echo >&2 "   Make sure you build the images bu running run one of:"
-        echo >&2 "         * ./scripts/ci/local_ci_build.sh"
-        echo >&2 "         * ./scripts/ci/local_ci_pull_and_build.sh"
+        echo >&2 "         * ./breeze --build-only"
+        echo >&2 "         * ./breeze --build-only --force-pull-images"
+        echo >&2
+        echo >&2 "   The first command works incrementally from your last local build."
+        echo >&2 "   The second command you use if you want to completely refresh your images from dockerhub."
         echo >&2
         echo >&2 "   If you run it via pre-commit separately, run 'pre-commit run build' first."
         echo >&2
@@ -838,13 +841,15 @@ function filter_out_files_from_pylint_todo_list() {
 
 function refresh_pylint_todo() {
     docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-        --entrypoint /opt/airflow/scripts/ci/in_container/refresh_pylint_todo.sh \
         --env PYTHONDONTWRITEBYTECODE \
         --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
         --env AIRFLOW_CI_SILENT \
         --env HOST_USER_ID="$(id -ur)" \
         --env HOST_GROUP_ID="$(id -gr)" \
-        "${AIRFLOW_CI_IMAGE}" | tee -a "${OUTPUT_LOG}"
+        --rm \
+        "${AIRFLOW_CI_IMAGE}" \
+        /opt/airflow/scripts/ci/in_container/refresh_pylint_todo.sh \
+        | tee -a "${OUTPUT_LOG}"
 }
 
 function rebuild_all_images_if_needed_and_confirmed() {
@@ -873,9 +878,12 @@ function rebuild_all_images_if_needed_and_confirmed() {
         echo "You have those options:"
         echo "   * Rebuild the images now by answering 'y' (this might take some time!)"
         echo "   * Skip rebuilding the images and hope changes are not big (you will be asked again)"
-        echo "   * Quit and manually rebuild the images using"
-        echo "        * scripts/local_ci_build.sh or"
-        echo "        * scripts/local_ci_pull_and_build.sh or"
+        echo "   * Quit and manually rebuild the images using one of the following commmands"
+        echo "        * ./breeze --build-only"
+        echo "        * ./breeze --build-only --force-pull-images"
+        echo
+        echo "   The first command works incrementally from your last local build."
+        echo "   The second command you use if you want to completely refresh your images from dockerhub."
         echo
         export ACTION="rebuild"
         export THE_IMAGE_TYPE="${IMAGES_TO_REBUILD[*]}"
@@ -914,40 +922,47 @@ function build_image_on_ci() {
         "${AIRFLOW_SOURCES}/confirm" "Cleaning docker data and rebuilding"
     fi
 
-    export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
-    export FORCE_BUILD="true"
-    export VERBOSE="${VERBOSE:="false"}"
-
     # Cleanup docker installation. It should be empty in CI but let's not risk
     docker system prune --all --force
     rm -rf "${BUILD_CACHE_DIR}"
     mkdir -pv "${BUILD_CACHE_DIR}"
 
-    echo
-    echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
-    echo
+    if [[ "${TRAVIS_PULL_REQUEST:=}" == "false" ]]; then
+        # If we are building a tag or a branch build, then we don't want to skip any tests
+        rebuild_ci_image_if_needed
+        return
+    else
+        # Don't try and find changed files for non-PR builds (tags, branch pushes etc.)
+        echo
+        echo "Finding changed file names ${TRAVIS_BRANCH}...HEAD"
+        echo
 
-    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    git fetch origin "${TRAVIS_BRANCH}"
-    CHANGED_FILE_NAMES=$(git diff --name-only "remotes/origin/${TRAVIS_BRANCH}...HEAD")
-    echo
-    echo "Changed file names in this commit"
-    echo "${CHANGED_FILE_NAMES}"
-    echo
+        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+        git fetch origin "${TRAVIS_BRANCH}"
+        CHANGED_FILE_NAMES=$(git diff --name-only "remotes/origin/${TRAVIS_BRANCH}...HEAD")
+        echo
+        echo "Changed file names in this commit"
+        echo "${CHANGED_FILE_NAMES}"
+        echo
+    fi
+
+    export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+    export FORCE_BUILD="true"
+    export VERBOSE="${VERBOSE:="false"}"
 
     if [[ ${TRAVIS_JOB_NAME:=""} == "Tests"*"Kubernetes"* ]]; then
-        match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/kubernetes/.*\.py' \
+        match_files_regexp 'airflow/kubernetes/.*\.py' 'tests/runtime/kubernetes/.*\.py' \
             'airflow/www/.*\.py' 'airflow/www/.*\.js' 'airflow/www/.*\.html' \
-            'scripts/ci/.*'
-        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+            'scripts/ci/.*' 'airflow/example_dags/.*'
+        if [[ ${FILE_MATCHES} == "true" ]]; then
             rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests
         fi
     elif [[ ${TRAVIS_JOB_NAME:=""} == "Tests"* ]]; then
         match_files_regexp '.*\.py' 'airflow/www/.*\.py' 'airflow/www/.*\.js' \
-            'airflow/www/.*\.html' 'scripts/ci/.*'
-        if [[ ${FILE_MATCHES} == "true" || ${TRAVIS_PULL_REQUEST:=} == "false" ]]; then
+            'airflow/www/.*\.html' 'scripts/ci/.*' 'airflow/example_dags/.*'
+        if [[ ${FILE_MATCHES} == "true" ]]; then
             rebuild_ci_image_if_needed
         else
             touch "${BUILD_CACHE_DIR}"/.skip_tests

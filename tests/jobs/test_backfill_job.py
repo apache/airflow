@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -1261,6 +1260,7 @@ class TestBackfillJob(unittest.TestCase):
 
         session = settings.Session()
         session.merge(removed_task_ti)
+        session.commit()
 
         with timeout(seconds=30):
             job.run()

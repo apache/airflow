@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,6 +18,7 @@
 
 import copy
 import functools
+import logging
 import os
 import pickle
 import re
@@ -38,7 +38,9 @@ from sqlalchemy.orm import backref, relationship
 from airflow import settings, utils
 from airflow.configuration import conf
 from airflow.dag.base_dag import BaseDag
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound
+from airflow.exceptions import (
+    AirflowDagCycleException, AirflowException, DagNotFound, DuplicateTaskIdFound, TaskNotFound,
+)
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -54,6 +56,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
+
+log = logging.getLogger(__name__)
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -578,6 +582,13 @@ class DAG(BaseDag, LoggingMixin):
         """
         return ", ".join({t.owner for t in self.tasks})
 
+    @property
+    def allow_future_exec_dates(self):
+        return conf.getboolean(
+            'scheduler',
+            'allow_trigger_in_future',
+            fallback=False) and self.schedule_interval is None
+
     @provide_session
     def _get_concurrency_reached(self, session=None):
         TI = TaskInstance
@@ -599,7 +610,7 @@ class DAG(BaseDag, LoggingMixin):
     def _get_is_paused(self, session=None):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
-        return qry.value('is_paused')
+        return qry.value(DagModel.is_paused)
 
     @property
     def is_paused(self):
@@ -786,13 +797,16 @@ class DAG(BaseDag, LoggingMixin):
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
-        end_date = end_date or timezone.utcnow()
+
         tis = session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.execution_date >= start_date,
-            TaskInstance.execution_date <= end_date,
             TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
         )
+        # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
+        if end_date or not self.allow_future_exec_dates:
+            end_date = end_date or timezone.utcnow()
+            tis = tis.filter(TaskInstance.execution_date <= end_date)
 
         if state:
             if isinstance(state, str):
@@ -1211,7 +1225,7 @@ class DAG(BaseDag, LoggingMixin):
             for dag in self.subdags:
                 if task_id in dag.task_dict:
                     return dag.task_dict[task_id]
-        raise AirflowException("Task {task_id} not found".format(task_id=task_id))
+        raise TaskNotFound("Task {task_id} not found".format(task_id=task_id))
 
     def pickle_info(self):
         d = dict()
@@ -1546,7 +1560,6 @@ class DAG(BaseDag, LoggingMixin):
         :type expiration_date: datetime
         :return: None
         """
-        log = LoggingMixin().log
         for dag in session.query(
                 DagModel).filter(DagModel.last_scheduler_run < expiration_date,
                                  DagModel.is_active).all():
@@ -1827,7 +1840,6 @@ class DagModel(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
-        log = LoggingMixin().log
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ",
                   cls.__tablename__)
 

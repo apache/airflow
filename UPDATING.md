@@ -26,6 +26,8 @@ assists users migrating to a new version.
 **Table of contents**
 
 - [Airflow Master](#airflow-master)
+- [Airflow 1.10.9](#airflow-1109)
+- [Airflow 1.10.8](#airflow-1108)
 - [Airflow 1.10.7](#airflow-1107)
 - [Airflow 1.10.6](#airflow-1106)
 - [Airflow 1.10.5](#airflow-1105)
@@ -59,10 +61,27 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Failure callback will be called when task is marked failed
-When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
+### Drop plugin support for stat_name_handler
 
-See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
+In previous version, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
+option in `[scheduler]` section to achieve the same effect.
+
+If your plugin looked like this and was available through the `test_plugin` path:
+```python
+def my_stat_name_handler(stat):
+    return stat
+
+class AirflowTestPlugin(AirflowPlugin):
+    name = "test_plugin"
+    stat_name_handler = my_stat_name_handler
+```
+then your `airflow.cfg` file should look like this:
+```ini
+[scheduler]
+stat_name_handler=test_plugin.my_stat_name_handler
+```
+
+This change is intended to simplify the statsd configuration.
 
 ### Move methods from BiqQueryBaseCursor to BigQueryHook
 
@@ -70,41 +89,41 @@ To simplify BigQuery operators (no need of `Cursor`) and standardize usage of ho
 were moved to `BigQueryHook`. Using them by from `Cursor` object is still possible due to preserved backward compatibility but they will raise `DeprecationWarning`.
 The following methods were moved:
 
-| Old path                                                                    | New path                                                              |
-|-----------------------------------------------------------------------------|-----------------------------------------------------------------------|
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.cancel_query                  | airflow.gcp.hooks.bigquery.BigQueryHook.cancel_query                  |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset          | airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_dataset          |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_empty_table            | airflow.gcp.hooks.bigquery.BigQueryHook.create_empty_table            |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_external_table         | airflow.gcp.hooks.bigquery.BigQueryHook.create_external_table         |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.delete_dataset                | airflow.gcp.hooks.bigquery.BigQueryHook.delete_dataset                |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset                   | airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset                   |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables            | airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables            |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables_list       | airflow.gcp.hooks.bigquery.BigQueryHook.get_dataset_tables_list       |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_datasets_list             | airflow.gcp.hooks.bigquery.BigQueryHook.get_datasets_list             |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_schema                    | airflow.gcp.hooks.bigquery.BigQueryHook.get_schema                    |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_tabledata                 | airflow.gcp.hooks.bigquery.BigQueryHook.get_tabledata                 |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.insert_all                    | airflow.gcp.hooks.bigquery.BigQueryHook.insert_all                    |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.patch_dataset                 | airflow.gcp.hooks.bigquery.BigQueryHook.patch_dataset                 |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.patch_table                   | airflow.gcp.hooks.bigquery.BigQueryHook.patch_table                   |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.poll_job_complete             | airflow.gcp.hooks.bigquery.BigQueryHook.poll_job_complete             |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_copy                      | airflow.gcp.hooks.bigquery.BigQueryHook.run_copy                      |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_extract                   | airflow.gcp.hooks.bigquery.BigQueryHook.run_extract                   |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_grant_dataset_view_access | airflow.gcp.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_load                      | airflow.gcp.hooks.bigquery.BigQueryHook.run_load                      |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_query                     | airflow.gcp.hooks.bigquery.BigQueryHook.run_query                     |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_table_delete              | airflow.gcp.hooks.bigquery.BigQueryHook.run_table_delete              |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_table_upsert              | airflow.gcp.hooks.bigquery.BigQueryHook.run_table_upsert              |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.gcp.hooks.bigquery.BigQueryHook.run_with_configuration        |
-| airflow.gcp.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.gcp.hooks.bigquery.BigQueryHook.update_dataset                |
+| Old path                                                                                       | New path                                                                                 |
+|------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.cancel_query                  | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query                  |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset          | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset          |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_table            | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table            |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_external_table         | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table         |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.delete_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset                |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset                   |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables            | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables            |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset_tables_list       | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list       |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_datasets_list             | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list             |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_schema                    | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema                    |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_tabledata                 | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata                 |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.insert_all                    | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all                    |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.patch_dataset                 | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset                 |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.patch_table                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table                   |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.poll_job_complete             | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete             |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_copy                      | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy                      |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_extract                   | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract                   |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_grant_dataset_view_access | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_load                      | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load                      |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_query                     | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query                     |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete              | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete              |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_upsert              | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert              |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_with_configuration        | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration        |
+| airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.update_dataset                | airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset                |
 
 ### Standardize handling http exception in BigQuery
 
 Since BigQuery is the part of the GCP it was possible to simplify the code by handling the exceptions
-by usage of the `airflow.gcp.hooks.base.CloudBaseHook.catch_http_exception` decorator however it changes
+by usage of the `airflow.providers.google.cloud.hooks.base.CloudBaseHook.catch_http_exception` decorator however it changes
 exceptions raised by the following methods:
-* `airflow.gcp.hooks.bigquery.BigQueryBaseCursor.run_table_delete` raises `AirflowException` instead of `Exception`.
-* `airflow.gcp.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset` raises `AirflowException` instead of `ValueError`.
-* `airflow.gcp.hooks.bigquery.BigQueryBaseCursor.get_dataset` raises `AirflowException` instead of `ValueError`.
+* `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.run_table_delete` raises `AirflowException` instead of `Exception`.
+* `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.create_empty_dataset` raises `AirflowException` instead of `ValueError`.
+* `airflow.providers.google.cloud.hooks.bigquery.BigQueryBaseCursor.get_dataset` raises `AirflowException` instead of `ValueError`.
 
 ### Remove airflow.utils.file.TemporaryDirectory
 
@@ -184,6 +203,13 @@ Some commands have been grouped to improve UX of CLI. New commands are available
 
 The ``serve_logs`` command has been deleted. This command should be run only by internal application mechanisms
 and there is no need for it to be accessible from the CLI interface.
+
+### dag_state CLI command
+
+If the DAGRun was triggered with conf key/values passed in, they will also be printed in the dag_state CLI response
+ie. running, {"name": "bob"}
+whereas in in prior releases it just printed the state:
+ie. running
 
 ### Remove gcp_service_account_keys option in airflow.cfg file
 
@@ -390,23 +416,23 @@ which apply to most services. Parameters like ``datastore_conn_id``, ``bigquery_
 ``google_cloud_storage_conn_id`` and similar have been deprecated. Operators that require two connections are not changed.
 
 Following components were affected by normalization:
-  * airflow.gcp.hooks.datastore.DatastoreHook
-  * airflow.gcp.hooks.bigquery.BigQueryHook
-  * airflow.gcp.hooks.gcs.GoogleCloudStorageHook
-  * airflow.gcp.operators.bigquery.BigQueryCheckOperator
-  * airflow.gcp.operators.bigquery.BigQueryValueCheckOperator
-  * airflow.gcp.operators.bigquery.BigQueryIntervalCheckOperator
-  * airflow.gcp.operators.bigquery.BigQueryGetDataOperator
-  * airflow.gcp.operators.bigquery.BigQueryOperator
-  * airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator
-  * airflow.gcp.operators.bigquery.BigQueryCreateEmptyDatasetOperator
-  * airflow.gcp.operators.bigquery.BigQueryTableDeleteOperator
-  * airflow.gcp.operators.gcs.GoogleCloudStorageCreateBucketOperator
-  * airflow.gcp.operators.gcs.GoogleCloudStorageListOperator
-  * airflow.gcp.operators.gcs.GoogleCloudStorageDownloadOperator
-  * airflow.gcp.operators.gcs.GoogleCloudStorageDeleteOperator
-  * airflow.gcp.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator
-  * airflow.gcp.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator
+  * airflow.providers.google.cloud.hooks.datastore.DatastoreHook
+  * airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
+  * airflow.providers.google.cloud.hooks.gcs.GoogleCloudStorageHook
+  * airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator
+  * airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator
+  * airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckOperator
+  * airflow.providers.google.cloud.operators.bigquery.BigQueryGetDataOperator
+  * airflow.providers.google.cloud.operators.bigquery.BigQueryOperator
+  * airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator
+  * airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyDatasetOperator
+  * airflow.providers.google.cloud.operators.bigquery.BigQueryTableDeleteOperator
+  * airflow.providers.google.cloud.operators.gcs.GoogleCloudStorageCreateBucketOperator
+  * airflow.providers.google.cloud.operators.gcs.GoogleCloudStorageListOperator
+  * airflow.providers.google.cloud.operators.gcs.GoogleCloudStorageDownloadOperator
+  * airflow.providers.google.cloud.operators.gcs.GoogleCloudStorageDeleteOperator
+  * airflow.providers.google.cloud.operators.gcs.GoogleCloudStorageBucketCreateAclEntryOperator
+  * airflow.providers.google.cloud.operators.gcs.GoogleCloudStorageObjectCreateAclEntryOperator
   * airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator
   * airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
   * airflow.operators.gcs_to_s3.GoogleCloudStorageToS3Operator
@@ -439,143 +465,143 @@ According to [AIP-21](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21
 operators related to Google Cloud Platform has been moved from contrib to core.
 The following table shows changes in import paths.
 
-|                                                     Old path                                                     |                                                 New path                                                  |
-|------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|
-|airflow.contrib.hooks.bigquery_hook.BigQueryHook                                                                  |airflow.gcp.hooks.bigquery.BigQueryHook                                                                    |
-|airflow.contrib.hooks.datastore_hook.DatastoreHook                                                                |airflow.gcp.hooks.datastore.DatastoreHook                                                                  |
-|airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook                                                              |airflow.gcp.hooks.bigtable.BigtableHook                                                                    |
-|airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook                                                         |airflow.gcp.hooks.cloud_build.CloudBuildHook                                                               |
-|airflow.contrib.hooks.gcp_compute_hook.GceHook                                                                    |airflow.gcp.hooks.compute.ComputeEngineHook                                                                |
-|airflow.contrib.hooks.gcp_container_hook.GKEClusterHook                                                           |airflow.gcp.hooks.kubernetes_engine.GKEHook                                                         |
-|airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook                                                              |airflow.gcp.hooks.dataflow.DataflowHook                                                                    |
-|airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook                                                              |airflow.gcp.hooks.dataproc.DataprocHook                                                                    |
-|airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook                                                                   |airflow.gcp.hooks.dlp.CloudDLPHook                                                                         |
-|airflow.contrib.hooks.gcp_function_hook.GcfHook                                                                   |airflow.gcp.hooks.functions.CloudFunctionsHook                                                             |
-|airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook                                                             |airflow.gcp.hooks.kms.CloudKMSHook                                                                   |
-|airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook                                                              |airflow.gcp.hooks.mlengine.MLEngineHook                                                                    |
+|                                                     Old path                                                     |                                                 New path                                                                     |
+|------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+|airflow.contrib.hooks.bigquery_hook.BigQueryHook                                                                  |airflow.providers.google.cloud.hooks.bigquery.BigQueryHook                                                                    |
+|airflow.contrib.hooks.datastore_hook.DatastoreHook                                                                |airflow.providers.google.cloud.hooks.datastore.DatastoreHook                                                                  |
+|airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook                                                              |airflow.providers.google.cloud.hooks.bigtable.BigtableHook                                                                    |
+|airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook                                                         |airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook                                                               |
+|airflow.contrib.hooks.gcp_container_hook.GKEClusterHook                                                           |airflow.providers.google.cloud.hooks.kubernetes_engine.GKEHook                                                                |
+|airflow.contrib.hooks.gcp_compute_hook.GceHook                                                                    |airflow.providers.google.cloud.hooks.compute.ComputeEngineHook                                                                |
+|airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook                                                              |airflow.providers.google.cloud.hooks.dataflow.DataflowHook                                                                    |
+|airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook                                                              |airflow.providers.google.cloud.hooks.dataproc.DataprocHook                                                                    |
+|airflow.contrib.hooks.gcp_dlp_hook.CloudDLPHook                                                                   |airflow.providers.google.cloud.hooks.dlp.CloudDLPHook                                                                         |
+|airflow.contrib.hooks.gcp_function_hook.GcfHook                                                                   |airflow.providers.google.cloud.hooks.functions.CloudFunctionsHook                                                             |
+|airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook                                                             |airflow.providers.google.cloud.hooks.kms.CloudKMSHook                                                                         |
+|airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook                                                              |airflow.providers.google.cloud.hooks.mlengine.MLEngineHook                                                                    |
 |airflow.contrib.hooks.gcp_natural_language_hook.CloudNaturalLanguageHook                                          |airflow.providers.google.cloud.hooks.natural_language.CloudNaturalLanguageHook                                                |
 |airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook                                                                  |airflow.providers.google.cloud.hooks.pubsub.PubSubHook                                                                        |
-|airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.gcp.hooks.speech_to_text.CloudSpeechToTextHook                                                     |
-|airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook                                                           |airflow.gcp.hooks.spanner.SpannerHook                                                                      |
-|airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook                                                           |airflow.gcp.hooks.cloud_sql.CloudSQLDatabaseHook                                                           |
-|airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook                                                                   |airflow.gcp.hooks.cloud_sql.CloudSQLHook                                                                   |
-|airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook                                                               |airflow.gcp.hooks.tasks.CloudTasksHook                                                                     |
-|airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook                                                 |airflow.gcp.hooks.text_to_speech.CloudTextToSpeechHook                                                     |
-|airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook                                                    |airflow.gcp.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook                                    |
-|airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook                                                       |airflow.gcp.hooks.translate.CloudTranslateHook                                                             |
-|airflow.contrib.hooks.gcp_video_intelligence_hook.CloudVideoIntelligenceHook                                      |airflow.gcp.hooks.video_intelligence.CloudVideoIntelligenceHook                                            |
+|airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook                                                 |airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook                                                     |
+|airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook                                                           |airflow.providers.google.cloud.hooks.spanner.SpannerHook                                                                      |
+|airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook                                                           |airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook                                                           |
+|airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook                                                                   |airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook                                                                   |
+|airflow.contrib.hooks.gcp_tasks_hook.CloudTasksHook                                                               |airflow.providers.google.cloud.hooks.tasks.CloudTasksHook                                                                     |
+|airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook                                                 |airflow.providers.google.cloud.hooks.text_to_speech.CloudTextToSpeechHook                                                     |
+|airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook                                                    |airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceHook                              |
+|airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook                                                       |airflow.providers.google.cloud.hooks.translate.CloudTranslateHook                                                             |
+|airflow.contrib.hooks.gcp_video_intelligence_hook.CloudVideoIntelligenceHook                                      |airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook                                            |
 |airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook                                                             |airflow.providers.google.cloud.hooks.vision.CloudVisionHook                                                                   |
-|airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook                                                             |airflow.gcp.hooks.gcs.GCSHook                                                               |
-|airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator                                            |airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator                                             |
-|airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator                                           |airflow.gcp.operators.bigquery.BigQueryCheckOperator                                                       |
-|airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator                                   |airflow.gcp.operators.bigquery.BigQueryIntervalCheckOperator                                               |
-|airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator                                      |airflow.gcp.operators.bigquery.BigQueryValueCheckOperator                                                  |
-|airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator                                               |airflow.gcp.operators.bigquery.BigQueryGetDataOperator                                                     |
-|airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator                                    |airflow.gcp.operators.bigquery.BigQueryCreateEmptyDatasetOperator                                          |
-|airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator                                      |airflow.gcp.operators.bigquery.BigQueryCreateEmptyTableOperator                                            |
-|airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator                                   |airflow.gcp.operators.bigquery.BigQueryCreateExternalTableOperator                                         |
-|airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator                                         |airflow.gcp.operators.bigquery.BigQueryDeleteDatasetOperator                                               |
-|airflow.contrib.operators.bigquery_operator.BigQueryOperator                                                      |airflow.gcp.operators.bigquery.BigQueryExecuteQueryOperator                                                |
-|airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator                              |airflow.gcp.operators.bigquery.BigQueryDeleteTableOperator                                                 |
-|airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator                                         |airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator                                          |
-|airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator                                          |airflow.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator                                           |
-|airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator                                      |airflow.operators.bigquery_to_mysql.BigQueryToMySqlOperator                                                |
-|airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator                                                  |airflow.gcp.operators.dataflow.DataFlowJavaOperator                                                        |
-|airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator                                                |airflow.gcp.operators.dataflow.DataFlowPythonOperator                                                      |
-|airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator                                              |airflow.gcp.operators.dataflow.DataflowTemplateOperator                                                    |
-|airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator                                                |airflow.gcp.operators.dataproc.DataprocSubmitHadoopJobOperator                                                      |
-|airflow.contrib.operators.dataproc_operator.DataProcHiveOperator                                                  |airflow.gcp.operators.dataproc.DataprocSubmitHiveJobOperator                                                        |
-|airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator                                               |airflow.gcp.operators.dataproc.DataprocJobBaseOperator                                                     |
-|airflow.contrib.operators.dataproc_operator.DataProcPigOperator                                                   |airflow.gcp.operators.dataproc.DataprocSubmitPigJobOperator                                                         |
-|airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator                                               |airflow.gcp.operators.dataproc.DataprocSubmitPySparkJobOperator                                                     |
-|airflow.contrib.operators.dataproc_operator.DataProcSparkOperator                                                 |airflow.gcp.operators.dataproc.DataprocSubmitSparkJobOperator                                                       |
-|airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator                                              |airflow.gcp.operators.dataproc.DataprocSubmitSparkSqlJobOperator                                                    |
-|airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator                                         |airflow.gcp.operators.dataproc.DataprocCreateClusterOperator                                               |
-|airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator                                         |airflow.gcp.operators.dataproc.DataprocDeleteClusterOperator                                               |
-|airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator                                          |airflow.gcp.operators.dataproc.DataprocScaleClusterOperator                                                |
-|airflow.contrib.operators.dataproc_operator.DataprocOperationBaseOperator                                         |airflow.gcp.operators.dataproc.DataprocOperationBaseOperator                                               |
-|airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator                     |airflow.gcp.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator                           |
-|airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator                           |airflow.gcp.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator                                 |
-|airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator                                       |airflow.gcp.operators.datastore.DatastoreExportOperator                                                    |
-|airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator                                       |airflow.gcp.operators.datastore.DatastoreImportOperator                                                    |
-|airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator                                            |airflow.operators.local_to_gcs.FileToGoogleCloudStorageOperator                                            |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator                                     |airflow.gcp.operators.bigtable.BigtableUpdateClusterOperator                                               |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator                                    |airflow.gcp.operators.bigtable.BigtableCreateInstanceOperator                                              |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator                                    |airflow.gcp.operators.bigtable.BigtableDeleteInstanceOperator                                              |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator                                       |airflow.gcp.operators.bigtable.BigtableCreateTableOperator                                                 |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator                                       |airflow.gcp.operators.bigtable.BigtableDeleteTableOperator                                                 |
-|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor                             |airflow.gcp.sensors.bigtable.BigtableTableReplicationCompletedSensor                                         |
-|airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator                                  |airflow.gcp.operators.cloud_build.CloudBuildCreateOperator
-|airflow.contrib.operators.gcp_compute_operator.GceBaseOperator                                                    |airflow.gcp.operators.compute.GceBaseOperator                                                              |
-|airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator                      |airflow.gcp.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator                                |
-|airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator                                           |airflow.gcp.operators.compute.GceInstanceStartOperator                                                     |
-|airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator                                            |airflow.gcp.operators.compute.GceInstanceStopOperator                                                      |
-|airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator                                    |airflow.gcp.operators.compute.GceInstanceTemplateCopyOperator                                              |
-|airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator                                          |airflow.gcp.operators.compute.GceSetMachineTypeOperator                                                    |
-|airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator                                         |airflow.gcp.operators.kubernetes_engine.GKECreateClusterOperator                                           |
-|airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator                                         |airflow.gcp.operators.kubernetes_engine.GKEDeleteClusterOperator                                           |
-|airflow.contrib.operators.gcp_container_operator.GKEPodOperator                                                   |airflow.gcp.operators.kubernetes_engine.GKEStartPodOperator                                                     |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCancelDLPJobOperator                                           |airflow.gcp.operators.dlp.CloudDLPCancelDLPJobOperator                                                     |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDLPJobOperator                                           |airflow.gcp.operators.dlp.CloudDLPCreateDLPJobOperator                                                     |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDeidentifyTemplateOperator                               |airflow.gcp.operators.dlp.CloudDLPCreateDeidentifyTemplateOperator                                         |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateInspectTemplateOperator                                  |airflow.gcp.operators.dlp.CloudDLPCreateInspectTemplateOperator                                            |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateJobTriggerOperator                                       |airflow.gcp.operators.dlp.CloudDLPCreateJobTriggerOperator                                                 |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateStoredInfoTypeOperator                                   |airflow.gcp.operators.dlp.CloudDLPCreateStoredInfoTypeOperator                                             |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeidentifyContentOperator                                      |airflow.gcp.operators.dlp.CloudDLPDeidentifyContentOperator                                                |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDeidentifyTemplateOperator                               |airflow.gcp.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator                                         |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDlpJobOperator                                           |airflow.gcp.operators.dlp.CloudDLPDeleteDLPJobOperator                                                     |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteInspectTemplateOperator                                  |airflow.gcp.operators.dlp.CloudDLPDeleteInspectTemplateOperator                                            |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteJobTriggerOperator                                       |airflow.gcp.operators.dlp.CloudDLPDeleteJobTriggerOperator                                                 |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteStoredInfoTypeOperator                                   |airflow.gcp.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator                                             |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDeidentifyTemplateOperator                                  |airflow.gcp.operators.dlp.CloudDLPGetDeidentifyTemplateOperator                                            |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDlpJobOperator                                              |airflow.gcp.operators.dlp.CloudDLPGetDLPJobOperator                                                        |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetInspectTemplateOperator                                     |airflow.gcp.operators.dlp.CloudDLPGetInspectTemplateOperator                                               |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetJobTripperOperator                                          |airflow.gcp.operators.dlp.CloudDLPGetJobTriggerOperator                                                    |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetStoredInfoTypeOperator                                      |airflow.gcp.operators.dlp.CloudDLPGetStoredInfoTypeOperator                                                |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPInspectContentOperator                                         |airflow.gcp.operators.dlp.CloudDLPInspectContentOperator                                                   |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDeidentifyTemplatesOperator                                |airflow.gcp.operators.dlp.CloudDLPListDeidentifyTemplatesOperator                                          |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDlpJobsOperator                                            |airflow.gcp.operators.dlp.CloudDLPListDLPJobsOperator                                                      |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInfoTypesOperator                                          |airflow.gcp.operators.dlp.CloudDLPListInfoTypesOperator                                                    |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInspectTemplatesOperator                                   |airflow.gcp.operators.dlp.CloudDLPListInspectTemplatesOperator                                             |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListJobTriggersOperator                                        |airflow.gcp.operators.dlp.CloudDLPListJobTriggersOperator                                                  |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListStoredInfoTypesOperator                                    |airflow.gcp.operators.dlp.CloudDLPListStoredInfoTypesOperator                                              |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPRedactImageOperator                                            |airflow.gcp.operators.dlp.CloudDLPRedactImageOperator                                                      |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPReidentifyContentOperator                                      |airflow.gcp.operators.dlp.CloudDLPReidentifyContentOperator                                                |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateDeidentifyTemplateOperator                               |airflow.gcp.operators.dlp.CloudDLPUpdateDeidentifyTemplateOperator                                         |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateInspectTemplateOperator                                  |airflow.gcp.operators.dlp.CloudDLPUpdateInspectTemplateOperator                                            |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateJobTriggerOperator                                       |airflow.gcp.operators.dlp.CloudDLPUpdateJobTriggerOperator                                                 |
-|airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateStoredInfoTypeOperator                                   |airflow.gcp.operators.dlp.CloudDLPUpdateStoredInfoTypeOperator                                             |
-|airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator                                         |airflow.gcp.operators.functions.GcfFunctionDeleteOperator                                                  |
-|airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator                                         |airflow.gcp.operators.functions.GcfFunctionDeployOperator                                                  |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageAnalyzeEntitiesOperator               |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator      |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageAnalyzeEntitySentimentOperator        |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitySentimentOperator|
-|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageAnalyzeSentimentOperator              |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator      |
-|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageClassifyTextOperator                  |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageClassifyTextOperator          |
-|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator                         |airflow.gcp.operators.spanner.SpannerDeleteDatabaseInstanceOperator                                   |
-|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator                         |airflow.gcp.operators.spanner.SpannerDeployDatabaseInstanceOperator                                   |
-|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator                          |airflow.gcp.operators.spanner.SpannerQueryDatabaseInstanceOperator                                    |
-|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator                         |airflow.gcp.operators.spanner.SpannerUpdateDatabaseInstanceOperator                                   |
-|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator                                 |airflow.gcp.operators.spanner.SpannerDeleteInstanceOperator                                           |
-|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator                                 |airflow.gcp.operators.spanner.SpannerDeployInstanceOperator                                           |
-|airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator                      |airflow.gcp.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator
-|airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator                           |airflow.gcp.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator                                     |
-|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator                               |airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator                   |
-|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator                               |airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceDeleteJobOperator                   |
-|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator                               |airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceUpdateJobOperator                   |
-|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationCancelOperator                         |airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceCancelOperationOperator             |
-|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationGetOperator                            |airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceGetOperationOperator                |
-|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationPauseOperator                          |airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServicePauseOperationOperator              |
-|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationResumeOperator                         |airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceResumeOperationOperator             |
-|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationsListOperator                          |airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceListOperationsOperator              |
-|airflow.contrib.operators.gcp_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator            |airflow.gcp.operators.cloud_storage_transfer_service.CloudDataTransferServiceGCSToGCSOperator|
-|airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator                                       |airflow.gcp.operators.translate.CloudTranslateTextOperator                                                 |
-|airflow.contrib.operators.gcp_translate_speech_operator.GcpTranslateSpeechOperator                                |airflow.gcp.operators.translate_speech.GcpTranslateSpeechOperator                                          |
-|airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoExplicitContentOperator|airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceDetectVideoExplicitContentOperator          |
-|airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoLabelsOperator         |airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceDetectVideoLabelsOperator                   |
-|airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoShotsOperator          |airflow.gcp.operators.video_intelligence.CloudVideoIntelligenceDetectVideoShotsOperator                    |
+|airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook                                                             |airflow.providers.google.cloud.hooks.gcs.GCSHook                                                                              |
+|airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator                                            |airflow.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator                                                                |
+|airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator                                           |airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator                                                       |
+|airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator                                   |airflow.providers.google.cloud.operators.bigquery.BigQueryIntervalCheckOperator                                               |
+|airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator                                      |airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator                                                  |
+|airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator                                               |airflow.providers.google.cloud.operators.bigquery.BigQueryGetDataOperator                                                     |
+|airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator                                    |airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyDatasetOperator                                          |
+|airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator                                      |airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator                                            |
+|airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator                                   |airflow.providers.google.cloud.operators.bigquery.BigQueryCreateExternalTableOperator                                         |
+|airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator                                         |airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteDatasetOperator                                               |
+|airflow.contrib.operators.bigquery_operator.BigQueryOperator                                                      |airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator                                                |
+|airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator                              |airflow.providers.google.cloud.operators.bigquery.BigQueryDeleteTableOperator                                                 |
+|airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator                                         |airflow.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator                                                             |
+|airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator                                          |airflow.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator                                                              |
+|airflow.contrib.operators.bigquery_to_mysql_operator.BigQueryToMySqlOperator                                      |airflow.operators.bigquery_to_mysql.BigQueryToMySqlOperator                                                                   |
+|airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator                                                  |airflow.providers.google.cloud.operators.dataflow.DataFlowJavaOperator                                                        |
+|airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator                                                |airflow.providers.google.cloud.operators.dataflow.DataFlowPythonOperator                                                      |
+|airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator                                              |airflow.providers.google.cloud.operators.dataflow.DataflowTemplateOperator                                                    |
+|airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator                                                |airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator                                             |
+|airflow.contrib.operators.dataproc_operator.DataProcHiveOperator                                                  |airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHiveJobOperator                                               |
+|airflow.contrib.operators.dataproc_operator.DataProcJobBaseOperator                                               |airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator                                                     |
+|airflow.contrib.operators.dataproc_operator.DataProcPigOperator                                                   |airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPigJobOperator                                                |
+|airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator                                               |airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator                                            |
+|airflow.contrib.operators.dataproc_operator.DataProcSparkOperator                                                 |airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator                                              |
+|airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator                                              |airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkSqlJobOperator                                           |
+|airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator                                         |airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator                                               |
+|airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator                                         |airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator                                               |
+|airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator                                          |airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator                                                |
+|airflow.contrib.operators.dataproc_operator.DataprocOperationBaseOperator                                         |airflow.providers.google.cloud.operators.dataproc.DataprocOperationBaseOperator                                               |
+|airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator                     |airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator                           |
+|airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator                           |airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator                                 |
+|airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator                                       |airflow.providers.google.cloud.operators.datastore.DatastoreExportOperator                                                    |
+|airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator                                       |airflow.providers.google.cloud.operators.datastore.DatastoreImportOperator                                                    |
+|airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator                                            |airflow.providers.google.cloud.operators.local_to_gcs.FileToGoogleCloudStorageOperator                                        |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator                                     |airflow.providers.google.cloud.operators.bigtable.BigtableUpdateClusterOperator                                               |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator                                    |airflow.providers.google.cloud.operators.bigtable.BigtableCreateInstanceOperator                                              |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator                                    |airflow.providers.google.cloud.operators.bigtable.BigtableDeleteInstanceOperator                                              |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator                                       |airflow.providers.google.cloud.operators.bigtable.BigtableCreateTableOperator                                                 |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator                                       |airflow.providers.google.cloud.operators.bigtable.BigtableDeleteTableOperator                                                 |
+|airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor                             |airflow.providers.google.cloud.sensors.bigtable.BigtableTableReplicationCompletedSensor                                       |
+|airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator                                  |airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateOperator                                                 |
+|airflow.contrib.operators.gcp_compute_operator.GceBaseOperator                                                    |airflow.providers.google.cloud.operators.compute.GceBaseOperator                                                              |
+|airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator                      |airflow.providers.google.cloud.operators.compute.GceInstanceGroupManagerUpdateTemplateOperator                                |
+|airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator                                           |airflow.providers.google.cloud.operators.compute.GceInstanceStartOperator                                                     |
+|airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator                                            |airflow.providers.google.cloud.operators.compute.GceInstanceStopOperator                                                      |
+|airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator                                    |airflow.providers.google.cloud.operators.compute.GceInstanceTemplateCopyOperator                                              |
+|airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator                                          |airflow.providers.google.cloud.operators.compute.GceSetMachineTypeOperator                                                    |
+|airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator                                         |airflow.providers.google.cloud.operators.kubernetes_engine.GKECreateClusterOperator                                           |
+|airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator                                         |airflow.providers.google.cloud.operators.kubernetes_engine.GKEDeleteClusterOperator                                           |
+|airflow.contrib.operators.gcp_container_operator.GKEPodOperator                                                   |airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator                                                |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCancelDLPJobOperator                                           |airflow.providers.google.cloud.operators.dlp.CloudDLPCancelDLPJobOperator                                                     |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDLPJobOperator                                           |airflow.providers.google.cloud.operators.dlp.CloudDLPCreateDLPJobOperator                                                     |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateDeidentifyTemplateOperator                               |airflow.providers.google.cloud.operators.dlp.CloudDLPCreateDeidentifyTemplateOperator                                         |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateInspectTemplateOperator                                  |airflow.providers.google.cloud.operators.dlp.CloudDLPCreateInspectTemplateOperator                                            |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateJobTriggerOperator                                       |airflow.providers.google.cloud.operators.dlp.CloudDLPCreateJobTriggerOperator                                                 |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPCreateStoredInfoTypeOperator                                   |airflow.providers.google.cloud.operators.dlp.CloudDLPCreateStoredInfoTypeOperator                                             |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeidentifyContentOperator                                      |airflow.providers.google.cloud.operators.dlp.CloudDLPDeidentifyContentOperator                                                |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDeidentifyTemplateOperator                               |airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDeidentifyTemplateOperator                                         |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteDlpJobOperator                                           |airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteDLPJobOperator                                                     |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteInspectTemplateOperator                                  |airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteInspectTemplateOperator                                            |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteJobTriggerOperator                                       |airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteJobTriggerOperator                                                 |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPDeleteStoredInfoTypeOperator                                   |airflow.providers.google.cloud.operators.dlp.CloudDLPDeleteStoredInfoTypeOperator                                             |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDeidentifyTemplateOperator                                  |airflow.providers.google.cloud.operators.dlp.CloudDLPGetDeidentifyTemplateOperator                                            |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetDlpJobOperator                                              |airflow.providers.google.cloud.operators.dlp.CloudDLPGetDLPJobOperator                                                        |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetInspectTemplateOperator                                     |airflow.providers.google.cloud.operators.dlp.CloudDLPGetInspectTemplateOperator                                               |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetJobTripperOperator                                          |airflow.providers.google.cloud.operators.dlp.CloudDLPGetJobTriggerOperator                                                    |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPGetStoredInfoTypeOperator                                      |airflow.providers.google.cloud.operators.dlp.CloudDLPGetStoredInfoTypeOperator                                                |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPInspectContentOperator                                         |airflow.providers.google.cloud.operators.dlp.CloudDLPInspectContentOperator                                                   |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDeidentifyTemplatesOperator                                |airflow.providers.google.cloud.operators.dlp.CloudDLPListDeidentifyTemplatesOperator                                          |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListDlpJobsOperator                                            |airflow.providers.google.cloud.operators.dlp.CloudDLPListDLPJobsOperator                                                      |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInfoTypesOperator                                          |airflow.providers.google.cloud.operators.dlp.CloudDLPListInfoTypesOperator                                                    |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListInspectTemplatesOperator                                   |airflow.providers.google.cloud.operators.dlp.CloudDLPListInspectTemplatesOperator                                             |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListJobTriggersOperator                                        |airflow.providers.google.cloud.operators.dlp.CloudDLPListJobTriggersOperator                                                  |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPListStoredInfoTypesOperator                                    |airflow.providers.google.cloud.operators.dlp.CloudDLPListStoredInfoTypesOperator                                              |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPRedactImageOperator                                            |airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator                                                      |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPReidentifyContentOperator                                      |airflow.providers.google.cloud.operators.dlp.CloudDLPReidentifyContentOperator                                                |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateDeidentifyTemplateOperator                               |airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateDeidentifyTemplateOperator                                         |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateInspectTemplateOperator                                  |airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateInspectTemplateOperator                                            |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateJobTriggerOperator                                       |airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateJobTriggerOperator                                                 |
+|airflow.contrib.operators.gcp_dlp_operator.CloudDLPUpdateStoredInfoTypeOperator                                   |airflow.providers.google.cloud.operators.dlp.CloudDLPUpdateStoredInfoTypeOperator                                             |
+|airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator                                         |airflow.providers.google.cloud.operators.functions.GcfFunctionDeleteOperator                                                  |
+|airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator                                         |airflow.providers.google.cloud.operators.functions.GcfFunctionDeployOperator                                                  |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageAnalyzeEntitiesOperator               |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitiesOperator                         |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageAnalyzeEntitySentimentOperator        |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeEntitySentimentOperator                  |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageAnalyzeSentimentOperator              |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageAnalyzeSentimentOperator                        |
+|airflow.contrib.operators.gcp_natural_language_operator.CloudNaturalLanguageClassifyTextOperator                  |airflow.providers.google.cloud.operators.natural_language.CloudNaturalLanguageClassifyTextOperator                            |
+|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator                         |airflow.providers.google.cloud.operators.spanner.SpannerDeleteDatabaseInstanceOperator                                        |
+|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator                         |airflow.providers.google.cloud.operators.spanner.SpannerDeployDatabaseInstanceOperator                                        |
+|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator                          |airflow.providers.google.cloud.operators.spanner.SpannerQueryDatabaseInstanceOperator                                         |
+|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator                         |airflow.providers.google.cloud.operators.spanner.SpannerUpdateDatabaseInstanceOperator                                        |
+|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator                                 |airflow.providers.google.cloud.operators.spanner.SpannerDeleteInstanceOperator                                                |
+|airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator                                 |airflow.providers.google.cloud.operators.spanner.SpannerDeployInstanceOperator                                                |
+|airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator                      |airflow.providers.google.cloud.operators.speech_to_text.CloudSpeechToTextRecognizeSpeechOperator                              |
+|airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator                           |airflow.providers.google.cloud.operators.text_to_speech.CloudTextToSpeechSynthesizeOperator                                   |
+|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator                               |airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceCreateJobOperator             |
+|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator                               |airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceDeleteJobOperator             |
+|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator                               |airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceUpdateJobOperator             |
+|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationCancelOperator                         |airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceCancelOperationOperator       |
+|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationGetOperator                            |airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceGetOperationOperator          |
+|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationPauseOperator                          |airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServicePauseOperationOperator        |
+|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationResumeOperator                         |airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceResumeOperationOperator       |
+|airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationsListOperator                          |airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceListOperationsOperator        |
+|airflow.contrib.operators.gcp_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator            |airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceGCSToGCSOperator              |
+|airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator                                       |airflow.providers.google.cloud.operators.translate.CloudTranslateTextOperator                                                 |
+|airflow.contrib.operators.gcp_translate_speech_operator.GcpTranslateSpeechOperator                                |airflow.providers.google.cloud.operators.translate_speech.GcpTranslateSpeechOperator                                          |
+|airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoExplicitContentOperator|airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoExplicitContentOperator          |
+|airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoLabelsOperator         |airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoLabelsOperator                   |
+|airflow.contrib.operators.gcp_video_intelligence_operator.CloudVideoIntelligenceDetectVideoShotsOperator          |airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceDetectVideoShotsOperator                    |
 |airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator                           |airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator                                     |
 |airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator                                    |airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator                                              |
-|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator                               |airflow.providers.google.cloud.operators.vision.CloudVisionTextDetectOperator                                         |
+|airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator                               |airflow.providers.google.cloud.operators.vision.CloudVisionTextDetectOperator                                                 |
 |airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageLabelsOperator                                |airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageLabelsOperator                                          |
 |airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator                            |airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageSafeSearchOperator                                      |
 |airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectTextOperator                                       |airflow.providers.google.cloud.operators.vision.CloudVisionDetectTextOperator                                                 |
@@ -589,34 +615,34 @@ The following table shows changes in import paths.
 |airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator                                    |airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductOperator                                              |
 |airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator                             |airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator                                       |
 |airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator                      |airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator                                |
-|airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator                         |airflow.gcp.operators.gcs.GCSBucketCreateAclEntryOperator                                   |
-|airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator                         |airflow.gcp.operators.gcs.GCSObjectCreateAclEntryOperator                                   |
-|airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator                                    |airflow.gcp.operators.gcs.GCSDeleteObjectsOperator                                                 |
-|airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator                                |airflow.gcp.operators.gcs.GCSToLocalOperator                                               |
-|airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator                                        |airflow.gcp.operators.gcs.GCSListObjectsOperator                                                   |
-|airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator                                     |airflow.gcp.operators.gcs.GCSCreateBucketOperator                                         |
-|airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                          |airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                           |
-|airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator                               |airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator                                |
-|airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator                                                |airflow.operators.gcs_to_s3.GCSToS3Operator                                                 |
-|airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator                                       |airflow.gcp.operators.mlengine.MLEngineStartBatchPredictionJobOperator                                             |
-|airflow.contrib.operators.mlengine_operator.MLEngineModelOperator                                                 |airflow.gcp.operators.mlengine.MLEngineManageModelOperator                                                       |
-|airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator                                              |airflow.gcp.operators.mlengine.MLEngineStartTrainingJobOperator                                                    |
-|airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator                                               |airflow.gcp.operators.mlengine.MLEngineManageVersionOperator                                                     |
-|airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator                                          |airflow.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator                                           |
-|airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator                                          |airflow.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator                                           |
-|airflow.contrib.operators.postgres_to_gcs_operator.PostgresToGoogleCloudStorageOperator                           |airflow.operators.postgres_to_gcs.PostgresToGoogleCloudStorageOperator                                     |
-|airflow.contrib.operators.pubsub_operator.PubSubPublishOperator                                                   |airflow.providers.google.cloud.operators.pubsub.PubSubPublishMessageOperator                                                         |
+|airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator                         |airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator                                                  |
+|airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator                         |airflow.providers.google.cloud.operators.gcs.GCSObjectCreateAclEntryOperator                                                  |
+|airflow.contrib.operators.gcs_delete_operator.GoogleCloudStorageDeleteOperator                                    |airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator                                                         |
+|airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator                                |airflow.providers.google.cloud.operators.gcs.GCSToLocalOperator                                                               |
+|airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator                                        |airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator                                                           |
+|airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator                                     |airflow.providers.google.cloud.operators.gcs.GCSCreateBucketOperator                                                          |
+|airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                          |airflow.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator                                                              |
+|airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator                               |airflow.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator                                                   |
+|airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator                                                |airflow.operators.gcs_to_s3.GCSToS3Operator                                                                                   |
+|airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator                                       |airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator                                     |
+|airflow.contrib.operators.mlengine_operator.MLEngineModelOperator                                                 |airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator                                                 |
+|airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator                                              |airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator                                            |
+|airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator                                               |airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator                                               |
+|airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator                                          |airflow.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator                                                              |
+|airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator                                          |airflow.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator                                                              |
+|airflow.contrib.operators.postgres_to_gcs_operator.PostgresToGoogleCloudStorageOperator                           |airflow.operators.postgres_to_gcs.PostgresToGoogleCloudStorageOperator                                                        |
+|airflow.contrib.operators.pubsub_operator.PubSubPublishOperator                                                   |airflow.providers.google.cloud.operators.pubsub.PubSubPublishMessageOperator                                                  |
 |airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator                                        |airflow.providers.google.cloud.operators.pubsub.PubSubCreateSubscriptionOperator                                              |
 |airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator                                        |airflow.providers.google.cloud.operators.pubsub.PubSubDeleteSubscriptionOperator                                              |
 |airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator                                               |airflow.providers.google.cloud.operators.pubsub.PubSubCreateTopicOperator                                                     |
 |airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator                                               |airflow.providers.google.cloud.operators.pubsub.PubSubDeleteTopicOperator                                                     |
-|airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                          |airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                           |
-|airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor                                                       |airflow.gcp.sensors.bigquery.BigQueryTableExistenceSensor                                                  |
-|airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceWaitForJobStatusSensor                              |airflow.gcp.sensors.cloud_storage_transfer_service.DataTransferServiceJobStatusSensor                |
-|airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor                                                 |airflow.gcp.sensors.gcs.GCSObjectExistenceSensor                                                     |
-|airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor                                          |airflow.gcp.sensors.gcs.GCSObjectUpdateSensor                                              |
-|airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor                                                 |airflow.gcp.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor                                                     |
-|airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor                                  |airflow.gcp.sensors.gcs.GCSUploadSessionCompleteSensor                                      |
+|airflow.contrib.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                          |airflow.operators.sql_to_gcs.BaseSQLToGoogleCloudStorageOperator                                                              |
+|airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor                                                       |airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor                                                  |
+|airflow.contrib.sensors.gcp_transfer_sensor.GCPTransferServiceWaitForJobStatusSensor                              |airflow.providers.google.cloud.sensors.cloud_storage_transfer_service.DataTransferServiceJobStatusSensor                      |
+|airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor                                                 |airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor                                                           |
+|airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor                                          |airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor                                                              |
+|airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor                                                 |airflow.providers.google.cloud.sensors.gcs.GCSObjectsWtihPrefixExistenceSensor                                                |
+|airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor                                  |airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor                                                     |
 |airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor                                                            |airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor                                                                |
 
 
@@ -708,6 +734,7 @@ you should write `@GoogleCloudBaseHook.provide_gcp_credential_file`
 
 Note: The order of arguments has changed for `check_for_prefix`.
 The `bucket_name` is now optional. It falls back to the `connection schema` attribute.
+The `delete_objects` now returns `None` instead of a response, since the method now makes multiple api requests when the keys list length is > 1000.
 
 ### Changes to Google Transfer Operator
 To obtain pylint compatibility the `filter ` argument in `GcpTransferServiceOperationsListOperator`
@@ -878,6 +905,27 @@ The 'properties' and 'jars' properties for the Dataproc related operators (`Data
 `dataproc_xxxx_properties` and `dataproc_xxx_jars`  to `dataproc_properties`
 and `dataproc_jars`respectively.
 Arguments for dataproc_properties dataproc_jars
+
+### Changes to skipping behaviour of LatestOnlyOperator
+
+In previous versions, the `LatestOnlyOperator` forcefully skipped all (direct and undirect) downstream tasks on its own. From this version on the operator will **only skip direct downstream** tasks and the scheduler will handle skipping any further downstream dependencies.
+
+No change is needed if only the default trigger rule `all_success` is being used.
+
+If the DAG relies on tasks with other trigger rules (i.e. `all_done`) being skipped by the `LatestOnlyOperator`, adjustments to the DAG need to be made to commodate the change in behaviour, i.e. with additional edges from the `LatestOnlyOperator`.
+
+The goal of this change is to achieve a more consistent and configurale cascading behaviour based on the `BaseBranchOperator` (see [AIRFLOW-2923](https://jira.apache.org/jira/browse/AIRFLOW-2923) and [AIRFLOW-1784](https://jira.apache.org/jira/browse/AIRFLOW-1784)).
+
+## Airflow 1.10.9
+
+No breaking changes.
+
+## Airflow 1.10.8
+
+### Failure callback will be called when task is marked failed
+When task is marked failed by user or task fails due to system failures - on failure call back will be called as part of clean up
+
+See [AIRFLOW-5621](https://jira.apache.org/jira/browse/AIRFLOW-5621) for details
 
 ## Airflow 1.10.7
 
@@ -1517,7 +1565,6 @@ The logging configuration file needs to be on the `PYTHONPATH`, for example `$AI
 The config can be taken from `airflow/config_templates/airflow_local_settings.py` as a starting point. Copy the contents to `${AIRFLOW_HOME}/config/airflow_local_settings.py`,  and alter the config as is preferred.
 
 ```
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -20,20 +19,19 @@
 """Unit tests for stringified DAGs."""
 
 import multiprocessing
+import os
 import unittest
 from datetime import datetime, timedelta
+from glob import glob
 from unittest import mock
 
 from dateutil.relativedelta import FR, relativedelta
 from parameterized import parameterized
 
-from airflow import example_dags
-from airflow.contrib import example_dags as contrib_example_dags
-from airflow.gcp import example_dags as gcp_example_dags
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import DAG, Connection, DagBag, TaskInstance
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -91,10 +89,14 @@ serialized_simple_dag_ground_truth = {
     },
 }
 
+ROOT_FOLDER = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
+)
 
-def make_example_dags(module):
+
+def make_example_dags(module_path):
     """Loads DAGs from a module for test."""
-    dagbag = DagBag(module.__path__[0])
+    dagbag = DagBag(module_path)
     return dagbag.dags
 
 
@@ -155,9 +157,14 @@ def collect_dags():
     dags = {}
     dags.update(make_simple_dag())
     dags.update(make_user_defined_macro_filter_dag())
-    dags.update(make_example_dags(example_dags))
-    dags.update(make_example_dags(contrib_example_dags))
-    dags.update(make_example_dags(gcp_example_dags))
+    patterns = [
+        "airflow/example_dags",
+        "airflow/providers/*/example_dags",
+        "airflow/providers/*/*/example_dags",
+    ]
+    for pattern in patterns:
+        for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
+            dags.update(make_example_dags(directory))
 
     # Filter subdags as they are stored in same row in Serialized Dag table
     dags = {dag_id: dag for dag_id, dag in dags.items() if not dag.is_subdag}
@@ -542,6 +549,68 @@ class TestStringifiedDAGs(unittest.TestCase):
         ignored_keys: set = {"is_subdag", "tasks"}
         dag_params: set = set(dag_schema.keys()) - ignored_keys
         self.assertEqual(set(DAG.get_serialized_fields()), dag_params)
+
+    def test_no_new_fields_added_to_base_operator(self):
+        """
+        This test verifies that there are no new fields added to BaseOperator. And reminds that
+        tests should be added for it.
+        """
+        base_operator = BaseOperator(task_id="10")
+        fields = base_operator.__dict__
+        self.assertEqual({'_dag': None,
+                          '_downstream_task_ids': set(),
+                          '_inlets': [],
+                          '_log': base_operator.log,
+                          '_outlets': [],
+                          '_upstream_task_ids': set(),
+                          'depends_on_past': False,
+                          'do_xcom_push': True,
+                          'email': None,
+                          'email_on_failure': True,
+                          'email_on_retry': True,
+                          'end_date': None,
+                          'execution_timeout': None,
+                          'executor_config': {},
+                          'inlets': [],
+                          'max_retry_delay': None,
+                          'on_execute_callback': None,
+                          'on_failure_callback': None,
+                          'on_retry_callback': None,
+                          'on_success_callback': None,
+                          'outlets': [],
+                          'owner': 'airflow',
+                          'params': {},
+                          'pool': 'default_pool',
+                          'pool_slots': 1,
+                          'priority_weight': 1,
+                          'queue': 'default',
+                          'resources': None,
+                          'retries': 0,
+                          'retry_delay': timedelta(0, 300),
+                          'retry_exponential_backoff': False,
+                          'run_as_user': None,
+                          'sla': None,
+                          'start_date': None,
+                          'subdag': None,
+                          'task_concurrency': None,
+                          'task_id': '10',
+                          'trigger_rule': 'all_success',
+                          'wait_for_downstream': False,
+                          'weight_rule': 'downstream'}, fields,
+                         """
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+     ACTION NEEDED! PLEASE READ THIS CAREFULLY AND CORRECT TESTS CAREFULLY
+
+ Some fields were added to the BaseOperator! Please add them to the list above and make sure that
+ you add support for DAG serialization - you should add the field to
+ `airflow/serialization/schema.json` - they should have correct type defined there.
+
+ Note that we do not support versioning yet so you should only add optional fields to BaseOperator.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                         """
+                         )
 
 
 if __name__ == '__main__':

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import logging
 import os
 import re
 import zipfile
 from typing import Dict, List, Optional, Pattern
 
-from airflow import LoggingMixin, conf
+from airflow import conf
+
+log = logging.getLogger(__name__)
 
 
 def TemporaryDirectory(*args, **kwargs):  # pylint: disable=invalid-name
@@ -149,7 +150,6 @@ def find_dag_file_paths(file_paths, files, patterns, root, safe_mode):
 
             file_paths.append(file_path)
         except Exception:  # pylint: disable=broad-except
-            log = LoggingMixin().log
             log.exception("Error while examining %s", f)
 
 

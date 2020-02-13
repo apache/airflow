@@ -868,7 +868,7 @@ mkdir -pv "${MY_DIR}/.kube"
 #################### Cleanup image if requested ########################################
 if [[ "${CLEANUP_IMAGES}" == "true" ]]; then
     export AIRFLOW_CONTAINER_CLEANUP_IMAGES=true
-    "${MY_DIR}/scripts/ci/local_ci_cleanup.sh"
+    "${MY_DIR}/scripts/ci/ci_cleanup.sh"
     exit 0
 fi
 
@@ -904,7 +904,7 @@ if [[ ${INITIALIZE_LOCAL_VIRTUALENV} == "true" ]]; then
         if [[ ${SYSTEM} == "Darwin" ]]; then
             echo "  brew install sqlite mysql postgresql"
         else
-            echo "  sudo apt-get install openssl sqlite libmysqlclient-dev libmysqld-dev postgresql --confirm"
+            echo "  sudo apt-get install python3-dev python-dev openssl sqlite default-libmysqlclient-dev libmysqld-dev postgresql --confirm"
         fi
         echo
         echo "#######################################################################"

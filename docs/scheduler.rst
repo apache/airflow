@@ -58,3 +58,8 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
     **Let’s Repeat That**, the scheduler runs your job one ``schedule_interval`` AFTER the start date, at the END of the period.
 
     You should refer :doc:`dag-run` for details on scheduling a DAG.
+
+If you want to use 'external trigger' to run future-dated execution dates, set ``allow_trigger_in_future = True`` in ``scheduler`` section in ``airflow.cfg``.
+This only has effect if your DAG has no ``schedule_interval``.
+If you keep default ``allow_trigger_in_future = False`` and try 'external trigger' to run future-dated execution dates,
+the scheduler won't execute it now but the scheduler will execute it in the future once the current date rolls over to the execution date.

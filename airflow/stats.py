@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -23,10 +22,11 @@ import socket
 import string
 import textwrap
 from functools import wraps
-from typing import Any
+from typing import Callable
 
 from airflow.configuration import conf
 from airflow.exceptions import InvalidStatsNameException
+from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class DummyStatsLogger:
 ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + '_.-')
 
 
-def stat_name_default_handler(stat_name, max_length=250):
+def stat_name_default_handler(stat_name, max_length=250) -> str:
     if not isinstance(stat_name, str):
         raise InvalidStatsNameException('The stat_name has to be a string')
     if len(stat_name) > max_length:
@@ -70,20 +70,25 @@ def stat_name_default_handler(stat_name, max_length=250):
     return stat_name
 
 
-def validate_stat(f):
-    @wraps(f)
+def get_current_handle_stat_name_func() -> Callable[[str], str]:
+    stat_name_handler_name = conf.get('scheduler', 'stat_name_handler')
+    if stat_name_handler_name:
+        handle_stat_name_func = import_string(stat_name_handler_name)
+    else:
+        handle_stat_name_func = stat_name_default_handler
+    return handle_stat_name_func
+
+
+def validate_stat(fn):
+    @wraps(fn)
     def wrapper(_self, stat, *args, **kwargs):
         try:
-            from airflow.plugins_manager import stat_name_handler
-            if stat_name_handler:
-                handle_stat_name_func = stat_name_handler
-            else:
-                handle_stat_name_func = stat_name_default_handler
+            handle_stat_name_func = get_current_handle_stat_name_func()
             stat_name = handle_stat_name_func(stat)
+            return fn(_self, stat_name, *args, **kwargs)
         except InvalidStatsNameException:
-            log.warning('Invalid stat name: {}.'.format(stat), exc_info=True)
+            log.warning('Invalid stat name: %s.', stat, exc_info=True)
             return
-        return f(_self, stat_name, *args, **kwargs)
 
     return wrapper
 
@@ -130,19 +135,87 @@ class SafeStatsdLogger:
             return self.statsd.timing(stat, dt)
 
 
-Stats = DummyStatsLogger  # type: Any
+class SafeDogStatsdLogger:
 
-try:
-    if conf.getboolean('scheduler', 'statsd_on'):
+    def __init__(self, dogstatsd_client, allow_list_validator=AllowListValidator()):
+        self.dogstatsd = dogstatsd_client
+        self.allow_list_validator = allow_list_validator
+
+    @validate_stat
+    def incr(self, stat, count=1, rate=1, tags=None):
+        if self.allow_list_validator.test(stat):
+            tags = tags or []
+            return self.dogstatsd.increment(metric=stat, value=count, tags=tags, sample_rate=rate)
+
+    @validate_stat
+    def decr(self, stat, count=1, rate=1, tags=None):
+        if self.allow_list_validator.test(stat):
+            tags = tags or []
+            return self.dogstatsd.decrement(metric=stat, value=count, tags=tags, sample_rate=rate)
+
+    @validate_stat
+    def gauge(self, stat, value, rate=1, delta=False, tags=None):
+        if self.allow_list_validator.test(stat):
+            tags = tags or []
+            return self.dogstatsd.gauge(metric=stat, value=value, tags=tags, sample_rate=rate)
+
+    @validate_stat
+    def timing(self, stat, dt, tags=None):
+        if self.allow_list_validator.test(stat):
+            tags = tags or []
+            return self.dogstatsd.timing(metric=stat, value=dt, tags=tags)
+
+
+class _Stats(type):
+    instance = None
+
+    def __getattr__(cls, name):
+        return getattr(cls.instance, name)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(self)
+        if self.__class__.instance is None:
+            try:
+                is_datadog_enabled_defined = conf.has_option('scheduler', 'statsd_datadog_enabled')
+                if is_datadog_enabled_defined and conf.getboolean('scheduler', 'statsd_datadog_enabled'):
+                    self.__class__.instance = self.get_dogstatsd_logger()
+                elif conf.getboolean('scheduler', 'statsd_on'):
+                    self.__class__.instance = self.get_statsd_logger()
+                else:
+                    self.__class__.instance = DummyStatsLogger()
+            except (socket.gaierror, ImportError) as e:
+                log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
+
+    def get_statsd_logger(self):
         from statsd import StatsClient
-
         statsd = StatsClient(
             host=conf.get('scheduler', 'statsd_host'),
             port=conf.getint('scheduler', 'statsd_port'),
             prefix=conf.get('scheduler', 'statsd_prefix'))
-
         allow_list_validator = AllowListValidator(conf.get('scheduler', 'statsd_allow_list', fallback=None))
+        return SafeStatsdLogger(statsd, allow_list_validator)
 
-        Stats = SafeStatsdLogger(statsd, allow_list_validator)
-except (socket.gaierror, ImportError) as e:
-    log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
+    def get_dogstatsd_logger(self):
+        from datadog import DogStatsd
+        dogstatsd = DogStatsd(
+            host=conf.get('scheduler', 'statsd_host'),
+            port=conf.getint('scheduler', 'statsd_port'),
+            namespace=conf.get('scheduler', 'statsd_prefix'),
+            constant_tags=self.get_constant_tags())
+        dogstatsd_allow_list = conf.get('scheduler', 'statsd_allow_list', fallback=None)
+        allow_list_validator = AllowListValidator(dogstatsd_allow_list)
+        return SafeDogStatsdLogger(dogstatsd, allow_list_validator)
+
+    def get_constant_tags(self):
+        tags = []
+        tags_in_string = conf.get('scheduler', 'statsd_datadog_tags', fallback=None)
+        if tags_in_string is None or tags_in_string == '':
+            return tags
+        else:
+            for key_value in tags_in_string.split(','):
+                tags.append(key_value)
+            return tags
+
+
+class Stats(metaclass=_Stats):
+    pass

@@ -59,13 +59,19 @@ if [[ "${KUBERNETES_MODE}" == "persistent_mode" ]]; then
 else
     INIT_DAGS_VOLUME_NAME=airflow-dags-fake
     POD_AIRFLOW_DAGS_VOLUME_NAME=airflow-dags-git
-    CONFIGMAP_DAGS_FOLDER=/root/airflow/dags/repo/airflow/contrib/example_dags
+    CONFIGMAP_DAGS_FOLDER=/root/airflow/dags/repo/airflow/example_dags
     CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT=/root/airflow/dags
     CONFIGMAP_DAGS_VOLUME_CLAIM=
 fi
 
-CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/airflow}
-CONFIGMAP_BRANCH=${DEFAULT_BRANCH:=master}
+if [[ ${TRAVIS_PULL_REQUEST} != "" && ${TRAVIS_PULL_REQUEST} != "false" ]]; then
+    CONFIGMAP_GIT_REPO=${TRAVIS_PULL_REQUEST_SLUG}
+    CONFIGMAP_BRANCH=${TRAVIS_PULL_REQUEST_BRANCH}
+else
+    CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/airflow}
+    CONFIGMAP_BRANCH=${TRAVIS_BRANCH:=master}
+fi
+
 
 if [[ "${KUBERNETES_MODE}" == "persistent_mode" ]]; then
     sed -e "s/{{INIT_GIT_SYNC}}//g" \
