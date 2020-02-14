@@ -286,7 +286,7 @@ repos:
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
         exclude: ^airflow/_vendor/.*$
-        pass_filenames: true
+        pass_filenames: false
       - id: pylint
         name: Run pylint for main sources
         language: system

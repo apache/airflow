@@ -33,7 +33,7 @@ print_in_container_info "Running mypy with parameters: $*"
 print_in_container_info
 print_in_container_info
 
-mypy --cache-dir=/dev/null "$@"
+mypy "$@"
 
 RES="$?"
 
