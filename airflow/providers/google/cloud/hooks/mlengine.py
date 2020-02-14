@@ -151,7 +151,7 @@ class MLEngineHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def cancel_job(
         self,
-        job_id,
+        job_id: str,
         project_id: Optional[str] = None
     ) -> Dict:
 
@@ -159,7 +159,7 @@ class MLEngineHook(CloudBaseHook):
         Cancels a MLEngine job.
 
         :param project_id: The Google Cloud project id within which MLEngine
-            job will be launched. If set to None or missing, the default project_id from the GCP
+            job will be cancelled. If set to None or missing, the default project_id from the GCP
             connection is used.
         :type project_id: str
         :param job_id: A unique id for the want-to-be cancelled Google MLEngine training job.
@@ -176,7 +176,7 @@ class MLEngineHook(CloudBaseHook):
         hook = self.get_conn()
 
         request = hook.projects().jobs().cancel(  # pylint: disable=no-member
-            name='projects/{}/jobs/{}'.format(project_id, job_id))
+            name=f'projects/{project_id}/jobs/{job_id}')
 
         try:
             return request.execute()
