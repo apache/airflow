@@ -23,7 +23,9 @@ import mock
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
+from airflow.operators.check_operator import (
+    CheckOperator, IntervalCheckOperator, ThresholdCheckOperator, ValueCheckOperator,
+)
 
 
 class TestCheckOperator(unittest.TestCase):
@@ -218,4 +220,105 @@ class TestIntervalCheckOperator(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(AirflowException, "f0, f1"):
+            operator.execute()
+
+
+class TestThresholdCheckOperator(unittest.TestCase):
+
+    def _construct_operator(self, sql, min_threshold, max_threshold):
+        dag = DAG('test_dag', start_date=datetime(2017, 1, 1))
+
+        return ThresholdCheckOperator(
+            task_id='test_task',
+            sql=sql,
+            min_threshold=min_threshold,
+            max_threshold=max_threshold,
+            dag=dag
+        )
+
+    @mock.patch.object(ThresholdCheckOperator, 'get_db_hook')
+    def test_pass_min_value_max_value(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = [(10,)]
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator(
+            'Select avg(val) from table1 limit 1',
+            1,
+            100
+        )
+
+        operator.execute()
+
+    @mock.patch.object(ThresholdCheckOperator, 'get_db_hook')
+    def test_fail_min_value_max_value(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = [(10,)]
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator(
+            'Select avg(val) from table1 limit 1',
+            20,
+            100
+        )
+
+        with self.assertRaisesRegex(AirflowException, '10.*20.0.*100.0'):
+            operator.execute()
+
+    @mock.patch.object(ThresholdCheckOperator, 'get_db_hook')
+    def test_pass_min_sql_max_sql(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.side_effect = lambda x: [(int(x.split()[1]),)]
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator(
+            'Select 10',
+            'Select 1',
+            'Select 100'
+        )
+
+        operator.execute()
+
+    @mock.patch.object(ThresholdCheckOperator, 'get_db_hook')
+    def test_fail_min_sql_max_sql(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.side_effect = lambda x: [(int(x.split()[1]),)]
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator(
+            'Select 10',
+            'Select 20',
+            'Select 100'
+        )
+
+        with self.assertRaisesRegex(AirflowException, '10.*20.*100'):
+            operator.execute()
+
+    @mock.patch.object(ThresholdCheckOperator, 'get_db_hook')
+    def test_pass_min_value_max_sql(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.side_effect = lambda x: [(int(x.split()[1]),)]
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator(
+            'Select 75',
+            45,
+            'Select 100'
+        )
+
+        operator.execute()
+
+    @mock.patch.object(ThresholdCheckOperator, 'get_db_hook')
+    def test_fail_min_sql_max_value(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.side_effect = lambda x: [(int(x.split()[1]),)]
+        mock_get_db_hook.return_value = mock_hook
+
+        operator = self._construct_operator(
+            'Select 155',
+            'Select 45',
+            100
+        )
+
+        with self.assertRaisesRegex(AirflowException, '155.*45.*100.0'):
             operator.execute()
