@@ -164,9 +164,11 @@ class DataprocDeleteClusterOperator(BaseOperator):
 
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :type cluster_id: Optional[str]
-    :param cluster_id: ID of the cluster to remove.
+    :param cluster_id: ID of the cluster to remove. (templated)
     :type cluster_id: Optional[str]
     """
+
+    template_fields = ['cluster_id']
 
     @apply_defaults
     def __init__(self,
@@ -206,11 +208,13 @@ class DataprocCreateHiveJobOperator(BaseOperator):
     :param name: Name of the job. Used for labeling.
     :type name: str
     :param cluster_id: ID of the cluster to run job in.
-                       Will try to take the ID from Dataproc Hook object if ot specified.
+                       Will try to take the ID from Dataproc Hook object if ot specified. (templated)
     :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :type connection_id: Optional[str]
     """
+
+    template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
     @apply_defaults
@@ -276,11 +280,13 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
     :param name: Name of the job. Used for labeling.
     :type name: str
     :param cluster_id: ID of the cluster to run job in.
-                       Will try to take the ID from Dataproc Hook object if ot specified.
+                       Will try to take the ID from Dataproc Hook object if ot specified. (templated)
     :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :type connection_id: Optional[str]
     """
+
+    template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
     @apply_defaults
@@ -351,11 +357,13 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     :param name: Name of the job. Used for labeling.
     :type name: str
     :param cluster_id: ID of the cluster to run job in.
-                       Will try to take the ID from Dataproc Hook object if ot specified.
+                       Will try to take the ID from Dataproc Hook object if ot specified. (templated)
     :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :type connection_id: Optional[str]
     """
+
+    template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
     @apply_defaults
@@ -426,11 +434,13 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     :param name: Name of the job. Used for labeling.
     :type name: str
     :param cluster_id: ID of the cluster to run job in.
-                       Will try to take the ID from Dataproc Hook object if ot specified.
+                       Will try to take the ID from Dataproc Hook object if ot specified. (templated)
     :type cluster_id: Optional[str]
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :type connection_id: Optional[str]
     """
+
+    template_fields = ['cluster_id']
 
     # pylint: disable=too-many-arguments
     @apply_defaults
