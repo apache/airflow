@@ -196,7 +196,7 @@ RUN apt-get update \
 ENV GOLANG_VERSION=1.13.8
 ENV SINGULARITY_VERSION=3.5.2
 
-RUN curl -o go${GOLANG_VERSION}.linux-amd64.tar.gz "https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz" \
+RUN curl -L -o go${GOLANG_VERSION}.linux-amd64.tar.gz "https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz" \
     && tar -C /usr/local -xzvf "go${GOLANG_VERSION}.linux-amd64.tar.gz" \
     && rm "go${GOLANG_VERSION}.linux-amd64.tar.gz"
 
@@ -204,7 +204,7 @@ ENV PATH="${PATH}:/usr/local/go/bin"
 
 WORKDIR /tmp
 
-RUN curl -o singularity-${SINGULARITY_VERSION}.tar.gz https://github.com/sylabs/singularity/releases/download/v${SINGULARITY_VERSION}/singularity-${SINGULARITY_VERSION}.tar.gz \
+RUN curl -L -o singularity-${SINGULARITY_VERSION}.tar.gz https://github.com/sylabs/singularity/releases/download/v${SINGULARITY_VERSION}/singularity-${SINGULARITY_VERSION}.tar.gz \
     && tar -xzf singularity-${SINGULARITY_VERSION}.tar.gz
 
 WORKDIR /tmp/singularity
