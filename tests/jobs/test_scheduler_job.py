@@ -740,7 +740,10 @@ class TestDagFileProcessor(unittest.TestCase):
         dag.clear()
 
         # First create up to 3 dagruns in RUNNING state.
-        dag_file_processor.create_dag_run(dag)
+        assert dag_file_processor.create_dag_run(dag) is not None
+        assert dag_file_processor.create_dag_run(dag) is not None
+        assert dag_file_processor.create_dag_run(dag) is not None
+        assert len(DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)) == 3
 
         # Reduce max_active_runs to 1
         dag.max_active_runs = 1

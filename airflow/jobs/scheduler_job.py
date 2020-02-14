@@ -635,7 +635,7 @@ class DagFileProcessor(LoggingMixin):
 
         # update the state of the previously active dag runs
         dag_runs = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)
-        active_dag_runs = []
+        active_dag_runs = 0
         for run in dag_runs:
             self.log.info("Examining DAG run %s", run)
             # don't consider runs that are executed in the future unless
@@ -647,7 +647,7 @@ class DagFileProcessor(LoggingMixin):
                 )
                 continue
 
-            if len(active_dag_runs) >= dag.max_active_runs:
+            if active_dag_runs >= dag.max_active_runs:
                 self.log.info("Number of active dag runs reached max_active_run.")
                 break
 
@@ -661,6 +661,7 @@ class DagFileProcessor(LoggingMixin):
             run.verify_integrity(session=session)
             ready_tis = run.update_state(session=session)
             if run.state == State.RUNNING:
+                active_dag_runs += 1
                 self.log.debug("Examining active DAG run: %s", run)
                 for ti in ready_tis:
                     self.log.debug('Queuing task: %s', ti)
