@@ -1057,10 +1057,6 @@ class MLEngineTrainingJobFailureOperator(BaseOperator):
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
-        if not self._job_id:
-            raise AirflowException(
-                'An unique job id is required for Google MLEngine training '
-                'job.')
 
     def execute(self, context):
 
