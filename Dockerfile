@@ -188,22 +188,28 @@ RUN apt-get update \
        squashfs-tools \
        libseccomp-dev \
        pkg-config \
-       wget \
-       cryptsetup
+       cryptsetup \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV GOLANG_VERSION=1.13.8
 ENV SINGULARITY_VERSION=3.5.2
 
-RUN wget "https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz" \
+RUN curl -o go${GOLANG_VERSION}.linux-amd64.tar.gz "https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz" \
     && tar -C /usr/local -xzvf "go${GOLANG_VERSION}.linux-amd64.tar.gz" \
     && rm "go${GOLANG_VERSION}.linux-amd64.tar.gz"
 
 ENV PATH="${PATH}:/usr/local/go/bin"
 
-RUN wget https://github.com/sylabs/singularity/releases/download/v${SINGULARITY_VERSION}/singularity-${SINGULARITY_VERSION}.tar.gz \
-    && tar -xzf singularity-${SINGULARITY_VERSION}.tar.gz \
-    && cd singularity \
-    && ./mconfig \
+WORKDIR ${AIRFLOW_SOURCES}
+
+RUN curl -o singularity-${SINGULARITY_VERSION}.tar.gz https://github.com/sylabs/singularity/releases/download/v${SINGULARITY_VERSION}/singularity-${SINGULARITY_VERSION}.tar.gz \
+    && tar -xzf singularity-${SINGULARITY_VERSION}.tar.gz
+
+WORKDIR ${AIRFLOW_SOURCES}/singularity
+
+RUN ./mconfig \
     && make -C builddir \
     && make -C builddir install
 
