@@ -141,7 +141,8 @@ class SSHHook(BaseHook):
         user_ssh_config_filename = os.path.expanduser('~/.ssh/config')
         if os.path.isfile(user_ssh_config_filename):
             ssh_conf = paramiko.SSHConfig()
-            ssh_conf.parse(open(user_ssh_config_filename))
+            with open(user_ssh_config_filename) as config_fd:
+                ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
             if host_info and host_info.get('proxycommand'):
                 self.host_proxy = paramiko.ProxyCommand(host_info.get('proxycommand'))
