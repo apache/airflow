@@ -202,16 +202,18 @@ RUN curl -o go${GOLANG_VERSION}.linux-amd64.tar.gz "https://dl.google.com/go/go$
 
 ENV PATH="${PATH}:/usr/local/go/bin"
 
-WORKDIR ${AIRFLOW_SOURCES}
+WORKDIR /tmp
 
 RUN curl -o singularity-${SINGULARITY_VERSION}.tar.gz https://github.com/sylabs/singularity/releases/download/v${SINGULARITY_VERSION}/singularity-${SINGULARITY_VERSION}.tar.gz \
     && tar -xzf singularity-${SINGULARITY_VERSION}.tar.gz
 
-WORKDIR ${AIRFLOW_SOURCES}/singularity
+WORKDIR /tmp/singularity
 
 RUN ./mconfig \
     && make -C builddir \
     && make -C builddir install
+
+WORKDIR /
 
 # Install Minicluster
 ENV MINICLUSTER_HOME="/opt/minicluster"
