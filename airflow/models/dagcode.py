@@ -18,7 +18,7 @@ import logging
 import os
 import struct
 from datetime import datetime, timedelta
-from typing import Iterable, List
+from typing import Iterable
 
 from sqlalchemy import BigInteger, Column, String, UnicodeText, and_, exists
 
@@ -135,21 +135,22 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_code(cls, alive_dag_filelocs: List[str], session=None):
-        """Deletes code not included in alive_dag_filelocs.
+    def remove_unused_code(cls, session=None):
+        """Deletes code that no longer has any DAGs referencing it .
 
-        :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
+        from airflow.models.dag import DagModel
+
+        alive_dag_filelocs = [fileloc for fileloc, in session.query(DagModel.fileloc).all()]
         alive_fileloc_hashes = [
             cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
         log.debug("Deleting code from %s table ", cls.__tablename__)
 
-        session.execute(
-            session.query(cls).filter(
-                and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                     cls.fileloc.notin_(alive_dag_filelocs))).delete())
+        session.query(cls).filter(
+            and_(cls.fileloc_hash.notin_(alive_fileloc_hashes),
+                 cls.fileloc.notin_(alive_dag_filelocs))).delete(synchronize_session='fetch')
 
     @classmethod
     @provide_session
