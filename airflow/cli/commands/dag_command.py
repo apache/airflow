@@ -28,6 +28,7 @@ from tabulate import tabulate
 
 from airflow import DAG, AirflowException, conf, jobs, settings
 from airflow.api.client import get_current_api_client
+from airflow.executors.debug_executor import DebugExecutor
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import get_dag, get_dag_by_file_location, process_subdir, sigint_handler
@@ -320,3 +321,11 @@ def dag_list_dag_runs(args, dag=None):
         tablefmt=args.output
     )
     print(table)
+
+
+@cli_utils.action_logging
+def dag_test(args):
+    """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
+    dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    dag.clear(start_date=args.execution_date, end_date=args.execution_date, reset_dag_runs=True)
+    dag.run(executor=DebugExecutor(), start_date=args.execution_date, end_date=args.execution_date)
