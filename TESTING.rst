@@ -546,6 +546,13 @@ Additionally ``DebugExecutor`` can be used in a fail-fast mode that will make
 all other running or scheduled tasks fail immediately. To enable this option set
 ``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
 
+Also, with the Airflow CLI command `airflow dags test` you can execute one complete run of a DAG:
+
+.. code-block:: bash
+
+    # airflow dags test [dag_id] [execution_date]
+    airflow dags test example_branch_operator 2018-01-01
+
 
 BASH unit testing (BATS)
 ========================
