@@ -1194,7 +1194,7 @@ These integrations allow you to perform various operations using various softwar
    * - `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
      -
      -
-     - :mod:`airflow.contrib.operators.singularity_operator`
+     - :mod:`airflow.providers.operators.singularity`
      -
 
    * - `SQLite <https://www.sqlite.org/index.html>`__

@@ -166,6 +166,8 @@ All operators are in the following packages:
 
   airflow/providers/sftp/sensors/index
 
+  airflow/providers/singularity/operators/index
+
   airflow/providers/slack/operators/index
 
   airflow/providers/snowflake/operators/index

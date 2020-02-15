@@ -24,11 +24,11 @@ from parameterized import parameterized
 from spython.instance import Instance
 
 from airflow import AirflowException
-from airflow.contrib.operators.singularity_operator import SingularityOperator
+from airflow.providers.singularity.operators import SingularityOperator
 
 
 class SingularityOperatorTestCase(unittest.TestCase):
-    @mock.patch('airflow.contrib.operators.singularity_operator.Client')
+    @mock.patch('airflow.providers.singularity.operators.Client')
     def test_execute(self, client_mock):
         instance = mock.Mock(autospec=Instance, **{
             'start.return_value': 0,
@@ -41,18 +41,18 @@ class SingularityOperatorTestCase(unittest.TestCase):
 
         task = SingularityOperator(
             task_id='task-id',
-            image="awesome-image",
-            command="awesome-command"
+            image="docker://busybox",
+            command="echo hello"
         )
         task.execute({})
 
-        client_mock.instance.assert_called_once_with("awesome-image",
+        client_mock.instance.assert_called_once_with("docker://busybox",
                                                      options=[],
                                                      args=None,
                                                      start=False)
 
         client_mock.execute.assert_called_once_with(mock.ANY,
-                                                    "awesome-command",
+                                                    "echo hello",
                                                     return_result=True)
 
         execute_args, _ = client_mock.execute.call_args
@@ -74,16 +74,15 @@ class SingularityOperatorTestCase(unittest.TestCase):
         with six.assertRaisesRegex(self, AirflowException, "You must define a command."):
             task.execute({})
 
-    @mock.patch('airflow.contrib.operators.singularity_operator.shutil')
-    @mock.patch('airflow.contrib.operators.singularity_operator.os.path.exists')
-    @mock.patch('airflow.contrib.operators.singularity_operator.Client')
-    def test_image_should_be_pulled_when_not_exists(self, client_mock, exists_mock, shutil_mock):
+    @mock.patch('airflow.providers.singularity.operators.os.path.exists')
+    @mock.patch('airflow.providers.singularity.operators.Client')
+    def test_image_should_be_pulled_when_not_exists(self, client_mock, exists_mock):
         instance = mock.Mock(autospec=Instance, **{
             'start.return_value': 0,
             'stop.return_value': 0,
         })
 
-        client_mock.pull.return_value = 'pull-file', ''
+        client_mock.pull.return_value = '/tmp/busybox_latest.sif'
         client_mock.instance.return_value = instance
         client_mock.execute.return_value = {'return_code': 0,
                                             'message': 'message'}
@@ -91,22 +90,20 @@ class SingularityOperatorTestCase(unittest.TestCase):
 
         task = SingularityOperator(
             task_id='task-id',
-            image="awesome-image",
-            command="awesome-command",
-            pull_folder="/tmp/path",
+            image="docker://busybox",
+            command="echo hello",
+            pull_folder="/tmp",
             force_pull=True
         )
         task.execute({})
 
         client_mock.instance.assert_called_once_with(
-            "/tmp/path/pull-file", options=[], args=None, start=False
+            "/tmp/busybox_latest.sif", options=[], args=None, start=False
         )
-        client_mock.pull.assert_called_once_with("awesome-image", stream=True)
+        client_mock.pull.assert_called_once_with("docker://busybox", stream=True)
         client_mock.execute.assert_called_once_with(mock.ANY,
-                                                    "awesome-command",
+                                                    "echo hello",
                                                     return_result=True)
-
-        shutil_mock.move.assert_called_once_with("pull-file", "/tmp/path/pull-file")
 
     @parameterized.expand([
         (None, [], ),
@@ -129,15 +126,15 @@ class SingularityOperatorTestCase(unittest.TestCase):
 
         task = SingularityOperator(
             task_id='task-id',
-            image="awesome-image",
-            command="awesome-command",
+            image="docker://busybox",
+            command="echo hello",
             force_pull=True,
             volumes=volumes
         )
         task.execute({})
 
         client_mock.instance.assert_called_once_with(
-            "awesome-image", options=expected_options, args=None, start=False
+            "docker://busybox", options=expected_options, args=None, start=False
         )
 
     @parameterized.expand([
@@ -158,15 +155,15 @@ class SingularityOperatorTestCase(unittest.TestCase):
 
         task = SingularityOperator(
             task_id='task-id',
-            image="awesome-image",
-            command="awesome-command",
+            image="docker://busybox",
+            command="echo hello",
             force_pull=True,
             working_dir=working_dir
         )
         task.execute({})
 
         client_mock.instance.assert_called_once_with(
-            "awesome-image", options=expected_working_dir, args=None, start=False
+            "docker://busybox", options=expected_working_dir, args=None, start=False
         )
 
 
