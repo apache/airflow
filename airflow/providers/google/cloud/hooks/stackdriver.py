@@ -21,6 +21,7 @@ This module contains GCP Stackdriver operators.
 """
 
 import json
+from typing import Any, Dict, Optional
 
 from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT
@@ -55,15 +56,15 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def list_alert_policies(
         self,
-        project_id=None,
-        format_=None,
-        filter_=None,
-        order_by=None,
-        page_size=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        project_id: Optional[str] = None,
+        format_: Optional[str] = None,
+        filter_: Optional[str] = None,
+        order_by: Optional[str] = None,
+        page_size: Optional[int] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> Any:
         """
         Fetches all the Alert Policies identified by the filter passed as
         filter_ parameter. The desired return type can be specified by the
@@ -124,12 +125,12 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def _toggle_policy_status(
         self,
-        new_state,
-        project_id=None,
-        filter_=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
+        new_state: bool,
+        project_id: Optional[str] = None,
+        filter_: Optional[str] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None
     ):
         client = self._get_policy_client()
         policies_ = self.list_alert_policies(project_id=project_id, filter_=filter_)
@@ -149,12 +150,12 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def enable_alert_policies(
         self,
-        project_id=None,
-        filter_=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        project_id: Optional[str] = None,
+        filter_: Optional[str] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> None:
         """
         Enables one or more disabled alerting policies identified by filter_
         parameter. Inoperative in case the policy is already enabled.
@@ -188,12 +189,12 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def disable_alert_policies(
         self,
-        project_id=None,
-        filter_=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        project_id: Optional[str] = None,
+        filter_: Optional[str] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[str] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> None:
         """
         Disables one or more enabled alerting policies identified by filter_
         parameter. Inoperative in case the policy is already disabled.
@@ -227,12 +228,12 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def upsert_alert(
         self,
-        alerts,
-        project_id=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        alerts: str,
+        project_id: Optional[str] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> None:
         """
          Creates a new alert or updates an existing policy identified
          the name field in the alerts parameter.
@@ -330,11 +331,11 @@ class StackdriverHook(CloudBaseHook):
 
     def delete_alert_policy(
         self,
-        name,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        name: str,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> None:
         """
         Deletes an alerting policy.
 
@@ -368,15 +369,15 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def list_notification_channels(
         self,
-        format_=None,
-        filter_=None,
-        order_by=None,
-        page_size=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None,
-        project_id=None
-    ):
+        format_: Optional[str] = None,
+        filter_: Optional[str] = None,
+        order_by: Optional[str] = None,
+        page_size: Optional[int] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[str] = DEFAULT,
+        metadata: Optional[str] = None,
+        project_id: Optional[str] = None
+    ) -> Any:
         """
         Fetches all the Notification Channels identified by the filter passed as
         filter_ parameter. The desired return type can be specified by the
@@ -438,23 +439,19 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def _toggle_channel_status(
         self,
-        new_state,
-        project_id=None,
-        filter_=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        new_state: str,
+        project_id: Optional[str] = None,
+        filter_: Optional[str] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[str] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> None:
         client = self._get_channel_client()
         channels = client.list_notification_channels(
             name='projects/{project_id}'.format(project_id=project_id),
             filter_=filter_
         )
-        print(channels)
         for channel in channels:
-            print(channel.name)
-            print(str(channel.enabled.value))
-            print(str(new_state))
             if channel.enabled.value != bool(new_state):
                 channel.enabled.value = bool(new_state)
                 mask = monitoring_v3.types.field_mask_pb2.FieldMask()
@@ -470,12 +467,12 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def enable_notification_channels(
         self,
-        project_id=None,
-        filter_=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        project_id: Optional[str] = None,
+        filter_: Optional[str] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[str] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> None:
         """
         Enables one or more disabled alerting policies identified by filter_
         parameter. Inoperative in case the policy is already enabled.
@@ -510,12 +507,12 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def disable_notification_channels(
         self,
-        filter_=None,
-        project_id=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        filter_: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[str] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> None:
         """
         Disables one or more enabled notification channels identified by filter_
         parameter. Inoperative in case the policy is already disabled.
@@ -550,12 +547,12 @@ class StackdriverHook(CloudBaseHook):
     @CloudBaseHook.fallback_to_default_project_id
     def upsert_channel(
         self,
-        channels,
-        project_id=None,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        channels: str,
+        project_id: Optional[str] = None,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[float] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> Dict:
         """
         Creates a new notification or updates an existing notification channel
         identified the name field in the alerts parameter.
@@ -583,14 +580,16 @@ class StackdriverHook(CloudBaseHook):
         record = json.loads(channels)
         existing_channels = [channel["name"] for channel in
                              self.list_notification_channels(project_id=project_id, format_="dict")]
-        channels = []
+        channels_list = []
         channel_name_map = {}
 
         for channel in record["channels"]:
             channel_json = json.dumps(channel)
-            channels.append(Parse(channel_json, monitoring_v3.types.notification_pb2.NotificationChannel()))
+            channels_list.append(
+                Parse(channel_json, monitoring_v3.types.notification_pb2.NotificationChannel())
+            )
 
-        for channel in channels:
+        for channel in channels_list:
             channel.verification_status = monitoring_v3.enums.NotificationChannel. \
                 VerificationStatus.VERIFICATION_STATUS_UNSPECIFIED
 
@@ -617,11 +616,11 @@ class StackdriverHook(CloudBaseHook):
 
     def delete_notification_channel(
         self,
-        name,
-        retry=DEFAULT,
-        timeout=DEFAULT,
-        metadata=None
-    ):
+        name: str,
+        retry: Optional[str] = DEFAULT,
+        timeout: Optional[str] = DEFAULT,
+        metadata: Optional[str] = None
+    ) -> None:
         """
         Deletes a notification channel.
 
