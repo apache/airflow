@@ -18,7 +18,7 @@
 
 
 Google Cloud Stackdriver Operators
-===============================
+==================================
 
 .. contents::
   :depth: 1
@@ -51,7 +51,7 @@ If project is is missing it wil be retrieved from GCP connection used.
 .. _howto/operator:StackdriverListAlertPoliciesOperator:
 
 StackdriverEnableAlertPoliciesOperator
-------------------------------------
+--------------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverEnableAlertPoliciesOperator`
 to enable Alert Policies identified by given filter.
@@ -71,7 +71,7 @@ If project is is missing it wil be retrieved from GCP connection used.
 .. _howto/operator:StackdriverEnableAlertPoliciesOperator:
 
 StackdriverDisableAlertPoliciesOperator
-------------------------------------
+---------------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverDisableAlertPoliciesOperator`
 to disable Alert Policies identified by given filter.
@@ -91,7 +91,7 @@ If project is is missing it wil be retrieved from GCP connection used.
 .. _howto/operator:StackdriverDisableAlertPoliciesOperator:
 
 StackdriverUpsertAlertOperator
-------------------------------------
+------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverUpsertAlertOperator`
 to upsert Alert Policies identified by given filter JSON string. If the alert with the give name already
@@ -112,7 +112,7 @@ If project is is missing it wil be retrieved from GCP connection used.
 .. _howto/operator:StackdriverUpsertAlertOperator:
 
 StackdriverDeleteAlertOperator
-------------------------------------
+------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverDeleteAlertOperator`
 to delete an Alert Policy identified by given name.
@@ -131,7 +131,7 @@ The name of the alert to be deleted should be given in the format projects/<PROJ
 .. _howto/operator:StackdriverDeleteAlertOperator:
 
 StackdriverListNotificationChannelsOperator
-------------------------------------
+-------------------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverListNotificationChannelsOperator`
 to fetch all the Notification Channels identified by given filter.
@@ -151,7 +151,7 @@ If project is is missing it wil be retrieved from GCP connection used.
 .. _howto/operator:StackdriverListNotificationChannelsOperator:
 
 StackdriverEnableNotificationChannelsOperator
-------------------------------------
+---------------------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverEnableNotificationChannelsOperator`
 to enable Notification Channels identified by given filter.
@@ -171,7 +171,7 @@ If project is is missing it wil be retrieved from GCP connection used.
 .. _howto/operator:StackdriverEnableNotificationChannelsOperator:
 
 StackdriverDisableNotificationChannelsOperator
-------------------------------------
+----------------------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverDisableNotificationChannelsOperator`
 to disable Notification Channels identified by given filter.
@@ -191,7 +191,7 @@ If project is is missing it wil be retrieved from GCP connection used.
 .. _howto/operator:StackdriverDisableNotificationChannelsOperator:
 
 StackdriverUpsertNotificationChannelOperator
-------------------------------------
+--------------------------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.stackdriver.StackdriverUpsertNotificationChannelOperator`
 to upsert Notification Channels identified by given channel JSON string. If the channel with the give name already
@@ -212,7 +212,7 @@ If project is is missing it wil be retrieved from GCP connection used.
 .. _howto/operator:StackdriverUpsertNotificationChannelOperator:
 
 StackdriverDeleteNotificationChannelOperator
-------------------------------------
+--------------------------------------------
 
 The name of the alert to be deleted should be given in the format projects/<PROJECT_NAME>/notificationChannels/<CHANNEL_NAME>
 

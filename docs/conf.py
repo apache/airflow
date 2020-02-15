@@ -284,7 +284,7 @@ intersphinx_mapping = {
     'google-cloud-dlp': ('https://googleapis.dev/python/dlp/latest', None),
     'google-cloud-kms': ('https://googleapis.dev/python/cloudkms/latest', None),
     'google-cloud-language': ('https://googleapis.dev/python/language/latest', None),
-    'google-cloud-monitoring': ('https://googleapis.dev/python/monitoring/latest/index.html', None),
+    'google-cloud-monitoring': ('https://googleapis.dev/python/monitoring/latest', None),
     'google-cloud-pubsub': ('https://googleapis.dev/python/pubsub/latest', None),
     'google-cloud-redis': ('https://googleapis.dev/python/redis/latest', None),
     'google-cloud-spanner': ('https://googleapis.dev/python/spanner/latest', None),

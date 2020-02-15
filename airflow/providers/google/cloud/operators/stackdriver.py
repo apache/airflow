@@ -28,24 +28,23 @@ from airflow.utils.decorators import apply_defaults
 class StackdriverListAlertPoliciesOperator(BaseOperator):
     """
     Fetches all the Alert Policies identified by the filter passed as
-    filter_ parameter. The desired return type can be specified by the
-    format_ parameter, the supported formats are "dict", "json" and None
+    filter parameter. The desired return type can be specified by the
+    format parameter, the supported formats are "dict", "json" and None
     which returns python dictionary, stringified JSON and protobuf
     respectively.
+
     :param format_: (Optional) Desired output format of the result. The
         supported formats are "dict", "json" and None which returns
         python dictionary, stringified JSON and protobuf respectively.
     :type format_: str
-    :param filter_:  If provided, this field specifies the criteria that
-        must be met by alert policies to be included in the response.
-        For more details, see `sorting and filtering
-        <https://cloud.google.com/monitoring/api/v3/sorting-and-filtering>`__.
+    :param filter_:  If provided, this field specifies the criteria that must be met by alert
+        policies to be included in the response.
+        For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
     :type filter_: str
     :param order_by: A comma-separated list of fields by which to sort the result.
         Supports the same set of field references as the ``filter`` field. Entries
         can be prefixed with a minus sign to sort by the field in descending order.
-        For more details, see `sorting and filtering
-        <https://cloud.google.com/monitoring/api/v3/sorting-and-filtering>`__.
+        For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
     :type order_by: str
     :param page_size: The maximum number of resources contained in the
         underlying API response. If page streaming is performed per-
@@ -125,12 +124,12 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
 
 class StackdriverEnableAlertPoliciesOperator(BaseOperator):
     """
-    Enables one or more disabled alerting policies identified by filter_
+    Enables one or more disabled alerting policies identified by filter
     parameter. Inoperative in case the policy is already enabled.
+
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be enabled.
-        For more details, see `sorting and filtering
-        <https://cloud.google.com/monitoring/api/v3/sorting-and-filtering>`__.
+        For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
     :type filter_: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
@@ -192,12 +191,12 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
 # Disable Alert Operator
 class StackdriverDisableAlertPoliciesOperator(BaseOperator):
     """
-    Disables one or more enabled alerting policies identified by filter_
+    Disables one or more enabled alerting policies identified by filter
     parameter. Inoperative in case the policy is already disabled.
+
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be disabled.
-        For more details, see `sorting and filtering
-        <https://cloud.google.com/monitoring/api/v3/sorting-and-filtering>`__.
+        For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
     :type filter_: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
@@ -261,9 +260,10 @@ class StackdriverUpsertAlertOperator(BaseOperator):
     """
     Creates a new alert or updates an existing policy identified
     the name field in the alerts parameter.
+
     :param alerts: A JSON string or file that specifies all the alerts that needs
-        to be either created or updated. For more details, see `alert policies
-        <https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.alertPolicies#AlertPolicy>`__.
+        to be either created or updated. For more details, see
+        https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.alertPolicies#AlertPolicy.
         (templated)
     :type alerts: str
     :param retry: A retry object used to retry requests. If ``None`` is
@@ -329,6 +329,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
 class StackdriverDeleteAlertOperator(BaseOperator):
     """
     Deletes an alerting policy.
+
     :param name: The alerting policy to delete. The format is:
                      ``projects/[PROJECT_ID]/alertPolicies/[ALERT_POLICY_ID]``.
     :type name: str
@@ -393,24 +394,23 @@ class StackdriverDeleteAlertOperator(BaseOperator):
 class StackdriverListNotificationChannelsOperator(BaseOperator):
     """
     Fetches all the Notification Channels identified by the filter passed as
-    filter_ parameter. The desired return type can be specified by the
-    format_ parameter, the supported formats are "dict", "json" and None
+    filter parameter. The desired return type can be specified by the
+    format parameter, the supported formats are "dict", "json" and None
     which returns python dictionary, stringified JSON and protobuf
     respectively.
+
     :param format_: (Optional) Desired output format of the result. The
         supported formats are "dict", "json" and None which returns
         python dictionary, stringified JSON and protobuf respectively.
     :type format_: str
     :param filter_:  If provided, this field specifies the criteria that
         must be met by notification channels to be included in the response.
-        For more details, see `sorting and filtering
-        <https://cloud.google.com/monitoring/api/v3/sorting-and-filtering>`__.
+        For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
     :type filter_: str
     :param order_by: A comma-separated list of fields by which to sort the result.
         Supports the same set of field references as the ``filter`` field. Entries
         can be prefixed with a minus sign to sort by the field in descending order.
-        For more details, see `sorting and filtering
-        <https://cloud.google.com/monitoring/api/v3/sorting-and-filtering>`__.
+        For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
     :type order_by: str
     :param page_size: The maximum number of resources contained in the
         underlying API response. If page streaming is performed per-
@@ -492,12 +492,12 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
 
 class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     """
-    Enables one or more disabled alerting policies identified by filter_
+    Enables one or more disabled alerting policies identified by filter
     parameter. Inoperative in case the policy is already enabled.
+
     :param filter_:  If provided, this field specifies the criteria that
         must be met by notification channels to be enabled.
-        For more details, see `sorting and filtering
-        <https://cloud.google.com/monitoring/api/v3/sorting-and-filtering>`__.
+        For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
     :type filter_: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
@@ -561,12 +561,12 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
 
 class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     """
-    Disables one or more enabled notification channels identified by filter_
+    Disables one or more enabled notification channels identified by filter
     parameter. Inoperative in case the policy is already disabled.
+
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be disabled.
-        For more details, see `sorting and filtering
-        <https://cloud.google.com/monitoring/api/v3/sorting-and-filtering>`__.
+        For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
     :type filter_: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
@@ -632,9 +632,10 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
     """
     Creates a new notification or updates an existing notification channel
     identified the name field in the alerts parameter.
+
     :param channels: A JSON string or file that specifies all the alerts that needs
-        to be either created or updated. For more details, see `notification channels
-        <https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.notificationChannels>`__.
+        to be either created or updated. For more details, see
+        https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.notificationChannels.
         (templated)
     :type channels: str
     :param retry: A retry object used to retry requests. If ``None`` is
@@ -701,6 +702,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
 class StackdriverDeleteNotificationChannelOperator(BaseOperator):
     """
     Deletes a notification channel.
+
     :param name: The alerting policy to delete. The format is:
                      ``projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]``.
     :type name: str
