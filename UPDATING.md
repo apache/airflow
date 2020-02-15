@@ -61,6 +61,16 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Added `airflow dags test` CLI command
+
+A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
+`airflow tasks test`. Example usage:
+
+```
+airflow dags test [dag_id] [execution_date]
+airflow dags test example_branch_operator 2018-01-01
+```
+
 ### Drop plugin support for stat_name_handler
 
 In previous version, you could use plugins mechanism to configure ``stat_name_handler``. You should now use the `stat_name_handler`
