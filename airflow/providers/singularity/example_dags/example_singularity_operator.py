@@ -19,7 +19,7 @@
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.contrib.operators.singularity_operator import SingularityOperator
+from airflow.providers.singularity.operators import SingularityOperator
 from airflow.operators.bash_operator import BashOperator
 
 default_args = {
