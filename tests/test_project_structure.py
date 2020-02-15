@@ -253,7 +253,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
 
 
 class TestOperatorsHooks(unittest.TestCase):
-    def test_some_suffix_is_illegal(self):
+    def test_no_illegal_suffixes(self):
         files = itertools.chain(*[
             glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
