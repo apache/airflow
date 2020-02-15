@@ -528,6 +528,7 @@ class SchedulerJob(BaseJob):
         for filename, stacktrace in six.iteritems(dagbag.import_errors):
             session.add(errors.ImportError(
                 filename=filename,
+                timestamp=timezone.utcnow(),
                 stacktrace=stacktrace))
         session.commit()
 
