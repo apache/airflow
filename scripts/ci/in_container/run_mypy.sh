@@ -33,7 +33,7 @@ echo "Running mypy with parameters: $*"
 echo
 echo
 
-mypy --cache-dir=/dev/null "$@"
+mypy "$@"
 
 RES="$?"
 
