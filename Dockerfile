@@ -243,45 +243,6 @@ RUN KIND_URL="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_V
    && curl --fail --location "${KIND_URL}" --output "/usr/local/bin/kind" \
    && chmod +x /usr/local/bin/kind
 
-# Install Apache RAT
-ARG RAT_VERSION="0.13"
-ARG RAT_BACKUP_SITE_1="https://www-eu.apache.org/dist/creadur"
-ARG RAT_BACKUP_SITE_2="https://www-us.apache.org/dist/creadur"
-# It's OK to use HTTP rather than https here as we verify it later with gpg from the
-# offcial backup servers of Apache!
-ARG RAT_MIRROR_1="http://mirror.serverion.com/apache/creadur"
-ARG RAT_MIRROR_2="http://mirror.cc.columbia.edu/pub/software/apache/creadur"
-
-RUN RAT_TARGZ_FILE_NAME="apache-rat-${RAT_VERSION}-bin.tar.gz" \
-    && RAT_FOLDER="apache-rat-${RAT_VERSION}" \
-    && RAT_KEYS_URL_1="${RAT_BACKUP_SITE_1}/KEYS" \
-    && RAT_KEYS_URL_2="${RAT_BACKUP_SITE_2}/KEYS"  \
-    && RAT_ASC_URL_1="${RAT_BACKUP_SITE_1}/${RAT_FOLDER}/${RAT_TARGZ_FILE_NAME}.asc" \
-    && RAT_ASC_URL_2="${RAT_BACKUP_SITE_2}/${RAT_FOLDER}/${RAT_TARGZ_FILE_NAME}.asc" \
-    && RAT_URL_1="${RAT_MIRROR_1}/${RAT_FOLDER}/${RAT_TARGZ_FILE_NAME}" \
-    && RAT_URL_2="${RAT_MIRROR_2}/${RAT_FOLDER}/${RAT_TARGZ_FILE_NAME}"  \
-    && RAT_TAR_GZ="/opt/${RAT_TARGZ_FILE_NAME}" \
-    && RAT_TAR_GZ_ASC="/opt/${RAT_TARGZ_FILE_NAME}.asc" \
-    && RAT_KEYS="/opt/KEYS" \
-    && RAT_JAR_IN_TAR="${RAT_FOLDER}/apache-rat-${RAT_VERSION}.jar" \
-    && RAT_JAR="/opt/apache-rat.jar" \
-    && echo "Downloading KEYS from backup Apache servers: ${RAT_KEYS_URL_1}, ${RAT_KEYS_URL_2}" \
-    && (curl --fail --location "${RAT_KEYS_URL_1}" --output "${RAT_KEYS}" || \
-        curl --fail --location "${RAT_KEYS_URL_2}" --output "${RAT_KEYS}") \
-    && echo "Downloading ASC from backup Apache servers: ${RAT_ASC_URL_1}, ${RAT_ASC_URL_2}" \
-    && (curl --fail --location "${RAT_ASC_URL_1}" --output "${RAT_TAR_GZ_ASC}" || \
-        curl --fail --location "${RAT_ASC_URL_2}" --output "${RAT_TAR_GZ_ASC}") \
-    && echo "Downloading RAT from mirrors: ${RAT_URL_1}, ${RAT_URL_2} to ${RAT_JAR}" \
-    && (curl --fail --location "${RAT_URL_1}" --output "${RAT_TAR_GZ}" || \
-        curl --fail --location "${RAT_URL_2}" --output "${RAT_TAR_GZ}") \
-    && gpg --import ${RAT_KEYS} \
-    && gpg --verify "${RAT_TAR_GZ_ASC}" "${RAT_TAR_GZ}" \
-    && tar --extract --gzip --file "${RAT_TAR_GZ}" -C /opt "${RAT_JAR_IN_TAR}" \
-    && mv -v /opt/"${RAT_JAR_IN_TAR}" "${RAT_JAR}" \
-    && rm -vrf "${RAT_TAR_GZ}" "/opt/${RAT_FOLDER}" \
-    && rm -f "${RAT_KEYS}" \
-    && jar -tf "${RAT_JAR}" >/dev/null
-
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
