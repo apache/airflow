@@ -1853,6 +1853,22 @@
       type: string
       example: ~
       default: ""
+    - name: extra_volume_mounts
+      description: |
+        Extra volumes to be mounted in worker pods.  Volumes are specified as
+        keys in a JSON object with nested JSON values specifying each volume's
+        options.  Recognized options are `claim_name` or `secret_name`
+        (required), `mount_path` (required), `read_only` (boolean, default
+        null), `sub_path` (default null), `secret_key` (string, default null),
+        `secret_mode` (string, default null).
+      version_added: ~
+      type: string
+      example: >-
+        "{{\"secret_vol\": {{\"secret_name\": \"some-secret\",
+        \"mount_path\": \"/dir1\", \"sub_path\": \"subpath1\",
+        \"secret_mode\": \"440\"}},
+        \"pvc\": {{\"claim_name\": \"some-pvc\", \"mount_path\": \"/dir2\"}}}}"
+      default: ""
     - name: dags_volume_host
       description: |
         For DAGs mounted via a hostPath volume (mutually exclusive with volume claim and git-sync)

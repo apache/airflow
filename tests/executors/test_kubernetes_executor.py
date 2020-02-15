@@ -34,6 +34,7 @@ try:
     from airflow.executors.kubernetes_executor import KubernetesExecutor
     from airflow.executors.kubernetes_executor import KubeConfig
     from airflow.kubernetes.pod_generator import PodGenerator
+    from airflow.exceptions import AirflowConfigException
     from airflow.utils.state import State
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
@@ -166,6 +167,125 @@ class TestKubeConfig(unittest.TestCase):
     })
     def test_kube_config_git_sync_run_as_user_empty_string(self):
         self.assertEqual(KubeConfig().git_sync_run_as_user, '')
+
+    @conf_vars({
+        ('kubernetes', 'dags_volume_subpath'): 'dags',
+        ('kubernetes', 'logs_volume_subpath'): 'logs',
+        ('kubernetes', 'dags_volume_claim'): 'dags',
+        ('kubernetes', 'dags_folder'): 'dags',
+        ('kubernetes', 'extra_volume_mounts'):
+        '{"pvc1": {"secret_name": "secret1", "mount_path": "/volume1",'
+        ' "sub_path": "subpath1", "secret_mode": "440"}}',
+    })
+    def test_worker_extra_volume_mounts_single(self):
+        kube_config = KubeConfig()
+
+        assert len(kube_config.extra_volume_mounts) == 1
+        assert kube_config.extra_volume_mounts['pvc1'] == {
+            'claim_name': None,
+            'mount_path': '/volume1',
+            'sub_path': 'subpath1',
+            'read_only': None,
+            'secret_name': 'secret1',
+            'secret': True,
+            'secret_key': None,
+            'secret_mode': 0o440,
+        }
+
+    @conf_vars({
+        ('kubernetes', 'dags_volume_subpath'): 'dags',
+        ('kubernetes', 'logs_volume_subpath'): 'logs',
+        ('kubernetes', 'dags_volume_claim'): 'dags',
+        ('kubernetes', 'dags_folder'): 'dags',
+        ('kubernetes', 'extra_volume_mounts'): '{[]}',
+    })
+    def test_worker_extra_volume_mounts_invalid_json(self):
+        with self.assertRaisesRegex(AirflowConfigException,
+                                    'Error parsing.*`extra_volume_mounts`.*'):
+            KubeConfig()
+
+    @conf_vars({
+        ('kubernetes', 'dags_volume_subpath'): 'dags',
+        ('kubernetes', 'logs_volume_subpath'): 'logs',
+        ('kubernetes', 'dags_volume_claim'): 'dags',
+        ('kubernetes', 'dags_folder'): 'dags',
+        ('kubernetes', 'extra_volume_mounts'):
+        '{"pvc1": {"mount_path": "/volume1", "secret_mode": 1}}',
+    })
+    def test_worker_extra_volume_mounts_invalid_mode(self):
+        with self.assertRaisesRegex(AirflowConfigException,
+                                    'Error converting.*`extra_volume_mounts`.*'):
+            KubeConfig()
+
+    @conf_vars({
+        ('kubernetes', 'dags_volume_subpath'): 'dags',
+        ('kubernetes', 'logs_volume_subpath'): 'logs',
+        ('kubernetes', 'dags_volume_claim'): 'dags',
+        ('kubernetes', 'dags_folder'): 'dags',
+        ('kubernetes', 'extra_volume_mounts'):
+        '{"pvc1": {"mount_path": "/volume1", "read_only": "no"}}',
+    })
+    def test_worker_extra_volume_mounts_invalid_read_only(self):
+        with self.assertRaisesRegex(
+                AirflowConfigException,
+                'Value of `read_only` is not boolean.*`extra_volume_mounts`.*'):
+            KubeConfig()
+
+    @conf_vars({
+        ('kubernetes', 'dags_volume_subpath'): 'dags',
+        ('kubernetes', 'logs_volume_subpath'): 'logs',
+        ('kubernetes', 'dags_volume_claim'): 'dags',
+        ('kubernetes', 'dags_folder'): 'dags',
+        ('kubernetes', 'extra_volume_mounts'):
+        '{"pvc1": {"mount_path": "/volume1", "secret_key": "key"}}',
+    })
+    def test_worker_extra_volume_mounts_missing_key_path(self):
+        with self.assertRaisesRegex(
+                AirflowConfigException,
+                'Missing `secret_key_path`.*`extra_volume_mounts`.*'):
+            KubeConfig()
+
+    @conf_vars({
+        ('kubernetes', 'dags_volume_subpath'): 'dags',
+        ('kubernetes', 'logs_volume_subpath'): 'logs',
+        ('kubernetes', 'dags_volume_claim'): 'dags',
+        ('kubernetes', 'dags_folder'): 'dags',
+        ('kubernetes', 'extra_volume_mounts'):
+        '{"pvc1": {"read_only": true}}',
+    })
+    def test_worker_extra_volume_mounts_missing_mount_path(self):
+        with self.assertRaisesRegex(
+                AirflowConfigException,
+                'Missing `mount_path`.*`extra_volume_mounts`.*'):
+            KubeConfig()
+
+    @conf_vars({
+        ('kubernetes', 'dags_volume_subpath'): 'dags',
+        ('kubernetes', 'logs_volume_subpath'): 'logs',
+        ('kubernetes', 'dags_volume_claim'): 'dags',
+        ('kubernetes', 'dags_folder'): 'dags',
+        ('kubernetes', 'extra_volume_mounts'):
+        '{"pvc1": {"mount_path": "/volume1", "secret_mode": "443"}}',
+    })
+    def test_worker_extra_volume_mounts_missing_secret_name(self):
+        with self.assertRaisesRegex(
+                AirflowConfigException,
+                'Missing `secret_name`.*`extra_volume_mounts`.*'):
+            KubeConfig()
+
+    @conf_vars({
+        ('kubernetes', 'dags_volume_subpath'): 'dags',
+        ('kubernetes', 'logs_volume_subpath'): 'logs',
+        ('kubernetes', 'dags_volume_claim'): 'dags',
+        ('kubernetes', 'dags_folder'): 'dags',
+        ('kubernetes', 'extra_volume_mounts'):
+        '{"pvc1": {"mount_path": "/volume1"}}',
+    })
+    def test_worker_extra_volume_mounts_missing_name(self):
+        with self.assertRaisesRegex(
+                AirflowConfigException,
+                'Missing `claim_name` or `secret_name`.*`extra_volume_mounts`.*'):
+            KubeConfig()
 
 
 class TestKubernetesExecutor(unittest.TestCase):
