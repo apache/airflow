@@ -26,6 +26,7 @@ import datetime
 import json
 import multiprocessing
 import time
+from json import JSONDecodeError
 from queue import Empty, Queue  # pylint: disable=unused-import
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -169,6 +170,9 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         self.dags_volume_subpath = conf.get(
             self.kubernetes_section, 'dags_volume_subpath')
 
+        # This prop may optionally be set for the addition of extra volume mounts
+        self.extra_volume_mounts = self._parse_extra_volume_mounts()
+
         # This prop may optionally be set for PV Claims and is used to locate logs
         # on a SubPath
         self.logs_volume_subpath = conf.get(
@@ -256,6 +260,25 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
         else:
             return int(val)
 
+    def _parse_extra_volume_mounts(self) -> Dict[str, Dict[str, Any]]:
+        res: Dict[str, Dict[str, Any]] = {}
+
+        extra_volume_mounts = conf.get(self.kubernetes_section, 'extra_volume_mounts')
+
+        if extra_volume_mounts:  # pylint: disable=too-many-nested-blocks
+
+            try:
+                res = json.loads(extra_volume_mounts)
+            except JSONDecodeError as e:
+                raise AirflowConfigException(
+                    'Error parsing config option'
+                    ' `extra_volume_mounts`: {}.'.format(e))
+
+            for pvc_name, pvc_settings in res.items():
+                validate_pvc_settings(pvc_name, pvc_settings)
+
+        return res
+
     def _validate(self):
         if self.pod_template_file:
             return
@@ -281,6 +304,58 @@ class KubeConfig:  # pylint: disable=too-many-instance-attributes
                 'or `git_ssh_key_secret_name` must be set for authentication '
                 'through ssh key, but not both')
         # pylint: enable=too-many-boolean-expressions
+
+
+def validate_pvc_settings(pvc_name: str, pvc_settings: Dict[str, Any]) -> None:
+    """Validate additional persistent volume claim settings.
+
+    :raises: airflow.exceptions.AirflowConfigException
+    """
+    if 'mount_path' not in pvc_settings:
+        raise AirflowConfigException(
+            'Missing `mount_path` in config option'
+            ' `extra_volume_mounts`: {}.'.format(pvc_name))
+
+    pvc_settings.setdefault('sub_path', None)
+
+    read_only = pvc_settings.setdefault('read_only', None)
+    if not isinstance(read_only, (bool, type(None))):
+        raise AirflowConfigException(
+            'Value of `read_only` is not boolean in config option'
+            ' `extra_volume_mounts`: {}.'.format(read_only))
+
+    secret_mode = pvc_settings.setdefault('secret_mode', None)
+    if secret_mode is not None:
+        try:
+            pvc_settings['secret_mode'] = int(secret_mode, 8)
+            pvc_settings['secret'] = True
+        except TypeError as e:
+            raise AirflowConfigException(
+                'Error converting `secret_mode` in config option'
+                ' `extra_volume_mounts`: {}.'.format(e))
+
+    secret_key = pvc_settings.setdefault('secret_key', None)
+    if secret_key is not None:
+        pvc_settings['secret'] = True
+
+        if 'secret_key_path' not in pvc_settings:
+            raise AirflowConfigException(
+                'Missing `secret_key_path` in config option'
+                ' `extra_volume_mounts`: {}.'.format(pvc_name))
+
+    claim_name = pvc_settings.setdefault('claim_name', None)
+    secret_name = pvc_settings.setdefault('secret_name', None)
+
+    if secret_name is None and \
+       (secret_key is not None or secret_mode is not None):
+        raise AirflowConfigException(
+            'Missing `secret_name` in config option'
+            ' `extra_volume_mounts`: {}.'.format(read_only))
+    elif not (secret_name or claim_name):
+        raise AirflowConfigException(
+            'Missing `claim_name` or `secret_name` value'
+            ' in config option'
+            ' `extra_volume_mounts`: {}.'.format(read_only))
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):

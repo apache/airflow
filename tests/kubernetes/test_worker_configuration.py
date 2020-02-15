@@ -144,6 +144,75 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         }):
             self.assertEqual(KubeConfig().delete_option_kwargs, expected_value)
 
+    @conf_vars({
+        ('kubernetes', 'dags_volume_subpath'): 'dags',
+        ('kubernetes', 'logs_volume_subpath'): 'logs',
+        ('kubernetes', 'dags_volume_claim'): 'dags',
+        ('kubernetes', 'dags_folder'): 'dags',
+        ('kubernetes', 'extra_volume_mounts'):
+        '{"pvc1": {"claim_name": "c1", "mount_path": "/volume1", "sub_path": "subpath1"},'
+        ' "pvc2": {"claim_name": "c2", "mount_path": "/volume2", "read_only": true},'
+        ' "pvc3": {"secret_name": "s1", "mount_path": "/volume3", "secret": true},'
+        ' "pvc4": {"secret_name": "s2", "mount_path": "/volume4", "secret_mode": "440"},'
+        ' "pvc5": {"secret_name": "s3", "mount_path": "/volume5", "secret_mode": "440",'
+        ' "secret_key": "key", "secret_key_path": "path"}}',
+    })
+    def test_worker_extra_volume_mounts(self):
+        kube_config = KubeConfig()
+
+        assert kube_config.extra_volume_mounts
+
+        worker_config = WorkerConfiguration(kube_config)
+        volume_mounts = worker_config._get_volume_mounts()
+        volume_mounts = {v.name: v for v in volume_mounts}
+
+        assert 'pvc1' in volume_mounts
+        assert 'pvc2' in volume_mounts
+        assert 'pvc3' in volume_mounts
+        assert 'pvc4' in volume_mounts
+        assert volume_mounts['pvc1'].mount_path == '/volume1'
+        assert volume_mounts['pvc1'].read_only is None
+        assert volume_mounts['pvc1'].sub_path == 'subpath1'
+        assert volume_mounts['pvc2'].mount_path == '/volume2'
+        assert volume_mounts['pvc2'].read_only is True
+        assert volume_mounts['pvc2'].sub_path is None
+        assert volume_mounts['pvc3'].mount_path == '/volume3'
+        assert volume_mounts['pvc3'].read_only is None
+        assert volume_mounts['pvc3'].sub_path is None
+        assert volume_mounts['pvc4'].mount_path == '/volume4'
+        assert volume_mounts['pvc4'].read_only is None
+        assert volume_mounts['pvc4'].sub_path is None
+        assert volume_mounts['pvc5'].mount_path == '/volume5'
+        assert volume_mounts['pvc5'].read_only is None
+        assert volume_mounts['pvc5'].sub_path is None
+
+        volumes = {v.name: v for v in worker_config._get_volumes()}
+        assert 'pvc1' in volumes
+        assert 'pvc2' in volumes
+        assert 'pvc3' in volumes
+        assert 'pvc4' in volumes
+        assert 'pvc5' in volumes
+        assert volumes['pvc1'].persistent_volume_claim.claim_name == 'c1'
+        assert volumes['pvc2'].persistent_volume_claim.claim_name == 'c2'
+
+        assert volumes['pvc3'].persistent_volume_claim is None
+        assert volumes['pvc3'].secret.secret_name == 's1'
+        assert volumes['pvc3'].secret.default_mode is None
+        assert volumes['pvc3'].secret.items is None
+
+        assert volumes['pvc4'].persistent_volume_claim is None
+        assert volumes['pvc4'].secret.secret_name == 's2'
+        assert volumes['pvc4'].secret.default_mode == 0o440
+        assert volumes['pvc4'].secret.items is None
+
+        assert volumes['pvc5'].persistent_volume_claim is None
+        assert volumes['pvc5'].secret.secret_name == 's3'
+        assert volumes['pvc5'].secret.default_mode is None
+        assert len(volumes['pvc5'].secret.items) == 1
+        assert volumes['pvc5'].secret.items[0].key == 'key'
+        assert volumes['pvc5'].secret.items[0].path == 'path'
+        assert volumes['pvc5'].secret.items[0].mode == 0o440
+
     def test_worker_with_subpaths(self):
         self.kube_config.dags_volume_subpath = 'dags'
         self.kube_config.logs_volume_subpath = 'logs'

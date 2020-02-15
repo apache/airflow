@@ -263,6 +263,13 @@ class WorkerConfiguration(LoggingMixin):
             )
         }
 
+        for vol_name, vol_mnt_args in self.kube_config.extra_volume_mounts.items():
+            volume_mounts[vol_name] = k8s.V1VolumeMount(
+                name=vol_name,
+                sub_path=vol_mnt_args['sub_path'],
+                mount_path=vol_mnt_args['mount_path'],
+                read_only=vol_mnt_args['read_only'])
+
         if self.kube_config.dags_volume_subpath:
             volume_mounts[self.dags_volume_name].sub_path = self.kube_config.dags_volume_subpath
 
@@ -330,6 +337,31 @@ class WorkerConfiguration(LoggingMixin):
                 self.kube_config.logs_volume_host
             )
         }
+
+        for vol_name, vol_args in self.kube_config.extra_volume_mounts.items():
+
+            if vol_args['secret_name']:
+                pvc_volume = k8s.V1Volume(
+                    name=vol_name,
+                    secret=k8s.V1SecretVolumeSource(
+                        secret_name=vol_args['secret_name']
+                    )
+                )
+
+                if vol_args['secret_key']:
+                    pvc_volume.secret.items = [
+                        k8s.V1KeyToPath(
+                            key=vol_args['secret_key'],
+                            path=vol_args['secret_key_path'],
+                            mode=vol_args['secret_mode']
+                        )]
+                else:
+                    pvc_volume.secret.default_mode = vol_args['secret_mode']
+            else:
+                pvc_volume = _construct_volume(
+                    vol_name, vol_args['claim_name'], None)
+
+            volumes[vol_name] = pvc_volume
 
         if self.kube_config.dags_in_image:
             del volumes[self.dags_volume_name]
