@@ -21,7 +21,7 @@ import getpass
 from time import sleep
 from typing import Optional
 
-from sqlalchemy import Column, Index, Integer, String, and_, or_
+from sqlalchemy import Column, Index, Integer, String, and_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
@@ -280,19 +280,18 @@ class BaseJob(Base, LoggingMixin):
             return []
 
         def query(result, items):
-            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
-                                    TI.task_id == ti.task_id,
-                                    TI.execution_date == ti.execution_date)
-                               for ti in items])
-            reset_tis = (
-                session
-                .query(TI)
-                .filter(or_(*filter_for_tis), TI.state.in_(resettable_states))
-                .with_for_update()
-                .all())
+            if not items:
+                return result
+
+            filter_for_tis = TI.filter_for_tis(items)
+            reset_tis = session.query(TI).filter(
+                filter_for_tis, TI.state.in_(resettable_states)
+            ).with_for_update().all()
+
             for ti in reset_tis:
                 ti.state = State.NONE
                 session.merge(ti)
+
             return result + reset_tis
 
         reset_tis = helpers.reduce_in_chunks(query,

@@ -31,9 +31,10 @@ from urllib.parse import quote
 import dill
 import lazy_object_proxy
 import pendulum
-from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, and_, func, or_
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
+from sqlalchemy.sql.elements import BooleanClauseList
 
 from airflow import settings
 from airflow.configuration import conf
@@ -1523,6 +1524,29 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.raw = raw
         self._set_context(self)
+
+    @staticmethod
+    def filter_for_tis(
+        tis: Iterable[Union["TaskInstance", TaskInstanceKeyType]]
+    ) -> Optional[BooleanClauseList]:
+        """Returns SQLAlchemy filter to query selected task instances"""
+        TI = TaskInstance
+        if not tis:
+            return None
+        if all(isinstance(t, tuple) for t in tis):
+            filter_for_tis = ([and_(TI.dag_id == dag_id,
+                                    TI.task_id == task_id,
+                                    TI.execution_date == execution_date)
+                               for dag_id, task_id, execution_date, _ in tis])
+            return or_(*filter_for_tis)
+        if all(isinstance(t, TaskInstance) for t in tis):
+            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,  # type: ignore
+                                    TI.task_id == ti.task_id,  # type: ignore
+                                    TI.execution_date == ti.execution_date)  # type: ignore
+                               for ti in tis])
+            return or_(*filter_for_tis)
+
+        raise TypeError("All elements must have the same type: `TaskInstance` or `TaskInstanceKey`.")
 
 
 # State of the task instance.

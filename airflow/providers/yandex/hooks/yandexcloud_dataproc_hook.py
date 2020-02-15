@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,37 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-# Script to run mypy on all code. Can be started from any working directory
-set -uo pipefail
+from airflow.providers.yandex.hooks import YandexCloudBaseHook
 
-MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${MY_DIR}/_in_container_utils.sh"
+class DataprocHook(YandexCloudBaseHook):
+    """
+    A base hook for Yandex.Cloud Data Proc.
 
-in_container_basic_sanity_check
+    :param connection_id: The connection ID to use when fetching connection info.
+    :type connection_id: str
+    """
 
-in_container_script_start
-
-print_in_container_info
-print_in_container_info "Running mypy with parameters: $*"
-print_in_container_info
-print_in_container_info
-
-mypy "$@"
-
-RES="$?"
-
-in_container_script_end
-
-if [[ "${RES}" != 0 ]]; then
-    echo >&2
-    echo >&2 "There were some mypy errors. Exiting"
-    echo >&2
-    exit 1
-else
-    echo
-    echo "Mypy check succeeded"
-    echo
-fi
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cluster_id = None
+        self.client = self.sdk.wrappers.Dataproc(
+            default_folder_id=self.default_folder_id,
+            default_public_ssh_key=self.default_public_ssh_key,
+        )

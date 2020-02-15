@@ -850,6 +850,52 @@ Other operators and hooks
 
 .. _service:
 
+
+Yandex.Cloud
+--------------------------
+
+Airflow has a limited support for the `Yandex.Cloud <https://cloud.yandex.com/>`__.
+
+See the :doc:`Yandex.Cloud connection type <howto/connection/yandexcloud>` documentation to
+configure connections to Yandex.Cloud.
+
+All hooks are based on :class:`airflow.contrib.hooks.yandexcloud_base_hook.YandexCloudBaseHook`.
+
+.. note::
+    You can learn how to use Yandex.Cloud integrations by analyzing the
+    `example DAG <https://github.com/apache/airflow/tree/master/airflow/contrib/example_dags/example_yandexcloud_dataproc.py>`_
+
+Service operators and hooks
+'''''''''''''''''''''''''''
+
+These integrations allow you to perform various operations within the Yandex.Cloud.
+
+..
+  PLEASE KEEP THE ALPHABETICAL ORDER OF THE LIST BELOW, BUT OMIT THE "Cloud" PREFIX
+
+.. list-table::
+   :header-rows: 1
+
+   * - Service name
+     - Guide
+     - Hook
+     - Operators
+     - Sensors
+
+   * - `Base Classes <https://cloud.yandex.com>`__
+     - :doc:`How to use <howto/operator/yandexcloud>`
+     - :mod:`airflow.providers.yandex.hooks.yandexcloud_base_hook`
+     - :mod:`airflow.providers.yandex.operators.yandexcloud_base_operator`
+     -
+
+   * - `Data Proc <https://cloud.yandex.com/services/data-proc>`__
+     - :doc:`How to use <howto/operator/yandexcloud>`
+     - :mod:`airflow.providers.yandex.hooks.yandexcloud_dataproc_hook`
+     - :mod:`airflow.providers.yandex.operators.yandexcloud_dataproc_operator`
+     -
+
+.. _yc_service:
+
 Service integrations
 --------------------
 

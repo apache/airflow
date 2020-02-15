@@ -708,30 +708,21 @@ function run_check_license() {
 function run_mypy() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init"  \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "airflow" "tests" "docs" \
-            | tee -a "${OUTPUT_LOG}"
-    else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
-            --entrypoint "/usr/local/bin/dumb-init" \
-            --env PYTHONDONTWRITEBYTECODE \
-            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
-            --env AIRFLOW_CI_SILENT \
-            --env HOST_USER_ID="$(id -ur)" \
-            --env HOST_GROUP_ID="$(id -gr)" \
-            --rm \
-            "${AIRFLOW_CI_IMAGE}" \
-            "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}" \
-            | tee -a "${OUTPUT_LOG}"
+      FILES=(airflow tests docs)
     fi
+
+    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        --entrypoint "/usr/local/bin/dumb-init"  \
+        --env PYTHONDONTWRITEBYTECODE \
+        --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+        --env AIRFLOW_CI_SILENT \
+        --env HOST_USER_ID="$(id -ur)" \
+        --env HOST_GROUP_ID="$(id -gr)" \
+        "-v" "${AIRFLOW_SOURCES}/.mypy_cache:/opt/airflow/.mypy_cache" \
+        --rm \
+        "${AIRFLOW_CI_IMAGE}" \
+        "--" "/opt/airflow/scripts/ci/in_container/run_mypy.sh" "${FILES[@]}" \
+        | tee -a "${OUTPUT_LOG}"
 }
 
 function run_pylint_main() {

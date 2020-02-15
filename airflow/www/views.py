@@ -2204,7 +2204,13 @@ class ConnectionModelView(AirflowModelView):
                     'extra__google_cloud_platform__num_retries',
                     'extra__grpc__auth_type',
                     'extra__grpc__credential_pem_file',
-                    'extra__grpc__scopes']
+                    'extra__grpc__scopes',
+                    'extra__yandexcloud__service_account_json',
+                    'extra__yandexcloud__service_account_json_path',
+                    'extra__yandexcloud__oauth',
+                    'extra__yandexcloud__public_ssh_key',
+                    'extra__yandexcloud__folder_id',
+                    ]
     list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted',
                     'is_extra_encrypted']
     add_columns = edit_columns = ['conn_id', 'conn_type', 'host', 'schema',
@@ -2225,7 +2231,7 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc']:
+        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc', 'yandexcloud']:
             extra = {
                 key: formdata[key]
                 for key in self.extra_fields if key in formdata}
