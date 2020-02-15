@@ -280,7 +280,7 @@ repos:
         entry: "./scripts/ci/pre_commit_mypy.sh"
         files: \.py$
         exclude: ^airflow/_vendor/.*$|^dev/
-        pass_filenames: true
+        pass_filenames: false
       - id: flake8
         name: Run flake8
         language: system
