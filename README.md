@@ -245,6 +245,7 @@ Currently **officially** using Airflow:
 1. [Fundera](https://fundera.com) [[@andyxhadji](https://github.com/andyxhadji)]
 1. [G Adventures](https://gadventures.com) [[@chchtv11](https://github.com/chchtv11), [@tgumbley](https://github.com/tgumbley), [@tomwross](https://github.com/tomwross)]
 1. [GameWisp](https://gamewisp.com) [[@tjbiii](https://github.com/TJBIII) & [@theryanwalls](https://github.com/theryanwalls)]
+1. [Geekie](https://www.geekie.com.br) [[@wolney](https://github.com/wolney)]
 1. [GeneCards](https://www.genecards.org) [[@oferze](https://github.com/oferze)]
 1. [Gentner Lab](http://github.com/gentnerlab) [[@neuromusic](https://github.com/neuromusic)]
 1. [Get Simpl](https://getsimpl.com/) [[@rootcss](https://github.com/rootcss)]
