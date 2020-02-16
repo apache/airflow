@@ -139,7 +139,7 @@ with models.DAG(
     )
 
     get_data_result = BashOperator(
-        task_id="get_data_result", bash_command="echo \"{{ task_instance.xcom_pull('get-data') }}\""
+        task_id="get_data_result", bash_command="echo \"{{ task_instance.xcom_pull('get_data') }}\""
     )
 
     create_external_table = BigQueryCreateExternalTableOperator(
