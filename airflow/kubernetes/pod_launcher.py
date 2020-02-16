@@ -18,26 +18,23 @@
 import json
 import math
 import time
-import tenacity
-
 from datetime import datetime as dt
-from typing import Tuple, Optional, Generator, List
-from requests.exceptions import BaseHTTPError
+from typing import Generator, List, Optional, Tuple
 
+import tenacity
 from kubernetes import client, watch
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
-
+from requests.exceptions import BaseHTTPError
+from urllib3 import HTTPResponse
 
 from airflow.exceptions import AirflowException
 from airflow.kubernetes.pod_generator import PodDefaults
-from airflow.kubernetes.pod import Pod
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-from urllib3 import HTTPResponse
 from .kube_client import get_kube_client
 
 POD_LOGS_POLL_INTERVAL_SECONDS = 5
@@ -174,7 +171,18 @@ class PodLauncher(LoggingMixin):
         wait=tenacity.wait_exponential(),
         reraise=True,
     )
-    def _read_pod_log_chunk(self, pod: Pod, last_line: bytes) -> HTTPResponse:
+    def _request_pod_log_chunk(self, pod: V1Pod, since_seconds: int) -> str:
+        return self._client.read_namespaced_pod_log(
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            container='base',
+            follow=False,
+            since_seconds=since_seconds,
+            timestamps=True,
+            _preload_content=False
+        )
+
+    def _read_pod_log_chunk(self, pod: V1Pod, last_line: bytes) -> Generator[bytes, None, None]:
         # The CoreV1Api doesn't support since_time even though the API does, so we must use
         # since_seconds. Add 15 seconds of buffer just in case of NTP woes
         if last_line:
@@ -186,19 +194,10 @@ class PodLauncher(LoggingMixin):
         else:
             since_time = dt.utcfromtimestamp(0)
         since_seconds = math.ceil((dt.utcnow() - since_time).total_seconds() + 15)
-        resp = self._client.read_namespaced_pod_log(
-            name=pod.name,
-            namespace=pod.namespace,
-            container='base',
-            follow=False,
-            since_seconds=since_seconds,
-            timestamps=True,
-            _preload_content=False
-        )
-
+        resp = self._request_pod_log_chunk(pod, since_seconds)
         # If we've already read a chunk, skip until we find a matching line
         # Just in case since_seconds doesn't get everything we want, keep the previous lines in a buffer
-        buffered_lines: List[bytes] = []
+        buffered_lines = []  # type: List[bytes]
         skipping_lines = True
         for line in resp:
             if skipping_lines:
@@ -212,18 +211,13 @@ class PodLauncher(LoggingMixin):
                 yield line
 
         if buffered_lines:
-            self.log.warn(
+            self.log.warning(
                 "End of previous log chunk not found in next chunk. May indicated log line loss"
             )
             for buffered_line in buffered_lines:
                 yield buffered_line
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_exponential(),
-        reraise=True
-    )
-    def read_pod_logs(self, pod: Pod) -> Generator[str, None, None]:
+    def read_pod_logs(self, pod: V1Pod) -> Generator[bytes, None, None]:
         """
         Reads pod logs from the Kubernetes API until the pod stops.
 
@@ -241,7 +235,7 @@ class PodLauncher(LoggingMixin):
         # The timestamps returned from the Kubernetes API are in nanoseconds, and appear
         # to never duplicate across lines so we can use the timestamp plus the line
         # content to deduplicate log lines across multiple runs
-        last_line = ""
+        last_line = b""
         # We use a variable here instead of looping on self.pod_is_running so
         # that we can get one more read in the loop before breaking out
         pod_is_running = True
