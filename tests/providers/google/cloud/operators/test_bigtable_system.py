@@ -15,19 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+
 import pytest
 
-from tests.providers.google.cloud.operators.test_bigtable_system_helper import GCPBigtableTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGTABLE_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
+CBT_INSTANCE = os.environ.get('CBT_INSTANCE_ID', 'testinstance')
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_BIGTABLE_KEY)
-class BigTableExampleDagsSystemTest(SystemTest):
-    helper = GCPBigtableTestHelper()
+class BigTableExampleDagsSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_BIGTABLE_KEY)
     def test_run_example_dag_gcs_bigtable(self):
@@ -35,5 +36,9 @@ class BigTableExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_BIGTABLE_KEY)
     def tearDown(self):
-        self.helper.delete_instance()
+        self.execute_with_ctx([
+            'gcloud', 'bigtable', '--project', GCP_PROJECT_ID,
+            '--quiet', '--verbosity=none',
+            'instances', 'delete', CBT_INSTANCE
+        ], key=GCP_BIGTABLE_KEY)
         super().tearDown()

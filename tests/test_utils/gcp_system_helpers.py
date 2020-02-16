@@ -16,10 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-from typing import Optional, Sequence
+from contextlib import contextmanager
+from tempfile import TemporaryDirectory
+from typing import List, Optional, Sequence
+
+import pytest
+from google.auth.environment_vars import CREDENTIALS
 
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
+from tests.contrib.utils.logging_command_executor import get_executor
+from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.system_tests_class import SystemTest
 
 CLOUD_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "cloud", "example_dags"
@@ -71,3 +79,97 @@ def provide_gcp_context(
     return provide_gcp_conn_and_credentials(
         key_file_path=key_file_path, scopes=scopes, project_id=project_id
     )
+
+
+@pytest.mark.system("google.cloud")
+class GoogleSystemTest(SystemTest):
+    @staticmethod
+    def _project_id():
+        return os.environ.get("GCP_PROJECT_ID")
+
+    @staticmethod
+    def _service_key():
+        return os.environ.get(CREDENTIALS)
+
+    @staticmethod
+    @contextmanager
+    def authentication():
+        GoogleSystemTest._authenticate()
+        try:
+            yield
+        finally:
+            GoogleSystemTest._revoke_authentication()
+
+    @staticmethod
+    def _authenticate():
+        """
+        Authenticate with service account specified via key name.
+        Required only when we use gcloud / gsutil.
+        """
+        executor = get_executor()
+        executor.execute_cmd(
+            [
+                "gcloud",
+                "auth",
+                "activate-service-account",
+                f"--key-file={GoogleSystemTest._service_key()}",
+                f"--project={GoogleSystemTest._project_id()}",
+            ]
+        )
+
+    @staticmethod
+    def _revoke_authentication():
+        """
+        Change default authentication to none - which is not existing one.
+        """
+        executor = get_executor()
+        executor.execute_cmd(
+            [
+                "gcloud",
+                "config",
+                "set",
+                "account",
+                "none",
+                f"--project={GoogleSystemTest._project_id()}",
+            ]
+        )
+
+    @staticmethod
+    def execute_with_ctx(cmd: List[str], key: str = GCP_GCS_KEY):
+        """
+        Executes command with context created by provide_gcp_context and activated
+        service key.
+        """
+        executor = get_executor()
+        with provide_gcp_context(key), GoogleSystemTest.authentication():
+            env = os.environ.copy()
+            executor.execute_cmd(cmd=cmd, env=env)
+
+    @staticmethod
+    def create_gcs_bucket(name: str, location: Optional[str] = None) -> None:
+        cmd = ["gsutil", "mb"]
+        if location:
+            cmd += ["-c", "regional", "-l", location]
+        cmd += [f"gs://{name}"]
+        GoogleSystemTest.execute_with_ctx(cmd, key=GCP_GCS_KEY)
+
+    @staticmethod
+    def delete_gcs_bucket(name: str):
+        cmd = ["gsutil", "-m", "rm", "-r", f"gs://{name}"]
+        GoogleSystemTest.execute_with_ctx(cmd, key=GCP_GCS_KEY)
+
+    @staticmethod
+    def upload_to_gcs(source_uri: str, target_uri: str):
+        GoogleSystemTest.execute_with_ctx(
+            ["gsutil", "cp", f"{target_uri}", f"{source_uri}"], key=GCP_GCS_KEY
+        )
+
+    @staticmethod
+    def upload_content_to_gcs(lines: str, bucket_uri: str, filename: str):
+        with TemporaryDirectory(prefix="airflow-gcp") as tmp_dir:
+            tmp_path = os.path.join(tmp_dir, filename)
+            with open(tmp_path, "w") as file:
+                file.writelines(lines)
+                file.flush()
+            os.chmod(tmp_path, 555)
+            GoogleSystemTest.upload_to_gcs(bucket_uri, tmp_path)

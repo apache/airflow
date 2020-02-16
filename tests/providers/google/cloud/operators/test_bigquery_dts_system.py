@@ -20,31 +20,56 @@ import pytest
 from airflow.providers.google.cloud.example_dags.example_bigquery_dts import (
     BUCKET_URI, GCP_DTS_BQ_DATASET, GCP_DTS_BQ_TABLE, GCP_PROJECT_ID,
 )
-from tests.providers.google.cloud.operators.test_bigquery_dts_system_helper import GcpBigqueryDtsTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
-class GcpBigqueryDtsSystemTest(SystemTest):
-    helper = GcpBigqueryDtsTestHelper()
+class GcpBigqueryDtsSystemTest(GoogleSystemTest):
+    def create_dataset(self, project_id: str, dataset: str, table: str):
+        dataset_name = f"{project_id}:{dataset}"
+        table_name = f"{dataset_name}.{table}"
+
+        self.execute_with_ctx(
+            ["bq", "--location", "us", "mk", "--dataset", dataset_name],
+            key=GCP_BIGQUERY_KEY
+        )
+        self.execute_with_ctx(["bq", "mk", "--table", table_name, ""], key=GCP_BIGQUERY_KEY)
+
+    def upload_data(self, dataset: str, table: str, gcs_file: str):
+        table_name = "{}.{}".format(dataset, table)
+        self.execute_with_ctx(
+            [
+                "bq",
+                "--location",
+                "us",
+                "load",
+                "--autodetect",
+                "--source_format",
+                "CSV",
+                table_name,
+                gcs_file,
+            ], key=GCP_BIGQUERY_KEY
+        )
+
+    def delete_dataset(self, project_id: str, dataset: str):
+        dataset_name = f"{project_id}:{dataset}"
+        self.execute_with_ctx(["bq", "rm", "-r", "-f", "-d", dataset_name], key=GCP_BIGQUERY_KEY)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_dataset(
+        self.create_dataset(
             project_id=GCP_PROJECT_ID,
             dataset=GCP_DTS_BQ_DATASET,
             table=GCP_DTS_BQ_TABLE,
         )
-        self.helper.upload_data(dataset=GCP_DTS_BQ_DATASET, table=GCP_DTS_BQ_TABLE, gcs_file=BUCKET_URI)
+        self.upload_data(dataset=GCP_DTS_BQ_DATASET, table=GCP_DTS_BQ_TABLE, gcs_file=BUCKET_URI)
 
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     def tearDown(self):
-        self.helper.delete_dataset(
+        self.delete_dataset(
             project_id=GCP_PROJECT_ID, dataset=GCP_DTS_BQ_DATASET
         )
         super().tearDown()

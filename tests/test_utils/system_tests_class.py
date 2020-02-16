@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.dagbag import DagBag
 from airflow.utils.file import mkdirs
 from airflow.utils.log.logging_mixin import LoggingMixin
+from tests.contrib.utils.logging_command_executor import get_executor
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
@@ -107,6 +108,10 @@ class EmptyDagsDirectory(  # pylint: disable=invalid-name
 
 
 class SystemTest(TestCase, LoggingMixin):
+    @staticmethod
+    def execute_cmd(*args, **kwargs):
+        executor = get_executor()
+        return executor.execute_cmd(*args, **kwargs)
 
     def setUp(self) -> None:
         """
@@ -233,3 +238,20 @@ class SystemTest(TestCase, LoggingMixin):
         except Exception:
             self._print_all_log_files()
             raise
+
+    @staticmethod
+    def create_dummy_file(filename, dir_path="/tmp"):
+        os.makedirs(dir_path, exist_ok=True)
+        full_path = os.path.join(dir_path, filename)
+        with open(full_path, "wb") as f:
+            f.write(os.urandom(1 * 1024 * 1024))
+
+    @staticmethod
+    def delete_dummy_file(filename, dir_path):
+        full_path = os.path.join(dir_path, filename)
+        try:
+            os.remove(full_path)
+        except FileNotFoundError:
+            pass
+        if dir_path != "/tmp":
+            shutil.rmtree(dir_path, ignore_errors=True)

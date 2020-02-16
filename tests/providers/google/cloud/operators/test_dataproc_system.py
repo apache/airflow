@@ -19,31 +19,36 @@ import os
 
 import pytest
 
-from tests.providers.google.cloud.operators.test_dataproc_operator_system_helper import DataprocTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATAPROC_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
 PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
 
+pyspark_file = """
+#!/usr/bin/python
+import pyspark
+sc = pyspark.SparkContext()
+rdd = sc.parallelize(['Hello,', 'world!'])
+words = sorted(rdd.collect())
+print(words)
+"""
+
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_DATAPROC_KEY)
-class DataprocExampleDagsTest(SystemTest):
-    helper = DataprocTestHelper()
+class DataprocExampleDagsTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_test_bucket(BUCKET)
-        self.helper.upload_test_file(PYSPARK_URI, PYSPARK_MAIN)
+        self.create_gcs_bucket(BUCKET)
+        self.upload_content_to_gcs(lines=pyspark_file, bucket_uri=PYSPARK_URI, filename=PYSPARK_MAIN)
 
     @provide_gcp_context(GCP_DATAPROC_KEY)
     def tearDown(self):
-        self.helper.delete_gcs_bucket_elements(BUCKET)
+        self.delete_gcs_bucket(BUCKET)
         super().tearDown()
 
     @provide_gcp_context(GCP_DATAPROC_KEY)

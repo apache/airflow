@@ -20,14 +20,12 @@ import pytest
 
 from tests.providers.google.cloud.operators.test_cloud_build_system_helper import GCPCloudBuildTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUD_BUILD_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_CLOUD_BUILD_KEY)
-class CloudBuildExampleDagsSystemTest(SystemTest):
+class CloudBuildExampleDagsSystemTest(GoogleSystemTest):
     """
     System tests for Google Cloud Build operators
 
@@ -38,7 +36,8 @@ class CloudBuildExampleDagsSystemTest(SystemTest):
     @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_repository_and_bucket()
+        with self.authentication():
+            self.helper.create_repository_and_bucket()
 
     @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
     def test_run_example_dag(self):
@@ -46,7 +45,8 @@ class CloudBuildExampleDagsSystemTest(SystemTest):
 
     @provide_gcp_context(GCP_CLOUD_BUILD_KEY)
     def tearDown(self):
-        self.helper.delete_bucket()
-        self.helper.delete_docker_images()
-        self.helper.delete_repo()
+        with self.authentication():
+            self.helper.delete_bucket()
+            self.helper.delete_docker_images()
+            self.helper.delete_repo()
         super().tearDown()

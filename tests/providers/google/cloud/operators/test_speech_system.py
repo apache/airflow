@@ -15,28 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+
 import pytest
 
-from tests.providers.google.cloud.operators.test_speech_system_helper import GCPTextToSpeechTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+
+TARGET_BUCKET_NAME = os.environ.get("GCP_SPEECH_TEST_BUCKET", "gcp-speech-test-bucket")
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_GCS_KEY)
-class GCPTextToSpeechExampleDagSystemTest(SystemTest):
-    helper = GCPTextToSpeechTestHelper()
+class GCPTextToSpeechExampleDagSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_GCS_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_target_bucket()
+        self.create_gcs_bucket(TARGET_BUCKET_NAME)
 
     @provide_gcp_context(GCP_GCS_KEY)
     def tearDown(self):
-        self.helper.delete_target_bucket()
+        self.delete_gcs_bucket(TARGET_BUCKET_NAME)
         super().tearDown()
 
     @provide_gcp_context(GCP_GCS_KEY)

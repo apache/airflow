@@ -15,14 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+
 import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GOOGLE_CAMPAIGN_MANAGER_KEY
-from tests.providers.google.marketing_platform.operators.test_campaign_manager_system_helper import (
-    GoogleCampaignManagerTestHelper,
-)
-from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 # Required scopes
 SCOPES = [
@@ -31,20 +29,20 @@ SCOPES = [
     'https://www.googleapis.com/auth/ddmconversions'
 ]
 
+BUCKET = os.environ.get("MARKETING_BUCKET", "test-cm-bucket")
+
 
 @pytest.mark.system("google.marketing_platform")
 @pytest.mark.credential_file(GOOGLE_CAMPAIGN_MANAGER_KEY)
-class CampaignManagerSystemTest(SystemTest):
-    helper = GoogleCampaignManagerTestHelper()
-
+class CampaignManagerSystemTest(GoogleSystemTest):
     @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_bucket()
+        self.create_gcs_bucket(BUCKET)
 
     @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY)
     def tearDown(self):
-        self.helper.delete_bucket()
+        self.delete_gcs_bucket(BUCKET)
         super().tearDown()
 
     @provide_gcp_context(GOOGLE_CAMPAIGN_MANAGER_KEY, scopes=SCOPES)

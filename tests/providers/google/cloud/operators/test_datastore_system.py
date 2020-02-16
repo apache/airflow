@@ -15,28 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+
 import pytest
 
-from tests.providers.google.cloud.operators.test_datastore_system_helper import GcpDatastoreSystemTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATASTORE_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
+
+BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
 
 
 @pytest.mark.backend("mysql", "postgres")
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_DATASTORE_KEY)
-class GcpDatastoreSystemTest(SystemTest):
-    helper = GcpDatastoreSystemTestHelper()
+class GcpDatastoreSystemTest(GoogleSystemTest):
 
     @provide_gcp_context(GCP_DATASTORE_KEY)
     def setUp(self):
         super().setUp()
-        self.helper.create_bucket()
+        self.create_gcs_bucket(BUCKET, location="europe-north1")
 
     @provide_gcp_context(GCP_DATASTORE_KEY)
     def tearDown(self):
-        self.helper.delete_bucket()
+        self.delete_gcs_bucket(BUCKET)
         super().tearDown()
 
     @provide_gcp_context(GCP_DATASTORE_KEY)

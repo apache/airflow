@@ -26,17 +26,15 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSqlProxyRunner
 from tests.providers.google.cloud.operators.test_cloud_sql_system_helper import CloudSqlQueryTestHelper
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_CLOUDSQL_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, provide_gcp_context
-from tests.test_utils.system_tests_class import SystemTest
+from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'project-id')
 
 SQL_QUERY_TEST_HELPER = CloudSqlQueryTestHelper()
 
 
-@pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_CLOUDSQL_KEY)
-class CloudSqlProxySystemTest(SystemTest):
+class CloudSqlProxySystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def setUp(self):
         super().setUp()
@@ -100,7 +98,7 @@ class CloudSqlProxySystemTest(SystemTest):
 
 @pytest.mark.system("google.cloud")
 @pytest.mark.credential_file(GCP_CLOUDSQL_KEY)
-class CloudSqlQueryExampleDagsSystemTest(SystemTest):
+class CloudSqlQueryExampleDagsSystemTest(GoogleSystemTest):
     @provide_gcp_context(GCP_CLOUDSQL_KEY)
     def setUp(self):
         super().setUp()
