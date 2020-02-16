@@ -367,6 +367,7 @@ STAT_BIN=stat
 if [[ "${OSTYPE}" == "darwin"* ]]; then
     STAT_BIN=gstat
 fi
+
 # Build id identifying the build uniquely
 BUILD_ID=${BUILD_ID:="local"}
 
@@ -389,28 +390,20 @@ mkdir -pv "${DEPLOY_DIR}"
 #
 # We fix it by removing write permissions for other/group for all files that are in the Docker context.
 #
-STAT_BIN=stat
-if [[ "${OSTYPE}" == "darwin"* ]]; then
-    STAT_BIN=gstat
-fi
+# Since we can't (easily) tell what dockerignore would restrict, we'll just to
+# it to "all" files in the git repo, making sure to exclude the www/static/docs
+# symlink which is broken until the docs are built.
 
-for FILE in "${FILES_FOR_REBUILD_CHECK[@]}"; do
-    ACCESS_RIGHTS=$("${STAT_BIN}" -c "%A" "${AIRFLOW_SOURCES}/${FILE}" || echo "--------")
-    # check if the file is group/other writeable
-    if [[ "${ACCESS_RIGHTS:5:1}" != "-" || "${ACCESS_RIGHTS:8:1}" != "-" ]]; then
-        if [[ "${VERBOSE_FIX_FILE:="false"}" == "true" ]]; then
-            "${STAT_BIN}" --printf "%a %A %F \t%s \t->    " "${AIRFLOW_SOURCES}/${FILE}"
-        fi
-        chmod og-w "${AIRFLOW_SOURCES}/${FILE}"
-        if [[ "${VERBOSE_FIX_FILE:="false"}" == "true" ]]; then
-            "${STAT_BIN}" --printf "%a %A %F \t%s \t%n\n" "${AIRFLOW_SOURCES}/${FILE}"
-        fi
-    fi
-done
+function filterout_deleted_files {
+  # Take NUL-separated stdin, return only files that exist on stdout NUL-separated
+  # This is to cope with users deleting files or folders locally but not doing `git rm`
+  xargs -0 "$STAT_BIN" --printf '%n\0' 2>/dev/null || true;
+}
 
-echo "Group/other write access removed for ${FILES_FOR_REBUILD_CHECK[*]}"
-echo
-echo
+# This deals with files
+git ls-files -z ':!:airflow/www/static/docs' | filterout_deleted_files | xargs -t -0 chmod og-w
+# and this deals with directories
+git ls-tree -z -r -d --name-only HEAD | filterout_deleted_files | xargs -t -0 chmod og-w,og+x
 
 if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" == "true" ]]; then
     echo "Skip building the CI full Airflow image"
