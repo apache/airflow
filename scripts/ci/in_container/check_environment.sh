@@ -15,30 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 # Script to check licences for all code. Can be started from any working directory
-set -euo pipefail
-
-MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
-
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${MY_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
-
-
-function on_exit() {
-    #shellcheck disable=2181
-    EXIT_CODE=$?
-    if [[ ${EXIT_CODE} != 0 ]]; then
-        echo "###########################################################################################"
-        echo "                   EXITING WITH STATUS CODE ${EXIT_CODE}"
-        echo "###########################################################################################"
-
-    fi
-}
+# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 export EXIT_CODE=0
 export DISABLED_INTEGRATIONS=""
@@ -91,7 +70,6 @@ function check_integration {
     echo "-----------------------------------------------------------------------------------------------"
 }
 
-trap on_exit EXIT
 echo
 echo "Check CI environment sanity!"
 echo
@@ -226,5 +204,3 @@ fi
 echo
 echo "CI environment is sane!"
 echo
-
-in_container_script_end

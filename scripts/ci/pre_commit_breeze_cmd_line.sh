@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -uo pipefail
+set -euo pipefail
 
 MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 

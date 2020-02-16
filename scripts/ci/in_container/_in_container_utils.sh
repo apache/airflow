@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#
-# Asserts that you are actually in container
-#
 function assert_in_container() {
     if [[ ! -f /.dockerenv ]]; then
         echo >&2
@@ -38,6 +35,14 @@ function in_container_script_start() {
 }
 
 function in_container_script_end() {
+    #shellcheck disable=2181
+    EXIT_CODE=$?
+    if [[ ${EXIT_CODE} != 0 ]]; then
+        echo "###########################################################################################"
+        echo "                   EXITING ${0} WITH STATUS CODE ${EXIT_CODE}"
+        echo "###########################################################################################"
+
+    fi
     if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
         set +x
     fi

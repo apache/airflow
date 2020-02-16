@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
 MY_DIR=$(cd "$(dirname "$0")" && pwd)
 AIRFLOW_SOURCES=$(cd "${MY_DIR}/../../../../../" || exit 1 ; pwd)
 export AIRFLOW_SOURCES
 
+# We keep _utils here because we are not in the in_container directory
 # shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/../../_in_container_utils.sh"
 
@@ -29,7 +29,7 @@ assert_in_container
 
 in_container_script_start
 
-cd "${AIRFLOW_SOURCES}"
+cd "${AIRFLOW_SOURCES}" || exit 1
 
 # Required to rebuild images from inside container
 mkdir -pv scripts/docker/

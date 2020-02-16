@@ -200,10 +200,6 @@ export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL=${AIRFLOW_CONTAINER_SKIP_LATEST
 export AIRFLOW_CONTAINER_SKIP_CI_IMAGE=${AIRFLOW_CONTAINER_SKIP_CI_IMAGE:="false"}
 echo "Skip CI image: ${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}"
 
-# Fixes permissions for git-checked out files. This is needed to have consistent build cache across
-# Dockerhub, TravisCI and locally checked out code
-export AIRFLOW_FIX_PERMISSIONS=${AIRFLOW_FIX_PERMISSIONS:="all"}
-echo "Fixing permissions: ${AIRFLOW_FIX_PERMISSIONS}"
 
 export AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD=${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD:="true"}
 echo "The build optimised for CI: ${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}"

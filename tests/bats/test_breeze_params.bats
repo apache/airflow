@@ -45,6 +45,8 @@ EOF
 @test "Test wrong value for a parameter but proper stored in the .build/PARAM" {
   load bats_utils
 
+  initialize_breeze_environment
+
   export _BREEZE_ALLOWED_TEST_PARAMS=" a b c "
   export TEST_PARAM=x
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
@@ -62,6 +64,8 @@ EOF
 
 @test "Test wrong value for a parameter stored in the .build/PARAM" {
   load bats_utils
+
+  initialize_breeze_environment
 
   export _BREEZE_ALLOWED_TEST_PARAMS=" a b c "
   export TEST_PARAM=x
@@ -82,6 +86,9 @@ EOF
 
 @test "Test correct value for a parameter" {
   load bats_utils
+
+  initialize_breeze_environment
+
   export _BREEZE_ALLOWED_TEST_PARAMS=" a b c "
   export TEST_PARAM=a
   run check_for_allowed_params "TEST_PARAM"  "Test Param" "--message"
@@ -93,6 +100,9 @@ EOF
 
 @test "Test read_parameter from missing file" {
   load bats_utils
+
+  initialize_breeze_environment
+
   run read_from_file TEST_PARAM
   [ -z "${TEST_FILE}" ]
   diff <(echo "${output}") <(echo "")
@@ -102,6 +112,9 @@ EOF
 
 @test "Test read_parameter from file" {
   load bats_utils
+
+  initialize_breeze_environment
+
   echo "a" > "${AIRFLOW_SOURCES}/.build/.TEST_PARAM"
   run read_from_file TEST_PARAM
   diff <(echo "${output}") <(echo "a")
