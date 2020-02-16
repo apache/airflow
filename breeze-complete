@@ -30,7 +30,7 @@ _BREEZE_SHORT_OPTIONS="
 h P: B: I: K Z X
 M: V:
 s b O N
-v y n C A
+v y n q C A
 r p R L u
 c D: H: e a
 t: d: k x: S: F:
@@ -40,9 +40,9 @@ _BREEZE_LONG_OPTIONS="
 help python: backend: integration: start-kind-cluster recreate-kind-cluster stop-kind-cluster
 kubernetes-mode: kubernetes-version:
 skip-mounting-local-sources build-only build-docs
-verbose assume-yes assume-no toggle-suppress-cheatsheet toggle-suppress-asciiart
+verbose assume-yes assume-no assume-quit toggle-suppress-cheatsheet toggle-suppress-asciiart
 force-build-images force-pull-images force-clean-images use-local-cache push-images
-cleanup-images dockerhub-user: dockerhub-repo: initialize-local-virtualenv setup-autocomplete
+cleanup-image dockerhub-user: dockerhub-repo: initialize-local-virtualenv setup-autocomplete
 test-target: docker-compose: stop-environment execute-command: static-check: static-check-all-files:
 "
 

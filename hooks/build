@@ -110,7 +110,7 @@ function build_python_image {
         --build-arg PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE}" \
         --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
         --build-arg AIRFLOW_EXTRAS="${AIRFLOW_EXTRAS}" \
-        --build-arg AIRFLOW_BRANCH="${AIRFLOW_CONTAINER_BRANCH_NAME}" \
+        --build-arg AIRFLOW_BRANCH="${BRANCH_NAME}" \
         --build-arg AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD="${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}" \
         --build-arg HOME="${HOME}" \
         "${DOCKER_CACHE_DIRECTIVE_CI[@]}" \
@@ -137,26 +137,26 @@ if [[ "${TRAVIS_EVENT_TYPE:=}" == "cron" ]]; then
     echo
     echo "Disabling cache for CRON jobs"
     echo
-    AIRFLOW_CONTAINER_USE_NO_CACHE=${AIRFLOW_CONTAINER_USE_NO_CACHE:="true"}
+    USE_NO_CACHE=${USE_NO_CACHE:="true"}
 fi
 
-# You can set AIRFLOW_CONTAINER_USE_NO_CACHE to true if you want to use standard Docker cache during build
+# You can set USE_NO_CACHE to true if you want to use standard Docker cache during build
 # This way you can test building everything from the scratch
-AIRFLOW_CONTAINER_USE_NO_CACHE=${AIRFLOW_CONTAINER_USE_NO_CACHE:="false"}
+USE_NO_CACHE=${USE_NO_CACHE:="false"}
 
 # If cache is not used, there is no point in pulling images for cache
-if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE:=}" == "true" ]]; then
+if [[ "${USE_NO_CACHE:=}" == "true" ]]; then
     echo
     echo "Pulling images is disabled because cache is not used"
     echo
-    AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE="false"
+    USE_PULLED_IMAGES_AS_CACHE="false"
 fi
 
 
-# You can set AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE to false if you do not want to use pulled images
+# You can set USE_PULLED_IMAGES_AS_CACHE to false if you do not want to use pulled images
 # as cache during build
 # This way you can test building from the scratch
-AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE=${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE:="true"}
+USE_PULLED_IMAGES_AS_CACHE=${USE_PULLED_IMAGES_AS_CACHE:="true"}
 
 pwd
 # Determine version of the Airflow from version.py
@@ -187,19 +187,13 @@ echo
 
 # Whether to push images after build
 # This is set to false on CI builds
-export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:=${NON_CI}}
+export PUSH_IMAGES=${PUSH_IMAGES:=${NON_CI}}
 
 # Whether to force pull images to populate cache
-export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES=${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES:="false"}
+export FORCE_PULL_IMAGES=${FORCE_PULL_IMAGES:="false"}
 
 # In CI environment (and local force) we skip pulling latest python image
-export AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL=${AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL:=${CI}}
-
-# Skips downloading and building the CI image, full CI-enabled image of airflow
-# This is set to true for pre-tests which do not need the whole CI image
-export AIRFLOW_CONTAINER_SKIP_CI_IMAGE=${AIRFLOW_CONTAINER_SKIP_CI_IMAGE:="false"}
-echo "Skip CI image: ${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}"
-
+export SKIP_PULLING_LATEST_PYTHON_IMAGE=${SKIP_PULLING_LATEST_PYTHON_IMAGE:=${CI}}
 
 export AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD=${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD:="true"}
 echo "The build optimised for CI: ${AIRFLOW_CONTAINER_CI_OPTIMISED_BUILD}"
@@ -228,36 +222,17 @@ IMAGES_BUILT=""
 
 end_step
 
-AIRFLOW_CONTAINER_CLEANUP_IMAGES=${AIRFLOW_CONTAINER_CLEANUP_IMAGES:="false"}
-if [[ "${AIRFLOW_CONTAINER_CLEANUP_IMAGES}" == "true" ]]; then
-    echo
-    "${AIRFLOW_SOURCES}/confirm" "Removing all local images for that build."
-    echo
-    start_step "Removing images"
-    docker rmi "${PYTHON_BASE_IMAGE}" || true
-    docker rmi "${AIRFLOW_CI_IMAGE}" || true
-    echo
-    echo "###################################################################"
-    echo "NOTE!! Removed Airflow images for Python version ${PYTHON_VERSION}."
-    echo "       But the disk space in docker will be reclaimed only after"
-    echo "       running 'docker system prune' command."
-    echo "###################################################################"
-    echo
-    end_step
-    exit 0
-fi
-
 start_step "Populating cache"
 
 DOCKER_CACHE_DIRECTIVE_CI=()
 
-if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
+if [[ "${USE_PULLED_IMAGES_AS_CACHE}" == "true" ]]; then
     echo
     echo "Pulling images to populate cache"
     echo
     echo
-    if [[ "${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES}" == "true" ]]; then
-        if [[ ${AIRFLOW_CONTAINER_SKIP_LATEST_PYTHON_PULL} == "true" ]]; then
+    if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
+        if [[ ${SKIP_PULLING_LATEST_PYTHON_IMAGE} == "true" ]]; then
             echo
             echo "Skip force-pulling the base images."
             echo
@@ -271,11 +246,7 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
             set +x
         fi
     fi
-    IMAGES_TO_PULL=""
-    if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" != "true" ]]; then
-        echo "Downloading the CI Airflow image"
-        IMAGES_TO_PULL="${IMAGES_TO_PULL} ${AIRFLOW_CI_IMAGE}"
-    fi
+    IMAGES_TO_PULL="${AIRFLOW_CI_IMAGE}"
 
     DOCKER_CACHE_DIRECTIVE_CI=()
     if [[ ${IMAGES_TO_PULL} == "" ]]; then
@@ -289,7 +260,7 @@ if [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
             echo "Checking whether image ${IMAGE} needs to be pulled."
             echo
             PULL_IMAGE="false"
-            if [[ "${AIRFLOW_CONTAINER_FORCE_PULL_IMAGES}" == "true" ]]; then
+            if [[ "${FORCE_PULL_IMAGES}" == "true" ]]; then
                 echo
                 echo "Pulling images is forced. Pulling ${IMAGE}"
                 echo
@@ -329,7 +300,7 @@ fi
 
 start_step "Setting cache options"
 
-if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE}" == "true" ]]; then
+if [[ "${USE_NO_CACHE}" == "true" ]]; then
     DOCKER_CACHE_DIRECTIVE_CI+=("--no-cache")
     echo
     echo "Skip cache for builds. Everything will be rebuilt from scratch."
@@ -337,7 +308,7 @@ if [[ "${AIRFLOW_CONTAINER_USE_NO_CACHE}" == "true" ]]; then
     echo "Cache directives used: "
     echo "CI build: ${DOCKER_CACHE_DIRECTIVE_CI[*]}"
     echo
-elif [[ "${AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE}" == "true" ]]; then
+elif [[ "${USE_PULLED_IMAGES_AS_CACHE}" == "true" ]]; then
     echo
     echo "This build uses Docker cache from pulled images"
     echo "Cache directives used: "
@@ -369,7 +340,7 @@ BUILD_ID=${BUILD_ID:="local"}
 
 
 # directory where "deployment" artifacts should be placed
-DEPLOY_DIR="${AIRFLOW_SOURCES}/dist/${AIRFLOW_CONTAINER_BRANCH_NAME}/$(date "+%Y-%m-%d")/${BUILD_ID}/${PYTHON_VERSION}"
+DEPLOY_DIR="${AIRFLOW_SOURCES}/dist/${BRANCH_NAME}/$(date "+%Y-%m-%d")/${BUILD_ID}/${PYTHON_VERSION}"
 
 mkdir -pv "${DEPLOY_DIR}"
 
@@ -397,38 +368,34 @@ function filterout_deleted_files {
 }
 
 # This deals with files
-git ls-files -z -- ./ ':!:airflow/www/static/docs' | filterout_deleted_files | xargs -0 chmod og-w
+git ls-files -z -- ./ | filterout_deleted_files | xargs -0 chmod og-w
 # and this deals with directories
 git ls-tree -z -r -d --name-only HEAD | filterout_deleted_files | xargs -0 chmod og-w,og+x
 
-if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" == "true" ]]; then
-    echo "Skip building the CI full Airflow image"
-else
-    start_step "Build Airflow CI full image"
-    build_python_image "Airflow CI" \
-                "${AIRFLOW_CI_IMAGE}" \
-                "main" \
-                "devel_ci" \
-                "root" \
-                "/root"
+start_step "Build Airflow CI full image"
+build_python_image "Airflow CI" \
+            "${AIRFLOW_CI_IMAGE}" \
+            "main" \
+            "devel_ci" \
+            "root" \
+            "/root"
 
+if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
+    docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_DEFAULT}"
+    add_image_to_push "${AIRFLOW_CI_IMAGE_DEFAULT}"
+fi
+if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
+    docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_LATEST}"
+    add_image_to_push "${AIRFLOW_CI_IMAGE_LATEST}"
     if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
-        docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_DEFAULT}"
-        add_image_to_push "${AIRFLOW_CI_IMAGE_DEFAULT}"
-    fi
-    if [[ "${AIRFLOW_RELEASE_BUILD}" == "true" ]]; then
-        docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_LATEST}"
-        add_image_to_push "${AIRFLOW_CI_IMAGE_LATEST}"
-        if [[ "${PYTHON_VERSION_FOR_DEFAULT_IMAGE}" == "${PYTHON_VERSION}" ]]; then
-            docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_LATEST_DEFAULT}"
-            add_image_to_push "${AIRFLOW_CI_IMAGE_LATEST_DEFAULT}"
-        fi
+        docker tag "${AIRFLOW_CI_IMAGE}" "${AIRFLOW_CI_IMAGE_LATEST_DEFAULT}"
+        add_image_to_push "${AIRFLOW_CI_IMAGE_LATEST_DEFAULT}"
     fi
 fi
 
 start_step "Pushing images"
 
-if [[ "${AIRFLOW_CONTAINER_PUSH_IMAGES}" != "false" ]]; then
+if [[ "${PUSH_IMAGES}" != "false" ]]; then
     echo
     echo "Pushing images: ${IMAGES_BUILT}"
     echo

@@ -23,7 +23,7 @@ export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
 function run_check_license() {
-    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \

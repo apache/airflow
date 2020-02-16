@@ -26,7 +26,7 @@ export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
 export AIRFLOW_CI_IMAGE=\
-${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${AIRFLOW_CONTAINER_BRANCH_NAME}-python${PYTHON_VERSION}-ci
+${DOCKERHUB_USER}/${DOCKERHUB_REPO}:${BRANCH_NAME}-python${PYTHON_VERSION}-ci
 
 docker-compose \
     -f "${MY_DIR}/docker-compose/base.yml" \

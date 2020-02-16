@@ -22,7 +22,7 @@ export FORCE_ANSWER_TO_QUESTIONS=quit
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
 function refresh_pylint_todo() {
-    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" \
         --env PYTHONDONTWRITEBYTECODE \
         --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
         --env AIRFLOW_CI_SILENT \

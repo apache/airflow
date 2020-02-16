@@ -21,6 +21,20 @@ export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 # shellcheck source=scripts/ci/_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
+function run_docs() {
+    docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
+            --entrypoint "/usr/local/bin/dumb-init"  \
+            --env PYTHONDONTWRITEBYTECODE \
+            --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
+            --env AIRFLOW_CI_SILENT \
+            --env HOST_USER_ID="$(id -ur)" \
+            --env HOST_GROUP_ID="$(id -gr)" \
+            --rm \
+            "${AIRFLOW_CI_IMAGE}" \
+            "--" "/opt/airflow/docs/build.sh" \
+            | tee -a "${OUTPUT_LOG}"
+}
+
 rebuild_ci_image_if_needed
 
 run_docs

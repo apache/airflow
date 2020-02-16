@@ -24,7 +24,7 @@ export PYTHON_VERSION=${PYTHON_VERSION:-3.6}
 function run_pylint_main() {
     FILES=("$@")
     if [[ "${#FILES[@]}" == "0" ]]; then
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
@@ -36,7 +36,7 @@ function run_pylint_main() {
             "--" "/opt/airflow/scripts/ci/in_container/run_pylint_main.sh" \
             | tee -a "${OUTPUT_LOG}"
     else
-        docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" \
+        docker run "${EXTRA_DOCKER_FLAGS[@]}" \
             --entrypoint "/usr/local/bin/dumb-init" \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
