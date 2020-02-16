@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-set -euo pipefail
 MY_DIR=$(cd "$(dirname "$0")" && pwd)
 
 AIRFLOW_SOURCES=$(
@@ -27,6 +25,7 @@ export AIRFLOW_SOURCES
 
 export RECREATE_KIND_CLUSTER=${RECREATE_KIND_CLUSTER:="true"}
 
+# We keep _utils here because we are not in the in_container directory
 # shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/../_in_container_utils.sh"
 

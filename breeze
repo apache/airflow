@@ -37,14 +37,27 @@ mkdir -pv "${BUILD_CACHE_DIR}"
 mkdir -pv "${TMP_DIR}"
 mkdir -pv "${FILES_DIR}"
 
+# Note - we do not use __script_init.sh here because it can only be used from within
+# the CI directory and we need to overrride PYTHON_VERSION based on what we store
+# in the .build directory
+
+# Beginning of the initialisation here
+
 # shellcheck source=scripts/ci/_utils.sh
 . "${SCRIPTS_CI_DIR}/_utils.sh"
+
+initialize_breeze_environment
 
 export PYTHON_VERSION="${PYTHON_VERSION:=$(read_from_file PYTHON_VERSION)}"
 
 basic_sanity_checks
 
 script_start
+
+trap script_end EXIT
+
+# End of initialisation here
+
 
 # Sets width of the screen
 SEPARATOR_WIDTH="$(tput cols)"
@@ -112,9 +125,6 @@ export AIRFLOW_CONTAINER_USE_PULLED_IMAGES_CACHE=${AIRFLOW_CONTAINER_USE_PULLED_
 
 # By default we do not push images. This can be overridden by -u flag.
 export AIRFLOW_CONTAINER_PUSH_IMAGES=${AIRFLOW_CONTAINER_PUSH_IMAGES:="false"}
-
-# For local builds we fix file permissions only for setup-related files
-export AIRFLOW_FIX_PERMISSIONS=${AIRFLOW_FIX_PERMISSIONS:="setup"}
 
 # Skip building full CI image locally
 export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
@@ -630,6 +640,9 @@ do
       shift ;;
     -b|--build-only)
       ENTER_ENVIRONMENT="false"
+      # if you want to build an image - assume you want to build it :)
+      export FORCE_ANSWER_TO_QUESTIONS="yes"
+      # and assume you want to build it no matter if it is needed
       export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
       echo "Only build. Do not enter airflow-testing container"
       echo
@@ -671,6 +684,8 @@ do
       echo "Force build images"
       echo
       export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
+      # if you want to force  build an image - assume you want to build it :)
+      export FORCE_ANSWER_TO_QUESTIONS="yes"
       shift ;;
     -R|--force-clean-images)
       echo "Clean build of images without cache"
@@ -692,17 +707,6 @@ do
       export AIRFLOW_CONTAINER_FORCE_DOCKER_BUILD="true"
       shift ;;
     -u|--push-images)
-      if [[ "${AIRFLOW_FIX_PERMISSIONS}" != "all" ]]; then
-        echo >&2
-        echo >&2 "ERROR: Disable fix permissions when pushing"
-        echo >&2
-        echo >&2 "You cannot push images if you have AIRFLOW_FIX_PERMISSIONS set to other value than 'all'"
-        echo >&2 "Your docker context is most likely wrong in this case"
-        echo >&2 "You need to set AIRFLOW_FIX_PERMISSIONS to false"
-        echo >&2 "And run the build again"
-        echo >&2
-        exit 1
-      fi
       echo
       echo "Pushing images to DockerHub"
       echo
@@ -1198,5 +1202,3 @@ else
         run_docs
     fi
 fi
-
-script_end

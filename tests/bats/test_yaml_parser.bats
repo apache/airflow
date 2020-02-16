@@ -20,6 +20,9 @@
 
 @test "yaml parsing missing file" {
   load bats_utils
+
+  initialize_breeze_environment
+
   run parse_yaml
   [ "${status}" == 1 ]
   [ "${output}" == "Please provide yaml filename as first parameter." ]
@@ -27,6 +30,9 @@
 
 @test "yaml parsing existing file" {
   load bats_utils
+
+  initialize_breeze_environment
+
   run parse_yaml "scripts/ci/docker-compose/local.yml"
   diff <(echo "${output}") - << 'EOF'
 1="--"
@@ -71,6 +77,9 @@ EOF
 
 @test "convert yaml docker file to docker params" {
   load bats_utils
+
+  initialize_breeze_environment
+
   run convert_docker_mounts_to_docker_params
   diff <(echo "${output}") - << EOF
 -v
