@@ -15,19 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/ci/_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
-#
-# Cleans up the CI image
-#
-function cleanup_ci_image() {
-    export AIRFLOW_CONTAINER_SKIP_CI_IMAGE="false"
-    export AIRFLOW_CONTAINER_CLEANUP_IMAGES="true"
+set -euo pipefail
 
-    export THE_IMAGE_TYPE="CI"
+# This should only be sourced from in_container directory!
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-    rebuild_image_if_needed
-}
+# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
-cleanup_ci_image
+in_container_basic_sanity_check
+
+in_container_script_start
+
+trap in_container_script_end EXIT

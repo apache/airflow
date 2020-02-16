@@ -15,25 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+set -x
 
-set -xeuo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-script_start
+# shellcheck source=scripts/ci/_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_script_init.sh"
 
 build_image_on_ci
 
-KUBERNETES_MODE=${KUBERNETES_MODE:=""}
-
-mkdir -p "${AIRFLOW_SOURCES}/files"
-
 # We need newer version of six for Travis as they bundle 1.11.0 version
 sudo pip install pre-commit 'six~=1.14'
-
-script_end
