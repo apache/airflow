@@ -496,7 +496,7 @@ class PubSubHook(CloudBaseHook):
         subscriber = self.subscriber_client
         subscription_path = SubscriberClient.subscription_path(project_id, subscription)  # noqa E501 # pylint: disable=no-member,line-too-long
 
-        self.log.info("Pulling mex %d messages from subscription (path) %s", max_messages, subscription_path)
+        self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
             # pylint: disable=no-member
             response = subscriber.pull(
