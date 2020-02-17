@@ -890,8 +890,8 @@ These integrations allow you to perform various operations within the Yandex.Clo
 
    * - `Data Proc <https://cloud.yandex.com/services/data-proc>`__
      - :doc:`How to use <howto/operator/yandexcloud>`
-     - :mod:`airflow.providers.yandex.hooks.yandexcloud_dataproc_hook`
-     - :mod:`airflow.providers.yandex.operators.yandexcloud_dataproc_operator`
+     - :mod:`airflow.providers.yandex.hooks.yandexcloud_dataproc`
+     - :mod:`airflow.providers.yandex.operators.yandexcloud_dataproc`
      -
 
 .. _yc_service:
