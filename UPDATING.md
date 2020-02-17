@@ -61,6 +61,10 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
+### Success Callback will be called when a task in marked as success from UI
+
+When a task is marked as success by a used from Airflow UI - on_success_callback will be called
+
 ### Added `airflow dags test` CLI command
 
 A new command was added to the CLI for executing one full run of a DAG for a given execution date, similar to
