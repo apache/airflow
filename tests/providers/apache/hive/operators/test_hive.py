@@ -26,7 +26,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import TaskInstance
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
-from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer
@@ -196,15 +195,6 @@ class TestHivePresto(TestHiveEnvironment):
         op = HdfsSensor(
             task_id='hdfs_sensor_check',
             filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_webhdfs_sensor(self):
-        op = WebHdfsSensor(
-            task_id='webhdfs_sensor_check',
-            filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
-            timeout=120,
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)
