@@ -21,7 +21,6 @@ import unittest
 from unittest import mock
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import TaskInstance
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 from airflow.providers.apache.hive.operators.hive import HiveOperator
@@ -29,7 +28,6 @@ from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTra
 from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
-from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
 from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTransfer
 from airflow.providers.presto.operators.presto_check import PrestoCheckOperator
 from airflow.sensors.sql_sensor import SqlSensor
@@ -179,48 +177,6 @@ class TestHivePresto(TestHiveEnvironment):
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)
-
-    def test_named_hive_partition_sensor(self):
-        op = NamedHivePartitionSensor(
-            task_id='hive_partition_check',
-            partition_names=[
-                "airflow.static_babynames_partitioned/ds={{ds}}"
-            ],
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_named_hive_partition_sensor_succeeds_on_multiple_partitions(self):
-        op = NamedHivePartitionSensor(
-            task_id='hive_partition_check',
-            partition_names=[
-                "airflow.static_babynames_partitioned/ds={{ds}}",
-                "airflow.static_babynames_partitioned/ds={{ds}}"
-            ],
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_named_hive_partition_sensor_parses_partitions_with_periods(self):
-        name = NamedHivePartitionSensor.parse_partition_name(
-            partition="schema.table/part1=this.can.be.an.issue/part2=ok")
-        self.assertEqual(name[0], "schema")
-        self.assertEqual(name[1], "table")
-        self.assertEqual(name[2], "part1=this.can.be.an.issue/part2=this_should_be_ok")
-
-    def test_named_hive_partition_sensor_times_out_on_nonexistent_partition(self):
-        with self.assertRaises(AirflowSensorTimeout):
-            op = NamedHivePartitionSensor(
-                task_id='hive_partition_check',
-                partition_names=[
-                    "airflow.static_babynames_partitioned/ds={{ds}}",
-                    "airflow.static_babynames_partitioned/ds=nonexistent"
-                ],
-                poke_interval=0.1,
-                timeout=1,
-                dag=self.dag)
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-                   ignore_ti_state=True)
 
     def test_hive_partition_sensor(self):
         op = HivePartitionSensor(
