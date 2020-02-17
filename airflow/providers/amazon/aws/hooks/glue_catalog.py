@@ -46,7 +46,8 @@ class AwsGlueCatalogHook(AwsHook):
         """
         Returns glue connection object.
         """
-        self.conn = self.get_client_type('glue', self.region_name)
+        if not self.conn:
+            self.conn = self.get_client_type('glue', self.region_name)
         return self.conn
 
     def get_partitions(self,

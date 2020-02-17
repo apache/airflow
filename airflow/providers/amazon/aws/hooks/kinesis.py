@@ -42,8 +42,8 @@ class AwsFirehoseHook(AwsHook):
         """
         Returns AwsHook connection object.
         """
-
-        self.conn = self.get_client_type('firehose', self.region_name)
+        if not self.conn:
+            self.conn = self.get_client_type('firehose', self.region_name)
         return self.conn
 
     def put_records(self, records):

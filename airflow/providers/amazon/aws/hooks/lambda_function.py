@@ -54,7 +54,8 @@ class AwsLambdaHook(AwsHook):
         super().__init__(*args, **kwargs)
 
     def get_conn(self):
-        self.conn = self.get_client_type('lambda', self.region_name, config=self.config)
+        if not self.conn:
+            self.conn = self.get_client_type('lambda', self.region_name, config=self.config)
         return self.conn
 
     def invoke_lambda(self, payload):

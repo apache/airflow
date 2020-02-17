@@ -26,8 +26,14 @@ class RedshiftHook(AwsHook):
     """
     Interact with AWS Redshift, using the boto3 library
     """
+    def __init__(self, *args, **kwargs):
+        self.conn = None
+        super().__init__(*args, **kwargs)
+
     def get_conn(self):
-        return self.get_client_type('redshift')
+        if not self.conn:
+            self.conn = self.get_client_type('redshift')
+        return self.conn
 
     # TODO: Wrap create_cluster_snapshot
     def cluster_status(self, cluster_identifier):

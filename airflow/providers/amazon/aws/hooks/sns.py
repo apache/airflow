@@ -37,7 +37,8 @@ class AwsSnsHook(AwsHook):
         """
         Get an SNS connection
         """
-        self.conn = self.get_client_type('sns')
+        if not self.conn:
+            self.conn = self.get_client_type('sns')
         return self.conn
 
     def publish_to_target(self, target_arn, message, subject=None):

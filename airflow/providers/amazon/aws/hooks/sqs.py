@@ -26,6 +26,9 @@ class SQSHook(AwsHook):
     """
     Interact with Amazon Simple Queue Service.
     """
+    def __init__(self, *args, **kwargs):
+        self.conn = None
+        super().__init__(*args, **kwargs)
 
     def get_conn(self):
         """
@@ -34,7 +37,9 @@ class SQSHook(AwsHook):
         :return: SQS client
         :rtype: botocore.client.SQS
         """
-        return self.get_client_type('sqs')
+        if not self.conn:
+            self.conn = self.get_client_type('sqs')
+        return self.conn
 
     def create_queue(self, queue_name, attributes=None):
         """

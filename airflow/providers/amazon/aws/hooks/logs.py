@@ -34,6 +34,7 @@ class AwsLogsHook(AwsHook):
 
     def __init__(self, region_name=None, *args, **kwargs):
         self.region_name = region_name
+        self.conn = None
         super().__init__(*args, **kwargs)
 
     def get_conn(self):
@@ -42,7 +43,9 @@ class AwsLogsHook(AwsHook):
 
         :rtype: CloudWatchLogs.Client
         """
-        return self.get_client_type('logs', region_name=self.region_name)
+        if not self.conn:
+            self.conn = self.get_client_type('logs', region_name=self.region_name)
+        return self.conn
 
     def get_log_events(self, log_group, log_stream_name, start_time=0, skip=0, start_from_head=True):
         """

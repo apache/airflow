@@ -133,6 +133,7 @@ class SageMakerHook(AwsHook):
     def __init__(self,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.conn = None
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         self.logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id)
 
@@ -234,7 +235,9 @@ class SageMakerHook(AwsHook):
 
         :rtype: :py:class:`SageMaker.Client`
         """
-        return self.get_client_type('sagemaker')
+        if not self.conn:
+            self.conn = self.get_client_type('sagemaker')
+        return self.conn
 
     def get_log_conn(self):
         """
