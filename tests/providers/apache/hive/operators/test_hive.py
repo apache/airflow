@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import TaskInstance
 from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 from airflow.providers.apache.hive.operators.hive import HiveOperator
-from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
 from airflow.providers.apache.hive.operators.hive_to_mysql import HiveToMySqlTransfer
 from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
@@ -177,15 +176,6 @@ class TestHivePresto(TestHiveEnvironment):
             task_id='hdfs_sensor_check',
             conn_id='presto_default',
             sql="SELECT 'x' FROM airflow.static_babynames LIMIT 1;",
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_hive_stats(self):
-        op = HiveStatsCollectionOperator(
-            task_id='hive_stats_check',
-            table="airflow.static_babynames_partitioned",
-            partition={'ds': DEFAULT_DATE_DS},
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)

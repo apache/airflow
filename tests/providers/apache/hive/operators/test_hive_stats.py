@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import unittest
 from collections import OrderedDict
 from unittest.mock import patch
 
 from airflow import AirflowException
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator
+from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
 
 
 class _FakeCol:
@@ -33,7 +35,7 @@ class _FakeCol:
 fake_col = _FakeCol('col', 'string')
 
 
-class TestHiveStatsCollectionOperator(unittest.TestCase):
+class TestHiveStatsCollectionOperator(TestHiveEnvironment):
 
     def setUp(self):
         self.kwargs = dict(
@@ -43,8 +45,8 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
             presto_conn_id='presto_conn_id',
             mysql_conn_id='mysql_conn_id',
             task_id='test_hive_stats_collection_operator',
-            dag=None
         )
+        super().setUp()
 
     def test_get_default_exprs(self):
         col = 'col'
@@ -282,3 +284,15 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
             hive_stats_collection_operator.dttm
         )
         mock_mysql_hook.return_value.run.assert_called_once_with(sql)
+
+    @unittest.skipIf(
+        'AIRFLOW_RUNALL_TESTS' not in os.environ,
+        "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+    def test_runs_for_hive_stats(self):
+        op = HiveStatsCollectionOperator(
+            task_id='hive_stats_check',
+            table="airflow.static_babynames_partitioned",
+            partition={'ds': DEFAULT_DATE_DS},
+            dag=self.dag)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
