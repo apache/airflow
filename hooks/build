@@ -399,7 +399,7 @@ function filterout_deleted_files {
 # This deals with files
 git ls-files -z ':!:airflow/www/static/docs' | filterout_deleted_files | xargs -t -0 chmod og-w
 # and this deals with directories
-git ls-tree -z -r -d --name-only HEAD | filterout_deleted_files | xargs -t -0 chmod og-w,og+x
+git ls-tree -z -r -d --name-only HEAD | filterout_deleted_files | xargs -0 chmod og-w,og+x
 
 if [[ "${AIRFLOW_CONTAINER_SKIP_CI_IMAGE}" == "true" ]]; then
     echo "Skip building the CI full Airflow image"
