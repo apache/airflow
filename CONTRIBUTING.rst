@@ -116,6 +116,8 @@ To generate a local version:
     If you are building on mac, you can install latest version of bash with homebrew.
 
 
+If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache license or copy another ``__init__.py`` file that contains the necessary license.
+
 Pull Request Guidelines
 =======================
 
