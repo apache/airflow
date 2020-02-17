@@ -7,11 +7,7 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-
-# 
-#   http://www.apache.org/licenses/LICENSE-2.0
-# 
-
+# http://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -40,7 +36,6 @@ from airflow.contrib.hooks.aws_glue_job_hook import AwsGlueJobHook
 
 
 class TestGlueJobHook(unittest.TestCase):
-
     def setUp(self):
         self.some_aws_region = "us-west-2"
 
