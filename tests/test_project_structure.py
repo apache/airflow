@@ -254,6 +254,7 @@ class TestGoogleProviderProjectStructure(unittest.TestCase):
 
 class TestOperatorsHooks(unittest.TestCase):
     def test_no_illegal_suffixes(self):
+        illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
         files = itertools.chain(*[
             glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
@@ -263,7 +264,7 @@ class TestOperatorsHooks(unittest.TestCase):
         invalid_files = [
             f
             for f in files
-            if any(f.endswith(suffix) for suffix in ["_operator.py", "_hook.py", "_sensor.py"])
+            if any(f.endswith(suffix) for suffix in illegal_suffixes)
         ]
 
         self.assertEqual([], invalid_files)
