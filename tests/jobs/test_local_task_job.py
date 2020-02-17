@@ -344,3 +344,57 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertTrue(data['called'])
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
+
+    def test_mark_success_on_success_callback(self):
+        """
+        Test that ensures that where a task is marked suceess in the UI
+        on_success_callback gets executed
+        """
+        data = {'called': False}
+
+        def success_callback(context):
+            self.assertEqual(context['dag_run'].dag_id,
+                             'test_mark_success')
+            data['called'] = True
+
+        dag = DAG(dag_id='test_mark_success',
+                  start_date=DEFAULT_DATE,
+                  default_args={'owner': 'owner1'})
+
+        task = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag,
+            on_success_callback=success_callback)
+
+        session = settings.Session()
+
+        dag.clear()
+        dag.create_dagrun(run_id="test",
+                          state=State.RUNNING,
+                          execution_date=DEFAULT_DATE,
+                          start_date=DEFAULT_DATE,
+                          session=session)
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        job1 = LocalTaskJob(task_instance=ti,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
+        from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
+        job1.task_runner = StandardTaskRunner(job1)
+        process = multiprocessing.Process(target=job1.run)
+        process.start()
+        ti.refresh_from_db()
+        for _ in range(0, 50):
+            if ti.state == State.RUNNING:
+                break
+            time.sleep(0.1)
+            ti.refresh_from_db()
+        self.assertEqual(State.RUNNING, ti.state)
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.commit()
+
+        job1.heartbeat_callback(session=None)
+        self.assertTrue(data['called'])
+        process.join(timeout=10)
+        self.assertFalse(process.is_alive())

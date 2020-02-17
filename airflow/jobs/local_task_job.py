@@ -156,5 +156,8 @@ class LocalTaskJob(BaseJob):
             if ti.state == State.FAILED and ti.task.on_failure_callback:
                 context = ti.get_template_context()
                 ti.task.on_failure_callback(context)
+            if ti.state == State.SUCCESS and ti.task.on_success_callback:
+                context = ti.get_template_context()
+                ti.task.on_success_callback(context)
             self.task_runner.terminate()
             self.terminating = True
