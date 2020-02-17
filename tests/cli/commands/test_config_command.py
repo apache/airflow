@@ -43,10 +43,3 @@ class TestCliConfig(unittest.TestCase):
             config_command.show_config(self.parser.parse_args(['config']))
         self.assertIn('[core]', temp_stdout.getvalue())
         self.assertIn('testkey = test_value', temp_stdout.getvalue())
-
-    @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
-    def test_cli_show_config_should_respect_env_variable(self):
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
-            config_command.show_config(self.parser.parse_args(['config']))
-        self.assertIn('[core]', temp_stdout.getvalue())
-        self.assertIn('dags_folder = /tmp/test_folder', temp_stdout.getvalue())

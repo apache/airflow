@@ -17,6 +17,7 @@
 # under the License.
 import io
 import os
+import tempfile
 import unittest
 import warnings
 from collections import OrderedDict
@@ -320,6 +321,21 @@ key3 = value3
                 ('testpercent', 'with%percent')]),
             test_conf.getsection('testsection')
         )
+
+    def test_get_section_should_respect_cmd_env_variable(self):
+        with tempfile.NamedTemporaryFile(delete=False) as cmd_file:
+            cmd_file.write("#!/usr/bin/env bash\n".encode())
+            cmd_file.write("echo -n difficult_unpredictable_cat_password\n".encode())
+            cmd_file.flush()
+            os.chmod(cmd_file.name, 0o0555)
+            cmd_file.close()
+
+            with mock.patch.dict(
+                "os.environ", {"AIRFLOW__KUBERNETES__GIT_PASSWORD_CMD": cmd_file.name}
+            ):
+                content = conf.getsection("kubernetes")
+            os.unlink(cmd_file.name)
+        self.assertEqual(content["git_password"], "difficult_unpredictable_cat_password")
 
     def test_kubernetes_environment_variables_section(self):
         test_config = '''
