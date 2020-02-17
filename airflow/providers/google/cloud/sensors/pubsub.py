@@ -84,8 +84,8 @@ class PubSubPullSensor(BaseSensorOperator):
             delegate_to: Optional[str] = None,
             project: Optional[str] = None,
             *args,
-            **kwargs) -> None:
-
+            **kwargs
+    ) -> None:
         # To preserve backward compatibility
         # TODO: remove one day
         if project:
@@ -111,18 +111,24 @@ class PubSubPullSensor(BaseSensorOperator):
         return self._messages
 
     def poke(self, context):
-        hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
-                          delegate_to=self.delegate_to)
+        hook = PubSubHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+        )
+
         pulled_messages = hook.pull(
             project_id=self.project_id,
             subscription=self.subscription,
             max_messages=self.max_messages,
-            return_immediately=self.return_immediately
+            return_immediately=self.return_immediately,
         )
 
         self._messages = [MessageToDict(m) for m in pulled_messages]
 
         if self._messages and self.ack_messages:
-            ack_ids = [m['ackId'] for m in self._messages if m.get('ackId')]
+            ack_ids = [
+                m['ackId'] for m in self._messages if m.get('ackId')
+            ]
             hook.acknowledge(project_id=self.project_id, subscription=self.subscription, ack_ids=ack_ids)
+
         return self._messages
