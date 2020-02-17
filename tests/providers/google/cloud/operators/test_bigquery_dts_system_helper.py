@@ -21,13 +21,13 @@ from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 class GcpBigqueryDtsTestHelper(LoggingCommandExecutor):
     def create_dataset(self, project_id: str, dataset: str, table: str):
-        dataset_name = "{}:{}".format(project_id, dataset)
+        dataset_name = f"{project_id}:{dataset}"
         self.execute_cmd(["bq", "--location", "us", "mk", "--dataset", dataset_name])
-        table_name = "{}.{}".format(dataset_name, table)
+        table_name = f"{dataset_name}.{table}"
         self.execute_cmd(["bq", "mk", "--table", table_name, ""])
 
     def upload_data(self, dataset: str, table: str, gcs_file: str):
-        table_name = "{}.{}".format(dataset, table)
+        table_name = f"{dataset}.{table}"
         self.execute_cmd(
             [
                 "bq",
@@ -43,5 +43,5 @@ class GcpBigqueryDtsTestHelper(LoggingCommandExecutor):
         )
 
     def delete_dataset(self, project_id: str, dataset: str):
-        dataset_name = "{}:{}".format(project_id, dataset)
+        dataset_name = f"{project_id}:{dataset}"
         self.execute_cmd(["bq", "rm", "-r", "-f", "-d", dataset_name])

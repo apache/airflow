@@ -247,7 +247,7 @@ class GoogleDisplayVideo360DownloadReportOperator(BaseOperator):
         resource = hook.get_query(query_id=self.report_id)
         # Check if report is ready
         if resource["metadata"]["running"]:
-            raise AirflowException('Report {} is still running'.format(self.report_id))
+            raise AirflowException(f'Report {self.report_id} is still running')
 
         # If no custom report_name provided, use DV360 name
         file_url = resource["metadata"]["googleCloudStoragePathForLatestReport"]

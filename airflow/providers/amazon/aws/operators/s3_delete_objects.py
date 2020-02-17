@@ -74,4 +74,16 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+<<<<<<< HEAD
         s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
+=======
+
+        response = s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
+
+        deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
+        self.log.info("Deleted: %s", deleted_keys)
+
+        if "Errors" in response:
+            errors_keys = [x['Key'] for x in response.get("Errors", [])]
+            raise AirflowException(f"Errors when deleting: {errors_keys}")
+>>>>>>> b18ba328b... [AIRFLOW-6719] Introduce pyupgrade to enforce latest syntax

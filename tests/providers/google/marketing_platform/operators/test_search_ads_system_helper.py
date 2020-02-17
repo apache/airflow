@@ -25,9 +25,9 @@ GCS_BUCKET = os.environ.get("GMP_GCS_BUCKET", "test-cm-bucket")
 
 class GoogleSearchAdsSystemTestHelper(LoggingCommandExecutor):
     def create_bucket(self):
-        self.execute_cmd(["gsutil", "mb", "gs://{bucket}".format(bucket=GCS_BUCKET)])
+        self.execute_cmd(["gsutil", "mb", f"gs://{GCS_BUCKET}"])
 
     def delete_bucket(self):
         self.execute_cmd(
-            ["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=GCS_BUCKET)]
+            ["gsutil", "rm", "-r", f"gs://{GCS_BUCKET}"]
         )

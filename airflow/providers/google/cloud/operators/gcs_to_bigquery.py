@@ -252,7 +252,7 @@ class GCSToBigQueryOperator(BaseOperator):
         else:
             schema_fields = self.schema_fields
 
-        source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
+        source_uris = [f'gs://{self.bucket}/{source_object}'
                        for source_object in self.source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()

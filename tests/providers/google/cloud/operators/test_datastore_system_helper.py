@@ -31,9 +31,9 @@ class GcpDatastoreSystemTestHelper(LoggingCommandExecutor):
                 "mb",
                 "-l",
                 "europe-north1",
-                "gs://{bucket}".format(bucket=BUCKET),
+                f"gs://{BUCKET}",
             ]
         )
 
     def delete_bucket(self):
-        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET)])
+        self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET}"])

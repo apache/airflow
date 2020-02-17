@@ -29,7 +29,7 @@ role = 'arn:aws:iam:role/test-role'
 bucket = 'test-bucket'
 
 key = 'test/data'
-data_url = 's3://{}/{}'.format(bucket, key)
+data_url = f's3://{bucket}/{key}'
 
 job_name = 'test-job-name'
 
@@ -37,7 +37,7 @@ model_name = 'test-model-name'
 
 image = 'test-image'
 
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 
 create_transform_params = {
     'TransformJobName': job_name,

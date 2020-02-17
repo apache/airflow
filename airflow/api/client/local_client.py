@@ -30,11 +30,11 @@ class Client(api_client.Client):
                                           run_id=run_id,
                                           conf=conf,
                                           execution_date=execution_date)
-        return "Created {}".format(dag_run)
+        return f"Created {dag_run}"
 
     def delete_dag(self, dag_id):
         count = delete_dag.delete_dag(dag_id)
-        return "Removed {} record(s)".format(count)
+        return f"Removed {count} record(s)"
 
     def get_pool(self, name):
         the_pool = pool.get_pool(name=name)

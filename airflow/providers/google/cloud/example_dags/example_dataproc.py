@@ -35,9 +35,9 @@ REGION = os.environ.get("GCP_LOCATION", "europe-west1")
 ZONE = os.environ.get("GCP_REGION", "europe-west-1b")
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 OUTPUT_FOLDER = "wordcount"
-OUTPUT_PATH = "gs://{}/{}/".format(BUCKET, OUTPUT_FOLDER)
+OUTPUT_PATH = f"gs://{BUCKET}/{OUTPUT_FOLDER}/"
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
-PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
+PYSPARK_URI = f"gs://{BUCKET}/{PYSPARK_MAIN}"
 
 
 # Cluster definition

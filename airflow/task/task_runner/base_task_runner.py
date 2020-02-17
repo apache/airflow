@@ -75,7 +75,7 @@ class BaseTaskRunner(LoggingMixin):
             popen_prepend = ['sudo', '-E', '-H', '-u', self.run_as_user]
 
             if pythonpath_value:
-                popen_prepend.append('{}={}'.format(PYTHONPATH_VAR, pythonpath_value))
+                popen_prepend.append(f'{PYTHONPATH_VAR}={pythonpath_value}')
 
         else:
             # Always provide a copy of the configuration file settings. Since

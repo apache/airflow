@@ -108,7 +108,7 @@ class settings_context:  # pylint: disable=invalid-name
     def __init__(self, content, directory=None, name='LOGGING_CONFIG'):
         self.content = content
         self.settings_root = tempfile.mkdtemp()
-        filename = "{}.py".format(SETTINGS_DEFAULT_NAME)
+        filename = f"{SETTINGS_DEFAULT_NAME}.py"
 
         if directory:
             # Replace slashes by dots

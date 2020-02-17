@@ -114,7 +114,7 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         check_file_task = SSHOperator(
             task_id="test_check_file",
             ssh_hook=self.hook,
-            command="cat {0}".format(self.sftp_path),
+            command=f"cat {self.sftp_path}",
             do_xcom_push=True,
             dag=self.dag
         )
@@ -128,14 +128,14 @@ class TestS3ToSFTPOperator(unittest.TestCase):
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
-        self.assertFalse((self.s3_hook.check_for_bucket(self.s3_bucket)))
+        self.assertFalse(self.s3_hook.check_for_bucket(self.s3_bucket))
 
     def delete_remote_resource(self):
         # check the remote file content
         remove_file_task = SSHOperator(
             task_id="test_check_file",
             ssh_hook=self.hook,
-            command="rm {0}".format(self.sftp_path),
+            command=f"rm {self.sftp_path}",
             do_xcom_push=True,
             dag=self.dag
         )

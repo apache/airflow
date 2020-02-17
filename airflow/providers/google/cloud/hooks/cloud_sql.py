@@ -336,7 +336,7 @@ class CloudSQLHook(CloudBaseHook):
                                                  operation_name=operation_name)
         except HttpError as ex:
             raise AirflowException(
-                'Exporting instance {} failed: {}'.format(instance, ex.content)
+                f'Exporting instance {instance} failed: {ex.content}'
             )
 
     @CloudBaseHook.fallback_to_default_project_id
@@ -369,7 +369,7 @@ class CloudSQLHook(CloudBaseHook):
                                                  operation_name=operation_name)
         except HttpError as ex:
             raise AirflowException(
-                'Importing instance {} failed: {}'.format(instance, ex.content)
+                f'Importing instance {instance} failed: {ex.content}'
             )
 
     def _wait_for_operation_to_complete(self, project_id: str, operation_name: str) -> None:

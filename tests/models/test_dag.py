@@ -324,7 +324,7 @@ class TestDag(unittest.TestCase):
                  default_args={'owner': 'owner1'}) as dag:
             pipeline = [
                 [DummyOperator(
-                    task_id='stage{}.{}'.format(i, j), priority_weight=weight)
+                    task_id=f'stage{i}.{j}', priority_weight=weight)
                     for j in range(0, width)] for i in range(0, depth)
             ]
             for i, stage in enumerate(pipeline):
@@ -353,7 +353,7 @@ class TestDag(unittest.TestCase):
                  default_args={'owner': 'owner1'}) as dag:
             pipeline = [
                 [DummyOperator(
-                    task_id='stage{}.{}'.format(i, j), priority_weight=weight,
+                    task_id=f'stage{i}.{j}', priority_weight=weight,
                     weight_rule=WeightRule.UPSTREAM)
                     for j in range(0, width)] for i in range(0, depth)
             ]
@@ -382,7 +382,7 @@ class TestDag(unittest.TestCase):
                  default_args={'owner': 'owner1'}) as dag:
             pipeline = [
                 [DummyOperator(
-                    task_id='stage{}.{}'.format(i, j), priority_weight=weight,
+                    task_id=f'stage{i}.{j}', priority_weight=weight,
                     weight_rule=WeightRule.ABSOLUTE)
                     for j in range(0, width)] for i in range(0, depth)
             ]
@@ -1036,7 +1036,7 @@ class TestDag(unittest.TestCase):
         self.assertEqual(
             datetime_tz(2015, 1, 2, 0, 0),
             dag_run.execution_date,
-            msg='dag_run.execution_date did not match expectation: {0}'
+            msg='dag_run.execution_date did not match expectation: {}'
             .format(dag_run.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run.state)
@@ -1066,7 +1066,7 @@ class TestDag(unittest.TestCase):
         self.assertEqual(
             datetime_tz(2015, 1, 2, 0, 0),
             dag_run.execution_date,
-            msg='dag_run.execution_date did not match expectation: {0}'
+            msg='dag_run.execution_date did not match expectation: {}'
             .format(dag_run.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run.state)
@@ -1079,7 +1079,7 @@ class TestDag(unittest.TestCase):
         self.assertEqual(
             datetime_tz(2015, 1, 2, 0, 0) + delta,
             dag_run2.execution_date,
-            msg='dag_run2.execution_date did not match expectation: {0}'
+            msg='dag_run2.execution_date did not match expectation: {}'
             .format(dag_run2.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run2.state)
@@ -1115,7 +1115,7 @@ class TestDag(unittest.TestCase):
         self.assertEqual(
             DEFAULT_DATE + delta,
             dag_run.execution_date,
-            msg='dag_run.execution_date did not match expectation: {0}'
+            msg='dag_run.execution_date did not match expectation: {}'
             .format(dag_run.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run.state)

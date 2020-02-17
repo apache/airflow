@@ -41,18 +41,18 @@ class GcsToSFTPTestHelper(LoggingCommandExecutor):
         """Create a bucket in Google Cloud Storage service with sample content."""
 
         # 1. Create buckets
-        self.execute_cmd(["gsutil", "mb", "gs://{}".format(BUCKET_SRC)])
+        self.execute_cmd(["gsutil", "mb", f"gs://{BUCKET_SRC}"])
 
         # 2. Prepare files
         for bucket_src, object_source in product(
             (
                 BUCKET_SRC,
-                "{}/subdir-1".format(BUCKET_SRC),
-                "{}/subdir-2".format(BUCKET_SRC),
+                f"{BUCKET_SRC}/subdir-1",
+                f"{BUCKET_SRC}/subdir-2",
             ),
             (OBJECT_SRC_1, OBJECT_SRC_2),
         ):
-            source_path = "gs://{}/{}".format(bucket_src, object_source)
+            source_path = f"gs://{bucket_src}/{object_source}"
             self.execute_cmd(
                 [
                     "bash",
@@ -65,8 +65,8 @@ class GcsToSFTPTestHelper(LoggingCommandExecutor):
 
     def delete_buckets(self):
         """Delete bucket in Google Cloud Storage service"""
-        self.execute_cmd(["gsutil", "rm", "gs://{}/**".format(BUCKET_SRC)])
-        self.execute_cmd(["gsutil", "rb", "gs://{}".format(BUCKET_SRC)])
+        self.execute_cmd(["gsutil", "rm", f"gs://{BUCKET_SRC}/**"])
+        self.execute_cmd(["gsutil", "rb", f"gs://{BUCKET_SRC}"])
 
 
 if __name__ == "__main__":
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         elif action == "delete-buckets":
             helper.delete_buckets()
         else:
-            raise Exception("Unknown action: {}".format(action))
+            raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
 

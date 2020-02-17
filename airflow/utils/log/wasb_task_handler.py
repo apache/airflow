@@ -117,8 +117,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
             remote_log = self.wasb_read(remote_loc, return_error=True)
-            log = '*** Reading remote log from {}.\n{}\n'.format(
-                remote_loc, remote_log)
+            log = f'*** Reading remote log from {remote_loc}.\n{remote_log}\n'
             return log, {'end_of_log': True}
         else:
             return super()._read(ti, try_number)
@@ -150,7 +149,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             return self.hook.read_file(self.wasb_container, remote_log_location)
         except AzureHttpError:
-            msg = 'Could not read logs from {}'.format(remote_log_location)
+            msg = f'Could not read logs from {remote_log_location}'
             self.log.exception(msg)
             # return error if needed
             if return_error:

@@ -332,7 +332,7 @@ class CloudFunctionDeleteFunctionOperator(BaseOperator):
             pattern = FUNCTION_NAME_COMPILED_PATTERN
             if not pattern.match(self.name):
                 raise AttributeError(
-                    'Parameter name must match pattern: {}'.format(FUNCTION_NAME_PATTERN))
+                    f'Parameter name must match pattern: {FUNCTION_NAME_PATTERN}')
 
     def execute(self, context):
         hook = CloudFunctionsHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)

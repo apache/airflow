@@ -245,13 +245,13 @@ class FakeElasticsearch(Elasticsearch):
                   'preference', 'routing')
     def suggest(self, body, index=None, params=None):
         if index is not None and index not in self.__documents_dict:
-            raise NotFoundError(404, 'IndexMissingException[[{0}] missing]'.format(index))
+            raise NotFoundError(404, f'IndexMissingException[[{index}] missing]')
 
         result_dict = {}
         for key, value in body.items():
             text = value.get('text')
             suggestion = int(text) + 1 if isinstance(text, int) \
-                else '{0}_suggestion'.format(text)
+                else f'{text}_suggestion'
             result_dict[key] = [
                 {
                     'text': text,
@@ -315,7 +315,7 @@ class FakeElasticsearch(Elasticsearch):
         for searchable_index in searchable_indexes:
             if searchable_index not in self.__documents_dict:
                 raise NotFoundError(404,
-                                    'IndexMissingException[[{0}] missing]'
+                                    'IndexMissingException[[{}] missing]'
                                     .format(searchable_index))
 
         return searchable_indexes

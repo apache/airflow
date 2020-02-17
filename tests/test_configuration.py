@@ -455,7 +455,7 @@ AIRFLOW_HOME = /root/airflow
     def test_deprecated_funcs(self):
         for func in ['load_test_config', 'get', 'getboolean', 'getfloat', 'getint', 'has_option',
                      'remove_option', 'as_dict', 'set']:
-            with mock.patch('airflow.configuration.{}'.format(func)):
+            with mock.patch(f'airflow.configuration.{func}'):
                 with self.assertWarns(DeprecationWarning):
                     getattr(configuration, func)()
 
@@ -538,9 +538,9 @@ notacommand = OK
     def test_run_command(self):
         write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
 
-        cmd = 'import sys; {0}; sys.stdout.flush()'.format(write)
+        cmd = f'import sys; {write}; sys.stdout.flush()'
 
-        self.assertEqual(run_command("python -c '{0}'".format(cmd)), '\u1000foo')
+        self.assertEqual(run_command(f"python -c '{cmd}'"), '\u1000foo')
 
         self.assertEqual(run_command('echo "foo bar"'), 'foo bar\n')
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')

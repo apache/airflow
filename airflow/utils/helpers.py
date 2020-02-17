@@ -47,7 +47,7 @@ def validate_key(k, max_length=250):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
         raise AirflowException(
-            "The key has to be less than {0} characters".format(max_length))
+            f"The key has to be less than {max_length} characters")
     elif not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "
@@ -150,7 +150,7 @@ def pprinttable(rows):
     if hasattr(rows[0], '_fields'):  # if namedtuple
         headers = rows[0]._fields
     else:
-        headers = ["col{}".format(i) for i in range(len(rows[0]))]
+        headers = [f"col{i}" for i in range(len(rows[0]))]
     lens = [len(s) for s in headers]
 
     for row in rows:
@@ -175,7 +175,7 @@ def pprinttable(rows):
     tab += separator + '\n'
 
     def _format(t):
-        return "{}".format(t) if isinstance(t, str) else t
+        return f"{t}" if isinstance(t, str) else t
 
     for line in rows:
         tab += pattern % tuple(_format(t) for t in line) + '\n'

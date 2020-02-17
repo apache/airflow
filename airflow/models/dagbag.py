@@ -348,7 +348,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                     ti.try_number = zombie.try_number
                     ti.state = zombie.state
                     ti.test_mode = self.UNIT_TEST_MODE
-                    ti.handle_failure("{} detected as zombie".format(ti),
+                    ti.handle_failure(f"{ti} detected as zombie",
                                       ti.test_mode, ti.get_template_context())
                     self.log.info('Marked zombie job %s as %s', ti, ti.state)
                     Stats.incr('zombies_killed')

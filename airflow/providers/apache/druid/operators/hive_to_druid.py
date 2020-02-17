@@ -169,7 +169,7 @@ class HiveToDruidTransfer(BaseOperator):
                 "Cleaning up by dropping the temp Hive table %s",
                 hive_table
             )
-            hql = "DROP TABLE IF EXISTS {}".format(hive_table)
+            hql = f"DROP TABLE IF EXISTS {hive_table}"
             hive.run_cli(hql)
 
     def construct_ingest_query(self, static_path, columns):

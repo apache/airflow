@@ -97,7 +97,7 @@ class SqoopHook(BaseHook):
         :return: handle to subprocess
         """
         masked_cmd = ' '.join(self.cmd_mask_password(cmd))
-        self.log.info("Executing command: {}".format(masked_cmd))
+        self.log.info(f"Executing command: {masked_cmd}")
         self.sp = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -112,14 +112,14 @@ class SqoopHook(BaseHook):
         self.log.info("Command exited with return code %s", self.sp.returncode)
 
         if self.sp.returncode:
-            raise AirflowException("Sqoop command failed: {}".format(masked_cmd))
+            raise AirflowException(f"Sqoop command failed: {masked_cmd}")
 
     def _prepare_command(self, export=False):
         sqoop_cmd_type = "export" if export else "import"
         connection_cmd = ["sqoop", sqoop_cmd_type]
 
         for key, value in self.properties.items():
-            connection_cmd += ["-D", "{}={}".format(key, value)]
+            connection_cmd += ["-D", f"{key}={value}"]
 
         if self.namenode:
             connection_cmd += ["-fs", self.namenode]
@@ -148,9 +148,9 @@ class SqoopHook(BaseHook):
 
         connect_str = self.conn.host
         if self.conn.port:
-            connect_str += ":{}".format(self.conn.port)
+            connect_str += f":{self.conn.port}"
         if self.conn.schema:
-            connect_str += "/{}".format(self.conn.schema)
+            connect_str += f"/{self.conn.schema}"
         connection_cmd += ["--connect", connect_str]
 
         return connection_cmd
@@ -193,7 +193,7 @@ class SqoopHook(BaseHook):
 
         if extra_import_options:
             for key, value in extra_import_options.items():
-                cmd += ['--{}'.format(key)]
+                cmd += [f'--{key}']
                 if value:
                     cmd += [str(value)]
 
@@ -302,7 +302,7 @@ class SqoopHook(BaseHook):
 
         if extra_export_options:
             for key, value in extra_export_options.items():
-                cmd += ['--{}'.format(key)]
+                cmd += [f'--{key}']
                 if value:
                     cmd += [str(value)]
 

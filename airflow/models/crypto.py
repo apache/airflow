@@ -85,6 +85,6 @@ def get_fernet():
             ])
             _fernet.is_encrypted = True
     except (ValueError, TypeError) as ve:
-        raise AirflowException("Could not create Fernet object: {}".format(ve))
+        raise AirflowException(f"Could not create Fernet object: {ve}")
 
     return _fernet

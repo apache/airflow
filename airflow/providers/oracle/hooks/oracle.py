@@ -137,7 +137,7 @@ class OracleHook(DbApiHook):
         """
         if target_fields:
             target_fields = ', '.join(target_fields)
-            target_fields = '({})'.format(target_fields)
+            target_fields = f'({target_fields})'
         else:
             target_fields = ''
         conn = self.get_conn()
@@ -167,9 +167,7 @@ class OracleHook(DbApiHook):
                     lst.append(str(cell))
             values = tuple(lst)
             sql = 'INSERT /*+ APPEND */ ' \
-                  'INTO {0} {1} VALUES ({2})'.format(table,
-                                                     target_fields,
-                                                     ','.join(values))
+                  'INTO {} {} VALUES ({})'.format(table, target_fields, ','.join(values))
             cur.execute(sql)
             if i % commit_every == 0:
                 conn.commit()

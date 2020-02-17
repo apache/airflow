@@ -114,7 +114,7 @@ gcs_to_gcs_transfer_body = {
 # [START howto_operator_gcp_transfer_update_job_body]
 update_body = {
     PROJECT_ID: GCP_PROJECT_ID,
-    TRANSFER_JOB: {DESCRIPTION: "{}_updated".format(GCP_DESCRIPTION)},
+    TRANSFER_JOB: {DESCRIPTION: f"{GCP_DESCRIPTION}_updated"},
     TRANSFER_JOB_FIELD_MASK: "description",
 }
 # [END howto_operator_gcp_transfer_update_job_body]

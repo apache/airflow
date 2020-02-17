@@ -61,8 +61,8 @@ class TestMLEngineHook(unittest.TestCase):
                 'airflow-version': hook._AIRFLOW_VERSION
             }
         }
-        operation_path = 'projects/{}/operations/test-operation'.format(project_id)
-        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        operation_path = f'projects/{project_id}/operations/test-operation'
+        model_path = f'projects/{project_id}/models/{model_name}'
         operation_done = {'name': operation_path, 'done': True}
 
         (
@@ -108,8 +108,8 @@ class TestMLEngineHook(unittest.TestCase):
             'name': 'test-version',
             'labels': {'airflow-version': hook._AIRFLOW_VERSION}
         }
-        operation_path = 'projects/{}/operations/test-operation'.format(project_id)
-        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        operation_path = f'projects/{project_id}/operations/test-operation'
+        model_path = f'projects/{project_id}/models/{model_name}'
         operation_done = {'name': operation_path, 'done': True}
 
         (
@@ -150,8 +150,8 @@ class TestMLEngineHook(unittest.TestCase):
         project_id = 'test-project'
         model_name = 'test-model'
         version_name = 'test-version'
-        operation_path = 'projects/{}/operations/test-operation'.format(project_id)
-        version_path = 'projects/{}/models/{}/versions/{}'.format(project_id, model_name, version_name)
+        operation_path = f'projects/{project_id}/operations/test-operation'
+        version_path = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
         operation_done = {'name': operation_path, 'done': True}
 
         (
@@ -181,11 +181,11 @@ class TestMLEngineHook(unittest.TestCase):
     def test_list_versions(self, mock_get_conn, mock_sleep):
         project_id = 'test-project'
         model_name = 'test-model'
-        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
-        version_names = ['ver_{}'.format(ix) for ix in range(3)]
+        model_path = f'projects/{project_id}/models/{model_name}'
+        version_names = [f'ver_{ix}' for ix in range(3)]
         response_bodies = [
             {
-                'nextPageToken': "TOKEN-{}".format(ix),
+                'nextPageToken': f"TOKEN-{ix}",
                 'versions': [ver]
             } for ix, ver in enumerate(version_names)]
         response_bodies[-1].pop('nextPageToken')
@@ -221,8 +221,8 @@ class TestMLEngineHook(unittest.TestCase):
         project_id = 'test-project'
         model_name = 'test-model'
         version_name = 'test-version'
-        operation_path = 'projects/{}/operations/test-operation'.format(project_id)
-        version_path = 'projects/{}/models/{}/versions/{}'.format(project_id, model_name, version_name)
+        operation_path = f'projects/{project_id}/operations/test-operation'
+        version_path = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
         version = {'name': operation_path}
         operation_not_done = {'name': operation_path, 'done': False}
         operation_done = {'name': operation_path, 'done': True}
@@ -267,7 +267,7 @@ class TestMLEngineHook(unittest.TestCase):
             'name': model_name,
             'labels': {'airflow-version': hook._AIRFLOW_VERSION}
         }
-        project_path = 'projects/{}'.format(project_id)
+        project_path = f'projects/{project_id}'
 
         (
             mock_get_conn.return_value.
@@ -302,7 +302,7 @@ class TestMLEngineHook(unittest.TestCase):
                 'airflow-version': hook._AIRFLOW_VERSION
             }
         }
-        project_path = 'projects/{}'.format(project_id)
+        project_path = f'projects/{project_id}'
 
         (
             mock_get_conn.return_value.
@@ -327,7 +327,7 @@ class TestMLEngineHook(unittest.TestCase):
         project_id = 'test-project'
         model_name = 'test-model'
         model = {'model': model_name}
-        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        model_path = f'projects/{project_id}/models/{model_name}'
 
         (
             mock_get_conn.return_value.
@@ -352,7 +352,7 @@ class TestMLEngineHook(unittest.TestCase):
         project_id = 'test-project'
         model_name = 'test-model'
         model = {'model': model_name}
-        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        model_path = f'projects/{project_id}/models/{model_name}'
         (
             mock_get_conn.return_value.
             projects.return_value.
@@ -375,7 +375,7 @@ class TestMLEngineHook(unittest.TestCase):
     def test_delete_model_when_not_exists(self, mock_get_conn, mock_log):
         project_id = 'test-project'
         model_name = 'test-model'
-        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
+        model_path = f'projects/{project_id}/models/{model_name}'
         http_error = HttpError(
             resp=mock.MagicMock(status=404, reason="Model not found."),
             content=b'Model not found.'
@@ -403,12 +403,12 @@ class TestMLEngineHook(unittest.TestCase):
     def test_delete_model_with_contents(self, mock_get_conn, mock_sleep):
         project_id = 'test-project'
         model_name = 'test-model'
-        model_path = 'projects/{}/models/{}'.format(project_id, model_name)
-        operation_path = 'projects/{}/operations/test-operation'.format(project_id)
+        model_path = f'projects/{project_id}/models/{model_name}'
+        operation_path = f'projects/{project_id}/operations/test-operation'
         operation_done = {'name': operation_path, 'done': True}
         version_names = ["AAA", "BBB", "CCC"]
         versions = [{
-            'name': 'projects/{}/models/{}/versions/{}'.format(project_id, model_name, version_name),
+            'name': f'projects/{project_id}/models/{model_name}/versions/{version_name}',
             "isDefault": i == 0
         } for i, version_name in enumerate(version_names)]
 
@@ -445,7 +445,7 @@ class TestMLEngineHook(unittest.TestCase):
                 mock.call().projects().models().delete().execute()
             ] + [
                 mock.call().projects().models().versions().delete(
-                    name='projects/{}/models/{}/versions/{}'.format(project_id, model_name, version_name),
+                    name=f'projects/{project_id}/models/{model_name}/versions/{version_name}',
                 ) for version_name in version_names
             ],
             any_order=True
@@ -456,8 +456,8 @@ class TestMLEngineHook(unittest.TestCase):
     def test_create_mlengine_job(self, mock_get_conn, mock_sleep):
         project_id = 'test-project'
         job_id = 'test-job-id'
-        project_path = 'projects/{}'.format(project_id)
-        job_path = 'projects/{}/jobs/{}'.format(project_id, job_id)
+        project_path = f'projects/{project_id}'
+        job_path = f'projects/{project_id}/jobs/{job_id}'
         new_job = {
             'jobId': job_id,
             'foo': 4815162342,
@@ -508,8 +508,8 @@ class TestMLEngineHook(unittest.TestCase):
     def test_create_mlengine_job_with_labels(self, mock_get_conn, mock_sleep):
         project_id = 'test-project'
         job_id = 'test-job-id'
-        project_path = 'projects/{}'.format(project_id)
-        job_path = 'projects/{}/jobs/{}'.format(project_id, job_id)
+        project_path = f'projects/{project_id}'
+        job_path = f'projects/{project_id}/jobs/{job_id}'
         new_job = {
             'jobId': job_id,
             'foo': 4815162342,
@@ -563,8 +563,8 @@ class TestMLEngineHook(unittest.TestCase):
     def test_create_mlengine_job_reuse_existing_job_by_default(self, mock_get_conn):
         project_id = 'test-project'
         job_id = 'test-job-id'
-        project_path = 'projects/{}'.format(project_id)
-        job_path = 'projects/{}/jobs/{}'.format(project_id, job_id)
+        project_path = f'projects/{project_id}'
+        job_path = f'projects/{project_id}/jobs/{job_id}'
         job_succeeded = {
             'jobId': job_id,
             'foo': 4815162342,
@@ -686,7 +686,7 @@ class TestMLEngineHook(unittest.TestCase):
     def test_cancel_mlengine_job(self, mock_get_conn):
         project_id = "test-project"
         job_id = 'test-job-id'
-        job_path = 'projects/{}/jobs/{}'.format(project_id, job_id)
+        job_path = f'projects/{project_id}/jobs/{job_id}'
 
         job_cancelled = {}
 
@@ -735,7 +735,7 @@ class TestMLEngineHook(unittest.TestCase):
     def test_cancel_mlengine_job_completed_job(self, mock_get_conn):
         project_id = "test-project"
         job_id = 'test-job-id'
-        job_path = 'projects/{}/jobs/{}'.format(project_id, job_id)
+        job_path = f'projects/{project_id}/jobs/{job_id}'
         job_cancelled = {}
 
         error_job_already_completed = HttpError(
@@ -784,8 +784,8 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         model_name = 'test-model'
         version_name = 'test-version'
         version = {'name': version_name}
-        operation_path = 'projects/{}/operations/test-operation'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST)
-        model_path = 'projects/{}/models/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST, model_name)
+        operation_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation'
+        model_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}'
         operation_done = {'name': operation_path, 'done': True}
 
         (
@@ -825,7 +825,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
     def test_set_default_version(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         version_name = 'test-version'
-        operation_path = 'projects/{}/operations/test-operation'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        operation_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation'
         version_path = 'projects/{}/models/{}/versions/{}'.format(
             GCP_PROJECT_ID_HOOK_UNIT_TEST, model_name, version_name
         )
@@ -860,11 +860,11 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_list_versions(self, mock_get_conn, mock_sleep, mock_project_id):
         model_name = 'test-model'
-        model_path = 'projects/{}/models/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST, model_name)
-        version_names = ['ver_{}'.format(ix) for ix in range(3)]
+        model_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}'
+        version_names = [f'ver_{ix}' for ix in range(3)]
         response_bodies = [
             {
-                'nextPageToken': "TOKEN-{}".format(ix),
+                'nextPageToken': f"TOKEN-{ix}",
                 'versions': [ver]
             } for ix, ver in enumerate(version_names)]
         response_bodies[-1].pop('nextPageToken')
@@ -951,7 +951,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         model = {
             'name': model_name,
         }
-        project_path = 'projects/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST)
+        project_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}'
 
         (
             mock_get_conn.return_value.
@@ -978,7 +978,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
     def test_get_model(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         model = {'model': model_name}
-        model_path = 'projects/{}/models/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST, model_name)
+        model_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}'
 
         (
             mock_get_conn.return_value.
@@ -1005,7 +1005,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
     def test_delete_model(self, mock_get_conn, mock_project_id):
         model_name = 'test-model'
         model = {'model': model_name}
-        model_path = 'projects/{}/models/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST, model_name)
+        model_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}'
         (
             mock_get_conn.return_value.
             projects.return_value.
@@ -1030,8 +1030,8 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job(self, mock_get_conn, mock_sleep, mock_project_id):
         job_id = 'test-job-id'
-        project_path = 'projects/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST)
-        job_path = 'projects/{}/jobs/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST, job_id)
+        project_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}'
+        job_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/jobs/{job_id}'
         new_job = {
             'jobId': job_id,
             'foo': 4815162342,
@@ -1077,7 +1077,7 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_cancel_mlengine_job(self, mock_get_conn, mock_project_id):
         job_id = 'test-job-id'
-        job_path = 'projects/{}/jobs/{}'.format(GCP_PROJECT_ID_HOOK_UNIT_TEST, job_id)
+        job_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/jobs/{job_id}'
 
         job_cancelled = {}
 

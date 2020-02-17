@@ -43,17 +43,17 @@ class GcsToGcsTestHelper(LoggingCommandExecutor):
 
         # 1. Create bucket
         for name in [BUCKET_1_SRC, BUCKET_1_DST, BUCKET_2_SRC, BUCKET_2_DST, BUCKET_3_SRC, BUCKET_3_DST]:
-            self.execute_cmd(["gsutil", "mb", "gs://{}".format(name)])
+            self.execute_cmd(["gsutil", "mb", f"gs://{name}"])
 
         # 2. Prepare parents
-        first_parent = "gs://{}/parent-1.bin".format(BUCKET_1_SRC)
-        second_parent = "gs://{}/parent-2.bin".format(BUCKET_1_SRC)
+        first_parent = f"gs://{BUCKET_1_SRC}/parent-1.bin"
+        second_parent = f"gs://{BUCKET_1_SRC}/parent-2.bin"
 
         self.execute_cmd(
             [
                 "bash",
                 "-c",
-                "cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {}".format(first_parent),
+                f"cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {first_parent}",
             ]
         )
 
@@ -61,19 +61,19 @@ class GcsToGcsTestHelper(LoggingCommandExecutor):
             [
                 "bash",
                 "-c",
-                "cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {}".format(second_parent),
+                f"cat /dev/urandom | head -c $((1 * 1024 * 1024)) | gsutil cp - {second_parent}",
             ]
         )
 
-        self.execute_cmd(["gsutil", "cp", first_parent, "gs://{}/file.bin".format(BUCKET_1_SRC)])
-        self.execute_cmd(["gsutil", "cp", first_parent, "gs://{}/subdir/file.bin".format(BUCKET_1_SRC)])
+        self.execute_cmd(["gsutil", "cp", first_parent, f"gs://{BUCKET_1_SRC}/file.bin"])
+        self.execute_cmd(["gsutil", "cp", first_parent, f"gs://{BUCKET_1_SRC}/subdir/file.bin"])
 
-        self.execute_cmd(["gsutil", "cp", first_parent, "gs://{}/file.bin".format(BUCKET_2_SRC)])
-        self.execute_cmd(["gsutil", "cp", first_parent, "gs://{}/subdir/file.bin".format(BUCKET_2_SRC)])
-        self.execute_cmd(["gsutil", "cp", second_parent, "gs://{}/file.bin".format(BUCKET_2_DST)])
-        self.execute_cmd(["gsutil", "cp", second_parent, "gs://{}/subdir/file.bin".format(BUCKET_2_DST)])
-        self.execute_cmd(["gsutil", "cp", second_parent, "gs://{}/file.bin".format(BUCKET_3_DST)])
-        self.execute_cmd(["gsutil", "cp", second_parent, "gs://{}/subdir/file.bin".format(BUCKET_3_DST)])
+        self.execute_cmd(["gsutil", "cp", first_parent, f"gs://{BUCKET_2_SRC}/file.bin"])
+        self.execute_cmd(["gsutil", "cp", first_parent, f"gs://{BUCKET_2_SRC}/subdir/file.bin"])
+        self.execute_cmd(["gsutil", "cp", second_parent, f"gs://{BUCKET_2_DST}/file.bin"])
+        self.execute_cmd(["gsutil", "cp", second_parent, f"gs://{BUCKET_2_DST}/subdir/file.bin"])
+        self.execute_cmd(["gsutil", "cp", second_parent, f"gs://{BUCKET_3_DST}/file.bin"])
+        self.execute_cmd(["gsutil", "cp", second_parent, f"gs://{BUCKET_3_DST}/subdir/file.bin"])
 
         self.execute_cmd(["gsutil", "rm", first_parent])
         self.execute_cmd(["gsutil", "rm", second_parent])
@@ -82,7 +82,7 @@ class GcsToGcsTestHelper(LoggingCommandExecutor):
         """Delete buckets in Google Cloud Storage service"""
 
         for name in [BUCKET_1_SRC, BUCKET_1_DST, BUCKET_2_SRC, BUCKET_2_DST, BUCKET_3_SRC, BUCKET_3_DST]:
-            self.execute_cmd(["gsutil", "rb", "gs://{}".format(name)])
+            self.execute_cmd(["gsutil", "rb", f"gs://{name}"])
 
 
 if __name__ == "__main__":
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         elif action == "delete-buckets":
             helper.delete_buckets()
         else:
-            raise Exception("Unknown action: {}".format(action))
+            raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
 

@@ -289,8 +289,7 @@ class GCSHook(CloudBaseHook):
         blob = bucket.get_blob(blob_name=object_name)
 
         if blob is None:
-            raise ValueError("Object ({}) not found in Bucket ({})".format(
-                object_name, bucket_name))
+            raise ValueError(f"Object ({object_name}) not found in Bucket ({bucket_name})")
 
         blob_update_time = blob.updated
 

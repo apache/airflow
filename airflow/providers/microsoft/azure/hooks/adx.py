@@ -119,7 +119,7 @@ class AzureDataExplorerHook(BaseHook):
                 cluster)
         else:
             raise AirflowException(
-                'Unknown authentication method: {}'.format(auth_method))
+                f'Unknown authentication method: {auth_method}')
 
         return KustoClient(kcsb)
 
@@ -150,4 +150,4 @@ class AzureDataExplorerHook(BaseHook):
                 database, query, properties=properties)
         except KustoServiceError as error:
             raise AirflowException(
-                'Error running Kusto query: {}'.format(error))
+                f'Error running Kusto query: {error}')

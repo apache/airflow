@@ -163,11 +163,11 @@ class SSHOperator(BaseOperator):
 
                 else:
                     error_msg = agg_stderr.decode('utf-8')
-                    raise AirflowException("error running cmd: {0}, error: {1}"
+                    raise AirflowException("error running cmd: {}, error: {}"
                                            .format(self.command, error_msg))
 
         except Exception as e:
-            raise AirflowException("SSH operator error: {0}".format(str(e)))
+            raise AirflowException("SSH operator error: {}".format(str(e)))
 
         return True
 

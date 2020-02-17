@@ -133,7 +133,7 @@ class GHEAuthBackend:
 
         if not resp or resp.status != 200:
             raise AuthenticationError(
-                'Failed to fetch user profile, status ({0})'.format(
+                'Failed to fetch user profile, status ({})'.format(
                     resp.status if resp else 'None'))
 
         return resp.data['login'], resp.data['email']
@@ -161,7 +161,7 @@ class GHEAuthBackend:
 
         if not resp or resp.status != 200:
             raise AuthenticationError(
-                'Bad response from GHE ({0})'.format(
+                'Bad response from GHE ({})'.format(
                     resp.status if resp else 'None'))
 
         for team in resp.data:

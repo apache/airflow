@@ -377,7 +377,7 @@ class TestAirflowBaseViews(TestBase):
         if "dev" in version.version:
             airflow_doc_site = "https://airflow.readthedocs.io/en/latest"
         else:
-            airflow_doc_site = 'https://airflow.apache.org/docs/{}'.format(version.version)
+            airflow_doc_site = f'https://airflow.apache.org/docs/{version.version}'
 
         self.check_content_in_response(airflow_doc_site, resp)
 
@@ -711,8 +711,8 @@ class TestAirflowBaseViews(TestBase):
         self.session.commit()
 
         resp = self.client.get('/', follow_redirects=True)
-        self.check_content_in_response('/delete?dag_id={}'.format(test_dag_id), resp)
-        self.check_content_in_response("return confirmDeleteDag(this, '{}')".format(test_dag_id), resp)
+        self.check_content_in_response(f'/delete?dag_id={test_dag_id}', resp)
+        self.check_content_in_response(f"return confirmDeleteDag(this, '{test_dag_id}')", resp)
 
         self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': dag_id})
         self.session.commit()
@@ -764,7 +764,7 @@ class TestLogView(TestBase):
         # Write the custom logging configuration to a file
         self.settings_folder = tempfile.mkdtemp()
         settings_file = os.path.join(self.settings_folder, "airflow_local_settings.py")
-        new_logging_file = "LOGGING_CONFIG = {}".format(logging_config)
+        new_logging_file = f"LOGGING_CONFIG = {logging_config}"
         with open(settings_file, 'w') as handle:
             handle.writelines(new_logging_file)
         sys.path.append(self.settings_folder)
@@ -835,7 +835,7 @@ class TestLogView(TestBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Log by attempts', response.data.decode('utf-8'))
         for num in range(1, expected_num_logs_visible + 1):
-            self.assertIn('try-{}'.format(num), response.data.decode('utf-8'))
+            self.assertIn(f'try-{num}', response.data.decode('utf-8'))
         self.assertNotIn('try-0', response.data.decode('utf-8'))
         self.assertNotIn('try-{}'.format(expected_num_logs_visible + 1), response.data.decode('utf-8'))
 
@@ -988,7 +988,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.test.session.close()
 
     def assert_base_date_and_num_runs(self, base_date, num_runs, data):
-        self.test.assertNotIn('name="base_date" value="{}"'.format(base_date), data)
+        self.test.assertNotIn(f'name="base_date" value="{base_date}"', data)
         self.test.assertNotIn('<option selected="" value="{num}">{num}</option>'.format(
             num=num_runs), data)
 
@@ -1902,7 +1902,7 @@ class TestTriggerDag(TestBase):
         self.session.query(DR).delete()
         self.session.commit()
 
-        self.client.post('trigger?dag_id={}'.format(test_dag_id))
+        self.client.post(f'trigger?dag_id={test_dag_id}')
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
@@ -1918,7 +1918,7 @@ class TestTriggerDag(TestBase):
         self.session.query(DR).delete()
         self.session.commit()
 
-        self.client.post('trigger?dag_id={}'.format(test_dag_id), data={'conf': json.dumps(conf_dict)})
+        self.client.post(f'trigger?dag_id={test_dag_id}', data={'conf': json.dumps(conf_dict)})
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
@@ -1933,7 +1933,7 @@ class TestTriggerDag(TestBase):
         self.session.query(DR).delete()
         self.session.commit()
 
-        response = self.client.post('trigger?dag_id={}'.format(test_dag_id), data={'conf': '{"a": "b"'})
+        response = self.client.post(f'trigger?dag_id={test_dag_id}', data={'conf': '{"a": "b"'})
         self.assertEqual(response.status_code, 302)
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
@@ -1942,10 +1942,10 @@ class TestTriggerDag(TestBase):
     def test_trigger_dag_form(self):
         test_dag_id = "example_bash_operator"
 
-        resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
+        resp = self.client.get(f'trigger?dag_id={test_dag_id}')
 
         self.assertEqual(resp.status_code, 200)
-        self.check_content_in_response('Trigger DAG: {}'.format(test_dag_id), resp)
+        self.check_content_in_response(f'Trigger DAG: {test_dag_id}', resp)
 
 
 class TestExtraLinks(TestBase):
@@ -1972,7 +1972,7 @@ class TestExtraLinks(TestBase):
             name = 'foo-bar'
 
             def get_link(self, operator, dttm):
-                return 'http://www.example.com/{0}/{1}/{2}'.format(
+                return 'http://www.example.com/{}/{}/{}'.format(
                     operator.task_id, 'foo-bar', dttm)
 
         class AirflowLink(BaseOperatorLink):
@@ -2000,7 +2000,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=foo-bar"
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=foo-bar"
             .format(self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
@@ -2019,7 +2019,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=github"
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=github"
             .format(self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
@@ -2037,7 +2037,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=airflow".format(
                 self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
@@ -2055,7 +2055,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=raise_error"
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=raise_error"
             .format(self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
@@ -2072,7 +2072,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=no_response"
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=no_response"
             .format(self.endpoint, self.dag.dag_id, self.task.task_id, self.default_date),
             follow_redirects=True)
 
@@ -2096,7 +2096,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=airflow".format(
                 self.endpoint, self.dag.dag_id, self.task_2.task_id, self.default_date),
             follow_redirects=True)
 
@@ -2122,7 +2122,7 @@ class TestExtraLinks(TestBase):
         get_dag_function.return_value = self.dag
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=airflow".format(
                 self.endpoint, self.dag.dag_id, self.task_2.task_id, self.default_date),
             follow_redirects=True)
 
@@ -2136,7 +2136,7 @@ class TestExtraLinks(TestBase):
         })
 
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=airflow".format(
                 self.endpoint, self.dag.dag_id, self.task_3.task_id, self.default_date),
             follow_redirects=True)
 
@@ -2151,7 +2151,7 @@ class TestExtraLinks(TestBase):
 
         # Also check that the other Operator Link defined for this operator exists
         response = self.client.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=google".format(
+            "{}?dag_id={}&task_id={}&execution_date={}&link_name=google".format(
                 self.endpoint, self.dag.dag_id, self.task_3.task_id, self.default_date),
             follow_redirects=True)
 

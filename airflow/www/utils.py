@@ -18,7 +18,6 @@
 
 import functools
 import inspect
-import io
 import json
 import os
 import re
@@ -219,7 +218,7 @@ def open_maybe_zipped(f, mode='r'):
     if archive and zipfile.is_zipfile(archive):
         return zipfile.ZipFile(archive, mode=mode).open(filename)
     else:
-        return io.open(f, mode=mode)
+        return open(f, mode=mode)
 
 
 def make_cache_key(*args, **kwargs):
@@ -324,11 +323,11 @@ def render(obj, lexer):
         out += pygment_html_render(obj, lexer)
     elif isinstance(obj, (tuple, list)):
         for i, s in enumerate(obj):
-            out += "<div>List item #{}</div>".format(i)
+            out += f"<div>List item #{i}</div>"
             out += "<div>" + pygment_html_render(s, lexer) + "</div>"
     elif isinstance(obj, dict):
         for k, v in obj.items():
-            out += '<div>Dict item "{}"</div>'.format(k)
+            out += f'<div>Dict item "{k}"</div>'
             out += "<div>" + pygment_html_render(v, lexer) + "</div>"
     return out
 

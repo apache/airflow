@@ -24,7 +24,7 @@ from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 class DataprocTestHelper(LoggingCommandExecutor):
     def create_test_bucket(self, bucket: str):
-        self.execute_cmd(["gsutil", "mb", "gs://{bucket}/".format(bucket=bucket)], True)
+        self.execute_cmd(["gsutil", "mb", f"gs://{bucket}/"], True)
 
     def upload_test_file(self, uri: str, file_name: str):
         with TemporaryDirectory(prefix="airflow-gcp") as tmp_dir:
@@ -49,12 +49,12 @@ class DataprocTestHelper(LoggingCommandExecutor):
                 [
                     "gsutil",
                     "cp",
-                    "{file}".format(file=quickstart_path),
-                    "{uri}".format(uri=uri),
+                    f"{quickstart_path}",
+                    f"{uri}",
                 ]
             )
 
     def delete_gcs_bucket_elements(self, bucket: str):
         self.execute_cmd(
-            ["gsutil", "rm", "-r", "gs://{bucket}/".format(bucket=bucket)], True
+            ["gsutil", "rm", "-r", f"gs://{bucket}/"], True
         )

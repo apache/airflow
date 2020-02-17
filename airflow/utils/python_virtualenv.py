@@ -29,7 +29,7 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
     if system_site_packages:
         cmd.append('--system-site-packages')
     if python_bin is not None:
-        cmd.append('--python={}'.format(python_bin))
+        cmd.append(f'--python={python_bin}')
     return cmd
 
 
@@ -37,7 +37,7 @@ def _generate_pip_install_cmd(tmp_dir: str, requirements: List[str]) -> Optional
     if not requirements:
         return None
     # direct path alleviates need to activate
-    cmd = ['{}/bin/pip'.format(tmp_dir), 'install']
+    cmd = [f'{tmp_dir}/bin/pip', 'install']
     return cmd + requirements
 
 
@@ -68,4 +68,4 @@ def prepare_virtualenv(
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
 
-    return '{}/bin/python'.format(venv_directory)
+    return f'{venv_directory}/bin/python'

@@ -28,4 +28,4 @@ class DagUnpausedDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context):
         if ti.task.dag.is_paused:
             yield self._failing_status(
-                reason="Task's DAG '{0}' is paused.".format(ti.dag_id))
+                reason=f"Task's DAG '{ti.dag_id}' is paused.")

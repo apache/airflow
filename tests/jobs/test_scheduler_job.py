@@ -27,7 +27,6 @@ from tempfile import mkdtemp
 import mock
 import psutil
 import pytest
-import six
 from mock import MagicMock, Mock, patch
 from parameterized import parameterized
 
@@ -1791,7 +1790,7 @@ class TestSchedulerJob(unittest.TestCase):
         )
         self.assertEqual(State.RUNNING, ti1.state)
         self.assertEqual(State.RUNNING, ti2.state)
-        six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
+        self.assertCountEqual([State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
         self.assertEqual(1, res)
 
     def test_execute_task_instances_limit(self):
@@ -2649,7 +2648,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(import_error.filename,
                          unparseable_filename)
         self.assertEqual(import_error.stacktrace,
-                         "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
+                         f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)")
 
     def test_add_unparseable_file_after_sched_start_creates_import_error(self):
         dags_folder = mkdtemp()
@@ -2671,7 +2670,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(import_error.filename,
                          unparseable_filename)
         self.assertEqual(import_error.stacktrace,
-                         "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
+                         f"invalid syntax ({TEMP_DAG_FILENAME}, line 1)")
 
     def test_no_import_errors_with_parseable_dag(self):
         try:
@@ -2717,7 +2716,7 @@ class TestSchedulerJob(unittest.TestCase):
         self.assertEqual(import_error.filename,
                          unparseable_filename)
         self.assertEqual(import_error.stacktrace,
-                         "invalid syntax ({}, line 2)".format(TEMP_DAG_FILENAME))
+                         f"invalid syntax ({TEMP_DAG_FILENAME}, line 2)")
 
     def test_remove_error_clears_import_error(self):
         try:
@@ -2781,7 +2780,7 @@ class TestSchedulerJob(unittest.TestCase):
                 if file_name.endswith('.py') or file_name.endswith('.zip'):
                     if file_name not in ignored_files:
                         expected_files.add(
-                            '{}/{}'.format(root, file_name))
+                            f'{root}/{file_name}')
         for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=False):
             detected_files.add(file_path)
         self.assertEqual(detected_files, expected_files)
@@ -2960,7 +2959,7 @@ class TestSchedulerJob(unittest.TestCase):
                   schedule_interval="@daily")
         tasks = []
         for i in range(len(states)):
-            task_id = "{}_task_{}".format(prefix, i)
+            task_id = f"{prefix}_task_{i}"
             task = DummyOperator(task_id=task_id, dag=dag)
             tasks.append(task)
 

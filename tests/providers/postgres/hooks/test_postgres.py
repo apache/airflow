@@ -108,7 +108,7 @@ class TestPostgresHookConn(unittest.TestCase):
     def test_get_conn_rds_iam_redshift(self, mock_client, mock_connect):
         self.connection.extra = '{"iam":true, "redshift":true}'
         self.connection.host = 'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com'
-        login = 'IAM:{login}'.format(login=self.connection.login)
+        login = f'IAM:{self.connection.login}'
         mock_client.return_value.get_cluster_credentials.return_value = {'DbPassword': 'aws_token',
                                                                          'DbUser': login}
         self.db_hook.get_conn()
@@ -142,7 +142,7 @@ class TestPostgresHook(unittest.TestCase):
 
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("DROP TABLE IF EXISTS {}".format(self.table))
+                cur.execute(f"DROP TABLE IF EXISTS {self.table}")
 
     @pytest.mark.backend("postgres")
     def test_copy_expert(self):
@@ -168,7 +168,7 @@ class TestPostgresHook(unittest.TestCase):
 
         with hook.get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("CREATE TABLE {} (c VARCHAR)".format(self.table))
+                cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
                 conn.commit()
 
                 with NamedTemporaryFile() as f:
@@ -176,7 +176,7 @@ class TestPostgresHook(unittest.TestCase):
                     f.flush()
                     hook.bulk_load(self.table, f.name)
 
-                cur.execute("SELECT * FROM {}".format(self.table))
+                cur.execute(f"SELECT * FROM {self.table}")
                 results = [row[0] for row in cur.fetchall()]
 
         self.assertEqual(sorted(input_data), sorted(results))
@@ -188,9 +188,9 @@ class TestPostgresHook(unittest.TestCase):
 
         with hook.get_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("CREATE TABLE {} (c VARCHAR)".format(self.table))
-                values = ",".join("('{}')".format(data) for data in input_data)
-                cur.execute("INSERT INTO {} VALUES {}".format(self.table, values))
+                cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
+                values = ",".join(f"('{data}')" for data in input_data)
+                cur.execute(f"INSERT INTO {self.table} VALUES {values}")
                 conn.commit()
 
                 with NamedTemporaryFile() as f:

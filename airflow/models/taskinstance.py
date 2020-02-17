@@ -274,7 +274,7 @@ class TaskInstance(Base, LoggingMixin):
 
         should_pass_filepath = not pickle_id and dag
         if should_pass_filepath and dag.full_filepath != dag.filepath:
-            path = "DAGS_FOLDER/{}".format(dag.filepath)
+            path = f"DAGS_FOLDER/{dag.filepath}"
         elif should_pass_filepath and dag.full_filepath:
             path = dag.full_filepath
         else:
@@ -1114,7 +1114,7 @@ class TaskInstance(Base, LoggingMixin):
         task = self.task
         self.end_date = timezone.utcnow()
         self.set_duration()
-        Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
+        Stats.incr(f'operator_failures_{task.__class__.__name__}', 1, 1)
         Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))

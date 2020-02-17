@@ -24,7 +24,7 @@ from tests.test_utils.system_tests_class import SystemTest
 
 BUCKET = os.environ.get("GCP_DATAPROC_BUCKET", "dataproc-system-tests")
 PYSPARK_MAIN = os.environ.get("PYSPARK_MAIN", "hello_world.py")
-PYSPARK_URI = "gs://{}/{}".format(BUCKET, PYSPARK_MAIN)
+PYSPARK_URI = f"gs://{BUCKET}/{PYSPARK_MAIN}"
 
 
 @skip_gcp_system(GCP_DATAPROC_KEY, require_local_executor=True)

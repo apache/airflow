@@ -52,7 +52,7 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
         default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, None)
 
         self.assertEqual(default_exprs, {
-            (col, 'non_null'): 'COUNT({})'.format(col)
+            (col, 'non_null'): f'COUNT({col})'
         })
 
     def test_get_default_exprs_blacklist(self):
@@ -69,11 +69,11 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
             default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, col_type)
 
             self.assertEqual(default_exprs, {
-                (col, 'avg'): 'AVG({})'.format(col),
-                (col, 'max'): 'MAX({})'.format(col),
-                (col, 'min'): 'MIN({})'.format(col),
-                (col, 'non_null'): 'COUNT({})'.format(col),
-                (col, 'sum'): 'SUM({})'.format(col)
+                (col, 'avg'): f'AVG({col})',
+                (col, 'max'): f'MAX({col})',
+                (col, 'min'): f'MIN({col})',
+                (col, 'non_null'): f'COUNT({col})',
+                (col, 'sum'): f'SUM({col})'
             })
 
     def test_get_default_exprs_boolean(self):
@@ -83,9 +83,9 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
         default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, col_type)
 
         self.assertEqual(default_exprs, {
-            (col, 'false'): 'SUM(CASE WHEN NOT {} THEN 1 ELSE 0 END)'.format(col),
-            (col, 'non_null'): 'COUNT({})'.format(col),
-            (col, 'true'): 'SUM(CASE WHEN {} THEN 1 ELSE 0 END)'.format(col)
+            (col, 'false'): f'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)',
+            (col, 'non_null'): f'COUNT({col})',
+            (col, 'true'): f'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)'
         })
 
     def test_get_default_exprs_string(self):
@@ -95,9 +95,9 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
         default_exprs = HiveStatsCollectionOperator(**self.kwargs).get_default_exprs(col, col_type)
 
         self.assertEqual(default_exprs, {
-            (col, 'approx_distinct'): 'APPROX_DISTINCT({})'.format(col),
-            (col, 'len'): 'SUM(CAST(LENGTH({}) AS BIGINT))'.format(col),
-            (col, 'non_null'): 'COUNT({})'.format(col)
+            (col, 'approx_distinct'): f'APPROX_DISTINCT({col})',
+            (col, 'len'): f'SUM(CAST(LENGTH({col}) AS BIGINT))',
+            (col, 'non_null'): f'COUNT({col})'
         })
 
     @patch('airflow.providers.apache.hive.operators.hive_stats.json.dumps')
@@ -158,7 +158,7 @@ class TestHiveStatsCollectionOperator(unittest.TestCase):
                                           mock_json_dumps):
         def assignment_func(col, _):
             return {
-                (col, 'test'): 'TEST({})'.format(col)
+                (col, 'test'): f'TEST({col})'
             }
 
         self.kwargs.update(dict(assignment_func=assignment_func))

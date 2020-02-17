@@ -65,7 +65,7 @@ class TriggerDagRunOperator(BaseOperator):
         if isinstance(self.execution_date, datetime.datetime):
             run_id = "trig__{}".format(self.execution_date.isoformat())
         elif isinstance(self.execution_date, str):
-            run_id = "trig__{}".format(self.execution_date)
+            run_id = f"trig__{self.execution_date}"
             self.execution_date = timezone.parse(self.execution_date)  # trigger_dag() expects datetime
         else:
             run_id = "trig__{}".format(timezone.utcnow().isoformat())

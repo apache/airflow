@@ -93,7 +93,7 @@ class settings_context:  # pylint: disable=invalid-name
     def __init__(self, content, directory=None, name='LOGGING_CONFIG'):
         self.content = content
         self.settings_root = tempfile.mkdtemp()
-        filename = "{}.py".format(SETTINGS_DEFAULT_NAME)
+        filename = f"{SETTINGS_DEFAULT_NAME}.py"
 
         if directory:
             # Replace slashes by dots
@@ -296,8 +296,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 parsing_result.extend(processor_agent.harvest_simple_dags())
 
             self.assertEqual(len(fake_zombies), len(parsing_result))
-            self.assertEqual(set(zombie.key for zombie in fake_zombies),
-                             set(result.key for result in parsing_result))
+            self.assertEqual({zombie.key for zombie in fake_zombies},
+                             {result.key for result in parsing_result})
 
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.pid", new_callable=PropertyMock)
     @mock.patch("airflow.jobs.scheduler_job.DagFileProcessorProcess.kill")

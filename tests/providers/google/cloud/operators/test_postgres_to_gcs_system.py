@@ -73,11 +73,11 @@ class GcsHelper(LoggingCommandExecutor):
 
     def create_bucket(self):
         """Create a bucket."""
-        self.execute_cmd(["gsutil", "mb", "gs://{}".format(GCS_BUCKET)])
+        self.execute_cmd(["gsutil", "mb", f"gs://{GCS_BUCKET}"])
 
     def delete_bucket(self):
         """Delete bucket in Google Cloud Storage service"""
-        self.execute_cmd(["gsutil", "-m", "rm", "-r", "gs://{}".format(GCS_BUCKET)])
+        self.execute_cmd(["gsutil", "-m", "rm", "-r", f"gs://{GCS_BUCKET}"])
 
 
 @skip_gcp_system(GCP_GCS_KEY, require_local_executor=True)

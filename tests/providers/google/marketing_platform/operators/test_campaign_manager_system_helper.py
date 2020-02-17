@@ -33,8 +33,8 @@ class GoogleCampaignManagerTestHelper(LoggingCommandExecutor):
 
     def create_bucket(self):
         """Create a bucket."""
-        self.execute_cmd(["gsutil", "mb", "gs://{}".format(BUCKET)])
+        self.execute_cmd(["gsutil", "mb", f"gs://{BUCKET}"])
 
     def delete_bucket(self):
         """Delete bucket in Google Cloud Storage service"""
-        self.execute_cmd(["gsutil", "rb", "gs://{}".format(BUCKET)])
+        self.execute_cmd(["gsutil", "rb", f"gs://{BUCKET}"])

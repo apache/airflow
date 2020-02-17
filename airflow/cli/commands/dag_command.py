@@ -81,10 +81,10 @@ def dag_backfill(args, dag=None):
         run_conf = json.loads(args.conf)
 
     if args.dry_run:
-        print("Dry run of DAG {0} on {1}".format(args.dag_id,
+        print("Dry run of DAG {} on {}".format(args.dag_id,
                                                  args.start_date))
         for task in dag.tasks:
-            print("Task {0}".format(task.task_id))
+            print(f"Task {task.task_id}")
             ti = TaskInstance(task, args.start_date)
             ti.dry_run()
     else:
@@ -177,7 +177,7 @@ def dag_show(args):
     if args.save:
         filename, _, fileformat = args.save.rpartition('.')
         dot.render(filename=filename, format=fileformat, cleanup=True)
-        print("File {} saved".format(args.save))
+        print(f"File {args.save} saved")
     elif args.imgcat:
         data = dot.pipe(format='png')
         try:
@@ -270,7 +270,7 @@ def dag_list_jobs(args, dag=None):
         dagbag = DagBag()
 
         if args.dag_id not in dagbag.dags:
-            error_message = "Dag id {} not found".format(args.dag_id)
+            error_message = f"Dag id {args.dag_id} not found"
             raise AirflowException(error_message)
         queries.append(jobs.BaseJob.dag_id == args.dag_id)
 
@@ -301,7 +301,7 @@ def dag_list_dag_runs(args, dag=None):
     dagbag = DagBag()
 
     if args.dag_id not in dagbag.dags:
-        error_message = "Dag id {} not found".format(args.dag_id)
+        error_message = f"Dag id {args.dag_id} not found"
         raise AirflowException(error_message)
 
     state = args.state.lower() if args.state else None
@@ -312,7 +312,7 @@ def dag_list_dag_runs(args, dag=None):
     )
 
     if not dag_runs:
-        print('No dag runs for {dag_id}'.format(dag_id=args.dag_id))
+        print(f'No dag runs for {args.dag_id}')
         return
 
     dag_runs.sort(key=lambda x: x.execution_date, reverse=True)

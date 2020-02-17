@@ -73,8 +73,8 @@ class TestS3CopyObjectOperator(unittest.TestCase):
         self.assertFalse('Contents' in conn.list_objects(Bucket=self.dest_bucket,
                                                          Prefix=self.dest_key))
 
-        source_key_s3_url = "s3://{}/{}".format(self.source_bucket, self.source_key)
-        dest_key_s3_url = "s3://{}/{}".format(self.dest_bucket, self.dest_key)
+        source_key_s3_url = f"s3://{self.source_bucket}/{self.source_key}"
+        dest_key_s3_url = f"s3://{self.dest_bucket}/{self.dest_key}"
         op = S3CopyObjectOperator(task_id="test_task_s3_copy_object",
                                   source_bucket_key=source_key_s3_url,
                                   dest_bucket_key=dest_key_s3_url)

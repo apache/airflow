@@ -188,6 +188,14 @@ repos:
         # To keep consistent with the global isort skip config defined in setup.cfg
         exclude: ^airflow/_vendor/.*$|^build/.*$|^.tox/.*$|^venv/.*$
         additional_dependencies: ['isort']
+      - id: pyupgrade
+        name: Run pyupgrade to enforce latest syntax
+        language: python
+        entry: pyupgrade
+        args: [--py36-plus]
+        files: \.py$
+        exclude: ^airflow/_vendor/.*$
+        additional_dependencies: ['pyupgrade==1.26.2']
       - id: setup-order
         name: Checks for an order of dependencies in setup.py
         language: python

@@ -408,7 +408,7 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         except HttpError as err:
             raise AirflowException(
-                'BigQuery job failed. Error was: {}'.format(err.content)
+                f'BigQuery job failed. Error was: {err.content}'
             )
 
     @CloudBaseHook.catch_http_exception
@@ -528,15 +528,15 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             "DATASTORE_BACKUP", "PARQUET"
         ]  # type: List[str]
         if source_format not in allowed_formats:
-            raise ValueError("{0} is not a valid source format. "
-                             "Please use one of the following types: {1}"
+            raise ValueError("{} is not a valid source format. "
+                             "Please use one of the following types: {}"
                              .format(source_format, allowed_formats))
 
         compression = compression.upper()
         allowed_compressions = ['NONE', 'GZIP']  # type: List[str]
         if compression not in allowed_compressions:
-            raise ValueError("{0} is not a valid compression format. "
-                             "Please use one of the following types: {1}"
+            raise ValueError("{} is not a valid compression format. "
+                             "Please use one of the following types: {}"
                              .format(compression, allowed_compressions))
 
         table_resource = {
@@ -799,7 +799,7 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
                 dataset_project_id, dataset_id, table_id, resp['insertErrors'])
             if fail_on_error:
                 raise AirflowException(
-                    'BigQuery job failed. Error was: {}'.format(error_msg)
+                    f'BigQuery job failed. Error was: {error_msg}'
                 )
             self.log.info(error_msg)
 
@@ -1511,8 +1511,8 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
             "DATASTORE_BACKUP", "PARQUET"
         ]
         if source_format not in allowed_formats:
-            raise ValueError("{0} is not a valid source format. "
-                             "Please use one of the following types: {1}"
+            raise ValueError("{} is not a valid source format. "
+                             "Please use one of the following types: {}"
                              .format(source_format, allowed_formats))
 
         # bigquery also allows you to define how you want a table's schema to change
@@ -1525,8 +1525,8 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
         if not set(allowed_schema_update_options).issuperset(
                 set(schema_update_options)):
             raise ValueError(
-                "{0} contains invalid schema update options."
-                "Please only use one or more of the following options: {1}"
+                "{} contains invalid schema update options."
+                "Please only use one or more of the following options: {}"
                 .format(schema_update_options, allowed_schema_update_options))
 
         destination_project, destination_dataset, destination_table = \
@@ -1917,9 +1917,9 @@ class BigQueryHook(CloudBaseHook, DbApiHook):
 
         if not set(allowed_schema_update_options
                    ).issuperset(set(schema_update_options)):
-            raise ValueError("{0} contains invalid schema update options. "
+            raise ValueError("{} contains invalid schema update options. "
                              "Please only use one or more of the following "
-                             "options: {1}"
+                             "options: {}"
                              .format(schema_update_options,
                                      allowed_schema_update_options))
 
@@ -2598,7 +2598,7 @@ def _split_tablename(table_input: str, default_project_id: str,
         if var_name is None:
             return ""
         else:
-            return "Format exception for {var}: ".format(var=var_name)
+            return f"Format exception for {var_name}: "
 
     if table_input.count('.') + table_input.count(':') > 3:
         raise Exception(('{var}Use either : or . to specify project '
@@ -2707,7 +2707,7 @@ def _validate_src_fmt_configs(source_format: str,
 
     for k, v in src_fmt_configs.items():
         if k not in valid_configs:
-            raise ValueError("{0} is not a valid src_fmt_configs for type {1}."
+            raise ValueError("{} is not a valid src_fmt_configs for type {}."
                              .format(k, source_format))
 
     return src_fmt_configs

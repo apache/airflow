@@ -79,7 +79,7 @@ class S3Hook(AwsBaseHook):
         parsed_url = urlparse(s3url)
 
         if not parsed_url.netloc:
-            raise AirflowException('Please provide a bucket_name instead of "{s3url}"'.format(s3url=s3url))
+            raise AirflowException(f'Please provide a bucket_name instead of "{s3url}"')
 
         bucket_name = parsed_url.netloc
         key = parsed_url.path.strip('/')
@@ -152,7 +152,7 @@ class S3Hook(AwsBaseHook):
         :rtype: bool
         """
         prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
-        prefix_split = re.split(r'(\w+[{d}])$'.format(d=delimiter), prefix, 1)
+        prefix_split = re.split(fr'(\w+[{delimiter}])$', prefix, 1)
         previous_level = prefix_split[0]
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
         return False if plist is None else prefix in plist
@@ -417,7 +417,7 @@ class S3Hook(AwsBaseHook):
             (bucket_name, key) = self.parse_s3_url(key)
 
         if not replace and self.check_for_key(key, bucket_name):
-            raise ValueError("The key {key} already exists.".format(key=key))
+            raise ValueError(f"The key {key} already exists.")
 
         extra_args = {}
         if encrypt:
@@ -523,7 +523,7 @@ class S3Hook(AwsBaseHook):
             (bucket_name, key) = self.parse_s3_url(key)
 
         if not replace and self.check_for_key(key, bucket_name):
-            raise ValueError("The key {key} already exists.".format(key=key))
+            raise ValueError(f"The key {key} already exists.")
 
         extra_args = {}
         if encrypt:
@@ -625,4 +625,4 @@ class S3Hook(AwsBaseHook):
             self.log.info("Deleted: %s", deleted_keys)
             if "Errors" in response:
                 errors_keys = [x['Key'] for x in response.get("Errors", [])]
-                raise AirflowException("Errors when deleting: {}".format(errors_keys))
+                raise AirflowException(f"Errors when deleting: {errors_keys}")

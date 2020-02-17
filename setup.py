@@ -17,7 +17,6 @@
 # under the License.
 """Setup.py for the Airflow project."""
 
-import io
 import logging
 import os
 import subprocess
@@ -42,7 +41,7 @@ PY3 = sys.version_info[0] == 3
 
 # noinspection PyUnboundLocalVariable
 try:
-    with io.open('README.md', encoding='utf-8') as f:
+    with open('README.md', encoding='utf-8') as f:
         long_description = f.read()
 except FileNotFoundError:
     long_description = ''
@@ -126,9 +125,9 @@ def git_version(version_: str) -> str:
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
-            return '.dev0+{sha}.dirty'.format(sha=sha)
+            return f'.dev0+{sha}.dirty'
         # commit is clean
-        return '.release:{version}+{sha}'.format(version=version_, sha=sha)
+        return f'.release:{version_}+{sha}'
     else:
         return 'no_git_version'
 

@@ -179,7 +179,7 @@ class GoogleSearchAdsDownloadReportOperator(BaseOperator):
 
         response = hook.get(report_id=self.report_id)
         if not response['isReportReady']:
-            raise AirflowException('Report {} is not ready yet'.format(self.report_id))
+            raise AirflowException(f'Report {self.report_id} is not ready yet')
 
         # Resolve report fragments
         fragments_count = len(response["files"])

@@ -33,12 +33,12 @@ class GCPBigQueryTestHelper(LoggingCommandExecutor):
 
     def create_repository_and_bucket(self):
         """Create a bucket."""
-        self.execute_cmd(["gsutil", "mb", "gs://{}".format(DATA_EXPORT_BUCKET_NAME)])
+        self.execute_cmd(["gsutil", "mb", f"gs://{DATA_EXPORT_BUCKET_NAME}"])
 
     def delete_bucket(self):
         """Delete bucket in Google Cloud Storage service"""
 
-        self.execute_cmd(["gsutil", "rb", "gs://{}".format(DATA_EXPORT_BUCKET_NAME)])
+        self.execute_cmd(["gsutil", "rb", f"gs://{DATA_EXPORT_BUCKET_NAME}"])
 
 
 if __name__ == "__main__":
@@ -67,7 +67,7 @@ if __name__ == "__main__":
         elif action == "delete-bucket":
             helper.delete_bucket()
         else:
-            raise Exception("Unknown action: {}".format(action))
+            raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
 

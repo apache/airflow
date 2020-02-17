@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -75,8 +74,7 @@ def run_command(command):
 
     if process.returncode != 0:
         raise AirflowConfigException(
-            "Cannot execute {}. Error code is: {}. Output: {}, Stderr: {}"
-            .format(command, process.returncode, output, stderr)
+            f"Cannot execute {command}. Error code is: {process.returncode}. Output: {output}, Stderr: {stderr}"
         )
 
     return output
@@ -182,8 +180,7 @@ class AirflowConfigParser(ConfigParser):
                 self.get("core", "executor") not in ('DebugExecutor', 'SequentialExecutor') and
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):
             raise AirflowConfigException(
-                "error: cannot use sqlite with the {}".format(
-                    self.get('core', 'executor')))
+                "error: cannot use sqlite with the {}".format(self.get('core', 'executor')))
 
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
@@ -196,12 +193,10 @@ class AirflowConfigParser(ConfigParser):
 
                     self.set(section, name, new)
                     warnings.warn(
-                        'The {name} setting in [{section}] has the old default value '
-                        'of {old!r}. This value has been changed to {new!r} in the '
+                        f'The {name} setting in [{section}] has the old default value '
+                        f'of {old!r}. This value has been changed to {new!r} in the '
                         'running config, but please update your config before Apache '
-                        'Airflow {version}.'.format(
-                            name=name, section=section, old=old, new=new, version=version
-                        ),
+                        f'Airflow {version}.',
                         FutureWarning
                     )
 
@@ -283,8 +278,7 @@ class AirflowConfigParser(ConfigParser):
             )
 
             raise AirflowConfigException(
-                "section/key [{section}/{key}] not found "
-                "in config".format(section=section, key=key))
+                f"section/key [{section}/{key}] not found in config")
 
     def getboolean(self, section, key, **kwargs):
         val = str(self.get(section, key, **kwargs)).lower().strip()
@@ -473,24 +467,15 @@ class AirflowConfigParser(ConfigParser):
     def _warn_deprecate(self, section, key, deprecated_section, deprecated_name):
         if section == deprecated_section:
             warnings.warn(
-                'The {old} option in [{section}] has been renamed to {new} - the old '
-                'setting has been used, but please update your config.'.format(
-                    old=deprecated_name,
-                    new=key,
-                    section=section,
-                ),
+                f'The {deprecated_name} option in [{section}] has been renamed to {key} - the old '
+                'setting has been used, but please update your config.',
                 DeprecationWarning,
                 stacklevel=3,
             )
         else:
             warnings.warn(
-                'The {old_key} option in [{old_section}] has been moved to the {new_key} option in '
-                '[{new_section}] - the old setting has been used, but please update your config.'.format(
-                    old_section=deprecated_section,
-                    old_key=deprecated_name,
-                    new_key=key,
-                    new_section=section,
-                ),
+                f'The {deprecated_name} option in [{deprecated_section}] has been moved to the {key} option '
+                f'in [{section}] - the old setting has been used, but please update your config.',
                 DeprecationWarning,
                 stacklevel=3,
             )

@@ -53,7 +53,7 @@ class SFTPtoGcsTestHelper(LoggingCommandExecutor):
 
         # 1. Create buckets
         for bucket in self.buckets:
-            self.execute_cmd(["gsutil", "mb", "gs://{}".format(bucket)])
+            self.execute_cmd(["gsutil", "mb", f"gs://{bucket}"])
 
     def create_temp_files(self):
         for filename, dir_path in self.files_and_dirs:
@@ -66,8 +66,8 @@ class SFTPtoGcsTestHelper(LoggingCommandExecutor):
 
     def delete_buckets(self):
         """Delete bucket in Google Cloud Storage service"""
-        self.execute_cmd(["gsutil", "rm", "gs://{}/**".format(BUCKET_SRC)])
-        self.execute_cmd(["gsutil", "rb", "gs://{}".format(BUCKET_SRC)])
+        self.execute_cmd(["gsutil", "rm", f"gs://{BUCKET_SRC}/**"])
+        self.execute_cmd(["gsutil", "rb", f"gs://{BUCKET_SRC}"])
 
     @staticmethod
     def _create_temp_file(filename, dir_path="/tmp"):
@@ -132,7 +132,7 @@ if __name__ == "__main__":
         elif action == "delete-files":
             helper.delete_temp_files()
         else:
-            raise Exception("Unknown action: {}".format(action))
+            raise Exception(f"Unknown action: {action}")
     finally:
         gcp_authenticator.gcp_restore_authentication()
 

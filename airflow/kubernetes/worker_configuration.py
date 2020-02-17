@@ -275,7 +275,7 @@ class WorkerConfiguration(LoggingMixin):
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
             config_volume_name = 'airflow-config'
-            config_path = '{}/airflow.cfg'.format(self.worker_airflow_home)
+            config_path = f'{self.worker_airflow_home}/airflow.cfg'
             volume_mounts[config_volume_name] = k8s.V1VolumeMount(
                 name=config_volume_name,
                 mount_path=config_path,
@@ -286,7 +286,7 @@ class WorkerConfiguration(LoggingMixin):
         # Mount the airflow_local_settings.py file via a configmap the user has specified
         if self.kube_config.airflow_local_settings_configmap:
             config_volume_name = 'airflow-local-settings'
-            config_path = '{}/config/airflow_local_settings.py'.format(self.worker_airflow_home)
+            config_path = f'{self.worker_airflow_home}/config/airflow_local_settings.py'
             volume_mounts[config_volume_name] = k8s.V1VolumeMount(
                 name='airflow-config',
                 mount_path=config_path,

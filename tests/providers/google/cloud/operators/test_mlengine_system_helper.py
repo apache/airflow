@@ -27,11 +27,11 @@ from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 class MlEngineSystemTestHelper(LoggingCommandExecutor):
     def create_gcs_buckets(self):
         for bucket_name in self.get_ephemeral_bucket_names():
-            self.execute_cmd(["gsutil", "mb", "gs://{bucket}".format(bucket=bucket_name)])
+            self.execute_cmd(["gsutil", "mb", f"gs://{bucket_name}"])
 
     def delete_gcs_buckets(self):
         for bucket_name in self.get_ephemeral_bucket_names():
-            self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=bucket_name)])
+            self.execute_cmd(["gsutil", "rm", "-r", f"gs://{bucket_name}"])
 
     @staticmethod
     def get_ephemeral_bucket_names():

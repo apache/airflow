@@ -40,7 +40,7 @@ class BigtableValidationMixin:
     def _validate_inputs(self):
         for attr_name in self.REQUIRED_ATTRIBUTES:
             if not getattr(self, attr_name):
-                raise AirflowException('Empty parameter: {}'.format(attr_name))
+                raise AirflowException(f'Empty parameter: {attr_name}')
 
 
 class BigtableCreateInstanceOperator(BaseOperator, BigtableValidationMixin):
@@ -353,8 +353,7 @@ class BigtableDeleteTableOperator(BaseOperator, BigtableValidationMixin):
         instance = hook.get_instance(project_id=self.project_id,
                                      instance_id=self.instance_id)
         if not instance:
-            raise AirflowException("Dependency: instance '{}' does not exist.".format(
-                self.instance_id))
+            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
 
         try:
             hook.delete_table(
@@ -418,8 +417,7 @@ class BigtableUpdateClusterOperator(BaseOperator, BigtableValidationMixin):
         instance = hook.get_instance(project_id=self.project_id,
                                      instance_id=self.instance_id)
         if not instance:
-            raise AirflowException("Dependency: instance '{}' does not exist.".format(
-                self.instance_id))
+            raise AirflowException(f"Dependency: instance '{self.instance_id}' does not exist.")
 
         try:
             hook.update_cluster(

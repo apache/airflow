@@ -33,7 +33,7 @@ class TestBigQueryToMySqlOperator(unittest.TestCase):
         destination_table = 'table'
         operator = BigQueryToMySqlOperator(
             task_id=TASK_ID,
-            dataset_table='{}.{}'.format(TEST_DATASET, TEST_TABLE_ID),
+            dataset_table=f'{TEST_DATASET}.{TEST_TABLE_ID}',
             mysql_table=destination_table,
             replace=False,
         )

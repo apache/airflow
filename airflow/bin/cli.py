@@ -1046,7 +1046,7 @@ class CLIFactory:
             """Override argparse.ArgumentParser.error and use print_help instead of print_usage"""
             def error(self, message):
                 self.print_help()
-                self.exit(2, '\n{} command error: {}, see help above.\n'.format(self.prog, message))
+                self.exit(2, f'\n{self.prog} command error: {message}, see help above.\n')
         parser = DefaultHelpParser()
         subparsers = parser.add_subparsers(
             help='sub-command help', dest='subcommand')

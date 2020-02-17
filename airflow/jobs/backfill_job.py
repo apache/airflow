@@ -463,9 +463,7 @@ class BackfillJob(BaseJob):
                 if self.rerun_failed_tasks:
                     # Rerun failed tasks or upstreamed failed tasks
                     if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
-                        self.log.error("Task instance {ti} "
-                                       "with state {state}".format(ti=ti,
-                                                                   state=ti.state))
+                        self.log.error(f"Task instance {ti} with state {ti.state}")
                         if key in ti_status.running:
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
@@ -473,9 +471,7 @@ class BackfillJob(BaseJob):
                 else:
                     # Default behaviour which works for subdag.
                     if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
-                        self.log.error("Task instance {ti} "
-                                       "with {state} state".format(ti=ti,
-                                                                   state=ti.state))
+                        self.log.error(f"Task instance {ti} with {ti.state} state")
                         ti_status.failed.add(key)
                         ti_status.to_run.pop(key)
                         if key in ti_status.running:
@@ -566,14 +562,12 @@ class BackfillJob(BaseJob):
                             .filter(models.Pool.pool == task.pool) \
                             .first()
                         if not pool:
-                            raise PoolNotFound('Unknown pool: {}'.format(task.pool))
+                            raise PoolNotFound(f'Unknown pool: {task.pool}')
 
                         open_slots = pool.open_slots(session=session)
                         if open_slots <= 0:
                             raise NoAvailablePoolSlot(
-                                "Not scheduling since there are "
-                                "{0} open slots in pool {1}".format(
-                                    open_slots, task.pool))
+                                f"Not scheduling since there are {open_slots} open slots in pool {task.pool}")
 
                         num_running_task_instances_in_dag = DAG.get_num_task_instances(
                             self.dag_id,

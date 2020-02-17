@@ -81,7 +81,7 @@ class TestCLIGetNumReadyWorkersRunning(unittest.TestCase):
         self.assertEqual(
             None,
             return_code,
-            "webserver terminated with return code {} in debug mode".format(return_code))
+            f"webserver terminated with return code {return_code} in debug mode")
         proc.terminate()
         proc.wait()
 

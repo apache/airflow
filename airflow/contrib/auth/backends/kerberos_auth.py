@@ -51,7 +51,7 @@ class KerberosUser(models.User, LoggingMixin):
 
     @staticmethod
     def authenticate(username, password):
-        service_principal = "%s/%s" % (
+        service_principal = "{}/{}".format(
             conf.get('kerberos', 'principal'),
             utils.get_fqdn()
         )

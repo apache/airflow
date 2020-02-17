@@ -114,5 +114,5 @@ class TestWinRMHook(unittest.TestCase):
 
         winrm_hook.get_conn()
 
-        self.assertEqual('http://{0}:{1}/wsman'.format(winrm_hook.remote_host, winrm_hook.remote_port),
+        self.assertEqual(f'http://{winrm_hook.remote_host}:{winrm_hook.remote_port}/wsman',
                          winrm_hook.endpoint)

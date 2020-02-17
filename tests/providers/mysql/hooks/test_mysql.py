@@ -288,7 +288,7 @@ class TestMySql(unittest.TestCase):
         drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
         with MySqlHook().get_conn() as conn:
             for table in drop_tables:
-                conn.execute("DROP TABLE IF EXISTS {}".format(table))
+                conn.execute(f"DROP TABLE IF EXISTS {table}")
 
     def test_mysql_hook_test_bulk_load(self):
         records = ("foo", "bar", "baz")
