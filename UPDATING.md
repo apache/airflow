@@ -61,7 +61,7 @@ https://developers.google.com/style/inclusive-documentation
 
 -->
 
-### Sucess Callback will be called when a task in marked as success from UI
+### Success Callback will be called when a task in marked as success from UI
 
 When a task is marked as success by a used from Airflow UI - on_success_callback will be called
 
