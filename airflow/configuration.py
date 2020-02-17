@@ -28,7 +28,7 @@ from base64 import b64encode
 from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
 
 import yaml
 from cryptography.fernet import Fernet
@@ -335,7 +335,7 @@ class AirflowConfigParser(ConfigParser):
         if self.airflow_defaults.has_option(section, option) and remove_default:
             self.airflow_defaults.remove_option(section, option)
 
-    def getsection(self, section: str) -> Optional[Dict[str, str]]:
+    def getsection(self, section: str) -> Optional[Dict[str, Union[str, int, float, bool]]]:
         """
         Returns the section as a dict. Values are converted to int, float, bool
         as required.
