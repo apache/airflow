@@ -402,7 +402,7 @@ HOOK = [
         'airflow.hooks.jdbc_hook.JdbcHook',
     ),
     (
-        'airflow.providers.amazon.aws.hooks.base_aws.AwsHook',
+        'airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook',
         'airflow.contrib.hooks.aws_hook.AwsHook',
     ),
     (

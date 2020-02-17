@@ -22,7 +22,7 @@ from unittest.mock import patch
 from airflow.models import Connection
 
 try:
-    from airflow.providers.yandex.hooks.yandexcloud_dataproc_hook import DataprocHook
+    from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
 
     import yandexcloud
 except ImportError:

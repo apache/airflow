@@ -334,7 +334,7 @@ class TestAwsBatchWaiters(unittest.TestCase):
     @mock.patch.dict("os.environ", AWS_DEFAULT_REGION=AWS_REGION)
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsHook")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook")
     def setUp(self, aws_hook_mock):
         self.job_id = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
         self.region_name = AWS_REGION
