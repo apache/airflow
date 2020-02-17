@@ -124,6 +124,8 @@ If you are creating a ``hooks``, ``sensors``, ``operators`` directory in
 the ``airflow.providers`` package, you should also update
 the ``docs/operators-and-hooks-ref.rst`` file.
 
+If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache license or copy another ``__init__.py`` file that contains the necessary license.
+
 Pull Request Guidelines
 =======================
 
