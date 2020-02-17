@@ -846,7 +846,7 @@ function check_for_allowed_params {
 }
 
 function run_docs() {
-    docker run "${EXTRA_DOCKER_FLAGS[@]}" -t \
+    docker run "${AIRFLOW_CONTAINER_EXTRA_DOCKER_FLAGS[@]}" -t \
             --entrypoint "/usr/local/bin/dumb-init"  \
             --env PYTHONDONTWRITEBYTECODE \
             --env AIRFLOW_CI_VERBOSE="${VERBOSE}" \
