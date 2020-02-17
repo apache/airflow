@@ -16,12 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import datetime
 import os
 import unittest
 from unittest import mock
 
-from airflow import DAG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import TaskInstance
@@ -37,32 +35,7 @@ from airflow.providers.mysql.operators.presto_to_mysql import PrestoToMySqlTrans
 from airflow.providers.presto.operators.presto_check import PrestoCheckOperator
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils import timezone
-
-DEFAULT_DATE = datetime.datetime(2015, 1, 1)
-DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
-DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
-
-
-class TestHiveEnvironment(unittest.TestCase):
-
-    def setUp(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_dag_id', default_args=args)
-        self.dag = dag
-        self.hql = """
-        USE airflow;
-        DROP TABLE IF EXISTS static_babynames_partitioned;
-        CREATE TABLE IF NOT EXISTS static_babynames_partitioned (
-            state string,
-            year string,
-            name string,
-            gender string,
-            num int)
-        PARTITIONED BY (ds string);
-        INSERT OVERWRITE TABLE static_babynames_partitioned
-            PARTITION(ds='{{ ds }}')
-        SELECT state, year, name, gender, num FROM static_babynames;
-        """
+from tests.providers.apache.hive import DEFAULT_DATE, DEFAULT_DATE_DS, TestHiveEnvironment
 
 
 class HiveOperatorConfigTest(TestHiveEnvironment):

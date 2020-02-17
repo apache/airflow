@@ -15,3 +15,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from datetime import datetime
+from unittest import TestCase
+
+from airflow import DAG
+
+DEFAULT_DATE = datetime(2015, 1, 1)
+DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
+DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
+
+
+class TestHiveEnvironment(TestCase):
+
+    def setUp(self):
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        dag = DAG('test_dag_id', default_args=args)
+        self.dag = dag
+        self.hql = """
+        USE airflow;
+        DROP TABLE IF EXISTS static_babynames_partitioned;
+        CREATE TABLE IF NOT EXISTS static_babynames_partitioned (
+            state string,
+            year string,
+            name string,
+            gender string,
+            num int)
+        PARTITIONED BY (ds string);
+        INSERT OVERWRITE TABLE static_babynames_partitioned
+            PARTITION(ds='{{ ds }}')
+        SELECT state, year, name, gender, num FROM static_babynames;
+        """
