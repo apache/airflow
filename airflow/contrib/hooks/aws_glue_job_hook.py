@@ -153,8 +153,8 @@ class AwsGlueJobHook(AwsHook):
                               .format(run_id, job_run_state))
                 return {'JobRunState': job_run_state, 'JobRunId': run_id}
             else:
-                self.log.info("Polling for AWS Glue Job %s current run state with status %s"\
-                    , job_name ,job_run_state)
+                self.log.info("Polling for AWS Glue Job %s current run state with status %s"
+                    , job_name, job_run_state)
                 time.sleep(6)
 
     def get_or_create_glue_job(self):

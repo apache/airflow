@@ -34,7 +34,6 @@ except ImportError:
 
 from airflow.contrib.hooks.aws_glue_job_hook import AwsGlueJobHook
 
-
 class TestGlueJobHook(unittest.TestCase):
     def setUp(self):
         self.some_aws_region = "us-west-2"
