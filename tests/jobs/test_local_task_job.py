@@ -398,4 +398,3 @@ class TestLocalTaskJob(unittest.TestCase):
         self.assertTrue(data['called'])
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
-
