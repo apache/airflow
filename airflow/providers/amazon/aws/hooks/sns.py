@@ -27,15 +27,14 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 def _get_message_attribute(o):
     if isinstance(o, bytes):
         return {'DataType': 'Binary', 'BinaryValue': o}
-    elif isinstance(o, str):
+    if isinstance(o, str):
         return {'DataType': 'String', 'StringValue': o}
-    elif isinstance(o, (int, float)):
+    if isinstance(o, (int, float)):
         return {'DataType': 'Number', 'StringValue': str(o)}
-    elif hasattr(o, '__iter__'):
+    if hasattr(o, '__iter__'):
         return {'DataType': 'String.Array', 'StringValue': json.dumps(o)}
-    else:
-        raise TypeError('Values in MessageAttributes must be one of bytes, str, int, float, or iterable; '
-                        f'got {type(o)}')
+    raise TypeError('Values in MessageAttributes must be one of bytes, str, int, float, or iterable; '
+                    f'got {type(o)}')
 
 
 class AwsSnsHook(AwsBaseHook):
@@ -65,12 +64,12 @@ class AwsSnsHook(AwsBaseHook):
         :param subject: subject of message
         :type subject: str
         :param message_attributes: additional attributes to publish for message filtering. This should be
-                                   a flat dict; the DataType to be sent depends on the type of the value
+            a flat dict; the DataType to be sent depends on the type of the value:
 
-                                   - bytes = Binary
-                                   - str = String
-                                   - int, float = Number
-                                   - iterable = String.Array
+            - bytes = Binary
+            - str = String
+            - int, float = Number
+            - iterable = String.Array
 
         :type message_attributes: mapping
         """
