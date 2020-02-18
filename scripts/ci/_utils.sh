@@ -546,6 +546,10 @@ EOF
             confirm_image_rebuild
         fi
         if [[ ${SKIP_REBUILD} != "true" ]]; then
+            ROOT_FILES_COUNT=$(find "airflow" "tests" -user root | wc -l)
+            if [[ ${ROOT_FILES_COUNT} != "0" ]]; then
+                ./scripts/ci/ci_fix_ownership.sh
+            fi
             print_info
             print_info "${ACTION} start: ${THE_IMAGE_TYPE} image."
             print_info
