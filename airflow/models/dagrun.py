@@ -202,7 +202,7 @@ class DagRun(Base, LoggingMixin):
 
         if self.dag and self.dag.partial:
             tis = tis.filter(TaskInstance.task_id.in_(self.dag.task_ids))
-        return tis.all()
+        return tis.order_by(TaskInstance.execution_date, TaskInstance.dag_id, TaskInstance.task_id).all()
 
     @provide_session
     def get_task_instance(self, task_id, session=None):
