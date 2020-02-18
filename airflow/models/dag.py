@@ -60,6 +60,8 @@ from airflow.utils.state import State
 log = logging.getLogger(__name__)
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
+DEFAULT_VIEW_PRESETS = ['tree', 'graph', 'duration', 'gantt', 'landing_times']
+ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -151,9 +153,9 @@ class DAG(BaseDag, LoggingMixin):
         timeouts.
     :type sla_miss_callback: types.FunctionType
     :param default_view: Specify DAG default view (tree, graph, duration,
-                                                   gantt, landing_times)
+                                                   gantt, landing_times), default tree
     :type default_view: str
-    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT)
+    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :type orientation: str
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :type catchup: bool
@@ -219,7 +221,7 @@ class DAG(BaseDag, LoggingMixin):
         max_active_runs: int = conf.getint('core', 'max_active_runs_per_dag'),
         dagrun_timeout: Optional[timedelta] = None,
         sla_miss_callback: Optional[Callable] = None,
-        default_view: Optional[str] = None,
+        default_view: str = conf.get('webserver', 'dag_default_view').lower(),
         orientation: str = conf.get('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
         on_success_callback: Optional[Callable] = None,
@@ -304,8 +306,16 @@ class DAG(BaseDag, LoggingMixin):
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
-        self._default_view = default_view
-        self.orientation = orientation
+        if default_view in DEFAULT_VIEW_PRESETS:
+            self._default_view = default_view
+        else:
+            raise AirflowException(f'Invalid values of dag.default_view: only support '
+                                   f'{DEFAULT_VIEW_PRESETS}, but get {default_view}')
+        if orientation in ORIENTATION_PRESETS:
+            self.orientation = orientation
+        else:
+            raise AirflowException(f'Invalid values of dag.orientation: only support '
+                                   f'{ORIENTATION_PRESETS}, but get {orientation}')
         self.catchup = catchup
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
@@ -362,13 +372,6 @@ class DAG(BaseDag, LoggingMixin):
         DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
-
-    def get_default_view(self):
-        """This is only there for backward compatible jinja2 templates"""
-        if self._default_view is None:
-            return conf.get('webserver', 'dag_default_view').lower()
-        else:
-            return self._default_view
 
     def date_range(self, start_date, num=None, end_date=timezone.utcnow()):
         if num:
@@ -536,6 +539,10 @@ class DAG(BaseDag, LoggingMixin):
     @property
     def description(self):
         return self._description
+
+    @property
+    def default_view(self):
+        return self._default_view
 
     @property
     def pickle_id(self):
@@ -1735,12 +1742,6 @@ class DagModel(Base):
     @provide_session
     def get_current(cls, dag_id, session=None):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
-
-    def get_default_view(self):
-        if self.default_view is None:
-            return conf.get('webserver', 'dag_default_view').lower()
-        else:
-            return self.default_view
 
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):

@@ -99,7 +99,7 @@
                 <!-- Column 3: Name -->
                 <td>
                     <span>
-                      <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description }}">
+                      <a href="{{ url_for('Airflow.'+ dag.default_view, dag_id=dag.dag_id) }}" title="{{ dag.description }}">
                           {{ dag.dag_id }}
                       </a>
                     </span>
