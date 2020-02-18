@@ -17,6 +17,7 @@
 # under the License.
 """Hook for Web HDFS"""
 import logging
+import socket
 
 from hdfs import HdfsError, InsecureClient
 
