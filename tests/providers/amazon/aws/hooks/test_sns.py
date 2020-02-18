@@ -46,7 +46,7 @@ class TestAwsSnsHook(unittest.TestCase):
 
         response = hook.publish_to_target(target, message, subject)
 
-        self.assertTrue('MessageId' in response)
+        assert 'MessageId' in response
 
     @mock_sns
     def test_publish_to_target_with_attributes(self):
@@ -63,7 +63,7 @@ class TestAwsSnsHook(unittest.TestCase):
             'test-binary': b'binary-value',
         })
 
-        self.assertTrue('MessageId' in response)
+        assert 'MessageId' in response
 
     @mock_sns
     def test_publish_to_target_plain(self):
@@ -75,7 +75,7 @@ class TestAwsSnsHook(unittest.TestCase):
 
         response = hook.publish_to_target(target, message)
 
-        self.assertTrue('MessageId' in response)
+        assert 'MessageId' in response
 
 
 if __name__ == '__main__':
