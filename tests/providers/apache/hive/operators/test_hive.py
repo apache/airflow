@@ -22,7 +22,6 @@ from unittest import mock
 
 from airflow.configuration import conf
 from airflow.models import TaskInstance
-from airflow.providers.apache.hdfs.sensors.hdfs import HdfsSensor
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
 from airflow.providers.apache.hive.sensors.metastore_partition import MetastorePartitionSensor
@@ -155,14 +154,6 @@ class TestHivePresto(TestHiveEnvironment):
                 """,
             mysql_table='test_static_babynames',
             mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
-            dag=self.dag)
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
-               ignore_ti_state=True)
-
-    def test_hdfs_sensor(self):
-        op = HdfsSensor(
-            task_id='hdfs_sensor_check',
-            filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
             dag=self.dag)
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                ignore_ti_state=True)
