@@ -69,6 +69,7 @@ class SingularityOperator(BaseOperator):
             start_command: Optional[Union[str, List[str]]] = None,
             environment: Optional[Dict[str, Any]] = None,
             pull_folder: Optional[str] = None,
+            working_dir: Optional[str] = None,
             force_pull: Optional[bool] = False,
             task_id: Optional[str] = None,
             volumes: Optional[List[str]] = None,
@@ -87,10 +88,8 @@ class SingularityOperator(BaseOperator):
         self.instance = None
         self.options = options or []
         self.pull_folder = pull_folder
-        self.task_id = kwargs.get("task-id")
         self.volumes = volumes or []
-        self.working_dir = None
-        self.working_dir = kwargs.get("working_dir", None)
+        self.working_dir = working_dir
         self.cli = None
         self.container = None
 
