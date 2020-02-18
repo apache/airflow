@@ -15,15 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 import unittest
 from unittest.mock import Mock, PropertyMock, patch
 
 from airflow.providers.apache.hive.operators.hive_to_samba import Hive2SambaOperator
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
 
 
-class TestHive2SambaOperator(unittest.TestCase):
+class TestHive2SambaOperator(TestHiveEnvironment):
 
     def setUp(self):
         self.kwargs = dict(
@@ -32,8 +33,8 @@ class TestHive2SambaOperator(unittest.TestCase):
             samba_conn_id='samba_default',
             hiveserver2_conn_id='hiveserver2_default',
             task_id='test_hive_to_samba_operator',
-            dag=None
         )
+        super().setUp()
 
     @patch('airflow.providers.apache.hive.operators.hive_to_samba.SambaHook')
     @patch('airflow.providers.apache.hive.operators.hive_to_samba.HiveServer2Hook')
@@ -53,3 +54,16 @@ class TestHive2SambaOperator(unittest.TestCase):
         mock_samba_hook.assert_called_once_with(samba_conn_id=self.kwargs['samba_conn_id'])
         mock_samba_hook.return_value.push_from_local.assert_called_once_with(
             self.kwargs['destination_filepath'], mock_tmp_file.name)
+
+    @unittest.skipIf(
+        'AIRFLOW_RUNALL_TESTS' not in os.environ,
+        "Skipped because AIRFLOW_RUNALL_TESTS is not set")
+    def test_hive2samba(self):
+        op = Hive2SambaOperator(
+            task_id='hive2samba_check',
+            samba_conn_id='tableau_samba',
+            hql="SELECT * FROM airflow.static_babynames LIMIT 10000",
+            destination_filepath='test_airflow.csv',
+            dag=self.dag)
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+               ignore_ti_state=True)
