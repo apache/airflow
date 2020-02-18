@@ -105,8 +105,8 @@ function in_container_fix_ownership() {
     print_in_container_info "Changing ownership of root-owned files to ${HOST_USER_ID}.${HOST_GROUP_ID}"
     print_in_container_info
     set +o pipefail
-    sudo find . -user root | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" | wc -l | \
-        xargs -n 1 echo "Number of files with changed ownership:"
+    sudo find . -user root | sudo xargs chown -v "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference | \
+        wc -l | xargs -n 1 echo "Number of files with changed ownership:"
     set -o pipefail
     print_in_container_info
     print_in_container_info
