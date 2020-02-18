@@ -70,23 +70,20 @@ class WebHDFSHook(BaseHook):
         for connection in connections:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", connection.host, connection.port)
-            try:
-                conn_check = host_socket.connect_ex((connection.host, connection.port))
-                if conn_check == 0:
-                    try:
-                        self.log.info('Trying namenode %s', connection.host)
-                        client = self._get_client(connection)
-                        client.status('/')
-                        self.log.info('Using namenode %s for hook', connection.host)
-                        return client
-                    except HdfsError as hdfs_error:
-                        logging.info('Read operation on namenode %s failed with error: %s',
-                                     connection.host, hdfs_error)
-                else:
-                    self.log.info("Could not connect to %s:%s", connection.host, connection.port)
-            except Exception as err:
-                self.log.info(err)
-            host_socket.close()
+            conn_check = host_socket.connect_ex((connection.host, connection.port))
+            if conn_check == 0:
+                try:
+                    self.log.info('Trying namenode %s', connection.host)
+                    client = self._get_client(connection)
+                    client.status('/')
+                    self.log.info('Using namenode %s for hook', connection.host)
+                    return client
+                except HdfsError as hdfs_error:
+                    self.log.info('Read operation on namenode %s failed with error: %s',
+                                  connection.host, hdfs_error)
+            else:
+                self.log.info("Could not connect to %s:%s", connection.host, connection.port)
+        host_socket.close()
 
     def _get_client(self, connection):
         connection_str = 'http://{host}:{port}'.format(host=connection.host, port=connection.port)
