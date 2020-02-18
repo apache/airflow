@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,12 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for SSH connections."""
+
 import getpass
 import os
 import warnings
 from io import StringIO
-from typing import Optional
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -35,7 +33,6 @@ class SSHHook(BaseHook):
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
     This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer
-
     :param ssh_conn_id: connection id from airflow Connections from where all the required
         parameters can be fetched like username, password or key_file.
         Thought the priority is given to the param passed during init
@@ -46,8 +43,12 @@ class SSHHook(BaseHook):
     :type username: str
     :param password: password of the username to connect to the remote_host
     :type password: str
+    :param key_type: type of the key. Can be rsa or ed25519. (Default is rsa)
+    :type key_type: str
     :param key_file: path to key file to use to connect to the remote_host
     :type key_file: str
+    :parm cert_file: path to cert of pub key file to use to connect to remote host
+    : type cert_file: str
     :param port: port of remote host to connect (Default is paramiko SSH_PORT)
     :type port: int
     :param timeout: timeout for the attempt to connect to the remote_host.
@@ -67,11 +68,11 @@ class SSHHook(BaseHook):
                  timeout=10,
                  keepalive_interval=30
                  ):
+        super(SSHHook, self).__init__(ssh_conn_id)
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.username = username
         self.password = password
-        self.key_file = key_file
         self.pkey = None
         self.port = port
         self.timeout = timeout
@@ -99,12 +100,30 @@ class SSHHook(BaseHook):
                 self.port = conn.port
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
-                if "key_file" in extra_options and self.key_file is None:
-                    self.key_file = extra_options.get("key_file")
 
+                # Key type can be ed25519 or rsa; for legacy reasons rsa is default
+                key_type = extra_options.get('key_type').lower() if extra_options.get('key_type') else 'rsa'
+
+                # Either the keys are specified as strings, or as files
                 private_key = extra_options.get('private_key')
+                cert_key = extra_options.get('cert_key')
+                key_file = extra_options.get('key_file')
+                cert_file = extra_options.get('cert_file')
+
                 if private_key:
-                    self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
+                    if key_type == 'rsa':
+                        self.pkey = paramiko.RSAKey.from_private_key(StringIO(private_key))
+                    elif key_type == 'ed25519':
+                        self.pkey = paramiko.Ed25519Key.from_private_key(StringIO(private_key))
+                elif key_file:
+                    if key_type == 'rsa':
+                        self.pkey = paramiko.RSAKey.from_private_key_file(key_file)
+                    elif key_type == 'ed25519':
+                        self.pkey = paramiko.Ed25519Key.from_private_key_file(key_file)
+                if cert_key:
+                    self.pkey.load_certificate(StringIO(cert_key))
+                elif cert_file:
+                    self.pkey.load_certificate(cert_file)
 
                 if "timeout" in extra_options:
                     self.timeout = int(extra_options["timeout"], 10)
@@ -121,9 +140,9 @@ class SSHHook(BaseHook):
                         str(extra_options["allow_host_key_change"]).lower() == 'true':
                     self.allow_host_key_change = True
 
-        if self.pkey and self.key_file:
-            raise AirflowException(
-                "Params key_file and private_key both provided.  Must provide no more than one.")
+                if private_key and key_file:
+                    raise AirflowException(
+                        "Params key_file and private_key both provided.  Must provide no more than one.")
 
         if not self.remote_host:
             raise AirflowException("Missing required param: remote_host")
@@ -140,22 +159,20 @@ class SSHHook(BaseHook):
         user_ssh_config_filename = os.path.expanduser('~/.ssh/config')
         if os.path.isfile(user_ssh_config_filename):
             ssh_conf = paramiko.SSHConfig()
-            with open(user_ssh_config_filename) as config_fd:
-                ssh_conf.parse(config_fd)
+            ssh_conf.parse(open(user_ssh_config_filename))
             host_info = ssh_conf.lookup(self.remote_host)
             if host_info and host_info.get('proxycommand'):
                 self.host_proxy = paramiko.ProxyCommand(host_info.get('proxycommand'))
 
-            if not (self.password or self.key_file):
+            if not (self.password or self.pkey):
                 if host_info and host_info.get('identityfile'):
-                    self.key_file = host_info.get('identityfile')[0]
+                    self.pkey = paramiko.RSAKey.from_private_key_file(host_info.get('identityfile')[0])
 
         self.port = self.port or SSH_PORT
 
-    def get_conn(self) -> paramiko.SSHClient:
+    def get_conn(self):
         """
         Opens a ssh connection to the remote host.
-
         :rtype: paramiko.client.SSHClient
         """
 
@@ -187,9 +204,6 @@ class SSHHook(BaseHook):
         if self.pkey:
             connect_kwargs.update(pkey=self.pkey)
 
-        if self.key_file:
-            connect_kwargs.update(key_filename=self.key_file)
-
         client.connect(**connect_kwargs)
 
         if self.keepalive_interval:
@@ -213,14 +227,12 @@ class SSHHook(BaseHook):
     def get_tunnel(self, remote_port, remote_host="localhost", local_port=None):
         """
         Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
-
         :param remote_port: The remote port to create a tunnel to
         :type remote_port: int
         :param remote_host: The remote host to create a tunnel to (default localhost)
         :type remote_host: str
         :param local_port:  The local port to attach the tunnel to
         :type local_port: int
-
         :return: sshtunnel.SSHTunnelForwarder object
         """
 
@@ -232,7 +244,7 @@ class SSHHook(BaseHook):
         tunnel_kwargs = dict(
             ssh_port=self.port,
             ssh_username=self.username,
-            ssh_pkey=self.key_file or self.pkey,
+            ssh_pkey=self.pkey,
             ssh_proxy=self.host_proxy,
             local_bind_address=local_bind_address,
             remote_bind_address=(remote_host, remote_port),
@@ -253,20 +265,7 @@ class SSHHook(BaseHook):
 
         return client
 
-    def create_tunnel(
-        self,
-        local_port: int,
-        remote_port: Optional[int] = None,
-        remote_host: str = "localhost"
-    ) -> SSHTunnelForwarder:
-        """
-        Creates tunnel for SSH connection [Deprecated].
-
-        :param local_port: local port number
-        :param remote_port: remote port number
-        :param remote_host: remote host
-        :return:
-        """
+    def create_tunnel(self, local_port, remote_port=None, remote_host="localhost"):
         warnings.warn('SSHHook.create_tunnel is deprecated, Please'
                       'use get_tunnel() instead. But please note that the'
                       'order of the parameters have changed'
