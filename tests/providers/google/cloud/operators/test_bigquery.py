@@ -32,7 +32,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator, BigQueryDeleteTableOperator, BigQueryExecuteQueryOperator,
     BigQueryGetDataOperator, BigQueryGetDatasetOperator, BigQueryGetDatasetTablesOperator,
     BigQueryIntervalCheckOperator, BigQueryPatchDatasetOperator, BigQueryUpdateDatasetOperator,
-    BigQueryValueCheckOperator,
+    BigQueryUpsertTableOperator, BigQueryValueCheckOperator,
 )
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import Session
@@ -49,6 +49,12 @@ TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'test-bigquery-operators'
+TEST_TABLE_RESOURCES = {
+    "tableReference": {
+        "tableId": TEST_TABLE_ID
+    },
+    "expirationTime": 1234567
+}
 VIEW_DEFINITION = {
     "query": "SELECT * FROM `{}.{}`".format(TEST_DATASET, TEST_TABLE_ID),
     "useLegacySql": False
@@ -757,3 +763,23 @@ class TestBigQueryConnIdDeprecationWarning(unittest.TestCase):
                 **kwargs
             )
             self.assertEqual(bigquery_conn_id, operator.gcp_conn_id)
+
+
+class TestBigQueryUpsertTableOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute(self, mock_hook):
+        operator = BigQueryUpsertTableOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_resource=TEST_TABLE_RESOURCES,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .run_table_upsert \
+            .assert_called_once_with(
+                dataset_id=TEST_DATASET,
+                project_id=TEST_GCP_PROJECT_ID,
+                table_resource=TEST_TABLE_RESOURCES
+            )

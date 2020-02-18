@@ -1015,3 +1015,54 @@ class MLEngineStartTrainingJobOperator(BaseOperator):
         if finished_training_job['state'] != 'SUCCEEDED':
             self.log.error('MLEngine training job failed: %s', str(finished_training_job))
             raise RuntimeError(finished_training_job['errorMessage'])
+
+
+class MLEngineTrainingJobFailureOperator(BaseOperator):
+
+    """
+    Operator for cleaning up failed MLEngine training job.
+
+    :param job_id: A unique templated id for the submitted Google MLEngine
+        training job. (templated)
+    :type job_id: str
+    :param project_id: The Google Cloud project name within which MLEngine training job should run.
+        If set to None or missing, the default project_id from the GCP connection is used. (templated)
+    :type project_id: str
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: str
+    """
+
+    template_fields = [
+        '_project_id',
+        '_job_id',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 job_id: str,
+                 project_id: Optional[str] = None,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 delegate_to: Optional[str] = None,
+                 *args,
+                 **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._project_id = project_id
+        self._job_id = job_id
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+
+        if not self._project_id:
+            raise AirflowException('Google Cloud project id is required.')
+
+    def execute(self, context):
+
+        hook = MLEngineHook(
+            gcp_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to
+        )
+
+        hook.cancel_job(project_id=self._project_id, job_id=_normalize_mlengine_job_id(self._job_id))

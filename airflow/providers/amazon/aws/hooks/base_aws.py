@@ -34,7 +34,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
-class AwsHook(BaseHook):
+class AwsBaseHook(BaseHook):
     """
     Interact with AWS.
     This class is a thin wrapper around the boto3 python library.

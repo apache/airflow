@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains a Google Cloud Storage operator.
+This module contains a Google Cloud Storage to Google Drive transfer operator.
 """
 import tempfile
 from typing import Optional

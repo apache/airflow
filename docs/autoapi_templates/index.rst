@@ -176,6 +176,8 @@ All operators are in the following packages:
 
   airflow/providers/vertica/operators/index
 
+  airflow/providers/yandex/operators/index
+
 .. _pythonapi:hooks:
 
 Hooks
@@ -224,6 +226,8 @@ All hooks are in the following packages:
   airflow/providers/dingding/hooks/index
 
   airflow/providers/docker/hooks/index
+
+  airflow/providers/elasticsearch/hooks/index
 
   airflow/providers/ftp/hooks/index
 
@@ -293,6 +297,8 @@ All hooks are in the following packages:
 
   airflow/providers/zendesk/hooks/index
 
+  airflow/providers/yandex/hooks/index
+
 Executors
 ---------
 Executors are the mechanism by which task instances get run. All executors are
@@ -320,13 +326,3 @@ persisted in the database.
   :maxdepth: 1
 
   airflow/models/index
-
-
-Core and community package
---------------------------
-Formerly the core code was maintained by the original creators - Airbnb. The code
-that was in the contrib package was supported by the community. The project
-was passed to the Apache community and currently the entire code is
-maintained by the community, so now the division has no justification,
-and it is only due to historical reasons. Currently, all new classes are
-added only to the contrib package.

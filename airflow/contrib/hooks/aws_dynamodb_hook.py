@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.aws_dynamodb_hook`."""
+"""This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.aws_dynamodb`."""
 
 import warnings
 
 # pylint: disable=unused-import
-from airflow.providers.amazon.aws.hooks.aws_dynamodb_hook import AwsDynamoDBHook  # noqa
+from airflow.providers.amazon.aws.hooks.aws_dynamodb import AwsDynamoDBHook  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.aws_dynamodb_hook`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.aws_dynamodb`.",
     DeprecationWarning, stacklevel=2
 )

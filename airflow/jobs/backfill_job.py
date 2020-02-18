@@ -177,7 +177,8 @@ class BackfillJob(BaseJob):
         self.run_backwards = run_backwards
         super().__init__(*args, **kwargs)
 
-    def _update_counters(self, ti_status):
+    @provide_session
+    def _update_counters(self, ti_status, session=None):
         """
         Updates the counters per state of the tasks that were running. Can re-add
         to tasks to run in case required.
@@ -185,8 +186,17 @@ class BackfillJob(BaseJob):
         :param ti_status: the internal status of the backfill job tasks
         :type ti_status: BackfillJob._DagRunTaskStatus
         """
-        for key, ti in list(ti_status.running.items()):
-            ti.refresh_from_db()
+        tis_to_be_scheduled = []
+        refreshed_tis = []
+        TI = TaskInstance
+
+        filter_for_tis = TI.filter_for_tis(list(ti_status.running.values()))
+        if filter_for_tis is not None:
+            refreshed_tis = session.query(TI).filter(filter_for_tis).all()
+
+        for ti in refreshed_tis:
+            # Here we remake the key by subtracting 1 to match in memory information
+            key = (ti.dag_id, ti.task_id, ti.execution_date, max(1, ti.try_number - 1))
             if ti.state == State.SUCCESS:
                 ti_status.succeeded.add(key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
@@ -223,9 +233,16 @@ class BackfillJob(BaseJob):
                     "reaching concurrency limits. Re-adding task to queue.",
                     ti
                 )
-                ti.set_state(State.SCHEDULED)
+                tis_to_be_scheduled.append(ti)
                 ti_status.running.pop(key)
                 ti_status.to_run[key] = ti
+
+        # Batch schedule of task instances
+        if tis_to_be_scheduled:
+            filter_for_tis = TI.filter_for_tis(tis_to_be_scheduled)
+            session.query(TI).filter(filter_for_tis).update(
+                values={TI.state: State.SCHEDULED}, synchronize_session=False
+            )
 
     def _manage_executor_state(self, running):
         """
@@ -236,6 +253,7 @@ class BackfillJob(BaseJob):
         """
         executor = self.executor
 
+        # TODO: query all instead of refresh from db
         for key, state in list(executor.get_event_buffer().items()):
             if key not in running:
                 self.log.warning(
@@ -406,7 +424,7 @@ class BackfillJob(BaseJob):
             # waiting for their upstream to finish
             @provide_session
             def _per_task_process(task, key, ti, session=None):
-                ti.refresh_from_db()
+                ti.refresh_from_db(lock_for_update=True, session=session)
 
                 task = self.dag.get_task(ti.task_id, include_subdags=True)
                 ti.task = task
@@ -470,7 +488,6 @@ class BackfillJob(BaseJob):
                     ignore_task_deps=self.ignore_task_deps,
                     flag_upstream_failed=True)
 
-                ti.refresh_from_db(lock_for_update=True, session=session)
                 # Is the task runnable? -- then run it
                 # the dependency checker can change states of tis
                 if ti.are_dependencies_met(

@@ -15,12 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""
 from datetime import timedelta
-from airflow.utils.dates import days_ago
+
 from airflow import DAG
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
+from airflow.utils.dates import days_ago
 
 default_args = {
     'owner': 'airflow',
@@ -41,10 +40,9 @@ dag = DAG(
 with dag as dag:
     t1 = DockerSwarmOperator(
         api_version='auto',
-        docker_url='tcp://localhost:2375', # Set your docker URL
+        docker_url='tcp://localhost:2375',  # Set your docker URL
         command='/bin/sleep 10',
         image='centos:latest',
         auto_remove=True,
         task_id='sleep_with_swarm',
     )
-"""

@@ -19,11 +19,20 @@
 
 .. _howto/operator:KubernetesPodOperator:
 
-Kubernetes Operator
-===================
+KubernetesPodOperator
+=====================
 
-The :class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` allows you to create
-Pods on Kubernetes. It works with any type of executor.
+The :class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`:
+
+* Launches a Docker image as a Kubernetes Pod to execute an individual Airflow
+  task via a Kubernetes API request, using the
+  `Kubernetes Python Client <https://github.com/kubernetes-client/python>`_
+* Terminate the pod when the task is completed
+* Works with any Airflow Executor
+* Allows Airflow to act a job orchestrator for a Docker container,
+  no matter the language the job was written in
+* Enables task-level resource configuration
+* Allow you to pass Kubernetes specific parameters into the task
 
 .. code:: python
 

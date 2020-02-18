@@ -22,6 +22,7 @@ import uuid
 import kubernetes.client.models as k8s
 from kubernetes.client import ApiClient
 
+from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.k8s_model import append_to_pod
 from airflow.kubernetes.pod import Resources
 from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator, extend_object_field, merge_objects
@@ -32,6 +33,24 @@ class TestPodGenerator(unittest.TestCase):
 
     def setUp(self):
         self.static_uuid = uuid.UUID('cf4a56d2-8101-4217-b027-2af6216feb48')
+        self.deserialize_result = {
+            'apiVersion': 'v1',
+            'kind': 'Pod',
+            'metadata': {'name': 'memory-demo', 'namespace': 'mem-example'},
+            'spec': {
+                'containers': [{
+                    'args': ['--vm', '1', '--vm-bytes', '150M', '--vm-hang', '1'],
+                    'command': ['stress'],
+                    'image': 'polinux/stress',
+                    'name': 'memory-demo-ctr',
+                    'resources': {
+                        'limits': {'memory': '200Mi'},
+                        'requests': {'memory': '100Mi'}
+                    }
+                }]
+            }
+        }
+
         self.envs = {
             'ENVIRONMENT': 'prod',
             'LOG_LEVEL': 'warning'
@@ -77,7 +96,6 @@ class TestPodGenerator(unittest.TestCase):
                     'command': [
                         'sh', '-c', 'echo Hello Kubernetes!'
                     ],
-                    'imagePullPolicy': 'IfNotPresent',
                     'env': [{
                         'name': 'ENVIRONMENT',
                         'value': 'prod'
@@ -124,7 +142,6 @@ class TestPodGenerator(unittest.TestCase):
                         'readOnly': True
                     }]
                 }],
-                'restartPolicy': 'Never',
                 'volumes': [{
                     'name': 'secretvol' + str(self.static_uuid),
                     'secret': {
@@ -170,7 +187,7 @@ class TestPodGenerator(unittest.TestCase):
         result_dict['spec']['containers'][0]['envFrom'].sort(
             key=lambda x: list(x.values())[0]['name']
         )
-        self.assertDictEqual(result_dict, self.expected)
+        self.assertDictEqual(self.expected, result_dict)
 
     @mock.patch('uuid.uuid4')
     def test_gen_pod_extract_xcom(self, mock_uuid):
@@ -234,9 +251,6 @@ class TestPodGenerator(unittest.TestCase):
                         "name": "example-kubernetes-test-volume",
                     },
                 ],
-                "securityContext": {
-                    "runAsUser": 1000
-                }
             }
         })
         result = self.k8s_client.sanitize_for_serialization(result)
@@ -260,6 +274,7 @@ class TestPodGenerator(unittest.TestCase):
                         'name': 'example-kubernetes-test-volume'
                     }],
                 }],
+                'hostNetwork': False,
                 'imagePullSecrets': [],
                 'volumes': [{
                     'hostPath': {'path': '/tmp/'},
@@ -335,7 +350,7 @@ class TestPodGenerator(unittest.TestCase):
 
         result = PodGenerator.reconcile_pods(base_pod, mutator_pod)
         result = self.k8s_client.sanitize_for_serialization(result)
-        self.assertEqual(result, {
+        self.assertEqual({
             'apiVersion': 'v1',
             'kind': 'Pod',
             'metadata': {'name': 'name2-' + self.static_uuid.hex},
@@ -349,7 +364,6 @@ class TestPodGenerator(unittest.TestCase):
                     ],
                     'envFrom': [],
                     'image': 'image1',
-                    'imagePullPolicy': 'IfNotPresent',
                     'name': 'base',
                     'ports': [{
                         'containerPort': 2118,
@@ -365,7 +379,6 @@ class TestPodGenerator(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'restartPolicy': 'Never',
                 'volumes': [{
                     'hostPath': {'path': '/tmp/'},
                     'name': 'example-kubernetes-test-volume1'
@@ -374,7 +387,7 @@ class TestPodGenerator(unittest.TestCase):
                     'name': 'example-kubernetes-test-volume2'
                 }]
             }
-        })
+        }, result)
 
     @mock.patch('uuid.uuid4')
     def test_construct_pod_empty_worker_config(self, mock_uuid):
@@ -420,7 +433,6 @@ class TestPodGenerator(unittest.TestCase):
                     'command': ['command'],
                     'env': [],
                     'envFrom': [],
-                    'imagePullPolicy': 'IfNotPresent',
                     'name': 'base',
                     'ports': [],
                     'resources': {
@@ -433,7 +445,6 @@ class TestPodGenerator(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'restartPolicy': 'Never',
                 'volumes': []
             }
         }, sanitized_result)
@@ -482,7 +493,6 @@ class TestPodGenerator(unittest.TestCase):
                     'command': ['command'],
                     'env': [],
                     'envFrom': [],
-                    'imagePullPolicy': 'IfNotPresent',
                     'name': 'base',
                     'ports': [],
                     'resources': {
@@ -495,7 +505,6 @@ class TestPodGenerator(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'restartPolicy': 'Never',
                 'volumes': []
             }
         }, sanitized_result)
@@ -569,7 +578,6 @@ class TestPodGenerator(unittest.TestCase):
                     'command': ['command'],
                     'env': [],
                     'envFrom': [],
-                    'imagePullPolicy': 'IfNotPresent',
                     'name': 'base',
                     'ports': [],
                     'resources': {
@@ -583,7 +591,6 @@ class TestPodGenerator(unittest.TestCase):
                 }],
                 'hostNetwork': False,
                 'imagePullSecrets': [],
-                'restartPolicy': 'Never',
                 'volumes': []
             }
         }, sanitized_result)
@@ -717,3 +724,44 @@ class TestPodGenerator(unittest.TestCase):
         client_spec.containers = [k8s.V1Container(name='client_container1', image='base_image')]
         client_spec.active_deadline_seconds = 100
         self.assertEqual(client_spec, res)
+
+    def test_deserialize_model_file(self):
+        fixture = 'tests/kubernetes/pod.yaml'
+        result = PodGenerator.deserialize_model_file(fixture)
+        sanitized_res = self.k8s_client.sanitize_for_serialization(result)
+        self.assertEqual(sanitized_res, self.deserialize_result)
+
+    def test_deserialize_model_string(self):
+        fixture = """
+apiVersion: v1
+kind: Pod
+metadata:
+  name: memory-demo
+  namespace: mem-example
+spec:
+  containers:
+    - name: memory-demo-ctr
+      image: polinux/stress
+      resources:
+        limits:
+          memory: "200Mi"
+        requests:
+          memory: "100Mi"
+      command: ["stress"]
+      args: ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]
+        """
+        result = PodGenerator.deserialize_model_file(fixture)
+        sanitized_res = self.k8s_client.sanitize_for_serialization(result)
+        self.assertEqual(sanitized_res, self.deserialize_result)
+
+    def test_validate_pod_generator(self):
+        with self.assertRaises(AirflowConfigException):
+            PodGenerator(image='k', pod=k8s.V1Pod())
+        with self.assertRaises(AirflowConfigException):
+            PodGenerator(pod=k8s.V1Pod(), pod_template_file='k')
+        with self.assertRaises(AirflowConfigException):
+            PodGenerator(image='k', pod_template_file='k')
+
+        PodGenerator(image='k')
+        PodGenerator(pod_template_file='tests/kubernetes/pod.yaml')
+        PodGenerator(pod=k8s.V1Pod())

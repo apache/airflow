@@ -20,7 +20,7 @@ import unittest
 from unittest import mock
 
 from airflow.providers.snowflake.operators.s3_to_snowflake import S3ToSnowflakeTransfer
-from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
+from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
 class TestS3ToSnowflakeTransfer(unittest.TestCase):
@@ -65,7 +65,7 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         )
 
         assert mock_run.call_count == 1
-        assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], copy_query)
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
     def test_execute_with_columns(self, mock_run):
@@ -110,4 +110,4 @@ class TestS3ToSnowflakeTransfer(unittest.TestCase):
         )
 
         assert mock_run.call_count == 1
-        assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], copy_query)
+        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)

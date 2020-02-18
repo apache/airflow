@@ -17,10 +17,10 @@
 # under the License.
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class EmrHook(AwsHook):
+class EmrHook(AwsBaseHook):
     """
     Interact with AWS EMR. emr_conn_id is only necessary for using the
     create_job_flow method.

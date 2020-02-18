@@ -39,6 +39,46 @@ can not be found or accessed, local logs will be displayed. Note that logs
 are only sent to remote storage once a task is complete (including failure); In other words, remote logs for
 running tasks are unavailable (but local logs are available).
 
+.. _write-logs-advanced:
+
+Advanced configuration
+''''''''''''''''''''''
+
+Not all configuration options are available from the ``airflow.cfg`` file. Some configuration options require
+that the logging config class be overwritten. This can be done by ``logging_config_class`` option
+in ``airflow.cfg`` file. This option should specify the import path indicating to a configuration compatible with
+:class:`logging.config.dictConfig`. If your file is a standard import location, then you should set a  :any:`PYTHONPATH` environment.
+
+Follow the steps below to enable custom logging config class:
+
+#. Start by setting environment variable to known directory e.g. ``~/airflow/``
+
+    .. code-block:: ini
+
+        export PYTHON_PATH=~/airflow/
+
+#. Create a directory to store the config file e.g. ``~/airflow/config``
+#. Create file called ``~/airflow/config/log_config.py`` with following content:
+
+    .. code-block:: python
+
+      form copy import deepcopy
+      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+
+      LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
+
+#.  At the end of the file, add code to modify the default dictionary configuration.
+#. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
+
+    .. code-block:: ini
+
+        [logging]
+        remote_logging = True
+        logging_config_class = log_config.LOGGING_CONFIG
+
+#. Restart the application.
+
+
 Before you begin
 ''''''''''''''''
 
@@ -209,3 +249,38 @@ To add custom configurations to ElasticSearch (e.g. turning on ``ssl_verify``, a
     use_ssl=True
     verify_certs=True
     ca_certs=/path/to/CA_certs
+
+
+.. _write-logs-stackdriver:
+
+Writing Logs to Google Stackdriver
+----------------------------------
+
+Airflow can be configured to read and write task logs in `Google Stackdriver Logging <https://cloud.google.com/logging/>`__.
+
+To enable this feature, ``airflow.cfg`` must be configured as in this
+example:
+
+.. code-block:: ini
+
+    [logging]
+    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Users must supply an Airflow connection id that provides access to the storage
+    # location. If remote_logging is set to true, see UPDATING.md for additional
+    # configuration requirements.
+    remote_logging = True
+    remote_base_log_folder = stackdriver://logs-name
+    remote_log_conn_id = custom-conn-id
+
+All configuration options are in the ``[logging]`` section.
+
+The value of field ``remote_logging`` must always be set to ``True`` for this feature to work.
+Turning this option off will result in data not being sent to Stackdriver.
+The ``remote_base_log_folder`` option contains the URL that specifies the type of handler to be used.
+For integration with Stackdriver, this option should start with ``stackdriver:///``.
+The path section of the URL specifies the name of the log e.g. ``stackdriver://airflow-tasks`` writes
+logs under the name ``airflow-tasks``.
+
+By using the ``logging_config_class`` option you can get :ref:`advanced features <write-logs-advanced>` of
+this handler. Details are available in the handler's documentation -
+:class:`~airflow.utils.log.stackdriver_task_handler.StackdriverTaskHandler`.

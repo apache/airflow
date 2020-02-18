@@ -126,22 +126,24 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
     :type schedulername: str
     :param full_pod_spec: The complete podSpec
     :type full_pod_spec: kubernetes.client.models.V1Pod
-    :param do_xcom_push: If True, the content of the file
-        /airflow/xcom/return.json in the container will also be pushed to an
-        XCom when the container completes.
-    :type do_xcom_push: bool
     :param init_containers: init container for the launched Pod
     :type init_containers: list[kubernetes.client.models.V1Container]
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :type log_events_on_failure: bool
+    :param do_xcom_push: If True, the content of the file
+        /airflow/xcom/return.json in the container will also be pushed to an
+        XCom when the container completes.
+    :type do_xcom_push: bool
+    :param pod_template_file: path to pod template file
+    :type pod_template_file: str
     """
-    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
+    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file', 'pod_template_file')
 
     @apply_defaults
     def __init__(self,  # pylint: disable=too-many-arguments,too-many-locals
-                 namespace: str,
-                 image: str,
-                 name: str,
+                 namespace: Optional[str] = None,
+                 image: Optional[str] = None,
+                 name: Optional[str] = None,
                  cmds: Optional[List[str]] = None,
                  arguments: Optional[List[str]] = None,
                  ports: Optional[List[Port]] = None,
@@ -174,6 +176,7 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                  init_containers: Optional[List[k8s.V1Container]] = None,
                  log_events_on_failure: bool = False,
                  do_xcom_push: bool = False,
+                 pod_template_file: Optional[str] = None,
                  *args,
                  **kwargs):
         if kwargs.get('xcom_push') is not None:
@@ -188,7 +191,6 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
-        self.name = self._set_name(name)
         self.env_vars = env_vars or {}
         self.ports = ports or []
         self.volume_mounts = volume_mounts or []
@@ -216,6 +218,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
         self.log_events_on_failure = log_events_on_failure
+        self.pod_template_file = pod_template_file
+        self.name = self._set_name(name)
 
     def execute(self, context):
         try:
@@ -227,15 +231,15 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 client = kube_client.get_kube_client(cluster_context=self.cluster_context,
                                                      config_file=self.config_file)
 
-            # Add Airflow Version to the label
-            # And a label to identify that pod is launched by KubernetesPodOperator
-            self.labels.update(
-                {
-                    'airflow_version': airflow_version.replace('+', '-'),
-                    'kubernetes_pod_operator': 'True',
-                }
-            )
-
+            if not (self.full_pod_spec or self.pod_template_file):
+                # Add Airflow Version to the label
+                # And a label to identify that pod is launched by KubernetesPodOperator
+                self.labels.update(
+                    {
+                        'airflow_version': airflow_version.replace('+', '-'),
+                        'kubernetes_pod_operator': 'True',
+                    }
+                )
             pod = pod_generator.PodGenerator(
                 image=self.image,
                 namespace=self.namespace,
@@ -257,8 +261,10 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
                 security_context=self.security_context,
                 dnspolicy=self.dnspolicy,
                 schedulername=self.schedulername,
-                pod=self.full_pod_spec,
                 init_containers=self.init_containers,
+                restart_policy='Never',
+                pod_template_file=self.pod_template_file,
+                pod=self.full_pod_spec
             ).gen_pod()
 
             pod = append_to_pod(
@@ -308,7 +314,8 @@ class KubernetesPodOperator(BaseOperator):  # pylint: disable=too-many-instance-
             return []
         return [Resources(**resources)]
 
-    @staticmethod
-    def _set_name(name):
+    def _set_name(self, name):
+        if self.pod_template_file or self.full_pod_spec:
+            return None
         validate_key(name, max_length=63)
         return re.sub(r'[^a-z0-9.-]+', '-', name.lower())

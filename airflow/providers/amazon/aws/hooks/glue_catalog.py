@@ -19,10 +19,10 @@
 """
 This module contains AWS Glue Catalog Hook
 """
-from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsGlueCatalogHook(AwsHook):
+class AwsGlueCatalogHook(AwsBaseHook):
     """
     Interact with AWS Glue Catalog
 

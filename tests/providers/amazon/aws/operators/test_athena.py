@@ -35,7 +35,7 @@ MOCK_DATA = {
     'database': 'TEST_DATABASE',
     'outputLocation': 's3://test_s3_bucket/',
     'client_request_token': 'eac427d0-1c6d-4dfb-96aa-2835d3ac6595',
-    'workgroup': 'default'
+    'workgroup': 'primary'
 }
 
 query_context = {

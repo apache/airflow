@@ -15,23 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
-# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
-set -euo pipefail
-
-MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
-
 if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
     set -x
 fi
 
-# shellcheck source=scripts/ci/in_container/_in_container_utils.sh
-. "${MY_DIR}/_in_container_utils.sh"
-
-in_container_basic_sanity_check
-
-in_container_script_start
+# shellcheck source=scripts/ci/in_container/_in_container_script_init.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
 TRAVIS=${TRAVIS:=}
 
@@ -209,18 +198,20 @@ if [[ -n ${RUN_INTEGRATION_TESTS:=""} ]]; then
     CI_ARGS+=("--integrations" "${RUN_INTEGRATION_TESTS}" "-rpfExX")
 fi
 
-TEST_DIR="tests/"
+TESTS_TO_RUN="tests/"
+
+if [[ ${#@} -gt 0 && -n "$1" ]]; then
+    TESTS_TO_RUN="$1"
+fi
 
 if [[ -n ${RUNTIME} ]]; then
     CI_ARGS+=("--runtime" "${RUNTIME}" "-rpfExX")
-    TEST_DIR="tests/runtime"
+    TESTS_TO_RUN="tests/runtime"
     if [[ ${RUNTIME} == "kubernetes" ]]; then
         export SKIP_INIT_DB=true
         "${MY_DIR}/deploy_airflow_to_kubernetes.sh"
     fi
 fi
 
-ARGS=("${CI_ARGS[@]}" "${TEST_DIR}")
+ARGS=("${CI_ARGS[@]}" "${TESTS_TO_RUN}")
 "${MY_DIR}/run_ci_tests.sh" "${ARGS[@]}"
-
-in_container_script_end

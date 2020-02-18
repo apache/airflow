@@ -35,7 +35,7 @@ from datetime import datetime
 from typing import Optional
 
 from airflow import AirflowException, settings
-from airflow.models import DagBag, DagModel, DagPickle, Log
+from airflow.models import DAG, DagBag, DagModel, DagPickle, Log
 from airflow.utils import cli_action_loggers
 from airflow.utils.session import provide_session
 
@@ -149,7 +149,7 @@ def get_dag_by_file_location(dag_id: str):
     return dagbag.dags[dag_id]
 
 
-def get_dag(subdir: Optional[str], dag_id: str):
+def get_dag(subdir: Optional[str], dag_id: str) -> DAG:
     """Returns DAG of a given dag_id"""
     dagbag = DagBag(process_subdir(subdir))
     if dag_id not in dagbag.dags:

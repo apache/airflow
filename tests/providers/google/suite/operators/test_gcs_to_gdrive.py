@@ -19,9 +19,9 @@ import unittest
 from unittest import mock
 
 from airflow import AirflowException
-from airflow.providers.google.suite.operators.gcs_to_gdrive_operator import GCSToGoogleDriveOperator
+from airflow.providers.google.suite.operators.gcs_to_gdrive import GCSToGoogleDriveOperator
 
-MODULE = "airflow.providers.google.suite.operators.gcs_to_gdrive_operator"
+MODULE = "airflow.providers.google.suite.operators.gcs_to_gdrive"
 
 
 class TestGcsToGDriveOperator(unittest.TestCase):

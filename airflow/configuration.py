@@ -28,7 +28,7 @@ from base64 import b64encode
 from collections import OrderedDict
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple, Union
 
 import yaml
 from cryptography.fernet import Fernet
@@ -335,7 +335,7 @@ class AirflowConfigParser(ConfigParser):
         if self.airflow_defaults.has_option(section, option) and remove_default:
             self.airflow_defaults.remove_option(section, option)
 
-    def getsection(self, section):
+    def getsection(self, section: str) -> Optional[Dict[str, Union[str, int, float, bool]]]:
         """
         Returns the section as a dict. Values are converted to int, float, bool
         as required.
@@ -343,22 +343,24 @@ class AirflowConfigParser(ConfigParser):
         :param section: section from the config
         :rtype: dict
         """
-        if (section not in self._sections and
-                section not in self.airflow_defaults._sections):
+        if (section not in self._sections and section not in self.airflow_defaults._sections):  # type: ignore
             return None
 
-        _section = copy.deepcopy(self.airflow_defaults._sections[section])
+        _section = copy.deepcopy(self.airflow_defaults._sections[section])  # type: ignore
 
-        if section in self._sections:
-            _section.update(copy.deepcopy(self._sections[section]))
+        if section in self._sections:  # type: ignore
+            _section.update(copy.deepcopy(self._sections[section]))  # type: ignore
 
         section_prefix = 'AIRFLOW__{S}__'.format(S=section.upper())
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
-                key = env_var.replace(section_prefix, '').lower()
+                key = env_var.replace(section_prefix, '')
+                if key.endswith("_CMD"):
+                    key = key[:-4]
+                key = key.lower()
                 _section[key] = self._get_env_var_option(section, key)
 
-        for key, val in _section.items():
+        for key, val in _section.items():  # type: ignore
             try:
                 val = int(val)
             except ValueError:
@@ -371,6 +373,18 @@ class AirflowConfigParser(ConfigParser):
                         val = False
             _section[key] = val
         return _section
+
+    def write(self, fp, space_around_delimiters=True):
+        # This is based on the configparser.RawConfigParser.write method code to add support for
+        # reading options from environment variables.
+        if space_around_delimiters:
+            d = " {} ".format(self._delimiters[0])  # type: ignore
+        else:
+            d = self._delimiters[0]  # type: ignore
+        if self._defaults:
+            self._write_section(fp, self.default_section, self._defaults.items(), d)  # type: ignore
+        for section in self._sections:
+            self._write_section(fp, section, self.getsection(section).items(), d)  # type: ignore
 
     def as_dict(
             self, display_source=False, display_sensitive=False, raw=False,

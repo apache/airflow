@@ -402,11 +402,11 @@ HOOK = [
         'airflow.hooks.jdbc_hook.JdbcHook',
     ),
     (
-        'airflow.providers.amazon.aws.hooks.aws_hook.AwsHook',
+        'airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook',
         'airflow.contrib.hooks.aws_hook.AwsHook',
     ),
     (
-        'airflow.providers.amazon.aws.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
+        'airflow.providers.amazon.aws.hooks.aws_dynamodb.AwsDynamoDBHook',
         'airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook',
     ),
     (
@@ -1365,7 +1365,7 @@ OPERATOR = [
         'airflow.contrib.operators.file_to_wasb.FileToWasbOperator',
     ),
     (
-        'airflow.providers.google.suite.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator',
+        'airflow.providers.google.suite.operators.gcs_to_gdrive.GCSToGoogleDriveOperator',
         'airflow.contrib.operators.gcs_to_gdrive_operator.GCSToGoogleDriveOperator',
     ),
     (

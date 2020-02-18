@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -eu
+set -euo pipefail
+
 MY_DIR=$(cd "$(dirname "$0")" && pwd)
 
 AIRFLOW_SOURCES=$(
@@ -25,12 +26,20 @@ AIRFLOW_SOURCES=$(
 )
 export AIRFLOW_SOURCES
 
+# We keep _utils here because we are not in the in_container directory
 # shellcheck source=scripts/ci/in_container/_in_container_utils.sh
 . "${MY_DIR}/../../_in_container_utils.sh"
 
 assert_in_container
 
 in_container_script_start
+
+function end_and_dump_logs() {
+    dump_logs
+    in_container_script_end
+}
+
+trap in_container_script_end EXIT
 
 export TEMPLATE_DIRNAME="${MY_DIR}/templates"
 export BUILD_DIRNAME="${MY_DIR}/build"
@@ -64,8 +73,14 @@ else
     CONFIGMAP_DAGS_VOLUME_CLAIM=
 fi
 
-CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/airflow}
-CONFIGMAP_BRANCH=${DEFAULT_BRANCH:=master}
+if [[ ${TRAVIS_PULL_REQUEST} != "" && ${TRAVIS_PULL_REQUEST} != "false" ]]; then
+    CONFIGMAP_GIT_REPO=${TRAVIS_PULL_REQUEST_SLUG}
+    CONFIGMAP_BRANCH=${TRAVIS_PULL_REQUEST_BRANCH}
+else
+    CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/airflow}
+    CONFIGMAP_BRANCH=${TRAVIS_BRANCH:=master}
+fi
+
 
 if [[ "${KUBERNETES_MODE}" == "persistent_mode" ]]; then
     sed -e "s/{{INIT_GIT_SYNC}}//g" \
@@ -128,6 +143,7 @@ dump_logs() {
 }
 
 set +x
+set +o pipefail
 # wait for up to 10 minutes for everything to be deployed
 PODS_ARE_READY="0"
 for i in {1..150}; do
@@ -172,15 +188,11 @@ for i in {1..30}; do
     fi
     sleep 10
 done
+set -o pipefail
 
 if [[ "${AIRFLOW_WEBSERVER_IS_READY}" == "1" ]]; then
     echo "Airflow webserver is ready."
 else
     echo >&2 "Airflow webserver is not ready after waiting for a long time. Exiting..."
-    dump_logs
     exit 1
 fi
-
-dump_logs
-
-in_container_script_end

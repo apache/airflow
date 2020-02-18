@@ -1386,6 +1386,20 @@
       type: string
       example: ~
       default: ""
+    - name: statsd_datadog_enabled
+      description: |
+        To enable datadog integration to send airflow metrics.
+      version_added: ~
+      type: string
+      example: ~
+      default: "False"
+    - name: statsd_datadog_tags
+      description: |
+        List of datadog tags attached to all metrics(e.g: key1:value1,key2:value2)
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     - name: max_threads
       description: |
         The scheduler can run multiple threads in parallel to schedule dags.
@@ -1622,6 +1636,13 @@
     - name: worker_container_repository
       description: |
         The repository of the Kubernetes Image for the Worker to Run
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    - name: pod_template_file
+      description: |
+        Path to the YAML pod file. If set, all other kubernetes-related fields are ignored.
       version_added: ~
       type: string
       example: ~

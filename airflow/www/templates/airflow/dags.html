@@ -17,7 +17,7 @@
  under the License.
 #}
 
-{% extends "airflow/master.html" %}
+{% extends base_template %}
 
 {% block page_title %}
   {% if search_query %}
@@ -147,8 +147,7 @@
                 {% if dag %}
 
                 <!-- Trigger Dag -->
-                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}"
-                   onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
+                <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}">
                     <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
                 </a>
 
@@ -281,11 +280,11 @@
         return false;
       }
 
-      var encoded_dag_ids = [];
+      var encoded_dag_ids = new URLSearchParams();
 
       $.each($("[id^=toggle]"), function(i, v) {
         var dag_id = $(v).attr('dag_id');
-        encoded_dag_ids.push(encodeURIComponent(dag_id));
+        encoded_dag_ids.append('dag_ids', dag_id);
 
         $(v).change (function() {
           if ($(v).prop('checked')) {
@@ -522,12 +521,20 @@
         });
       }
 
-      if (encoded_dag_ids.length > 0) {
+      if (encoded_dag_ids.has('dag_ids')) {
         // dags on page fetch stats
-        d3.json("{{ url_for('Airflow.blocked') }}?dag_ids="  + (encoded_dag_ids.join(',')), blockedHandler);
-        d3.json("{{ url_for('Airflow.last_dagruns') }}?dag_ids=" + (encoded_dag_ids.join(',')), lastDagRunsHandler);
-        d3.json("{{ url_for('Airflow.dag_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), dagStatsHandler);
-        d3.json("{{ url_for('Airflow.task_stats') }}?dag_ids=" + (encoded_dag_ids.join(',')), taskStatsHandler);
+        d3.json("{{ url_for('Airflow.blocked') }}")
+          .header("X-CSRFToken", "{{ csrf_token() }}")
+          .post(encoded_dag_ids, blockedHandler);
+        d3.json("{{ url_for('Airflow.last_dagruns') }}")
+          .header("X-CSRFToken", "{{ csrf_token() }}")
+          .post(encoded_dag_ids, lastDagRunsHandler);
+        d3.json("{{ url_for('Airflow.dag_stats') }}")
+          .header("X-CSRFToken", "{{ csrf_token() }}")
+          .post(encoded_dag_ids, dagStatsHandler);
+        d3.json("{{ url_for('Airflow.task_stats') }}")
+          .header("X-CSRFToken", "{{ csrf_token() }}")
+          .post(encoded_dag_ids, taskStatsHandler);
       }
       else {
         // no dags, hide the loading gifs

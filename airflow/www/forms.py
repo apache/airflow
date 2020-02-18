@@ -162,3 +162,33 @@ class ConnectionForm(DynamicForm):
     extra__grpc__scopes = StringField(
         lazy_gettext('Scopes (comma separated)'),
         widget=BS3TextFieldWidget())
+    extra__yandexcloud__service_account_json = PasswordField(
+        lazy_gettext('Service account auth JSON'),
+        widget=BS3PasswordFieldWidget(),
+        description='Service account auth JSON. Looks like '
+                    '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                    'Will be used instead of OAuth token and SA JSON file path field if specified.',
+    )
+    extra__yandexcloud__service_account_json_path = StringField(
+        lazy_gettext('Service account auth JSON file path'),
+        widget=BS3TextFieldWidget(),
+        description='Service account auth JSON file path. File content looks like '
+                    '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                    'Will be used instead of OAuth token if specified.',
+    )
+    extra__yandexcloud__oauth = PasswordField(
+        lazy_gettext('OAuth Token'),
+        widget=BS3PasswordFieldWidget(),
+        description='User account OAuth token. Either this or service account JSON must be specified.',
+    )
+    extra__yandexcloud__folder_id = StringField(
+        lazy_gettext('Default folder ID'),
+        widget=BS3TextFieldWidget(),
+        description='Optional. This folder will be used to create all new clusters and nodes by default',
+    )
+    extra__yandexcloud__public_ssh_key = StringField(
+        lazy_gettext('Public SSH key'),
+        widget=BS3TextFieldWidget(),
+        description='Optional. This key will be placed to all created Compute nodes'
+        'to let you have a root shell there',
+    )

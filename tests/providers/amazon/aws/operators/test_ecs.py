@@ -51,7 +51,7 @@ RESPONSE_WITHOUT_FAILURES = {
 
 class TestECSOperator(unittest.TestCase):
 
-    @mock.patch('airflow.providers.amazon.aws.operators.ecs.AwsHook')
+    @mock.patch('airflow.providers.amazon.aws.operators.ecs.AwsBaseHook')
     def setUp(self, aws_hook_mock):
         self.aws_hook_mock = aws_hook_mock
         self.ecs_operator_args = {
@@ -95,7 +95,7 @@ class TestECSOperator(unittest.TestCase):
     ])
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
-    @mock.patch('airflow.providers.amazon.aws.operators.ecs.AwsHook')
+    @mock.patch('airflow.providers.amazon.aws.operators.ecs.AwsBaseHook')
     def test_execute_without_failures(self, launch_type, tags, aws_hook_mock,
                                       check_mock, wait_mock):
         client_mock = aws_hook_mock.return_value.get_client_type.return_value

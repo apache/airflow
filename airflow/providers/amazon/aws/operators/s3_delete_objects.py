@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.decorators import apply_defaults
@@ -75,12 +74,4 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
-
-        response = s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
-
-        deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
-        self.log.info("Deleted: %s", deleted_keys)
-
-        if "Errors" in response:
-            errors_keys = [x['Key'] for x in response.get("Errors", [])]
-            raise AirflowException("Errors when deleting: {}".format(errors_keys))
+        s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)

@@ -20,9 +20,9 @@ from datetime import datetime, timedelta
 from six.moves.urllib.request import Request
 
 from airflow import DAG
-from airflow.contrib.hooks.jenkins_hook import JenkinsHook
-from airflow.contrib.operators.jenkins_job_trigger_operator import JenkinsJobTriggerOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
+from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
+from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
 datetime_start_date = datetime(2017, 6, 1)
 default_args = {

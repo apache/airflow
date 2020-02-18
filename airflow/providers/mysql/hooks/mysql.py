@@ -169,10 +169,10 @@ class MySqlHook(DbApiHook):
         Uses AWSHook to retrieve a temporary password to connect to MySQL
         Port is required. If none is provided, default 3306 is used
         """
-        from airflow.providers.amazon.aws.hooks.aws_hook import AwsHook
+        from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
         aws_conn_id = conn.extra_dejson.get('aws_conn_id', 'aws_default')
-        aws_hook = AwsHook(aws_conn_id)
+        aws_hook = AwsBaseHook(aws_conn_id)
         if conn.port is None:
             port = 3306
         else:
