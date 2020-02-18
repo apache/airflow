@@ -17,6 +17,7 @@
 # under the License.
 """Hook for Web HDFS"""
 import logging
+import socket
 
 from hdfs import HdfsError, InsecureClient
 
@@ -56,27 +57,36 @@ class WebHDFSHook(BaseHook):
     def get_conn(self):
         """
         Establishes a connection depending on the security mode set via config or environment variable.
-
         :return: a hdfscli InsecureClient or KerberosClient object.
         :rtype: hdfs.InsecureClient or hdfs.ext.kerberos.KerberosClient
         """
+        connection = self._find_vaild_server()
+        if connection is None:
+            raise AirflowException("Failed to locate the valid server.")
+        return connection
+
+    def _find_vaild_server(self):
         connections = self.get_connections(self.webhdfs_conn_id)
-
         for connection in connections:
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.log.info("Trying to connect to %s:%s", connection.host, connection.port)
             try:
-                self.log.debug('Trying namenode %s', connection.host)
-                client = self._get_client(connection)
-                client.status('/')
-                self.log.debug('Using namenode %s for hook', connection.host)
-                return client
-            except HdfsError as hdfs_error:
-                self.log.debug('Read operation on namenode %s failed with error: %s',
-                               connection.host, hdfs_error)
-
-        hosts = [connection.host for connection in connections]
-        error_message = 'Read operations failed on the namenodes below:\n{hosts}'.format(
-            hosts='\n'.join(hosts))
-        raise AirflowWebHDFSHookException(error_message)
+                conn_check = host_socket.connect_ex((connection.host, connection.port))
+                if conn_check == 0:
+                    try:
+                        self.log.info('Trying namenode %s', connection.host)
+                        client = self._get_client(connection)
+                        client.status('/')
+                        self.log.info('Using namenode %s for hook', connection.host)
+                        return client
+                    except HdfsError as hdfs_error:
+                        logging.info('Read operation on namenode %s failed with error: %s',
+                                     connection.host, hdfs_error)
+                else:
+                    self.log.info("Could not connect to %s:%s", connection.host, connection.port)
+            except Exception as err:
+                self.log.info(err)
+            host_socket.close()
 
     def _get_client(self, connection):
         connection_str = 'http://{host}:{port}'.format(host=connection.host, port=connection.port)
