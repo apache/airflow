@@ -93,8 +93,12 @@ class SingularityOperator(BaseOperator):
         self.container = None
 
     def execute(self, context):
+
         self.log.info('Preparing Singularity container %s', self.image)
         self.cli = Client
+
+        if not self.command:
+            raise AirflowException('You must define a command.')
 
         # Pull the container if asked, and ensure not a binary file
         if self.force_pull and not os.path.exists(self.image):
