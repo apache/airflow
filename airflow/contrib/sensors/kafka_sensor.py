@@ -12,15 +12,19 @@
 
 import logging
 
-from src.kafka_hook import KafkaConsumerHook
-from airflow.operators.sensors import BaseSensorOperator
-from airflow.utils import apply_defaults
+from werkzeug.utils import cached_property
+
+from airflow.contrib.hooks.kafka_consumer_hook import KafkaConsumerHook
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class KafkaSensor(BaseSensorOperator):
     """
     Consumes the Kafka message with the specific topic
     """
+
+    templated_fields = ('topic',)
 
     @apply_defaults
     def __init__(self, conn_id, topic, *args, **kwargs):
@@ -34,8 +38,12 @@ class KafkaSensor(BaseSensorOperator):
             the subscribed topic
         """
         self.topic = topic
-        self.hook = KafkaConsumerHook(conn_id, topic)
+        self.conn_id = conn_id
         super(KafkaSensor, self).__init__(*args, **kwargs)
+
+    @cached_property
+    def hook(self):
+        return KafkaConsumerHook(self.conn_id, self.topic)
 
     def poke(self, context):
         logging.info(

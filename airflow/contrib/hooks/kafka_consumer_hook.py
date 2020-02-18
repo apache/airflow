@@ -16,8 +16,8 @@ from kafka import KafkaConsumer
 
 class KafkaConsumerHook(BaseHook):
 
-    default_host = 'localhost'
-    default_port = 9092
+    DEFAULT_HOST = 'localhost'
+    DEFAULT_PORT = 9092
 
     def __init__(self, conn_id, topic):
         super(KafkaConsumerHook, self).__init__(None)
@@ -29,21 +29,21 @@ class KafkaConsumerHook(BaseHook):
 
     def get_conn(self):
         conf = self.conn.extra_dejson
-        host = self.conn.host or self.default_host
-        port = self.conn.port or self.default_port
+        host = self.conn.host or self.DEFAULT_HOST
+        port = self.conn.port or self.DEFAULT_PORT
 
         # Disable auto commit as the hook will commit right
         # after polling.
         conf['enable_auto_commit'] = False
 
-        self.server = '{host}:{port}'.format(**locals())
+        self.server = f"""{host}:{port}"""
         self.consumer = KafkaConsumer(
             self.topic,
             bootstrap_servers=self.server, **conf)
 
         return self.consumer
 
-    def get_messages(self):
+    def get_messages(self, timeout_ms=50):
         """
         Get all the messages haven't been consumed, it doesn't
         block by default, then commit the offset.
@@ -51,12 +51,14 @@ class KafkaConsumerHook(BaseHook):
             A list of messages
         """
         consumer = self.get_conn()
+        try:
+            # `poll` returns a dict where keys are the partitions
+            # and values are the corresponding messages.
+            messages = consumer.poll(timeout_ms)
 
-        # `poll` returns a dict where keys are the partitions
-        # and values are the corresponding messages.
-        messages = consumer.poll(timeout_ms=50)
-
-        consumer.commit()
+            consumer.commit()
+        finally:
+            consumer.close()
         return messages
 
     def __repr__(self):
